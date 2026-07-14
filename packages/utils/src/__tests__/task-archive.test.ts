@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
+  isParkedVendorGrantTask,
   isTaskArchivableStatus,
   TASK_ARCHIVABLE_STATUSES,
 } from "../task-archive.js";
@@ -21,8 +23,15 @@ describe("task-archive", () => {
     "RUNNING",
     "AWAITING_EXTERNAL",
     "CANCEL_REQUESTED",
+    "APPROVAL_REQUIRED",
   ] as const)("isTaskArchivableStatus returns false for %s", (status) => {
     expect(isTaskArchivableStatus(status)).toBe(false);
+  });
+
+  it("treats parked vendor-grant tasks as archivable", () => {
+    expect(isParkedVendorGrantTask("APPROVAL_REQUIRED", "grant_1")).toBe(true);
+    expect(canArchiveTaskStatus("APPROVAL_REQUIRED", "grant_1")).toBe(true);
+    expect(canArchiveTaskStatus("APPROVAL_REQUIRED", null)).toBe(false);
   });
 
   it("lists every archivable status in TASK_ARCHIVABLE_STATUSES", () => {

@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
+  canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
-  isTaskArchivableStatus,
 } from "@sokosumi/utils";
 
 import { requireTaskArchiveAccess } from "@/helpers/access-control";
@@ -51,7 +51,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.$transaction(async (tx) => {
       const currentTask = await requireTaskArchiveAccess(userContext, id, tx);
 
-      if (!isTaskArchivableStatus(currentTask.status)) {
+      if (
+        !canArchiveTaskStatus(
+          currentTask.status,
+          currentTask.pendingVendorGrantId,
+        )
+      ) {
         throw unprocessableEntity(
           getTaskCannotArchiveMessage(currentTask.status),
         );

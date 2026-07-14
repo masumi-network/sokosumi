@@ -170,7 +170,9 @@ export {
   type StripeBillingAddressLike,
 } from "./stripe-billing-address.js";
 export {
+  canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
+  isParkedVendorGrantTask,
   isTaskArchivableStatus,
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,

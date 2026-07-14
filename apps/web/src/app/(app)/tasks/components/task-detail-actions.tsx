@@ -185,15 +185,15 @@ export function TaskDetailActions({
 
   const canEdit = canMutateTask && isTaskEditableStatus(status);
   // Archive while parked mirrors Core requireTaskArchiveAccess (UI is not the gate).
+  const canArchiveParked = canArchiveParkedTaskForViewer({
+    forceReadOnly,
+    pendingApproval,
+    isTaskOwner,
+    isOrgOwnerOrAdmin,
+  });
   const canArchiveTask =
-    isTaskArchivableStatus(status) &&
-    (!isReadOnly ||
-      canArchiveParkedTaskForViewer({
-        forceReadOnly,
-        pendingApproval,
-        isTaskOwner,
-        isOrgOwnerOrAdmin,
-      }));
+    canArchiveParked ||
+    (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||

@@ -211,4 +211,44 @@ describe("DELETE /tasks/{id}", () => {
     const body = (await response.json()) as { message?: string };
     expect(body.message).toBe(getTaskCannotArchiveMessage(TaskStatus.RUNNING));
   });
+
+  it("archives parked APPROVAL_REQUIRED tasks", async () => {
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue({
+      ...archivedTask,
+      status: TaskStatus.APPROVAL_REQUIRED,
+      pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+          findFirstOrThrow: findFirstOrThrowMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.APPROVAL_REQUIRED,
+      pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "tsk_123",
+          status: TaskStatus.APPROVAL_REQUIRED,
+        }),
+      }),
+    );
+  });
 });
