@@ -3488,6 +3488,10 @@
         "statusRevoked": "Revocata",
         "statusNone": "Non concessa",
         "bundledWithRead": "Inclusa con la lettura",
+        "coworkerPermissions": "Permessi del coworker",
+        "accessAllRevoked": "Tutti i permessi revocati",
+        "accessAllDenied": "Tutti i permessi rifiutati",
+        "accessPending": "Richiesta di accesso in sospeso",
         "approveWithComment": "Approva lettura e commento",
         "grantFormTitle": "Concedi accesso in modo proattivo",
         "Permissions": {
@@ -3600,6 +3604,10 @@
           "statusRevoked": "Revocata",
           "statusNone": "Non concessa",
           "bundledWithRead": "Inclusa con la lettura",
+          "coworkerPermissions": "Permessi del coworker",
+          "accessAllRevoked": "Tutti i permessi revocati",
+          "accessAllDenied": "Tutti i permessi rifiutati",
+          "accessPending": "Richiesta di accesso in sospeso",
           "approveWithComment": "Approva lettura e commento",
           "grantFormTitle": "Concedi accesso in modo proattivo",
           "Permissions": {

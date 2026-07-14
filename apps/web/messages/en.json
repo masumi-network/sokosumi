@@ -3584,6 +3584,10 @@
         "statusRevoked": "Revoked",
         "statusNone": "Not granted",
         "bundledWithRead": "Included with read",
+        "coworkerPermissions": "Coworker permissions",
+        "accessAllRevoked": "All permissions revoked",
+        "accessAllDenied": "All permissions denied",
+        "accessPending": "Access request pending",
         "approveWithComment": "Approve read & comment",
         "grantFormTitle": "Grant access proactively",
         "Permissions": {
@@ -3611,7 +3615,16 @@
           "revokeError": "Failed to revoke vendor access",
           "grant": "Grant",
           "grantSuccess": "Vendor access granted",
-          "grantError": "Failed to grant vendor access"
+          "grantError": "Failed to grant vendor access",
+          "approveAll": "Approve all",
+          "denyAll": "Deny all",
+          "revokeAll": "Revoke all",
+          "approveAllSuccess": "All vendor permissions approved",
+          "denyAllSuccess": "All vendor permissions denied",
+          "revokeAllSuccess": "All vendor permissions revoked",
+          "approveAllError": "Failed to approve vendor permissions",
+          "denyAllError": "Failed to deny vendor permissions",
+          "revokeAllError": "Failed to revoke vendor permissions"
         }
       }
     },
@@ -3697,6 +3710,10 @@
           "statusRevoked": "Revoked",
           "statusNone": "Not granted",
           "bundledWithRead": "Included with read",
+          "coworkerPermissions": "Coworker permissions",
+          "accessAllRevoked": "All permissions revoked",
+          "accessAllDenied": "All permissions denied",
+          "accessPending": "Access request pending",
           "approveWithComment": "Approve read & comment",
           "grantFormTitle": "Grant access proactively",
           "Permissions": {
@@ -3724,7 +3741,16 @@
             "revokeError": "Failed to revoke vendor access",
             "grant": "Grant",
             "grantSuccess": "Vendor access granted",
-            "grantError": "Failed to grant vendor access"
+            "grantError": "Failed to grant vendor access",
+            "approveAll": "Approve all",
+            "denyAll": "Deny all",
+            "revokeAll": "Revoke all",
+            "approveAllSuccess": "All vendor permissions approved",
+            "denyAllSuccess": "All vendor permissions denied",
+            "revokeAllSuccess": "All vendor permissions revoked",
+            "approveAllError": "Failed to approve vendor permissions",
+            "denyAllError": "Failed to deny vendor permissions",
+            "revokeAllError": "Failed to revoke vendor permissions"
           }
         }
       }

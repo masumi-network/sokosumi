@@ -3457,6 +3457,10 @@
         "statusRevoked": "Revocado",
         "statusNone": "Sin conceder",
         "bundledWithRead": "Incluido con lectura",
+        "coworkerPermissions": "Permisos del coworker",
+        "accessAllRevoked": "Todos los permisos revocados",
+        "accessAllDenied": "Todos los permisos rechazados",
+        "accessPending": "Solicitud de acceso pendiente",
         "approveWithComment": "Aprobar lectura y comentario",
         "grantFormTitle": "Conceder acceso de forma proactiva",
         "Permissions": {
@@ -3569,6 +3573,10 @@
           "statusRevoked": "Revocado",
           "statusNone": "Sin conceder",
           "bundledWithRead": "Incluido con lectura",
+          "coworkerPermissions": "Permisos del coworker",
+          "accessAllRevoked": "Todos los permisos revocados",
+          "accessAllDenied": "Todos los permisos rechazados",
+          "accessPending": "Solicitud de acceso pendiente",
           "approveWithComment": "Aprobar lectura y comentario",
           "grantFormTitle": "Conceder acceso de forma proactiva",
           "Permissions": {

@@ -3457,6 +3457,10 @@
         "statusRevoked": "Widerrufen",
         "statusNone": "Nicht gewährt",
         "bundledWithRead": "Enthalten in Lesen",
+        "coworkerPermissions": "Coworker-Berechtigungen",
+        "accessAllRevoked": "Alle Berechtigungen widerrufen",
+        "accessAllDenied": "Alle Berechtigungen abgelehnt",
+        "accessPending": "Zugriffsanfrage ausstehend",
         "approveWithComment": "Lesen & Kommentieren genehmigen",
         "grantFormTitle": "Zugriff proaktiv gewähren",
         "Permissions": {
@@ -3484,7 +3488,16 @@
           "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
           "grant": "Gewähren",
           "grantSuccess": "Vendor-Zugriff gewährt",
-          "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+          "grantError": "Vendor-Zugriff konnte nicht gewährt werden",
+          "approveAll": "Alle genehmigen",
+          "denyAll": "Alle ablehnen",
+          "revokeAll": "Alle widerrufen",
+          "approveAllSuccess": "Alle Vendor-Berechtigungen genehmigt",
+          "denyAllSuccess": "Alle Vendor-Berechtigungen abgelehnt",
+          "revokeAllSuccess": "Alle Vendor-Berechtigungen widerrufen",
+          "approveAllError": "Vendor-Berechtigungen konnten nicht genehmigt werden",
+          "denyAllError": "Vendor-Berechtigungen konnten nicht abgelehnt werden",
+          "revokeAllError": "Vendor-Berechtigungen konnten nicht widerrufen werden"
         }
       }
     },
@@ -3569,6 +3582,10 @@
           "statusRevoked": "Widerrufen",
           "statusNone": "Nicht gewährt",
           "bundledWithRead": "Enthalten in Lesen",
+          "coworkerPermissions": "Coworker-Berechtigungen",
+          "accessAllRevoked": "Alle Berechtigungen widerrufen",
+          "accessAllDenied": "Alle Berechtigungen abgelehnt",
+          "accessPending": "Zugriffsanfrage ausstehend",
           "approveWithComment": "Lesen & Kommentieren genehmigen",
           "grantFormTitle": "Zugriff proaktiv gewähren",
           "Permissions": {
@@ -3596,7 +3613,16 @@
             "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
-            "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+            "grantError": "Vendor-Zugriff konnte nicht gewährt werden",
+            "approveAll": "Alle genehmigen",
+            "denyAll": "Alle ablehnen",
+            "revokeAll": "Alle widerrufen",
+            "approveAllSuccess": "Alle Vendor-Berechtigungen genehmigt",
+            "denyAllSuccess": "Alle Vendor-Berechtigungen abgelehnt",
+            "revokeAllSuccess": "Alle Vendor-Berechtigungen widerrufen",
+            "approveAllError": "Vendor-Berechtigungen konnten nicht genehmigt werden",
+            "denyAllError": "Vendor-Berechtigungen konnten nicht abgelehnt werden",
+            "revokeAllError": "Vendor-Berechtigungen konnten nicht widerrufen werden"
           }
         }
       }

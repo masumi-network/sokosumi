@@ -26,6 +26,71 @@ export type VendorGrantGroup = {
   hasPending: boolean;
 };
 
+/** Pending grants the user must act on (excludes comment bundled with read). */
+export function getActionablePendingGrants(
+  group: VendorGrantGroup,
+): VendorGrant[] {
+  return group.slots
+    .filter(
+      (slot) =>
+        slot.grant?.status === "PENDING" && !slot.bundledWithPendingRead,
+    )
+    .map((slot) => slot.grant!);
+}
+
+export function getGrantedGrants(group: VendorGrantGroup): VendorGrant[] {
+  return group.slots
+    .filter((slot) => slot.grant?.status === "GRANTED")
+    .map((slot) => slot.grant!);
+}
+
+export function isFullyGranted(group: VendorGrantGroup): boolean {
+  return getGrantedGrants(group).length === VENDOR_PERMISSION_ORDER.length;
+}
+
+export function getMissingPermissions(
+  group: VendorGrantGroup,
+): VendorGrantPermission[] {
+  return group.slots
+    .filter((slot) => slot.grant?.status !== "GRANTED")
+    .map((slot) => slot.permission);
+}
+
+export function getPermissionsToCreate(
+  group: VendorGrantGroup,
+): VendorGrantPermission[] {
+  return group.slots
+    .filter((slot) => slot.grant === null)
+    .map((slot) => slot.permission);
+}
+
+export function getDeniedOrRevokedGrants(
+  group: VendorGrantGroup,
+): VendorGrant[] {
+  return group.slots
+    .filter(
+      (slot) =>
+        slot.grant?.status === "DENIED" || slot.grant?.status === "REVOKED",
+    )
+    .map((slot) => slot.grant!);
+}
+
+const PENDING_APPROVE_ORDER: Record<VendorGrantPermission, number> = {
+  "task:read": 0,
+  "task:comment": 1,
+  "task:create": 2,
+};
+
+export function orderGrantsForBundledActions(
+  grants: VendorGrant[],
+): VendorGrant[] {
+  return grants.toSorted(
+    (left, right) =>
+      PENDING_APPROVE_ORDER[left.permission] -
+      PENDING_APPROVE_ORDER[right.permission],
+  );
+}
+
 /**
  * Groups all grants into one card per vendor with fixed permission slots.
  * Vendors with any PENDING grant sort first, then by vendor name.

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { VendorGrant } from "@/lib/clients/generated/core";
-import { groupVendorGrantsByVendor } from "@/lib/utils/vendor-grant-display";
+import {
+  getActionablePendingGrants,
+  getMissingPermissions,
+  groupVendorGrantsByVendor,
+  isFullyGranted,
+  orderGrantsForBundledActions,
+  VENDOR_PERMISSION_ORDER,
+} from "@/lib/utils/vendor-grant-display";
 
 function buildGrant(
   overrides: Partial<VendorGrant> & Pick<VendorGrant, "id" | "permission">,
@@ -63,6 +70,41 @@ describe("groupVendorGrantsByVendor", () => {
     expect(group?.slots[1]?.grant?.id).toBe("comment-grant");
   });
 
+  it("orders pending grants read before create", () => {
+    const grants = [
+      buildGrant({
+        id: "create-grant",
+        permission: "task:create",
+        status: "PENDING",
+      }),
+      buildGrant({
+        id: "read-grant",
+        permission: "task:read",
+        status: "PENDING",
+      }),
+    ];
+
+    const [group] = groupVendorGrantsByVendor(grants);
+    const pending = getActionablePendingGrants(group!);
+
+    expect(
+      orderGrantsForBundledActions(pending).map((g) => g.permission),
+    ).toEqual(["task:read", "task:create"]);
+  });
+
+  it("detects fully granted vendors", () => {
+    const grants = VENDOR_PERMISSION_ORDER.map((permission, index) =>
+      buildGrant({
+        id: `grant-${index}`,
+        permission,
+        status: "GRANTED",
+      }),
+    );
+
+    const [group] = groupVendorGrantsByVendor(grants);
+    expect(isFullyGranted(group!)).toBe(true);
+    expect(getMissingPermissions(group!)).toEqual([]);
+  });
   it("sorts vendors with pending grants first, then by name", () => {
     const grants = [
       buildGrant({
