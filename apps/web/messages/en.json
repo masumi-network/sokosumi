@@ -1425,6 +1425,18 @@
         "inputRequired": "Input Required",
         "done": "Done"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Vendor access approval required",
+        "descriptionOne": "{vendorName} needs access to work with tasks in this workspace.",
+        "descriptionMany": "{count} vendors need access to work with tasks in this workspace.",
+        "descriptionMember": "A coworker requested vendor access. A workspace owner or admin must approve it.",
+        "descriptionMemberMany": "{count} vendors requested access. A workspace owner or admin must approve it.",
+        "parkedTasksHint": "{count, plural, one {# task is blocked} other {# tasks are blocked}} until access is approved.",
+        "approve": "Approve access",
+        "review": "Review details",
+        "approveSuccess": "Vendor access approved.",
+        "approveError": "Failed to approve vendor access"
+      },
       "Actions": {
         "add": "Add",
         "addTask": "Add Task",

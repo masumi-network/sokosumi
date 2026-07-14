@@ -1414,6 +1414,18 @@
         "inputRequired": "Input richiesto",
         "done": "Completato"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Approvazione accesso vendor richiesta",
+        "descriptionOne": "{vendorName} necessita di accesso per lavorare con le attività in questo workspace.",
+        "descriptionMany": "{count} vendor necessitano di accesso per lavorare con le attività in questo workspace.",
+        "descriptionMember": "Un coworker ha richiesto l'accesso vendor. Un proprietario o admin del workspace deve approvarlo.",
+        "descriptionMemberMany": "{count} vendor hanno richiesto l'accesso. Un proprietario o admin del workspace deve approvarlo.",
+        "parkedTasksHint": "{count, plural, one {# attività è bloccata} other {# attività sono bloccate}} finché l'accesso non viene approvato.",
+        "approve": "Approva accesso",
+        "review": "Vedi dettagli",
+        "approveSuccess": "Accesso vendor approvato.",
+        "approveError": "Impossibile approvare l'accesso vendor"
+      },
       "Actions": {
         "add": "Aggiungi",
         "addTask": "Aggiungi task",

@@ -1414,6 +1414,18 @@
         "inputRequired": "入力が必要",
         "done": "完了"
       },
+      "PendingVendorGrantBanner": {
+        "title": "ベンダーアクセスの承認が必要です",
+        "descriptionOne": "{vendorName} がこのワークスペースでタスクを扱うにはアクセスが必要です。",
+        "descriptionMany": "{count} 件のベンダーがこのワークスペースでタスクを扱うにはアクセスが必要です。",
+        "descriptionMember": "コワーカーがベンダーアクセスをリクエストしました。ワークスペースのオーナーまたは管理者が承認する必要があります。",
+        "descriptionMemberMany": "{count} 件のベンダーがアクセスをリクエストしました。ワークスペースのオーナーまたは管理者が承認する必要があります。",
+        "parkedTasksHint": "アクセスが承認されるまで、{count, plural, other {# 件のタスクがブロックされています}}。",
+        "approve": "アクセスを承認",
+        "review": "詳細を確認",
+        "approveSuccess": "ベンダーアクセスを承認しました。",
+        "approveError": "ベンダーアクセスの承認に失敗しました"
+      },
       "Actions": {
         "add": "追加",
         "addTask": "タスクを追加",

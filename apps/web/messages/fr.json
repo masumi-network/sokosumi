@@ -1414,6 +1414,18 @@
         "inputRequired": "Saisie requise",
         "done": "Terminé"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Approbation d'accès fournisseur requise",
+        "descriptionOne": "{vendorName} a besoin d'un accès pour travailler avec les tâches dans cet espace de travail.",
+        "descriptionMany": "{count} fournisseurs ont besoin d'un accès pour travailler avec les tâches dans cet espace de travail.",
+        "descriptionMember": "Un coworker a demandé un accès fournisseur. Un propriétaire ou administrateur de l'espace de travail doit l'approuver.",
+        "descriptionMemberMany": "{count} fournisseurs ont demandé un accès. Un propriétaire ou administrateur de l'espace de travail doit l'approuver.",
+        "parkedTasksHint": "{count, plural, one {# tâche est bloquée} other {# tâches sont bloquées}} jusqu'à l'approbation de l'accès.",
+        "approve": "Approuver l'accès",
+        "review": "Voir les détails",
+        "approveSuccess": "Accès fournisseur approuvé.",
+        "approveError": "Échec de l'approbation de l'accès fournisseur"
+      },
       "Actions": {
         "add": "Ajouter",
         "addTask": "Ajouter une tâche",

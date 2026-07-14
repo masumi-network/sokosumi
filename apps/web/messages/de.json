@@ -1414,6 +1414,18 @@
         "inputRequired": "Input erforderlich",
         "done": "Erledigt"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Freigabe des Vendor-Zugriffs erforderlich",
+        "descriptionOne": "{vendorName} benötigt Zugriff, um mit Aufgaben in diesem Workspace zu arbeiten.",
+        "descriptionMany": "{count} Vendors benötigen Zugriff, um mit Aufgaben in diesem Workspace zu arbeiten.",
+        "descriptionMember": "Ein Coworker hat Vendor-Zugriff angefragt. Ein Workspace-Inhaber oder Admin muss dies genehmigen.",
+        "descriptionMemberMany": "{count} Vendors haben Zugriff angefragt. Ein Workspace-Inhaber oder Admin muss dies genehmigen.",
+        "parkedTasksHint": "{count, plural, one {# Aufgabe ist blockiert} other {# Aufgaben sind blockiert}}, bis der Zugriff genehmigt wurde.",
+        "approve": "Zugriff genehmigen",
+        "review": "Details ansehen",
+        "approveSuccess": "Vendor-Zugriff genehmigt.",
+        "approveError": "Vendor-Zugriff konnte nicht genehmigt werden"
+      },
       "Actions": {
         "add": "Hinzufügen",
         "addTask": "Task hinzufügen",

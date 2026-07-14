@@ -41,7 +41,7 @@ export async function OrganizationVendorGrants({
   );
 
   return (
-    <Card>
+    <Card id="vendor-workspace-access">
       <CardHeader className="space-y-2">
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>

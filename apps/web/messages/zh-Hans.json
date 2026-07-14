@@ -1414,6 +1414,18 @@
         "inputRequired": "需要输入",
         "done": "已完成"
       },
+      "PendingVendorGrantBanner": {
+        "title": "需要批准供应商访问权限",
+        "descriptionOne": "{vendorName} 需要访问权限才能在此工作区处理任务。",
+        "descriptionMany": "{count} 个供应商需要访问权限才能在此工作区处理任务。",
+        "descriptionMember": "同事请求了供应商访问权限，需要工作区所有者或管理员批准。",
+        "descriptionMemberMany": "{count} 个供应商请求了访问权限，需要工作区所有者或管理员批准。",
+        "parkedTasksHint": "在访问权限获批前，{count, plural, other {# 个任务被阻塞}}。",
+        "approve": "批准访问",
+        "review": "查看详情",
+        "approveSuccess": "已批准供应商访问。",
+        "approveError": "批准供应商访问失败"
+      },
       "Actions": {
         "add": "添加",
         "addTask": "添加任务",

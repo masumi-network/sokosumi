@@ -1414,6 +1414,18 @@
         "inputRequired": "Input requerido",
         "done": "Hecho"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Se requiere aprobación de acceso del proveedor",
+        "descriptionOne": "{vendorName} necesita acceso para trabajar con tareas en este espacio de trabajo.",
+        "descriptionMany": "{count} proveedores necesitan acceso para trabajar con tareas en este espacio de trabajo.",
+        "descriptionMember": "Un coworker solicitó acceso del proveedor. Un propietario o administrador del espacio de trabajo debe aprobarlo.",
+        "descriptionMemberMany": "{count} proveedores solicitaron acceso. Un propietario o administrador del espacio de trabajo debe aprobarlo.",
+        "parkedTasksHint": "{count, plural, one {# tarea está bloqueada} other {# tareas están bloqueadas}} hasta que se apruebe el acceso.",
+        "approve": "Aprobar acceso",
+        "review": "Ver detalles",
+        "approveSuccess": "Acceso del proveedor aprobado.",
+        "approveError": "No se pudo aprobar el acceso del proveedor"
+      },
       "Actions": {
         "add": "Añadir",
         "addTask": "Añadir Task",

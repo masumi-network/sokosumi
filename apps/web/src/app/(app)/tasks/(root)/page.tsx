@@ -2,6 +2,8 @@ import { AgentJobStatus, TaskStatus } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { Suspense } from "react";
+import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
 import { TasksView } from "@/app/tasks/components/tasks-view";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
@@ -207,6 +209,8 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const initialProjectId =
     activeFilters.projectId ?? activeJobsListFilters.projectId;
 
+  const parkedTaskCount = tasks.filter((task) => task.pendingApproval).length;
+
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
     todo: tColumns("todo"),
@@ -217,6 +221,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
 
   return (
     <div className="w-full px-2">
+      <Suspense fallback={null}>
+        <TasksPendingVendorGrantBannerSlot
+          activeOrganizationId={activeOrganizationId}
+          parkedTaskCount={parkedTaskCount}
+        />
+      </Suspense>
       <TasksView
         tasks={tasks}
         jobs={jobs}
