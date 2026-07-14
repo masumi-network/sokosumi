@@ -4,7 +4,6 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -142,7 +141,7 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     expect(response.status).toBe(201);
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: { pendingVendorGrantId: grantId },
-      data: { pendingVendorGrantId: null, status: TaskStatus.READY },
+      data: { pendingVendorGrantId: null },
     });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({

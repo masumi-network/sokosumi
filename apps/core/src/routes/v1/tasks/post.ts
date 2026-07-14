@@ -138,8 +138,7 @@ async function createTaskRecord(
     }
   }
 
-  const status =
-    pendingVendorGrantId != null ? TaskStatus.APPROVAL_REQUIRED : body.status;
+  const status = body.status;
 
   return tx.task.create({
     data: {

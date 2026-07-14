@@ -1424,7 +1424,8 @@
         "approve": "Aprobar acceso",
         "review": "Ver detalles",
         "approveSuccess": "Acceso del proveedor aprobado.",
-        "approveError": "No se pudo aprobar el acceso del proveedor"
+        "approveError": "No se pudo aprobar el acceso del proveedor",
+        "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
       },
       "Actions": {
         "add": "Añadir",

@@ -1,12 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { VendorGrantStatus } from "@sokosumi/database";
 
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
-  cancelParkedTasksForGrant,
-  toApiVendorPermission,
+  revokeVendorGrantInWorkspace,
+  toVendorGrantApiShape,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -57,51 +56,17 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       throw badRequest("Personal workspace not found");
     }
 
-    const grant = await prisma.$transaction(async (tx) => {
-      const existing = await tx.vendorGrant.findFirst({
-        where: { id: grantId, workspaceId: workspace.id },
-        include: { vendor: { select: { name: true, slug: true } } },
-      });
-
-      if (!existing) {
-        throw notFound("Vendor grant not found");
-      }
-
-      if (existing.status !== VendorGrantStatus.GRANTED) {
-        throw badRequest("Only GRANTED grants can be revoked");
-      }
-
-      const updated = await tx.vendorGrant.update({
-        where: { id: grantId },
-        data: {
-          status: VendorGrantStatus.REVOKED,
-          resolvedAt: new Date(),
+    const grant = await prisma.$transaction(async (tx) =>
+      revokeVendorGrantInWorkspace(
+        {
+          grantId,
+          workspaceId: workspace.id,
           resolvedById: resolvedUserId,
         },
-        include: { vendor: { select: { name: true, slug: true } } },
-      });
-
-      await cancelParkedTasksForGrant(updated.id, tx);
-
-      return updated;
-    });
-
-    return ok(
-      c,
-      vendorGrantSchema.parse({
-        id: grant.id,
-        vendorId: grant.vendorId,
-        vendorName: grant.vendor.name,
-        vendorSlug: grant.vendor.slug,
-        workspaceId: grant.workspaceId,
-        permission: toApiVendorPermission(grant.permission),
-        status: grant.status,
-        requestedByUserId: grant.requestedByUserId,
-        resolvedAt: grant.resolvedAt,
-        resolvedById: grant.resolvedById,
-        createdAt: grant.createdAt,
-        updatedAt: grant.updatedAt,
-      }),
+        tx,
+      ),
     );
+
+    return ok(c, vendorGrantSchema.parse(toVendorGrantApiShape(grant)));
   });
 }

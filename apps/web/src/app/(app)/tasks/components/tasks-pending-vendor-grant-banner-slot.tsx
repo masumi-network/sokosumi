@@ -77,10 +77,6 @@ export async function TasksPendingVendorGrantBannerSlot({
     organizationSlug: viewerMembership?.organization.slug,
   });
 
-  if (!reviewHref) {
-    return null;
-  }
-
   return (
     <TasksPendingVendorGrantBanner
       canApprove={canApprove}

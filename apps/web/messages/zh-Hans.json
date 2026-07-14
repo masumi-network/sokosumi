@@ -1424,7 +1424,8 @@
         "approve": "批准访问",
         "review": "查看详情",
         "approveSuccess": "已批准供应商访问。",
-        "approveError": "批准供应商访问失败"
+        "approveError": "批准供应商访问失败",
+        "approvePartialError": "已批准 {approved}/{total} 个供应商。部分批准失败，请刷新后重试。"
       },
       "Actions": {
         "add": "添加",

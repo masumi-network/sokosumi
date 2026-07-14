@@ -10,30 +10,20 @@ import {
 } from "@/routes/v1/users/user-route-context";
 
 const {
-  cancelParkedTasksForGrantMock,
+  taskUpdateManyMock,
   vendorGrantFindFirstMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
-  cancelParkedTasksForGrantMock: vi.fn(),
+  taskUpdateManyMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
 }));
-
-vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/vendor-grants")>();
-
-  return {
-    ...actual,
-    cancelParkedTasksForGrant: cancelParkedTasksForGrantMock,
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -90,13 +80,16 @@ describe("POST /users/{id}/vendor-grants/{grantId}/deny", () => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
-    cancelParkedTasksForGrantMock.mockResolvedValue(1);
+    taskUpdateManyMock.mockResolvedValue({ count: 1 });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
             update: vendorGrantUpdateMock,
+          },
+          task: {
+            updateMany: taskUpdateManyMock,
           },
         }),
     );
@@ -132,9 +125,12 @@ describe("POST /users/{id}/vendor-grants/{grantId}/deny", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(cancelParkedTasksForGrantMock).toHaveBeenCalledWith(
-      grantId,
-      expect.anything(),
-    );
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: { pendingVendorGrantId: grantId },
+      data: {
+        status: "CANCELED",
+        pendingVendorGrantId: null,
+      },
+    });
   });
 });

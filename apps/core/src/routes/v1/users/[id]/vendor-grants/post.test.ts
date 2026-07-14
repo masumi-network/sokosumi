@@ -1,6 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -133,7 +132,7 @@ describe("POST /users/{id}/vendor-grants", () => {
     expect(response.status).toBe(201);
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: { pendingVendorGrantId: grantId },
-      data: { pendingVendorGrantId: null, status: TaskStatus.READY },
+      data: { pendingVendorGrantId: null },
     });
 
     const body = await response.json();

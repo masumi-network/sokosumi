@@ -156,7 +156,6 @@ describe("vendor-grants helpers", () => {
       where: { pendingVendorGrantId: "g1" },
       data: {
         pendingVendorGrantId: null,
-        status: TaskStatus.READY,
       },
     });
 

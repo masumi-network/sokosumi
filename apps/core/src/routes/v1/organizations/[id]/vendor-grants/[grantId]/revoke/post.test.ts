@@ -12,14 +12,14 @@ import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 const {
   resolveMemberOrganizationByIdMock,
-  cancelParkedTasksForGrantMock,
+  taskUpdateManyMock,
   vendorGrantFindFirstMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   resolveMemberOrganizationByIdMock: vi.fn(),
-  cancelParkedTasksForGrantMock: vi.fn(),
+  taskUpdateManyMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -38,16 +38,6 @@ vi.mock("@/middleware/auth", () => ({
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
-
-vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/vendor-grants")>();
-
-  return {
-    ...actual,
-    cancelParkedTasksForGrant: cancelParkedTasksForGrantMock,
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -99,13 +89,16 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/revoke", () => {
     vi.clearAllMocks();
     resolveMemberOrganizationByIdMock.mockResolvedValue({ id: orgId });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
-    cancelParkedTasksForGrantMock.mockResolvedValue(1);
+    taskUpdateManyMock.mockResolvedValue({ count: 1 });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
             update: vendorGrantUpdateMock,
+          },
+          task: {
+            updateMany: taskUpdateManyMock,
           },
         }),
     );
@@ -141,10 +134,13 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/revoke", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(cancelParkedTasksForGrantMock).toHaveBeenCalledWith(
-      grantId,
-      expect.anything(),
-    );
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: { pendingVendorGrantId: grantId },
+      data: {
+        status: "CANCELED",
+        pendingVendorGrantId: null,
+      },
+    });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({
         allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],

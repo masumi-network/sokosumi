@@ -85,6 +85,6 @@ describe("vendor-grant-approval utils", () => {
         organizationId: "org_1",
         organizationSlug: null,
       }),
-    ).toBeNull();
+    ).toBe("/organizations/org_1#vendor-workspace-access");
   });
 });

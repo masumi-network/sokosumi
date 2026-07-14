@@ -239,8 +239,8 @@ export async function requireTaskAssignableCoworker(
 
 /**
  * Coworker branch of task read: baseline assignee/sibling, or GRANTED workspace
- * access for org workspaces. Out-of-scope reads upsert PENDING workspace grant
- * and 403 `grant_required`.
+ * access to all non-DRAFT tasks in the workspace (any vendor). Out-of-scope reads
+ * upsert PENDING workspace grant and 403 `grant_required`.
  */
 async function requireCoworkerTaskRead(
   authContext: CoworkerAuthenticationContext,

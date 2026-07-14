@@ -479,7 +479,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
   });
 
-  it("parks create as APPROVAL_REQUIRED when workspace access is missing", async () => {
+  it("parks create with pendingVendorGrantId when workspace access is missing", async () => {
     getWorkspaceGrantMock.mockResolvedValue(null);
     requestWorkspaceGrantMock.mockResolvedValue({
       grant: {
@@ -514,7 +514,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: TaskStatus.APPROVAL_REQUIRED,
+          status: TaskStatus.DRAFT,
           pendingVendorGrantId: CREATE_GRANT_ID,
         }),
       }),

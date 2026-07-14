@@ -8,7 +8,7 @@ import {
   VendorPermission,
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
-import { forbidden } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -226,9 +226,13 @@ export async function notifyWorkspaceApproversOfPendingGrant(
   );
 }
 
-type VendorGrantWithVendor = VendorGrant & {
+export type VendorGrantWithVendor = VendorGrant & {
   vendor: { name: string; slug: string };
 };
+
+const vendorGrantWithVendorInclude = {
+  vendor: { select: { name: true, slug: true } },
+} as const;
 
 /**
  * Create or upgrade the workspace grant to GRANTED and unpark linked tasks.
@@ -257,14 +261,129 @@ export async function grantWorkspaceAccess(
       resolvedAt: now,
       resolvedById: params.resolvedById,
     },
-    include: {
-      vendor: { select: { name: true, slug: true } },
-    },
+    include: vendorGrantWithVendorInclude,
   });
 
   await unparkTasksForGrant(grant.id, tx);
 
   return grant;
+}
+
+export async function approveVendorGrantInWorkspace(
+  params: {
+    grantId: string;
+    workspaceId: string;
+    resolvedById: string;
+  },
+  tx: Prisma.TransactionClient,
+): Promise<VendorGrantWithVendor> {
+  const existing = await tx.vendorGrant.findFirst({
+    where: { id: params.grantId, workspaceId: params.workspaceId },
+    include: vendorGrantWithVendorInclude,
+  });
+
+  if (!existing) {
+    throw notFound("Vendor grant not found");
+  }
+
+  if (existing.status === VendorGrantStatus.GRANTED) {
+    return existing;
+  }
+
+  if (
+    existing.status !== VendorGrantStatus.PENDING &&
+    existing.status !== VendorGrantStatus.DENIED &&
+    existing.status !== VendorGrantStatus.REVOKED
+  ) {
+    throw badRequest(`Cannot approve grant in status ${existing.status}`);
+  }
+
+  const now = new Date();
+  const updated = await tx.vendorGrant.update({
+    where: { id: params.grantId },
+    data: {
+      status: VendorGrantStatus.GRANTED,
+      resolvedAt: now,
+      resolvedById: params.resolvedById,
+    },
+    include: vendorGrantWithVendorInclude,
+  });
+
+  await unparkTasksForGrant(updated.id, tx);
+
+  return updated;
+}
+
+export async function denyVendorGrantInWorkspace(
+  params: {
+    grantId: string;
+    workspaceId: string;
+    resolvedById: string;
+  },
+  tx: Prisma.TransactionClient,
+): Promise<VendorGrantWithVendor> {
+  const existing = await tx.vendorGrant.findFirst({
+    where: { id: params.grantId, workspaceId: params.workspaceId },
+    include: vendorGrantWithVendorInclude,
+  });
+
+  if (!existing) {
+    throw notFound("Vendor grant not found");
+  }
+
+  if (existing.status !== VendorGrantStatus.PENDING) {
+    throw badRequest("Only PENDING grants can be denied");
+  }
+
+  const updated = await tx.vendorGrant.update({
+    where: { id: params.grantId },
+    data: {
+      status: VendorGrantStatus.DENIED,
+      resolvedAt: new Date(),
+      resolvedById: params.resolvedById,
+    },
+    include: vendorGrantWithVendorInclude,
+  });
+
+  await cancelParkedTasksForGrant(updated.id, tx);
+
+  return updated;
+}
+
+export async function revokeVendorGrantInWorkspace(
+  params: {
+    grantId: string;
+    workspaceId: string;
+    resolvedById: string;
+  },
+  tx: Prisma.TransactionClient,
+): Promise<VendorGrantWithVendor> {
+  const existing = await tx.vendorGrant.findFirst({
+    where: { id: params.grantId, workspaceId: params.workspaceId },
+    include: vendorGrantWithVendorInclude,
+  });
+
+  if (!existing) {
+    throw notFound("Vendor grant not found");
+  }
+
+  if (existing.status !== VendorGrantStatus.GRANTED) {
+    throw badRequest("Only GRANTED grants can be revoked");
+  }
+
+  const updated = await tx.vendorGrant.update({
+    where: { id: params.grantId },
+    data: {
+      status: VendorGrantStatus.REVOKED,
+      resolvedAt: new Date(),
+      resolvedById: params.resolvedById,
+    },
+    include: vendorGrantWithVendorInclude,
+  });
+
+  await cancelParkedTasksForGrant(updated.id, tx);
+
+  return updated;
 }
 
 export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
@@ -284,6 +403,10 @@ export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
   };
 }
 
+/**
+ * Clears vendor-grant parking only. Task status is unchanged; `pendingVendorGrantId`
+ * and API `pendingApproval` are the park signal.
+ */
 export async function unparkTasksForGrant(
   grantId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -292,7 +415,6 @@ export async function unparkTasksForGrant(
     where: { pendingVendorGrantId: grantId },
     data: {
       pendingVendorGrantId: null,
-      status: TaskStatus.READY,
     },
   });
   return result.count;
@@ -341,7 +463,8 @@ export function isBaselineCoworkerTaskAccess(params: {
 
 /**
  * Workspace list filter when coworker has GRANTED workspace access: all non-DRAFT
- * in workspace. Otherwise baseline sibling filter only.
+ * tasks in the workspace (any vendor). Without a grant, only baseline same-vendor
+ * sibling visibility applies.
  */
 export function buildCoworkerTaskListAccessFilter(params: {
   coworkerId: string;

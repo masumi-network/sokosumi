@@ -22,7 +22,8 @@ interface VendorGrantApprovalActionsLabels {
 
 interface VendorGrantApprovalActionsProps {
   canApprove: boolean;
-  reviewHref: string;
+  reviewHref?: string | null;
+  refreshAfterApproveAttempt?: boolean;
   labels: VendorGrantApprovalActionsLabels;
   onApprove: () => Promise<Result<unknown, ActionError>>;
   onDeny?: () => Promise<Result<unknown, ActionError>>;
@@ -31,6 +32,7 @@ interface VendorGrantApprovalActionsProps {
 export function VendorGrantApprovalActions({
   canApprove,
   reviewHref,
+  refreshAfterApproveAttempt = false,
   labels,
   onApprove,
   onDeny,
@@ -69,6 +71,9 @@ export function VendorGrantApprovalActions({
           : (labels.denyError ?? labels.approveError),
       );
     } finally {
+      if (action === "approve" && refreshAfterApproveAttempt) {
+        router.refresh();
+      }
       setLoadingAction(null);
     }
   }
@@ -102,9 +107,11 @@ export function VendorGrantApprovalActions({
           {labels.deny}
         </Button>
       ) : null}
-      <Button size="sm" variant={canApprove ? "outline" : "default"} asChild>
-        <Link href={reviewHref}>{labels.review}</Link>
-      </Button>
+      {reviewHref ? (
+        <Button size="sm" variant={canApprove ? "outline" : "default"} asChild>
+          <Link href={reviewHref}>{labels.review}</Link>
+        </Button>
+      ) : null}
     </div>
   );
 }

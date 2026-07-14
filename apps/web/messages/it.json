@@ -1424,7 +1424,8 @@
         "approve": "Approva accesso",
         "review": "Vedi dettagli",
         "approveSuccess": "Accesso vendor approvato.",
-        "approveError": "Impossibile approvare l'accesso vendor"
+        "approveError": "Impossibile approvare l'accesso vendor",
+        "approvePartialError": "Approvati {approved} vendor su {total}. Alcune approvazioni non sono riuscite — aggiorna e riprova."
       },
       "Actions": {
         "add": "Aggiungi",

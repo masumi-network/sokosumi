@@ -1424,7 +1424,8 @@
         "approve": "アクセスを承認",
         "review": "詳細を確認",
         "approveSuccess": "ベンダーアクセスを承認しました。",
-        "approveError": "ベンダーアクセスの承認に失敗しました"
+        "approveError": "ベンダーアクセスの承認に失敗しました",
+        "approvePartialError": "{total} 件中 {approved} 件のベンダーアクセスを承認しました。一部の承認に失敗したため、更新して再度お試しください。"
       },
       "Actions": {
         "add": "追加",

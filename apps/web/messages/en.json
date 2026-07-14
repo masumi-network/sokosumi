@@ -1435,7 +1435,8 @@
         "approve": "Approve access",
         "review": "Review details",
         "approveSuccess": "Vendor access approved.",
-        "approveError": "Failed to approve vendor access"
+        "approveError": "Failed to approve vendor access",
+        "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
       },
       "Actions": {
         "add": "Add",

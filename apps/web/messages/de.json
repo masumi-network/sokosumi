@@ -1424,7 +1424,8 @@
         "approve": "Zugriff genehmigen",
         "review": "Details ansehen",
         "approveSuccess": "Vendor-Zugriff genehmigt.",
-        "approveError": "Vendor-Zugriff konnte nicht genehmigt werden"
+        "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+        "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
       },
       "Actions": {
         "add": "Hinzufügen",

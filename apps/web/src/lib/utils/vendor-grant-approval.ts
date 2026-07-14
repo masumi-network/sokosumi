@@ -36,9 +36,9 @@ export function buildVendorGrantReviewHref(params: {
     return "/account#vendor-workspace-access";
   }
 
-  if (!params.organizationSlug) {
-    return null;
+  if (params.organizationSlug) {
+    return `/organizations/${params.organizationSlug}#vendor-workspace-access`;
   }
 
-  return `/organizations/${params.organizationSlug}#vendor-workspace-access`;
+  return `/organizations/${params.organizationId}#vendor-workspace-access`;
 }

@@ -10,30 +10,20 @@ import {
 } from "@/routes/v1/users/user-route-context";
 
 const {
-  unparkTasksForGrantMock,
+  taskUpdateManyMock,
   vendorGrantFindFirstMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
-  unparkTasksForGrantMock: vi.fn(),
+  taskUpdateManyMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
 }));
-
-vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/vendor-grants")>();
-
-  return {
-    ...actual,
-    unparkTasksForGrant: unparkTasksForGrantMock,
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -90,13 +80,16 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
-    unparkTasksForGrantMock.mockResolvedValue(1);
+    taskUpdateManyMock.mockResolvedValue({ count: 1 });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
             update: vendorGrantUpdateMock,
+          },
+          task: {
+            updateMany: taskUpdateManyMock,
           },
         }),
     );
@@ -132,10 +125,10 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(unparkTasksForGrantMock).toHaveBeenCalledWith(
-      grantId,
-      expect.anything(),
-    );
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: { pendingVendorGrantId: grantId },
+      data: { pendingVendorGrantId: null },
+    });
 
     const body = await response.json();
     expect(body.data).toMatchObject({
@@ -176,9 +169,9 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
 
     expect(response.status).toBe(200);
     expect(vendorGrantUpdateMock).toHaveBeenCalledTimes(1);
-    expect(unparkTasksForGrantMock).toHaveBeenCalledWith(
-      grantId,
-      expect.anything(),
-    );
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: { pendingVendorGrantId: grantId },
+      data: { pendingVendorGrantId: null },
+    });
   });
 });

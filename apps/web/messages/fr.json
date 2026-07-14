@@ -1424,7 +1424,8 @@
         "approve": "Approuver l'accès",
         "review": "Voir les détails",
         "approveSuccess": "Accès fournisseur approuvé.",
-        "approveError": "Échec de l'approbation de l'accès fournisseur"
+        "approveError": "Échec de l'approbation de l'accès fournisseur",
+        "approvePartialError": "{approved} fournisseurs approuvés sur {total}. Certaines approbations ont échoué — actualisez et réessayez."
       },
       "Actions": {
         "add": "Ajouter",
