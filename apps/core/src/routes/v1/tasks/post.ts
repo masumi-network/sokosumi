@@ -248,61 +248,61 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Resolve grant status inside the transaction so a concurrent approve/deny
     // cannot leave a READY task permanently parked.
-    let createdPendingGrant: {
-      vendorId: string;
-      workspaceId: string;
-      grantId: string;
-    } | null = null;
+    const { task, createdPendingGrant } = await prisma.$transaction(
+      async (tx) => {
+        const { grant, created: pendingCreated } = await requestCreateGrant(
+          {
+            vendorId: authContext.vendorId,
+            workspaceId: workspaceContext.workspaceId,
+            requestedByUserId: userContext.userId,
+            notify: false,
+          },
+          tx,
+        );
 
-    const task = await prisma.$transaction(async (tx) => {
-      const { grant, created: pendingCreated } = await requestCreateGrant(
-        {
-          vendorId: authContext.vendorId,
-          workspaceId: workspaceContext.workspaceId,
-          requestedByUserId: userContext.userId,
-          notify: false,
-        },
-        tx,
-      );
+        if (isGrantDeniedOrRevoked(grant.status)) {
+          throwGrantAccessError(grant.status, VendorPermissionApi.TASK_CREATE);
+        }
 
-      if (isGrantDeniedOrRevoked(grant.status)) {
-        throwGrantAccessError(grant.status, VendorPermissionApi.TASK_CREATE);
-      }
+        if (grant.status === VendorGrantStatus.GRANTED) {
+          const grantedTask = await createTaskRecord(
+            {
+              userId: userContext.userId,
+              organizationId: userContext.organizationId,
+              workspaceId: workspaceContext.workspaceId,
+              body,
+              resolvedName,
+            },
+            tx,
+          );
+          return { task: grantedTask, createdPendingGrant: null };
+        }
 
-      if (grant.status === VendorGrantStatus.GRANTED) {
-        return createTaskRecord(
+        const parkedTask = await createTaskRecord(
           {
             userId: userContext.userId,
             organizationId: userContext.organizationId,
             workspaceId: workspaceContext.workspaceId,
             body,
             resolvedName,
+            pendingVendorGrantId: grant.id,
+            forceReady: true,
           },
           tx,
         );
-      }
 
-      if (pendingCreated) {
-        createdPendingGrant = {
-          vendorId: authContext.vendorId,
-          workspaceId: workspaceContext.workspaceId,
-          grantId: grant.id,
+        return {
+          task: parkedTask,
+          createdPendingGrant: pendingCreated
+            ? {
+                vendorId: authContext.vendorId,
+                workspaceId: workspaceContext.workspaceId,
+                grantId: grant.id,
+              }
+            : null,
         };
-      }
-
-      return createTaskRecord(
-        {
-          userId: userContext.userId,
-          organizationId: userContext.organizationId,
-          workspaceId: workspaceContext.workspaceId,
-          body,
-          resolvedName,
-          pendingVendorGrantId: grant.id,
-          forceReady: true,
-        },
-        tx,
-      );
-    });
+      },
+    );
 
     if (createdPendingGrant) {
       await notifyWorkspaceApproversOfPendingGrant({
