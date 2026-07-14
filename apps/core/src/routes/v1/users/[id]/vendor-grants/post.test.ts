@@ -77,7 +77,7 @@ function baseGrant(overrides: Record<string, unknown> = {}) {
     id: grantId,
     vendorId,
     workspaceId,
-    permission: VendorPermission.task_create,
+    permission: VendorPermission.workspace,
     status: VendorGrantStatus.GRANTED,
     requestedByUserId: null,
     resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
@@ -118,7 +118,7 @@ describe("POST /users/{id}/vendor-grants", () => {
     );
   });
 
-  it("grants task:create for personal workspace and unparks tasks", async () => {
+  it("grants workspace access for personal workspace and unparks tasks", async () => {
     vendorGrantUpsertMock.mockResolvedValue(baseGrant());
 
     const response = await createApp().request(
@@ -126,10 +126,7 @@ describe("POST /users/{id}/vendor-grants", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:create"],
-        }),
+        body: JSON.stringify({ vendorId }),
       },
     );
 
@@ -140,10 +137,9 @@ describe("POST /users/{id}/vendor-grants", () => {
     });
 
     const body = await response.json();
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0]).toMatchObject({
+    expect(body.data).toMatchObject({
       id: grantId,
-      permission: "task:create",
+      permission: "workspace",
       status: "GRANTED",
     });
   });
@@ -154,10 +150,7 @@ describe("POST /users/{id}/vendor-grants", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:read"],
-        }),
+        body: JSON.stringify({ vendorId }),
       },
     );
 

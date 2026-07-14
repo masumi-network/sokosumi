@@ -74,7 +74,7 @@ const taskBaseSchema = z.object({
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
   pendingApproval: z.boolean().openapi({
     description:
-      "True when the task is parked awaiting vendor task:create grant approval",
+      "True when the task is parked awaiting vendor workspace grant approval",
     example: false,
   }),
   pendingVendorGrantId: z.string().uuid().nullable().openapi({

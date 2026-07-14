@@ -3508,7 +3508,7 @@
       },
       "VendorGrants": {
         "title": "Accès fournisseurs à l’espace de travail",
-        "description": "Approuve les demandes des fournisseurs pour lire, commenter ou créer des tâches dans ton espace de travail personnel.",
+        "description": "Approuve l’accès fournisseur à ton espace de travail personnel (lire, commenter et créer des tâches).",
         "vendorsTitle": "Fournisseurs",
         "vendorsEmpty": "Aucun droit fournisseur pour le moment.",
         "statusPending": "En attente",
@@ -3531,7 +3531,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Fournisseur",
-          "permissionLabel": "Autorisations",
+          "workspaceAccessHint": "Accorde l’accès complet à l’espace de travail : lire, commenter et créer des tâches.",
           "submit": "Accorder l’accès",
           "success": "Accès fournisseur accordé",
           "error": "Échec de l’octroi de l’accès fournisseur"
@@ -3624,7 +3624,7 @@
         },
         "VendorGrants": {
           "title": "Accès workspace fournisseur",
-          "description": "Approuvez les demandes des fournisseurs pour lire, commenter ou créer des tâches dans l’espace de travail de cette organisation.",
+          "description": "Approuvez l’accès fournisseur à l’espace de travail de cette organisation (lire, commenter et créer des tâches).",
           "vendorsTitle": "Fournisseurs",
           "vendorsEmpty": "Aucun droit fournisseur pour le moment.",
           "statusPending": "En attente",
@@ -3647,7 +3647,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Fournisseur",
-            "permissionLabel": "Autorisations",
+            "workspaceAccessHint": "Accorde l’accès complet à l’espace de travail : lire, commenter et créer des tâches.",
             "submit": "Accorder l’accès",
             "success": "Accès fournisseur accordé",
             "error": "Impossible d’accorder l’accès fournisseur"

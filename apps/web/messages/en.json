@@ -3604,7 +3604,7 @@
       },
       "VendorGrants": {
         "title": "Vendor workspace access",
-        "description": "Approve vendor requests to read, comment on, or create tasks in your personal workspace.",
+        "description": "Approve vendor workspace access for your personal workspace (read, comment, and create tasks).",
         "vendorsTitle": "Vendors",
         "vendorsEmpty": "No vendor grants yet.",
         "statusPending": "Pending",
@@ -3627,7 +3627,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Vendor",
-          "permissionLabel": "Permissions",
+          "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
           "submit": "Grant access",
           "success": "Vendor access granted",
           "error": "Failed to grant vendor access"
@@ -3730,7 +3730,7 @@
         },
         "VendorGrants": {
           "title": "Vendor workspace access",
-          "description": "Approve vendor requests to read, comment on, or create tasks in this organization workspace.",
+          "description": "Approve vendor workspace access for this organization (read, comment, and create tasks).",
           "vendorsTitle": "Vendors",
           "vendorsEmpty": "No vendor grants yet.",
           "statusPending": "Pending",
@@ -3753,7 +3753,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Vendor",
-            "permissionLabel": "Permissions",
+            "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
             "submit": "Grant access",
             "success": "Vendor access granted",
             "error": "Failed to grant vendor access"

@@ -19,11 +19,10 @@ export function OrganizationVendorGrantForm({
       vendors={vendors}
       disabledVendorIds={disabledVendorIds}
       namespace="App.Organizations.OrganizationDetail.VendorGrants"
-      onCreate={({ vendorId, permissions }) =>
+      onCreate={({ vendorId }) =>
         createOrganizationVendorGrant({
           organizationId,
           vendorId,
-          permissions,
         })
       }
     />

@@ -7,7 +7,6 @@ import { VendorGrantApprovalActions } from "@/components/vendor-grants/vendor-gr
 import { createMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
 import type { ActionError } from "@/lib/actions/errors";
 import { createOrganizationVendorGrant } from "@/lib/actions/organization/vendor-grant-action";
-import type { VendorGrant } from "@/lib/clients/generated/core";
 import { Ok, type Result } from "@/lib/ts-res";
 
 interface TasksPendingVendorGrantBannerProps {
@@ -16,10 +15,7 @@ interface TasksPendingVendorGrantBannerProps {
   reviewHref: string;
   vendorName: string | null;
   pendingVendorCount: number;
-  vendorGrantApprovals: Array<{
-    vendorId: string;
-    permissions: VendorGrant["permission"][];
-  }>;
+  pendingVendorIds: string[];
   parkedTaskCount: number;
 }
 
@@ -29,7 +25,7 @@ export function TasksPendingVendorGrantBanner({
   reviewHref,
   vendorName,
   pendingVendorCount,
-  vendorGrantApprovals,
+  pendingVendorIds,
   parkedTaskCount,
 }: TasksPendingVendorGrantBannerProps) {
   const t = useTranslations("App.Tasks.PendingVendorGrantBanner");
@@ -48,28 +44,23 @@ export function TasksPendingVendorGrantBanner({
     return t("descriptionMany", { count: pendingVendorCount });
   }
 
-  async function grantVendorPermissions(
+  async function grantVendorAccess(
     vendorId: string,
-    permissions: VendorGrant["permission"][],
-  ): Promise<Result<{ grantIds: string[] }, ActionError>> {
+  ): Promise<Result<{ grantId: string }, ActionError>> {
     if (organizationId) {
       return createOrganizationVendorGrant({
         organizationId,
         vendorId,
-        permissions,
       });
     }
-    return createMyVendorGrant({ vendorId, permissions });
+    return createMyVendorGrant({ vendorId });
   }
 
   async function approveAllPendingGrants(): Promise<
     Result<unknown, ActionError>
   > {
-    for (const approval of vendorGrantApprovals) {
-      const result = await grantVendorPermissions(
-        approval.vendorId,
-        approval.permissions,
-      );
+    for (const vendorId of pendingVendorIds) {
+      const result = await grantVendorAccess(vendorId);
       if (!result.ok) {
         return result;
       }

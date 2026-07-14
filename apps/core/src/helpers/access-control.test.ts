@@ -31,14 +31,12 @@ import {
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 const {
-  getVendorGrantMock,
-  requestCommentGrantMock,
-  requestReadGrantWithBundledCommentMock,
+  getWorkspaceGrantMock,
+  requestWorkspaceGrantMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
-  getVendorGrantMock: vi.fn(),
-  requestCommentGrantMock: vi.fn(),
-  requestReadGrantWithBundledCommentMock: vi.fn(),
+  getWorkspaceGrantMock: vi.fn(),
+  requestWorkspaceGrantMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
 }));
 
@@ -47,9 +45,8 @@ vi.mock("./vendor-grants", async (importOriginal) => {
 
   return {
     ...actual,
-    getVendorGrant: getVendorGrantMock,
-    requestCommentGrant: requestCommentGrantMock,
-    requestReadGrantWithBundledComment: requestReadGrantWithBundledCommentMock,
+    getWorkspaceGrant: getWorkspaceGrantMock,
+    requestWorkspaceGrant: requestWorkspaceGrantMock,
   };
 });
 
@@ -561,9 +558,8 @@ describe("requireTaskReadForRouteVars", () => {
 
 describe("requireTaskCommentAccess", () => {
   beforeEach(() => {
-    getVendorGrantMock.mockReset();
-    requestCommentGrantMock.mockReset();
-    requestReadGrantWithBundledCommentMock.mockReset();
+    getWorkspaceGrantMock.mockReset();
+    requestWorkspaceGrantMock.mockReset();
   });
 
   it("allows a bare coworker to comment on a same-vendor sibling task", async () => {
@@ -663,7 +659,7 @@ describe("requireTaskCommentAccess", () => {
     await requireTaskCommentAccess(vars, "tsk_123", tx);
   });
 
-  it("requests PENDING task:comment when commenting beyond baseline with read access", async () => {
+  it("requests PENDING workspace grant when commenting beyond baseline", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123", {
       userId: "user_delegate",
@@ -696,14 +692,11 @@ describe("requireTaskCommentAccess", () => {
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
       organizationId: "org_123",
     } as never);
-    getVendorGrantMock
-      .mockResolvedValueOnce({
-        id: "read-grant",
-        status: VendorGrantStatus.GRANTED,
-        permission: "task_read",
-      })
-      .mockResolvedValueOnce(null);
-    requestCommentGrantMock.mockResolvedValue(undefined);
+    getWorkspaceGrantMock.mockResolvedValue(null);
+    requestWorkspaceGrantMock.mockResolvedValue({
+      grant: { id: "workspace-grant", status: VendorGrantStatus.PENDING },
+      created: true,
+    });
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -717,19 +710,18 @@ describe("requireTaskCommentAccess", () => {
       expect(error).toBeInstanceOf(HTTPException);
       expect((error as HTTPException).cause).toMatchObject({
         kind: "grant_required",
-        extensions: { permission: "task:comment" },
+        extensions: { permission: "workspace" },
       });
       return true;
     });
 
-    expect(requestCommentGrantMock).toHaveBeenCalledWith(
+    expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({
         vendorId: defaultVendorId,
         workspaceId,
       }),
       expect.anything(),
     );
-    expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
   });
 
   it("does not open PENDING when sibling baseline already allows comment", async () => {
@@ -765,19 +757,18 @@ describe("requireTaskCommentAccess", () => {
 
     await requireTaskCommentAccess(vars, "tsk_123", tx);
 
-    expect(requestCommentGrantMock).not.toHaveBeenCalled();
-    expect(getVendorGrantMock).not.toHaveBeenCalled();
+    expect(requestWorkspaceGrantMock).not.toHaveBeenCalled();
+    expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 });
 
 describe("requireTaskReadForRouteVars vendor grants", () => {
   beforeEach(() => {
-    getVendorGrantMock.mockReset();
-    requestCommentGrantMock.mockReset();
-    requestReadGrantWithBundledCommentMock.mockReset();
+    getWorkspaceGrantMock.mockReset();
+    requestWorkspaceGrantMock.mockReset();
   });
 
-  it("upserts bundled PENDING read+comment on first out-of-scope read", async () => {
+  it("requests PENDING workspace grant on first out-of-scope read", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123", {
       userId: "user_delegate",
@@ -799,8 +790,11 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
       organizationId: "org_123",
     } as never);
-    getVendorGrantMock.mockResolvedValue(null);
-    requestReadGrantWithBundledCommentMock.mockResolvedValue(undefined);
+    getWorkspaceGrantMock.mockResolvedValue(null);
+    requestWorkspaceGrantMock.mockResolvedValue({
+      grant: { id: "workspace-grant", status: VendorGrantStatus.PENDING },
+      created: true,
+    });
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -814,12 +808,12 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       expect(error).toBeInstanceOf(HTTPException);
       expect((error as HTTPException).cause).toMatchObject({
         kind: "grant_required",
-        extensions: { permission: "task:read" },
+        extensions: { permission: "workspace" },
       });
       return true;
     });
 
-    expect(requestReadGrantWithBundledCommentMock).toHaveBeenCalledWith(
+    expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({
         vendorId: defaultVendorId,
         workspaceId,
@@ -828,7 +822,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
     );
   });
 
-  it("allows out-of-scope read when task:read is GRANTED", async () => {
+  it("allows out-of-scope read when workspace access is GRANTED", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123", {
       userId: "user_delegate",
@@ -850,10 +844,10 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
       organizationId: "org_123",
     } as never);
-    getVendorGrantMock.mockResolvedValue({
-      id: "read-grant",
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "workspace-grant",
       status: VendorGrantStatus.GRANTED,
-      permission: "task_read",
+      permission: "workspace",
     });
 
     const vars: EnvVariables["Variables"] = {
@@ -865,10 +859,10 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
     await expect(
       requireTaskReadForRouteVars(vars, "tsk_foreign", tx),
     ).resolves.toMatchObject({ id: "tsk_foreign" });
-    expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
+    expect(requestWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 
-  it("does not reopen DENIED task:read", async () => {
+  it("does not reopen DENIED workspace grant", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123", {
       userId: "user_delegate",
@@ -890,10 +884,10 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
       organizationId: "org_123",
     } as never);
-    getVendorGrantMock.mockResolvedValue({
-      id: "read-grant",
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "workspace-grant",
       status: VendorGrantStatus.DENIED,
-      permission: "task_read",
+      permission: "workspace",
     });
 
     const vars: EnvVariables["Variables"] = {
@@ -910,7 +904,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       });
       return true;
     });
-    expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
+    expect(requestWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 });
 

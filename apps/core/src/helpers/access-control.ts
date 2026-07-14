@@ -4,7 +4,6 @@ import {
   type Prisma,
   type Task,
   VendorGrantStatus,
-  VendorPermission,
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
@@ -28,13 +27,11 @@ import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
 import {
-  getVendorGrant,
+  getWorkspaceGrant,
   isBaselineCoworkerTaskAccess,
-  requestCommentGrant,
-  requestReadGrantWithBundledComment,
+  requestWorkspaceGrant,
   requireTaskNotParked,
   throwGrantAccessError,
-  VendorPermissionApi,
 } from "./vendor-grants";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
@@ -92,7 +89,7 @@ export async function requireTaskOwnership(
 
 /**
  * Owner mutations that must not run while the task is parked awaiting
- * vendor `task:create` approval (metadata, links, share, schedule, move, …).
+ * vendor workspace grant approval (metadata, links, share, schedule, move, …).
  * Soft-archive uses {@link requireTaskArchiveAccess} instead.
  */
 export async function requireMutableTaskOwnership(
@@ -241,9 +238,9 @@ export async function requireTaskAssignableCoworker(
 // -----------------------------------------------------------------------------
 
 /**
- * Coworker branch of task read: baseline assignee/sibling, or GRANTED task:read
- * for org workspaces. Out-of-scope reads upsert PENDING task:read (+ bundled
- * task:comment) and 403 `grant_required`.
+ * Coworker branch of task read: baseline assignee/sibling, or GRANTED workspace
+ * access for org workspaces. Out-of-scope reads upsert PENDING workspace grant
+ * and 403 `grant_required`.
  */
 async function requireCoworkerTaskRead(
   authContext: CoworkerAuthenticationContext,
@@ -299,11 +296,10 @@ async function requireCoworkerTaskRead(
     throw notFound("Task not found");
   }
 
-  const grant = await getVendorGrant(
+  const grant = await getWorkspaceGrant(
     {
       vendorId: authContext.vendorId,
       workspaceId,
-      permission: VendorPermission.task_read,
     },
     tx,
   );
@@ -316,10 +312,10 @@ async function requireCoworkerTaskRead(
     grant?.status === VendorGrantStatus.DENIED ||
     grant?.status === VendorGrantStatus.REVOKED
   ) {
-    throwGrantAccessError(grant.status, VendorPermissionApi.TASK_READ);
+    throwGrantAccessError(grant.status);
   }
 
-  await requestReadGrantWithBundledComment(
+  await requestWorkspaceGrant(
     {
       vendorId: authContext.vendorId,
       workspaceId,
@@ -328,7 +324,7 @@ async function requireCoworkerTaskRead(
     tx,
   );
 
-  throwGrantAccessError(grant?.status ?? null, VendorPermissionApi.TASK_READ);
+  throwGrantAccessError(grant?.status ?? null);
 }
 
 /**
@@ -432,7 +428,7 @@ export async function requireTaskCollaboration(
 
 /**
  * Comment access: workspace-visible session users, or coworkers who can read
- * and (baseline comment OR GRANTED task:comment). Beyond-baseline comment
+ * and (baseline comment OR GRANTED workspace access). Beyond-baseline comment
  * without grant upserts PENDING and 403 — comment is not saved by caller.
  */
 export async function requireTaskCommentAccess(
@@ -487,14 +483,13 @@ export async function requireTaskCommentAccess(
   }
 
   if (!workspaceId) {
-    throwGrantAccessError(null, VendorPermissionApi.TASK_COMMENT);
+    throwGrantAccessError(null);
   }
 
-  const grant = await getVendorGrant(
+  const grant = await getWorkspaceGrant(
     {
       vendorId: coworker.vendorId,
       workspaceId,
-      permission: VendorPermission.task_comment,
     },
     tx,
   );
@@ -507,10 +502,10 @@ export async function requireTaskCommentAccess(
     grant?.status === VendorGrantStatus.DENIED ||
     grant?.status === VendorGrantStatus.REVOKED
   ) {
-    throwGrantAccessError(grant.status, VendorPermissionApi.TASK_COMMENT);
+    throwGrantAccessError(grant.status);
   }
 
-  await requestCommentGrant(
+  await requestWorkspaceGrant(
     {
       vendorId: coworker.vendorId,
       workspaceId,
@@ -519,10 +514,7 @@ export async function requireTaskCommentAccess(
     tx,
   );
 
-  throwGrantAccessError(
-    grant?.status ?? null,
-    VendorPermissionApi.TASK_COMMENT,
-  );
+  throwGrantAccessError(grant?.status ?? null);
 }
 
 // -----------------------------------------------------------------------------

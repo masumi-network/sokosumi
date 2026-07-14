@@ -3508,7 +3508,7 @@
       },
       "VendorGrants": {
         "title": "供应商工作区访问",
-        "description": "批准供应商在你的个人工作区中读取、评论或创建任务的请求。",
+        "description": "批准供应商对你个人工作区的访问（读取、评论和创建任务）。",
         "vendorsTitle": "供应商",
         "vendorsEmpty": "尚无供应商授权。",
         "statusPending": "待处理",
@@ -3531,7 +3531,7 @@
         },
         "GrantForm": {
           "vendorLabel": "供应商",
-          "permissionLabel": "权限",
+          "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
           "submit": "授予访问权限",
           "success": "已授予供应商访问权限",
           "error": "授予供应商访问权限失败"
@@ -3624,7 +3624,7 @@
         },
         "VendorGrants": {
           "title": "供应商工作区访问",
-          "description": "批准供应商在此组织工作区中读取、评论或创建任务的请求。",
+          "description": "批准供应商对此组织工作区的访问（读取、评论和创建任务）。",
           "vendorsTitle": "供应商",
           "vendorsEmpty": "尚无供应商授权。",
           "statusPending": "待处理",
@@ -3647,7 +3647,7 @@
           },
           "GrantForm": {
             "vendorLabel": "供应商",
-            "permissionLabel": "权限",
+            "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
             "submit": "授予访问权限",
             "success": "已授予供应商访问权限",
             "error": "授予供应商访问权限失败"

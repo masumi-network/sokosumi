@@ -8,8 +8,9 @@ import {
   resolveViewerOrganizationMembership,
 } from "@/lib/utils/vendor-grant-approval";
 import {
-  getGrantPermissionsForPendingVendorGroup,
+  getPendingVendorIds,
   groupVendorGrantsByVendor,
+  isGrantPending,
 } from "@/lib/utils/vendor-grant-display";
 
 import { TasksPendingVendorGrantBanner } from "./tasks-pending-vendor-grant-banner";
@@ -59,21 +60,16 @@ export async function TasksPendingVendorGrantBannerSlot({
     return null;
   }
 
-  const pendingGroups = groupVendorGrantsByVendor(pendingGrants).filter(
-    (group) => group.hasPending,
+  const pendingEntries = groupVendorGrantsByVendor(pendingGrants).filter(
+    (entry) => isGrantPending(entry),
   );
 
-  if (pendingGroups.length === 0) {
+  if (pendingEntries.length === 0) {
     return null;
   }
 
-  const vendorGrantApprovals = canApprove
-    ? pendingGroups
-        .map((group) => ({
-          vendorId: group.vendorId,
-          permissions: getGrantPermissionsForPendingVendorGroup(group),
-        }))
-        .filter((approval) => approval.permissions.length > 0)
+  const pendingVendorIds = canApprove
+    ? getPendingVendorIds(pendingEntries)
     : [];
 
   const reviewHref = buildVendorGrantReviewHref({
@@ -91,12 +87,12 @@ export async function TasksPendingVendorGrantBannerSlot({
       organizationId={organizationId}
       reviewHref={reviewHref}
       vendorName={
-        pendingGroups.length === 1
-          ? (pendingGroups[0]?.vendorName ?? null)
+        pendingEntries.length === 1
+          ? (pendingEntries[0]?.vendorName ?? null)
           : null
       }
-      pendingVendorCount={pendingGroups.length}
-      vendorGrantApprovals={vendorGrantApprovals}
+      pendingVendorCount={pendingEntries.length}
+      pendingVendorIds={pendingVendorIds}
       parkedTaskCount={parkedTaskCount}
     />
   );

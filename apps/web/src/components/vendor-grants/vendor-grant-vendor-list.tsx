@@ -23,17 +23,11 @@ import {
   revokeOrganizationVendorGrant,
 } from "@/lib/actions/organization";
 import type { Result } from "@/lib/ts-res";
-import { cn } from "@/lib/utils";
 import {
-  getActionablePendingGrants,
-  getDeniedOrRevokedGrants,
-  getGrantedGrants,
-  getPermissionsToCreate,
-  isFullyGranted,
-  orderGrantsForBundledActions,
-  VENDOR_PERMISSION_ORDER,
-  type VendorGrantGroup,
-  type VendorPermissionSlot,
+  isGrantDeniedOrRevoked,
+  isGrantGranted,
+  isGrantPending,
+  type VendorGrantEntry,
 } from "@/lib/utils/vendor-grant-display";
 
 type VendorGrantsMode = "organization" | "personal";
@@ -43,53 +37,30 @@ type VendorGrantsNamespace =
   | "App.Account.VendorGrants";
 
 interface VendorGrantVendorListProps {
-  groups: VendorGrantGroup[];
+  entries: VendorGrantEntry[];
   mode: VendorGrantsMode;
   organizationId?: string;
   emptyLabel: string;
   namespace: VendorGrantsNamespace;
 }
 
-type PermissionChipState = "granted" | "pending" | "inactive";
-
-function getPermissionChipState(
-  slot: VendorPermissionSlot,
-): PermissionChipState {
-  if (!slot.grant) {
-    return "inactive";
-  }
-  switch (slot.grant.status) {
-    case "GRANTED":
-      return "granted";
-    case "PENDING":
-      return "pending";
-    case "DENIED":
-    case "REVOKED":
-      return "inactive";
-    default: {
-      const _exhaustive: never = slot.grant.status;
-      return _exhaustive;
-    }
-  }
-}
-
 export function VendorGrantVendorList({
-  groups,
+  entries,
   mode,
   organizationId,
   emptyLabel,
   namespace,
 }: VendorGrantVendorListProps) {
-  if (groups.length === 0) {
+  if (entries.length === 0) {
     return <p className="text-muted-foreground text-sm">{emptyLabel}</p>;
   }
 
   return (
     <ul className="divide-border divide-y rounded-lg border">
-      {groups.map((group) => (
+      {entries.map((entry) => (
         <VendorCard
-          key={group.vendorId}
-          group={group}
+          key={entry.vendorId}
+          entry={entry}
           mode={mode}
           organizationId={organizationId}
           namespace={namespace}
@@ -100,19 +71,40 @@ export function VendorGrantVendorList({
 }
 
 interface VendorCardProps {
-  group: VendorGrantGroup;
+  entry: VendorGrantEntry;
   mode: VendorGrantsMode;
   organizationId?: string;
   namespace: VendorGrantsNamespace;
 }
 
 function VendorCard({
-  group,
+  entry,
   mode,
   organizationId,
   namespace,
 }: VendorCardProps) {
-  const pendingCount = getActionablePendingGrants(group).length;
+  const t = useTranslations(namespace);
+  const status = entry.grant?.status;
+
+  function statusLabel(): string | null {
+    if (!status) {
+      return null;
+    }
+    switch (status) {
+      case "PENDING":
+        return t("statusPending");
+      case "GRANTED":
+        return t("statusGranted");
+      case "DENIED":
+        return t("statusDenied");
+      case "REVOKED":
+        return t("statusRevoked");
+      default: {
+        const _exhaustive: never = status;
+        return _exhaustive;
+      }
+    }
+  }
 
   return (
     <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
@@ -120,44 +112,22 @@ function VendorCard({
         <div className="flex flex-wrap items-center gap-2">
           <VendorMark
             vendor={{
-              name: group.vendorName,
-              slug: group.vendorSlug,
+              name: entry.vendorName,
+              slug: entry.vendorSlug,
               logos: { light: null, dark: null },
             }}
             className="text-sm font-medium"
           />
-          {pendingCount > 0 ? (
+          {status ? (
             <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-              {pendingCount}
+              {statusLabel()}
             </Badge>
           ) : null}
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          {group.slots.map((slot) => {
-            const chipState = getPermissionChipState(slot);
-            return (
-              <code
-                key={slot.permission}
-                className={cn(
-                  "rounded px-1.5 py-0.5 font-mono text-xs",
-                  chipState === "granted" &&
-                    "bg-primary text-primary-foreground",
-                  chipState === "pending" &&
-                    "bg-secondary text-secondary-foreground",
-                  chipState === "inactive" &&
-                    "bg-muted text-muted-foreground opacity-60",
-                )}
-              >
-                {slot.permission}
-              </code>
-            );
-          })}
         </div>
       </div>
 
       <VendorCardActions
-        group={group}
+        entry={entry}
         mode={mode}
         organizationId={organizationId}
         namespace={namespace}
@@ -166,17 +136,17 @@ function VendorCard({
   );
 }
 
-type VendorCardAction = "approveAll" | "denyAll" | "revokeAll" | "complete";
+type VendorCardAction = "approve" | "deny" | "revoke" | "grant";
 
 interface VendorCardActionsProps {
-  group: VendorGrantGroup;
+  entry: VendorGrantEntry;
   mode: VendorGrantsMode;
   organizationId?: string;
   namespace: VendorGrantsNamespace;
 }
 
 function VendorCardActions({
-  group,
+  entry,
   mode,
   organizationId,
   namespace,
@@ -187,16 +157,6 @@ function VendorCardActions({
   const [loadingAction, setLoadingAction] = useState<VendorCardAction | null>(
     null,
   );
-
-  const pendingGrants = getActionablePendingGrants(group);
-  const grantedGrants = getGrantedGrants(group);
-  const fullyGranted = isFullyGranted(group);
-  const permissionsToCreate = getPermissionsToCreate(group);
-  const deniedOrRevokedGrants = getDeniedOrRevokedGrants(group);
-  const canComplete =
-    !fullyGranted &&
-    pendingGrants.length === 0 &&
-    (permissionsToCreate.length > 0 || deniedOrRevokedGrants.length > 0);
 
   function requireOrganizationId(): string | null {
     if (mode !== "organization") {
@@ -253,9 +213,9 @@ function VendorCardActions({
     return revokeMyVendorGrant({ grantId });
   }
 
-  async function createGrants(
-    permissions: (typeof VENDOR_PERMISSION_ORDER)[number][],
-  ): Promise<Result<{ grantIds: string[] }, ActionError>> {
+  async function createGrant(): Promise<
+    Result<{ grantId: string }, ActionError>
+  > {
     if (mode === "organization") {
       const id = requireOrganizationId();
       if (!id) {
@@ -263,38 +223,28 @@ function VendorCardActions({
       }
       return createOrganizationVendorGrant({
         organizationId: id,
-        vendorId: group.vendorId,
-        permissions,
+        vendorId: entry.vendorId,
       });
     }
-    return createMyVendorGrant({
-      vendorId: group.vendorId,
-      permissions,
-    });
+    return createMyVendorGrant({ vendorId: entry.vendorId });
   }
 
-  async function runSequential(
+  async function runAction(
     action: VendorCardAction,
-    steps: Array<() => Promise<Result<unknown, ActionError>>>,
+    step: () => Promise<Result<unknown, ActionError>>,
     successKey:
-      | "approveAllSuccess"
-      | "denyAllSuccess"
-      | "revokeAllSuccess"
+      | "approveSuccess"
+      | "denySuccess"
+      | "revokeSuccess"
       | "grantSuccess",
-    errorKey:
-      | "approveAllError"
-      | "denyAllError"
-      | "revokeAllError"
-      | "grantError",
+    errorKey: "approveError" | "denyError" | "revokeError" | "grantError",
   ) {
     setLoadingAction(action);
     try {
-      for (const step of steps) {
-        const result = await step();
-        if (!result.ok) {
-          toast.error(result.error?.message ?? tActions(errorKey));
-          return;
-        }
+      const result = await step();
+      if (!result.ok) {
+        toast.error(result.error?.message ?? tActions(errorKey));
+        return;
       }
       toast.success(tActions(successKey));
       router.refresh();
@@ -305,8 +255,8 @@ function VendorCardActions({
     }
   }
 
-  if (pendingGrants.length > 0) {
-    const orderedPending = orderGrantsForBundledActions(pendingGrants);
+  if (isGrantPending(entry) && entry.grant) {
+    const grantId = entry.grant.id;
 
     return (
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
@@ -315,18 +265,18 @@ function VendorCardActions({
           className="h-7 px-2.5"
           disabled={loadingAction !== null}
           onClick={() =>
-            runSequential(
-              "approveAll",
-              orderedPending.map((grant) => () => approveGrant(grant.id)),
-              "approveAllSuccess",
-              "approveAllError",
+            runAction(
+              "approve",
+              () => approveGrant(grantId),
+              "approveSuccess",
+              "approveError",
             )
           }
         >
-          {loadingAction === "approveAll" ? (
+          {loadingAction === "approve" ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : null}
-          {tActions("approveAll")}
+          {tActions("approve")}
         </Button>
         <Button
           size="sm"
@@ -334,85 +284,74 @@ function VendorCardActions({
           className="h-7 px-2.5"
           disabled={loadingAction !== null}
           onClick={() =>
-            runSequential(
-              "denyAll",
-              orderedPending.map((grant) => () => denyGrant(grant.id)),
-              "denyAllSuccess",
-              "denyAllError",
+            runAction(
+              "deny",
+              () => denyGrant(grantId),
+              "denySuccess",
+              "denyError",
             )
           }
         >
-          {loadingAction === "denyAll" ? (
+          {loadingAction === "deny" ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : null}
-          {tActions("denyAll")}
+          {tActions("deny")}
         </Button>
       </div>
     );
   }
 
-  const completionSteps: Array<() => Promise<Result<unknown, ActionError>>> =
-    [];
-
-  if (permissionsToCreate.length > 0) {
-    completionSteps.push(() => createGrants(permissionsToCreate));
-  }
-
-  for (const grant of orderGrantsForBundledActions(deniedOrRevokedGrants)) {
-    completionSteps.push(() => approveGrant(grant.id));
-  }
-
-  const showComplete = canComplete && completionSteps.length > 0;
-  const showRevokeAll = grantedGrants.length > 0;
-
-  if (!showComplete && !showRevokeAll) {
-    return null;
-  }
-
-  return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-      {showComplete ? (
+  if (isGrantGranted(entry) && entry.grant) {
+    return (
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
         <Button
           size="sm"
           variant="outline"
           className="h-7 px-2.5"
           disabled={loadingAction !== null}
           onClick={() =>
-            runSequential(
-              "complete",
-              completionSteps,
+            runAction(
+              "revoke",
+              () => revokeGrant(entry.grant!.id),
+              "revokeSuccess",
+              "revokeError",
+            )
+          }
+        >
+          {loadingAction === "revoke" ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : null}
+          {tActions("revoke")}
+        </Button>
+      </div>
+    );
+  }
+
+  if (!entry.grant || isGrantDeniedOrRevoked(entry)) {
+    return (
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-2.5"
+          disabled={loadingAction !== null}
+          onClick={() =>
+            runAction(
+              "grant",
+              () => createGrant(),
               "grantSuccess",
               "grantError",
             )
           }
         >
-          {loadingAction === "complete" ? (
+          {loadingAction === "grant" ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : null}
           {tGrantForm("submit")}
         </Button>
-      ) : null}
-      {showRevokeAll ? (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 px-2.5"
-          disabled={loadingAction !== null}
-          onClick={() =>
-            runSequential(
-              "revokeAll",
-              grantedGrants.map((grant) => () => revokeGrant(grant.id)),
-              "revokeAllSuccess",
-              "revokeAllError",
-            )
-          }
-        >
-          {loadingAction === "revokeAll" ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : null}
-          {tActions("revokeAll")}
-        </Button>
-      ) : null}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  return null;
 }

@@ -1127,7 +1127,7 @@ export const getUsersByIdVendorGrants = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Proactively grant one or more vendor permissions for the user's personal workspace. Creates or upgrades each row to GRANTED in a single transaction. Granting task:create also unparks tasks awaiting that grant. Returns all resulting grants for the request.
+ * Proactively grant vendor workspace access for the user's personal workspace. Creates or upgrades the grant to GRANTED and unparks tasks awaiting approval. Returns the resulting grant.
  */
 export const postUsersByIdVendorGrants = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdVendorGrantsData, ThrowOnError>): RequestResult<PostUsersByIdVendorGrantsResponses, PostUsersByIdVendorGrantsErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdVendorGrantsResponses, PostUsersByIdVendorGrantsErrors, ThrowOnError>({
     responseTransformer: postUsersByIdVendorGrantsResponseTransformer,
@@ -1140,7 +1140,7 @@ export const postUsersByIdVendorGrants = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Approve a vendor grant for the user's personal workspace. For task:read, also grants a bundled PENDING or DENIED task:comment when present.
+ * Approve a vendor workspace grant for the user's personal workspace. Unparks tasks awaiting this grant.
  */
 export const postUsersByIdVendorGrantsByGrantIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdVendorGrantsByGrantIdApproveData, ThrowOnError>): RequestResult<PostUsersByIdVendorGrantsByGrantIdApproveResponses, PostUsersByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdVendorGrantsByGrantIdApproveResponses, PostUsersByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError>({
     responseTransformer: postUsersByIdVendorGrantsByGrantIdApproveResponseTransformer,
@@ -1149,7 +1149,7 @@ export const postUsersByIdVendorGrantsByGrantIdApprove = <ThrowOnError extends b
 });
 
 /**
- * Deny a PENDING vendor grant for the user's personal workspace. Denying PENDING task:read also denies bundled PENDING task:comment. Cancels parked tasks when denying task:create.
+ * Deny a PENDING vendor workspace grant for the user's personal workspace. Cancels parked tasks linked to this grant.
  */
 export const postUsersByIdVendorGrantsByGrantIdDeny = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdVendorGrantsByGrantIdDenyData, ThrowOnError>): RequestResult<PostUsersByIdVendorGrantsByGrantIdDenyResponses, PostUsersByIdVendorGrantsByGrantIdDenyErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdVendorGrantsByGrantIdDenyResponses, PostUsersByIdVendorGrantsByGrantIdDenyErrors, ThrowOnError>({
     responseTransformer: postUsersByIdVendorGrantsByGrantIdDenyResponseTransformer,
@@ -1158,7 +1158,7 @@ export const postUsersByIdVendorGrantsByGrantIdDeny = <ThrowOnError extends bool
 });
 
 /**
- * Revoke a GRANTED vendor grant for the user's personal workspace. Cancels still-parked tasks when revoking task:create.
+ * Revoke a GRANTED vendor workspace grant for the user's personal workspace. Cancels parked tasks linked to this grant.
  */
 export const postUsersByIdVendorGrantsByGrantIdRevoke = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdVendorGrantsByGrantIdRevokeData, ThrowOnError>): RequestResult<PostUsersByIdVendorGrantsByGrantIdRevokeResponses, PostUsersByIdVendorGrantsByGrantIdRevokeErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdVendorGrantsByGrantIdRevokeResponses, PostUsersByIdVendorGrantsByGrantIdRevokeErrors, ThrowOnError>({
     responseTransformer: postUsersByIdVendorGrantsByGrantIdRevokeResponseTransformer,
@@ -1266,7 +1266,7 @@ export const getOrganizationsByIdInvitations = <ThrowOnError extends boolean = f
 });
 
 /**
- * List vendor workspace grants for an organization (any member)
+ * List vendor workspace grants for an organization. Any organization member may read grant status so coworkers understand pending vendor access in shared workspaces; create, approve, deny, and revoke remain owner/admin only.
  */
 export const getOrganizationsByIdVendorGrants = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdVendorGrantsData, ThrowOnError>): RequestResult<GetOrganizationsByIdVendorGrantsResponses, GetOrganizationsByIdVendorGrantsErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdVendorGrantsResponses, GetOrganizationsByIdVendorGrantsErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdVendorGrantsResponseTransformer,
@@ -1275,7 +1275,7 @@ export const getOrganizationsByIdVendorGrants = <ThrowOnError extends boolean = 
 });
 
 /**
- * Proactively grant one or more vendor permissions for the organization workspace (owner/admin). Creates or upgrades each row to GRANTED in a single transaction. Granting task:create also unparks tasks awaiting that grant. Returns all resulting grants for the request.
+ * Proactively grant vendor workspace access for the organization (owner/admin). Creates or upgrades the grant to GRANTED and unparks tasks awaiting approval. Returns the resulting grant.
  */
 export const postOrganizationsByIdVendorGrants = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdVendorGrantsData, ThrowOnError>): RequestResult<PostOrganizationsByIdVendorGrantsResponses, PostOrganizationsByIdVendorGrantsErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdVendorGrantsResponses, PostOrganizationsByIdVendorGrantsErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdVendorGrantsResponseTransformer,
@@ -1288,7 +1288,7 @@ export const postOrganizationsByIdVendorGrants = <ThrowOnError extends boolean =
 });
 
 /**
- * Approve a vendor grant (PENDING / DENIED / REVOKED → GRANTED). For task:read, also grants a bundled PENDING or DENIED task:comment when present. Owner/admin only.
+ * Approve a vendor workspace grant (PENDING / DENIED / REVOKED → GRANTED). Unparks tasks awaiting this grant. Owner/admin only.
  */
 export const postOrganizationsByIdVendorGrantsByGrantIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdVendorGrantsByGrantIdApproveData, ThrowOnError>): RequestResult<PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses, PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses, PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdVendorGrantsByGrantIdApproveResponseTransformer,
@@ -1297,7 +1297,7 @@ export const postOrganizationsByIdVendorGrantsByGrantIdApprove = <ThrowOnError e
 });
 
 /**
- * Deny a PENDING vendor grant. Denying PENDING task:read also denies a bundled PENDING task:comment. Cancels parked tasks when denying task:create. Owner/admin only.
+ * Deny a PENDING vendor workspace grant. Cancels parked tasks linked to this grant. Owner/admin only.
  */
 export const postOrganizationsByIdVendorGrantsByGrantIdDeny = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdVendorGrantsByGrantIdDenyData, ThrowOnError>): RequestResult<PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses, PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses, PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdVendorGrantsByGrantIdDenyResponseTransformer,
@@ -1306,7 +1306,7 @@ export const postOrganizationsByIdVendorGrantsByGrantIdDeny = <ThrowOnError exte
 });
 
 /**
- * Revoke a GRANTED vendor grant. Cancels still-parked tasks when revoking task:create. Owner/admin only.
+ * Revoke a GRANTED vendor workspace grant. Cancels parked tasks linked to this grant. Owner/admin only.
  */
 export const postOrganizationsByIdVendorGrantsByGrantIdRevoke = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdVendorGrantsByGrantIdRevokeData, ThrowOnError>): RequestResult<PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses, PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses, PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdVendorGrantsByGrantIdRevokeResponseTransformer,
@@ -1903,7 +1903,7 @@ export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false
 });
 
 /**
- * Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor task:create approval.
+ * Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval.
  */
 export const deleteTasksById = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdData, ThrowOnError>): RequestResult<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdResponseTransformer,

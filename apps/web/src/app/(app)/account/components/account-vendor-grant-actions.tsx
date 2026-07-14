@@ -17,9 +17,7 @@ export function PersonalVendorGrantForm({
       vendors={vendors}
       disabledVendorIds={disabledVendorIds}
       namespace="App.Account.VendorGrants"
-      onCreate={({ vendorId, permissions }) =>
-        createMyVendorGrant({ vendorId, permissions })
-      }
+      onCreate={({ vendorId }) => createMyVendorGrant({ vendorId })}
     />
   );
 }

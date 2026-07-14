@@ -945,7 +945,7 @@ export const getUsersByIdVendorGrantsResponseTransformer = async (data: any): Pr
 };
 
 export const postUsersByIdVendorGrantsResponseTransformer = async (data: any): Promise<PostUsersByIdVendorGrantsResponse> => {
-    data.data = data.data.map((item: any) => vendorGrantSchemaResponseTransformer(item));
+    data.data = vendorGrantSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -1072,7 +1072,7 @@ export const getOrganizationsByIdVendorGrantsResponseTransformer = async (data: 
 };
 
 export const postOrganizationsByIdVendorGrantsResponseTransformer = async (data: any): Promise<PostOrganizationsByIdVendorGrantsResponse> => {
-    data.data = data.data.map((item: any) => vendorGrantSchemaResponseTransformer(item));
+    data.data = vendorGrantSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

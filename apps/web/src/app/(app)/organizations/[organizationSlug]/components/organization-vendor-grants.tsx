@@ -33,8 +33,8 @@ export async function OrganizationVendorGrants({
   }
 
   const vendors = await vendorService.listVendors().catch(() => []);
-  const groups = groupVendorGrantsByVendor(grants);
-  const disabledVendorIds = groups.map((group) => group.vendorId);
+  const entries = groupVendorGrantsByVendor(grants);
+  const disabledVendorIds = entries.map((entry) => entry.vendorId);
   const disabledVendorIdSet = new Set(disabledVendorIds);
   const hasSelectableVendor = vendors.some(
     (vendor) => !disabledVendorIdSet.has(vendor.id),
@@ -50,7 +50,7 @@ export async function OrganizationVendorGrants({
         <section className="space-y-3">
           <h3 className="text-sm font-medium">{t("vendorsTitle")}</h3>
           <VendorGrantVendorList
-            groups={groups}
+            entries={entries}
             mode="organization"
             organizationId={organizationId}
             emptyLabel={t("vendorsEmpty")}

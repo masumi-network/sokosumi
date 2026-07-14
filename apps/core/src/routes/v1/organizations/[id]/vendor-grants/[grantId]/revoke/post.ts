@@ -1,9 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  MemberRole,
-  VendorGrantStatus,
-  VendorPermission,
-} from "@sokosumi/database";
+import { MemberRole, VendorGrantStatus } from "@sokosumi/database";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -21,12 +17,14 @@ import { vendorGrantSchema } from "@/schemas/vendor-grant.schema";
 const params = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },
+    description: "Organization ID",
   }),
   grantId: z
     .string()
     .uuid()
     .openapi({
       param: { name: "grantId", in: "path" },
+      description: "Vendor grant ID",
     }),
 });
 
@@ -34,7 +32,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/vendor-grants/{grantId}/revoke",
   description:
-    "Revoke a GRANTED vendor grant. Cancels still-parked tasks when revoking task:create. Owner/admin only.",
+    "Revoke a GRANTED vendor workspace grant. Cancels parked tasks linked to this grant. Owner/admin only.",
   tags: ["Organizations"],
   request: { params },
   responses: {
@@ -91,9 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: { vendor: { select: { name: true, slug: true } } },
       });
 
-      if (updated.permission === VendorPermission.task_create) {
-        await cancelParkedTasksForGrant(updated.id, tx);
-      }
+      await cancelParkedTasksForGrant(updated.id, tx);
 
       return updated;
     });

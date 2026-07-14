@@ -25,8 +25,8 @@ export async function AccountVendorGrants() {
   }
 
   const vendors = await vendorService.listVendors().catch(() => []);
-  const groups = groupVendorGrantsByVendor(grants);
-  const disabledVendorIds = groups.map((group) => group.vendorId);
+  const entries = groupVendorGrantsByVendor(grants);
+  const disabledVendorIds = entries.map((entry) => entry.vendorId);
   const disabledVendorIdSet = new Set(disabledVendorIds);
   const hasSelectableVendor = vendors.some(
     (vendor) => !disabledVendorIdSet.has(vendor.id),
@@ -42,7 +42,7 @@ export async function AccountVendorGrants() {
         <section className="space-y-3">
           <h3 className="text-sm font-medium">{t("vendorsTitle")}</h3>
           <VendorGrantVendorList
-            groups={groups}
+            entries={entries}
             mode="personal"
             emptyLabel={t("vendorsEmpty")}
             namespace="App.Account.VendorGrants"

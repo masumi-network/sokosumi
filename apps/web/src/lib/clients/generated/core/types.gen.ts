@@ -278,7 +278,7 @@ export type Task = {
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
-     * True when the task is parked awaiting vendor task:create grant approval
+     * True when the task is parked awaiting vendor workspace grant approval
      */
     pendingApproval: boolean;
     /**
@@ -1936,7 +1936,7 @@ export type VendorGrant = {
     vendorName: string;
     vendorSlug: string;
     workspaceId: string;
-    permission: 'task:read' | 'task:comment' | 'task:create';
+    permission: 'workspace';
     status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
     requestedByUserId: string | null;
     resolvedAt: Date | null;
@@ -2624,7 +2624,7 @@ export type TaskListItem = {
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
-     * True when the task is parked awaiting vendor task:create grant approval
+     * True when the task is parked awaiting vendor workspace grant approval
      */
     pendingApproval: boolean;
     /**
@@ -14651,7 +14651,7 @@ export type GetUsersByIdVendorGrantsData = {
     query?: {
         status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
         vendorId?: string;
-        permission?: 'task:read' | 'task:comment' | 'task:create';
+        permission?: 'workspace';
     };
     url: '/users/{id}/vendor-grants';
 };
@@ -14736,7 +14736,6 @@ export type GetUsersByIdVendorGrantsResponse = GetUsersByIdVendorGrantsResponses
 export type PostUsersByIdVendorGrantsData = {
     body?: {
         vendorId: string;
-        permissions: Array<'task:read' | 'task:comment' | 'task:create'>;
     };
     path: {
         /**
@@ -14811,10 +14810,10 @@ export type PostUsersByIdVendorGrantsError = PostUsersByIdVendorGrantsErrors[key
 
 export type PostUsersByIdVendorGrantsResponses = {
     /**
-     * Grants created or upgraded
+     * Grant created or upgraded
      */
     201: {
-        data: Array<VendorGrant>;
+        data: VendorGrant;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16166,7 +16165,7 @@ export type GetOrganizationsByIdVendorGrantsData = {
     query?: {
         status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
         vendorId?: string;
-        permission?: 'task:read' | 'task:comment' | 'task:create';
+        permission?: 'workspace';
     };
     url: '/organizations/{id}/vendor-grants';
 };
@@ -16237,7 +16236,6 @@ export type GetOrganizationsByIdVendorGrantsResponse = GetOrganizationsByIdVendo
 export type PostOrganizationsByIdVendorGrantsData = {
     body?: {
         vendorId: string;
-        permissions: Array<'task:read' | 'task:comment' | 'task:create'>;
     };
     path: {
         /**
@@ -16312,10 +16310,10 @@ export type PostOrganizationsByIdVendorGrantsError = PostOrganizationsByIdVendor
 
 export type PostOrganizationsByIdVendorGrantsResponses = {
     /**
-     * Grants created or upgraded
+     * Grant created or upgraded
      */
     201: {
-        data: Array<VendorGrant>;
+        data: VendorGrant;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16509,7 +16507,13 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdDenyResponse = PostOrganiz
 export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
+        /**
+         * Organization ID
+         */
         id: string;
+        /**
+         * Vendor grant ID
+         */
         grantId: string;
     };
     query?: never;

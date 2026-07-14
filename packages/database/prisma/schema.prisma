@@ -236,9 +236,7 @@ model Workspace {
 }
 
 enum VendorPermission {
-  task_read    @map("task:read")
-  task_comment @map("task:comment")
-  task_create  @map("task:create")
+  workspace @map("workspace")
 }
 
 enum VendorGrantStatus {
@@ -264,7 +262,7 @@ model Vendor {
   @@map("vendor")
 }
 
-/// Vendor permission for a workspace (personal or organization). Key: (vendorId, workspaceId, permission).
+/// Vendor workspace access grant (personal or organization). One row per (vendorId, workspaceId).
 model VendorGrant {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -288,7 +286,7 @@ model VendorGrant {
 
   pendingTasks Task[]
 
-  @@unique([vendorId, workspaceId, permission])
+  @@unique([vendorId, workspaceId])
   @@index([workspaceId, status])
   @@map("vendor_grant")
 }

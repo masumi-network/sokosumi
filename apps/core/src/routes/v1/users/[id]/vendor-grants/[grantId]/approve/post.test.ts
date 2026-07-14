@@ -12,7 +12,6 @@ import {
 const {
   unparkTasksForGrantMock,
   vendorGrantFindFirstMock,
-  vendorGrantFindUniqueMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
@@ -20,7 +19,6 @@ const {
 } = vi.hoisted(() => ({
   unparkTasksForGrantMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
-  vendorGrantFindUniqueMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -98,19 +96,18 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
         callback({
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
-            findUnique: vendorGrantFindUniqueMock,
             update: vendorGrantUpdateMock,
           },
         }),
     );
   });
 
-  it("approves PENDING task:create and unparks linked tasks", async () => {
+  it("approves PENDING workspace grant and unparks linked tasks", async () => {
     const existing = {
       id: grantId,
       vendorId,
       workspaceId,
-      permission: VendorPermission.task_create,
+      permission: VendorPermission.workspace,
       status: VendorGrantStatus.PENDING,
       requestedByUserId: "user_ctx",
       resolvedAt: null,
@@ -143,17 +140,17 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: grantId,
-      permission: "task:create",
+      permission: "workspace",
       status: "GRANTED",
     });
   });
 
-  it("re-approves DENIED task:read and grants bundled DENIED comment", async () => {
+  it("re-approves DENIED workspace grant and unparks linked tasks", async () => {
     const existing = {
       id: grantId,
       vendorId,
       workspaceId,
-      permission: VendorPermission.task_read,
+      permission: VendorPermission.workspace,
       status: VendorGrantStatus.DENIED,
       requestedByUserId: null,
       resolvedAt: new Date("2026-07-01T12:00:00.000Z"),
@@ -170,15 +167,7 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     };
 
     vendorGrantFindFirstMock.mockResolvedValue(existing);
-    vendorGrantUpdateMock.mockResolvedValueOnce(updated).mockResolvedValueOnce({
-      id: "comment-grant",
-      status: VendorGrantStatus.GRANTED,
-    });
-    vendorGrantFindUniqueMock.mockResolvedValue({
-      id: "comment-grant",
-      status: VendorGrantStatus.DENIED,
-      permission: VendorPermission.task_comment,
-    });
+    vendorGrantUpdateMock.mockResolvedValue(updated);
 
     const response = await createApp().request(
       `http://localhost/me/vendor-grants/${grantId}/approve`,
@@ -186,6 +175,10 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(vendorGrantUpdateMock).toHaveBeenCalledTimes(2);
+    expect(vendorGrantUpdateMock).toHaveBeenCalledTimes(1);
+    expect(unparkTasksForGrantMock).toHaveBeenCalledWith(
+      grantId,
+      expect.anything(),
+    );
   });
 });

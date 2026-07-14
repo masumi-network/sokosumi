@@ -102,12 +102,12 @@ describe("POST /users/{id}/vendor-grants/{grantId}/revoke", () => {
     );
   });
 
-  it("revokes GRANTED task:create and cancels still-parked tasks", async () => {
+  it("revokes GRANTED workspace grant and cancels still-parked tasks", async () => {
     const existing = {
       id: grantId,
       vendorId,
       workspaceId,
-      permission: VendorPermission.task_create,
+      permission: VendorPermission.workspace,
       status: VendorGrantStatus.GRANTED,
       requestedByUserId: null,
       resolvedAt: new Date("2026-07-01T12:00:00.000Z"),

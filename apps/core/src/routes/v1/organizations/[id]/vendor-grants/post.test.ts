@@ -56,7 +56,6 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 };
 
 const grantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const commentGrantId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const vendorId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const workspaceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const orgId = "org_123";
@@ -87,7 +86,7 @@ function baseGrant(overrides: Record<string, unknown> = {}) {
     id: grantId,
     vendorId,
     workspaceId,
-    permission: VendorPermission.task_create,
+    permission: VendorPermission.workspace,
     status: VendorGrantStatus.GRANTED,
     requestedByUserId: null,
     resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
@@ -128,7 +127,7 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     );
   });
 
-  it("grants task:create and unparks tasks awaiting that grant", async () => {
+  it("grants workspace access and unparks tasks awaiting that grant", async () => {
     vendorGrantUpsertMock.mockResolvedValue(baseGrant());
 
     const response = await createApp().request(
@@ -136,10 +135,7 @@ describe("POST /organizations/{id}/vendor-grants", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:create"],
-        }),
+        body: JSON.stringify({ vendorId }),
       },
     );
 
@@ -155,118 +151,20 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     );
 
     const body = await response.json();
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0]).toMatchObject({
+    expect(body.data).toMatchObject({
       id: grantId,
-      permission: "task:create",
+      permission: "workspace",
       status: "GRANTED",
     });
   });
 
-  it("grants task:read without unparking", async () => {
-    vendorGrantUpsertMock.mockResolvedValue(
-      baseGrant({ permission: VendorPermission.task_read }),
-    );
-
+  it("rejects requests missing vendorId", async () => {
     const response = await createApp().request(
       `http://localhost/${orgId}/vendor-grants`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:read"],
-        }),
-      },
-    );
-
-    expect(response.status).toBe(201);
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
-  });
-
-  it("grants multiple permissions in one transaction", async () => {
-    vendorGrantUpsertMock
-      .mockResolvedValueOnce(
-        baseGrant({
-          id: grantId,
-          permission: VendorPermission.task_read,
-        }),
-      )
-      .mockResolvedValueOnce(
-        baseGrant({
-          id: commentGrantId,
-          permission: VendorPermission.task_comment,
-        }),
-      );
-
-    const response = await createApp().request(
-      `http://localhost/${orgId}/vendor-grants`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:read", "task:comment"],
-        }),
-      },
-    );
-
-    expect(response.status).toBe(201);
-    expect(vendorGrantUpsertMock).toHaveBeenCalledTimes(2);
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
-
-    const body = await response.json();
-    expect(body.data).toHaveLength(2);
-    expect(body.data.map((g: { permission: string }) => g.permission)).toEqual([
-      "task:read",
-      "task:comment",
-    ]);
-  });
-
-  it("rejects empty permissions array", async () => {
-    const response = await createApp().request(
-      `http://localhost/${orgId}/vendor-grants`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: [],
-        }),
-      },
-    );
-
-    expect(response.status).toBe(400);
-    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects duplicate permissions", async () => {
-    const response = await createApp().request(
-      `http://localhost/${orgId}/vendor-grants`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:read", "task:read"],
-        }),
-      },
-    );
-
-    expect(response.status).toBe(400);
-    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects unknown permissions", async () => {
-    const response = await createApp().request(
-      `http://localhost/${orgId}/vendor-grants`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:admin"],
-        }),
+        body: JSON.stringify({}),
       },
     );
 
@@ -282,10 +180,7 @@ describe("POST /organizations/{id}/vendor-grants", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorId,
-          permissions: ["task:create"],
-        }),
+        body: JSON.stringify({ vendorId }),
       },
     );
 

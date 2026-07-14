@@ -1,14 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { VendorGrantStatus } from "@sokosumi/database";
+import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import {
-  toApiVendorPermission,
-  toPrismaVendorPermission,
-} from "@/helpers/vendor-grants";
+import { toApiVendorPermission } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -75,7 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.vendorId ? { vendorId: filters.vendorId } : {}),
         ...(filters.permission
-          ? { permission: toPrismaVendorPermission(filters.permission) }
+          ? { permission: VendorPermission.workspace }
           : {}),
       },
       include: {

@@ -3508,7 +3508,7 @@
       },
       "VendorGrants": {
         "title": "Accesso fornitori allo spazio di lavoro",
-        "description": "Approva le richieste dei fornitori per leggere, commentare o creare task nel tuo spazio di lavoro personale.",
+        "description": "Approva l’accesso vendor al tuo spazio di lavoro personale (leggere, commentare e creare task).",
         "vendorsTitle": "Fornitori",
         "vendorsEmpty": "Nessuna autorizzazione fornitore ancora.",
         "statusPending": "In sospeso",
@@ -3531,7 +3531,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Fornitore",
-          "permissionLabel": "Autorizzazioni",
+          "workspaceAccessHint": "Concede l’accesso completo al workspace: leggere, commentare e creare task.",
           "submit": "Concedi accesso",
           "success": "Accesso fornitore concesso",
           "error": "Impossibile concedere l’accesso fornitore"
@@ -3624,7 +3624,7 @@
         },
         "VendorGrants": {
           "title": "Accesso workspace vendor",
-          "description": "Approva le richieste dei vendor per leggere, commentare o creare task nel workspace di questa organizzazione.",
+          "description": "Approva l’accesso vendor al workspace di questa organizzazione (leggere, commentare e creare task).",
           "vendorsTitle": "Fornitori",
           "vendorsEmpty": "Nessuna autorizzazione fornitore ancora.",
           "statusPending": "In sospeso",
@@ -3647,7 +3647,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Vendor",
-            "permissionLabel": "Autorizzazioni",
+            "workspaceAccessHint": "Concede l’accesso completo al workspace: leggere, commentare e creare task.",
             "submit": "Concedi accesso",
             "success": "Accesso vendor concesso",
             "error": "Impossibile concedere l’accesso vendor"

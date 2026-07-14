@@ -1,9 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  TaskEventOrigin,
-  VendorGrantStatus,
-  VendorPermission,
-} from "@sokosumi/database";
+import { TaskEventOrigin, VendorGrantStatus } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
@@ -18,12 +14,11 @@ import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import { resolveTaskName } from "@/helpers/task-name";
 import {
-  getVendorGrant,
+  getWorkspaceGrant,
   isGrantDeniedOrRevoked,
   notifyWorkspaceApproversOfPendingGrant,
-  requestCreateGrant,
+  requestWorkspaceGrant,
   throwGrantAccessError,
-  VendorPermissionApi,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -214,17 +209,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    const existingGrant = await getVendorGrant({
+    const existingGrant = await getWorkspaceGrant({
       vendorId: authContext.vendorId,
       workspaceId: workspaceContext.workspaceId,
-      permission: VendorPermission.task_create,
     });
 
     if (existingGrant && isGrantDeniedOrRevoked(existingGrant.status)) {
-      throwGrantAccessError(
-        existingGrant.status,
-        VendorPermissionApi.TASK_CREATE,
-      );
+      throwGrantAccessError(existingGrant.status);
     }
 
     if (existingGrant?.status === VendorGrantStatus.GRANTED) {
@@ -248,7 +239,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // cannot leave an approval-required task permanently parked.
     const { task, createdPendingGrant } = await prisma.$transaction(
       async (tx) => {
-        const { grant, created: pendingCreated } = await requestCreateGrant(
+        const { grant, created: pendingCreated } = await requestWorkspaceGrant(
           {
             vendorId: authContext.vendorId,
             workspaceId: workspaceContext.workspaceId,
@@ -259,7 +250,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
 
         if (isGrantDeniedOrRevoked(grant.status)) {
-          throwGrantAccessError(grant.status, VendorPermissionApi.TASK_CREATE);
+          throwGrantAccessError(grant.status);
         }
 
         if (grant.status === VendorGrantStatus.GRANTED) {
@@ -305,9 +296,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await notifyWorkspaceApproversOfPendingGrant({
         vendorId: createdPendingGrant.vendorId,
         workspaceId: createdPendingGrant.workspaceId,
-        primaryGrantId: createdPendingGrant.grantId,
-        permissions: [VendorPermissionApi.TASK_CREATE],
-        bundled: false,
+        grantId: createdPendingGrant.grantId,
       });
     }
 

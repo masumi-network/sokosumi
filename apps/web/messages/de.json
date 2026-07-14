@@ -3477,7 +3477,7 @@
       },
       "VendorGrants": {
         "title": "Vendor-Workspace-Zugriff",
-        "description": "Genehmige Vendor-Anfragen zum Lesen, Kommentieren oder Erstellen von Tasks in deinem persönlichen Workspace.",
+        "description": "Genehmige Vendor-Workspace-Zugriff für deinen persönlichen Workspace (Aufgaben lesen, kommentieren und erstellen).",
         "vendorsTitle": "Anbieter",
         "vendorsEmpty": "Noch keine Anbieterfreigaben.",
         "statusPending": "Ausstehend",
@@ -3500,7 +3500,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Vendor",
-          "permissionLabel": "Berechtigungen",
+          "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
           "submit": "Zugriff gewähren",
           "success": "Vendor-Zugriff gewährt",
           "error": "Vendor-Zugriff konnte nicht gewährt werden"
@@ -3602,7 +3602,7 @@
         },
         "VendorGrants": {
           "title": "Vendor-Workspace-Zugriff",
-          "description": "Genehmige Vendor-Anfragen zum Lesen, Kommentieren oder Erstellen von Tasks in diesem Organisations-Workspace.",
+          "description": "Genehmige Vendor-Workspace-Zugriff für diese Organisation (Aufgaben lesen, kommentieren und erstellen).",
           "vendorsTitle": "Anbieter",
           "vendorsEmpty": "Noch keine Anbieterfreigaben.",
           "statusPending": "Ausstehend",
@@ -3625,7 +3625,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Vendor",
-            "permissionLabel": "Berechtigungen",
+            "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
             "submit": "Zugriff gewähren",
             "success": "Vendor-Zugriff gewährt",
             "error": "Vendor-Zugriff konnte nicht gewährt werden"

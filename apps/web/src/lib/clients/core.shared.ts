@@ -1199,7 +1199,7 @@ export function createCoreClient(getClient: GetClient) {
     query?: {
       status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
       vendorId?: string;
-      permission?: "task:read" | "task:comment" | "task:create";
+      permission?: "workspace";
     },
   ) {
     return executeOperation(
@@ -1219,7 +1219,6 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     body: {
       vendorId: string;
-      permissions: Array<"task:read" | "task:comment" | "task:create">;
     },
   ) {
     return executeOperation(
@@ -1282,7 +1281,7 @@ export function createCoreClient(getClient: GetClient) {
   async function getMyVendorGrants(query?: {
     status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
     vendorId?: string;
-    permission?: "task:read" | "task:comment" | "task:create";
+    permission?: "workspace";
   }) {
     return executeOperation(
       getClient,
@@ -1297,10 +1296,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function createMyVendorGrant(body: {
-    vendorId: string;
-    permissions: Array<"task:read" | "task:comment" | "task:create">;
-  }) {
+  async function createMyVendorGrant(body: { vendorId: string }) {
     return executeOperation(
       getClient,
       (client) =>

@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
+import { VendorGrantStatus } from "@sokosumi/database";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -31,7 +31,7 @@ const route = createRoute({
   method: "post",
   path: "/vendor-grants/{grantId}/deny",
   description:
-    "Deny a PENDING vendor grant for the user's personal workspace. Denying PENDING task:read also denies bundled PENDING task:comment. Cancels parked tasks when denying task:create.",
+    "Deny a PENDING vendor workspace grant for the user's personal workspace. Cancels parked tasks linked to this grant.",
   tags: ["Users"],
   request: { params },
   responses: {
@@ -81,32 +81,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         include: { vendor: { select: { name: true, slug: true } } },
       });
 
-      if (updated.permission === VendorPermission.task_read) {
-        const commentGrant = await tx.vendorGrant.findUnique({
-          where: {
-            vendorId_workspaceId_permission: {
-              vendorId: updated.vendorId,
-              workspaceId: updated.workspaceId,
-              permission: VendorPermission.task_comment,
-            },
-          },
-        });
-
-        if (commentGrant?.status === VendorGrantStatus.PENDING) {
-          await tx.vendorGrant.update({
-            where: { id: commentGrant.id },
-            data: {
-              status: VendorGrantStatus.DENIED,
-              resolvedAt: new Date(),
-              resolvedById: resolvedUserId,
-            },
-          });
-        }
-      }
-
-      if (updated.permission === VendorPermission.task_create) {
-        await cancelParkedTasksForGrant(updated.id, tx);
-      }
+      await cancelParkedTasksForGrant(updated.id, tx);
 
       return updated;
     });

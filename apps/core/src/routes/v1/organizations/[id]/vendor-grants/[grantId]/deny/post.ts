@@ -1,9 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  MemberRole,
-  VendorGrantStatus,
-  VendorPermission,
-} from "@sokosumi/database";
+import { MemberRole, VendorGrantStatus } from "@sokosumi/database";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -34,7 +30,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/vendor-grants/{grantId}/deny",
   description:
-    "Deny a PENDING vendor grant. Denying PENDING task:read also denies a bundled PENDING task:comment. Cancels parked tasks when denying task:create. Owner/admin only.",
+    "Deny a PENDING vendor workspace grant. Cancels parked tasks linked to this grant. Owner/admin only.",
   tags: ["Organizations"],
   request: { params },
   responses: {
@@ -91,33 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: { vendor: { select: { name: true, slug: true } } },
       });
 
-      // Bundled ask: denying PENDING task:read also denies PENDING task:comment.
-      if (updated.permission === VendorPermission.task_read) {
-        const commentGrant = await tx.vendorGrant.findUnique({
-          where: {
-            vendorId_workspaceId_permission: {
-              vendorId: updated.vendorId,
-              workspaceId: updated.workspaceId,
-              permission: VendorPermission.task_comment,
-            },
-          },
-        });
-
-        if (commentGrant?.status === VendorGrantStatus.PENDING) {
-          await tx.vendorGrant.update({
-            where: { id: commentGrant.id },
-            data: {
-              status: VendorGrantStatus.DENIED,
-              resolvedAt: new Date(),
-              resolvedById: userContext.userId,
-            },
-          });
-        }
-      }
-
-      if (updated.permission === VendorPermission.task_create) {
-        await cancelParkedTasksForGrant(updated.id, tx);
-      }
+      await cancelParkedTasksForGrant(updated.id, tx);
 
       return updated;
     });

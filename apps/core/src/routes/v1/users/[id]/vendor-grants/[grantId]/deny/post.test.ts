@@ -12,7 +12,6 @@ import {
 const {
   cancelParkedTasksForGrantMock,
   vendorGrantFindFirstMock,
-  vendorGrantFindUniqueMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
@@ -20,7 +19,6 @@ const {
 } = vi.hoisted(() => ({
   cancelParkedTasksForGrantMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
-  vendorGrantFindUniqueMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -93,25 +91,23 @@ describe("POST /users/{id}/vendor-grants/{grantId}/deny", () => {
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
     cancelParkedTasksForGrantMock.mockResolvedValue(1);
-    vendorGrantFindUniqueMock.mockResolvedValue(null);
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
-            findUnique: vendorGrantFindUniqueMock,
             update: vendorGrantUpdateMock,
           },
         }),
     );
   });
 
-  it("denies PENDING task:create and cancels parked tasks", async () => {
+  it("denies PENDING workspace grant and cancels parked tasks", async () => {
     const existing = {
       id: grantId,
       vendorId,
       workspaceId,
-      permission: VendorPermission.task_create,
+      permission: VendorPermission.workspace,
       status: VendorGrantStatus.PENDING,
       requestedByUserId: "user_ctx",
       resolvedAt: null,

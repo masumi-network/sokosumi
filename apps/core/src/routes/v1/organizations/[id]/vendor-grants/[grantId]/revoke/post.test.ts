@@ -111,12 +111,12 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/revoke", () => {
     );
   });
 
-  it("revokes GRANTED task:create and cancels still-parked tasks", async () => {
+  it("revokes GRANTED workspace grant and cancels still-parked tasks", async () => {
     const existing = {
       id: grantId,
       vendorId,
       workspaceId,
-      permission: VendorPermission.task_create,
+      permission: VendorPermission.workspace,
       status: VendorGrantStatus.GRANTED,
       requestedByUserId: null,
       resolvedAt: new Date("2026-07-01T12:00:00.000Z"),
@@ -154,42 +154,9 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/revoke", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: grantId,
-      permission: "task:create",
+      permission: "workspace",
       status: "REVOKED",
     });
-  });
-
-  it("revokes GRANTED task:read without canceling parked tasks", async () => {
-    const existing = {
-      id: grantId,
-      vendorId,
-      workspaceId,
-      permission: VendorPermission.task_read,
-      status: VendorGrantStatus.GRANTED,
-      requestedByUserId: null,
-      resolvedAt: new Date("2026-07-01T12:00:00.000Z"),
-      resolvedById: "user_123",
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-01T12:00:00.000Z"),
-      vendor: { name: "Acme", slug: "acme" },
-    };
-    const updated = {
-      ...existing,
-      status: VendorGrantStatus.REVOKED,
-      resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
-      resolvedById: "user_123",
-    };
-
-    vendorGrantFindFirstMock.mockResolvedValue(existing);
-    vendorGrantUpdateMock.mockResolvedValue(updated);
-
-    const response = await createApp().request(
-      `http://localhost/${orgId}/vendor-grants/${grantId}/revoke`,
-      { method: "POST" },
-    );
-
-    expect(response.status).toBe(200);
-    expect(cancelParkedTasksForGrantMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the grant is missing", async () => {

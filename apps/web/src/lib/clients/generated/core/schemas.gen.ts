@@ -1196,7 +1196,7 @@ export const TaskSchema = {
         },
         pendingApproval: {
             type: 'boolean',
-            description: 'True when the task is parked awaiting vendor task:create grant approval',
+            description: 'True when the task is parked awaiting vendor workspace grant approval',
             example: false
         },
         pendingVendorGrantId: {
@@ -6722,11 +6722,9 @@ export const VendorGrantSchema = {
         permission: {
             type: 'string',
             enum: [
-                'task:read',
-                'task:comment',
-                'task:create'
+                'workspace'
             ],
-            example: 'task:read'
+            example: 'workspace'
         },
         status: {
             type: 'string',
@@ -9547,7 +9545,7 @@ export const TaskListItemSchema = {
         },
         pendingApproval: {
             type: 'boolean',
-            description: 'True when the task is parked awaiting vendor task:create grant approval',
+            description: 'True when the task is parked awaiting vendor workspace grant approval',
             example: false
         },
         pendingVendorGrantId: {

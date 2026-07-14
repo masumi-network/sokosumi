@@ -15,9 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ActionError } from "@/lib/actions/errors";
-import type { VendorGrantPermission } from "@/lib/services/vendor-grant.service";
 import type { Result } from "@/lib/ts-res";
-import { VENDOR_PERMISSION_ORDER } from "@/lib/utils/vendor-grant-display";
 
 type VendorGrantFormNamespace =
   | "App.Account.VendorGrants"
@@ -30,8 +28,7 @@ interface VendorGrantCreateFormProps {
   namespace: VendorGrantFormNamespace;
   onCreate: (params: {
     vendorId: string;
-    permissions: VendorGrantPermission[];
-  }) => Promise<Result<{ grantIds: string[] }, ActionError>>;
+  }) => Promise<Result<{ grantId: string }, ActionError>>;
 }
 
 function firstEnabledVendorId(
@@ -76,10 +73,7 @@ export function VendorGrantCreateForm({
 
     setLoading(true);
     try {
-      const result = await onCreate({
-        vendorId: resolvedVendorId,
-        permissions: [...VENDOR_PERMISSION_ORDER],
-      });
+      const result = await onCreate({ vendorId: resolvedVendorId });
 
       if (!result.ok) {
         toast.error(result.error?.message ?? t("error"));
@@ -122,21 +116,9 @@ export function VendorGrantCreateForm({
             </SelectContent>
           </Select>
         </label>
-        <div className="flex flex-col gap-2 text-sm">
-          <span className="text-muted-foreground font-medium">
-            {t("permissionLabel")}
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {VENDOR_PERMISSION_ORDER.map((permission) => (
-              <code
-                key={permission}
-                className="bg-primary text-primary-foreground rounded px-1.5 py-0.5 font-mono text-xs"
-              >
-                {permission}
-              </code>
-            ))}
-          </div>
-        </div>
+        <p className="text-muted-foreground text-sm">
+          {t("workspaceAccessHint")}
+        </p>
       </div>
       <Button
         type="submit"

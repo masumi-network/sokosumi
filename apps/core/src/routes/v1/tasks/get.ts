@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma, VendorPermission } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
@@ -20,7 +20,7 @@ import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import {
   buildCoworkerTaskListAccessFilter,
-  hasGrantedVendorPermission,
+  hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -161,19 +161,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      const hasReadGrant = authContext.context
-        ? await hasGrantedVendorPermission({
+      const hasWorkspaceGrant = authContext.context
+        ? await hasGrantedWorkspaceAccess({
             vendorId: authContext.vendorId,
             workspaceId: requireWorkspaceContext(c.var.workspaceContext)
               .workspaceId,
-            permission: VendorPermission.task_read,
           })
         : false;
 
       const listAccessFilter = buildCoworkerTaskListAccessFilter({
         coworkerId: authContext.coworkerId,
         vendorId: authContext.vendorId,
-        hasReadGrant,
+        hasWorkspaceGrant,
       });
 
       if (authContext.context) {

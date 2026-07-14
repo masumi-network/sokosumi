@@ -13,38 +13,27 @@ import { createNotification } from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
-/** API / OpenAPI permission strings (`resource:action`). */
+/** API / OpenAPI permission string for vendor workspace access. */
 export const VendorPermissionApi = {
-  TASK_READ: "task:read",
-  TASK_COMMENT: "task:comment",
-  TASK_CREATE: "task:create",
+  WORKSPACE: "workspace",
 } as const;
 
 export type VendorPermissionApiValue =
   (typeof VendorPermissionApi)[keyof typeof VendorPermissionApi];
 
-const API_TO_PRISMA: Record<VendorPermissionApiValue, VendorPermission> = {
-  [VendorPermissionApi.TASK_READ]: VendorPermission.task_read,
-  [VendorPermissionApi.TASK_COMMENT]: VendorPermission.task_comment,
-  [VendorPermissionApi.TASK_CREATE]: VendorPermission.task_create,
-};
-
-const PRISMA_TO_API: Record<VendorPermission, VendorPermissionApiValue> = {
-  [VendorPermission.task_read]: VendorPermissionApi.TASK_READ,
-  [VendorPermission.task_comment]: VendorPermissionApi.TASK_COMMENT,
-  [VendorPermission.task_create]: VendorPermissionApi.TASK_CREATE,
-};
-
-export function toPrismaVendorPermission(
-  permission: VendorPermissionApiValue,
-): VendorPermission {
-  return API_TO_PRISMA[permission];
+export function toApiVendorPermission(
+  _permission: VendorPermission,
+): VendorPermissionApiValue {
+  return VendorPermissionApi.WORKSPACE;
 }
 
-export function toApiVendorPermission(
-  permission: VendorPermission,
-): VendorPermissionApiValue {
-  return PRISMA_TO_API[permission];
+function workspaceGrantUniqueWhere(vendorId: string, workspaceId: string) {
+  return {
+    vendorId_workspaceId: {
+      vendorId,
+      workspaceId,
+    },
+  } as const;
 }
 
 export function isGrantDeniedOrRevoked(status: VendorGrantStatus): boolean {
@@ -62,50 +51,36 @@ export function requireTaskNotParked(
 ): void {
   if (isTaskParked(task)) {
     throw forbidden(
-      "Parked tasks cannot be modified until vendor create access is granted",
+      "Parked tasks cannot be modified until vendor workspace access is granted",
       { kind: "task_parked" },
     );
   }
 }
 
-export async function hasGrantedVendorPermission(
+export async function hasGrantedWorkspaceAccess(
   params: {
     vendorId: string;
     workspaceId: string;
-    permission: VendorPermission;
   },
   tx: Prisma.TransactionClient = prisma,
 ): Promise<boolean> {
   const grant = await tx.vendorGrant.findUnique({
-    where: {
-      vendorId_workspaceId_permission: {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        permission: params.permission,
-      },
-    },
+    where: workspaceGrantUniqueWhere(params.vendorId, params.workspaceId),
     select: { status: true },
   });
 
   return grant?.status === VendorGrantStatus.GRANTED;
 }
 
-export async function getVendorGrant(
+export async function getWorkspaceGrant(
   params: {
     vendorId: string;
     workspaceId: string;
-    permission: VendorPermission;
   },
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Pick<VendorGrant, "id" | "status" | "permission"> | null> {
   return await tx.vendorGrant.findUnique({
-    where: {
-      vendorId_workspaceId_permission: {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        permission: params.permission,
-      },
-    },
+    where: workspaceGrantUniqueWhere(params.vendorId, params.workspaceId),
     select: { id: true, status: true, permission: true },
   });
 }
@@ -113,24 +88,21 @@ export async function getVendorGrant(
 /**
  * Upsert PENDING when no row exists. Never reopens DENIED / REVOKED / GRANTED /
  * existing PENDING. Returns whether a new PENDING row was created.
- * Concurrent creates that hit the unique constraint re-read the winner row.
  */
-export async function upsertPendingVendorGrant(
+export async function requestWorkspaceGrant(
   params: {
     vendorId: string;
     workspaceId: string;
-    permission: VendorPermission;
     requestedByUserId?: string | null;
+    /** When false, caller must notify after the surrounding transaction commits. */
+    notify?: boolean;
   },
   tx: Prisma.TransactionClient = prisma,
 ): Promise<{ grant: VendorGrant; created: boolean }> {
-  const uniqueWhere = {
-    vendorId_workspaceId_permission: {
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      permission: params.permission,
-    },
-  } as const;
+  const uniqueWhere = workspaceGrantUniqueWhere(
+    params.vendorId,
+    params.workspaceId,
+  );
 
   const existing = await tx.vendorGrant.findUnique({
     where: uniqueWhere,
@@ -145,11 +117,22 @@ export async function upsertPendingVendorGrant(
       data: {
         vendorId: params.vendorId,
         workspaceId: params.workspaceId,
-        permission: params.permission,
+        permission: VendorPermission.workspace,
         status: VendorGrantStatus.PENDING,
         requestedByUserId: params.requestedByUserId ?? null,
       },
     });
+
+    if (params.notify !== false) {
+      await notifyWorkspaceApproversOfPendingGrant(
+        {
+          vendorId: params.vendorId,
+          workspaceId: params.workspaceId,
+          grantId: grant.id,
+        },
+        tx,
+      );
+    }
 
     return { grant, created: true };
   } catch (error) {
@@ -170,164 +153,6 @@ export async function upsertPendingVendorGrant(
 }
 
 /**
- * First out-of-scope read: PENDING task:read + bundled PENDING task:comment
- * when comment has no row yet.
- */
-export async function requestReadGrantWithBundledComment(
-  params: {
-    vendorId: string;
-    workspaceId: string;
-    requestedByUserId?: string | null;
-  },
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const read = await upsertPendingVendorGrant(
-    {
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      permission: VendorPermission.task_read,
-      requestedByUserId: params.requestedByUserId,
-    },
-    tx,
-  );
-
-  const comment = await upsertPendingVendorGrant(
-    {
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      permission: VendorPermission.task_comment,
-      requestedByUserId: params.requestedByUserId,
-    },
-    tx,
-  );
-
-  if (read.created || comment.created) {
-    await notifyWorkspaceApproversOfPendingGrant(
-      {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        primaryGrantId: read.grant.id,
-        permissions: [
-          VendorPermissionApi.TASK_READ,
-          VendorPermissionApi.TASK_COMMENT,
-        ],
-        bundled: true,
-      },
-      tx,
-    );
-  }
-}
-
-export async function requestCommentGrant(
-  params: {
-    vendorId: string;
-    workspaceId: string;
-    requestedByUserId?: string | null;
-  },
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const result = await upsertPendingVendorGrant(
-    {
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      permission: VendorPermission.task_comment,
-      requestedByUserId: params.requestedByUserId,
-    },
-    tx,
-  );
-
-  if (result.created) {
-    await notifyWorkspaceApproversOfPendingGrant(
-      {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        primaryGrantId: result.grant.id,
-        permissions: [VendorPermissionApi.TASK_COMMENT],
-        bundled: false,
-      },
-      tx,
-    );
-  }
-}
-
-export async function requestCreateGrant(
-  params: {
-    vendorId: string;
-    workspaceId: string;
-    requestedByUserId?: string | null;
-    /** When false, caller must notify after the surrounding transaction commits. */
-    notify?: boolean;
-  },
-  tx: Prisma.TransactionClient = prisma,
-): Promise<{ grant: VendorGrant; created: boolean }> {
-  const result = await upsertPendingVendorGrant(
-    {
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      permission: VendorPermission.task_create,
-      requestedByUserId: params.requestedByUserId,
-    },
-    tx,
-  );
-
-  if (result.created && params.notify !== false) {
-    await notifyWorkspaceApproversOfPendingGrant(
-      {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        primaryGrantId: result.grant.id,
-        permissions: [VendorPermissionApi.TASK_CREATE],
-        bundled: false,
-      },
-      tx,
-    );
-  }
-
-  return result;
-}
-
-/**
- * When approving task:read, also grant a bundled task:comment that is still
- * PENDING or DENIED (deny of read mirrors comment to DENIED).
- */
-export async function grantBundledCommentWithReadApproval(
-  params: {
-    vendorId: string;
-    workspaceId: string;
-    resolvedById: string;
-    resolvedAt: Date;
-  },
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const commentGrant = await tx.vendorGrant.findUnique({
-    where: {
-      vendorId_workspaceId_permission: {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        permission: VendorPermission.task_comment,
-      },
-    },
-  });
-
-  if (
-    !commentGrant ||
-    (commentGrant.status !== VendorGrantStatus.PENDING &&
-      commentGrant.status !== VendorGrantStatus.DENIED)
-  ) {
-    return;
-  }
-
-  await tx.vendorGrant.update({
-    where: { id: commentGrant.id },
-    data: {
-      status: VendorGrantStatus.GRANTED,
-      resolvedAt: params.resolvedAt,
-      resolvedById: params.resolvedById,
-    },
-  });
-}
-
-/**
  * Notify grant approvers for a workspace: org OWNER/ADMIN when the workspace
  * belongs to an organization, otherwise the personal workspace owner.
  */
@@ -335,9 +160,7 @@ export async function notifyWorkspaceApproversOfPendingGrant(
   params: {
     vendorId: string;
     workspaceId: string;
-    primaryGrantId: string;
-    permissions: VendorPermissionApiValue[];
-    bundled: boolean;
+    grantId: string;
   },
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
@@ -380,15 +203,13 @@ export async function notifyWorkspaceApproversOfPendingGrant(
         {
           userId,
           kind: NotificationKind.SYSTEM,
-          referenceId: params.primaryGrantId,
-          eventId: params.primaryGrantId,
-          messageKey: params.bundled
-            ? "notifications.vendorGrant.pendingReadComment"
-            : "notifications.vendorGrant.pending",
+          referenceId: params.grantId,
+          eventId: params.grantId,
+          messageKey: "notifications.vendorGrant.pending",
           messageParams: {
             vendorName: vendor?.name ?? params.vendorId,
             vendorSlug: vendor?.slug ?? null,
-            permissions: params.permissions,
+            permission: VendorPermissionApi.WORKSPACE,
             workspaceId: params.workspaceId,
             organizationId: workspace.organizationId,
           },
@@ -396,7 +217,7 @@ export async function notifyWorkspaceApproversOfPendingGrant(
             vendorId: params.vendorId,
             workspaceId: params.workspaceId,
             organizationId: workspace.organizationId,
-            permissions: params.permissions,
+            permission: VendorPermissionApi.WORKSPACE,
           },
         },
         tx,
@@ -410,58 +231,40 @@ type VendorGrantWithVendor = VendorGrant & {
 };
 
 /**
- * Upsert one or more GRANTED rows for the same vendor+workspace in one call.
- * Preserves per-permission upsert semantics; unparks tasks when task:create
- * is included. Callers should wrap in a transaction when atomicity is required.
+ * Create or upgrade the workspace grant to GRANTED and unpark linked tasks.
  */
-export async function upsertGrantedVendorPermissions(
+export async function grantWorkspaceAccess(
   params: {
     vendorId: string;
     workspaceId: string;
-    permissions: VendorPermissionApiValue[];
     resolvedById: string;
   },
   tx: Prisma.TransactionClient = prisma,
-): Promise<VendorGrantWithVendor[]> {
+): Promise<VendorGrantWithVendor> {
   const now = new Date();
-  const grants: VendorGrantWithVendor[] = [];
+  const grant = await tx.vendorGrant.upsert({
+    where: workspaceGrantUniqueWhere(params.vendorId, params.workspaceId),
+    create: {
+      vendorId: params.vendorId,
+      workspaceId: params.workspaceId,
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.GRANTED,
+      resolvedAt: now,
+      resolvedById: params.resolvedById,
+    },
+    update: {
+      status: VendorGrantStatus.GRANTED,
+      resolvedAt: now,
+      resolvedById: params.resolvedById,
+    },
+    include: {
+      vendor: { select: { name: true, slug: true } },
+    },
+  });
 
-  for (const apiPermission of params.permissions) {
-    const permission = toPrismaVendorPermission(apiPermission);
-    const upserted = await tx.vendorGrant.upsert({
-      where: {
-        vendorId_workspaceId_permission: {
-          vendorId: params.vendorId,
-          workspaceId: params.workspaceId,
-          permission,
-        },
-      },
-      create: {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        permission,
-        status: VendorGrantStatus.GRANTED,
-        resolvedAt: now,
-        resolvedById: params.resolvedById,
-      },
-      update: {
-        status: VendorGrantStatus.GRANTED,
-        resolvedAt: now,
-        resolvedById: params.resolvedById,
-      },
-      include: {
-        vendor: { select: { name: true, slug: true } },
-      },
-    });
+  await unparkTasksForGrant(grant.id, tx);
 
-    if (upserted.permission === VendorPermission.task_create) {
-      await unparkTasksForGrant(upserted.id, tx);
-    }
-
-    grants.push(upserted);
-  }
-
-  return grants;
+  return grant;
 }
 
 export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
@@ -537,15 +340,15 @@ export function isBaselineCoworkerTaskAccess(params: {
 }
 
 /**
- * Workspace list filter when coworker has GRANTED task:read: all non-DRAFT
+ * Workspace list filter when coworker has GRANTED workspace access: all non-DRAFT
  * in workspace. Otherwise baseline sibling filter only.
  */
 export function buildCoworkerTaskListAccessFilter(params: {
   coworkerId: string;
   vendorId: string;
-  hasReadGrant: boolean;
+  hasWorkspaceGrant: boolean;
 }): Prisma.TaskWhereInput {
-  if (params.hasReadGrant) {
+  if (params.hasWorkspaceGrant) {
     return {
       status: { not: TaskStatus.DRAFT },
     };
@@ -565,24 +368,23 @@ export function buildCoworkerTaskListAccessFilter(params: {
 
 export function throwGrantAccessError(
   status: VendorGrantStatus | null | undefined,
-  permission: VendorPermissionApiValue,
 ): never {
   if (status === VendorGrantStatus.DENIED) {
-    throw forbidden("Vendor permission was denied for this workspace", {
+    throw forbidden("Vendor workspace access was denied", {
       kind: "grant_denied",
-      extensions: { permission },
+      extensions: { permission: VendorPermissionApi.WORKSPACE },
     });
   }
 
   if (status === VendorGrantStatus.REVOKED) {
-    throw forbidden("Vendor permission was revoked for this workspace", {
+    throw forbidden("Vendor workspace access was revoked", {
       kind: "grant_revoked",
-      extensions: { permission },
+      extensions: { permission: VendorPermissionApi.WORKSPACE },
     });
   }
 
-  throw forbidden("Vendor permission is required for this workspace", {
+  throw forbidden("Vendor workspace access is required", {
     kind: "grant_required",
-    extensions: { permission },
+    extensions: { permission: VendorPermissionApi.WORKSPACE },
   });
 }

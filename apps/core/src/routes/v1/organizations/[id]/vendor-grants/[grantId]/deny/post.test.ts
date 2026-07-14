@@ -14,7 +14,6 @@ const {
   resolveMemberOrganizationByIdMock,
   cancelParkedTasksForGrantMock,
   vendorGrantFindFirstMock,
-  vendorGrantFindUniqueMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
@@ -22,7 +21,6 @@ const {
   resolveMemberOrganizationByIdMock: vi.fn(),
   cancelParkedTasksForGrantMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
-  vendorGrantFindUniqueMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -107,68 +105,20 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
         callback({
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
-            findUnique: vendorGrantFindUniqueMock,
             update: vendorGrantUpdateMock,
           },
         }),
     );
   });
 
-  it("denies PENDING task:read and also denies bundled PENDING task:comment", async () => {
+  it("denies PENDING workspace grant and cancels parked tasks", async () => {
     const existing = {
       id: grantId,
       vendorId,
       workspaceId,
-      permission: VendorPermission.task_read,
+      permission: VendorPermission.workspace,
       status: VendorGrantStatus.PENDING,
       requestedByUserId: null,
-      resolvedAt: null,
-      resolvedById: null,
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-      vendor: { name: "Acme", slug: "acme" },
-    };
-    const updated = {
-      ...existing,
-      status: VendorGrantStatus.DENIED,
-      resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
-      resolvedById: "user_123",
-    };
-
-    vendorGrantFindFirstMock.mockResolvedValue(existing);
-    vendorGrantUpdateMock.mockResolvedValueOnce(updated).mockResolvedValueOnce({
-      id: "comment-grant",
-      status: VendorGrantStatus.DENIED,
-    });
-    vendorGrantFindUniqueMock.mockResolvedValue({
-      id: "comment-grant",
-      status: VendorGrantStatus.PENDING,
-      permission: VendorPermission.task_comment,
-    });
-
-    const response = await createApp().request(
-      `http://localhost/${orgId}/vendor-grants/${grantId}/deny`,
-      { method: "POST" },
-    );
-
-    expect(response.status).toBe(200);
-    expect(vendorGrantUpdateMock).toHaveBeenCalledTimes(2);
-    expect(cancelParkedTasksForGrantMock).not.toHaveBeenCalled();
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
-      }),
-    );
-  });
-
-  it("cancels parked tasks when denying task:create", async () => {
-    const existing = {
-      id: grantId,
-      vendorId,
-      workspaceId,
-      permission: VendorPermission.task_create,
-      status: VendorGrantStatus.PENDING,
-      requestedByUserId: "user_ctx",
       resolvedAt: null,
       resolvedById: null,
       createdAt: new Date("2026-07-01T00:00:00.000Z"),
@@ -191,9 +141,15 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(vendorGrantUpdateMock).toHaveBeenCalledTimes(1);
     expect(cancelParkedTasksForGrantMock).toHaveBeenCalledWith(
       grantId,
       expect.anything(),
+    );
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+      }),
     );
   });
 });

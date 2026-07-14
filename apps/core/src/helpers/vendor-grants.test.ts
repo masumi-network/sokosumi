@@ -6,24 +6,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCoworkerTaskListAccessFilter,
   cancelParkedTasksForGrant,
-  grantBundledCommentWithReadApproval,
-  hasGrantedVendorPermission,
+  grantWorkspaceAccess,
+  hasGrantedWorkspaceAccess,
   isBaselineCoworkerTaskAccess,
   isGrantDeniedOrRevoked,
-  requestCommentGrant,
-  requestCreateGrant,
-  requestReadGrantWithBundledComment,
+  notifyWorkspaceApproversOfPendingGrant,
+  requestWorkspaceGrant,
   requireTaskNotParked,
   throwGrantAccessError,
   toApiVendorPermission,
-  toPrismaVendorPermission,
   unparkTasksForGrant,
-  upsertPendingVendorGrant,
   VendorPermissionApi,
 } from "./vendor-grants";
 
 const vendorGrantFindUnique = vi.fn();
 const vendorGrantCreate = vi.fn();
+const vendorGrantUpsert = vi.fn();
 const taskUpdateMany = vi.fn();
 const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
@@ -34,6 +32,7 @@ vi.mock("@/lib/db/prisma", () => ({
     vendorGrant: {
       findUnique: (...args: unknown[]) => vendorGrantFindUnique(...args),
       create: (...args: unknown[]) => vendorGrantCreate(...args),
+      upsert: (...args: unknown[]) => vendorGrantUpsert(...args),
     },
     task: {
       updateMany: (...args: unknown[]) => taskUpdateMany(...args),
@@ -57,12 +56,9 @@ describe("vendor-grants helpers", () => {
     vi.clearAllMocks();
   });
 
-  it("maps API permission strings to Prisma enums", () => {
-    expect(toPrismaVendorPermission(VendorPermissionApi.TASK_READ)).toBe(
-      VendorPermission.task_read,
-    );
-    expect(toApiVendorPermission(VendorPermission.task_create)).toBe(
-      VendorPermissionApi.TASK_CREATE,
+  it("maps Prisma workspace permission to API string", () => {
+    expect(toApiVendorPermission(VendorPermission.workspace)).toBe(
+      VendorPermissionApi.WORKSPACE,
     );
   });
 
@@ -98,56 +94,59 @@ describe("vendor-grants helpers", () => {
     ).toBe(false);
   });
 
-  it("expands list filter when read grant is present", () => {
+  it("expands list filter when workspace grant is present", () => {
     const withGrant = buildCoworkerTaskListAccessFilter({
       coworkerId: "c1",
       vendorId: "v1",
-      hasReadGrant: true,
+      hasWorkspaceGrant: true,
     });
     expect(withGrant).toEqual({ status: { not: TaskStatus.DRAFT } });
 
     const baseline = buildCoworkerTaskListAccessFilter({
       coworkerId: "c1",
       vendorId: "v1",
-      hasReadGrant: false,
+      hasWorkspaceGrant: false,
     });
     expect(baseline.OR).toBeDefined();
   });
 
-  it("does not reopen existing grants on upsert PENDING", async () => {
+  it("does not reopen existing grants on requestWorkspaceGrant", async () => {
     vendorGrantFindUnique.mockResolvedValue({
       id: "g1",
       status: VendorGrantStatus.DENIED,
-      permission: VendorPermission.task_read,
+      permission: VendorPermission.workspace,
     });
 
-    const result = await upsertPendingVendorGrant({
+    const result = await requestWorkspaceGrant({
       vendorId: "v1",
       workspaceId: "w1",
-      permission: VendorPermission.task_read,
     });
 
     expect(result.created).toBe(false);
     expect(vendorGrantCreate).not.toHaveBeenCalled();
   });
 
-  it("creates PENDING when no row exists", async () => {
+  it("creates PENDING workspace grant when no row exists", async () => {
     vendorGrantFindUnique.mockResolvedValue(null);
     vendorGrantCreate.mockResolvedValue({
       id: "g2",
       status: VendorGrantStatus.PENDING,
-      permission: VendorPermission.task_create,
+      permission: VendorPermission.workspace,
     });
 
-    const result = await upsertPendingVendorGrant({
+    const result = await requestWorkspaceGrant({
       vendorId: "v1",
       workspaceId: "w1",
-      permission: VendorPermission.task_create,
       requestedByUserId: "u1",
     });
 
     expect(result.created).toBe(true);
-    expect(vendorGrantCreate).toHaveBeenCalled();
+    expect(vendorGrantCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        permission: VendorPermission.workspace,
+        status: VendorGrantStatus.PENDING,
+      }),
+    });
   });
 
   it("unparks and cancels parked tasks by grant id", async () => {
@@ -172,15 +171,14 @@ describe("vendor-grants helpers", () => {
     });
   });
 
-  it("reports GRANTED only via hasGrantedVendorPermission", async () => {
+  it("reports GRANTED only via hasGrantedWorkspaceAccess", async () => {
     vendorGrantFindUnique.mockResolvedValue({
       status: VendorGrantStatus.GRANTED,
     });
     await expect(
-      hasGrantedVendorPermission({
+      hasGrantedWorkspaceAccess({
         vendorId: "v1",
         workspaceId: "w1",
-        permission: VendorPermission.task_read,
       }),
     ).resolves.toBe(true);
 
@@ -188,12 +186,36 @@ describe("vendor-grants helpers", () => {
       status: VendorGrantStatus.PENDING,
     });
     await expect(
-      hasGrantedVendorPermission({
+      hasGrantedWorkspaceAccess({
         vendorId: "v1",
         workspaceId: "w1",
-        permission: VendorPermission.task_comment,
       }),
     ).resolves.toBe(false);
+  });
+
+  it("looks up workspace grant by vendorId_workspaceId", async () => {
+    vendorGrantFindUnique.mockResolvedValue({
+      id: "g1",
+      status: VendorGrantStatus.PENDING,
+      permission: VendorPermission.workspace,
+    });
+
+    const { getWorkspaceGrant } = await import("./vendor-grants");
+    const grant = await getWorkspaceGrant({
+      vendorId: "v1",
+      workspaceId: "w1",
+    });
+
+    expect(grant).toMatchObject({ id: "g1" });
+    expect(vendorGrantFindUnique).toHaveBeenCalledWith({
+      where: {
+        vendorId_workspaceId: {
+          vendorId: "v1",
+          workspaceId: "w1",
+        },
+      },
+      select: { id: true, status: true, permission: true },
+    });
   });
 
   it("blocks mutations on parked tasks", () => {
@@ -208,53 +230,41 @@ describe("vendor-grants helpers", () => {
 
   it("throws grant_required / grant_denied / grant_revoked kinds", () => {
     try {
-      throwGrantAccessError(null, VendorPermissionApi.TASK_READ);
+      throwGrantAccessError(null);
     } catch (error) {
       expect(error).toBeInstanceOf(HTTPException);
       expect((error as HTTPException).cause).toMatchObject({
         kind: "grant_required",
-        extensions: { permission: "task:read" },
+        extensions: { permission: "workspace" },
       });
     }
 
     try {
-      throwGrantAccessError(
-        VendorGrantStatus.DENIED,
-        VendorPermissionApi.TASK_COMMENT,
-      );
+      throwGrantAccessError(VendorGrantStatus.DENIED);
     } catch (error) {
       expect((error as HTTPException).cause).toMatchObject({
         kind: "grant_denied",
-        extensions: { permission: "task:comment" },
+        extensions: { permission: "workspace" },
       });
     }
 
     try {
-      throwGrantAccessError(
-        VendorGrantStatus.REVOKED,
-        VendorPermissionApi.TASK_CREATE,
-      );
+      throwGrantAccessError(VendorGrantStatus.REVOKED);
     } catch (error) {
       expect((error as HTTPException).cause).toMatchObject({
         kind: "grant_revoked",
-        extensions: { permission: "task:create" },
+        extensions: { permission: "workspace" },
       });
     }
   });
 
-  it("upserts bundled PENDING read+comment and notifies once", async () => {
+  it("notifies approvers when a new PENDING workspace grant is created", async () => {
     vendorGrantFindUnique.mockResolvedValue(null);
-    vendorGrantCreate
-      .mockResolvedValueOnce({
-        id: "read-grant",
-        status: VendorGrantStatus.PENDING,
-        permission: VendorPermission.task_read,
-      })
-      .mockResolvedValueOnce({
-        id: "comment-grant",
-        status: VendorGrantStatus.PENDING,
-        permission: VendorPermission.task_comment,
-      });
+    vendorGrantCreate.mockResolvedValue({
+      id: "workspace-grant",
+      status: VendorGrantStatus.PENDING,
+      permission: VendorPermission.workspace,
+    });
     memberFindMany.mockResolvedValue([{ userId: "owner_1" }]);
     workspaceFindUnique.mockResolvedValue({
       userId: null,
@@ -262,37 +272,34 @@ describe("vendor-grants helpers", () => {
     });
     createNotificationMock.mockResolvedValue({ created: true });
 
-    await requestReadGrantWithBundledComment({
+    await requestWorkspaceGrant({
       vendorId: "v1",
       workspaceId: "w1",
       requestedByUserId: "u1",
     });
 
-    expect(vendorGrantCreate).toHaveBeenCalledTimes(2);
+    expect(vendorGrantCreate).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        messageKey: "notifications.vendorGrant.pendingReadComment",
-        referenceId: "read-grant",
+        messageKey: "notifications.vendorGrant.pending",
+        referenceId: "workspace-grant",
+        messageParams: expect.objectContaining({
+          permission: VendorPermissionApi.WORKSPACE,
+        }),
       }),
       expect.anything(),
     );
   });
 
-  it("does not re-notify when read and comment are already PENDING", async () => {
-    vendorGrantFindUnique
-      .mockResolvedValueOnce({
-        id: "read-grant",
-        status: VendorGrantStatus.PENDING,
-        permission: VendorPermission.task_read,
-      })
-      .mockResolvedValueOnce({
-        id: "comment-grant",
-        status: VendorGrantStatus.PENDING,
-        permission: VendorPermission.task_comment,
-      });
+  it("does not re-notify when workspace grant already exists", async () => {
+    vendorGrantFindUnique.mockResolvedValue({
+      id: "workspace-grant",
+      status: VendorGrantStatus.PENDING,
+      permission: VendorPermission.workspace,
+    });
 
-    await requestReadGrantWithBundledComment({
+    await requestWorkspaceGrant({
       vendorId: "v1",
       workspaceId: "w1",
     });
@@ -301,73 +308,12 @@ describe("vendor-grants helpers", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
-  it("upserts only PENDING task:comment for comment requests", async () => {
+  it("notifies the personal workspace owner when workspace grant is requested", async () => {
     vendorGrantFindUnique.mockResolvedValue(null);
     vendorGrantCreate.mockResolvedValue({
-      id: "comment-grant",
+      id: "workspace-grant",
       status: VendorGrantStatus.PENDING,
-      permission: VendorPermission.task_comment,
-    });
-    memberFindMany.mockResolvedValue([{ userId: "admin_1" }]);
-    workspaceFindUnique.mockResolvedValue({
-      userId: null,
-      organizationId: "org_1",
-    });
-    createNotificationMock.mockResolvedValue({ created: true });
-
-    await requestCommentGrant({
-      vendorId: "v1",
-      workspaceId: "w1",
-      requestedByUserId: "u1",
-    });
-
-    expect(vendorGrantCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        permission: VendorPermission.task_comment,
-        status: VendorGrantStatus.PENDING,
-      }),
-    });
-    expect(createNotificationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        messageKey: "notifications.vendorGrant.pending",
-      }),
-      expect.anything(),
-    );
-  });
-
-  it("upserts PENDING task:create and returns the grant for parking", async () => {
-    vendorGrantFindUnique.mockResolvedValue(null);
-    vendorGrantCreate.mockResolvedValue({
-      id: "create-grant",
-      status: VendorGrantStatus.PENDING,
-      permission: VendorPermission.task_create,
-    });
-    memberFindMany.mockResolvedValue([]);
-    workspaceFindUnique.mockResolvedValue({
-      userId: null,
-      organizationId: "org_1",
-    });
-
-    const { grant } = await requestCreateGrant({
-      vendorId: "v1",
-      workspaceId: "w1",
-      requestedByUserId: "u1",
-    });
-
-    expect(grant.id).toBe("create-grant");
-    expect(vendorGrantCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        permission: VendorPermission.task_create,
-      }),
-    });
-  });
-
-  it("notifies the personal workspace owner when create is requested", async () => {
-    vendorGrantFindUnique.mockResolvedValue(null);
-    vendorGrantCreate.mockResolvedValue({
-      id: "create-grant",
-      status: VendorGrantStatus.PENDING,
-      permission: VendorPermission.task_create,
+      permission: VendorPermission.workspace,
     });
     workspaceFindUnique.mockResolvedValue({
       userId: "personal_owner",
@@ -375,7 +321,7 @@ describe("vendor-grants helpers", () => {
     });
     createNotificationMock.mockResolvedValue({ created: true });
 
-    await requestCreateGrant({
+    await requestWorkspaceGrant({
       vendorId: "v1",
       workspaceId: "w1",
       requestedByUserId: "u1",
@@ -395,16 +341,15 @@ describe("vendor-grants helpers", () => {
     vendorGrantFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
       id: "raced-grant",
       status: VendorGrantStatus.PENDING,
-      permission: VendorPermission.task_read,
+      permission: VendorPermission.workspace,
     });
     vendorGrantCreate.mockRejectedValue(
       Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
     );
 
-    const result = await upsertPendingVendorGrant({
+    const result = await requestWorkspaceGrant({
       vendorId: "v1",
       workspaceId: "w1",
-      permission: VendorPermission.task_read,
     });
 
     expect(result).toEqual({
@@ -413,35 +358,66 @@ describe("vendor-grants helpers", () => {
     });
   });
 
-  it("grants DENIED bundled comment when approving task:read", async () => {
-    const vendorGrantUpdate = vi.fn().mockResolvedValue({});
-    const tx = {
-      vendorGrant: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "comment-grant",
-          status: VendorGrantStatus.DENIED,
-        }),
-        update: vendorGrantUpdate,
-      },
-    };
-
-    await grantBundledCommentWithReadApproval(
-      {
-        vendorId: "v1",
-        workspaceId: "w1",
-        resolvedById: "u1",
-        resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
-      },
-      tx as never,
-    );
-
-    expect(vendorGrantUpdate).toHaveBeenCalledWith({
-      where: { id: "comment-grant" },
-      data: expect.objectContaining({
-        status: VendorGrantStatus.GRANTED,
-        resolvedById: "u1",
-      }),
+  it("grants workspace access and unparks linked tasks", async () => {
+    vendorGrantUpsert.mockResolvedValue({
+      id: "g1",
+      vendorId: "v1",
+      workspaceId: "w1",
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.GRANTED,
+      vendor: { name: "V", slug: "v" },
     });
+    taskUpdateMany.mockResolvedValue({ count: 2 });
+
+    const grant = await grantWorkspaceAccess({
+      vendorId: "v1",
+      workspaceId: "w1",
+      resolvedById: "u1",
+    });
+
+    expect(grant.status).toBe(VendorGrantStatus.GRANTED);
+    expect(vendorGrantUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          vendorId_workspaceId: {
+            vendorId: "v1",
+            workspaceId: "w1",
+          },
+        },
+        create: expect.objectContaining({
+          permission: VendorPermission.workspace,
+          status: VendorGrantStatus.GRANTED,
+        }),
+      }),
+    );
+    expect(taskUpdateMany).toHaveBeenCalled();
+  });
+
+  it("notifies approvers via notifyWorkspaceApproversOfPendingGrant", async () => {
+    memberFindMany.mockResolvedValue([{ userId: "admin_1" }]);
+    workspaceFindUnique.mockResolvedValue({
+      userId: null,
+      organizationId: "org_1",
+    });
+    createNotificationMock.mockResolvedValue({ created: true });
+
+    await notifyWorkspaceApproversOfPendingGrant({
+      vendorId: "v1",
+      workspaceId: "w1",
+      grantId: "grant_1",
+    });
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "admin_1",
+        referenceId: "grant_1",
+        messageKey: "notifications.vendorGrant.pending",
+        metadata: expect.objectContaining({
+          permission: VendorPermissionApi.WORKSPACE,
+        }),
+      }),
+      expect.anything(),
+    );
   });
 
   it("keeps baseline DRAFT tasks out of sibling access", () => {

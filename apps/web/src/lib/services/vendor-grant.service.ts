@@ -3,12 +3,10 @@ import "server-only";
 import { coreClient } from "@/lib/clients/core.client";
 import type { VendorGrant } from "@/lib/clients/generated/core";
 
-export type VendorGrantPermission = VendorGrant["permission"];
-
 export type ListVendorGrantsFilters = {
   status?: VendorGrant["status"];
   vendorId?: string;
-  permission?: VendorGrantPermission;
+  permission?: VendorGrant["permission"];
 };
 
 export const vendorGrantService = (() => {
@@ -26,11 +24,10 @@ export const vendorGrantService = (() => {
   async function createVendorGrant(
     organizationId: string,
     vendorId: string,
-    permissions: VendorGrantPermission[],
-  ): Promise<VendorGrant[]> {
+  ): Promise<VendorGrant> {
     const { data } = await coreClient.createOrganizationVendorGrant(
       organizationId,
-      { vendorId, permissions },
+      { vendorId },
     );
     return data;
   }
@@ -75,14 +72,8 @@ export const vendorGrantService = (() => {
     return data;
   }
 
-  async function createMyVendorGrant(
-    vendorId: string,
-    permissions: VendorGrantPermission[],
-  ): Promise<VendorGrant[]> {
-    const { data } = await coreClient.createMyVendorGrant({
-      vendorId,
-      permissions,
-    });
+  async function createMyVendorGrant(vendorId: string): Promise<VendorGrant> {
+    const { data } = await coreClient.createMyVendorGrant({ vendorId });
     return data;
   }
 

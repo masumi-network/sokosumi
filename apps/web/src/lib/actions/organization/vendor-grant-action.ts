@@ -3,10 +3,7 @@
 import * as z from "zod";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import {
-  type VendorGrantPermission,
-  vendorGrantService,
-} from "@/lib/services/vendor-grant.service";
+import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -18,22 +15,10 @@ const vendorGrantActionSchema = z.object({
   grantId: z.string().uuid(),
 });
 
-const vendorPermissionSchema = z.enum([
-  "task:read",
-  "task:comment",
-  "task:create",
-]);
-
-const createVendorGrantActionSchema = z
-  .object({
-    organizationId: z.string().min(1),
-    vendorId: z.string().uuid(),
-    permissions: z.array(vendorPermissionSchema).min(1),
-  })
-  .refine(
-    (data) => new Set(data.permissions).size === data.permissions.length,
-    { path: ["permissions"] },
-  );
+const createVendorGrantActionSchema = z.object({
+  organizationId: z.string().min(1),
+  vendorId: z.string().uuid(),
+});
 
 function parseVendorGrantActionError(error: unknown): ActionError {
   if (error instanceof Error) {
@@ -69,7 +54,6 @@ interface VendorGrantMutationParameters extends AuthenticatedRequest {
 interface CreateVendorGrantParameters extends AuthenticatedRequest {
   organizationId: string;
   vendorId: string;
-  permissions: VendorGrantPermission[];
 }
 
 export const approveOrganizationVendorGrant = withSession<
@@ -137,24 +121,22 @@ export const revokeOrganizationVendorGrant = withSession<
 
 export const createOrganizationVendorGrant = withSession<
   CreateVendorGrantParameters,
-  Result<{ grantIds: string[] }, ActionError>
->(async ({ organizationId, vendorId, permissions }) => {
+  Result<{ grantId: string }, ActionError>
+>(async ({ organizationId, vendorId }) => {
   const parsed = createVendorGrantActionSchema.safeParse({
     organizationId,
     vendorId,
-    permissions,
   });
   if (!parsed.success) {
     return Err({ code: CommonErrorCode.BAD_INPUT });
   }
 
   try {
-    const grants = await vendorGrantService.createVendorGrant(
+    const grant = await vendorGrantService.createVendorGrant(
       parsed.data.organizationId,
       parsed.data.vendorId,
-      parsed.data.permissions,
     );
-    return Ok({ grantIds: grants.map((grant) => grant.id) });
+    return Ok({ grantId: grant.id });
   } catch (error) {
     console.error("Failed to create vendor grant", error);
     return Err(parseVendorGrantActionError(error));

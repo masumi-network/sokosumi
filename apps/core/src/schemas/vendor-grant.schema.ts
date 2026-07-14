@@ -5,12 +5,8 @@ import { dateTimeSchema } from "@/helpers/datetime.js";
 import { VendorPermissionApi } from "@/helpers/vendor-grants";
 
 export const vendorPermissionSchema = z
-  .enum([
-    VendorPermissionApi.TASK_READ,
-    VendorPermissionApi.TASK_COMMENT,
-    VendorPermissionApi.TASK_CREATE,
-  ])
-  .openapi({ example: VendorPermissionApi.TASK_READ });
+  .literal(VendorPermissionApi.WORKSPACE)
+  .openapi({ example: VendorPermissionApi.WORKSPACE });
 
 export const vendorGrantStatusSchema = z
   .enum(VendorGrantStatus)
@@ -38,23 +34,6 @@ export const vendorGrantSchema = z
 
 export const vendorGrantsSchema = z.array(vendorGrantSchema);
 
-export const createVendorGrantRequestSchema = z
-  .object({
-    vendorId: z.string().uuid(),
-    permissions: z
-      .array(vendorPermissionSchema)
-      .min(1)
-      .openapi({
-        example: [
-          VendorPermissionApi.TASK_READ,
-          VendorPermissionApi.TASK_COMMENT,
-        ],
-      }),
-  })
-  .refine(
-    (data) => new Set(data.permissions).size === data.permissions.length,
-    {
-      message: "permissions must be unique",
-      path: ["permissions"],
-    },
-  );
+export const createVendorGrantRequestSchema = z.object({
+  vendorId: z.string().uuid(),
+});

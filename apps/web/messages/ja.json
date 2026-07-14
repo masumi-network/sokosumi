@@ -3508,7 +3508,7 @@
       },
       "VendorGrants": {
         "title": "ベンダーのワークスペースアクセス",
-        "description": "個人ワークスペースでタスクの閲覧・コメント・作成に関するベンダー依頼を承認します。",
+        "description": "個人ワークスペースのベンダーアクセスを承認します（タスクの閲覧・コメント・作成）。",
         "vendorsTitle": "ベンダー",
         "vendorsEmpty": "ベンダー権限はまだありません。",
         "statusPending": "保留中",
@@ -3531,7 +3531,7 @@
         },
         "GrantForm": {
           "vendorLabel": "ベンダー",
-          "permissionLabel": "権限",
+          "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
           "submit": "アクセスを付与",
           "success": "ベンダーアクセスを付与しました",
           "error": "ベンダーアクセスの付与に失敗しました"
@@ -3624,7 +3624,7 @@
         },
         "VendorGrants": {
           "title": "ベンダーワークスペースアクセス",
-          "description": "この組織ワークスペースでタスクの閲覧・コメント・作成を行うベンダーリクエストを承認します。",
+          "description": "この組織ワークスペースのベンダーアクセスを承認します（タスクの閲覧・コメント・作成）。",
           "vendorsTitle": "ベンダー",
           "vendorsEmpty": "ベンダー権限はまだありません。",
           "statusPending": "保留中",
@@ -3647,7 +3647,7 @@
           },
           "GrantForm": {
             "vendorLabel": "ベンダー",
-            "permissionLabel": "権限",
+            "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
             "submit": "アクセスを付与",
             "success": "ベンダーアクセスを付与しました",
             "error": "ベンダーアクセスの付与に失敗しました"

@@ -1,16 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  MemberRole,
-  VendorGrantStatus,
-  VendorPermission,
-} from "@sokosumi/database";
+import { MemberRole, VendorGrantStatus } from "@sokosumi/database";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import {
-  grantBundledCommentWithReadApproval,
   toApiVendorPermission,
   unparkTasksForGrant,
 } from "@/helpers/vendor-grants";
@@ -37,7 +32,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/vendor-grants/{grantId}/approve",
   description:
-    "Approve a vendor grant (PENDING / DENIED / REVOKED → GRANTED). For task:read, also grants a bundled PENDING or DENIED task:comment when present. Owner/admin only.",
+    "Approve a vendor workspace grant (PENDING / DENIED / REVOKED → GRANTED). Unparks tasks awaiting this grant. Owner/admin only.",
   tags: ["Organizations"],
   request: { params },
   responses: {
@@ -103,23 +98,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: { vendor: { select: { name: true, slug: true } } },
       });
 
-      if (updated.permission === VendorPermission.task_create) {
-        await unparkTasksForGrant(updated.id, tx);
-      }
-
-      // Bundled approve: when approving task:read, also grant PENDING/DENIED
-      // task:comment (deny of read mirrors comment to DENIED).
-      if (updated.permission === VendorPermission.task_read) {
-        await grantBundledCommentWithReadApproval(
-          {
-            vendorId: updated.vendorId,
-            workspaceId: updated.workspaceId,
-            resolvedById: userContext.userId,
-            resolvedAt: now,
-          },
-          tx,
-        );
-      }
+      await unparkTasksForGrant(updated.id, tx);
 
       return updated;
     });

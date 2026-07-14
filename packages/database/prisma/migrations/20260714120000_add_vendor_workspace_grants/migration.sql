@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "VendorPermission" AS ENUM ('task:read', 'task:comment', 'task:create');
+CREATE TYPE "VendorPermission" AS ENUM ('workspace');
 
 -- CreateEnum
 CREATE TYPE "VendorGrantStatus" AS ENUM ('PENDING', 'GRANTED', 'DENIED', 'REVOKED');
@@ -27,7 +27,7 @@ ALTER TABLE "task" ADD COLUMN "pendingVendorGrantId" UUID;
 CREATE INDEX "vendor_grant_workspaceId_status_idx" ON "vendor_grant"("workspaceId", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "vendor_grant_vendorId_workspaceId_permission_key" ON "vendor_grant"("vendorId", "workspaceId", "permission");
+CREATE UNIQUE INDEX "vendor_grant_vendorId_workspaceId_key" ON "vendor_grant"("vendorId", "workspaceId");
 
 -- CreateIndex
 CREATE INDEX "task_pendingVendorGrantId_idx" ON "task"("pendingVendorGrantId");
