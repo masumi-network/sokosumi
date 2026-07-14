@@ -68,11 +68,49 @@ export const vendorGrantService = (() => {
     return data;
   }
 
+  async function listMyVendorGrants(
+    filters: ListVendorGrantsFilters = {},
+  ): Promise<VendorGrant[]> {
+    const { data } = await coreClient.getMyVendorGrants(filters);
+    return data;
+  }
+
+  async function createMyVendorGrant(
+    vendorId: string,
+    permission: VendorGrantPermission,
+  ): Promise<VendorGrant> {
+    const { data } = await coreClient.createMyVendorGrant({
+      vendorId,
+      permission,
+    });
+    return data;
+  }
+
+  async function approveMyVendorGrant(grantId: string): Promise<VendorGrant> {
+    const { data } = await coreClient.approveMyVendorGrant(grantId);
+    return data;
+  }
+
+  async function denyMyVendorGrant(grantId: string): Promise<VendorGrant> {
+    const { data } = await coreClient.denyMyVendorGrant(grantId);
+    return data;
+  }
+
+  async function revokeMyVendorGrant(grantId: string): Promise<VendorGrant> {
+    const { data } = await coreClient.revokeMyVendorGrant(grantId);
+    return data;
+  }
+
   return {
     listVendorGrants,
     createVendorGrant,
     approveVendorGrant,
     denyVendorGrant,
     revokeVendorGrant,
+    listMyVendorGrants,
+    createMyVendorGrant,
+    approveMyVendorGrant,
+    denyMyVendorGrant,
+    revokeMyVendorGrant,
   };
 })();

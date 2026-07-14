@@ -159,7 +159,6 @@ export async function requestReadGrantWithBundledComment(
   params: {
     vendorId: string;
     workspaceId: string;
-    organizationId: string;
     requestedByUserId?: string | null;
   },
   tx: Prisma.TransactionClient = prisma,
@@ -185,8 +184,7 @@ export async function requestReadGrantWithBundledComment(
   );
 
   if (read.created || comment.created) {
-    await notifyOrgOwnerAdminsOfPendingGrant({
-      organizationId: params.organizationId,
+    await notifyWorkspaceApproversOfPendingGrant({
       vendorId: params.vendorId,
       workspaceId: params.workspaceId,
       primaryGrantId: read.grant.id,
@@ -203,7 +201,6 @@ export async function requestCommentGrant(
   params: {
     vendorId: string;
     workspaceId: string;
-    organizationId: string;
     requestedByUserId?: string | null;
   },
   tx: Prisma.TransactionClient = prisma,
@@ -219,8 +216,7 @@ export async function requestCommentGrant(
   );
 
   if (result.created) {
-    await notifyOrgOwnerAdminsOfPendingGrant({
-      organizationId: params.organizationId,
+    await notifyWorkspaceApproversOfPendingGrant({
       vendorId: params.vendorId,
       workspaceId: params.workspaceId,
       primaryGrantId: result.grant.id,
@@ -234,7 +230,6 @@ export async function requestCreateGrant(
   params: {
     vendorId: string;
     workspaceId: string;
-    organizationId: string;
     requestedByUserId?: string | null;
   },
   tx: Prisma.TransactionClient = prisma,
@@ -250,8 +245,7 @@ export async function requestCreateGrant(
   );
 
   if (result.created) {
-    await notifyOrgOwnerAdminsOfPendingGrant({
-      organizationId: params.organizationId,
+    await notifyWorkspaceApproversOfPendingGrant({
       vendorId: params.vendorId,
       workspaceId: params.workspaceId,
       primaryGrantId: result.grant.id,
@@ -263,21 +257,44 @@ export async function requestCreateGrant(
   return result.grant;
 }
 
-async function notifyOrgOwnerAdminsOfPendingGrant(params: {
-  organizationId: string;
+/**
+ * Notify grant approvers for a workspace: org OWNER/ADMIN when the workspace
+ * belongs to an organization, otherwise the personal workspace owner.
+ */
+async function notifyWorkspaceApproversOfPendingGrant(params: {
   vendorId: string;
   workspaceId: string;
   primaryGrantId: string;
   permissions: VendorPermissionApiValue[];
   bundled: boolean;
 }): Promise<void> {
-  const members = await prisma.member.findMany({
-    where: {
-      organizationId: params.organizationId,
-      role: { in: [MemberRole.OWNER, MemberRole.ADMIN] },
-    },
-    select: { userId: true },
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: params.workspaceId },
+    select: { userId: true, organizationId: true },
   });
+
+  if (!workspace) {
+    return;
+  }
+
+  let recipientUserIds: string[] = [];
+
+  if (workspace.organizationId) {
+    const members = await prisma.member.findMany({
+      where: {
+        organizationId: workspace.organizationId,
+        role: { in: [MemberRole.OWNER, MemberRole.ADMIN] },
+      },
+      select: { userId: true },
+    });
+    recipientUserIds = members.map((member) => member.userId);
+  } else if (workspace.userId) {
+    recipientUserIds = [workspace.userId];
+  }
+
+  if (recipientUserIds.length === 0) {
+    return;
+  }
 
   const vendor = await prisma.vendor.findUnique({
     where: { id: params.vendorId },
@@ -285,9 +302,9 @@ async function notifyOrgOwnerAdminsOfPendingGrant(params: {
   });
 
   await Promise.all(
-    members.map((member) =>
+    recipientUserIds.map((userId) =>
       createNotification({
-        userId: member.userId,
+        userId,
         kind: NotificationKind.SYSTEM,
         referenceId: params.primaryGrantId,
         eventId: params.primaryGrantId,
@@ -299,12 +316,12 @@ async function notifyOrgOwnerAdminsOfPendingGrant(params: {
           vendorSlug: vendor?.slug ?? null,
           permissions: params.permissions,
           workspaceId: params.workspaceId,
-          organizationId: params.organizationId,
+          organizationId: workspace.organizationId,
         },
         metadata: {
           vendorId: params.vendorId,
           workspaceId: params.workspaceId,
-          organizationId: params.organizationId,
+          organizationId: workspace.organizationId,
           permissions: params.permissions,
         },
       }),

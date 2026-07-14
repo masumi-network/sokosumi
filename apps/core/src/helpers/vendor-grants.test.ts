@@ -25,6 +25,7 @@ const vendorGrantFindUnique = vi.fn();
 const vendorGrantCreate = vi.fn();
 const taskUpdateMany = vi.fn();
 const memberFindMany = vi.fn();
+const workspaceFindUnique = vi.fn();
 const createNotificationMock = vi.fn();
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -38,6 +39,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findMany: (...args: unknown[]) => memberFindMany(...args),
+    },
+    workspace: {
+      findUnique: (...args: unknown[]) => workspaceFindUnique(...args),
     },
     vendor: { findUnique: vi.fn().mockResolvedValue({ name: "V", slug: "v" }) },
   },
@@ -248,12 +252,15 @@ describe("vendor-grants helpers", () => {
         permission: VendorPermission.task_comment,
       });
     memberFindMany.mockResolvedValue([{ userId: "owner_1" }]);
+    workspaceFindUnique.mockResolvedValue({
+      userId: null,
+      organizationId: "org_1",
+    });
     createNotificationMock.mockResolvedValue({ created: true });
 
     await requestReadGrantWithBundledComment({
       vendorId: "v1",
       workspaceId: "w1",
-      organizationId: "org_1",
       requestedByUserId: "u1",
     });
 
@@ -283,7 +290,6 @@ describe("vendor-grants helpers", () => {
     await requestReadGrantWithBundledComment({
       vendorId: "v1",
       workspaceId: "w1",
-      organizationId: "org_1",
     });
 
     expect(vendorGrantCreate).not.toHaveBeenCalled();
@@ -298,12 +304,15 @@ describe("vendor-grants helpers", () => {
       permission: VendorPermission.task_comment,
     });
     memberFindMany.mockResolvedValue([{ userId: "admin_1" }]);
+    workspaceFindUnique.mockResolvedValue({
+      userId: null,
+      organizationId: "org_1",
+    });
     createNotificationMock.mockResolvedValue({ created: true });
 
     await requestCommentGrant({
       vendorId: "v1",
       workspaceId: "w1",
-      organizationId: "org_1",
       requestedByUserId: "u1",
     });
 
@@ -328,11 +337,14 @@ describe("vendor-grants helpers", () => {
       permission: VendorPermission.task_create,
     });
     memberFindMany.mockResolvedValue([]);
+    workspaceFindUnique.mockResolvedValue({
+      userId: null,
+      organizationId: "org_1",
+    });
 
     const grant = await requestCreateGrant({
       vendorId: "v1",
       workspaceId: "w1",
-      organizationId: "org_1",
       requestedByUserId: "u1",
     });
 
@@ -342,6 +354,34 @@ describe("vendor-grants helpers", () => {
         permission: VendorPermission.task_create,
       }),
     });
+  });
+
+  it("notifies the personal workspace owner when create is requested", async () => {
+    vendorGrantFindUnique.mockResolvedValue(null);
+    vendorGrantCreate.mockResolvedValue({
+      id: "create-grant",
+      status: VendorGrantStatus.PENDING,
+      permission: VendorPermission.task_create,
+    });
+    workspaceFindUnique.mockResolvedValue({
+      userId: "personal_owner",
+      organizationId: null,
+    });
+    createNotificationMock.mockResolvedValue({ created: true });
+
+    await requestCreateGrant({
+      vendorId: "v1",
+      workspaceId: "w1",
+      requestedByUserId: "u1",
+    });
+
+    expect(memberFindMany).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "personal_owner",
+        messageKey: "notifications.vendorGrant.pending",
+      }),
+    );
   });
 
   it("keeps baseline DRAFT tasks out of sibling access", () => {

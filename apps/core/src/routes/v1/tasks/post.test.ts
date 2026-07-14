@@ -574,8 +574,13 @@ describe("POST /tasks delegated coworker create grant", () => {
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects create in personal workspaces", async () => {
+  it("parks create in personal workspaces when create grant is missing", async () => {
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
+    getVendorGrantMock.mockResolvedValue(null);
+    requestCreateGrantMock.mockResolvedValue({
+      id: "create-grant",
+      status: "PENDING",
+    });
 
     const response = await createDelegatedCoworkerApp().request(
       "http://localhost/",
@@ -592,7 +597,13 @@ describe("POST /tasks delegated coworker create grant", () => {
       },
     );
 
-    expect(response.status).toBe(403);
-    expect(taskCreateMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(requestCreateGrantMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      }),
+      expect.anything(),
+    );
+    expect(taskCreateMock).toHaveBeenCalled();
   });
 });

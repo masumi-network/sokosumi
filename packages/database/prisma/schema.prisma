@@ -264,7 +264,7 @@ model Vendor {
   @@map("vendor")
 }
 
-/// Org-wide vendor permission for a workspace. Key: (vendorId, workspaceId, permission).
+/// Vendor permission for a workspace (personal or organization). Key: (vendorId, workspaceId, permission).
 model VendorGrant {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())

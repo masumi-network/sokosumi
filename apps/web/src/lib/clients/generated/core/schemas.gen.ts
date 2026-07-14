@@ -6685,6 +6685,96 @@ export const UtmAttributionRequestSchema = {
     ]
 } as const;
 
+export const VendorGrantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        },
+        vendorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        vendorName: {
+            type: 'string',
+            example: 'Acme Agents'
+        },
+        vendorSlug: {
+            type: 'string',
+            example: 'acme-agents'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        permission: {
+            type: 'string',
+            enum: [
+                'task:read',
+                'task:comment',
+                'task:create'
+            ],
+            example: 'task:read'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'GRANTED',
+                'DENIED',
+                'REVOKED'
+            ],
+            example: 'PENDING'
+        },
+        requestedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resolvedById: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'vendorId',
+        'vendorName',
+        'vendorSlug',
+        'workspaceId',
+        'permission',
+        'status',
+        'requestedByUserId',
+        'resolvedAt',
+        'resolvedById',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
 export const StripeCustomerSchema = {
     type: 'object',
     properties: {
@@ -7114,96 +7204,6 @@ export const PendingInvitationSchema = {
         'expiresAt',
         'inviterId',
         'createdAt'
-    ]
-} as const;
-
-export const VendorGrantSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-        },
-        vendorId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        vendorName: {
-            type: 'string',
-            example: 'Acme Agents'
-        },
-        vendorSlug: {
-            type: 'string',
-            example: 'acme-agents'
-        },
-        workspaceId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        permission: {
-            type: 'string',
-            enum: [
-                'task:read',
-                'task:comment',
-                'task:create'
-            ],
-            example: 'task:read'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'PENDING',
-                'GRANTED',
-                'DENIED',
-                'REVOKED'
-            ],
-            example: 'PENDING'
-        },
-        requestedByUserId: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        resolvedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        resolvedById: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'vendorId',
-        'vendorName',
-        'vendorSlug',
-        'workspaceId',
-        'permission',
-        'status',
-        'requestedByUserId',
-        'resolvedAt',
-        'resolvedById',
-        'createdAt',
-        'updatedAt'
     ]
 } as const;
 

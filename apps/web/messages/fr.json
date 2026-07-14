@@ -491,6 +491,39 @@
       "JobsList": {
         "noExecutedJobs": "Aucun job exécuté",
         "emptyJobs": "Aucun job pour le moment."
+      },
+      "VendorGrants": {
+        "title": "Vendor workspace access",
+        "description": "Approve vendor requests to read, comment on, or create tasks in your personal workspace.",
+        "pendingTitle": "Pending requests",
+        "pendingEmpty": "No pending vendor access requests.",
+        "activeTitle": "Active grants",
+        "activeEmpty": "No active vendor grants.",
+        "grantFormTitle": "Grant access proactively",
+        "Permissions": {
+          "taskRead": "Read tasks",
+          "taskComment": "Comment on tasks",
+          "taskCreate": "Create tasks",
+          "readAndComment": "Read and comment on tasks"
+        },
+        "GrantForm": {
+          "vendorLabel": "Vendor",
+          "permissionLabel": "Permission",
+          "submit": "Grant access",
+          "success": "Vendor access granted",
+          "error": "Failed to grant vendor access"
+        },
+        "Actions": {
+          "approve": "Approve",
+          "deny": "Deny",
+          "revoke": "Revoke",
+          "approveSuccess": "Vendor access approved",
+          "denySuccess": "Vendor access denied",
+          "revokeSuccess": "Vendor access revoked",
+          "approveError": "Failed to approve vendor access",
+          "denyError": "Failed to deny vendor access",
+          "revokeError": "Failed to revoke vendor access"
+        }
       }
     },
     "Organizations": {

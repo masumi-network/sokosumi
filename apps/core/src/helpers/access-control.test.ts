@@ -726,7 +726,6 @@ describe("requireTaskCommentAccess", () => {
       expect.objectContaining({
         vendorId: defaultVendorId,
         workspaceId,
-        organizationId: "org_123",
       }),
     );
     expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
@@ -823,7 +822,6 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       expect.objectContaining({
         vendorId: defaultVendorId,
         workspaceId,
-        organizationId: "org_123",
       }),
     );
   });

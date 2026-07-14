@@ -285,11 +285,6 @@ async function requireCoworkerTaskRead(
     throw notFound("Task not found");
   }
 
-  const workspace = await tx.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { organizationId: true },
-  });
-
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
@@ -302,17 +297,6 @@ async function requireCoworkerTaskRead(
 
   if (!task) {
     throw notFound("Task not found");
-  }
-
-  // Personal workspace: no vendor grants — plain deny.
-  if (!workspace?.organizationId) {
-    throw forbidden(
-      "Vendor workspace grants are only available for organizations",
-      {
-        kind: "grant_required",
-        extensions: { permission: VendorPermissionApi.TASK_READ },
-      },
-    );
   }
 
   const grant = await getVendorGrant(
@@ -338,7 +322,6 @@ async function requireCoworkerTaskRead(
   await requestReadGrantWithBundledComment({
     vendorId: authContext.vendorId,
     workspaceId,
-    organizationId: workspace.organizationId,
     requestedByUserId: authContext.context?.userId ?? null,
   });
 
@@ -483,7 +466,6 @@ export async function requireTaskCommentAccess(
       status: true,
       workspaceId: true,
       coworker: { select: { vendorId: true } },
-      workspace: { select: { organizationId: true } },
     },
   });
 
@@ -501,7 +483,7 @@ export async function requireTaskCommentAccess(
     return task;
   }
 
-  if (!workspaceId || !taskMeta.workspace.organizationId) {
+  if (!workspaceId) {
     throwGrantAccessError(null, VendorPermissionApi.TASK_COMMENT);
   }
 
@@ -528,7 +510,6 @@ export async function requireTaskCommentAccess(
   await requestCommentGrant({
     vendorId: coworker.vendorId,
     workspaceId,
-    organizationId: taskMeta.workspace.organizationId,
     requestedByUserId: coworker.context?.userId ?? null,
   });
 

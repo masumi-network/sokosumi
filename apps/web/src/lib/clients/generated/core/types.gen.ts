@@ -1926,6 +1926,21 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type VendorGrant = {
+    id: string;
+    vendorId: string;
+    vendorName: string;
+    vendorSlug: string;
+    workspaceId: string;
+    permission: 'task:read' | 'task:comment' | 'task:create';
+    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+    requestedByUserId: string | null;
+    resolvedAt: Date | null;
+    resolvedById: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 export type StripeCustomer = {
     /**
      * Stripe customer id
@@ -2040,21 +2055,6 @@ export type PendingInvitation = {
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;
-};
-
-export type VendorGrant = {
-    id: string;
-    vendorId: string;
-    vendorName: string;
-    vendorSlug: string;
-    workspaceId: string;
-    permission: 'task:read' | 'task:comment' | 'task:create';
-    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
-    requestedByUserId: string | null;
-    resolvedAt: Date | null;
-    resolvedById: string | null;
-    createdAt: Date;
-    updatedAt: Date;
 };
 
 export type OrganizationSeatSummary = {
@@ -14632,6 +14632,464 @@ export type PostUsersByIdUtmAttributionResponses = {
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
 
+export type GetUsersByIdVendorGrantsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: {
+        status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+        vendorId?: string;
+        permission?: 'task:read' | 'task:comment' | 'task:create';
+    };
+    url: '/users/{id}/vendor-grants';
+};
+
+export type GetUsersByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdVendorGrantsError = GetUsersByIdVendorGrantsErrors[keyof GetUsersByIdVendorGrantsErrors];
+
+export type GetUsersByIdVendorGrantsResponses = {
+    /**
+     * List vendor grants
+     */
+    200: {
+        data: Array<VendorGrant>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdVendorGrantsResponse = GetUsersByIdVendorGrantsResponses[keyof GetUsersByIdVendorGrantsResponses];
+
+export type PostUsersByIdVendorGrantsData = {
+    body?: {
+        vendorId: string;
+        permission: 'task:read' | 'task:comment' | 'task:create';
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants';
+};
+
+export type PostUsersByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsError = PostUsersByIdVendorGrantsErrors[keyof PostUsersByIdVendorGrantsErrors];
+
+export type PostUsersByIdVendorGrantsResponses = {
+    /**
+     * Grant created
+     */
+    201: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsResponse = PostUsersByIdVendorGrantsResponses[keyof PostUsersByIdVendorGrantsResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/approve';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveError = PostUsersByIdVendorGrantsByGrantIdApproveErrors[keyof PostUsersByIdVendorGrantsByGrantIdApproveErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveResponses = {
+    /**
+     * Grant approved
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveResponse = PostUsersByIdVendorGrantsByGrantIdApproveResponses[keyof PostUsersByIdVendorGrantsByGrantIdApproveResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/deny';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyError = PostUsersByIdVendorGrantsByGrantIdDenyErrors[keyof PostUsersByIdVendorGrantsByGrantIdDenyErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyResponses = {
+    /**
+     * Grant denied
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyResponse = PostUsersByIdVendorGrantsByGrantIdDenyResponses[keyof PostUsersByIdVendorGrantsByGrantIdDenyResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/revoke';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeError = PostUsersByIdVendorGrantsByGrantIdRevokeErrors[keyof PostUsersByIdVendorGrantsByGrantIdRevokeErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeResponses = {
+    /**
+     * Grant revoked
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeResponse = PostUsersByIdVendorGrantsByGrantIdRevokeResponses[keyof PostUsersByIdVendorGrantsByGrantIdRevokeResponses];
+
 export type GetUsersByIdStripeCustomerData = {
     body?: never;
     headers?: {
@@ -21285,6 +21743,20 @@ export type DeleteTasksByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

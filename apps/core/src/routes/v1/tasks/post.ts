@@ -8,7 +8,7 @@ import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
-import { errorResponseSchema, forbidden, notFound } from "@/helpers/error";
+import { errorResponseSchema, notFound } from "@/helpers/error";
 import {
   jsonContent,
   jsonErrorResponse,
@@ -215,18 +215,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceContext.workspaceId },
-      select: { organizationId: true },
-    });
-
-    if (!workspace?.organizationId) {
-      throw forbidden("Coworkers cannot create tasks in personal workspaces", {
-        kind: "grant_required",
-        extensions: { permission: VendorPermissionApi.TASK_CREATE },
-      });
-    }
-
     const existingGrant = await getVendorGrant({
       vendorId: authContext.vendorId,
       workspaceId: workspaceContext.workspaceId,
@@ -262,7 +250,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         {
           vendorId: authContext.vendorId,
           workspaceId: workspaceContext.workspaceId,
-          organizationId: workspace.organizationId!,
           requestedByUserId: userContext.userId,
         },
         tx,
