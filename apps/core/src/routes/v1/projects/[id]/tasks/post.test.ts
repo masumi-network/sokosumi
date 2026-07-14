@@ -2,27 +2,17 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forbidden } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 
-const {
-  projectFindFirstMock,
-  prismaTransactionMock,
-  requireMutableTaskOwnershipMock,
-  taskUpdateMock,
-} = vi.hoisted(() => ({
-  projectFindFirstMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-  requireMutableTaskOwnershipMock: vi.fn(),
-  taskUpdateMock: vi.fn(),
-}));
-
-vi.mock("@/helpers/access-control", () => ({
-  requireMutableTaskOwnership: (...args: unknown[]) =>
-    requireMutableTaskOwnershipMock(...args),
-}));
+const { projectFindFirstMock, taskFindFirstMock, taskUpdateMock } = vi.hoisted(
+  () => ({
+    projectFindFirstMock: vi.fn(),
+    taskFindFirstMock: vi.fn(),
+    taskUpdateMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/middleware/auth", () => ({
   requireUserContext: (authContext: AuthenticationContext | null) => {
@@ -47,7 +37,10 @@ vi.mock("@/middleware/workspace", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findFirst: projectFindFirstMock },
-    $transaction: prismaTransactionMock,
+    task: {
+      findFirst: taskFindFirstMock,
+      update: taskUpdateMock,
+    },
   },
 }));
 
@@ -106,18 +99,10 @@ describe("POST /projects/{id}/tasks", () => {
     vi.clearAllMocks();
     projectFindFirstMock.mockResolvedValue(sampleProject);
     taskUpdateMock.mockResolvedValue({});
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => unknown) =>
-        callback({
-          task: { update: taskUpdateMock },
-        }),
-    );
   });
 
-  it("links an owned mutable task to the project", async () => {
-    requireMutableTaskOwnershipMock.mockResolvedValue({
-      id: TASK_ID,
-      workspaceId: WORKSPACE_ID,
+  it("links a workspace task to the project without requiring ownership", async () => {
+    taskFindFirstMock.mockResolvedValue({
       projectId: null,
       pendingVendorGrantId: null,
     });
@@ -132,11 +117,6 @@ describe("POST /projects/{id}/tasks", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(requireMutableTaskOwnershipMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user_123" }),
-      TASK_ID,
-      expect.anything(),
-    );
     expect(taskUpdateMock).toHaveBeenCalledWith({
       where: { id: TASK_ID },
       data: {
@@ -147,14 +127,10 @@ describe("POST /projects/{id}/tasks", () => {
   });
 
   it("returns 403 when the task is parked", async () => {
-    requireMutableTaskOwnershipMock.mockRejectedValue(
-      forbidden(
-        "Parked tasks cannot be modified until vendor create access is granted",
-        {
-          kind: "task_parked",
-        },
-      ),
-    );
+    taskFindFirstMock.mockResolvedValue({
+      projectId: null,
+      pendingVendorGrantId: "grant_1",
+    });
 
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/tasks`,
@@ -182,6 +158,6 @@ describe("POST /projects/{id}/tasks", () => {
     );
 
     expect(response.status).toBe(404);
-    expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
   });
 });

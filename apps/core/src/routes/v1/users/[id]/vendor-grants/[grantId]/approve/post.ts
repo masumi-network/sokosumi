@@ -5,6 +5,7 @@ import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
+  grantBundledCommentWithReadApproval,
   toApiVendorPermission,
   unparkTasksForGrant,
 } from "@/helpers/vendor-grants";
@@ -32,7 +33,7 @@ const route = createRoute({
   method: "post",
   path: "/vendor-grants/{grantId}/approve",
   description:
-    "Approve a vendor grant for the user's personal workspace. For PENDING task:read, also approves bundled PENDING task:comment when present.",
+    "Approve a vendor grant for the user's personal workspace. For task:read, also grants a bundled PENDING or DENIED task:comment when present.",
   tags: ["Users"],
   request: { params },
   responses: {
@@ -95,30 +96,16 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         await unparkTasksForGrant(updated.id, tx);
       }
 
-      if (
-        updated.permission === VendorPermission.task_read &&
-        existing.status === VendorGrantStatus.PENDING
-      ) {
-        const commentGrant = await tx.vendorGrant.findUnique({
-          where: {
-            vendorId_workspaceId_permission: {
-              vendorId: updated.vendorId,
-              workspaceId: updated.workspaceId,
-              permission: VendorPermission.task_comment,
-            },
+      if (updated.permission === VendorPermission.task_read) {
+        await grantBundledCommentWithReadApproval(
+          {
+            vendorId: updated.vendorId,
+            workspaceId: updated.workspaceId,
+            resolvedById: resolvedUserId,
+            resolvedAt: now,
           },
-        });
-
-        if (commentGrant?.status === VendorGrantStatus.PENDING) {
-          await tx.vendorGrant.update({
-            where: { id: commentGrant.id },
-            data: {
-              status: VendorGrantStatus.GRANTED,
-              resolvedAt: now,
-              resolvedById: resolvedUserId,
-            },
-          });
-        }
+          tx,
+        );
       }
 
       return updated;

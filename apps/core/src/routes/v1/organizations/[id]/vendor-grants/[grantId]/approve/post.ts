@@ -10,6 +10,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import {
+  grantBundledCommentWithReadApproval,
   toApiVendorPermission,
   unparkTasksForGrant,
 } from "@/helpers/vendor-grants";
@@ -36,7 +37,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/vendor-grants/{grantId}/approve",
   description:
-    "Approve a vendor grant (PENDING / DENIED / REVOKED → GRANTED). For task:read PENDING, also approves a bundled PENDING task:comment when present. Owner/admin only.",
+    "Approve a vendor grant (PENDING / DENIED / REVOKED → GRANTED). For task:read, also grants a bundled PENDING or DENIED task:comment when present. Owner/admin only.",
   tags: ["Organizations"],
   request: { params },
   responses: {
@@ -106,31 +107,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         await unparkTasksForGrant(updated.id, tx);
       }
 
-      // Bundled approve: when approving task:read, also grant PENDING task:comment.
-      if (
-        updated.permission === VendorPermission.task_read &&
-        existing.status === VendorGrantStatus.PENDING
-      ) {
-        const commentGrant = await tx.vendorGrant.findUnique({
-          where: {
-            vendorId_workspaceId_permission: {
-              vendorId: updated.vendorId,
-              workspaceId: updated.workspaceId,
-              permission: VendorPermission.task_comment,
-            },
+      // Bundled approve: when approving task:read, also grant PENDING/DENIED
+      // task:comment (deny of read mirrors comment to DENIED).
+      if (updated.permission === VendorPermission.task_read) {
+        await grantBundledCommentWithReadApproval(
+          {
+            vendorId: updated.vendorId,
+            workspaceId: updated.workspaceId,
+            resolvedById: userContext.userId,
+            resolvedAt: now,
           },
-        });
-
-        if (commentGrant?.status === VendorGrantStatus.PENDING) {
-          await tx.vendorGrant.update({
-            where: { id: commentGrant.id },
-            data: {
-              status: VendorGrantStatus.GRANTED,
-              resolvedAt: now,
-              resolvedById: userContext.userId,
-            },
-          });
-        }
+          tx,
+        );
       }
 
       return updated;

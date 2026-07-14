@@ -20,6 +20,7 @@ import { resolveTaskName } from "@/helpers/task-name";
 import {
   getVendorGrant,
   isGrantDeniedOrRevoked,
+  notifyWorkspaceApproversOfPendingGrant,
   requestCreateGrant,
   throwGrantAccessError,
   VendorPermissionApi,
@@ -245,15 +246,49 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
+    // Resolve grant status inside the transaction so a concurrent approve/deny
+    // cannot leave a READY task permanently parked.
+    let createdPendingGrant: {
+      vendorId: string;
+      workspaceId: string;
+      grantId: string;
+    } | null = null;
+
     const task = await prisma.$transaction(async (tx) => {
-      const grant = await requestCreateGrant(
+      const { grant, created: pendingCreated } = await requestCreateGrant(
         {
           vendorId: authContext.vendorId,
           workspaceId: workspaceContext.workspaceId,
           requestedByUserId: userContext.userId,
+          notify: false,
         },
         tx,
       );
+
+      if (isGrantDeniedOrRevoked(grant.status)) {
+        throwGrantAccessError(grant.status, VendorPermissionApi.TASK_CREATE);
+      }
+
+      if (grant.status === VendorGrantStatus.GRANTED) {
+        return createTaskRecord(
+          {
+            userId: userContext.userId,
+            organizationId: userContext.organizationId,
+            workspaceId: workspaceContext.workspaceId,
+            body,
+            resolvedName,
+          },
+          tx,
+        );
+      }
+
+      if (pendingCreated) {
+        createdPendingGrant = {
+          vendorId: authContext.vendorId,
+          workspaceId: workspaceContext.workspaceId,
+          grantId: grant.id,
+        };
+      }
 
       return createTaskRecord(
         {
@@ -268,6 +303,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
     });
+
+    if (createdPendingGrant) {
+      await notifyWorkspaceApproversOfPendingGrant({
+        vendorId: createdPendingGrant.vendorId,
+        workspaceId: createdPendingGrant.workspaceId,
+        primaryGrantId: createdPendingGrant.grantId,
+        permissions: [VendorPermissionApi.TASK_CREATE],
+        bundled: false,
+      });
+    }
 
     return created(c, taskSchema.parse(mapTask(task)));
   });

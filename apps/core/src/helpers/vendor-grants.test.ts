@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCoworkerTaskListAccessFilter,
   cancelParkedTasksForGrant,
+  grantBundledCommentWithReadApproval,
   hasGrantedVendorPermission,
   isBaselineCoworkerTaskAccess,
   isGrantDeniedOrRevoked,
@@ -271,6 +272,7 @@ describe("vendor-grants helpers", () => {
         messageKey: "notifications.vendorGrant.pendingReadComment",
         referenceId: "read-grant",
       }),
+      expect.anything(),
     );
   });
 
@@ -326,6 +328,7 @@ describe("vendor-grants helpers", () => {
       expect.objectContaining({
         messageKey: "notifications.vendorGrant.pending",
       }),
+      expect.anything(),
     );
   });
 
@@ -342,7 +345,7 @@ describe("vendor-grants helpers", () => {
       organizationId: "org_1",
     });
 
-    const grant = await requestCreateGrant({
+    const { grant } = await requestCreateGrant({
       vendorId: "v1",
       workspaceId: "w1",
       requestedByUserId: "u1",
@@ -381,7 +384,61 @@ describe("vendor-grants helpers", () => {
         userId: "personal_owner",
         messageKey: "notifications.vendorGrant.pending",
       }),
+      expect.anything(),
     );
+  });
+
+  it("returns existing grant on concurrent PENDING create unique race", async () => {
+    vendorGrantFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: "raced-grant",
+      status: VendorGrantStatus.PENDING,
+      permission: VendorPermission.task_read,
+    });
+    vendorGrantCreate.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+
+    const result = await upsertPendingVendorGrant({
+      vendorId: "v1",
+      workspaceId: "w1",
+      permission: VendorPermission.task_read,
+    });
+
+    expect(result).toEqual({
+      grant: expect.objectContaining({ id: "raced-grant" }),
+      created: false,
+    });
+  });
+
+  it("grants DENIED bundled comment when approving task:read", async () => {
+    const vendorGrantUpdate = vi.fn().mockResolvedValue({});
+    const tx = {
+      vendorGrant: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "comment-grant",
+          status: VendorGrantStatus.DENIED,
+        }),
+        update: vendorGrantUpdate,
+      },
+    };
+
+    await grantBundledCommentWithReadApproval(
+      {
+        vendorId: "v1",
+        workspaceId: "w1",
+        resolvedById: "u1",
+        resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
+      },
+      tx as never,
+    );
+
+    expect(vendorGrantUpdate).toHaveBeenCalledWith({
+      where: { id: "comment-grant" },
+      data: expect.objectContaining({
+        status: VendorGrantStatus.GRANTED,
+        resolvedById: "u1",
+      }),
+    });
   });
 
   it("keeps baseline DRAFT tasks out of sibling access", () => {

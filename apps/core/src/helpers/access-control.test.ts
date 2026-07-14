@@ -727,6 +727,7 @@ describe("requireTaskCommentAccess", () => {
         vendorId: defaultVendorId,
         workspaceId,
       }),
+      expect.anything(),
     );
     expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
   });
@@ -823,6 +824,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
         vendorId: defaultVendorId,
         workspaceId,
       }),
+      expect.anything(),
     );
   });
 

@@ -319,11 +319,14 @@ async function requireCoworkerTaskRead(
     throwGrantAccessError(grant.status, VendorPermissionApi.TASK_READ);
   }
 
-  await requestReadGrantWithBundledComment({
-    vendorId: authContext.vendorId,
-    workspaceId,
-    requestedByUserId: authContext.context?.userId ?? null,
-  });
+  await requestReadGrantWithBundledComment(
+    {
+      vendorId: authContext.vendorId,
+      workspaceId,
+      requestedByUserId: authContext.context?.userId ?? null,
+    },
+    tx,
+  );
 
   throwGrantAccessError(grant?.status ?? null, VendorPermissionApi.TASK_READ);
 }
@@ -507,11 +510,14 @@ export async function requireTaskCommentAccess(
     throwGrantAccessError(grant.status, VendorPermissionApi.TASK_COMMENT);
   }
 
-  await requestCommentGrant({
-    vendorId: coworker.vendorId,
-    workspaceId,
-    requestedByUserId: coworker.context?.userId ?? null,
-  });
+  await requestCommentGrant(
+    {
+      vendorId: coworker.vendorId,
+      workspaceId,
+      requestedByUserId: coworker.context?.userId ?? null,
+    },
+    tx,
+  );
 
   throwGrantAccessError(
     grant?.status ?? null,

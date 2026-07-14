@@ -10,6 +10,7 @@ import {
 import { TaskStatus } from "@sokosumi/utils";
 import { forbidden } from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 /** API / OpenAPI permission strings (`resource:action`). */
@@ -114,6 +115,7 @@ export async function getVendorGrant(
 /**
  * Upsert PENDING when no row exists. Never reopens DENIED / REVOKED / GRANTED /
  * existing PENDING. Returns whether a new PENDING row was created.
+ * Concurrent creates that hit the unique constraint re-read the winner row.
  */
 export async function upsertPendingVendorGrant(
   params: {
@@ -124,31 +126,49 @@ export async function upsertPendingVendorGrant(
   },
   tx: Prisma.TransactionClient = prisma,
 ): Promise<{ grant: VendorGrant; created: boolean }> {
-  const existing = await tx.vendorGrant.findUnique({
-    where: {
-      vendorId_workspaceId_permission: {
-        vendorId: params.vendorId,
-        workspaceId: params.workspaceId,
-        permission: params.permission,
-      },
+  const uniqueWhere = {
+    vendorId_workspaceId_permission: {
+      vendorId: params.vendorId,
+      workspaceId: params.workspaceId,
+      permission: params.permission,
     },
+  } as const;
+
+  const existing = await tx.vendorGrant.findUnique({
+    where: uniqueWhere,
   });
 
   if (existing) {
     return { grant: existing, created: false };
   }
 
-  const grant = await tx.vendorGrant.create({
-    data: {
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      permission: params.permission,
-      status: VendorGrantStatus.PENDING,
-      requestedByUserId: params.requestedByUserId ?? null,
-    },
-  });
+  try {
+    const grant = await tx.vendorGrant.create({
+      data: {
+        vendorId: params.vendorId,
+        workspaceId: params.workspaceId,
+        permission: params.permission,
+        status: VendorGrantStatus.PENDING,
+        requestedByUserId: params.requestedByUserId ?? null,
+      },
+    });
 
-  return { grant, created: true };
+    return { grant, created: true };
+  } catch (error) {
+    if (!isPrismaUniqueViolation(error)) {
+      throw error;
+    }
+
+    const raced = await tx.vendorGrant.findUnique({
+      where: uniqueWhere,
+    });
+
+    if (!raced) {
+      throw error;
+    }
+
+    return { grant: raced, created: false };
+  }
 }
 
 /**
@@ -184,16 +204,19 @@ export async function requestReadGrantWithBundledComment(
   );
 
   if (read.created || comment.created) {
-    await notifyWorkspaceApproversOfPendingGrant({
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      primaryGrantId: read.grant.id,
-      permissions: [
-        VendorPermissionApi.TASK_READ,
-        VendorPermissionApi.TASK_COMMENT,
-      ],
-      bundled: true,
-    });
+    await notifyWorkspaceApproversOfPendingGrant(
+      {
+        vendorId: params.vendorId,
+        workspaceId: params.workspaceId,
+        primaryGrantId: read.grant.id,
+        permissions: [
+          VendorPermissionApi.TASK_READ,
+          VendorPermissionApi.TASK_COMMENT,
+        ],
+        bundled: true,
+      },
+      tx,
+    );
   }
 }
 
@@ -216,13 +239,16 @@ export async function requestCommentGrant(
   );
 
   if (result.created) {
-    await notifyWorkspaceApproversOfPendingGrant({
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      primaryGrantId: result.grant.id,
-      permissions: [VendorPermissionApi.TASK_COMMENT],
-      bundled: false,
-    });
+    await notifyWorkspaceApproversOfPendingGrant(
+      {
+        vendorId: params.vendorId,
+        workspaceId: params.workspaceId,
+        primaryGrantId: result.grant.id,
+        permissions: [VendorPermissionApi.TASK_COMMENT],
+        bundled: false,
+      },
+      tx,
+    );
   }
 }
 
@@ -231,9 +257,11 @@ export async function requestCreateGrant(
     vendorId: string;
     workspaceId: string;
     requestedByUserId?: string | null;
+    /** When false, caller must notify after the surrounding transaction commits. */
+    notify?: boolean;
   },
   tx: Prisma.TransactionClient = prisma,
-): Promise<VendorGrant> {
+): Promise<{ grant: VendorGrant; created: boolean }> {
   const result = await upsertPendingVendorGrant(
     {
       vendorId: params.vendorId,
@@ -244,31 +272,78 @@ export async function requestCreateGrant(
     tx,
   );
 
-  if (result.created) {
-    await notifyWorkspaceApproversOfPendingGrant({
-      vendorId: params.vendorId,
-      workspaceId: params.workspaceId,
-      primaryGrantId: result.grant.id,
-      permissions: [VendorPermissionApi.TASK_CREATE],
-      bundled: false,
-    });
+  if (result.created && params.notify !== false) {
+    await notifyWorkspaceApproversOfPendingGrant(
+      {
+        vendorId: params.vendorId,
+        workspaceId: params.workspaceId,
+        primaryGrantId: result.grant.id,
+        permissions: [VendorPermissionApi.TASK_CREATE],
+        bundled: false,
+      },
+      tx,
+    );
   }
 
-  return result.grant;
+  return result;
+}
+
+/**
+ * When approving task:read, also grant a bundled task:comment that is still
+ * PENDING or DENIED (deny of read mirrors comment to DENIED).
+ */
+export async function grantBundledCommentWithReadApproval(
+  params: {
+    vendorId: string;
+    workspaceId: string;
+    resolvedById: string;
+    resolvedAt: Date;
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const commentGrant = await tx.vendorGrant.findUnique({
+    where: {
+      vendorId_workspaceId_permission: {
+        vendorId: params.vendorId,
+        workspaceId: params.workspaceId,
+        permission: VendorPermission.task_comment,
+      },
+    },
+  });
+
+  if (
+    !commentGrant ||
+    (commentGrant.status !== VendorGrantStatus.PENDING &&
+      commentGrant.status !== VendorGrantStatus.DENIED)
+  ) {
+    return;
+  }
+
+  await tx.vendorGrant.update({
+    where: { id: commentGrant.id },
+    data: {
+      status: VendorGrantStatus.GRANTED,
+      resolvedAt: params.resolvedAt,
+      resolvedById: params.resolvedById,
+    },
+  });
 }
 
 /**
  * Notify grant approvers for a workspace: org OWNER/ADMIN when the workspace
  * belongs to an organization, otherwise the personal workspace owner.
  */
-async function notifyWorkspaceApproversOfPendingGrant(params: {
-  vendorId: string;
-  workspaceId: string;
-  primaryGrantId: string;
-  permissions: VendorPermissionApiValue[];
-  bundled: boolean;
-}): Promise<void> {
-  const workspace = await prisma.workspace.findUnique({
+export async function notifyWorkspaceApproversOfPendingGrant(
+  params: {
+    vendorId: string;
+    workspaceId: string;
+    primaryGrantId: string;
+    permissions: VendorPermissionApiValue[];
+    bundled: boolean;
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const workspace = await tx.workspace.findUnique({
     where: { id: params.workspaceId },
     select: { userId: true, organizationId: true },
   });
@@ -280,7 +355,7 @@ async function notifyWorkspaceApproversOfPendingGrant(params: {
   let recipientUserIds: string[] = [];
 
   if (workspace.organizationId) {
-    const members = await prisma.member.findMany({
+    const members = await tx.member.findMany({
       where: {
         organizationId: workspace.organizationId,
         role: { in: [MemberRole.OWNER, MemberRole.ADMIN] },
@@ -296,35 +371,38 @@ async function notifyWorkspaceApproversOfPendingGrant(params: {
     return;
   }
 
-  const vendor = await prisma.vendor.findUnique({
+  const vendor = await tx.vendor.findUnique({
     where: { id: params.vendorId },
     select: { name: true, slug: true },
   });
 
   await Promise.all(
     recipientUserIds.map((userId) =>
-      createNotification({
-        userId,
-        kind: NotificationKind.SYSTEM,
-        referenceId: params.primaryGrantId,
-        eventId: params.primaryGrantId,
-        messageKey: params.bundled
-          ? "notifications.vendorGrant.pendingReadComment"
-          : "notifications.vendorGrant.pending",
-        messageParams: {
-          vendorName: vendor?.name ?? params.vendorId,
-          vendorSlug: vendor?.slug ?? null,
-          permissions: params.permissions,
-          workspaceId: params.workspaceId,
-          organizationId: workspace.organizationId,
+      createNotification(
+        {
+          userId,
+          kind: NotificationKind.SYSTEM,
+          referenceId: params.primaryGrantId,
+          eventId: params.primaryGrantId,
+          messageKey: params.bundled
+            ? "notifications.vendorGrant.pendingReadComment"
+            : "notifications.vendorGrant.pending",
+          messageParams: {
+            vendorName: vendor?.name ?? params.vendorId,
+            vendorSlug: vendor?.slug ?? null,
+            permissions: params.permissions,
+            workspaceId: params.workspaceId,
+            organizationId: workspace.organizationId,
+          },
+          metadata: {
+            vendorId: params.vendorId,
+            workspaceId: params.workspaceId,
+            organizationId: workspace.organizationId,
+            permissions: params.permissions,
+          },
         },
-        metadata: {
-          vendorId: params.vendorId,
-          workspaceId: params.workspaceId,
-          organizationId: workspace.organizationId,
-          permissions: params.permissions,
-        },
-      }),
+        tx,
+      ),
     ),
   );
 }

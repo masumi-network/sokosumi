@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -31,7 +31,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
     path: "/{id}/tasks/{taskId}",
-    description: "Remove a task from a project without deleting the task",
+    description:
+      "Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. Any workspace member may unlink a workspace task.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -47,7 +48,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, taskId } = c.req.valid("param");
 
@@ -60,15 +61,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project or task link not found");
     }
 
-    const unlinkResult = await prisma.$transaction(async (tx) => {
-      await requireMutableTaskOwnership(userContext, taskId, tx);
-
-      return tx.task.updateMany({
-        where: { id: taskId, projectId, workspaceId },
-        data: { projectId: null },
-      });
+    const task = await prisma.task.findFirst({
+      where: { id: taskId, projectId, workspaceId },
+      select: { pendingVendorGrantId: true },
     });
+    if (!task) {
+      throw notFound("Project or task link not found");
+    }
 
+    requireTaskNotParked(task);
+
+    const unlinkResult = await prisma.task.updateMany({
+      where: { id: taskId, projectId, workspaceId },
+      data: { projectId: null },
+    });
     if (unlinkResult.count === 0) {
       throw notFound("Project or task link not found");
     }
