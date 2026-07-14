@@ -88,7 +88,6 @@ describe("GET /vendors", () => {
       actor: "coworker",
       coworkerId: "coworker_1",
       vendorId: testVendor.id,
-      apiKeyId: "key_1",
     });
 
     const response = await app.request("http://localhost/");
@@ -102,7 +101,6 @@ describe("GET /vendors", () => {
       actor: "coworker",
       coworkerId: "coworker_1",
       vendorId: testVendor.id,
-      apiKeyId: "key_1",
       context: {
         userId: "user_1",
         organizationId: null,
