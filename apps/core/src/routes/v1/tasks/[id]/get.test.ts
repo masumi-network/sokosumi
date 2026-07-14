@@ -500,7 +500,7 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(404);
-    expect(taskFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(taskFindFirstMock).toHaveBeenCalledTimes(2);
   });
 
   it("allows a bare coworker to read a same-vendor sibling task without workspace scoping", async () => {
