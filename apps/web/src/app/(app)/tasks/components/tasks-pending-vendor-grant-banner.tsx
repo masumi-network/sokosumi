@@ -4,9 +4,10 @@ import { useTranslations } from "next-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VendorGrantApprovalActions } from "@/components/vendor-grants/vendor-grant-approval-actions";
-import { approveMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
+import { createMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
 import type { ActionError } from "@/lib/actions/errors";
-import { approveOrganizationVendorGrant } from "@/lib/actions/organization/vendor-grant-action";
+import { createOrganizationVendorGrant } from "@/lib/actions/organization/vendor-grant-action";
+import type { VendorGrant } from "@/lib/clients/generated/core";
 import { Ok, type Result } from "@/lib/ts-res";
 
 interface TasksPendingVendorGrantBannerProps {
@@ -15,7 +16,10 @@ interface TasksPendingVendorGrantBannerProps {
   reviewHref: string;
   vendorName: string | null;
   pendingVendorCount: number;
-  grantIdsToApprove: string[];
+  vendorGrantApprovals: Array<{
+    vendorId: string;
+    permissions: VendorGrant["permission"][];
+  }>;
   parkedTaskCount: number;
 }
 
@@ -25,7 +29,7 @@ export function TasksPendingVendorGrantBanner({
   reviewHref,
   vendorName,
   pendingVendorCount,
-  grantIdsToApprove,
+  vendorGrantApprovals,
   parkedTaskCount,
 }: TasksPendingVendorGrantBannerProps) {
   const t = useTranslations("App.Tasks.PendingVendorGrantBanner");
@@ -44,20 +48,28 @@ export function TasksPendingVendorGrantBanner({
     return t("descriptionMany", { count: pendingVendorCount });
   }
 
-  async function approveGrant(
-    grantId: string,
-  ): Promise<Result<{ grantId: string }, ActionError>> {
+  async function grantVendorPermissions(
+    vendorId: string,
+    permissions: VendorGrant["permission"][],
+  ): Promise<Result<{ grantIds: string[] }, ActionError>> {
     if (organizationId) {
-      return approveOrganizationVendorGrant({ organizationId, grantId });
+      return createOrganizationVendorGrant({
+        organizationId,
+        vendorId,
+        permissions,
+      });
     }
-    return approveMyVendorGrant({ grantId });
+    return createMyVendorGrant({ vendorId, permissions });
   }
 
   async function approveAllPendingGrants(): Promise<
     Result<unknown, ActionError>
   > {
-    for (const grantId of grantIdsToApprove) {
-      const result = await approveGrant(grantId);
+    for (const approval of vendorGrantApprovals) {
+      const result = await grantVendorPermissions(
+        approval.vendorId,
+        approval.permissions,
+      );
       if (!result.ok) {
         return result;
       }

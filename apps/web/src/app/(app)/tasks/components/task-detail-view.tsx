@@ -14,6 +14,7 @@ import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
+import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
@@ -297,8 +298,16 @@ async function TaskVendorGrantApprovalBannerSlot({
     viewerMembership,
   });
 
-  if (!canApprove) {
+  if (!session?.user.id) {
     return null;
+  }
+
+  if (!canApprove) {
+    return (
+      <TaskVendorGrantPendingInfoBanner
+        coworkerName={task.coworker?.name ?? null}
+      />
+    );
   }
 
   const reviewHref = buildVendorGrantReviewHref({

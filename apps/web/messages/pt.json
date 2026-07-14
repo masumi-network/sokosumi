@@ -1676,6 +1676,11 @@
           "denySuccess": "Acesso do fornecedor recusado. Esta tarefa foi cancelada.",
           "approveError": "Falha ao aprovar o acesso do fornecedor",
           "denyError": "Falha ao recusar o acesso do fornecedor"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "A aguardar aprovação de acesso do fornecedor",
+          "description": "Esta tarefa está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor.",
+          "descriptionWithCoworker": "{coworkerName} criou esta tarefa. Está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor."
         }
       },
       "NewTask": {

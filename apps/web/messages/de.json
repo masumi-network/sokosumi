@@ -1676,6 +1676,11 @@
           "denySuccess": "Vendor-Zugriff abgelehnt. Diese Aufgabe wurde abgebrochen.",
           "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
           "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "Warten auf Freigabe des Vendor-Zugriffs",
+          "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
+          "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
         }
       },
       "NewTask": {

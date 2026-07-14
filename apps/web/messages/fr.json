@@ -1676,6 +1676,11 @@
           "denySuccess": "Accès fournisseur refusé. Cette tâche a été annulée.",
           "approveError": "Échec de l'approbation de l'accès fournisseur",
           "denyError": "Échec du refus de l'accès fournisseur"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "En attente de l'approbation d'accès fournisseur",
+          "description": "Cette tâche est bloquée jusqu'à ce qu'un propriétaire ou administrateur de l'espace de travail approuve l'accès fournisseur.",
+          "descriptionWithCoworker": "{coworkerName} a créé cette tâche. Elle est bloquée jusqu'à ce qu'un propriétaire ou administrateur de l'espace de travail approuve l'accès fournisseur."
         }
       },
       "NewTask": {

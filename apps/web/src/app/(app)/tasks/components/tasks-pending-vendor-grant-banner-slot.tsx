@@ -8,9 +8,8 @@ import {
   resolveViewerOrganizationMembership,
 } from "@/lib/utils/vendor-grant-approval";
 import {
-  getActionablePendingGrants,
+  getGrantPermissionsForPendingVendorGroup,
   groupVendorGrantsByVendor,
-  orderGrantsForBundledActions,
 } from "@/lib/utils/vendor-grant-display";
 
 import { TasksPendingVendorGrantBanner } from "./tasks-pending-vendor-grant-banner";
@@ -68,10 +67,13 @@ export async function TasksPendingVendorGrantBannerSlot({
     return null;
   }
 
-  const grantIdsToApprove = canApprove
-    ? orderGrantsForBundledActions(
-        pendingGroups.flatMap((group) => getActionablePendingGrants(group)),
-      ).map((grant) => grant.id)
+  const vendorGrantApprovals = canApprove
+    ? pendingGroups
+        .map((group) => ({
+          vendorId: group.vendorId,
+          permissions: getGrantPermissionsForPendingVendorGroup(group),
+        }))
+        .filter((approval) => approval.permissions.length > 0)
     : [];
 
   const reviewHref = buildVendorGrantReviewHref({
@@ -94,7 +96,7 @@ export async function TasksPendingVendorGrantBannerSlot({
           : null
       }
       pendingVendorCount={pendingGroups.length}
-      grantIdsToApprove={grantIdsToApprove}
+      vendorGrantApprovals={vendorGrantApprovals}
       parkedTaskCount={parkedTaskCount}
     />
   );

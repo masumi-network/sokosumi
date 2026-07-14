@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { VendorGrant } from "@/lib/clients/generated/core";
 import {
   getActionablePendingGrants,
+  getGrantPermissionsForPendingVendorGroup,
   groupVendorGrantsByVendor,
   isFullyGranted,
   orderGrantsForBundledActions,
@@ -89,6 +90,21 @@ describe("groupVendorGrantsByVendor", () => {
     expect(
       orderGrantsForBundledActions(pending).map((g) => g.permission),
     ).toEqual(["task:read", "task:create"]);
+  });
+
+  it("builds permissions[] for proactive grant including bundled comment", () => {
+    const grants = [
+      buildGrant({ id: "read-grant", permission: "task:read" }),
+      buildGrant({ id: "comment-grant", permission: "task:comment" }),
+    ];
+
+    const [group] = groupVendorGrantsByVendor(grants);
+
+    expect(getGrantPermissionsForPendingVendorGroup(group!)).toEqual([
+      "task:read",
+      "task:comment",
+    ]);
+    expect(getActionablePendingGrants(group!)).toHaveLength(1);
   });
 
   it("detects fully granted vendors", () => {

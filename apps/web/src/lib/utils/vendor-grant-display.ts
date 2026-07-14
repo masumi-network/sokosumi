@@ -38,6 +38,33 @@ export function getActionablePendingGrants(
     .map((slot) => slot.grant!);
 }
 
+/**
+ * Permissions to pass to proactive grant create (`permissions[]`) for a vendor
+ * with pending rows. Includes bundled task:comment when task:read is pending.
+ */
+export function getGrantPermissionsForPendingVendorGroup(
+  group: VendorGrantGroup,
+): VendorGrantPermission[] {
+  const permissionSet = new Set<VendorGrantPermission>(
+    getActionablePendingGrants(group).map((grant) => grant.permission),
+  );
+
+  const commentSlot = group.slots.find(
+    (slot) => slot.permission === "task:comment",
+  );
+  if (
+    permissionSet.has("task:read") &&
+    commentSlot?.bundledWithPendingRead &&
+    commentSlot.grant?.status === "PENDING"
+  ) {
+    permissionSet.add("task:comment");
+  }
+
+  return VENDOR_PERMISSION_ORDER.filter((permission) =>
+    permissionSet.has(permission),
+  );
+}
+
 export function getGrantedGrants(group: VendorGrantGroup): VendorGrant[] {
   return group.slots
     .filter((slot) => slot.grant?.status === "GRANTED")

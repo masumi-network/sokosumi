@@ -36,7 +36,8 @@ const query = z.object({
 const route = createRoute({
   method: "get",
   path: "/{id}/vendor-grants",
-  description: "List vendor workspace grants for an organization (any member)",
+  description:
+    "List vendor workspace grants for an organization. Any organization member may read grant status so coworkers understand pending vendor access in shared workspaces; create, approve, deny, and revoke remain owner/admin only.",
   tags: ["Organizations"],
   request: { params, query },
   responses: {

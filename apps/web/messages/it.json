@@ -1676,6 +1676,11 @@
           "denySuccess": "Accesso vendor negato. Questa attività è stata annullata.",
           "approveError": "Impossibile approvare l'accesso vendor",
           "denyError": "Impossibile negare l'accesso vendor"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "In attesa dell'approvazione dell'accesso vendor",
+          "description": "Questa attività è bloccata finché un proprietario o admin del workspace non approva l'accesso vendor.",
+          "descriptionWithCoworker": "{coworkerName} ha creato questa attività. È bloccata finché un proprietario o admin del workspace non approva l'accesso vendor."
         }
       },
       "NewTask": {
