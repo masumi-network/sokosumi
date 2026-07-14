@@ -73,6 +73,9 @@ interface TransactionMock {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  task?: {
+    findFirst: ReturnType<typeof vi.fn>;
+  };
 }
 
 function createCurrentJobRecord(
@@ -257,6 +260,20 @@ describe("PUT /jobs/{id}/workspace", () => {
         taskId: "tsk_123",
       }),
     );
+    const taskFindFirstMock = vi
+      .fn()
+      .mockResolvedValue({ pendingVendorGrantId: null });
+
+    mockTransaction({
+      job: {
+        findFirst: jobFindFirstMock,
+        findUnique: jobFindUniqueMock,
+        update: jobUpdateMock,
+      },
+      task: {
+        findFirst: taskFindFirstMock,
+      },
+    });
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/job_123/workspace", {

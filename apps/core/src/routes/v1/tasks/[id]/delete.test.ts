@@ -18,6 +18,7 @@ const { prismaTransactionMock, requireTaskArchiveAccessMock, mapTaskMock } =
       const t = task as Record<string, unknown>;
       return {
         ...t,
+        pendingApproval: t.pendingVendorGrantId != null,
         user: t.user ?? {
           id: t.userId,
           name: "Task owner",

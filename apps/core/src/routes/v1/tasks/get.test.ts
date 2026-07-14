@@ -9,12 +9,17 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasks from "./get";
 
-const { requireCoworkerCapabilityMock, taskCountMock, taskFindManyMock } =
-  vi.hoisted(() => ({
-    requireCoworkerCapabilityMock: vi.fn(),
-    taskCountMock: vi.fn(),
-    taskFindManyMock: vi.fn(),
-  }));
+const {
+  requireCoworkerCapabilityMock,
+  taskCountMock,
+  taskFindManyMock,
+  vendorGrantFindUniqueMock,
+} = vi.hoisted(() => ({
+  requireCoworkerCapabilityMock: vi.fn(),
+  taskCountMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  vendorGrantFindUniqueMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
@@ -25,6 +30,9 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       count: taskCountMock,
       findMany: taskFindManyMock,
+    },
+    vendorGrant: {
+      findUnique: vendorGrantFindUniqueMock,
     },
   },
 }));
@@ -156,6 +164,7 @@ describe("GET /tasks", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
+    vendorGrantFindUniqueMock.mockResolvedValue(null);
   });
 
   it("parses multiple statuses into an IN filter", async () => {
