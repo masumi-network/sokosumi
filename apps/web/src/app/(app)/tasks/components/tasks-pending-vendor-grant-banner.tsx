@@ -1,18 +1,13 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { VendorGrantApprovalActions } from "@/components/vendor-grants/vendor-grant-approval-actions";
 import { approveMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
 import type { ActionError } from "@/lib/actions/errors";
 import { approveOrganizationVendorGrant } from "@/lib/actions/organization/vendor-grant-action";
-import type { Result } from "@/lib/ts-res";
+import { Ok, type Result } from "@/lib/ts-res";
 
 interface TasksPendingVendorGrantBannerProps {
   canApprove: boolean;
@@ -34,8 +29,6 @@ export function TasksPendingVendorGrantBanner({
   parkedTaskCount,
 }: TasksPendingVendorGrantBannerProps) {
   const t = useTranslations("App.Tasks.PendingVendorGrantBanner");
-  const router = useRouter();
-  const [isApproving, setIsApproving] = useState(false);
 
   function description() {
     if (!canApprove) {
@@ -60,23 +53,17 @@ export function TasksPendingVendorGrantBanner({
     return approveMyVendorGrant({ grantId });
   }
 
-  async function handleApprove() {
-    setIsApproving(true);
-    try {
-      for (const grantId of grantIdsToApprove) {
-        const result = await approveGrant(grantId);
-        if (!result.ok) {
-          toast.error(result.error?.message ?? t("approveError"));
-          return;
-        }
+  async function approveAllPendingGrants(): Promise<
+    Result<unknown, ActionError>
+  > {
+    for (const grantId of grantIdsToApprove) {
+      const result = await approveGrant(grantId);
+      if (!result.ok) {
+        return result;
       }
-      toast.success(t("approveSuccess"));
-      router.refresh();
-    } catch {
-      toast.error(t("approveError"));
-    } finally {
-      setIsApproving(false);
     }
+
+    return Ok(undefined);
   }
 
   return (
@@ -91,27 +78,17 @@ export function TasksPendingVendorGrantBanner({
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {canApprove ? (
-            <Button
-              size="sm"
-              disabled={isApproving}
-              onClick={() => void handleApprove()}
-            >
-              {isApproving ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : null}
-              {t("approve")}
-            </Button>
-          ) : null}
-          <Button
-            size="sm"
-            variant={canApprove ? "outline" : "default"}
-            asChild
-          >
-            <Link href={reviewHref}>{t("review")}</Link>
-          </Button>
-        </div>
+        <VendorGrantApprovalActions
+          canApprove={canApprove}
+          reviewHref={reviewHref}
+          labels={{
+            approve: t("approve"),
+            review: t("review"),
+            approveSuccess: t("approveSuccess"),
+            approveError: t("approveError"),
+          }}
+          onApprove={approveAllPendingGrants}
+        />
       </AlertDescription>
     </Alert>
   );

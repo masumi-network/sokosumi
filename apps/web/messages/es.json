@@ -1671,6 +1671,7 @@
           "descriptionWithCoworker": "{coworkerName} creó esta tarea pero aún no tiene permiso para crear tareas en este espacio de trabajo. Aprueba el acceso del proveedor para activarla.",
           "approve": "Aprobar acceso",
           "deny": "Denegar acceso",
+          "review": "Ver detalles",
           "approveSuccess": "Acceso del proveedor aprobado. Esta tarea ya está activa.",
           "denySuccess": "Acceso del proveedor denegado. Esta tarea se canceló.",
           "approveError": "No se pudo aprobar el acceso del proveedor",

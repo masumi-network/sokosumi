@@ -1671,6 +1671,7 @@
           "descriptionWithCoworker": "{coworkerName} ha creato questa attività ma non ha ancora il permesso di creare attività in questo workspace. Approva l'accesso vendor per attivarla.",
           "approve": "Approva accesso",
           "deny": "Nega accesso",
+          "review": "Vedi dettagli",
           "approveSuccess": "Accesso vendor approvato. Questa attività è ora attiva.",
           "denySuccess": "Accesso vendor negato. Questa attività è stata annullata.",
           "approveError": "Impossibile approvare l'accesso vendor",

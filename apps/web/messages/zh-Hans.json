@@ -1671,6 +1671,7 @@
           "descriptionWithCoworker": "{coworkerName} 创建了此任务，但尚未获得在此工作区创建任务的权限。请批准供应商访问以激活该任务。",
           "approve": "批准访问",
           "deny": "拒绝访问",
+          "review": "查看详情",
           "approveSuccess": "已批准供应商访问。此任务现已激活。",
           "denySuccess": "已拒绝供应商访问。此任务已取消。",
           "approveError": "批准供应商访问失败",

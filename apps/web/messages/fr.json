@@ -1671,6 +1671,7 @@
           "descriptionWithCoworker": "{coworkerName} a créé cette tâche mais n'a pas encore l'autorisation de créer des tâches dans cet espace de travail. Approuvez l'accès fournisseur pour l'activer.",
           "approve": "Approuver l'accès",
           "deny": "Refuser l'accès",
+          "review": "Voir les détails",
           "approveSuccess": "Accès fournisseur approuvé. Cette tâche est maintenant active.",
           "denySuccess": "Accès fournisseur refusé. Cette tâche a été annulée.",
           "approveError": "Échec de l'approbation de l'accès fournisseur",

@@ -1682,6 +1682,7 @@
           "descriptionWithCoworker": "{coworkerName} created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
           "approve": "Approve access",
           "deny": "Deny access",
+          "review": "Review details",
           "approveSuccess": "Vendor access approved. This task is now active.",
           "denySuccess": "Vendor access denied. This task was canceled.",
           "approveError": "Failed to approve vendor access",

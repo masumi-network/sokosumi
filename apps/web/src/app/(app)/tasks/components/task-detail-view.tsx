@@ -33,6 +33,11 @@ import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
+import {
+  buildVendorGrantReviewHref,
+  canApproveVendorGrants,
+  resolveViewerOrganizationMembership,
+} from "@/lib/utils/vendor-grant-approval";
 
 type SessionResult = Awaited<ReturnType<typeof getSession>>;
 type AgentsResult = Awaited<
@@ -285,15 +290,23 @@ async function TaskVendorGrantApprovalBannerSlot({
     sessionPromise,
   ]);
   const orgId = task.workspace.organizationId ?? null;
-  const viewerMembership =
-    orgId === null
-      ? undefined
-      : members.find((member) => member.organizationId === orgId);
-  const isOrgOwnerOrAdmin =
-    viewerMembership?.role === "owner" || viewerMembership?.role === "admin";
-  const canApprove = orgId ? isOrgOwnerOrAdmin : Boolean(session?.user.id);
+  const viewerMembership = resolveViewerOrganizationMembership(orgId, members);
+  const canApprove = canApproveVendorGrants({
+    organizationId: orgId,
+    isAuthenticated: Boolean(session?.user.id),
+    viewerMembership,
+  });
 
   if (!canApprove) {
+    return null;
+  }
+
+  const reviewHref = buildVendorGrantReviewHref({
+    organizationId: orgId,
+    organizationSlug: viewerMembership?.organization.slug,
+  });
+
+  if (!reviewHref) {
     return null;
   }
 
@@ -302,6 +315,7 @@ async function TaskVendorGrantApprovalBannerSlot({
       grantId={grantId}
       coworkerName={task.coworker?.name ?? null}
       organizationId={orgId}
+      reviewHref={reviewHref}
     />
   );
 }

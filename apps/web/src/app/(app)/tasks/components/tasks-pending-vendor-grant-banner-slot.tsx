@@ -3,6 +3,11 @@ import type { VendorGrant } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services/user.service";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import {
+  buildVendorGrantReviewHref,
+  canApproveVendorGrants,
+  resolveViewerOrganizationMembership,
+} from "@/lib/utils/vendor-grant-approval";
+import {
   getActionablePendingGrants,
   groupVendorGrantsByVendor,
   orderGrantsForBundledActions,
@@ -29,13 +34,15 @@ export async function TasksPendingVendorGrantBannerSlot({
   }
 
   const organizationId = activeOrganizationId;
-  const viewerMembership =
-    organizationId === null
-      ? undefined
-      : members.find((member) => member.organizationId === organizationId);
-  const isOrgOwnerOrAdmin =
-    viewerMembership?.role === "owner" || viewerMembership?.role === "admin";
-  const canApprove = organizationId ? isOrgOwnerOrAdmin : true;
+  const viewerMembership = resolveViewerOrganizationMembership(
+    organizationId,
+    members,
+  );
+  const canApprove = canApproveVendorGrants({
+    organizationId,
+    isAuthenticated: true,
+    viewerMembership,
+  });
 
   let pendingGrants: VendorGrant[] = [];
   try {
@@ -67,12 +74,12 @@ export async function TasksPendingVendorGrantBannerSlot({
       ).map((grant) => grant.id)
     : [];
 
-  const reviewHref =
-    organizationId === null
-      ? "/account#vendor-workspace-access"
-      : `/organizations/${viewerMembership?.organization.slug ?? ""}#vendor-workspace-access`;
+  const reviewHref = buildVendorGrantReviewHref({
+    organizationId,
+    organizationSlug: viewerMembership?.organization.slug,
+  });
 
-  if (organizationId !== null && !viewerMembership?.organization.slug) {
+  if (!reviewHref) {
     return null;
   }
 

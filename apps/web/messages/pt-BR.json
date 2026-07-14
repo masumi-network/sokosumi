@@ -1671,6 +1671,7 @@
           "descriptionWithCoworker": "{coworkerName} criou esta tarefa, mas ainda não tem permissão para criar tarefas neste workspace. Aprove o acesso do fornecedor para ativá-la.",
           "approve": "Aprovar acesso",
           "deny": "Recusar acesso",
+          "review": "Ver detalhes",
           "approveSuccess": "Acesso do fornecedor aprovado. Esta tarefa está ativa.",
           "denySuccess": "Acesso do fornecedor recusado. Esta tarefa foi cancelada.",
           "approveError": "Falha ao aprovar o acesso do fornecedor",

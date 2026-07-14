@@ -1671,6 +1671,7 @@
           "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt, hat aber noch keine Berechtigung, Aufgaben in diesem Workspace anzulegen. Genehmigen Sie den Vendor-Zugriff, um die Aufgabe zu aktivieren.",
           "approve": "Zugriff genehmigen",
           "deny": "Zugriff ablehnen",
+          "review": "Details ansehen",
           "approveSuccess": "Vendor-Zugriff genehmigt. Diese Aufgabe ist jetzt aktiv.",
           "denySuccess": "Vendor-Zugriff abgelehnt. Diese Aufgabe wurde abgebrochen.",
           "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
