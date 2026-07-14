@@ -491,39 +491,6 @@
       "JobsList": {
         "noExecutedJobs": "暂无已执行任务",
         "emptyJobs": "暂无任务。"
-      },
-      "VendorGrants": {
-        "title": "Vendor workspace access",
-        "description": "Approve vendor requests to read, comment on, or create tasks in your personal workspace.",
-        "pendingTitle": "Pending requests",
-        "pendingEmpty": "No pending vendor access requests.",
-        "activeTitle": "Active grants",
-        "activeEmpty": "No active vendor grants.",
-        "grantFormTitle": "Grant access proactively",
-        "Permissions": {
-          "taskRead": "Read tasks",
-          "taskComment": "Comment on tasks",
-          "taskCreate": "Create tasks",
-          "readAndComment": "Read and comment on tasks"
-        },
-        "GrantForm": {
-          "vendorLabel": "Vendor",
-          "permissionLabel": "Permission",
-          "submit": "Grant access",
-          "success": "Vendor access granted",
-          "error": "Failed to grant vendor access"
-        },
-        "Actions": {
-          "approve": "Approve",
-          "deny": "Deny",
-          "revoke": "Revoke",
-          "approveSuccess": "Vendor access approved",
-          "denySuccess": "Vendor access denied",
-          "revokeSuccess": "Vendor access revoked",
-          "approveError": "Failed to approve vendor access",
-          "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access"
-        }
       }
     },
     "Organizations": {
@@ -3509,6 +3476,44 @@
         "Schema": {
           "websiteUrl": "请输入有效的 http 或 https URL"
         }
+      },
+      "VendorGrants": {
+        "title": "供应商工作区访问",
+        "description": "批准供应商在你的个人工作区中读取、评论或创建任务的请求。",
+        "vendorsTitle": "供应商",
+        "vendorsEmpty": "尚无供应商授权。",
+        "statusPending": "待处理",
+        "statusGranted": "已授权",
+        "statusDenied": "已拒绝",
+        "statusRevoked": "已撤销",
+        "statusNone": "未授权",
+        "bundledWithRead": "已包含在读取中",
+        "approveWithComment": "批准读取与评论",
+        "grantFormTitle": "主动授予访问权限",
+        "Permissions": {
+          "taskRead": "读取任务",
+          "taskComment": "评论任务",
+          "taskCreate": "创建任务",
+          "readAndComment": "读取并评论任务"
+        },
+        "GrantForm": {
+          "vendorLabel": "供应商",
+          "permissionLabel": "权限",
+          "submit": "授予访问权限",
+          "success": "已授予供应商访问权限",
+          "error": "授予供应商访问权限失败"
+        },
+        "Actions": {
+          "approve": "批准",
+          "deny": "拒绝",
+          "revoke": "撤销",
+          "approveSuccess": "已批准供应商访问权限",
+          "denySuccess": "已拒绝供应商访问权限",
+          "revokeSuccess": "已撤销供应商访问权限",
+          "approveError": "批准供应商访问权限失败",
+          "denyError": "拒绝供应商访问权限失败",
+          "revokeError": "撤销供应商访问权限失败"
+        }
       }
     },
     "Organizations": {
@@ -3584,10 +3589,15 @@
         "VendorGrants": {
           "title": "供应商工作区访问",
           "description": "批准供应商在此组织工作区中读取、评论或创建任务的请求。",
-          "pendingTitle": "待处理请求",
-          "pendingEmpty": "没有待处理的供应商访问请求。",
-          "activeTitle": "已授予权限",
-          "activeEmpty": "尚无已授予的供应商权限。",
+          "vendorsTitle": "供应商",
+          "vendorsEmpty": "尚无供应商授权。",
+          "statusPending": "待处理",
+          "statusGranted": "已授权",
+          "statusDenied": "已拒绝",
+          "statusRevoked": "已撤销",
+          "statusNone": "未授权",
+          "bundledWithRead": "已包含在读取中",
+          "approveWithComment": "批准读取与评论",
           "grantFormTitle": "主动授予访问权限",
           "Permissions": {
             "taskRead": "读取任务",

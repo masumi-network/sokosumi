@@ -491,39 +491,6 @@
       "JobsList": {
         "noExecutedJobs": "Aucun job exécuté",
         "emptyJobs": "Aucun job pour le moment."
-      },
-      "VendorGrants": {
-        "title": "Vendor workspace access",
-        "description": "Approve vendor requests to read, comment on, or create tasks in your personal workspace.",
-        "pendingTitle": "Pending requests",
-        "pendingEmpty": "No pending vendor access requests.",
-        "activeTitle": "Active grants",
-        "activeEmpty": "No active vendor grants.",
-        "grantFormTitle": "Grant access proactively",
-        "Permissions": {
-          "taskRead": "Read tasks",
-          "taskComment": "Comment on tasks",
-          "taskCreate": "Create tasks",
-          "readAndComment": "Read and comment on tasks"
-        },
-        "GrantForm": {
-          "vendorLabel": "Vendor",
-          "permissionLabel": "Permission",
-          "submit": "Grant access",
-          "success": "Vendor access granted",
-          "error": "Failed to grant vendor access"
-        },
-        "Actions": {
-          "approve": "Approve",
-          "deny": "Deny",
-          "revoke": "Revoke",
-          "approveSuccess": "Vendor access approved",
-          "denySuccess": "Vendor access denied",
-          "revokeSuccess": "Vendor access revoked",
-          "approveError": "Failed to approve vendor access",
-          "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access"
-        }
       }
     },
     "Organizations": {
@@ -3509,6 +3476,44 @@
         "Schema": {
           "websiteUrl": "Saisissez une URL http ou https valide"
         }
+      },
+      "VendorGrants": {
+        "title": "Accès fournisseurs à l’espace de travail",
+        "description": "Approuve les demandes des fournisseurs pour lire, commenter ou créer des tâches dans ton espace de travail personnel.",
+        "vendorsTitle": "Fournisseurs",
+        "vendorsEmpty": "Aucun droit fournisseur pour le moment.",
+        "statusPending": "En attente",
+        "statusGranted": "Accordé",
+        "statusDenied": "Refusé",
+        "statusRevoked": "Révoqué",
+        "statusNone": "Non accordé",
+        "bundledWithRead": "Inclus avec la lecture",
+        "approveWithComment": "Approuver lecture et commentaire",
+        "grantFormTitle": "Accorder l’accès de façon proactive",
+        "Permissions": {
+          "taskRead": "Lire les tâches",
+          "taskComment": "Commenter les tâches",
+          "taskCreate": "Créer des tâches",
+          "readAndComment": "Lire et commenter les tâches"
+        },
+        "GrantForm": {
+          "vendorLabel": "Fournisseur",
+          "permissionLabel": "Permission",
+          "submit": "Accorder l’accès",
+          "success": "Accès fournisseur accordé",
+          "error": "Échec de l’octroi de l’accès fournisseur"
+        },
+        "Actions": {
+          "approve": "Approuver",
+          "deny": "Refuser",
+          "revoke": "Révoquer",
+          "approveSuccess": "Accès fournisseur approuvé",
+          "denySuccess": "Accès fournisseur refusé",
+          "revokeSuccess": "Accès fournisseur révoqué",
+          "approveError": "Échec de l’approbation de l’accès fournisseur",
+          "denyError": "Échec du refus de l’accès fournisseur",
+          "revokeError": "Échec de la révocation de l’accès fournisseur"
+        }
       }
     },
     "Organizations": {
@@ -3584,10 +3589,15 @@
         "VendorGrants": {
           "title": "Accès workspace fournisseur",
           "description": "Approuvez les demandes des fournisseurs pour lire, commenter ou créer des tâches dans l’espace de travail de cette organisation.",
-          "pendingTitle": "Demandes en attente",
-          "pendingEmpty": "Aucune demande d’accès fournisseur en attente.",
-          "activeTitle": "Autorisations actives",
-          "activeEmpty": "Aucune autorisation fournisseur active pour le moment.",
+          "vendorsTitle": "Fournisseurs",
+          "vendorsEmpty": "Aucun droit fournisseur pour le moment.",
+          "statusPending": "En attente",
+          "statusGranted": "Accordé",
+          "statusDenied": "Refusé",
+          "statusRevoked": "Révoqué",
+          "statusNone": "Non accordé",
+          "bundledWithRead": "Inclus avec la lecture",
+          "approveWithComment": "Approuver lecture et commentaire",
           "grantFormTitle": "Accorder l’accès de manière proactive",
           "Permissions": {
             "taskRead": "Lire les tâches",

@@ -8,99 +8,14 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
-  approveMyVendorGrant,
-  createMyVendorGrant,
-  denyMyVendorGrant,
-  revokeMyVendorGrant,
-} from "@/lib/actions/account/vendor-grant-action";
-import type { ActionError } from "@/lib/actions/errors";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { createMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
 import type { VendorGrantPermission } from "@/lib/services/vendor-grant.service";
-import type { Result } from "@/lib/ts-res";
-
-interface PersonalVendorGrantMutationButtonsProps {
-  grantId: string;
-  variant: "pending" | "active";
-}
-
-export function PersonalVendorGrantMutationButtons({
-  grantId,
-  variant,
-}: PersonalVendorGrantMutationButtonsProps) {
-  const t = useTranslations("App.Account.VendorGrants.Actions");
-  const router = useRouter();
-  const [loadingAction, setLoadingAction] = useState<
-    "approve" | "deny" | "revoke" | null
-  >(null);
-
-  async function runAction(
-    action: "approve" | "deny" | "revoke",
-    handler: () => Promise<Result<{ grantId: string }, ActionError>>,
-  ) {
-    setLoadingAction(action);
-    try {
-      const result = await handler();
-      if (!result.ok) {
-        toast.error(result.error?.message ?? t(`${action}Error`));
-        return;
-      }
-
-      toast.success(t(`${action}Success`));
-      router.refresh();
-    } catch {
-      toast.error(t(`${action}Error`));
-    } finally {
-      setLoadingAction(null);
-    }
-  }
-
-  if (variant === "pending") {
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          disabled={loadingAction !== null}
-          onClick={() =>
-            runAction("approve", () => approveMyVendorGrant({ grantId }))
-          }
-        >
-          {loadingAction === "approve" ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : null}
-          {t("approve")}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={loadingAction !== null}
-          onClick={() =>
-            runAction("deny", () => denyMyVendorGrant({ grantId }))
-          }
-        >
-          {loadingAction === "deny" ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : null}
-          {t("deny")}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <Button
-      size="sm"
-      variant="outline"
-      disabled={loadingAction !== null}
-      onClick={() =>
-        runAction("revoke", () => revokeMyVendorGrant({ grantId }))
-      }
-    >
-      {loadingAction === "revoke" ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : null}
-      {t("revoke")}
-    </Button>
-  );
-}
 
 interface PersonalVendorGrantFormProps {
   vendors: Array<{ id: string; name: string }>;
@@ -151,43 +66,57 @@ export function PersonalVendorGrantForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-end"
+      className="grid gap-5 rounded-lg border p-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
     >
-      <div className="grid flex-1 gap-3 sm:grid-cols-2">
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground font-medium">
-            {t("vendorLabel")}
-          </span>
-          <select
-            className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-            value={vendorId}
-            onChange={(event) => setVendorId(event.target.value)}
-          >
+      <label className="flex flex-col gap-3 text-sm">
+        <span className="text-muted-foreground font-medium">
+          {t("vendorLabel")}
+        </span>
+        <Select value={vendorId} onValueChange={setVendorId}>
+          <SelectTrigger className="w-full min-w-0 px-3 [&_svg]:ml-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
             {vendors.map((vendor) => (
-              <option key={vendor.id} value={vendor.id}>
+              <SelectItem key={vendor.id} value={vendor.id}>
                 {vendor.name}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-        </label>
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground font-medium">
-            {t("permissionLabel")}
-          </span>
-          <select
-            className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-            value={permission}
-            onChange={(event) =>
-              setPermission(event.target.value as VendorGrantPermission)
-            }
-          >
-            <option value="task:read">{tPermissions("taskRead")}</option>
-            <option value="task:comment">{tPermissions("taskComment")}</option>
-            <option value="task:create">{tPermissions("taskCreate")}</option>
-          </select>
-        </label>
-      </div>
-      <Button type="submit" size="sm" disabled={loading || !vendorId}>
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="flex flex-col gap-3 text-sm">
+        <span className="text-muted-foreground font-medium">
+          {t("permissionLabel")}
+        </span>
+        <Select
+          value={permission}
+          onValueChange={(value) =>
+            setPermission(value as VendorGrantPermission)
+          }
+        >
+          <SelectTrigger className="w-full min-w-0 px-3 [&_svg]:ml-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="task:read">
+              {tPermissions("taskRead")}
+            </SelectItem>
+            <SelectItem value="task:comment">
+              {tPermissions("taskComment")}
+            </SelectItem>
+            <SelectItem value="task:create">
+              {tPermissions("taskCreate")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
+      <Button
+        type="submit"
+        size="default"
+        className="w-full sm:w-auto"
+        disabled={loading || !vendorId}
+      >
         {loading ? <Loader2 className="size-4 animate-spin" /> : null}
         {t("submit")}
       </Button>

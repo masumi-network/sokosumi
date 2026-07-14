@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { VendorGrant } from "@/lib/clients/generated/core";
-import { groupPendingVendorGrants } from "@/lib/utils/vendor-grant-display";
+import { groupVendorGrantsByVendor } from "@/lib/utils/vendor-grant-display";
 
 function buildGrant(
   overrides: Partial<VendorGrant> & Pick<VendorGrant, "id" | "permission">,
@@ -21,35 +21,80 @@ function buildGrant(
   };
 }
 
-describe("groupPendingVendorGrants", () => {
-  it("bundles pending task:read and task:comment for the same vendor", () => {
+describe("groupVendorGrantsByVendor", () => {
+  it("builds fixed permission slots per vendor", () => {
+    const grants = [
+      buildGrant({
+        id: "read-grant",
+        permission: "task:read",
+        status: "GRANTED",
+      }),
+      buildGrant({
+        id: "create-grant",
+        permission: "task:create",
+        status: "PENDING",
+      }),
+    ];
+
+    const groups = groupVendorGrantsByVendor(grants);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.slots.map((slot) => slot.permission)).toEqual([
+      "task:read",
+      "task:comment",
+      "task:create",
+    ]);
+    expect(groups[0]?.slots[0]?.grant?.id).toBe("read-grant");
+    expect(groups[0]?.slots[1]?.grant).toBeNull();
+    expect(groups[0]?.slots[2]?.grant?.id).toBe("create-grant");
+    expect(groups[0]?.hasPending).toBe(true);
+  });
+
+  it("marks pending comment as bundled when read is also pending", () => {
     const grants = [
       buildGrant({ id: "read-grant", permission: "task:read" }),
       buildGrant({ id: "comment-grant", permission: "task:comment" }),
     ];
 
-    expect(groupPendingVendorGrants(grants)).toEqual([
-      {
-        kind: "bundled",
-        vendorId: "vendor-1",
-        vendorName: "Acme",
-        vendorSlug: "acme",
-        primaryGrantId: "read-grant",
-        commentGrantId: "comment-grant",
-      },
-    ]);
+    const [group] = groupVendorGrantsByVendor(grants);
+
+    expect(group?.slots[0]?.bundledWithPendingRead).toBe(false);
+    expect(group?.slots[1]?.bundledWithPendingRead).toBe(true);
+    expect(group?.slots[1]?.grant?.id).toBe("comment-grant");
   });
 
-  it("keeps unrelated pending grants as single rows", () => {
+  it("sorts vendors with pending grants first, then by name", () => {
     const grants = [
-      buildGrant({ id: "create-grant", permission: "task:create" }),
+      buildGrant({
+        id: "zeta-read",
+        permission: "task:read",
+        vendorId: "vendor-z",
+        vendorName: "Zeta",
+        vendorSlug: "zeta",
+        status: "GRANTED",
+      }),
+      buildGrant({
+        id: "acme-create",
+        permission: "task:create",
+        vendorId: "vendor-a",
+        vendorName: "Acme",
+        vendorSlug: "acme",
+        status: "PENDING",
+      }),
+      buildGrant({
+        id: "beta-read",
+        permission: "task:read",
+        vendorId: "vendor-b",
+        vendorName: "Beta",
+        vendorSlug: "beta",
+        status: "GRANTED",
+      }),
     ];
 
-    expect(groupPendingVendorGrants(grants)).toEqual([
-      {
-        kind: "single",
-        grant: grants[0],
-      },
+    expect(groupVendorGrantsByVendor(grants).map((g) => g.vendorName)).toEqual([
+      "Acme",
+      "Beta",
+      "Zeta",
     ]);
   });
 });

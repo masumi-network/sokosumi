@@ -491,39 +491,6 @@
       "JobsList": {
         "noExecutedJobs": "実行済みのジョブはありません",
         "emptyJobs": "ジョブはまだありません。"
-      },
-      "VendorGrants": {
-        "title": "Vendor workspace access",
-        "description": "Approve vendor requests to read, comment on, or create tasks in your personal workspace.",
-        "pendingTitle": "Pending requests",
-        "pendingEmpty": "No pending vendor access requests.",
-        "activeTitle": "Active grants",
-        "activeEmpty": "No active vendor grants.",
-        "grantFormTitle": "Grant access proactively",
-        "Permissions": {
-          "taskRead": "Read tasks",
-          "taskComment": "Comment on tasks",
-          "taskCreate": "Create tasks",
-          "readAndComment": "Read and comment on tasks"
-        },
-        "GrantForm": {
-          "vendorLabel": "Vendor",
-          "permissionLabel": "Permission",
-          "submit": "Grant access",
-          "success": "Vendor access granted",
-          "error": "Failed to grant vendor access"
-        },
-        "Actions": {
-          "approve": "Approve",
-          "deny": "Deny",
-          "revoke": "Revoke",
-          "approveSuccess": "Vendor access approved",
-          "denySuccess": "Vendor access denied",
-          "revokeSuccess": "Vendor access revoked",
-          "approveError": "Failed to approve vendor access",
-          "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access"
-        }
       }
     },
     "Organizations": {
@@ -3509,6 +3476,44 @@
         "Schema": {
           "websiteUrl": "有効な http または https URL を入力してください"
         }
+      },
+      "VendorGrants": {
+        "title": "ベンダーのワークスペースアクセス",
+        "description": "個人ワークスペースでタスクの閲覧・コメント・作成に関するベンダー依頼を承認します。",
+        "vendorsTitle": "ベンダー",
+        "vendorsEmpty": "ベンダー権限はまだありません。",
+        "statusPending": "保留中",
+        "statusGranted": "許可済み",
+        "statusDenied": "拒否",
+        "statusRevoked": "取り消し",
+        "statusNone": "未許可",
+        "bundledWithRead": "読み取りに含まれる",
+        "approveWithComment": "読み取りとコメントを承認",
+        "grantFormTitle": "事前にアクセスを付与",
+        "Permissions": {
+          "taskRead": "タスクを読む",
+          "taskComment": "タスクにコメント",
+          "taskCreate": "タスクを作成",
+          "readAndComment": "タスクの閲覧とコメント"
+        },
+        "GrantForm": {
+          "vendorLabel": "ベンダー",
+          "permissionLabel": "権限",
+          "submit": "アクセスを付与",
+          "success": "ベンダーアクセスを付与しました",
+          "error": "ベンダーアクセスの付与に失敗しました"
+        },
+        "Actions": {
+          "approve": "承認",
+          "deny": "拒否",
+          "revoke": "取り消し",
+          "approveSuccess": "ベンダーアクセスを承認しました",
+          "denySuccess": "ベンダーアクセスを拒否しました",
+          "revokeSuccess": "ベンダーアクセスを取り消しました",
+          "approveError": "ベンダーアクセスの承認に失敗しました",
+          "denyError": "ベンダーアクセスの拒否に失敗しました",
+          "revokeError": "ベンダーアクセスの取り消しに失敗しました"
+        }
       }
     },
     "Organizations": {
@@ -3584,10 +3589,15 @@
         "VendorGrants": {
           "title": "ベンダーワークスペースアクセス",
           "description": "この組織ワークスペースでタスクの閲覧・コメント・作成を行うベンダーリクエストを承認します。",
-          "pendingTitle": "保留中のリクエスト",
-          "pendingEmpty": "保留中のベンダーアクセスリクエストはありません。",
-          "activeTitle": "有効な権限",
-          "activeEmpty": "有効なベンダー権限はまだありません。",
+          "vendorsTitle": "ベンダー",
+          "vendorsEmpty": "ベンダー権限はまだありません。",
+          "statusPending": "保留中",
+          "statusGranted": "許可済み",
+          "statusDenied": "拒否",
+          "statusRevoked": "取り消し",
+          "statusNone": "未許可",
+          "bundledWithRead": "読み取りに含まれる",
+          "approveWithComment": "読み取りとコメントを承認",
           "grantFormTitle": "事前にアクセスを付与",
           "Permissions": {
             "taskRead": "タスクを閲覧",

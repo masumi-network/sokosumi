@@ -491,39 +491,6 @@
       "JobsList": {
         "noExecutedJobs": "No hay jobs ejecutados",
         "emptyJobs": "Aún sin jobs."
-      },
-      "VendorGrants": {
-        "title": "Vendor workspace access",
-        "description": "Approve vendor requests to read, comment on, or create tasks in your personal workspace.",
-        "pendingTitle": "Pending requests",
-        "pendingEmpty": "No pending vendor access requests.",
-        "activeTitle": "Active grants",
-        "activeEmpty": "No active vendor grants.",
-        "grantFormTitle": "Grant access proactively",
-        "Permissions": {
-          "taskRead": "Read tasks",
-          "taskComment": "Comment on tasks",
-          "taskCreate": "Create tasks",
-          "readAndComment": "Read and comment on tasks"
-        },
-        "GrantForm": {
-          "vendorLabel": "Vendor",
-          "permissionLabel": "Permission",
-          "submit": "Grant access",
-          "success": "Vendor access granted",
-          "error": "Failed to grant vendor access"
-        },
-        "Actions": {
-          "approve": "Approve",
-          "deny": "Deny",
-          "revoke": "Revoke",
-          "approveSuccess": "Vendor access approved",
-          "denySuccess": "Vendor access denied",
-          "revokeSuccess": "Vendor access revoked",
-          "approveError": "Failed to approve vendor access",
-          "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access"
-        }
       }
     },
     "Organizations": {
@@ -3478,6 +3445,44 @@
         "Schema": {
           "websiteUrl": "Introduce una URL http o https válida"
         }
+      },
+      "VendorGrants": {
+        "title": "Acceso de proveedores al espacio de trabajo",
+        "description": "Aprueba solicitudes de proveedores para leer, comentar o crear tareas en tu espacio de trabajo personal.",
+        "vendorsTitle": "Proveedores",
+        "vendorsEmpty": "Aún no hay permisos de proveedor.",
+        "statusPending": "Pendiente",
+        "statusGranted": "Concedido",
+        "statusDenied": "Denegado",
+        "statusRevoked": "Revocado",
+        "statusNone": "Sin conceder",
+        "bundledWithRead": "Incluido con lectura",
+        "approveWithComment": "Aprobar lectura y comentario",
+        "grantFormTitle": "Conceder acceso de forma proactiva",
+        "Permissions": {
+          "taskRead": "Leer tareas",
+          "taskComment": "Comentar tareas",
+          "taskCreate": "Crear tareas",
+          "readAndComment": "Leer y comentar tareas"
+        },
+        "GrantForm": {
+          "vendorLabel": "Proveedor",
+          "permissionLabel": "Permiso",
+          "submit": "Conceder acceso",
+          "success": "Acceso de proveedor concedido",
+          "error": "No se pudo conceder el acceso de proveedor"
+        },
+        "Actions": {
+          "approve": "Aprobar",
+          "deny": "Denegar",
+          "revoke": "Revocar",
+          "approveSuccess": "Acceso de proveedor aprobado",
+          "denySuccess": "Acceso de proveedor denegado",
+          "revokeSuccess": "Acceso de proveedor revocado",
+          "approveError": "No se pudo aprobar el acceso de proveedor",
+          "denyError": "No se pudo denegar el acceso de proveedor",
+          "revokeError": "No se pudo revocar el acceso de proveedor"
+        }
       }
     },
     "Organizations": {
@@ -3553,10 +3558,15 @@
         "VendorGrants": {
           "title": "Acceso al workspace del proveedor",
           "description": "Aprueba solicitudes de proveedores para leer, comentar o crear tareas en el workspace de esta organización.",
-          "pendingTitle": "Solicitudes pendientes",
-          "pendingEmpty": "No hay solicitudes de acceso de proveedores pendientes.",
-          "activeTitle": "Permisos activos",
-          "activeEmpty": "Aún no hay permisos de proveedores activos.",
+          "vendorsTitle": "Proveedores",
+          "vendorsEmpty": "Aún no hay permisos de proveedor.",
+          "statusPending": "Pendiente",
+          "statusGranted": "Concedido",
+          "statusDenied": "Denegado",
+          "statusRevoked": "Revocado",
+          "statusNone": "Sin conceder",
+          "bundledWithRead": "Incluido con lectura",
+          "approveWithComment": "Aprobar lectura y comentario",
           "grantFormTitle": "Conceder acceso de forma proactiva",
           "Permissions": {
             "taskRead": "Leer tareas",
