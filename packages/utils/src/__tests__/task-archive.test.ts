@@ -30,7 +30,11 @@ describe("task-archive", () => {
 
   it("treats parked vendor-grant tasks as archivable", () => {
     expect(isParkedVendorGrantTask("APPROVAL_REQUIRED", "grant_1")).toBe(true);
+    expect(isParkedVendorGrantTask("READY", "grant_1")).toBe(true);
+    expect(isParkedVendorGrantTask("DRAFT", "grant_1")).toBe(true);
+    expect(isParkedVendorGrantTask("READY", null)).toBe(false);
     expect(canArchiveTaskStatus("APPROVAL_REQUIRED", "grant_1")).toBe(true);
+    expect(canArchiveTaskStatus("READY", "grant_1")).toBe(true);
     expect(canArchiveTaskStatus("APPROVAL_REQUIRED", null)).toBe(false);
   });
 

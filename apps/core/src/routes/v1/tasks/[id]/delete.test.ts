@@ -212,11 +212,11 @@ describe("DELETE /tasks/{id}", () => {
     expect(body.message).toBe(getTaskCannotArchiveMessage(TaskStatus.RUNNING));
   });
 
-  it("archives parked APPROVAL_REQUIRED tasks", async () => {
+  it("archives parked tasks awaiting vendor grant approval", async () => {
     const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
     const findFirstOrThrowMock = vi.fn().mockResolvedValue({
       ...archivedTask,
-      status: TaskStatus.APPROVAL_REQUIRED,
+      status: TaskStatus.READY,
       pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     });
 
@@ -231,7 +231,7 @@ describe("DELETE /tasks/{id}", () => {
 
     requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
-      status: TaskStatus.APPROVAL_REQUIRED,
+      status: TaskStatus.READY,
       pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
@@ -246,7 +246,7 @@ describe("DELETE /tasks/{id}", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "tsk_123",
-          status: TaskStatus.APPROVAL_REQUIRED,
+          status: TaskStatus.READY,
         }),
       }),
     );

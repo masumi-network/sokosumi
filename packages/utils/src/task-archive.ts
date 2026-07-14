@@ -27,14 +27,14 @@ export function isTaskArchivableStatus(
 }
 
 /**
- * Parked vendor-grant tasks use `APPROVAL_REQUIRED` plus `pendingVendorGrantId`.
+ * Parked vendor-grant tasks are identified by `pendingVendorGrantId`, not status.
  * Owners and org OWNER/ADMIN may soft-archive them while waiting for approval.
  */
 export function isParkedVendorGrantTask(
-  status: string,
+  _status: string,
   pendingVendorGrantId?: string | null,
 ): boolean {
-  return status === "APPROVAL_REQUIRED" && pendingVendorGrantId != null;
+  return pendingVendorGrantId != null;
 }
 
 export function canArchiveTaskStatus(
