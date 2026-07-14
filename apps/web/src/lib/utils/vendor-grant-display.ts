@@ -48,14 +48,6 @@ export function isFullyGranted(group: VendorGrantGroup): boolean {
   return getGrantedGrants(group).length === VENDOR_PERMISSION_ORDER.length;
 }
 
-export function getMissingPermissions(
-  group: VendorGrantGroup,
-): VendorGrantPermission[] {
-  return group.slots
-    .filter((slot) => slot.grant?.status !== "GRANTED")
-    .map((slot) => slot.permission);
-}
-
 export function getPermissionsToCreate(
   group: VendorGrantGroup,
 ): VendorGrantPermission[] {

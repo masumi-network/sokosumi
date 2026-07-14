@@ -276,7 +276,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   membersPromise: Promise<MembersResult>;
   sessionPromise: Promise<SessionResult>;
 }) {
-  if (!task.pendingApproval || forceReadOnly) {
+  if (forceReadOnly) {
     return null;
   }
 

@@ -53,9 +53,7 @@ export function isGrantDeniedOrRevoked(status: VendorGrantStatus): boolean {
   );
 }
 
-export function isTaskParked(
-  task: Pick<Task, "pendingVendorGrantId">,
-): boolean {
+function isTaskParked(task: Pick<Task, "pendingVendorGrantId">): boolean {
   return task.pendingVendorGrantId != null;
 }
 

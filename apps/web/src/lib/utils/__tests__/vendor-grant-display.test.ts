@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { VendorGrant } from "@/lib/clients/generated/core";
 import {
   getActionablePendingGrants,
-  getMissingPermissions,
   groupVendorGrantsByVendor,
   isFullyGranted,
   orderGrantsForBundledActions,
@@ -103,7 +102,6 @@ describe("groupVendorGrantsByVendor", () => {
 
     const [group] = groupVendorGrantsByVendor(grants);
     expect(isFullyGranted(group!)).toBe(true);
-    expect(getMissingPermissions(group!)).toEqual([]);
   });
   it("sorts vendors with pending grants first, then by name", () => {
     const grants = [

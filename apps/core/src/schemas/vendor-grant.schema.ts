@@ -2,10 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { VendorGrantStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
-import {
-  VendorPermissionApi,
-  type VendorPermissionApiValue,
-} from "@/helpers/vendor-grants";
+import { VendorPermissionApi } from "@/helpers/vendor-grants";
 
 export const vendorPermissionSchema = z
   .enum([
@@ -14,8 +11,6 @@ export const vendorPermissionSchema = z
     VendorPermissionApi.TASK_CREATE,
   ])
   .openapi({ example: VendorPermissionApi.TASK_READ });
-
-export type VendorPermissionSchema = z.infer<typeof vendorPermissionSchema>;
 
 export const vendorGrantStatusSchema = z
   .enum(VendorGrantStatus)
@@ -63,13 +58,3 @@ export const createVendorGrantRequestSchema = z
       path: ["permissions"],
     },
   );
-
-export function isVendorPermissionApiValue(
-  value: string,
-): value is VendorPermissionApiValue {
-  return (
-    value === VendorPermissionApi.TASK_READ ||
-    value === VendorPermissionApi.TASK_COMMENT ||
-    value === VendorPermissionApi.TASK_CREATE
-  );
-}
