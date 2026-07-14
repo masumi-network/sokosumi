@@ -30,7 +30,41 @@ const STATUS_TO_COLUMN_ID = (() => {
   return map;
 })();
 
-/** Resolves a task status to its kanban column. Unknown statuses fall back to "todo". */
-export function getColumnId(status: TaskStatus): KanbanColumnId {
+interface GetColumnIdOptions {
+  pendingApproval?: boolean;
+}
+
+/**
+ * Resolves a task to its kanban column. Status is unchanged in the API; parked
+ * READY tasks (`pendingApproval`) display in input-required only in the UI.
+ */
+export function getColumnId(
+  status: TaskStatus,
+  options?: GetColumnIdOptions,
+): KanbanColumnId {
+  if (options?.pendingApproval && status === TaskStatus.READY) {
+    return "input-required";
+  }
+
   return STATUS_TO_COLUMN_ID.get(status) ?? "todo";
+}
+
+/** Core list statuses to fetch for a column (may be broader than column membership). */
+export function getColumnQueryStatuses(
+  columnId: KanbanColumnId,
+  statusFilter: TaskStatus | null,
+): TaskStatus[] {
+  const statuses = COLUMN_TASK_STATUSES[columnId].filter(
+    (columnStatus) => statusFilter === null || columnStatus === statusFilter,
+  );
+
+  if (
+    columnId === "input-required" &&
+    (statusFilter === null || statusFilter === TaskStatus.READY) &&
+    !statuses.includes(TaskStatus.READY)
+  ) {
+    return [...statuses, TaskStatus.READY];
+  }
+
+  return statuses;
 }

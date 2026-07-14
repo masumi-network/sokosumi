@@ -111,7 +111,9 @@ export function mapTaskToTaskWithCoworker(
       "commentsCount" in task
         ? task.commentsCount
         : getCommentsCount(task.events),
-    columnId: getColumnId(task.status),
+    columnId: getColumnId(task.status, {
+      pendingApproval: "pendingApproval" in task ? task.pendingApproval : false,
+    }),
     description: task.description ?? null,
     descriptionPlain,
     pendingApproval: "pendingApproval" in task ? task.pendingApproval : false,

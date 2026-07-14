@@ -19,20 +19,32 @@ function buildTask({
   id,
   status,
   updatedAt,
+  pendingApproval = false,
 }: {
   id: string;
   status: TaskStatus;
   updatedAt: string;
+  pendingApproval?: boolean;
 }) {
   return {
     id,
     name: `Task ${id}`,
     status,
     userId: "user-1",
+    user: { id: "user-1", name: "Test User", image: null },
     createdAt: new Date(updatedAt),
     updatedAt: new Date(updatedAt),
     coworkerId: null,
     description: null,
+    commentsCount: 0,
+    jobsCount: 0,
+    pendingApproval,
+    pendingVendorGrantId: pendingApproval ? "grant-1" : null,
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: null,
+      organization: null,
+    },
     events: [],
     jobs: [],
   } as const;
@@ -209,5 +221,76 @@ describe("getTasksColumnPage", () => {
       nextCursor: null,
     });
     expect(listTasksMock).not.toHaveBeenCalled();
+  });
+
+  it("excludes parked READY tasks from the todo column", async () => {
+    listTasksMock.mockResolvedValue({
+      tasks: [
+        buildTask({
+          id: "task-ready",
+          status: TaskStatus.READY,
+          updatedAt: "2026-03-03T02:00:00.000Z",
+        }),
+        buildTask({
+          id: "task-parked",
+          status: TaskStatus.READY,
+          updatedAt: "2026-03-03T01:00:00.000Z",
+          pendingApproval: true,
+        }),
+      ],
+      pagination: { nextCursor: null },
+    });
+
+    const page = await getTasksColumnPage({
+      columnId: "todo",
+      cursor: null,
+      limit: 10,
+      scope: "owned",
+      coworkerId: null,
+      status: null,
+      projectId: null,
+      coworkersById: new Map(),
+      agentsById: new Map(),
+    });
+
+    expect(page.tasks.map((task) => task.id)).toEqual(["task-ready"]);
+  });
+
+  it("includes parked READY tasks in the input-required column", async () => {
+    listTasksMock.mockResolvedValue({
+      tasks: [
+        buildTask({
+          id: "task-parked",
+          status: TaskStatus.READY,
+          updatedAt: "2026-03-03T01:00:00.000Z",
+          pendingApproval: true,
+        }),
+        buildTask({
+          id: "task-ready",
+          status: TaskStatus.READY,
+          updatedAt: "2026-03-03T02:00:00.000Z",
+        }),
+      ],
+      pagination: { nextCursor: null },
+    });
+
+    const page = await getTasksColumnPage({
+      columnId: "input-required",
+      cursor: null,
+      limit: 10,
+      scope: "owned",
+      coworkerId: null,
+      status: null,
+      projectId: null,
+      coworkersById: new Map(),
+      agentsById: new Map(),
+    });
+
+    expect(page.tasks.map((task) => task.id)).toEqual(["task-parked"]);
+    expect(listTasksMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: expect.arrayContaining([TaskStatus.READY]),
+      }),
+    );
   });
 });

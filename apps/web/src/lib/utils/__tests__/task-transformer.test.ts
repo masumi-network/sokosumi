@@ -94,6 +94,16 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.columnId).toBe("input-required");
   });
 
+  it("maps parked READY tasks to input-required while keeping READY status", () => {
+    const task = buildTask(TaskStatus.READY, { pendingApproval: true });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.columnId).toBe("input-required");
+    expect(mapped.status).toBe(TaskStatus.READY);
+    expect(mapped.pendingApproval).toBe(true);
+  });
+
   it("serializes Date timestamps to ISO strings", () => {
     const createdAt = new Date("2026-01-01T00:00:00.000Z");
     const updatedAt = new Date("2026-01-01T01:00:00.000Z");
