@@ -2,10 +2,29 @@ import { describe, expect, it } from "vitest";
 
 import {
   isSchemaDriftPrismaError,
+  isTransientFetchError,
   isTransientPostmarkError,
   isTransientPrismaError,
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
+
+describe("isTransientFetchError", () => {
+  it("treats fetch timeouts as transient", () => {
+    expect(
+      isTransientFetchError(
+        Object.assign(new Error("The operation was aborted due to timeout"), {
+          name: "TimeoutError",
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("treats dropped upstream connections as transient", () => {
+    expect(
+      isTransientFetchError(new Error("Connection terminated unexpectedly")),
+    ).toBe(true);
+  });
+});
 
 describe("isTransientPostmarkError", () => {
   it("treats axios-era Postmark timeouts as transient", () => {
@@ -57,6 +76,25 @@ describe("isTransientPrismaError", () => {
       ),
     ).toBe(true);
   });
+
+  it("treats transaction start timeouts as transient", () => {
+    expect(
+      isTransientPrismaError(
+        Object.assign(
+          new Error(
+            "Transaction API error: Unable to start a transaction in the given time.",
+          ),
+          { code: "P2028" },
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("treats dropped database connections as transient", () => {
+    expect(
+      isTransientPrismaError(new Error("Connection terminated unexpectedly")),
+    ).toBe(true);
+  });
 });
 
 describe("isSchemaDriftPrismaError", () => {
@@ -93,6 +131,16 @@ describe("shouldSuppressSentryForExternalError", () => {
         Object.assign(new Error("cache lookup failed for type 1"), {
           name: "DriverAdapterError",
         }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressSentryForExternalError(
+        Object.assign(
+          new Error(
+            "Transaction API error: Unable to start a transaction in the given time.",
+          ),
+          { code: "P2028" },
+        ),
       ),
     ).toBe(true);
   });

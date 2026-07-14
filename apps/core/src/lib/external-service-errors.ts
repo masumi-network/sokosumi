@@ -30,10 +30,10 @@ export function getPrismaErrorCode(error: unknown): string | null {
 }
 
 /**
- * Postmark (and similar HTTP email providers) can time out or drop connections
- * during upstream outages. Invites and notifications are already fire-and-forget.
+ * Network timeouts and dropped connections from outbound HTTP/fetch calls.
+ * Shared by Postmark, skills.sh, coworker retrieve, and similar integrations.
  */
-export function isTransientPostmarkError(error: unknown): boolean {
+export function isTransientFetchError(error: unknown): boolean {
   const message = getErrorMessage(error);
   const name = getErrorName(error);
 
@@ -41,9 +41,19 @@ export function isTransientPostmarkError(error: unknown): boolean {
     /timeout of \d+ms exceeded/i.test(message) ||
     /aborted due to timeout/i.test(message) ||
     name === "TimeoutError" ||
+    name === "AbortError" ||
     /socket hang up/i.test(message) ||
+    /connection terminated unexpectedly/i.test(message) ||
     /\b(ECONNRESET|ECONNABORTED|ETIMEDOUT)\b/.test(message)
   );
+}
+
+/**
+ * Postmark (and similar HTTP email providers) can time out or drop connections
+ * during upstream outages. Invites and notifications are already fire-and-forget.
+ */
+export function isTransientPostmarkError(error: unknown): boolean {
+  return isTransientFetchError(error);
 }
 
 /**
@@ -52,14 +62,18 @@ export function isTransientPostmarkError(error: unknown): boolean {
  */
 export function isTransientPrismaError(error: unknown): boolean {
   const code = getPrismaErrorCode(error);
-  if (code === "P2034") {
+  if (code === "P2034" || code === "P2028" || code === "P1017") {
     return true;
   }
 
   const message = getErrorMessage(error);
   const name = getErrorName(error);
 
-  return name === "DriverAdapterError" && /cache lookup failed/i.test(message);
+  return (
+    (name === "DriverAdapterError" && /cache lookup failed/i.test(message)) ||
+    /unable to start a transaction in the given time/i.test(message) ||
+    /connection terminated unexpectedly/i.test(message)
+  );
 }
 
 /**
@@ -77,7 +91,7 @@ export function isSchemaDriftPrismaError(error: unknown): boolean {
 
 export function shouldSuppressSentryForExternalError(error: unknown): boolean {
   return (
-    isTransientPostmarkError(error) ||
+    isTransientFetchError(error) ||
     isTransientPrismaError(error) ||
     isSchemaDriftPrismaError(error)
   );

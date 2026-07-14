@@ -446,6 +446,7 @@ async function runCoworkerStreamPreamble(params: {
         await clearPendingResponseMirror(params.conversationId);
         throw serviceUnavailable(
           "Coworker chat could not verify an in-flight response. Try again shortly.",
+          { reportToSentry: false },
         );
       }
 
