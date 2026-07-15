@@ -111,12 +111,9 @@ export function mapTaskToTaskWithCoworker(
       "commentsCount" in task
         ? task.commentsCount
         : getCommentsCount(task.events),
-    columnId: getColumnId(task.status, {
-      pendingApproval: "pendingApproval" in task ? task.pendingApproval : false,
-    }),
+    columnId: getColumnId(task.status),
     description: task.description ?? null,
     descriptionPlain,
-    pendingApproval: "pendingApproval" in task ? task.pendingApproval : false,
     events: "events" in task ? task.events : [],
   };
 }

@@ -1,3 +1,5 @@
+import { TaskStatus } from "@sokosumi/utils";
+
 interface ReadOnlyForViewerParams {
   /** Organization of the task's workspace; `null` for a personal workspace. */
   taskWorkspaceOrganizationId: string | null;
@@ -11,7 +13,11 @@ interface ReadOnlyForViewerParams {
    * edit, comment, or mutate the task.
    */
   forceReadOnly: boolean;
-  pendingApproval?: boolean;
+  taskStatus: string;
+}
+
+function isGrantPendingStatus(status: string): boolean {
+  return status === TaskStatus.GRANT_PENDING;
 }
 
 /**
@@ -27,9 +33,9 @@ export function isReadOnlyForViewer({
   taskUserId,
   sessionUserId,
   forceReadOnly,
-  pendingApproval = false,
+  taskStatus,
 }: ReadOnlyForViewerParams): boolean {
-  if (forceReadOnly || pendingApproval) {
+  if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
     return true;
   }
   return taskWorkspaceOrganizationId !== null && sessionUserId !== taskUserId;
@@ -37,16 +43,16 @@ export function isReadOnlyForViewer({
 
 export function canArchiveParkedTaskForViewer({
   forceReadOnly,
-  pendingApproval = false,
+  taskStatus,
   isTaskOwner,
   isOrgOwnerOrAdmin,
 }: {
   forceReadOnly: boolean;
-  pendingApproval?: boolean;
+  taskStatus: string;
   isTaskOwner: boolean;
   isOrgOwnerOrAdmin: boolean;
 }): boolean {
-  if (forceReadOnly || !pendingApproval) {
+  if (forceReadOnly || !isGrantPendingStatus(taskStatus)) {
     return false;
   }
 
@@ -64,9 +70,9 @@ export function canCommentOnTaskForViewer({
   taskUserId,
   sessionUserId,
   forceReadOnly,
-  pendingApproval = false,
+  taskStatus,
 }: CanCommentOnTaskForViewerParams): boolean {
-  if (forceReadOnly || pendingApproval) {
+  if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
     return false;
   }
 

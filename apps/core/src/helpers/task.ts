@@ -70,6 +70,7 @@ function getAllowedTransitions(
         TaskStatus.CANCELED,
         TaskStatus.QUEUED,
       ],
+      [TaskStatus.GRANT_PENDING]: [],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
@@ -158,6 +159,7 @@ function getAllowedTransitions(
       TaskStatus.CANCELED,
       TaskStatus.QUEUED,
     ],
+    [TaskStatus.GRANT_PENDING]: [],
     [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
@@ -277,8 +279,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
-    pendingApproval: task.pendingVendorGrantId != null,
-    pendingVendorGrantId: task.pendingVendorGrantId ?? null,
+    grantResumeStatus:
+      task.status === TaskStatus.GRANT_PENDING
+        ? (task.grantResumeStatus ?? null)
+        : null,
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
     workspace: mapWorkspaceSummary(task.workspace),

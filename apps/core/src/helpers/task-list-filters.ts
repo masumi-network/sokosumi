@@ -3,50 +3,18 @@ import { TaskStatus } from "@sokosumi/utils";
 
 export interface TaskListStatusFilterParams {
   statuses?: TaskStatus[];
-  pendingApproval?: boolean;
-  includeParkedReady?: boolean;
 }
 
 export function buildTaskListStatusWhere(
   params: TaskListStatusFilterParams,
 ): Prisma.TaskWhereInput {
-  const { statuses, pendingApproval, includeParkedReady } = params;
+  const { statuses } = params;
 
-  if (
-    !statuses?.length &&
-    pendingApproval === undefined &&
-    !includeParkedReady
-  ) {
+  if (!statuses?.length) {
     return {};
   }
 
-  const pendingFilter: Prisma.TaskWhereInput =
-    pendingApproval === true
-      ? { pendingVendorGrantId: { not: null } }
-      : pendingApproval === false
-        ? { pendingVendorGrantId: null }
-        : {};
-
-  if (includeParkedReady && statuses?.length) {
-    const parkedReadyFilter: Prisma.TaskWhereInput = {
-      status: TaskStatus.READY,
-      pendingVendorGrantId: { not: null },
-    };
-
-    return {
-      AND: [
-        {
-          OR: [{ status: { in: statuses } }, parkedReadyFilter],
-        },
-        ...(Object.keys(pendingFilter).length > 0 ? [pendingFilter] : []),
-      ],
-    };
-  }
-
-  return {
-    ...(statuses?.length ? { status: { in: statuses } } : {}),
-    ...pendingFilter,
-  };
+  return { status: { in: statuses } };
 }
 
 function normalizeAnd(

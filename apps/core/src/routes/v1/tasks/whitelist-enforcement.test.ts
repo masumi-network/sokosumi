@@ -22,10 +22,13 @@ const {
   requireTaskOwnershipMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => {
     const t = task as Record<string, unknown>;
+    const status = t.status as string | undefined;
     return {
       ...t,
-      pendingApproval: t.pendingVendorGrantId != null,
-      pendingVendorGrantId: t.pendingVendorGrantId ?? null,
+      grantResumeStatus:
+        status === TaskStatus.GRANT_PENDING
+          ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)
+          : null,
       user: t.user ?? {
         id: t.userId,
         name: "Task owner",

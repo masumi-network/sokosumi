@@ -12,6 +12,7 @@ export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {
     TaskStatus.CANCEL_REQUESTED,
   ],
   "input-required": [
+    TaskStatus.GRANT_PENDING,
     TaskStatus.INPUT_REQUIRED,
     TaskStatus.APPROVAL_REQUIRED,
     TaskStatus.AUTHENTICATION_REQUIRED,
@@ -30,22 +31,8 @@ const STATUS_TO_COLUMN_ID = (() => {
   return map;
 })();
 
-interface GetColumnIdOptions {
-  pendingApproval?: boolean;
-}
-
-/**
- * Resolves a task to its kanban column. Status is unchanged in the API; parked
- * READY tasks (`pendingApproval`) display in input-required only in the UI.
- */
-export function getColumnId(
-  status: TaskStatus,
-  options?: GetColumnIdOptions,
-): KanbanColumnId {
-  if (options?.pendingApproval && status === TaskStatus.READY) {
-    return "input-required";
-  }
-
+/** Resolves a task to its kanban column. */
+export function getColumnId(status: TaskStatus): KanbanColumnId {
   return STATUS_TO_COLUMN_ID.get(status) ?? "todo";
 }
 
@@ -59,8 +46,6 @@ export function getColumnQueryStatuses(
 
 export interface ColumnListQueryOptions {
   statuses: TaskStatus[];
-  pendingApproval?: boolean;
-  includeParkedReady?: boolean;
 }
 
 export function getColumnListQueryOptions(
@@ -70,27 +55,6 @@ export function getColumnListQueryOptions(
   const statuses = COLUMN_TASK_STATUSES[columnId].filter(
     (columnStatus) => statusFilter === null || columnStatus === statusFilter,
   );
-
-  if (columnId === "todo") {
-    return {
-      statuses,
-      pendingApproval: false,
-    };
-  }
-
-  if (columnId === "input-required") {
-    if (statusFilter === TaskStatus.READY) {
-      return {
-        statuses: [TaskStatus.READY],
-        pendingApproval: true,
-      };
-    }
-
-    return {
-      statuses,
-      includeParkedReady: statusFilter === null,
-    };
-  }
 
   return { statuses };
 }

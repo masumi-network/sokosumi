@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -10,14 +11,18 @@ import {
 } from "@/routes/v1/users/user-route-context";
 
 const {
+  taskFindManyMock,
   taskUpdateManyMock,
+  taskEventCreateMock,
   vendorGrantFindFirstMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
+  taskFindManyMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
+  taskEventCreateMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -80,7 +85,11 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
+    taskFindManyMock.mockResolvedValue([
+      { id: "task_1", grantResumeStatus: "DRAFT" },
+    ]);
     taskUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskEventCreateMock.mockResolvedValue({ id: "ev_1" });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
@@ -90,7 +99,11 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
             update: vendorGrantUpdateMock,
           },
           task: {
+            findMany: taskFindManyMock,
             updateMany: taskUpdateManyMock,
+          },
+          taskEvent: {
+            create: taskEventCreateMock,
           },
         }),
     );
@@ -127,8 +140,17 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
 
     expect(response.status).toBe(200);
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: grantId },
-      data: { pendingVendorGrantId: null },
+      where: {
+        id: "task_1",
+        pendingVendorGrantId: grantId,
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
+      },
+      data: {
+        status: TaskStatus.DRAFT,
+        pendingVendorGrantId: null,
+        grantResumeStatus: null,
+      },
     });
 
     const body = await response.json();
@@ -188,8 +210,17 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     expect(response.status).toBe(200);
     expect(vendorGrantUpdateMock).toHaveBeenCalledTimes(1);
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: grantId },
-      data: { pendingVendorGrantId: null },
+      where: {
+        id: "task_1",
+        pendingVendorGrantId: grantId,
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
+      },
+      data: {
+        status: TaskStatus.DRAFT,
+        pendingVendorGrantId: null,
+        grantResumeStatus: null,
+      },
     });
   });
 });

@@ -151,7 +151,7 @@ describe("requireMutableTaskOwnership", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      pendingVendorGrantId: "grant_1",
+      status: TaskStatus.GRANT_PENDING,
     } as never);
 
     await expect(
@@ -198,7 +198,7 @@ describe("requireTaskArchiveAccess", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "tsk_parked",
-        pendingVendorGrantId: "grant_1",
+        status: TaskStatus.GRANT_PENDING,
         userId: "user_other",
         workspace: { organizationId: "org_123" },
       } as never);
@@ -1655,7 +1655,7 @@ describe("requireJobCollaboration", () => {
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      pendingVendorGrantId: "grant_1",
+      status: TaskStatus.GRANT_PENDING,
     } as never);
 
     await expect(

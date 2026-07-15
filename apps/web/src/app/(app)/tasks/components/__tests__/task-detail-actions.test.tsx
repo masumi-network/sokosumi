@@ -640,9 +640,8 @@ describe("TaskDetailActions", () => {
   it("shows archive for the task owner while vendor grant approval is pending", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.APPROVAL_REQUIRED,
+      status: "GRANT_PENDING" as TaskStatus,
       organizations: undefined,
-      pendingApproval: true,
       isTaskOwner: true,
       isReadOnly: true,
     });

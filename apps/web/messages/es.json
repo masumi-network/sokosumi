@@ -1483,6 +1483,7 @@
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
           "READY": "Listo",
+          "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
           "APPROVAL_REQUIRED": "Aprobación requerida",
           "AUTHENTICATION_REQUIRED": "Autenticación requerida",

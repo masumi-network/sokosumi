@@ -40,7 +40,7 @@ function buildMapTaskResponse(task: {
   name?: string;
   status?: TaskStatus;
   organizationId?: string | null;
-  pendingVendorGrantId?: string | null;
+  grantResumeStatus?: "DRAFT" | "READY" | null;
 }) {
   const organizationId = task.organizationId ?? "org_123";
 
@@ -73,8 +73,10 @@ function buildMapTaskResponse(task: {
     credits: 0,
     events: [],
     jobs: [],
-    pendingApproval: task.pendingVendorGrantId != null,
-    pendingVendorGrantId: task.pendingVendorGrantId ?? null,
+    grantResumeStatus:
+      task.status === TaskStatus.GRANT_PENDING
+        ? (task.grantResumeStatus ?? TaskStatus.DRAFT)
+        : null,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId,
@@ -477,8 +479,9 @@ describe("POST /tasks delegated coworker create grant", () => {
         name: typeof task.name === "string" ? task.name : "Parked Task",
         status: task.status as TaskStatus | undefined,
         organizationId: task.organizationId as string | null | undefined,
-        pendingVendorGrantId: task.pendingVendorGrantId as
-          | string
+        grantResumeStatus: task.grantResumeStatus as
+          | "DRAFT"
+          | "READY"
           | null
           | undefined,
       }),
@@ -529,7 +532,8 @@ describe("POST /tasks delegated coworker create grant", () => {
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: TaskStatus.DRAFT,
+          status: TaskStatus.GRANT_PENDING,
+          grantResumeStatus: TaskStatus.DRAFT,
           pendingVendorGrantId: CREATE_GRANT_ID,
         }),
       }),

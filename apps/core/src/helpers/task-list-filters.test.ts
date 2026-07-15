@@ -11,68 +11,29 @@ describe("buildTaskListStatusWhere", () => {
     expect(buildTaskListStatusWhere({})).toEqual({});
   });
 
-  it("filters todo column tasks without pending grants", () => {
+  it("filters by status list", () => {
     expect(
       buildTaskListStatusWhere({
         statuses: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
-        pendingApproval: false,
       }),
     ).toEqual({
       status: { in: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP] },
-      pendingVendorGrantId: null,
     });
   });
 
-  it("filters parked READY tasks for input-required status filter", () => {
+  it("filters grant-pending tasks by status", () => {
     expect(
       buildTaskListStatusWhere({
-        statuses: [TaskStatus.READY],
-        pendingApproval: true,
+        statuses: [TaskStatus.GRANT_PENDING],
       }),
     ).toEqual({
-      status: { in: [TaskStatus.READY] },
-      pendingVendorGrantId: { not: null },
-    });
-  });
-
-  it("includes parked READY tasks alongside native input-required statuses", () => {
-    expect(
-      buildTaskListStatusWhere({
-        statuses: [
-          TaskStatus.INPUT_REQUIRED,
-          TaskStatus.APPROVAL_REQUIRED,
-          TaskStatus.AUTHENTICATION_REQUIRED,
-          TaskStatus.OUT_OF_CREDITS,
-        ],
-        includeParkedReady: true,
-      }),
-    ).toEqual({
-      AND: [
-        {
-          OR: [
-            {
-              status: {
-                in: [
-                  TaskStatus.INPUT_REQUIRED,
-                  TaskStatus.APPROVAL_REQUIRED,
-                  TaskStatus.AUTHENTICATION_REQUIRED,
-                  TaskStatus.OUT_OF_CREDITS,
-                ],
-              },
-            },
-            {
-              status: TaskStatus.READY,
-              pendingVendorGrantId: { not: null },
-            },
-          ],
-        },
-      ],
+      status: { in: [TaskStatus.GRANT_PENDING] },
     });
   });
 });
 
 describe("applyTaskListStatusWhere", () => {
-  it("merges status AND clauses into an existing where filter", () => {
+  it("merges status filter into an existing where filter", () => {
     const where = {
       archivedAt: null,
       workspaceId: "ws-1",
@@ -84,14 +45,12 @@ describe("applyTaskListStatusWhere", () => {
         where,
         buildTaskListStatusWhere({
           statuses: [TaskStatus.READY],
-          pendingApproval: false,
         }),
       ),
     ).toEqual({
       archivedAt: null,
       workspaceId: "ws-1",
       status: { in: [TaskStatus.READY] },
-      pendingVendorGrantId: null,
       AND: [{ coworkerId: "cow-1" }],
     });
   });

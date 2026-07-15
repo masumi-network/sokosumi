@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -129,7 +130,7 @@ describe("POST /projects/{id}/tasks", () => {
   it("returns 403 when the task is parked", async () => {
     taskFindFirstMock.mockResolvedValue({
       projectId: null,
-      pendingVendorGrantId: "grant_1",
+      status: TaskStatus.GRANT_PENDING,
     });
 
     const response = await createApp().request(

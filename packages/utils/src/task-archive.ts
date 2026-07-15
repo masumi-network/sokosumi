@@ -9,6 +9,7 @@ export const TASK_ARCHIVABLE_STATUSES = [
   "DRAFT",
   "QUEUED",
   "READY",
+  "GRANT_PENDING",
   "CANCELED",
   "COMPLETED",
   "FAILED",
@@ -26,24 +27,12 @@ export function isTaskArchivableStatus(
   return (TASK_ARCHIVABLE_STATUSES as readonly string[]).includes(status);
 }
 
-/**
- * Parked vendor-grant tasks are identified by `pendingVendorGrantId`, not status.
- * Owners and org OWNER/ADMIN may soft-archive them while waiting for approval.
- */
-export function isParkedVendorGrantTask(
-  pendingVendorGrantId?: string | null,
-): boolean {
-  return pendingVendorGrantId != null;
+export function isGrantPendingTaskStatus(status: string): boolean {
+  return status === "GRANT_PENDING";
 }
 
-export function canArchiveTaskStatus(
-  status: string,
-  pendingVendorGrantId?: string | null,
-): boolean {
-  return (
-    isTaskArchivableStatus(status) ||
-    isParkedVendorGrantTask(pendingVendorGrantId)
-  );
+export function canArchiveTaskStatus(status: string): boolean {
+  return isTaskArchivableStatus(status);
 }
 
 export function getTaskCannotArchiveMessage(currentStatus: string): string {

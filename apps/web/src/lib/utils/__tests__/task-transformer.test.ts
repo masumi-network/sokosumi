@@ -32,8 +32,7 @@ function buildTask(
     nextRunAt: null,
     commentsCount: 0,
     jobsCount: 0,
-    pendingApproval: false,
-    pendingVendorGrantId: null,
+    grantResumeStatus: null,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: null,
@@ -94,14 +93,15 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.columnId).toBe("input-required");
   });
 
-  it("maps parked READY tasks to input-required while keeping READY status", () => {
-    const task = buildTask(TaskStatus.READY, { pendingApproval: true });
+  it("maps GRANT_PENDING tasks to input-required", () => {
+    const task = buildTask(TaskStatus.GRANT_PENDING, {
+      grantResumeStatus: TaskStatus.READY,
+    });
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
     expect(mapped.columnId).toBe("input-required");
-    expect(mapped.status).toBe(TaskStatus.READY);
-    expect(mapped.pendingApproval).toBe(true);
+    expect(mapped.status).toBe(TaskStatus.GRANT_PENDING);
   });
 
   it("serializes Date timestamps to ISO strings", () => {

@@ -276,15 +276,14 @@ export type Task = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
+    /**
+     * GRANT_PENDING: blocked until vendor workspace access is granted.
+     */
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
-     * True when the task is parked awaiting vendor workspace grant approval
+     * Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.
      */
-    pendingApproval: boolean;
-    /**
-     * Vendor grant id when pendingApproval is true; null otherwise
-     */
-    pendingVendorGrantId: string | null;
+    grantResumeStatus: 'DRAFT' | 'READY' | null;
     /**
      * Serialized task schedule metadata JSON
      */
@@ -2622,15 +2621,14 @@ export type TaskListItem = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
+    /**
+     * GRANT_PENDING: blocked until vendor workspace access is granted.
+     */
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
-     * True when the task is parked awaiting vendor workspace grant approval
+     * Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.
      */
-    pendingApproval: boolean;
-    /**
-     * Vendor grant id when pendingApproval is true; null otherwise
-     */
-    pendingVendorGrantId: string | null;
+    grantResumeStatus: 'DRAFT' | 'READY' | null;
     /**
      * Serialized task schedule metadata JSON
      */
@@ -21199,14 +21197,6 @@ export type GetTasksData = {
          * Sort tasks by nextRunAt ascending (nulls last)
          */
         sort?: 'nextRunAt';
-        /**
-         * When true, only tasks parked for vendor grant approval. When false, only tasks without a pending grant.
-         */
-        pendingApproval?: 'true' | 'false';
-        /**
-         * When true, include READY tasks parked for vendor grant approval alongside the status filter.
-         */
-        includeParkedReady?: 'true' | 'false';
         /**
          * Filter tasks by coworker ID
          */

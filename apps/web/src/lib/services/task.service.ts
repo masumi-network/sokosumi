@@ -15,8 +15,6 @@ import type { AgentJobStatus } from "@/lib/types/core-dto";
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
-  pendingApproval?: boolean;
-  includeParkedReady?: boolean;
   coworkerId?: string;
   projectId?: string;
   q?: string;
@@ -69,13 +67,6 @@ export const taskService = (() => {
         : params.status
           ? [params.status]
           : undefined,
-      pendingApproval:
-        params.pendingApproval === undefined
-          ? undefined
-          : params.pendingApproval
-            ? "true"
-            : "false",
-      includeParkedReady: params.includeParkedReady ? "true" : undefined,
       coworkerId: params.coworkerId,
       projectId: params.projectId,
       q: params.q,

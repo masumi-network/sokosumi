@@ -46,3 +46,10 @@ ALTER TABLE "vendor_grant" ADD CONSTRAINT "vendor_grant_requestedByUserId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "task" ADD CONSTRAINT "task_pendingVendorGrantId_fkey" FOREIGN KEY ("pendingVendorGrantId") REFERENCES "vendor_grant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- TaskStatus: vendor workspace grant pending
+ALTER TYPE "TaskStatus" ADD VALUE 'GRANT_PENDING';
+
+-- Resume target after grant approval (DRAFT or READY only)
+CREATE TYPE "GrantResumeStatus" AS ENUM ('DRAFT', 'READY');
+ALTER TABLE "task" ADD COLUMN "grantResumeStatus" "GrantResumeStatus";

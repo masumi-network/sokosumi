@@ -1192,20 +1192,20 @@ export const TaskSchema = {
                 'CANCEL_REQUESTED',
                 'CANCELED'
             ],
-            example: 'READY'
+            example: 'READY',
+            description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
         },
-        pendingApproval: {
-            type: 'boolean',
-            description: 'True when the task is parked awaiting vendor workspace grant approval',
-            example: false
-        },
-        pendingVendorGrantId: {
+        grantResumeStatus: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid',
-            description: 'Vendor grant id when pendingApproval is true; null otherwise',
+            enum: [
+                'DRAFT',
+                'READY',
+                null
+            ],
+            description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
             example: null
         },
         metadata: {
@@ -1279,8 +1279,7 @@ export const TaskSchema = {
         'name',
         'description',
         'status',
-        'pendingApproval',
-        'pendingVendorGrantId',
+        'grantResumeStatus',
         'metadata',
         'nextRunAt',
         'credits',
@@ -9541,20 +9540,20 @@ export const TaskListItemSchema = {
                 'CANCEL_REQUESTED',
                 'CANCELED'
             ],
-            example: 'READY'
+            example: 'READY',
+            description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
         },
-        pendingApproval: {
-            type: 'boolean',
-            description: 'True when the task is parked awaiting vendor workspace grant approval',
-            example: false
-        },
-        pendingVendorGrantId: {
+        grantResumeStatus: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid',
-            description: 'Vendor grant id when pendingApproval is true; null otherwise',
+            enum: [
+                'DRAFT',
+                'READY',
+                null
+            ],
+            description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
             example: null
         },
         metadata: {
@@ -9602,8 +9601,7 @@ export const TaskListItemSchema = {
         'name',
         'description',
         'status',
-        'pendingApproval',
-        'pendingVendorGrantId',
+        'grantResumeStatus',
         'metadata',
         'nextRunAt',
         'workspace',

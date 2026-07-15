@@ -191,18 +191,47 @@ describe("vendor-grants helpers", () => {
   });
 
   it("unparks and cancels parked tasks by grant id", async () => {
-    taskUpdateMany.mockResolvedValue({ count: 2 });
-    await expect(unparkTasksForGrant("g1")).resolves.toBe(2);
-    expect(taskUpdateMany).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: "g1" },
-      data: {
-        pendingVendorGrantId: null,
+    taskFindMany.mockResolvedValue([
+      { id: "t1", grantResumeStatus: "READY" },
+      { id: "t2", grantResumeStatus: "DRAFT" },
+    ]);
+    taskUpdateMany.mockResolvedValue({ count: 1 });
+    taskEventCreate.mockResolvedValue({ id: "ev1" });
+
+    await expect(unparkTasksForGrant("g1", undefined, "u1")).resolves.toBe(2);
+
+    expect(taskFindMany).toHaveBeenCalledWith({
+      where: {
+        pendingVendorGrantId: "g1",
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
       },
+      select: { id: true, grantResumeStatus: true },
+    });
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "t1",
+        pendingVendorGrantId: "g1",
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
+      },
+      data: {
+        status: TaskStatus.READY,
+        pendingVendorGrantId: null,
+        grantResumeStatus: null,
+      },
+    });
+    expect(taskEventCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: "t1",
+        status: TaskStatus.READY,
+        userId: "u1",
+      }),
     });
 
     taskFindMany.mockResolvedValue([{ id: "t1" }]);
     taskUpdateMany.mockResolvedValue({ count: 1 });
-    taskEventCreate.mockResolvedValue({ id: "ev1" });
+    taskEventCreate.mockResolvedValue({ id: "ev2" });
     await expect(
       cancelParkedTasksForGrant({ grantId: "g1", resolvedById: "u1" }),
     ).resolves.toBe(1);
@@ -210,6 +239,7 @@ describe("vendor-grants helpers", () => {
       where: {
         pendingVendorGrantId: "g1",
         archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
       },
       select: { id: true },
     });
@@ -218,10 +248,12 @@ describe("vendor-grants helpers", () => {
         id: "t1",
         pendingVendorGrantId: "g1",
         archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
       },
       data: {
         status: TaskStatus.CANCELED,
         pendingVendorGrantId: null,
+        grantResumeStatus: null,
       },
     });
     expect(taskEventCreate).toHaveBeenCalledWith({
@@ -290,12 +322,12 @@ describe("vendor-grants helpers", () => {
   });
 
   it("blocks mutations on parked tasks", () => {
-    expect(() => requireTaskNotParked({ pendingVendorGrantId: "g1" })).toThrow(
-      HTTPException,
-    );
+    expect(() =>
+      requireTaskNotParked({ status: TaskStatus.GRANT_PENDING }),
+    ).toThrow(HTTPException);
 
     expect(() =>
-      requireTaskNotParked({ pendingVendorGrantId: null }),
+      requireTaskNotParked({ status: TaskStatus.READY }),
     ).not.toThrow();
   });
 
@@ -443,7 +475,12 @@ describe("vendor-grants helpers", () => {
       status: VendorGrantStatus.GRANTED,
       vendor: { name: "V", slug: "v" },
     });
-    taskUpdateMany.mockResolvedValue({ count: 2 });
+    taskFindMany.mockResolvedValue([
+      { id: "t1", grantResumeStatus: "READY" },
+      { id: "t2", grantResumeStatus: "DRAFT" },
+    ]);
+    taskUpdateMany.mockResolvedValue({ count: 1 });
+    taskEventCreate.mockResolvedValue({ id: "ev1" });
 
     const grant = await grantWorkspaceAccess({
       vendorId: "v1",
@@ -484,7 +521,9 @@ describe("vendor-grants helpers", () => {
       vendor: { name: "V", slug: "v" },
     };
     vendorGrantFindFirst.mockResolvedValue(existing);
+    taskFindMany.mockResolvedValue([{ id: "t1", grantResumeStatus: "READY" }]);
     taskUpdateMany.mockResolvedValue({ count: 1 });
+    taskEventCreate.mockResolvedValue({ id: "ev1" });
 
     const tx = {
       $queryRaw: queryRawMock,
@@ -492,7 +531,11 @@ describe("vendor-grants helpers", () => {
         findFirst: vendorGrantFindFirst,
         update: vendorGrantUpdate,
       },
-      task: { updateMany: taskUpdateMany },
+      task: {
+        findMany: taskFindMany,
+        updateMany: taskUpdateMany,
+      },
+      taskEvent: { create: taskEventCreate },
     };
 
     const result = await approveVendorGrantInWorkspace(
@@ -507,8 +550,17 @@ describe("vendor-grants helpers", () => {
     expect(result.status).toBe(VendorGrantStatus.GRANTED);
     expect(vendorGrantUpdate).not.toHaveBeenCalled();
     expect(taskUpdateMany).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: "g1" },
-      data: { pendingVendorGrantId: null },
+      where: {
+        id: "t1",
+        pendingVendorGrantId: "g1",
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
+      },
+      data: {
+        status: TaskStatus.READY,
+        pendingVendorGrantId: null,
+        grantResumeStatus: null,
+      },
     });
     const lockSql = queryRawMock.mock.calls[0]![0] as TemplateStringsArray;
     expect(lockSql.join(" ")).toContain("FOR UPDATE");

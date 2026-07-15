@@ -1483,6 +1483,7 @@
           "DRAFT": "下書き",
           "QUEUED": "キュー中",
           "READY": "準備完了",
+          "GRANT_PENDING": "承認待ち",
           "INPUT_REQUIRED": "入力が必要",
           "APPROVAL_REQUIRED": "承認が必要",
           "AUTHENTICATION_REQUIRED": "認証が必要",

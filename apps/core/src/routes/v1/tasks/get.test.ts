@@ -407,10 +407,10 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("filters todo tasks without pending vendor grants", async () => {
+  it("filters tasks by status list only", async () => {
     const app = createApp();
     const response = await app.request(
-      `http://localhost/?status=${TaskStatus.READY},${TaskStatus.CREDITS_TOPPED_UP}&pendingApproval=false`,
+      `http://localhost/?status=${TaskStatus.READY},${TaskStatus.CREDITS_TOPPED_UP}`,
     );
 
     expect(response.status).toBe(200);
@@ -418,33 +418,22 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           status: { in: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP] },
-          pendingVendorGrantId: null,
         }),
       }),
     );
   });
 
-  it("includes parked READY tasks when includeParkedReady is true", async () => {
+  it("filters grant-pending tasks by status", async () => {
     const app = createApp();
     const response = await app.request(
-      `http://localhost/?status=${TaskStatus.INPUT_REQUIRED}&includeParkedReady=true`,
+      `http://localhost/?status=${TaskStatus.GRANT_PENDING}`,
     );
 
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          AND: expect.arrayContaining([
-            {
-              OR: [
-                { status: { in: [TaskStatus.INPUT_REQUIRED] } },
-                {
-                  status: TaskStatus.READY,
-                  pendingVendorGrantId: { not: null },
-                },
-              ],
-            },
-          ]),
+          status: { in: [TaskStatus.GRANT_PENDING] },
         }),
       }),
     );

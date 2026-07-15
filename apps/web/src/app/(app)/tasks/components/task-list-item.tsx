@@ -1,8 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { Badge } from "@/components/ui/badge";
-import type { TaskStatus } from "@/lib/types/core-dto";
+import { TaskStatus } from "@sokosumi/utils";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
@@ -25,7 +23,6 @@ export function TaskListItem({
   compact = false,
   statusLabels,
 }: TaskListItemProps) {
-  const t = useTranslations("App.Tasks.Detail");
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -66,11 +63,6 @@ export function TaskListItem({
         </div>
 
         <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-          {task.pendingApproval ? (
-            <Badge variant="secondary" className="shrink-0">
-              {t("pendingApproval")}
-            </Badge>
-          ) : null}
           <TaskStatusBadge
             status={task.status}
             label={statusLabels?.[task.status]}

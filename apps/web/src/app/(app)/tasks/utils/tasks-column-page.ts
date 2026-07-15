@@ -39,8 +39,7 @@ export async function getTasksColumnPage({
   coworkersById,
   agentsById,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
-  const { statuses, pendingApproval, includeParkedReady } =
-    getColumnListQueryOptions(columnId, status);
+  const { statuses } = getColumnListQueryOptions(columnId, status);
 
   if (statuses.length === 0) {
     return {
@@ -51,8 +50,6 @@ export async function getTasksColumnPage({
 
   const result = await taskService.listTasks({
     status: statuses,
-    pendingApproval,
-    includeParkedReady,
     scope,
     coworkerId: coworkerId ?? undefined,
     projectId: projectId ?? undefined,

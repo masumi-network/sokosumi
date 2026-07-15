@@ -180,7 +180,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       ),
       session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
       taskService.listTasks({
-        pendingApproval: true,
+        status: TaskStatus.GRANT_PENDING,
         scope: activeFilters.scope,
         coworkerId: activeFilters.coworkerId ?? undefined,
         projectId: activeFilters.projectId ?? undefined,
@@ -280,6 +280,9 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
               [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
               [TaskStatus.READY]: t("Filters.statusOptions.READY"),
+              [TaskStatus.GRANT_PENDING]: t(
+                "Filters.statusOptions.GRANT_PENDING",
+              ),
               [TaskStatus.INPUT_REQUIRED]: t(
                 "Filters.statusOptions.INPUT_REQUIRED",
               ),

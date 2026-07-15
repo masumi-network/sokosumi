@@ -172,7 +172,7 @@ export {
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
-  isParkedVendorGrantTask,
+  isGrantPendingTaskStatus,
   isTaskArchivableStatus,
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,

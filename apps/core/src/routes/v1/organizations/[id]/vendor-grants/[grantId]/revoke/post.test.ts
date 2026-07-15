@@ -4,6 +4,7 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -141,10 +142,12 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/revoke", () => {
         id: "task_1",
         pendingVendorGrantId: grantId,
         archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
       },
       data: {
-        status: "CANCELED",
+        status: TaskStatus.CANCELED,
         pendingVendorGrantId: null,
+        grantResumeStatus: null,
       },
     });
     expect(taskEventCreateMock).toHaveBeenCalledWith({

@@ -16,10 +16,13 @@ const { prismaTransactionMock, requireTaskArchiveAccessMock, mapTaskMock } =
     requireTaskArchiveAccessMock: vi.fn(),
     mapTaskMock: vi.fn((task: unknown) => {
       const t = task as Record<string, unknown>;
+      const status = t.status as string | undefined;
       return {
         ...t,
-        pendingApproval: t.pendingVendorGrantId != null,
-        pendingVendorGrantId: t.pendingVendorGrantId ?? null,
+        grantResumeStatus:
+          status === TaskStatus.GRANT_PENDING
+            ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)
+            : null,
         user: t.user ?? {
           id: t.userId,
           name: "Task owner",
@@ -218,8 +221,8 @@ describe("DELETE /tasks/{id}", () => {
     const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
     const findFirstOrThrowMock = vi.fn().mockResolvedValue({
       ...archivedTask,
-      status: TaskStatus.READY,
-      pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      status: TaskStatus.GRANT_PENDING,
+      grantResumeStatus: TaskStatus.DRAFT,
     });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -234,8 +237,7 @@ describe("DELETE /tasks/{id}", () => {
     requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
       userId: "user_other",
-      status: TaskStatus.READY,
-      pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      status: TaskStatus.GRANT_PENDING,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
 
@@ -249,8 +251,7 @@ describe("DELETE /tasks/{id}", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "tsk_123",
-          status: TaskStatus.READY,
-          pendingVendorGrantId: { not: null },
+          status: TaskStatus.GRANT_PENDING,
         }),
       }),
     );
@@ -271,8 +272,7 @@ describe("DELETE /tasks/{id}", () => {
     requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
       userId: "user_other",
-      status: TaskStatus.READY,
-      pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      status: TaskStatus.GRANT_PENDING,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
 
@@ -285,7 +285,7 @@ describe("DELETE /tasks/{id}", () => {
     expect(updateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          pendingVendorGrantId: { not: null },
+          status: TaskStatus.GRANT_PENDING,
         }),
       }),
     );

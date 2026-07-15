@@ -104,7 +104,7 @@ export async function requireMutableTaskOwnership(
 
 /**
  * Soft-archive access: task owner always, or org OWNER/ADMIN when the task is
- * parked (`pendingVendorGrantId` set) in that organization workspace.
+ * parked (`GRANT_PENDING`) in that organization workspace.
  */
 export async function requireTaskArchiveAccess(
   userContext: UserContext,
@@ -127,7 +127,7 @@ export async function requireTaskArchiveAccess(
     where: {
       id: taskId,
       archivedAt: null,
-      pendingVendorGrantId: { not: null },
+      status: TaskStatus.GRANT_PENDING,
     },
     include: {
       workspace: { select: { organizationId: true } },
@@ -843,7 +843,7 @@ async function requireParentTaskNotParked(
 
   const task = await tx.task.findFirst({
     where: { id: job.taskId, archivedAt: null },
-    select: { pendingVendorGrantId: true },
+    select: { status: true },
   });
 
   if (!task) {

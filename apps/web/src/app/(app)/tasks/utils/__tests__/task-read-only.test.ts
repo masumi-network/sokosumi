@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -14,6 +15,7 @@ describe("isReadOnlyForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: true,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(true);
   });
@@ -25,6 +27,7 @@ describe("isReadOnlyForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(false);
   });
@@ -36,6 +39,7 @@ describe("isReadOnlyForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(true);
   });
@@ -47,6 +51,7 @@ describe("isReadOnlyForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(false);
   });
@@ -58,6 +63,7 @@ describe("isReadOnlyForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "someone_else",
         forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(false);
   });
@@ -69,6 +75,7 @@ describe("isReadOnlyForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: null,
         forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(true);
   });
@@ -80,40 +87,40 @@ describe("isReadOnlyForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
-        pendingApproval: true,
+        taskStatus: TaskStatus.GRANT_PENDING,
       }),
     ).toBe(true);
   });
 });
 
 describe("canArchiveParkedTaskForViewer", () => {
-  it("allows the task owner to archive while parked", () => {
+  it("allows the task owner to archive while grant is pending", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
-        pendingApproval: true,
+        taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: true,
         isOrgOwnerOrAdmin: false,
       }),
     ).toBe(true);
   });
 
-  it("allows org owner/admin to archive parked tasks they do not own", () => {
+  it("allows org owner/admin to archive grant-pending tasks they do not own", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
-        pendingApproval: true,
+        taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: false,
         isOrgOwnerOrAdmin: true,
       }),
     ).toBe(true);
   });
 
-  it("blocks archive for plain members while parked", () => {
+  it("blocks archive for plain members while grant is pending", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
-        pendingApproval: true,
+        taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: false,
         isOrgOwnerOrAdmin: false,
       }),
@@ -124,7 +131,7 @@ describe("canArchiveParkedTaskForViewer", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: true,
-        pendingApproval: true,
+        taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: true,
         isOrgOwnerOrAdmin: true,
       }),
@@ -140,6 +147,7 @@ describe("canCommentOnTaskForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(true);
   });
@@ -151,6 +159,7 @@ describe("canCommentOnTaskForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: true,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(false);
   });
@@ -162,6 +171,7 @@ describe("canCommentOnTaskForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "someone_else",
         forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
       }),
     ).toBe(false);
   });
@@ -173,7 +183,7 @@ describe("canCommentOnTaskForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
-        pendingApproval: true,
+        taskStatus: TaskStatus.GRANT_PENDING,
       }),
     ).toBe(false);
   });

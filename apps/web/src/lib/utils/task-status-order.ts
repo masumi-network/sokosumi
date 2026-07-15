@@ -5,6 +5,7 @@ export const TASK_STATUS_DISPLAY_ORDER = [
   TaskStatus.DRAFT,
   TaskStatus.QUEUED,
   TaskStatus.READY,
+  TaskStatus.GRANT_PENDING,
   TaskStatus.INPUT_REQUIRED,
   TaskStatus.APPROVAL_REQUIRED,
   TaskStatus.AUTHENTICATION_REQUIRED,

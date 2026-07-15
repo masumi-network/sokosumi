@@ -1274,6 +1274,9 @@ model Task {
   /// Cleared when the grant row is deleted (onDelete: SetNull).
   pendingVendorGrant   VendorGrant? @relation(fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
 
+  /// Target status after vendor workspace grant approval. Only set while status is GRANT_PENDING.
+  grantResumeStatus GrantResumeStatus?
+
   share PublicShare?
 
   events TaskEvent[]
@@ -1327,10 +1330,16 @@ model TaskLink {
   @@map("task_link")
 }
 
+enum GrantResumeStatus {
+  DRAFT
+  READY
+}
+
 enum TaskStatus {
   DRAFT
   QUEUED
   READY
+  GRANT_PENDING
   INPUT_REQUIRED
   APPROVAL_REQUIRED
   AUTHENTICATION_REQUIRED

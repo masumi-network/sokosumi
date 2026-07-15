@@ -1,4 +1,5 @@
 import {
+  GrantResumeStatus,
   MemberRole,
   NotificationKind,
   type Prisma,
@@ -9,7 +10,12 @@ import {
   VendorPermission,
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
-import { badRequest, forbidden, notFound } from "@/helpers/error";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -64,13 +70,42 @@ export function isGrantDeniedOrRevoked(status: VendorGrantStatus): boolean {
   );
 }
 
-function isTaskParked(task: Pick<Task, "pendingVendorGrantId">): boolean {
-  return task.pendingVendorGrantId != null;
+function isTaskParked(task: Pick<Task, "status">): boolean {
+  return task.status === TaskStatus.GRANT_PENDING;
 }
 
-export function requireTaskNotParked(
-  task: Pick<Task, "pendingVendorGrantId">,
-): void {
+export function isGrantPendingTask(task: Pick<Task, "status">): boolean {
+  return isTaskParked(task);
+}
+
+export function parseGrantResumeStatus(status: TaskStatus): GrantResumeStatus {
+  if (status === TaskStatus.DRAFT) {
+    return GrantResumeStatus.DRAFT;
+  }
+  if (status === TaskStatus.READY) {
+    return GrantResumeStatus.READY;
+  }
+  throw unprocessableEntity(
+    "Only DRAFT or READY may be requested when vendor workspace access is pending",
+  );
+}
+
+function grantResumeStatusToTaskStatus(
+  grantResumeStatus: GrantResumeStatus,
+): TaskStatus {
+  switch (grantResumeStatus) {
+    case GrantResumeStatus.DRAFT:
+      return TaskStatus.DRAFT;
+    case GrantResumeStatus.READY:
+      return TaskStatus.READY;
+    default: {
+      const _exhaustive: never = grantResumeStatus;
+      throw badRequest(`Unknown grant resume status ${_exhaustive}`);
+    }
+  }
+}
+
+export function requireTaskNotParked(task: Pick<Task, "status">): void {
   if (isTaskParked(task)) {
     throw forbidden(
       "Parked tasks cannot be modified until vendor workspace access is granted",
@@ -321,7 +356,7 @@ export async function grantWorkspaceAccess(
   });
 
   await lockVendorGrantById(grant.id, tx);
-  await unparkTasksForGrant(grant.id, tx);
+  await unparkTasksForGrant(grant.id, tx, params.resolvedById);
 
   return grant;
 }
@@ -347,7 +382,7 @@ export async function approveVendorGrantInWorkspace(
 
   switch (existing.status) {
     case VendorGrantStatus.GRANTED:
-      await unparkTasksForGrant(existing.id, tx);
+      await unparkTasksForGrant(existing.id, tx, params.resolvedById);
       return existing;
     case VendorGrantStatus.PENDING:
     case VendorGrantStatus.DENIED:
@@ -370,7 +405,7 @@ export async function approveVendorGrantInWorkspace(
     include: vendorGrantWithVendorInclude,
   });
 
-  await unparkTasksForGrant(updated.id, tx);
+  await unparkTasksForGrant(updated.id, tx, params.resolvedById);
 
   return updated;
 }
@@ -477,14 +512,58 @@ export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
 export async function unparkTasksForGrant(
   grantId: string,
   tx: Prisma.TransactionClient = prisma,
+  resolvedById: string | null = null,
 ): Promise<number> {
-  const result = await tx.task.updateMany({
-    where: { pendingVendorGrantId: grantId },
-    data: {
-      pendingVendorGrantId: null,
+  const parkedTasks = await tx.task.findMany({
+    where: {
+      pendingVendorGrantId: grantId,
+      archivedAt: null,
+      status: TaskStatus.GRANT_PENDING,
     },
+    select: { id: true, grantResumeStatus: true },
   });
-  return result.count;
+
+  let unparkedCount = 0;
+
+  for (const task of parkedTasks) {
+    if (!task.grantResumeStatus) {
+      continue;
+    }
+
+    const resumeStatus = grantResumeStatusToTaskStatus(task.grantResumeStatus);
+
+    const result = await tx.task.updateMany({
+      where: {
+        id: task.id,
+        pendingVendorGrantId: grantId,
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
+      },
+      data: {
+        status: resumeStatus,
+        pendingVendorGrantId: null,
+        grantResumeStatus: null,
+      },
+    });
+
+    if (result.count === 0) {
+      continue;
+    }
+
+    await tx.taskEvent.create({
+      data: {
+        taskId: task.id,
+        status: resumeStatus,
+        origin: TaskEventOrigin.SOKOSUMI,
+        userId: resolvedById,
+        comment: null,
+        coworkerId: null,
+      },
+    });
+    unparkedCount += 1;
+  }
+
+  return unparkedCount;
 }
 
 export async function cancelParkedTasksForGrant(
@@ -498,6 +577,7 @@ export async function cancelParkedTasksForGrant(
     where: {
       pendingVendorGrantId: params.grantId,
       archivedAt: null,
+      status: TaskStatus.GRANT_PENDING,
     },
     select: { id: true },
   });
@@ -510,10 +590,12 @@ export async function cancelParkedTasksForGrant(
         id: task.id,
         pendingVendorGrantId: params.grantId,
         archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
       },
       data: {
         status: TaskStatus.CANCELED,
         pendingVendorGrantId: null,
+        grantResumeStatus: null,
       },
     });
 

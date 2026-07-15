@@ -4,6 +4,7 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,14 +15,18 @@ const {
   resolveMemberOrganizationByIdMock,
   vendorFindUniqueMock,
   vendorGrantUpsertMock,
+  taskFindManyMock,
   taskUpdateManyMock,
+  taskEventCreateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   resolveMemberOrganizationByIdMock: vi.fn(),
   vendorFindUniqueMock: vi.fn(),
   vendorGrantUpsertMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
+  taskEventCreateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
@@ -103,7 +108,11 @@ describe("POST /organizations/{id}/vendor-grants", () => {
       name: "Acme",
       slug: "acme",
     });
+    taskFindManyMock.mockResolvedValue([
+      { id: "task_1", grantResumeStatus: "DRAFT" },
+    ]);
     taskUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskEventCreateMock.mockResolvedValue({ id: "ev_1" });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
@@ -112,7 +121,11 @@ describe("POST /organizations/{id}/vendor-grants", () => {
             upsert: vendorGrantUpsertMock,
           },
           task: {
+            findMany: taskFindManyMock,
             updateMany: taskUpdateManyMock,
+          },
+          taskEvent: {
+            create: taskEventCreateMock,
           },
         }),
     );
@@ -132,8 +145,17 @@ describe("POST /organizations/{id}/vendor-grants", () => {
 
     expect(response.status).toBe(201);
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: grantId },
-      data: { pendingVendorGrantId: null },
+      where: {
+        id: "task_1",
+        pendingVendorGrantId: grantId,
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
+      },
+      data: {
+        status: TaskStatus.DRAFT,
+        pendingVendorGrantId: null,
+        grantResumeStatus: null,
+      },
     });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({

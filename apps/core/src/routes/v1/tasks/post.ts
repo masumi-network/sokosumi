@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import {
+  GrantResumeStatus,
   type Prisma,
   TaskEventOrigin,
   VendorGrantStatus,
@@ -22,6 +23,7 @@ import {
   isGrantDeniedOrRevoked,
   lockAndGetVendorGrantById,
   notifyWorkspaceApproversOfPendingGrant,
+  parseGrantResumeStatus,
   requestWorkspaceGrantCommitted,
   throwGrantAccessError,
 } from "@/helpers/vendor-grants";
@@ -139,12 +141,14 @@ async function createTaskRecord(
     body: z.infer<typeof createTaskRequestSchema>;
     resolvedName: string;
     pendingVendorGrantId?: string | null;
+    grantResumeStatus?: GrantResumeStatus | null;
   },
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
 ) {
   const {
     body,
     organizationId,
+    grantResumeStatus,
     pendingVendorGrantId,
     resolvedName,
     userId,
@@ -153,7 +157,9 @@ async function createTaskRecord(
 
   await assertTaskProjectInWorkspace(body.projectId, workspaceId, tx);
 
-  const status = body.status;
+  const isGrantPending = pendingVendorGrantId != null;
+  const status = isGrantPending ? TaskStatus.GRANT_PENDING : body.status;
+  const initialEventStatus = status;
 
   return tx.task.create({
     data: {
@@ -165,12 +171,13 @@ async function createTaskRecord(
       description: body.description ?? null,
       coworkerId: body.coworkerId ?? null,
       status,
+      grantResumeStatus: isGrantPending ? grantResumeStatus : null,
       metadata: null,
       nextRunAt: null,
       pendingVendorGrantId: pendingVendorGrantId ?? null,
       events: {
         create: {
-          status,
+          status: initialEventStatus,
           comment: null,
           origin: body.origin,
           userId,
@@ -267,12 +274,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           body,
           resolvedName,
           pendingVendorGrantId: lockedGrant.id,
+          grantResumeStatus: parseGrantResumeStatus(body.status),
         },
         tx,
       );
     });
 
-    if (task.pendingVendorGrantId) {
+    if (task.status === TaskStatus.GRANT_PENDING) {
       try {
         await notifyWorkspaceApproversOfPendingGrant({
           vendorId: authContext.vendorId,

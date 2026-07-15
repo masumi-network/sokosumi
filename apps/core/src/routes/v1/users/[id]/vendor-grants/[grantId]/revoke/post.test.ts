@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -141,10 +142,12 @@ describe("POST /users/{id}/vendor-grants/{grantId}/revoke", () => {
         id: "task_1",
         pendingVendorGrantId: grantId,
         archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
       },
       data: {
-        status: "CANCELED",
+        status: TaskStatus.CANCELED,
         pendingVendorGrantId: null,
+        grantResumeStatus: null,
       },
     });
     expect(taskEventCreateMock).toHaveBeenCalledWith({

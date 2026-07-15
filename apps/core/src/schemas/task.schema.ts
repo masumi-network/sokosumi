@@ -71,14 +71,14 @@ const taskBaseSchema = z.object({
   coworker: coworkerSummarySchema.nullable(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
-  status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-  pendingApproval: z.boolean().openapi({
+  status: z.enum(TaskStatus).openapi({
+    example: TaskStatus.READY,
     description:
-      "True when the task is parked awaiting vendor workspace grant approval",
-    example: false,
+      "GRANT_PENDING: blocked until vendor workspace access is granted.",
   }),
-  pendingVendorGrantId: z.string().uuid().nullable().openapi({
-    description: "Vendor grant id when pendingApproval is true; null otherwise",
+  grantResumeStatus: z.enum(["DRAFT", "READY"]).nullable().openapi({
+    description:
+      "Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.",
     example: null,
   }),
   metadata: z.string().nullable().openapi({

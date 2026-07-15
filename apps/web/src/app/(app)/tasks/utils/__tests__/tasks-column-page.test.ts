@@ -19,12 +19,10 @@ function buildTask({
   id,
   status,
   updatedAt,
-  pendingApproval = false,
 }: {
   id: string;
   status: TaskStatus;
   updatedAt: string;
-  pendingApproval?: boolean;
 }) {
   return {
     id,
@@ -38,8 +36,7 @@ function buildTask({
     description: null,
     commentsCount: 0,
     jobsCount: 0,
-    pendingApproval,
-    pendingVendorGrantId: pendingApproval ? "grant-1" : null,
+    grantResumeStatus: null,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: null,
@@ -223,7 +220,7 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).not.toHaveBeenCalled();
   });
 
-  it("excludes parked READY tasks from the todo column via core filters", async () => {
+  it("queries todo column statuses in one request", async () => {
     listTasksMock.mockResolvedValue({
       tasks: [
         buildTask({
@@ -250,8 +247,6 @@ describe("getTasksColumnPage", () => {
     expect(page.tasks.map((task) => task.id)).toEqual(["task-ready"]);
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
-      pendingApproval: false,
-      includeParkedReady: undefined,
       scope: "owned",
       coworkerId: undefined,
       projectId: undefined,
@@ -260,14 +255,13 @@ describe("getTasksColumnPage", () => {
     });
   });
 
-  it("includes parked READY tasks in the input-required column via core filters", async () => {
+  it("queries input-required column statuses including GRANT_PENDING", async () => {
     listTasksMock.mockResolvedValue({
       tasks: [
         buildTask({
-          id: "task-parked",
-          status: TaskStatus.READY,
+          id: "task-grant-pending",
+          status: TaskStatus.GRANT_PENDING,
           updatedAt: "2026-03-03T01:00:00.000Z",
-          pendingApproval: true,
         }),
       ],
       pagination: { nextCursor: null },
@@ -285,16 +279,15 @@ describe("getTasksColumnPage", () => {
       agentsById: new Map(),
     });
 
-    expect(page.tasks.map((task) => task.id)).toEqual(["task-parked"]);
+    expect(page.tasks.map((task) => task.id)).toEqual(["task-grant-pending"]);
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [
+        TaskStatus.GRANT_PENDING,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
       ],
-      pendingApproval: undefined,
-      includeParkedReady: true,
       scope: "owned",
       coworkerId: undefined,
       projectId: undefined,

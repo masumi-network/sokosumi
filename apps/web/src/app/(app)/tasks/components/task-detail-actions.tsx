@@ -112,7 +112,6 @@ interface TaskDetailActionsProps {
   personalWorkspaceLabel: string;
   isReadOnly?: boolean;
   forceReadOnly?: boolean;
-  pendingApproval?: boolean;
   isTaskOwner?: boolean;
   isOrgOwnerOrAdmin?: boolean;
 }
@@ -133,7 +132,6 @@ export function TaskDetailActions({
   personalWorkspaceLabel,
   isReadOnly = false,
   forceReadOnly = false,
-  pendingApproval = false,
   isTaskOwner = false,
   isOrgOwnerOrAdmin = false,
 }: TaskDetailActionsProps) {
@@ -183,7 +181,7 @@ export function TaskDetailActions({
   const canEdit = canMutateTask && isTaskEditableStatus(status);
   const canArchiveParked = canArchiveParkedTaskForViewer({
     forceReadOnly,
-    pendingApproval,
+    taskStatus: status,
     isTaskOwner,
     isOrgOwnerOrAdmin,
   });

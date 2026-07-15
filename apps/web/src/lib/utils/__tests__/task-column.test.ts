@@ -11,57 +11,47 @@ describe("getColumnId", () => {
     expect(getColumnId(TaskStatus.READY)).toBe("todo");
   });
 
-  it("maps parked READY tasks to input-required without changing status semantics", () => {
-    expect(getColumnId(TaskStatus.READY, { pendingApproval: true })).toBe(
-      "input-required",
-    );
-    expect(getColumnId(TaskStatus.READY, { pendingApproval: false })).toBe(
-      "todo",
-    );
+  it("maps GRANT_PENDING tasks to input-required", () => {
+    expect(getColumnId(TaskStatus.GRANT_PENDING)).toBe("input-required");
   });
 
-  it("keeps parked DRAFT tasks in backlog", () => {
-    expect(getColumnId(TaskStatus.DRAFT, { pendingApproval: true })).toBe(
-      "backlog",
-    );
+  it("keeps DRAFT tasks in backlog", () => {
+    expect(getColumnId(TaskStatus.DRAFT)).toBe("backlog");
   });
 });
 
 describe("getColumnListQueryOptions", () => {
-  it("excludes parked READY tasks from todo column queries", () => {
+  it("returns todo column statuses", () => {
     expect(getColumnListQueryOptions("todo", null)).toEqual({
       statuses: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
-      pendingApproval: false,
     });
   });
 
-  it("includes parked READY tasks via includeParkedReady for input-required", () => {
+  it("returns input-required column statuses including GRANT_PENDING", () => {
     expect(getColumnListQueryOptions("input-required", null)).toEqual({
       statuses: [
+        TaskStatus.GRANT_PENDING,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
       ],
-      includeParkedReady: true,
     });
   });
 
-  it("filters input-required READY status to parked tasks only", () => {
+  it("filters input-required to GRANT_PENDING when selected", () => {
     expect(
-      getColumnListQueryOptions("input-required", TaskStatus.READY),
+      getColumnListQueryOptions("input-required", TaskStatus.GRANT_PENDING),
     ).toEqual({
-      statuses: [TaskStatus.READY],
-      pendingApproval: true,
+      statuses: [TaskStatus.GRANT_PENDING],
     });
   });
 
-  it("does not add parked READY when filtering input-required to another status", () => {
+  it("filters input-required to a single non-grant status", () => {
     expect(
       getColumnListQueryOptions("input-required", TaskStatus.INPUT_REQUIRED),
     ).toEqual({
       statuses: [TaskStatus.INPUT_REQUIRED],
-      includeParkedReady: false,
     });
   });
 });
