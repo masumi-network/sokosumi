@@ -242,10 +242,48 @@ async function requestWorkspaceGrantIndependently(params: {
   vendorId: string;
   workspaceId: string;
   requestedByUserId: string | null;
+}) {
+  return prisma.$transaction(async (grantTx) =>
+    requestWorkspaceGrant(params, grantTx),
+  );
+}
+
+/**
+ * Upsert PENDING when workspace access is missing; allow when GRANTED (including
+ * if an approver grants concurrently during the independent request tx).
+ */
+async function requireGrantedWorkspaceAccessOrRequest(params: {
+  vendorId: string;
+  workspaceId: string;
+  requestedByUserId: string | null;
+  grant: Awaited<ReturnType<typeof getWorkspaceGrant>>;
 }): Promise<void> {
-  await prisma.$transaction(async (grantTx) => {
-    await requestWorkspaceGrant(params, grantTx);
-  });
+  const { vendorId, workspaceId, requestedByUserId, grant } = params;
+
+  if (grant?.status === VendorGrantStatus.GRANTED) {
+    return;
+  }
+
+  if (
+    grant?.status === VendorGrantStatus.DENIED ||
+    grant?.status === VendorGrantStatus.REVOKED
+  ) {
+    throwGrantAccessError(grant.status);
+  }
+
+  const { grant: grantAfterRequest } = await requestWorkspaceGrantIndependently(
+    {
+      vendorId,
+      workspaceId,
+      requestedByUserId,
+    },
+  );
+
+  if (grantAfterRequest.status === VendorGrantStatus.GRANTED) {
+    return;
+  }
+
+  throwGrantAccessError(grantAfterRequest.status);
 }
 
 /**
@@ -315,24 +353,14 @@ async function requireCoworkerTaskRead(
     tx,
   );
 
-  if (grant?.status === VendorGrantStatus.GRANTED) {
-    return task;
-  }
-
-  if (
-    grant?.status === VendorGrantStatus.DENIED ||
-    grant?.status === VendorGrantStatus.REVOKED
-  ) {
-    throwGrantAccessError(grant.status);
-  }
-
-  await requestWorkspaceGrantIndependently({
+  await requireGrantedWorkspaceAccessOrRequest({
     vendorId: authContext.vendorId,
     workspaceId,
     requestedByUserId: authContext.context?.userId ?? null,
+    grant,
   });
 
-  throwGrantAccessError(grant?.status ?? null);
+  return task;
 }
 
 /**
@@ -502,24 +530,14 @@ export async function requireTaskCommentAccess(
     tx,
   );
 
-  if (grant?.status === VendorGrantStatus.GRANTED) {
-    return task;
-  }
-
-  if (
-    grant?.status === VendorGrantStatus.DENIED ||
-    grant?.status === VendorGrantStatus.REVOKED
-  ) {
-    throwGrantAccessError(grant.status);
-  }
-
-  await requestWorkspaceGrantIndependently({
+  await requireGrantedWorkspaceAccessOrRequest({
     vendorId: coworker.vendorId,
     workspaceId,
     requestedByUserId: coworker.context?.userId ?? null,
+    grant,
   });
 
-  throwGrantAccessError(grant?.status ?? null);
+  return task;
 }
 
 // -----------------------------------------------------------------------------

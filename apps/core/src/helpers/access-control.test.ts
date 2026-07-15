@@ -744,6 +744,52 @@ describe("requireTaskCommentAccess", () => {
     );
   });
 
+  it("allows comment when grant becomes GRANTED during independent request", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+    const foreignVendorId = "01960001-0002-7001-8001-000000000002";
+    const foreignTask = {
+      id: "tsk_123",
+      coworkerId: "cow_foreign",
+      status: TaskStatus.READY,
+      pendingVendorGrantId: null,
+      workspaceId,
+      coworker: { vendorId: foreignVendorId },
+      workspace: { organizationId: "org_123" },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(foreignTask as never)
+      .mockResolvedValueOnce(foreignTask as never);
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "workspace-grant",
+      status: VendorGrantStatus.PENDING,
+    });
+    requestWorkspaceGrantMock.mockResolvedValue({
+      grant: { id: "workspace-grant", status: VendorGrantStatus.GRANTED },
+      created: false,
+    });
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskCommentAccess(vars, "tsk_123", tx),
+    ).resolves.toMatchObject({ id: "tsk_123" });
+  });
+
   it("does not open PENDING when sibling baseline already allows comment", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123", {
@@ -842,6 +888,48 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       }),
       independentGrantTxClient,
     );
+  });
+
+  it("allows out-of-scope read when grant becomes GRANTED during independent request", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_foreign",
+        coworkerId: "cow_foreign",
+        status: TaskStatus.READY,
+      } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      organizationId: "org_123",
+    } as never);
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "workspace-grant",
+      status: VendorGrantStatus.PENDING,
+    });
+    requestWorkspaceGrantMock.mockResolvedValue({
+      grant: { id: "workspace-grant", status: VendorGrantStatus.GRANTED },
+      created: false,
+    });
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_foreign", tx),
+    ).resolves.toMatchObject({ id: "tsk_foreign" });
   });
 
   it("allows out-of-scope read when workspace access is GRANTED", async () => {
