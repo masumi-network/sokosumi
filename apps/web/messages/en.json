@@ -3613,20 +3613,7 @@
         "statusGranted": "Granted",
         "statusDenied": "Denied",
         "statusRevoked": "Revoked",
-        "statusNone": "Not granted",
-        "bundledWithRead": "Included with read",
-        "coworkerPermissions": "Coworker permissions",
-        "accessAllRevoked": "All permissions revoked",
-        "accessAllDenied": "All permissions denied",
-        "accessPending": "Access request pending",
-        "approveWithComment": "Approve read & comment",
         "grantFormTitle": "Grant access proactively",
-        "Permissions": {
-          "taskRead": "Read tasks",
-          "taskComment": "Comment on tasks",
-          "taskCreate": "Create tasks",
-          "readAndComment": "Read and comment on tasks"
-        },
         "GrantForm": {
           "vendorLabel": "Vendor",
           "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
@@ -3646,16 +3633,7 @@
           "revokeError": "Failed to revoke vendor access",
           "grant": "Grant",
           "grantSuccess": "Vendor access granted",
-          "grantError": "Failed to grant vendor access",
-          "approveAll": "Approve all",
-          "denyAll": "Deny all",
-          "revokeAll": "Revoke all",
-          "approveAllSuccess": "All vendor permissions approved",
-          "denyAllSuccess": "All vendor permissions denied",
-          "revokeAllSuccess": "All vendor permissions revoked",
-          "approveAllError": "Failed to approve vendor permissions",
-          "denyAllError": "Failed to deny vendor permissions",
-          "revokeAllError": "Failed to revoke vendor permissions"
+          "grantError": "Failed to grant vendor access"
         }
       }
     },
@@ -3739,20 +3717,7 @@
           "statusGranted": "Granted",
           "statusDenied": "Denied",
           "statusRevoked": "Revoked",
-          "statusNone": "Not granted",
-          "bundledWithRead": "Included with read",
-          "coworkerPermissions": "Coworker permissions",
-          "accessAllRevoked": "All permissions revoked",
-          "accessAllDenied": "All permissions denied",
-          "accessPending": "Access request pending",
-          "approveWithComment": "Approve read & comment",
           "grantFormTitle": "Grant access proactively",
-          "Permissions": {
-            "taskRead": "Read tasks",
-            "taskComment": "Comment on tasks",
-            "taskCreate": "Create tasks",
-            "readAndComment": "Read and comment on tasks"
-          },
           "GrantForm": {
             "vendorLabel": "Vendor",
             "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
@@ -3772,16 +3737,7 @@
             "revokeError": "Failed to revoke vendor access",
             "grant": "Grant",
             "grantSuccess": "Vendor access granted",
-            "grantError": "Failed to grant vendor access",
-            "approveAll": "Approve all",
-            "denyAll": "Deny all",
-            "revokeAll": "Revoke all",
-            "approveAllSuccess": "All vendor permissions approved",
-            "denyAllSuccess": "All vendor permissions denied",
-            "revokeAllSuccess": "All vendor permissions revoked",
-            "approveAllError": "Failed to approve vendor permissions",
-            "denyAllError": "Failed to deny vendor permissions",
-            "revokeAllError": "Failed to revoke vendor permissions"
+            "grantError": "Failed to grant vendor access"
           }
         }
       }
@@ -4209,8 +4165,7 @@
   },
   "notifications": {
     "vendorGrant": {
-      "pending": "{vendorName} requested vendor access to your workspace",
-      "pendingReadComment": "{vendorName} requested read and comment access to your workspace"
+      "pending": "{vendorName} requested vendor access to your workspace"
     }
   }
 }

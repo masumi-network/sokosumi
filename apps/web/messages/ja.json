@@ -3517,20 +3517,7 @@
         "statusGranted": "許可済み",
         "statusDenied": "拒否",
         "statusRevoked": "取り消し",
-        "statusNone": "未許可",
-        "bundledWithRead": "読み取りに含まれる",
-        "coworkerPermissions": "コワーカーの権限",
-        "accessAllRevoked": "すべての権限が取り消されました",
-        "accessAllDenied": "すべての権限が拒否されました",
-        "accessPending": "アクセスリクエスト保留中",
-        "approveWithComment": "読み取りとコメントを承認",
         "grantFormTitle": "事前にアクセスを付与",
-        "Permissions": {
-          "taskRead": "タスクを読む",
-          "taskComment": "タスクにコメント",
-          "taskCreate": "タスクを作成",
-          "readAndComment": "タスクの閲覧とコメント"
-        },
         "GrantForm": {
           "vendorLabel": "ベンダー",
           "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
@@ -3633,20 +3620,7 @@
           "statusGranted": "許可済み",
           "statusDenied": "拒否",
           "statusRevoked": "取り消し",
-          "statusNone": "未許可",
-          "bundledWithRead": "読み取りに含まれる",
-          "coworkerPermissions": "コワーカーの権限",
-          "accessAllRevoked": "すべての権限が取り消されました",
-          "accessAllDenied": "すべての権限が拒否されました",
-          "accessPending": "アクセスリクエスト保留中",
-          "approveWithComment": "読み取りとコメントを承認",
           "grantFormTitle": "事前にアクセスを付与",
-          "Permissions": {
-            "taskRead": "タスクを閲覧",
-            "taskComment": "タスクにコメント",
-            "taskCreate": "タスクを作成",
-            "readAndComment": "タスクを閲覧してコメント"
-          },
           "GrantForm": {
             "vendorLabel": "ベンダー",
             "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
@@ -4039,8 +4013,7 @@
   },
   "notifications": {
     "vendorGrant": {
-      "pending": "{vendorName} が組織ワークスペースへのベンダーアクセスをリクエストしました",
-      "pendingReadComment": "{vendorName} が組織ワークスペースへの閲覧・コメントアクセスをリクエストしました"
+      "pending": "{vendorName} が組織ワークスペースへのベンダーアクセスをリクエストしました"
     }
   }
 }

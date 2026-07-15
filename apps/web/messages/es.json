@@ -3486,20 +3486,7 @@
         "statusGranted": "Concedido",
         "statusDenied": "Denegado",
         "statusRevoked": "Revocado",
-        "statusNone": "Sin conceder",
-        "bundledWithRead": "Incluido con lectura",
-        "coworkerPermissions": "Permisos del coworker",
-        "accessAllRevoked": "Todos los permisos revocados",
-        "accessAllDenied": "Todos los permisos rechazados",
-        "accessPending": "Solicitud de acceso pendiente",
-        "approveWithComment": "Aprobar lectura y comentario",
         "grantFormTitle": "Conceder acceso de forma proactiva",
-        "Permissions": {
-          "taskRead": "Leer tareas",
-          "taskComment": "Comentar tareas",
-          "taskCreate": "Crear tareas",
-          "readAndComment": "Leer y comentar tareas"
-        },
         "GrantForm": {
           "vendorLabel": "Proveedor",
           "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
@@ -3602,20 +3589,7 @@
           "statusGranted": "Concedido",
           "statusDenied": "Denegado",
           "statusRevoked": "Revocado",
-          "statusNone": "Sin conceder",
-          "bundledWithRead": "Incluido con lectura",
-          "coworkerPermissions": "Permisos del coworker",
-          "accessAllRevoked": "Todos los permisos revocados",
-          "accessAllDenied": "Todos los permisos rechazados",
-          "accessPending": "Solicitud de acceso pendiente",
-          "approveWithComment": "Aprobar lectura y comentario",
           "grantFormTitle": "Conceder acceso de forma proactiva",
-          "Permissions": {
-            "taskRead": "Leer tareas",
-            "taskComment": "Comentar tareas",
-            "taskCreate": "Crear tareas",
-            "readAndComment": "Leer y comentar tareas"
-          },
           "GrantForm": {
             "vendorLabel": "Proveedor",
             "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
@@ -4039,8 +4013,7 @@
   },
   "notifications": {
     "vendorGrant": {
-      "pending": "{vendorName} solicitó acceso de proveedor al workspace de la organización",
-      "pendingReadComment": "{vendorName} solicitó acceso de lectura y comentarios al workspace de la organización"
+      "pending": "{vendorName} solicitó acceso de proveedor al workspace de la organización"
     }
   }
 }

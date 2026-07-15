@@ -3486,22 +3486,9 @@
         "statusGranted": "Gewährt",
         "statusDenied": "Abgelehnt",
         "statusRevoked": "Widerrufen",
-        "statusNone": "Nicht gewährt",
-        "bundledWithRead": "Enthalten in Lesen",
-        "coworkerPermissions": "Coworker-Berechtigungen",
-        "accessAllRevoked": "Alle Berechtigungen widerrufen",
-        "accessAllDenied": "Alle Berechtigungen abgelehnt",
-        "accessPending": "Zugriffsanfrage ausstehend",
-        "approveWithComment": "Lesen & Kommentieren genehmigen",
         "grantFormTitle": "Zugriff proaktiv gewähren",
-        "Permissions": {
-          "taskRead": "Tasks lesen",
-          "taskComment": "Tasks kommentieren",
-          "taskCreate": "Tasks erstellen",
-          "readAndComment": "Tasks lesen und kommentieren"
-        },
         "GrantForm": {
-          "vendorLabel": "Vendor",
+          "vendorLabel": "Anbieter",
           "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
           "submit": "Zugriff gewähren",
           "success": "Vendor-Zugriff gewährt",
@@ -3519,16 +3506,7 @@
           "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
           "grant": "Gewähren",
           "grantSuccess": "Vendor-Zugriff gewährt",
-          "grantError": "Vendor-Zugriff konnte nicht gewährt werden",
-          "approveAll": "Alle genehmigen",
-          "denyAll": "Alle ablehnen",
-          "revokeAll": "Alle widerrufen",
-          "approveAllSuccess": "Alle Vendor-Berechtigungen genehmigt",
-          "denyAllSuccess": "Alle Vendor-Berechtigungen abgelehnt",
-          "revokeAllSuccess": "Alle Vendor-Berechtigungen widerrufen",
-          "approveAllError": "Vendor-Berechtigungen konnten nicht genehmigt werden",
-          "denyAllError": "Vendor-Berechtigungen konnten nicht abgelehnt werden",
-          "revokeAllError": "Vendor-Berechtigungen konnten nicht widerrufen werden"
+          "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
         }
       }
     },
@@ -3611,22 +3589,9 @@
           "statusGranted": "Gewährt",
           "statusDenied": "Abgelehnt",
           "statusRevoked": "Widerrufen",
-          "statusNone": "Nicht gewährt",
-          "bundledWithRead": "Enthalten in Lesen",
-          "coworkerPermissions": "Coworker-Berechtigungen",
-          "accessAllRevoked": "Alle Berechtigungen widerrufen",
-          "accessAllDenied": "Alle Berechtigungen abgelehnt",
-          "accessPending": "Zugriffsanfrage ausstehend",
-          "approveWithComment": "Lesen & Kommentieren genehmigen",
           "grantFormTitle": "Zugriff proaktiv gewähren",
-          "Permissions": {
-            "taskRead": "Tasks lesen",
-            "taskComment": "Tasks kommentieren",
-            "taskCreate": "Tasks erstellen",
-            "readAndComment": "Tasks lesen und kommentieren"
-          },
           "GrantForm": {
-            "vendorLabel": "Vendor",
+            "vendorLabel": "Anbieter",
             "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
             "submit": "Zugriff gewähren",
             "success": "Vendor-Zugriff gewährt",
@@ -3644,16 +3609,7 @@
             "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
-            "grantError": "Vendor-Zugriff konnte nicht gewährt werden",
-            "approveAll": "Alle genehmigen",
-            "denyAll": "Alle ablehnen",
-            "revokeAll": "Alle widerrufen",
-            "approveAllSuccess": "Alle Vendor-Berechtigungen genehmigt",
-            "denyAllSuccess": "Alle Vendor-Berechtigungen abgelehnt",
-            "revokeAllSuccess": "Alle Vendor-Berechtigungen widerrufen",
-            "approveAllError": "Vendor-Berechtigungen konnten nicht genehmigt werden",
-            "denyAllError": "Vendor-Berechtigungen konnten nicht abgelehnt werden",
-            "revokeAllError": "Vendor-Berechtigungen konnten nicht widerrufen werden"
+            "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
           }
         }
       }
@@ -4057,8 +4013,7 @@
   },
   "notifications": {
     "vendorGrant": {
-      "pending": "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
-      "pendingReadComment": "{vendorName} hat Lese- und Kommentarzugriff auf den Organisations-Workspace angefordert"
+      "pending": "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert"
     }
   }
 }

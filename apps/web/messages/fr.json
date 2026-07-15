@@ -3517,20 +3517,7 @@
         "statusGranted": "Accordé",
         "statusDenied": "Refusé",
         "statusRevoked": "Révoqué",
-        "statusNone": "Non accordé",
-        "bundledWithRead": "Inclus avec la lecture",
-        "coworkerPermissions": "Permissions du coworker",
-        "accessAllRevoked": "Toutes les permissions révoquées",
-        "accessAllDenied": "Toutes les permissions refusées",
-        "accessPending": "Demande d'accès en attente",
-        "approveWithComment": "Approuver lecture et commentaire",
         "grantFormTitle": "Accorder l’accès de façon proactive",
-        "Permissions": {
-          "taskRead": "Lire les tâches",
-          "taskComment": "Commenter les tâches",
-          "taskCreate": "Créer des tâches",
-          "readAndComment": "Lire et commenter les tâches"
-        },
         "GrantForm": {
           "vendorLabel": "Fournisseur",
           "workspaceAccessHint": "Accorde l’accès complet à l’espace de travail : lire, commenter et créer des tâches.",
@@ -3633,20 +3620,7 @@
           "statusGranted": "Accordé",
           "statusDenied": "Refusé",
           "statusRevoked": "Révoqué",
-          "statusNone": "Non accordé",
-          "bundledWithRead": "Inclus avec la lecture",
-          "coworkerPermissions": "Permissions du coworker",
-          "accessAllRevoked": "Toutes les permissions révoquées",
-          "accessAllDenied": "Toutes les permissions refusées",
-          "accessPending": "Demande d'accès en attente",
-          "approveWithComment": "Approuver lecture et commentaire",
           "grantFormTitle": "Accorder l’accès de manière proactive",
-          "Permissions": {
-            "taskRead": "Lire les tâches",
-            "taskComment": "Commenter les tâches",
-            "taskCreate": "Créer des tâches",
-            "readAndComment": "Lire et commenter les tâches"
-          },
           "GrantForm": {
             "vendorLabel": "Fournisseur",
             "workspaceAccessHint": "Accorde l’accès complet à l’espace de travail : lire, commenter et créer des tâches.",
@@ -4039,8 +4013,7 @@
   },
   "notifications": {
     "vendorGrant": {
-      "pending": "{vendorName} a demandé un accès fournisseur à l’espace de travail de l’organisation",
-      "pendingReadComment": "{vendorName} a demandé un accès lecture et commentaire à l’espace de travail de l’organisation"
+      "pending": "{vendorName} a demandé un accès fournisseur à l’espace de travail de l’organisation"
     }
   }
 }

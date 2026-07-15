@@ -3517,20 +3517,7 @@
         "statusGranted": "已授权",
         "statusDenied": "已拒绝",
         "statusRevoked": "已撤销",
-        "statusNone": "未授权",
-        "bundledWithRead": "已包含在读取中",
-        "coworkerPermissions": "协作者权限",
-        "accessAllRevoked": "所有权限已撤销",
-        "accessAllDenied": "所有权限已拒绝",
-        "accessPending": "访问请求待处理",
-        "approveWithComment": "批准读取与评论",
         "grantFormTitle": "主动授予访问权限",
-        "Permissions": {
-          "taskRead": "读取任务",
-          "taskComment": "评论任务",
-          "taskCreate": "创建任务",
-          "readAndComment": "读取并评论任务"
-        },
         "GrantForm": {
           "vendorLabel": "供应商",
           "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
@@ -3633,20 +3620,7 @@
           "statusGranted": "已授权",
           "statusDenied": "已拒绝",
           "statusRevoked": "已撤销",
-          "statusNone": "未授权",
-          "bundledWithRead": "已包含在读取中",
-          "coworkerPermissions": "协作者权限",
-          "accessAllRevoked": "所有权限已撤销",
-          "accessAllDenied": "所有权限已拒绝",
-          "accessPending": "访问请求待处理",
-          "approveWithComment": "批准读取与评论",
           "grantFormTitle": "主动授予访问权限",
-          "Permissions": {
-            "taskRead": "读取任务",
-            "taskComment": "评论任务",
-            "taskCreate": "创建任务",
-            "readAndComment": "读取并评论任务"
-          },
           "GrantForm": {
             "vendorLabel": "供应商",
             "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
@@ -4039,8 +4013,7 @@
   },
   "notifications": {
     "vendorGrant": {
-      "pending": "{vendorName} 请求访问组织工作区的供应商权限",
-      "pendingReadComment": "{vendorName} 请求访问组织工作区的读取和评论权限"
+      "pending": "{vendorName} 请求访问组织工作区的供应商权限"
     }
   }
 }

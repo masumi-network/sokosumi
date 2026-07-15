@@ -3517,20 +3517,7 @@
         "statusGranted": "Concessa",
         "statusDenied": "Negata",
         "statusRevoked": "Revocata",
-        "statusNone": "Non concessa",
-        "bundledWithRead": "Inclusa con la lettura",
-        "coworkerPermissions": "Permessi del coworker",
-        "accessAllRevoked": "Tutti i permessi revocati",
-        "accessAllDenied": "Tutti i permessi rifiutati",
-        "accessPending": "Richiesta di accesso in sospeso",
-        "approveWithComment": "Approva lettura e commento",
         "grantFormTitle": "Concedi accesso in modo proattivo",
-        "Permissions": {
-          "taskRead": "Leggi i task",
-          "taskComment": "Commenta i task",
-          "taskCreate": "Crea task",
-          "readAndComment": "Leggi e commenta i task"
-        },
         "GrantForm": {
           "vendorLabel": "Fornitore",
           "workspaceAccessHint": "Concede l’accesso completo al workspace: leggere, commentare e creare task.",
@@ -3633,22 +3620,9 @@
           "statusGranted": "Concessa",
           "statusDenied": "Negata",
           "statusRevoked": "Revocata",
-          "statusNone": "Non concessa",
-          "bundledWithRead": "Inclusa con la lettura",
-          "coworkerPermissions": "Permessi del coworker",
-          "accessAllRevoked": "Tutti i permessi revocati",
-          "accessAllDenied": "Tutti i permessi rifiutati",
-          "accessPending": "Richiesta di accesso in sospeso",
-          "approveWithComment": "Approva lettura e commento",
           "grantFormTitle": "Concedi accesso in modo proattivo",
-          "Permissions": {
-            "taskRead": "Leggere task",
-            "taskComment": "Commentare task",
-            "taskCreate": "Creare task",
-            "readAndComment": "Leggere e commentare task"
-          },
           "GrantForm": {
-            "vendorLabel": "Vendor",
+            "vendorLabel": "Fornitore",
             "workspaceAccessHint": "Concede l’accesso completo al workspace: leggere, commentare e creare task.",
             "submit": "Concedi accesso",
             "success": "Accesso vendor concesso",
@@ -4039,8 +4013,7 @@
   },
   "notifications": {
     "vendorGrant": {
-      "pending": "{vendorName} ha richiesto l’accesso vendor al workspace dell’organizzazione",
-      "pendingReadComment": "{vendorName} ha richiesto l’accesso in lettura e commento al workspace dell’organizzazione"
+      "pending": "{vendorName} ha richiesto l’accesso vendor al workspace dell’organizzazione"
     }
   }
 }
