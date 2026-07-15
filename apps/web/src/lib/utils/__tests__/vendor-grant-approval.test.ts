@@ -51,6 +51,24 @@ describe("vendor-grant-approval utils", () => {
 
     expect(
       canApproveVendorGrants({
+        organizationId: null,
+        isAuthenticated: true,
+        taskOwnerUserId: "user_owner",
+        sessionUserId: "user_owner",
+      }),
+    ).toBe(true);
+
+    expect(
+      canApproveVendorGrants({
+        organizationId: null,
+        isAuthenticated: true,
+        taskOwnerUserId: "user_owner",
+        sessionUserId: "user_other",
+      }),
+    ).toBe(false);
+
+    expect(
+      canApproveVendorGrants({
         organizationId: "org_1",
         isAuthenticated: true,
         viewerMembership: member("org_1", "owner", "acme"),

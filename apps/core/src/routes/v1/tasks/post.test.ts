@@ -521,6 +521,37 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
   });
 
+  it("still returns 201 when post-create grant notify fails", async () => {
+    requestWorkspaceGrantMock.mockResolvedValue({
+      grant: {
+        id: CREATE_GRANT_ID,
+        status: VendorGrantStatus.PENDING,
+      },
+      created: true,
+    });
+    notifyWorkspaceApproversOfPendingGrantMock.mockRejectedValue(
+      new Error("notify down"),
+    );
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Parked Task",
+          description: null,
+          coworkerId: null,
+          status: TaskStatus.DRAFT,
+          origin: TaskEventOrigin.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalled();
+  });
+
   it("creates unparked when requestWorkspaceGrant already returns GRANTED", async () => {
     // Route-level mock: covers the in-tx branch where the locked grant is already
     // GRANTED (approve won before park). Concurrent lock/heal coverage lives in

@@ -292,15 +292,17 @@ async function TaskVendorGrantApprovalBannerSlot({
   ]);
   const orgId = task.workspace.organizationId ?? null;
   const viewerMembership = resolveViewerOrganizationMembership(orgId, members);
-  const canApprove = canApproveVendorGrants({
-    organizationId: orgId,
-    isAuthenticated: Boolean(session?.user.id),
-    viewerMembership,
-  });
-
   if (!session?.user.id) {
     return null;
   }
+
+  const canApprove = canApproveVendorGrants({
+    organizationId: orgId,
+    isAuthenticated: true,
+    viewerMembership,
+    taskOwnerUserId: task.userId,
+    sessionUserId: session.user.id,
+  });
 
   if (!canApprove) {
     return (

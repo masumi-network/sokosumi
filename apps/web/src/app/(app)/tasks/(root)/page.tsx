@@ -179,13 +179,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         }),
       ),
       session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+      // Workspace-wide parked count (not board filters). Pending grants banner
+      // is workspace-scoped; undercounting under coworker/project filters misleads.
       taskService.listTasks({
-        // Parked creates keep requested status (DRAFT or READY).
         status: [TaskStatus.DRAFT, TaskStatus.READY],
         pendingApproval: true,
-        scope: activeFilters.scope,
-        coworkerId: activeFilters.coworkerId ?? undefined,
-        projectId: activeFilters.projectId ?? undefined,
+        scope: "workspace",
         limit: 1,
       }),
     ]);

@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { TaskEventOrigin, VendorGrantStatus } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
@@ -265,11 +266,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     if (createdPendingGrant) {
-      await notifyWorkspaceApproversOfPendingGrant({
-        vendorId: createdPendingGrant.vendorId,
-        workspaceId: createdPendingGrant.workspaceId,
-        grantId: createdPendingGrant.grantId,
-      });
+      // Notify after commit so a notification failure cannot roll back the
+      // parked task. Retry with the same PENDING grant has created:false and
+      // would not re-notify — never fail the create after the task exists.
+      try {
+        await notifyWorkspaceApproversOfPendingGrant({
+          vendorId: createdPendingGrant.vendorId,
+          workspaceId: createdPendingGrant.workspaceId,
+          grantId: createdPendingGrant.grantId,
+        });
+      } catch (error) {
+        console.error(
+          "Failed to notify approvers of pending vendor grant after task create",
+          error,
+        );
+        Sentry.captureException(error, {
+          extra: {
+            grantId: createdPendingGrant.grantId,
+            vendorId: createdPendingGrant.vendorId,
+            workspaceId: createdPendingGrant.workspaceId,
+            errorType: "vendor-grant-notify-after-create",
+          },
+        });
+      }
     }
 
     return created(c, taskSchema.parse(mapTask(task)));
