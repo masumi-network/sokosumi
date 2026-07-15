@@ -21,10 +21,9 @@ import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import { resolveTaskName } from "@/helpers/task-name";
 import {
   isGrantDeniedOrRevoked,
-  lockAndGetVendorGrantById,
   notifyWorkspaceApproversOfPendingGrant,
   parseGrantResumeStatus,
-  requestWorkspaceGrantCommitted,
+  requestWorkspaceGrant,
   throwGrantAccessError,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -230,30 +229,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    await assertTaskProjectInWorkspace(
-      body.projectId,
-      workspaceContext.workspaceId,
-    );
-
-    const { grant } = await requestWorkspaceGrantCommitted({
-      vendorId: authContext.vendorId,
-      workspaceId: workspaceContext.workspaceId,
-      requestedByUserId: userContext.userId,
-      notify: false,
-    });
-
-    if (isGrantDeniedOrRevoked(grant.status)) {
-      throwGrantAccessError(grant.status);
-    }
-
     const task = await prisma.$transaction(async (tx) => {
-      const lockedGrant = await lockAndGetVendorGrantById(grant.id, tx);
+      await assertTaskProjectInWorkspace(
+        body.projectId,
+        workspaceContext.workspaceId,
+        tx,
+      );
 
-      if (isGrantDeniedOrRevoked(lockedGrant.status)) {
-        throwGrantAccessError(lockedGrant.status);
+      const { grant } = await requestWorkspaceGrant(
+        {
+          vendorId: authContext.vendorId,
+          workspaceId: workspaceContext.workspaceId,
+          requestedByUserId: userContext.userId,
+          notify: false,
+        },
+        tx,
+      );
+
+      if (isGrantDeniedOrRevoked(grant.status)) {
+        throwGrantAccessError(grant.status);
       }
 
-      if (lockedGrant.status === VendorGrantStatus.GRANTED) {
+      if (grant.status === VendorGrantStatus.GRANTED) {
         return createTaskRecord(
           {
             userId: userContext.userId,
@@ -273,7 +270,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: workspaceContext.workspaceId,
           body,
           resolvedName,
-          pendingVendorGrantId: lockedGrant.id,
+          pendingVendorGrantId: grant.id,
           grantResumeStatus: parseGrantResumeStatus(body.status),
         },
         tx,

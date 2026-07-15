@@ -16,8 +16,7 @@ const {
   notifyWorkspaceApproversOfPendingGrantMock,
   projectFindFirstMock,
   prismaTransactionMock,
-  requestWorkspaceGrantCommittedMock,
-  lockAndGetVendorGrantByIdMock,
+  requestWorkspaceGrantMock,
   requireTaskAssignableCoworkerMock,
   taskCreateMock,
   workspaceFindUniqueMock,
@@ -28,8 +27,7 @@ const {
   notifyWorkspaceApproversOfPendingGrantMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requestWorkspaceGrantCommittedMock: vi.fn(),
-  lockAndGetVendorGrantByIdMock: vi.fn(),
+  requestWorkspaceGrantMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   taskCreateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -109,8 +107,7 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
   return {
     ...actual,
     getWorkspaceGrant: getWorkspaceGrantMock,
-    requestWorkspaceGrantCommitted: requestWorkspaceGrantCommittedMock,
-    lockAndGetVendorGrantById: lockAndGetVendorGrantByIdMock,
+    requestWorkspaceGrant: requestWorkspaceGrantMock,
     notifyWorkspaceApproversOfPendingGrant:
       notifyWorkspaceApproversOfPendingGrantMock,
   };
@@ -143,7 +140,7 @@ vi.mock("@/clients/openrouter.client", () => ({
 
 const CREATE_GRANT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 
-function mockCommittedWorkspaceGrant(
+function mockWorkspaceGrantInTransaction(
   status: VendorGrantStatus,
   created = false,
 ) {
@@ -151,8 +148,7 @@ function mockCommittedWorkspaceGrant(
     id: CREATE_GRANT_ID,
     status,
   };
-  requestWorkspaceGrantCommittedMock.mockResolvedValue({ grant, created });
-  lockAndGetVendorGrantByIdMock.mockResolvedValue(grant);
+  requestWorkspaceGrantMock.mockResolvedValue({ grant, created });
 }
 
 describe("createTaskRequestSchema", () => {
@@ -511,7 +507,7 @@ describe("POST /tasks delegated coworker create grant", () => {
 
   it("parks create with pendingVendorGrantId when workspace access is missing", async () => {
     getWorkspaceGrantMock.mockResolvedValue(null);
-    mockCommittedWorkspaceGrant(VendorGrantStatus.PENDING, true);
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     notifyWorkspaceApproversOfPendingGrantMock.mockResolvedValue(undefined);
 
     const response = await createDelegatedCoworkerApp().request(
@@ -530,11 +526,8 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(requestWorkspaceGrantCommittedMock).toHaveBeenCalledWith(
+    expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({ notify: false }),
-    );
-    expect(lockAndGetVendorGrantByIdMock).toHaveBeenCalledWith(
-      CREATE_GRANT_ID,
       expect.anything(),
     );
     expect(notifyWorkspaceApproversOfPendingGrantMock).toHaveBeenCalled();
@@ -550,7 +543,7 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("still returns 201 when post-create grant notify fails", async () => {
-    mockCommittedWorkspaceGrant(VendorGrantStatus.PENDING, true);
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     notifyWorkspaceApproversOfPendingGrantMock.mockRejectedValue(
       new Error("notify down"),
     );
@@ -575,7 +568,7 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("notifies approvers when parking against an existing pending grant", async () => {
-    mockCommittedWorkspaceGrant(VendorGrantStatus.PENDING, false);
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, false);
     notifyWorkspaceApproversOfPendingGrantMock.mockResolvedValue(undefined);
 
     const response = await createDelegatedCoworkerApp().request(
@@ -601,7 +594,7 @@ describe("POST /tasks delegated coworker create grant", () => {
 
   it("creates unparked when requestWorkspaceGrant already returns GRANTED", async () => {
     getWorkspaceGrantMock.mockResolvedValue(null);
-    mockCommittedWorkspaceGrant(VendorGrantStatus.GRANTED, false);
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.GRANTED, false);
 
     const response = await createDelegatedCoworkerApp().request(
       "http://localhost/",
@@ -631,7 +624,7 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("creates normally when workspace access is GRANTED", async () => {
-    mockCommittedWorkspaceGrant(VendorGrantStatus.GRANTED, false);
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.GRANTED, false);
 
     const response = await createDelegatedCoworkerApp().request(
       "http://localhost/",
@@ -649,7 +642,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(requestWorkspaceGrantCommittedMock).toHaveBeenCalled();
+    expect(requestWorkspaceGrantMock).toHaveBeenCalled();
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -661,7 +654,7 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("rejects create when workspace access was DENIED", async () => {
-    mockCommittedWorkspaceGrant(VendorGrantStatus.DENIED, false);
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.DENIED, false);
 
     const response = await createDelegatedCoworkerApp().request(
       "http://localhost/",
@@ -679,8 +672,8 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(requestWorkspaceGrantMock).toHaveBeenCalled();
     expect(taskCreateMock).not.toHaveBeenCalled();
-    expect(lockAndGetVendorGrantByIdMock).not.toHaveBeenCalled();
   });
 
   it("rejects delegated create with invalid projectId before requesting grant", async () => {
@@ -711,14 +704,14 @@ describe("POST /tasks delegated coworker create grant", () => {
       },
       select: { id: true },
     });
-    expect(requestWorkspaceGrantCommittedMock).not.toHaveBeenCalled();
+    expect(requestWorkspaceGrantMock).not.toHaveBeenCalled();
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("parks create in personal workspaces when workspace grant is missing", async () => {
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
     getWorkspaceGrantMock.mockResolvedValue(null);
-    mockCommittedWorkspaceGrant(VendorGrantStatus.PENDING, true);
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     notifyWorkspaceApproversOfPendingGrantMock.mockResolvedValue(undefined);
 
     const response = await createDelegatedCoworkerApp().request(
@@ -737,11 +730,12 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(requestWorkspaceGrantCommittedMock).toHaveBeenCalledWith(
+    expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "11111111-1111-7111-8111-111111111111",
         notify: false,
       }),
+      expect.anything(),
     );
     expect(taskCreateMock).toHaveBeenCalled();
   });

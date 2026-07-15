@@ -14,7 +14,16 @@ function isPrismaUniqueConstraintError(error: unknown): boolean {
   );
 }
 
+const serviceplanGrantCheckedWorkspaceIds = new Set<string>();
+
+function markServiceplanGrantChecked(workspaceId: string): void {
+  serviceplanGrantCheckedWorkspaceIds.add(workspaceId);
+}
+
 export const vendorGrantRepository = {
+  clearServiceplanGrantWorkspaceCacheForTests(): void {
+    serviceplanGrantCheckedWorkspaceIds.clear();
+  },
   /**
    * Grants Serviceplan workspace access when a workspace is first created.
    * Skips when a grant row already exists so user denials/revocations are preserved.
@@ -28,6 +37,10 @@ export const vendorGrantRepository = {
     resolvedByUserId: string | null;
     tx: Prisma.TransactionClient;
   }): Promise<void> {
+    if (serviceplanGrantCheckedWorkspaceIds.has(workspaceId)) {
+      return;
+    }
+
     const existingGrant = await tx.vendorGrant.findUnique({
       where: {
         vendorId_workspaceId: {
@@ -39,6 +52,7 @@ export const vendorGrantRepository = {
     });
 
     if (existingGrant) {
+      markServiceplanGrantChecked(workspaceId);
       return;
     }
 
@@ -64,8 +78,10 @@ export const vendorGrantRepository = {
           resolvedById: resolvedByUserId,
         },
       });
+      markServiceplanGrantChecked(workspaceId);
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
+        markServiceplanGrantChecked(workspaceId);
         return;
       }
 

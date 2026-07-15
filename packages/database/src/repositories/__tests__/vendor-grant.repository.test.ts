@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { describe, it } from "vitest";
+import { beforeEach, describe, it } from "vitest";
 
 import { SERVICEPLAN_VENDOR_ID } from "../../constants/vendor.js";
 import {
@@ -11,6 +11,10 @@ import {
 import { vendorGrantRepository } from "../vendor-grant.repository.js";
 
 describe("vendorGrantRepository", () => {
+  beforeEach(() => {
+    vendorGrantRepository.clearServiceplanGrantWorkspaceCacheForTests();
+  });
+
   it("creates a granted Serviceplan workspace grant on first create", async () => {
     let createCall: unknown;
 
@@ -100,6 +104,39 @@ describe("vendorGrantRepository", () => {
     });
 
     assert.equal(createCalls, 0);
+  });
+
+  it("skips duplicate in-process grant lookups for the same workspace", async () => {
+    let findUniqueCalls = 0;
+    const tx = {
+      vendorGrant: {
+        findUnique: async () => {
+          findUniqueCalls += 1;
+          return { id: "grant-1" };
+        },
+        create: async () => {
+          throw new Error("create should not be called");
+        },
+      },
+      vendor: {
+        findUnique: async () => {
+          throw new Error("vendor lookup should not be called");
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+      workspaceId: "workspace-1",
+      resolvedByUserId: "user-1",
+      tx,
+    });
+    await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+      workspaceId: "workspace-1",
+      resolvedByUserId: "user-1",
+      tx,
+    });
+
+    assert.equal(findUniqueCalls, 1);
   });
 
   it("skips when the Serviceplan vendor seed is missing", async () => {
