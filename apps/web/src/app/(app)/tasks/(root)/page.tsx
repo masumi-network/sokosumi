@@ -152,6 +152,10 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         ? jobsListFilters.projectId
         : null,
   };
+  const shouldCountGrantPendingTasks =
+    activeFilters.status == null ||
+    activeFilters.status === TaskStatus.GRANT_PENDING;
+
   const [jobsPage, columnPages, initialDesignMdAttachment, parkedTasksPage] =
     await Promise.all([
       taskService.listJobs({
@@ -179,14 +183,15 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         }),
       ),
       session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
-      taskService.listTasks({
-        status: TaskStatus.GRANT_PENDING,
-        scope: activeFilters.scope,
-        coworkerId: activeFilters.coworkerId ?? undefined,
-        projectId: activeFilters.projectId ?? undefined,
-        status: activeFilters.status ?? undefined,
-        limit: 1,
-      }),
+      shouldCountGrantPendingTasks
+        ? taskService.listTasks({
+            status: TaskStatus.GRANT_PENDING,
+            scope: activeFilters.scope,
+            coworkerId: activeFilters.coworkerId ?? undefined,
+            projectId: activeFilters.projectId ?? undefined,
+            limit: 1,
+          })
+        : Promise.resolve({ tasks: [], pagination: null }),
     ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
   const columnNextCursorById = Object.fromEntries(

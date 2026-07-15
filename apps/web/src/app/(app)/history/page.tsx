@@ -73,6 +73,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
     [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
     [TaskStatus.READY]: t("Filters.statusOptions.READY"),
+    [TaskStatus.GRANT_PENDING]: t("Filters.statusOptions.GRANT_PENDING"),
     [TaskStatus.INPUT_REQUIRED]: t("Filters.statusOptions.INPUT_REQUIRED"),
     [TaskStatus.APPROVAL_REQUIRED]: t(
       "Filters.statusOptions.APPROVAL_REQUIRED",

@@ -1942,6 +1942,7 @@ export function createCoreClient(getClient: GetClient) {
         | "DRAFT"
         | "QUEUED"
         | "READY"
+        | "GRANT_PENDING"
         | "INPUT_REQUIRED"
         | "APPROVAL_REQUIRED"
         | "AUTHENTICATION_REQUIRED"
