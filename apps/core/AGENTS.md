@@ -686,6 +686,20 @@ Environment variables required by Vitest (or by code under test) must be set in 
 - [Data Access](.cursor/rules/data-access.mdc) – direct Prisma, no repository pattern
 - [Responses](.cursor/rules/responses.mdc)
 
+## Coworker integrators
+
+Vendor workspace grants gate coworker access beyond assignee/vendor-sibling
+baseline. **`GRANT_PENDING`** parks delegated creates until a human approves.
+
+**Read first:** [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/vendor-workspace-grants-api.md)
+
+Key implementation files:
+
+- `src/helpers/vendor-grants.ts` — grant request, unpark, error kinds
+- `src/helpers/access-control.ts` — coworker read/collaboration/comment gates
+- `src/routes/v1/tasks/*` — list, create, mutations
+- `src/schemas/task.schema.ts` — OpenAPI task fields (`grantResumeStatus`, `pendingVendorGrantId`)
+
 ## References
 
 - [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines

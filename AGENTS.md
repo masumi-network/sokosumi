@@ -318,6 +318,8 @@ Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Ca
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). See [`docs/agents/domain.md`](./docs/agents/domain.md).
 
+**Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds.
+
 ## Additional Rules
 
 - [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
