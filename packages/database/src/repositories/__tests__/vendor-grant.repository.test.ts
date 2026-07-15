@@ -72,6 +72,36 @@ describe("vendorGrantRepository", () => {
     });
   });
 
+  it("skips when a revoked grant row already exists", async () => {
+    let createCalls = 0;
+    const tx = {
+      vendorGrant: {
+        findUnique: async () => ({
+          id: "grant-revoked",
+          status: VendorGrantStatus.REVOKED,
+          permission: VendorPermission.workspace,
+        }),
+        create: async () => {
+          createCalls += 1;
+          return { id: "grant-new" };
+        },
+      },
+      vendor: {
+        findUnique: async () => {
+          throw new Error("vendor lookup should not be called");
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+      workspaceId: "workspace-1",
+      resolvedByUserId: "user-1",
+      tx,
+    });
+
+    assert.equal(createCalls, 0);
+  });
+
   it("skips when the Serviceplan vendor seed is missing", async () => {
     const tx = {
       vendorGrant: {

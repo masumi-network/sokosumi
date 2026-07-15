@@ -64,7 +64,7 @@ BEGIN
     "grantResumeStatus" = NULL,
     "updatedAt" = CURRENT_TIMESTAMP
   WHERE "pendingVendorGrantId" = OLD."id"
-    AND "status" = 'GRANT_PENDING'::"TaskStatus"
+    AND "status"::text = 'GRANT_PENDING'
     AND "archivedAt" IS NULL;
 
   RETURN OLD;

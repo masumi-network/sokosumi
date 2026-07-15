@@ -133,9 +133,11 @@ async function ensureWorkspaceForCreatedUser(user: {
   name: string;
 }): Promise<void> {
   try {
-    await workspaceRepository.upsertPersonalWorkspace({
-      userId: user.id,
-      tx: prisma,
+    await prisma.$transaction(async (tx) => {
+      await workspaceRepository.upsertPersonalWorkspace({
+        userId: user.id,
+        tx,
+      });
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -156,9 +158,11 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
   name: string;
 }): Promise<void> {
   try {
-    await workspaceRepository.upsertOrganizationWorkspace({
-      organizationId: organization.id,
-      tx: prisma,
+    await prisma.$transaction(async (tx) => {
+      await workspaceRepository.upsertOrganizationWorkspace({
+        organizationId: organization.id,
+        tx,
+      });
     });
   } catch (error) {
     Sentry.captureException(error, {

@@ -11,6 +11,18 @@ function isPrismaUniqueConstraintError(error: unknown): boolean {
   );
 }
 
+async function ensureServiceplanGrantForWorkspace(
+  workspace: Workspace,
+  resolvedByUserId: string | null,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+    workspaceId: workspace.id,
+    resolvedByUserId,
+    tx,
+  });
+}
+
 export const workspaceRepository = {
   async findPersonalWorkspace({
     userId,
@@ -33,6 +45,7 @@ export const workspaceRepository = {
   }): Promise<Workspace> {
     const existingWorkspace = await this.findPersonalWorkspace({ userId, tx });
     if (existingWorkspace) {
+      await ensureServiceplanGrantForWorkspace(existingWorkspace, userId, tx);
       return existingWorkspace;
     }
 
@@ -41,17 +54,14 @@ export const workspaceRepository = {
         data: { userId },
       });
 
-      await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
-        workspaceId: workspace.id,
-        resolvedByUserId: userId,
-        tx,
-      });
+      await ensureServiceplanGrantForWorkspace(workspace, userId, tx);
 
       return workspace;
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
         const racedWorkspace = await this.findPersonalWorkspace({ userId, tx });
         if (racedWorkspace) {
+          await ensureServiceplanGrantForWorkspace(racedWorkspace, userId, tx);
           return racedWorkspace;
         }
       }
@@ -84,6 +94,7 @@ export const workspaceRepository = {
       tx,
     });
     if (existingWorkspace) {
+      await ensureServiceplanGrantForWorkspace(existingWorkspace, null, tx);
       return existingWorkspace;
     }
 
@@ -92,11 +103,7 @@ export const workspaceRepository = {
         data: { organizationId },
       });
 
-      await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
-        workspaceId: workspace.id,
-        resolvedByUserId: null,
-        tx,
-      });
+      await ensureServiceplanGrantForWorkspace(workspace, null, tx);
 
       return workspace;
     } catch (error) {
@@ -106,6 +113,7 @@ export const workspaceRepository = {
           tx,
         });
         if (racedWorkspace) {
+          await ensureServiceplanGrantForWorkspace(racedWorkspace, null, tx);
           return racedWorkspace;
         }
       }

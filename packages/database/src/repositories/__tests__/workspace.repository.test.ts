@@ -8,6 +8,7 @@ import { workspaceRepository } from "../workspace.repository.js";
 describe("workspaceRepository", () => {
   it("returns the existing personal workspace when resolving a personal context", async () => {
     let findUniqueCall: unknown;
+    let grantFindUniqueCall: unknown;
     const tx = {
       workspace: {
         findUnique: async (args: unknown) => {
@@ -24,6 +25,18 @@ describe("workspaceRepository", () => {
           throw new Error("create should not be called");
         },
       },
+      vendorGrant: {
+        findUnique: async (args: unknown) => {
+          grantFindUniqueCall = args;
+          return null;
+        },
+        create: async () => ({ id: "grant-1" }),
+      },
+      vendor: {
+        findUnique: async () => ({
+          id: "01960001-0001-7001-8001-000000000001",
+        }),
+      },
     } as unknown as Prisma.TransactionClient;
 
     const workspace = await workspaceRepository.upsertWorkspaceForContext(
@@ -35,6 +48,15 @@ describe("workspaceRepository", () => {
     assert.equal(workspace.id, "workspace-user-1");
     assert.deepEqual(findUniqueCall, {
       where: { userId: "user-1" },
+    });
+    assert.deepEqual(grantFindUniqueCall, {
+      where: {
+        vendorId_workspaceId: {
+          vendorId: "01960001-0001-7001-8001-000000000001",
+          workspaceId: "workspace-user-1",
+        },
+      },
+      select: { id: true },
     });
   });
 
@@ -101,6 +123,7 @@ describe("workspaceRepository", () => {
 
   it("re-reads the personal workspace after a unique race on create", async () => {
     let findUniqueCalls = 0;
+    let grantFindUniqueCalls = 0;
     const tx = {
       workspace: {
         findUnique: async () => {
@@ -123,6 +146,18 @@ describe("workspaceRepository", () => {
           });
         },
       },
+      vendorGrant: {
+        findUnique: async () => {
+          grantFindUniqueCalls += 1;
+          return null;
+        },
+        create: async () => ({ id: "grant-1" }),
+      },
+      vendor: {
+        findUnique: async () => ({
+          id: "01960001-0001-7001-8001-000000000001",
+        }),
+      },
     } as unknown as Prisma.TransactionClient;
 
     const workspace = await workspaceRepository.upsertWorkspaceForContext(
@@ -133,5 +168,6 @@ describe("workspaceRepository", () => {
 
     assert.equal(workspace.id, "workspace-user-1");
     assert.equal(findUniqueCalls, 2);
+    assert.equal(grantFindUniqueCalls, 1);
   });
 });
