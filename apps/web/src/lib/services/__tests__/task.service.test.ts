@@ -86,6 +86,9 @@ describe("task.service", () => {
       q: "alpha",
       cursor: "task-1",
       limit: 20,
+      projectId: undefined,
+      scope: undefined,
+      sort: undefined,
     });
     expect(result).toEqual({
       tasks: [buildTask()],
@@ -150,6 +153,40 @@ describe("task.service", () => {
       q: undefined,
       cursor: undefined,
       limit: 20,
+      projectId: undefined,
+      scope: undefined,
+      sort: undefined,
+    });
+  });
+
+  it("forwards input-required column statuses to the core client", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [buildTask()],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 10,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { taskService } = await import("../task.service");
+    await taskService.listTasks({
+      status: [TaskStatus.GRANT_PENDING, TaskStatus.INPUT_REQUIRED],
+      limit: 10,
+    });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      status: [TaskStatus.GRANT_PENDING, TaskStatus.INPUT_REQUIRED],
+      coworkerId: undefined,
+      q: undefined,
+      scope: undefined,
+      cursor: undefined,
+      limit: 10,
+      projectId: undefined,
+      sort: undefined,
     });
   });
 
@@ -242,6 +279,8 @@ describe("task.service", () => {
       scope: "owned",
       cursor: undefined,
       limit: 20,
+      projectId: undefined,
+      sort: undefined,
     });
   });
 

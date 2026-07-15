@@ -235,7 +235,7 @@ export type CreateFreeCreditGrant = {
 export type AdminTaskListItem = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     createdAt: Date;
     user: {
         id: string;
@@ -276,7 +276,18 @@ export type Task = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * GRANT_PENDING: blocked until vendor workspace access is granted.
+     */
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.
+     */
+    grantResumeStatus: 'DRAFT' | 'READY' | null;
+    /**
+     * Vendor grant blocking this task. Set only while status is GRANT_PENDING.
+     */
+    pendingVendorGrantId: string | null;
     /**
      * Serialized task schedule metadata JSON
      */
@@ -341,7 +352,7 @@ export type TaskEvent = {
     comment?: string | null;
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
 };
 
 export type JobSummary = {
@@ -415,7 +426,7 @@ export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRela
 export type TaskLinkPeerTask = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     archivedAt: Date | null;
 };
 
@@ -1541,7 +1552,7 @@ export type HistoryTaskItem = {
      */
     owner: HistoryOwner | null;
     kind: 'task';
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
      * Project ID for the task, when assigned
      */
@@ -1922,6 +1933,21 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type VendorGrant = {
+    id: string;
+    vendorId: string;
+    vendorName: string;
+    vendorSlug: string;
+    workspaceId: string;
+    permission: 'workspace';
+    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+    requestedByUserId: string | null;
+    resolvedAt: Date | null;
+    resolvedById: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 export type StripeCustomer = {
     /**
      * Stripe customer id
@@ -2154,7 +2180,7 @@ export type ProjectStatsEntry = {
 
 export type ProjectTaskStatusCount = {
     count: number;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
 };
 
 export type ProjectJobStatusCount = {
@@ -2445,7 +2471,7 @@ export type PublicSharedTask = {
     updatedAt: Date;
     name: string;
     description?: string | null;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     coworker?: PublicSharedTaskCoworker;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
@@ -2473,7 +2499,7 @@ export type PublicSharedTaskMilestone = {
     createdAt: Date;
     updatedAt: Date;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
     comment: string | null;
     credits: number | null;
     actorName: string | null;
@@ -2599,7 +2625,18 @@ export type TaskListItem = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * GRANT_PENDING: blocked until vendor workspace access is granted.
+     */
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.
+     */
+    grantResumeStatus: 'DRAFT' | 'READY' | null;
+    /**
+     * Vendor grant blocking this task. Set only while status is GRANT_PENDING.
+     */
+    pendingVendorGrantId: string | null;
     /**
      * Serialized task schedule metadata JSON
      */
@@ -14609,6 +14646,462 @@ export type PostUsersByIdUtmAttributionResponses = {
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
 
+export type GetUsersByIdVendorGrantsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: {
+        status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+        vendorId?: string;
+    };
+    url: '/users/{id}/vendor-grants';
+};
+
+export type GetUsersByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdVendorGrantsError = GetUsersByIdVendorGrantsErrors[keyof GetUsersByIdVendorGrantsErrors];
+
+export type GetUsersByIdVendorGrantsResponses = {
+    /**
+     * List vendor grants
+     */
+    200: {
+        data: Array<VendorGrant>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdVendorGrantsResponse = GetUsersByIdVendorGrantsResponses[keyof GetUsersByIdVendorGrantsResponses];
+
+export type PostUsersByIdVendorGrantsData = {
+    body?: {
+        vendorId: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants';
+};
+
+export type PostUsersByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsError = PostUsersByIdVendorGrantsErrors[keyof PostUsersByIdVendorGrantsErrors];
+
+export type PostUsersByIdVendorGrantsResponses = {
+    /**
+     * Grant created or upgraded
+     */
+    201: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsResponse = PostUsersByIdVendorGrantsResponses[keyof PostUsersByIdVendorGrantsResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/approve';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveError = PostUsersByIdVendorGrantsByGrantIdApproveErrors[keyof PostUsersByIdVendorGrantsByGrantIdApproveErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveResponses = {
+    /**
+     * Grant approved
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveResponse = PostUsersByIdVendorGrantsByGrantIdApproveResponses[keyof PostUsersByIdVendorGrantsByGrantIdApproveResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/deny';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyError = PostUsersByIdVendorGrantsByGrantIdDenyErrors[keyof PostUsersByIdVendorGrantsByGrantIdDenyErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyResponses = {
+    /**
+     * Grant denied
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyResponse = PostUsersByIdVendorGrantsByGrantIdDenyResponses[keyof PostUsersByIdVendorGrantsByGrantIdDenyResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/revoke';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeError = PostUsersByIdVendorGrantsByGrantIdRevokeErrors[keyof PostUsersByIdVendorGrantsByGrantIdRevokeErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeResponses = {
+    /**
+     * Grant revoked
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeResponse = PostUsersByIdVendorGrantsByGrantIdRevokeResponses[keyof PostUsersByIdVendorGrantsByGrantIdRevokeResponses];
+
 export type GetUsersByIdStripeCustomerData = {
     body?: never;
     headers?: {
@@ -15665,6 +16158,448 @@ export type GetOrganizationsByIdInvitationsResponses = {
 };
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
+
+export type GetOrganizationsByIdVendorGrantsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: {
+        status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+        vendorId?: string;
+    };
+    url: '/organizations/{id}/vendor-grants';
+};
+
+export type GetOrganizationsByIdVendorGrantsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdVendorGrantsError = GetOrganizationsByIdVendorGrantsErrors[keyof GetOrganizationsByIdVendorGrantsErrors];
+
+export type GetOrganizationsByIdVendorGrantsResponses = {
+    /**
+     * List vendor grants
+     */
+    200: {
+        data: Array<VendorGrant>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdVendorGrantsResponse = GetOrganizationsByIdVendorGrantsResponses[keyof GetOrganizationsByIdVendorGrantsResponses];
+
+export type PostOrganizationsByIdVendorGrantsData = {
+    body?: {
+        vendorId: string;
+    };
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants';
+};
+
+export type PostOrganizationsByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsError = PostOrganizationsByIdVendorGrantsErrors[keyof PostOrganizationsByIdVendorGrantsErrors];
+
+export type PostOrganizationsByIdVendorGrantsResponses = {
+    /**
+     * Grant created or upgraded
+     */
+    201: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsResponse = PostOrganizationsByIdVendorGrantsResponses[keyof PostOrganizationsByIdVendorGrantsResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/approve';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveError = PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses = {
+    /**
+     * Grant approved
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveResponse = PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyData = {
+    body?: never;
+    path: {
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/deny';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyError = PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses = {
+    /**
+     * Grant denied
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyResponse = PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/revoke';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeError = PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses = {
+    /**
+     * Grant revoked
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponse = PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses];
 
 export type GetOrganizationsByIdSeatSummaryData = {
     body?: never;
@@ -20257,7 +21192,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
+        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -20410,7 +21345,7 @@ export type PostTasksErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden. Delegated coworker create may return kind `grant_denied` / `grant_revoked` when vendor create access was denied.
      */
     403: {
         error: string;
@@ -20824,6 +21759,20 @@ export type DeleteTasksByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -21585,7 +22534,7 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
         comment?: string;
         authenticationUrl?: string;
         /**
@@ -23024,6 +23973,62 @@ export type GetSubscriptionCatalogResponses = {
 };
 
 export type GetSubscriptionCatalogResponse = GetSubscriptionCatalogResponses[keyof GetSubscriptionCatalogResponses];
+
+export type ListVendorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/vendors';
+};
+
+export type ListVendorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListVendorsError = ListVendorsErrors[keyof ListVendorsErrors];
+
+export type ListVendorsResponses = {
+    /**
+     * List of vendors
+     */
+    200: {
+        data: VendorList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListVendorsResponse = ListVendorsResponses[keyof ListVendorsResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;

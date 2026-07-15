@@ -1209,6 +1209,7 @@
           "DRAFT": "Brouillon",
           "QUEUED": "En file d'attente",
           "READY": "Prêt",
+          "GRANT_PENDING": "Approbation en attente",
           "INPUT_REQUIRED": "Saisie requise",
           "APPROVAL_REQUIRED": "Approbation requise",
           "AUTHENTICATION_REQUIRED": "Authentification requise",
@@ -1414,6 +1415,19 @@
         "inputRequired": "Saisie requise",
         "done": "Terminé"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Approbation d'accès fournisseur requise",
+        "descriptionOne": "{vendorName} a besoin d'un accès pour travailler avec les tâches dans cet espace de travail.",
+        "descriptionMany": "{count} fournisseurs ont besoin d'un accès pour travailler avec les tâches dans cet espace de travail.",
+        "descriptionMember": "Un coworker a demandé un accès fournisseur. Un propriétaire ou administrateur de l'espace de travail doit l'approuver.",
+        "descriptionMemberMany": "{count} fournisseurs ont demandé un accès. Un propriétaire ou administrateur de l'espace de travail doit l'approuver.",
+        "parkedTasksHint": "{count, plural, one {# tâche est bloquée} other {# tâches sont bloquées}} jusqu'à l'approbation de l'accès.",
+        "approve": "Approuver l'accès",
+        "review": "Voir les détails",
+        "approveSuccess": "Accès fournisseur approuvé.",
+        "approveError": "Échec de l'approbation de l'accès fournisseur",
+        "approvePartialError": "{approved} fournisseurs approuvés sur {total}. Certaines approbations ont échoué — actualisez et réessayez."
+      },
       "Actions": {
         "add": "Ajouter",
         "addTask": "Ajouter une tâche",
@@ -1470,6 +1484,7 @@
           "DRAFT": "Brouillon",
           "QUEUED": "En file d'attente",
           "READY": "Prêt",
+          "GRANT_PENDING": "Approbation en attente",
           "INPUT_REQUIRED": "Saisie requise",
           "APPROVAL_REQUIRED": "Approbation requise",
           "AUTHENTICATION_REQUIRED": "Authentification requise",
@@ -1652,7 +1667,25 @@
           "switchError": "Échec du changement d’espace de travail. Veuillez réessayer."
         },
         "clonedFrom": "Clonée depuis {name}",
-        "schedule": "Planification"
+        "schedule": "Planification",
+        "pendingApproval": "Approbation en attente",
+        "VendorGrantApproval": {
+          "title": "Approbation d'accès fournisseur requise",
+          "description": "Un coworker a créé cette tâche mais n'a pas encore l'autorisation de créer des tâches dans cet espace de travail. Approuvez l'accès fournisseur pour l'activer.",
+          "descriptionWithCoworker": "{coworkerName} a créé cette tâche mais n'a pas encore l'autorisation de créer des tâches dans cet espace de travail. Approuvez l'accès fournisseur pour l'activer.",
+          "approve": "Approuver l'accès",
+          "deny": "Refuser l'accès",
+          "review": "Voir les détails",
+          "approveSuccess": "Accès fournisseur approuvé. Cette tâche est maintenant active.",
+          "denySuccess": "Accès fournisseur refusé. Cette tâche a été annulée.",
+          "approveError": "Échec de l'approbation de l'accès fournisseur",
+          "denyError": "Échec du refus de l'accès fournisseur"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "En attente de l'approbation d'accès fournisseur",
+          "description": "Cette tâche est bloquée jusqu'à ce qu'un propriétaire ou administrateur de l'espace de travail approuve l'accès fournisseur.",
+          "descriptionWithCoworker": "{coworkerName} a créé cette tâche. Elle est bloquée jusqu'à ce qu'un propriétaire ou administrateur de l'espace de travail approuve l'accès fournisseur."
+        }
       },
       "NewTask": {
         "title": "Nouvelle tâche",
@@ -3476,6 +3509,38 @@
         "Schema": {
           "websiteUrl": "Saisissez une URL http ou https valide"
         }
+      },
+      "VendorGrants": {
+        "title": "Accès fournisseurs à l’espace de travail",
+        "description": "Approuve l’accès fournisseur à ton espace de travail personnel (lire, commenter et créer des tâches).",
+        "vendorsTitle": "Fournisseurs",
+        "vendorsEmpty": "Aucun droit fournisseur pour le moment.",
+        "statusPending": "En attente",
+        "statusGranted": "Accordé",
+        "statusDenied": "Refusé",
+        "statusRevoked": "Révoqué",
+        "grantFormTitle": "Accorder l’accès de façon proactive",
+        "GrantForm": {
+          "vendorLabel": "Fournisseur",
+          "workspaceAccessHint": "Accorde l’accès complet à l’espace de travail : lire, commenter et créer des tâches.",
+          "submit": "Accorder l’accès",
+          "success": "Accès fournisseur accordé",
+          "error": "Échec de l’octroi de l’accès fournisseur"
+        },
+        "Actions": {
+          "approve": "Approuver",
+          "deny": "Refuser",
+          "revoke": "Révoquer",
+          "approveSuccess": "Accès fournisseur approuvé",
+          "denySuccess": "Accès fournisseur refusé",
+          "revokeSuccess": "Accès fournisseur révoqué",
+          "approveError": "Échec de l’approbation de l’accès fournisseur",
+          "denyError": "Échec du refus de l’accès fournisseur",
+          "revokeError": "Échec de la révocation de l’accès fournisseur",
+          "grant": "Accorder",
+          "grantSuccess": "Accès fournisseur accordé",
+          "grantError": "Échec de l’accord de l’accès fournisseur"
+        }
       }
     },
     "Organizations": {
@@ -3547,6 +3612,38 @@
           "assigned": "Attribués",
           "unused": "Inutilisés",
           "manageBilling": "Gérer la facturation"
+        },
+        "VendorGrants": {
+          "title": "Accès workspace fournisseur",
+          "description": "Approuvez l’accès fournisseur à l’espace de travail de cette organisation (lire, commenter et créer des tâches).",
+          "vendorsTitle": "Fournisseurs",
+          "vendorsEmpty": "Aucun droit fournisseur pour le moment.",
+          "statusPending": "En attente",
+          "statusGranted": "Accordé",
+          "statusDenied": "Refusé",
+          "statusRevoked": "Révoqué",
+          "grantFormTitle": "Accorder l’accès de manière proactive",
+          "GrantForm": {
+            "vendorLabel": "Fournisseur",
+            "workspaceAccessHint": "Accorde l’accès complet à l’espace de travail : lire, commenter et créer des tâches.",
+            "submit": "Accorder l’accès",
+            "success": "Accès fournisseur accordé",
+            "error": "Impossible d’accorder l’accès fournisseur"
+          },
+          "Actions": {
+            "approve": "Approuver",
+            "deny": "Refuser",
+            "revoke": "Révoquer",
+            "approveSuccess": "Accès fournisseur approuvé",
+            "denySuccess": "Accès fournisseur refusé",
+            "revokeSuccess": "Accès fournisseur révoqué",
+            "approveError": "Impossible d’approuver l’accès fournisseur",
+            "denyError": "Impossible de refuser l’accès fournisseur",
+            "revokeError": "Impossible de révoquer l’accès fournisseur",
+            "grant": "Accorder",
+            "grantSuccess": "Accès fournisseur accordé",
+            "grantError": "Échec de l’accord de l’accès fournisseur"
+          }
         }
       }
     },
@@ -3914,6 +4011,11 @@
         "failed": "{coworkerName} n'a pas pu terminer {taskName}",
         "canceled": "{taskName} a été annulé"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} a demandé un accès fournisseur à l’espace de travail de l’organisation"
     }
   }
 }

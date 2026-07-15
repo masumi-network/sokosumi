@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
+  isGrantPendingTaskStatus,
   isTaskArchivableStatus,
   TASK_ARCHIVABLE_STATUSES,
 } from "../task-archive.js";
@@ -21,8 +23,15 @@ describe("task-archive", () => {
     "RUNNING",
     "AWAITING_EXTERNAL",
     "CANCEL_REQUESTED",
+    "APPROVAL_REQUIRED",
   ] as const)("isTaskArchivableStatus returns false for %s", (status) => {
     expect(isTaskArchivableStatus(status)).toBe(false);
+  });
+
+  it("treats GRANT_PENDING as archivable", () => {
+    expect(isGrantPendingTaskStatus("GRANT_PENDING")).toBe(true);
+    expect(canArchiveTaskStatus("GRANT_PENDING")).toBe(true);
+    expect(canArchiveTaskStatus("APPROVAL_REQUIRED")).toBe(false);
   });
 
   it("lists every archivable status in TASK_ARCHIVABLE_STATUSES", () => {

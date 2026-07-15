@@ -22,6 +22,7 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
     TaskStatus.CANCELED,
     TaskStatus.QUEUED,
   ],
+  [TaskStatus.GRANT_PENDING]: [],
   [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
   [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
   [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],

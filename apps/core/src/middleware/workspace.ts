@@ -77,10 +77,12 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
     }
 
     try {
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
-        workspaceOwnerContext.userId,
-        workspaceOwnerContext.organizationId,
-        prisma,
+      const workspace = await prisma.$transaction((tx) =>
+        workspaceRepository.upsertWorkspaceForContext(
+          workspaceOwnerContext.userId,
+          workspaceOwnerContext.organizationId,
+          tx,
+        ),
       );
 
       const workspaceContext: WorkspaceContext = {

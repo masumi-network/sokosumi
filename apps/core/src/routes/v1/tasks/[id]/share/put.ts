@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { publicShareRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound } from "@/helpers/error.js";
+import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -47,21 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { allowSearchIndexing } = c.req.valid("json");
 
     const share = await prisma.$transaction(async (tx) => {
-      const task = await tx.task.findUnique({
-        where: { id, archivedAt: null },
-        select: {
-          id: true,
-          userId: true,
-        },
-      });
-
-      if (!task) {
-        throw notFound("Task not found");
-      }
-
-      if (task.userId !== userContext.userId) {
-        throw forbidden("You can only manage sharing for your own tasks");
-      }
+      await requireMutableTaskOwnership(userContext, id, tx);
 
       return await publicShareRepository.upsertForTask(
         id,

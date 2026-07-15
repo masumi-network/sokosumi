@@ -973,6 +973,7 @@ export const AdminTaskListItemSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -1180,6 +1181,7 @@ export const TaskSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -1192,7 +1194,30 @@ export const TaskSchema = {
                 'CANCEL_REQUESTED',
                 'CANCELED'
             ],
-            example: 'READY'
+            example: 'READY',
+            description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
+        },
+        grantResumeStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'DRAFT',
+                'READY',
+                null
+            ],
+            description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
+            example: null
+        },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Vendor grant blocking this task. Set only while status is GRANT_PENDING.',
+            example: null
         },
         metadata: {
             type: [
@@ -1265,6 +1290,8 @@ export const TaskSchema = {
         'name',
         'description',
         'status',
+        'grantResumeStatus',
+        'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
         'credits',
@@ -1512,6 +1539,7 @@ export const TaskEventSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -1909,6 +1937,7 @@ export const TaskLinkPeerTaskSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -5689,6 +5718,7 @@ export const HistoryTaskItemSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -6679,6 +6709,94 @@ export const UtmAttributionRequestSchema = {
     ]
 } as const;
 
+export const VendorGrantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        },
+        vendorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        vendorName: {
+            type: 'string',
+            example: 'Acme Agents'
+        },
+        vendorSlug: {
+            type: 'string',
+            example: 'acme-agents'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        permission: {
+            type: 'string',
+            enum: [
+                'workspace'
+            ],
+            example: 'workspace'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'GRANTED',
+                'DENIED',
+                'REVOKED'
+            ],
+            example: 'PENDING'
+        },
+        requestedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resolvedById: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'vendorId',
+        'vendorName',
+        'vendorSlug',
+        'workspaceId',
+        'permission',
+        'status',
+        'requestedByUserId',
+        'resolvedAt',
+        'resolvedById',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
 export const StripeCustomerSchema = {
     type: 'object',
     properties: {
@@ -7492,6 +7610,7 @@ export const ProjectTaskStatusCountSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -8694,6 +8813,7 @@ export const PublicSharedTaskSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -8880,6 +9000,7 @@ export const PublicSharedTaskMilestoneSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -9425,6 +9546,7 @@ export const TaskListItemSchema = {
                 'DRAFT',
                 'QUEUED',
                 'READY',
+                'GRANT_PENDING',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
                 'AUTHENTICATION_REQUIRED',
@@ -9437,7 +9559,30 @@ export const TaskListItemSchema = {
                 'CANCEL_REQUESTED',
                 'CANCELED'
             ],
-            example: 'READY'
+            example: 'READY',
+            description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
+        },
+        grantResumeStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'DRAFT',
+                'READY',
+                null
+            ],
+            description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
+            example: null
+        },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Vendor grant blocking this task. Set only while status is GRANT_PENDING.',
+            example: null
         },
         metadata: {
             type: [
@@ -9484,6 +9629,8 @@ export const TaskListItemSchema = {
         'name',
         'description',
         'status',
+        'grantResumeStatus',
+        'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
         'workspace',

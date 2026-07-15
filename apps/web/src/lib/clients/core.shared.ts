@@ -125,6 +125,7 @@ import {
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
+  getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -143,6 +144,7 @@ import {
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
+  getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
@@ -151,6 +153,7 @@ import {
   listAdminTasks as coreListAdminTasks,
   listAdminUsers as coreListAdminUsers,
   listCreditPrices as coreListCreditPrices,
+  listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
@@ -181,6 +184,10 @@ import {
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
+  postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
+  postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
+  postOrganizationsByIdVendorGrantsByGrantIdDeny as corePostOrganizationsByIdVendorGrantsByGrantIdDeny,
+  postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
@@ -190,6 +197,10 @@ import {
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdUploads as corePostUsersByIdUploads,
+  postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
+  postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
+  postUsersByIdVendorGrantsByGrantIdDeny as corePostUsersByIdVendorGrantsByGrantIdDeny,
+  postUsersByIdVendorGrantsByGrantIdRevoke as corePostUsersByIdVendorGrantsByGrantIdRevoke,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -417,6 +428,7 @@ export function mapCoreApiStatusToCommonErrorCode(
       return CommonErrorCode.UNAUTHORIZED;
     case 404:
       return CommonErrorCode.NOT_FOUND;
+    case 400:
     case 409:
     case 422:
       return CommonErrorCode.BAD_INPUT;
@@ -1183,6 +1195,155 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOrganizationVendorGrants(
+    organizationId: string,
+    query?: {
+      status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
+      vendorId?: string;
+    },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdVendorGrants({
+          client,
+          path: { id: organizationId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch vendor grants",
+    );
+  }
+
+  async function createOrganizationVendorGrant(
+    organizationId: string,
+    body: {
+      vendorId: string;
+    },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrants({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to create vendor grant",
+    );
+  }
+
+  async function approveOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdApprove({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to approve vendor grant",
+    );
+  }
+
+  async function denyOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdDeny({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to deny vendor grant",
+    );
+  }
+
+  async function revokeOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdRevoke({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to revoke vendor grant",
+    );
+  }
+
+  async function getMyVendorGrants(query?: {
+    status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
+    vendorId?: string;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdVendorGrants({
+          client,
+          path: { id: "me" },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch personal vendor grants",
+    );
+  }
+
+  async function createMyVendorGrant(body: { vendorId: string }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrants({
+          client,
+          path: { id: "me" },
+          body,
+        }),
+      "Failed to create personal vendor grant",
+    );
+  }
+
+  async function approveMyVendorGrant(grantId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrantsByGrantIdApprove({
+          client,
+          path: { id: "me", grantId },
+        }),
+      "Failed to approve personal vendor grant",
+    );
+  }
+
+  async function denyMyVendorGrant(grantId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrantsByGrantIdDeny({
+          client,
+          path: { id: "me", grantId },
+        }),
+      "Failed to deny personal vendor grant",
+    );
+  }
+
+  async function revokeMyVendorGrant(grantId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrantsByGrantIdRevoke({
+          client,
+          path: { id: "me", grantId },
+        }),
+      "Failed to revoke personal vendor grant",
+    );
+  }
+
   /**
    * Seat usage summary for an organization the caller is a member of:
    * assigned and purchased seat counts alongside the resolved paid plan.
@@ -1742,6 +1903,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function listVendors() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListVendors({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch vendors",
+    );
+  }
+
   async function createTask(body: {
     name?: string;
     description?: string | null;
@@ -1769,6 +1942,7 @@ export function createCoreClient(getClient: GetClient) {
         | "DRAFT"
         | "QUEUED"
         | "READY"
+        | "GRANT_PENDING"
         | "INPUT_REQUIRED"
         | "APPROVAL_REQUIRED"
         | "AUTHENTICATION_REQUIRED"
@@ -2868,6 +3042,17 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
+    getOrganizationVendorGrants,
+    createOrganizationVendorGrant,
+    approveOrganizationVendorGrant,
+    denyOrganizationVendorGrant,
+    revokeOrganizationVendorGrant,
+    getMyVendorGrants,
+    createMyVendorGrant,
+    approveMyVendorGrant,
+    denyMyVendorGrant,
+    revokeMyVendorGrant,
+    listVendors,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,

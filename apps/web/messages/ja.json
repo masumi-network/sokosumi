@@ -1209,6 +1209,7 @@
           "DRAFT": "下書き",
           "QUEUED": "キュー中",
           "READY": "準備完了",
+          "GRANT_PENDING": "承認待ち",
           "INPUT_REQUIRED": "入力が必要",
           "APPROVAL_REQUIRED": "承認が必要",
           "AUTHENTICATION_REQUIRED": "認証が必要",
@@ -1414,6 +1415,19 @@
         "inputRequired": "入力が必要",
         "done": "完了"
       },
+      "PendingVendorGrantBanner": {
+        "title": "ベンダーアクセスの承認が必要です",
+        "descriptionOne": "{vendorName} がこのワークスペースでタスクを扱うにはアクセスが必要です。",
+        "descriptionMany": "{count} 件のベンダーがこのワークスペースでタスクを扱うにはアクセスが必要です。",
+        "descriptionMember": "コワーカーがベンダーアクセスをリクエストしました。ワークスペースのオーナーまたは管理者が承認する必要があります。",
+        "descriptionMemberMany": "{count} 件のベンダーがアクセスをリクエストしました。ワークスペースのオーナーまたは管理者が承認する必要があります。",
+        "parkedTasksHint": "アクセスが承認されるまで、{count, plural, other {# 件のタスクがブロックされています}}。",
+        "approve": "アクセスを承認",
+        "review": "詳細を確認",
+        "approveSuccess": "ベンダーアクセスを承認しました。",
+        "approveError": "ベンダーアクセスの承認に失敗しました",
+        "approvePartialError": "{total} 件中 {approved} 件のベンダーアクセスを承認しました。一部の承認に失敗したため、更新して再度お試しください。"
+      },
       "Actions": {
         "add": "追加",
         "addTask": "タスクを追加",
@@ -1470,6 +1484,7 @@
           "DRAFT": "下書き",
           "QUEUED": "キュー中",
           "READY": "準備完了",
+          "GRANT_PENDING": "承認待ち",
           "INPUT_REQUIRED": "入力が必要",
           "APPROVAL_REQUIRED": "承認が必要",
           "AUTHENTICATION_REQUIRED": "認証が必要",
@@ -1652,7 +1667,25 @@
           "switchError": "ワークスペースを切り替えられませんでした。もう一度お試しください。"
         },
         "clonedFrom": "{name} から複製",
-        "schedule": "スケジュール"
+        "schedule": "スケジュール",
+        "pendingApproval": "承認待ち",
+        "VendorGrantApproval": {
+          "title": "ベンダーアクセスの承認が必要です",
+          "description": "コワーカーがこのタスクを作成しましたが、このワークスペースでタスクを作成する権限がまだありません。ベンダーアクセスを承認してタスクを有効化してください。",
+          "descriptionWithCoworker": "{coworkerName} がこのタスクを作成しましたが、このワークスペースでタスクを作成する権限がまだありません。ベンダーアクセスを承認してタスクを有効化してください。",
+          "approve": "アクセスを承認",
+          "deny": "アクセスを拒否",
+          "review": "詳細を確認",
+          "approveSuccess": "ベンダーアクセスを承認しました。このタスクは有効になりました。",
+          "denySuccess": "ベンダーアクセスを拒否しました。このタスクはキャンセルされました。",
+          "approveError": "ベンダーアクセスの承認に失敗しました",
+          "denyError": "ベンダーアクセスの拒否に失敗しました"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "ベンダーアクセスの承認待ち",
+          "description": "ワークスペースのオーナーまたは管理者がベンダーアクセスを承認するまで、このタスクはブロックされています。",
+          "descriptionWithCoworker": "{coworkerName} がこのタスクを作成しました。ワークスペースのオーナーまたは管理者がベンダーアクセスを承認するまでブロックされています。"
+        }
       },
       "NewTask": {
         "title": "新しいタスク",
@@ -3476,6 +3509,38 @@
         "Schema": {
           "websiteUrl": "有効な http または https URL を入力してください"
         }
+      },
+      "VendorGrants": {
+        "title": "ベンダーのワークスペースアクセス",
+        "description": "個人ワークスペースのベンダーアクセスを承認します（タスクの閲覧・コメント・作成）。",
+        "vendorsTitle": "ベンダー",
+        "vendorsEmpty": "ベンダー権限はまだありません。",
+        "statusPending": "保留中",
+        "statusGranted": "許可済み",
+        "statusDenied": "拒否",
+        "statusRevoked": "取り消し",
+        "grantFormTitle": "事前にアクセスを付与",
+        "GrantForm": {
+          "vendorLabel": "ベンダー",
+          "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
+          "submit": "アクセスを付与",
+          "success": "ベンダーアクセスを付与しました",
+          "error": "ベンダーアクセスの付与に失敗しました"
+        },
+        "Actions": {
+          "approve": "承認",
+          "deny": "拒否",
+          "revoke": "取り消し",
+          "approveSuccess": "ベンダーアクセスを承認しました",
+          "denySuccess": "ベンダーアクセスを拒否しました",
+          "revokeSuccess": "ベンダーアクセスを取り消しました",
+          "approveError": "ベンダーアクセスの承認に失敗しました",
+          "denyError": "ベンダーアクセスの拒否に失敗しました",
+          "revokeError": "ベンダーアクセスの取り消しに失敗しました",
+          "grant": "付与",
+          "grantSuccess": "ベンダーアクセスを付与しました",
+          "grantError": "ベンダーアクセスの付与に失敗しました"
+        }
       }
     },
     "Organizations": {
@@ -3547,6 +3612,38 @@
           "assigned": "割り当て済み",
           "unused": "未使用",
           "manageBilling": "請求を管理"
+        },
+        "VendorGrants": {
+          "title": "ベンダーワークスペースアクセス",
+          "description": "この組織ワークスペースのベンダーアクセスを承認します（タスクの閲覧・コメント・作成）。",
+          "vendorsTitle": "ベンダー",
+          "vendorsEmpty": "ベンダー権限はまだありません。",
+          "statusPending": "保留中",
+          "statusGranted": "許可済み",
+          "statusDenied": "拒否",
+          "statusRevoked": "取り消し",
+          "grantFormTitle": "事前にアクセスを付与",
+          "GrantForm": {
+            "vendorLabel": "ベンダー",
+            "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
+            "submit": "アクセスを付与",
+            "success": "ベンダーアクセスを付与しました",
+            "error": "ベンダーアクセスの付与に失敗しました"
+          },
+          "Actions": {
+            "approve": "承認",
+            "deny": "拒否",
+            "revoke": "取り消し",
+            "approveSuccess": "ベンダーアクセスを承認しました",
+            "denySuccess": "ベンダーアクセスを拒否しました",
+            "revokeSuccess": "ベンダーアクセスを取り消しました",
+            "approveError": "ベンダーアクセスの承認に失敗しました",
+            "denyError": "ベンダーアクセスの拒否に失敗しました",
+            "revokeError": "ベンダーアクセスの取り消しに失敗しました",
+            "grant": "付与",
+            "grantSuccess": "ベンダーアクセスを付与しました",
+            "grantError": "ベンダーアクセスの付与に失敗しました"
+          }
         }
       }
     },
@@ -3914,6 +4011,11 @@
         "failed": "{coworkerName}は{taskName}を完了できませんでした",
         "canceled": "{taskName}はキャンセルされました"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} が組織ワークスペースへのベンダーアクセスをリクエストしました"
     }
   }
 }

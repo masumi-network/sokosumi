@@ -9,12 +9,17 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasks from "./get";
 
-const { requireCoworkerCapabilityMock, taskCountMock, taskFindManyMock } =
-  vi.hoisted(() => ({
-    requireCoworkerCapabilityMock: vi.fn(),
-    taskCountMock: vi.fn(),
-    taskFindManyMock: vi.fn(),
-  }));
+const {
+  requireCoworkerCapabilityMock,
+  taskCountMock,
+  taskFindManyMock,
+  vendorGrantFindUniqueMock,
+} = vi.hoisted(() => ({
+  requireCoworkerCapabilityMock: vi.fn(),
+  taskCountMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  vendorGrantFindUniqueMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
@@ -25,6 +30,9 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       count: taskCountMock,
       findMany: taskFindManyMock,
+    },
+    vendorGrant: {
+      findUnique: vendorGrantFindUniqueMock,
     },
   },
 }));
@@ -156,6 +164,7 @@ describe("GET /tasks", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
+    vendorGrantFindUniqueMock.mockResolvedValue(null);
   });
 
   it("parses multiple statuses into an IN filter", async () => {
@@ -393,6 +402,38 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: delegatedCoworkerListWhere({
           coworkerId: "cow_999",
+        }),
+      }),
+    );
+  });
+
+  it("filters tasks by status list only", async () => {
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?status=${TaskStatus.READY},${TaskStatus.CREDITS_TOPPED_UP}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP] },
+        }),
+      }),
+    );
+  });
+
+  it("filters grant-pending tasks by status", async () => {
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?status=${TaskStatus.GRANT_PENDING}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: [TaskStatus.GRANT_PENDING] },
         }),
       }),
     );

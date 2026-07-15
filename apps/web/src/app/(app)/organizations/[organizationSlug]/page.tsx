@@ -23,6 +23,7 @@ import OrganizationBillingDetails from "./components/organization-billing-detail
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
 import { OrganizationSeatSummaryCard } from "./components/organization-seat-summary";
+import { OrganizationVendorGrants } from "./components/organization-vendor-grants";
 
 interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
@@ -158,6 +159,9 @@ export default async function OrganizationPage({
         )}
         {isOwnerOrAdmin && seatSummary ? (
           <OrganizationSeatSummaryCard seatSummary={seatSummary} />
+        ) : null}
+        {isOwnerOrAdmin ? (
+          <OrganizationVendorGrants organizationId={organization.id} />
         ) : null}
         <div className="space-y-4">
           {isOwnerOrAdmin ? (

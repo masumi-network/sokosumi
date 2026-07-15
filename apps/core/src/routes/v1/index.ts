@@ -25,6 +25,7 @@ import projectsRouter from "./projects/index.js";
 import shareRouter from "./share/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
+import vendorsRouter from "./vendors/index.js";
 import workspacesRouter from "./workspaces/index.js";
 
 const app = new OpenAPIHono();
@@ -129,6 +130,7 @@ app.route("/share", shareRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);
 app.route("/products", productsRouter);
+app.route("/vendors", vendorsRouter);
 app.route("/workspaces", workspacesRouter);
 
 export default app;

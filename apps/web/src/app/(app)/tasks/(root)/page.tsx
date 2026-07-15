@@ -2,6 +2,8 @@ import { AgentJobStatus, TaskStatus } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { Suspense } from "react";
+import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
 import { TasksView } from "@/app/tasks/components/tasks-view";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
@@ -150,33 +152,47 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         ? jobsListFilters.projectId
         : null,
   };
-  const [jobsPage, columnPages, initialDesignMdAttachment] = await Promise.all([
-    taskService.listJobs({
-      scope: activeJobsListFilters.scope,
-      agentId: activeJobsListFilters.agentId ?? undefined,
-      projectId: activeJobsListFilters.projectId ?? undefined,
-      status: activeJobsListFilters.jobStatus ?? undefined,
-      limit: 20,
-    }),
-    Promise.all(
-      KANBAN_COLUMNS.map(async (column) => {
-        const page = await getTasksColumnPage({
-          columnId: column.id,
-          cursor: null,
-          limit: TASKS_COLUMN_PAGE_LIMIT,
-          scope: activeFilters.scope,
-          coworkerId: activeFilters.coworkerId,
-          status: activeFilters.status,
-          projectId: activeFilters.projectId,
-          coworkersById,
-          agentsById,
-        });
+  const shouldCountGrantPendingTasks =
+    activeFilters.status == null ||
+    activeFilters.status === TaskStatus.GRANT_PENDING;
 
-        return [column.id, page] as const;
+  const [jobsPage, columnPages, initialDesignMdAttachment, parkedTasksPage] =
+    await Promise.all([
+      taskService.listJobs({
+        scope: activeJobsListFilters.scope,
+        agentId: activeJobsListFilters.agentId ?? undefined,
+        projectId: activeJobsListFilters.projectId ?? undefined,
+        status: activeJobsListFilters.jobStatus ?? undefined,
+        limit: 20,
       }),
-    ),
-    session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
-  ]);
+      Promise.all(
+        KANBAN_COLUMNS.map(async (column) => {
+          const page = await getTasksColumnPage({
+            columnId: column.id,
+            cursor: null,
+            limit: TASKS_COLUMN_PAGE_LIMIT,
+            scope: activeFilters.scope,
+            coworkerId: activeFilters.coworkerId,
+            status: activeFilters.status,
+            projectId: activeFilters.projectId,
+            coworkersById,
+            agentsById,
+          });
+
+          return [column.id, page] as const;
+        }),
+      ),
+      session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+      shouldCountGrantPendingTasks
+        ? taskService.listTasks({
+            status: TaskStatus.GRANT_PENDING,
+            scope: activeFilters.scope,
+            coworkerId: activeFilters.coworkerId ?? undefined,
+            projectId: activeFilters.projectId ?? undefined,
+            limit: 1,
+          })
+        : Promise.resolve({ tasks: [], pagination: null }),
+    ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
   const columnNextCursorById = Object.fromEntries(
     columnPages.map(([columnId, page]) => [columnId, page.nextCursor]),
@@ -207,6 +223,8 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const initialProjectId =
     activeFilters.projectId ?? activeJobsListFilters.projectId;
 
+  const parkedTaskCount = parkedTasksPage.pagination?.total ?? 0;
+
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
     todo: tColumns("todo"),
@@ -217,6 +235,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
 
   return (
     <div className="w-full px-2">
+      <Suspense fallback={null}>
+        <TasksPendingVendorGrantBannerSlot
+          activeOrganizationId={activeOrganizationId}
+          parkedTaskCount={parkedTaskCount}
+        />
+      </Suspense>
       <TasksView
         tasks={tasks}
         jobs={jobs}
@@ -261,6 +285,9 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
               [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
               [TaskStatus.READY]: t("Filters.statusOptions.READY"),
+              [TaskStatus.GRANT_PENDING]: t(
+                "Filters.statusOptions.GRANT_PENDING",
+              ),
               [TaskStatus.INPUT_REQUIRED]: t(
                 "Filters.statusOptions.INPUT_REQUIRED",
               ),

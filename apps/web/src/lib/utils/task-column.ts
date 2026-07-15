@@ -12,6 +12,7 @@ export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {
     TaskStatus.CANCEL_REQUESTED,
   ],
   "input-required": [
+    TaskStatus.GRANT_PENDING,
     TaskStatus.INPUT_REQUIRED,
     TaskStatus.APPROVAL_REQUIRED,
     TaskStatus.AUTHENTICATION_REQUIRED,
@@ -30,7 +31,30 @@ const STATUS_TO_COLUMN_ID = (() => {
   return map;
 })();
 
-/** Resolves a task status to its kanban column. Unknown statuses fall back to "todo". */
+/** Resolves a task to its kanban column. */
 export function getColumnId(status: TaskStatus): KanbanColumnId {
   return STATUS_TO_COLUMN_ID.get(status) ?? "todo";
+}
+
+/** Core list statuses to fetch for a column (may be broader than column membership). */
+export function getColumnQueryStatuses(
+  columnId: KanbanColumnId,
+  statusFilter: TaskStatus | null,
+): TaskStatus[] {
+  return getColumnListQueryOptions(columnId, statusFilter).statuses;
+}
+
+export interface ColumnListQueryOptions {
+  statuses: TaskStatus[];
+}
+
+export function getColumnListQueryOptions(
+  columnId: KanbanColumnId,
+  statusFilter: TaskStatus | null,
+): ColumnListQueryOptions {
+  const statuses = COLUMN_TASK_STATUSES[columnId].filter(
+    (columnStatus) => statusFilter === null || columnStatus === statusFilter,
+  );
+
+  return { statuses };
 }

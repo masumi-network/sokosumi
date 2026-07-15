@@ -1209,6 +1209,7 @@
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
           "READY": "Listo",
+          "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
           "APPROVAL_REQUIRED": "Aprobación requerida",
           "AUTHENTICATION_REQUIRED": "Autenticación requerida",
@@ -1414,6 +1415,19 @@
         "inputRequired": "Input requerido",
         "done": "Hecho"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Se requiere aprobación de acceso del proveedor",
+        "descriptionOne": "{vendorName} necesita acceso para trabajar con tareas en este espacio de trabajo.",
+        "descriptionMany": "{count} proveedores necesitan acceso para trabajar con tareas en este espacio de trabajo.",
+        "descriptionMember": "Un coworker solicitó acceso del proveedor. Un propietario o administrador del espacio de trabajo debe aprobarlo.",
+        "descriptionMemberMany": "{count} proveedores solicitaron acceso. Un propietario o administrador del espacio de trabajo debe aprobarlo.",
+        "parkedTasksHint": "{count, plural, one {# tarea está bloqueada} other {# tareas están bloqueadas}} hasta que se apruebe el acceso.",
+        "approve": "Aprobar acceso",
+        "review": "Ver detalles",
+        "approveSuccess": "Acceso del proveedor aprobado.",
+        "approveError": "No se pudo aprobar el acceso del proveedor",
+        "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
+      },
       "Actions": {
         "add": "Añadir",
         "addTask": "Añadir Task",
@@ -1470,6 +1484,7 @@
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
           "READY": "Listo",
+          "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
           "APPROVAL_REQUIRED": "Aprobación requerida",
           "AUTHENTICATION_REQUIRED": "Autenticación requerida",
@@ -1652,7 +1667,25 @@
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
         "clonedFrom": "Clonada de {name}",
-        "schedule": "Programación"
+        "schedule": "Programación",
+        "pendingApproval": "Aprobación pendiente",
+        "VendorGrantApproval": {
+          "title": "Se requiere aprobación de acceso del proveedor",
+          "description": "Un coworker creó esta tarea pero aún no tiene permiso para crear tareas en este espacio de trabajo. Aprueba el acceso del proveedor para activarla.",
+          "descriptionWithCoworker": "{coworkerName} creó esta tarea pero aún no tiene permiso para crear tareas en este espacio de trabajo. Aprueba el acceso del proveedor para activarla.",
+          "approve": "Aprobar acceso",
+          "deny": "Denegar acceso",
+          "review": "Ver detalles",
+          "approveSuccess": "Acceso del proveedor aprobado. Esta tarea ya está activa.",
+          "denySuccess": "Acceso del proveedor denegado. Esta tarea se canceló.",
+          "approveError": "No se pudo aprobar el acceso del proveedor",
+          "denyError": "No se pudo denegar el acceso del proveedor"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "Esperando la aprobación del acceso del proveedor",
+          "description": "Esta tarea está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor.",
+          "descriptionWithCoworker": "{coworkerName} creó esta tarea. Está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor."
+        }
       },
       "NewTask": {
         "title": "Nuevo Task",
@@ -3445,6 +3478,38 @@
         "Schema": {
           "websiteUrl": "Introduce una URL http o https válida"
         }
+      },
+      "VendorGrants": {
+        "title": "Acceso de proveedores al espacio de trabajo",
+        "description": "Aprueba el acceso de proveedores al espacio de trabajo personal (leer, comentar y crear tareas).",
+        "vendorsTitle": "Proveedores",
+        "vendorsEmpty": "Aún no hay permisos de proveedor.",
+        "statusPending": "Pendiente",
+        "statusGranted": "Concedido",
+        "statusDenied": "Denegado",
+        "statusRevoked": "Revocado",
+        "grantFormTitle": "Conceder acceso de forma proactiva",
+        "GrantForm": {
+          "vendorLabel": "Proveedor",
+          "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
+          "submit": "Conceder acceso",
+          "success": "Acceso de proveedor concedido",
+          "error": "No se pudo conceder el acceso de proveedor"
+        },
+        "Actions": {
+          "approve": "Aprobar",
+          "deny": "Denegar",
+          "revoke": "Revocar",
+          "approveSuccess": "Acceso de proveedor aprobado",
+          "denySuccess": "Acceso de proveedor denegado",
+          "revokeSuccess": "Acceso de proveedor revocado",
+          "approveError": "No se pudo aprobar el acceso de proveedor",
+          "denyError": "No se pudo denegar el acceso de proveedor",
+          "revokeError": "No se pudo revocar el acceso de proveedor",
+          "grant": "Conceder",
+          "grantSuccess": "Acceso de proveedor concedido",
+          "grantError": "No se pudo conceder acceso de proveedor"
+        }
       }
     },
     "Organizations": {
@@ -3516,6 +3581,38 @@
           "assigned": "Asignados",
           "unused": "Sin usar",
           "manageBilling": "Gestionar facturación"
+        },
+        "VendorGrants": {
+          "title": "Acceso al workspace del proveedor",
+          "description": "Aprueba el acceso de proveedores al espacio de trabajo de esta organización (leer, comentar y crear tareas).",
+          "vendorsTitle": "Proveedores",
+          "vendorsEmpty": "Aún no hay permisos de proveedor.",
+          "statusPending": "Pendiente",
+          "statusGranted": "Concedido",
+          "statusDenied": "Denegado",
+          "statusRevoked": "Revocado",
+          "grantFormTitle": "Conceder acceso de forma proactiva",
+          "GrantForm": {
+            "vendorLabel": "Proveedor",
+            "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
+            "submit": "Conceder acceso",
+            "success": "Acceso del proveedor concedido",
+            "error": "No se pudo conceder el acceso del proveedor"
+          },
+          "Actions": {
+            "approve": "Aprobar",
+            "deny": "Denegar",
+            "revoke": "Revocar",
+            "approveSuccess": "Acceso del proveedor aprobado",
+            "denySuccess": "Acceso del proveedor denegado",
+            "revokeSuccess": "Acceso del proveedor revocado",
+            "approveError": "No se pudo aprobar el acceso del proveedor",
+            "denyError": "No se pudo denegar el acceso del proveedor",
+            "revokeError": "No se pudo revocar el acceso del proveedor",
+            "grant": "Conceder",
+            "grantSuccess": "Acceso de proveedor concedido",
+            "grantError": "No se pudo conceder acceso de proveedor"
+          }
         }
       }
     },
@@ -3914,6 +4011,11 @@
         "failed": "{coworkerName} no pudo completar {taskName}",
         "canceled": "{taskName} fue cancelado"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} solicitó acceso de proveedor al workspace de la organización"
     }
   }
 }

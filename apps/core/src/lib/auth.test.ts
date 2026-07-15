@@ -1334,7 +1334,7 @@ describe("core auth config", () => {
     await config.databaseHooks.user.create.after(normalizedCreate.data);
 
     expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: prismaMock,
+      tx: {},
       userId: "user_123",
     });
     expect(waitUntilMock).toHaveBeenCalledTimes(3);
@@ -1429,7 +1429,7 @@ describe("core auth config", () => {
     });
 
     expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: prismaMock,
+      tx: {},
       userId: "user_123",
     });
     expect(waitUntilMock).toHaveBeenCalledTimes(3);
@@ -1453,7 +1453,13 @@ describe("core auth config", () => {
     const transactionGate = new Promise<void>((resolve) => {
       releaseTransaction = resolve;
     });
-    prismaTransactionMock.mockImplementationOnce(async (callback) => {
+    let transactionCalls = 0;
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      transactionCalls += 1;
+      if (transactionCalls === 1) {
+        return callback({});
+      }
+
       await transactionGate;
       return callback({});
     });
@@ -1659,7 +1665,7 @@ describe("core auth config", () => {
     });
 
     expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: prismaMock,
+      tx: {},
       userId: "user_123",
     });
     await flushWaitUntil();

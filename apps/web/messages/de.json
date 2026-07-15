@@ -1209,6 +1209,7 @@
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
           "READY": "Bereit",
+          "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
           "APPROVAL_REQUIRED": "Genehmigung erforderlich",
           "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
@@ -1414,6 +1415,19 @@
         "inputRequired": "Input erforderlich",
         "done": "Erledigt"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Freigabe des Vendor-Zugriffs erforderlich",
+        "descriptionOne": "{vendorName} benötigt Zugriff, um mit Aufgaben in diesem Workspace zu arbeiten.",
+        "descriptionMany": "{count} Vendors benötigen Zugriff, um mit Aufgaben in diesem Workspace zu arbeiten.",
+        "descriptionMember": "Ein Coworker hat Vendor-Zugriff angefragt. Ein Workspace-Inhaber oder Admin muss dies genehmigen.",
+        "descriptionMemberMany": "{count} Vendors haben Zugriff angefragt. Ein Workspace-Inhaber oder Admin muss dies genehmigen.",
+        "parkedTasksHint": "{count, plural, one {# Aufgabe ist blockiert} other {# Aufgaben sind blockiert}}, bis der Zugriff genehmigt wurde.",
+        "approve": "Zugriff genehmigen",
+        "review": "Details ansehen",
+        "approveSuccess": "Vendor-Zugriff genehmigt.",
+        "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+        "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
+      },
       "Actions": {
         "add": "Hinzufügen",
         "addTask": "Task hinzufügen",
@@ -1470,6 +1484,7 @@
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
           "READY": "Bereit",
+          "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
           "APPROVAL_REQUIRED": "Genehmigung erforderlich",
           "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
@@ -1652,7 +1667,25 @@
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
         "clonedFrom": "Geklont von {name}",
-        "schedule": "Zeitplan"
+        "schedule": "Zeitplan",
+        "pendingApproval": "Freigabe ausstehend",
+        "VendorGrantApproval": {
+          "title": "Freigabe des Vendor-Zugriffs erforderlich",
+          "description": "Ein Coworker hat diese Aufgabe erstellt, hat aber noch keine Berechtigung, Aufgaben in diesem Workspace anzulegen. Genehmigen Sie den Vendor-Zugriff, um die Aufgabe zu aktivieren.",
+          "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt, hat aber noch keine Berechtigung, Aufgaben in diesem Workspace anzulegen. Genehmigen Sie den Vendor-Zugriff, um die Aufgabe zu aktivieren.",
+          "approve": "Zugriff genehmigen",
+          "deny": "Zugriff ablehnen",
+          "review": "Details ansehen",
+          "approveSuccess": "Vendor-Zugriff genehmigt. Diese Aufgabe ist jetzt aktiv.",
+          "denySuccess": "Vendor-Zugriff abgelehnt. Diese Aufgabe wurde abgebrochen.",
+          "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+          "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "Warten auf Freigabe des Vendor-Zugriffs",
+          "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
+          "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
+        }
       },
       "NewTask": {
         "title": "Neuer Task",
@@ -3445,6 +3478,38 @@
         "Schema": {
           "websiteUrl": "Gib eine gültige HTTP- oder HTTPS-URL ein"
         }
+      },
+      "VendorGrants": {
+        "title": "Vendor-Workspace-Zugriff",
+        "description": "Genehmige Vendor-Workspace-Zugriff für deinen persönlichen Workspace (Aufgaben lesen, kommentieren und erstellen).",
+        "vendorsTitle": "Anbieter",
+        "vendorsEmpty": "Noch keine Anbieterfreigaben.",
+        "statusPending": "Ausstehend",
+        "statusGranted": "Gewährt",
+        "statusDenied": "Abgelehnt",
+        "statusRevoked": "Widerrufen",
+        "grantFormTitle": "Zugriff proaktiv gewähren",
+        "GrantForm": {
+          "vendorLabel": "Anbieter",
+          "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
+          "submit": "Zugriff gewähren",
+          "success": "Vendor-Zugriff gewährt",
+          "error": "Vendor-Zugriff konnte nicht gewährt werden"
+        },
+        "Actions": {
+          "approve": "Genehmigen",
+          "deny": "Ablehnen",
+          "revoke": "Widerrufen",
+          "approveSuccess": "Vendor-Zugriff genehmigt",
+          "denySuccess": "Vendor-Zugriff abgelehnt",
+          "revokeSuccess": "Vendor-Zugriff widerrufen",
+          "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+          "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
+          "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+          "grant": "Gewähren",
+          "grantSuccess": "Vendor-Zugriff gewährt",
+          "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+        }
       }
     },
     "Organizations": {
@@ -3516,6 +3581,38 @@
           "assigned": "Zugewiesen",
           "unused": "Ungenutzt",
           "manageBilling": "Abrechnung verwalten"
+        },
+        "VendorGrants": {
+          "title": "Vendor-Workspace-Zugriff",
+          "description": "Genehmige Vendor-Workspace-Zugriff für diese Organisation (Aufgaben lesen, kommentieren und erstellen).",
+          "vendorsTitle": "Anbieter",
+          "vendorsEmpty": "Noch keine Anbieterfreigaben.",
+          "statusPending": "Ausstehend",
+          "statusGranted": "Gewährt",
+          "statusDenied": "Abgelehnt",
+          "statusRevoked": "Widerrufen",
+          "grantFormTitle": "Zugriff proaktiv gewähren",
+          "GrantForm": {
+            "vendorLabel": "Anbieter",
+            "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
+            "submit": "Zugriff gewähren",
+            "success": "Vendor-Zugriff gewährt",
+            "error": "Vendor-Zugriff konnte nicht gewährt werden"
+          },
+          "Actions": {
+            "approve": "Genehmigen",
+            "deny": "Ablehnen",
+            "revoke": "Widerrufen",
+            "approveSuccess": "Vendor-Zugriff genehmigt",
+            "denySuccess": "Vendor-Zugriff abgelehnt",
+            "revokeSuccess": "Vendor-Zugriff widerrufen",
+            "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+            "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
+            "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+            "grant": "Gewähren",
+            "grantSuccess": "Vendor-Zugriff gewährt",
+            "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+          }
         }
       }
     },
@@ -3914,6 +4011,11 @@
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert"
     }
   }
 }

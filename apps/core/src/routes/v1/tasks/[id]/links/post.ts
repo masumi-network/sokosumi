@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskOwnership } from "@/helpers/access-control";
+import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -61,7 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { toTaskId: peerTaskId, relation, note } = body;
 
     const { link, peerTask } = await serializableTransaction(async (tx) => {
-      await requireTaskOwnership(userContext, id, tx);
+      await requireMutableTaskOwnership(userContext, id, tx);
       assertTaskLinkAllowed(id, peerTaskId);
       const linkData = mapTaskLinkRelationToWriteData(id, peerTaskId, relation);
 

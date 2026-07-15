@@ -18,7 +18,14 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
-import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
+import {
+  applyTaskListStatusWhere,
+  buildTaskListStatusWhere,
+} from "@/helpers/task-list-filters";
+import {
+  buildCoworkerTaskListAccessFilter,
+  hasGrantedWorkspaceAccess,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -134,6 +141,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       sort,
       status: statuses,
     } = queryParams;
+    const statusWhere = buildTaskListStatusWhere({
+      statuses,
+    });
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -158,45 +168,62 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      const siblingFilter = buildCoworkerSiblingTaskListFilter({
+      const hasWorkspaceGrant = authContext.context
+        ? await hasGrantedWorkspaceAccess({
+            vendorId: authContext.vendorId,
+            workspaceId: requireWorkspaceContext(c.var.workspaceContext)
+              .workspaceId,
+          })
+        : false;
+
+      const listAccessFilter = buildCoworkerTaskListAccessFilter({
         coworkerId: authContext.coworkerId,
         vendorId: authContext.vendorId,
+        hasWorkspaceGrant,
       });
 
       if (authContext.context) {
         const workspaceContext = requireWorkspaceContext(
           c.var.workspaceContext,
         );
-        where = {
-          archivedAt: null,
-          workspaceId: workspaceContext.workspaceId,
-          AND: [siblingFilter],
-          ...(scope === "owned" ? { userId: authContext.context.userId } : {}),
-          ...(statuses ? { status: { in: statuses } } : {}),
-          ...(coworkerId ? { coworkerId } : {}),
-          ...projectFilter,
-          ...searchFilter,
-        };
+        where = applyTaskListStatusWhere(
+          {
+            archivedAt: null,
+            workspaceId: workspaceContext.workspaceId,
+            AND: [listAccessFilter],
+            ...(scope === "owned"
+              ? { userId: authContext.context.userId }
+              : {}),
+            ...(coworkerId ? { coworkerId } : {}),
+            ...projectFilter,
+            ...searchFilter,
+          },
+          statusWhere,
+        );
       } else {
-        where = {
-          archivedAt: null,
-          AND: [siblingFilter],
-          ...(statuses ? { status: { in: statuses } } : {}),
-          ...projectFilter,
-          ...searchFilter,
-        };
+        where = applyTaskListStatusWhere(
+          {
+            archivedAt: null,
+            AND: [listAccessFilter],
+            ...projectFilter,
+            ...searchFilter,
+          },
+          statusWhere,
+        );
       }
     } else {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      where = {
-        archivedAt: null,
-        workspaceId: workspaceContext.workspaceId,
-        ...(scope === "owned" ? { userId: authContext.userId } : {}),
-        ...(statuses ? { status: { in: statuses } } : {}),
-        ...(coworkerId ? { coworkerId } : {}),
-        ...projectFilter,
-        ...searchFilter,
-      };
+      where = applyTaskListStatusWhere(
+        {
+          archivedAt: null,
+          workspaceId: workspaceContext.workspaceId,
+          ...(scope === "owned" ? { userId: authContext.userId } : {}),
+          ...(coworkerId ? { coworkerId } : {}),
+          ...projectFilter,
+          ...searchFilter,
+        },
+        statusWhere,
+      );
     }
 
     const takePlusOne = take + 1;

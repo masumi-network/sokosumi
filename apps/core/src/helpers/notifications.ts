@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/node";
-import type { Notification, NotificationKind } from "@sokosumi/database";
+import type {
+  Notification,
+  NotificationKind,
+  Prisma,
+} from "@sokosumi/database";
 
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
@@ -70,7 +74,7 @@ async function publishNotificationCreated(
  */
 export async function createNotification(
   input: CreateNotificationInput,
-  prismaClient: typeof prisma = prisma,
+  prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<CreateNotificationResult> {
   const prisma = prismaClient;
   const uniqueKey = {

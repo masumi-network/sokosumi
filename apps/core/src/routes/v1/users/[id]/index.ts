@@ -26,6 +26,11 @@ import mountGetUserSubscription from "./subscription/get.js";
 import mountGetUserUploads from "./uploads/get.js";
 import mountPostUserUploads from "./uploads/post.js";
 import mountPostUserUtmAttribution from "./utm-attribution/post.js";
+import mountApproveUserVendorGrant from "./vendor-grants/[grantId]/approve/post.js";
+import mountDenyUserVendorGrant from "./vendor-grants/[grantId]/deny/post.js";
+import mountRevokeUserVendorGrant from "./vendor-grants/[grantId]/revoke/post.js";
+import mountGetUserVendorGrants from "./vendor-grants/get.js";
+import mountPostUserVendorGrants from "./vendor-grants/post.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
@@ -49,6 +54,11 @@ mountPostUserNoticeAcknowledge(app);
 mountGetUserUploads(app);
 mountPostUserUploads(app);
 mountPostUserUtmAttribution(app);
+mountGetUserVendorGrants(app);
+mountPostUserVendorGrants(app);
+mountApproveUserVendorGrant(app);
+mountDenyUserVendorGrant(app);
+mountRevokeUserVendorGrant(app);
 mountGetUserStripeCustomer(app);
 mountPostUserStripeCustomer(app);
 mountGetUserBillingDetails(app);

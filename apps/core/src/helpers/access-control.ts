@@ -1,4 +1,10 @@
-import { type Job, type Prisma, type Task } from "@sokosumi/database";
+import {
+  type Job,
+  MemberRole,
+  type Prisma,
+  type Task,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -19,6 +25,14 @@ import {
 
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
+import { resolveMemberOrganizationById } from "./organization";
+import {
+  getWorkspaceGrant,
+  isBaselineCoworkerTaskAccess,
+  requestWorkspaceGrantCommitted,
+  requireTaskNotParked,
+  throwGrantAccessError,
+} from "./vendor-grants";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 // -----------------------------------------------------------------------------
@@ -71,6 +85,67 @@ export async function requireTaskOwnership(
   }
 
   return task;
+}
+
+/**
+ * Owner mutations that must not run while the task is parked awaiting
+ * vendor workspace grant approval (metadata, links, share, schedule, move, …).
+ * Soft-archive uses {@link requireTaskArchiveAccess} instead.
+ */
+export async function requireMutableTaskOwnership(
+  userContext: UserContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const task = await requireTaskOwnership(userContext, taskId, tx);
+  requireTaskNotParked(task);
+  return task;
+}
+
+/**
+ * Soft-archive access: task owner always, or org OWNER/ADMIN when the task is
+ * parked (`GRANT_PENDING`) in that organization workspace.
+ */
+export async function requireTaskArchiveAccess(
+  userContext: UserContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const owned = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      userId: userContext.userId,
+      archivedAt: null,
+    },
+  });
+
+  if (owned) {
+    return owned;
+  }
+
+  const parked = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      archivedAt: null,
+      status: TaskStatus.GRANT_PENDING,
+    },
+    include: {
+      workspace: { select: { organizationId: true } },
+    },
+  });
+
+  if (!parked?.workspace.organizationId) {
+    throw notFound("Task not found");
+  }
+
+  await resolveMemberOrganizationById({
+    id: parked.workspace.organizationId,
+    userId: userContext.userId,
+    tx,
+    allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+  });
+
+  return parked;
 }
 
 // -----------------------------------------------------------------------------
@@ -162,9 +237,48 @@ export async function requireTaskAssignableCoworker(
 // Task collaboration (user ownership or coworker on assigned task)
 // -----------------------------------------------------------------------------
 
-/**
- * Coworker branch of task read: assignee or same-vendor sibling (non-DRAFT).
- */
+async function requestWorkspaceGrantIndependently(params: {
+  vendorId: string;
+  workspaceId: string;
+  requestedByUserId: string | null;
+}) {
+  return requestWorkspaceGrantCommitted(params);
+}
+
+async function requireGrantedWorkspaceAccessOrRequest(params: {
+  vendorId: string;
+  workspaceId: string;
+  requestedByUserId: string | null;
+  grant: Awaited<ReturnType<typeof getWorkspaceGrant>>;
+}): Promise<void> {
+  const { vendorId, workspaceId, requestedByUserId, grant } = params;
+
+  if (grant?.status === VendorGrantStatus.GRANTED) {
+    return;
+  }
+
+  if (
+    grant?.status === VendorGrantStatus.DENIED ||
+    grant?.status === VendorGrantStatus.REVOKED
+  ) {
+    throwGrantAccessError(grant.status);
+  }
+
+  const { grant: grantAfterRequest } = await requestWorkspaceGrantIndependently(
+    {
+      vendorId,
+      workspaceId,
+      requestedByUserId,
+    },
+  );
+
+  if (grantAfterRequest.status === VendorGrantStatus.GRANTED) {
+    return;
+  }
+
+  throwGrantAccessError(grantAfterRequest.status);
+}
+
 async function requireCoworkerTaskRead(
   authContext: CoworkerAuthenticationContext,
   taskId: string,
@@ -187,7 +301,7 @@ async function requireCoworkerTaskRead(
 ): Promise<Task> {
   await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
 
-  const task = await tx.task.findFirst({
+  const baselineTask = await tx.task.findFirst({
     where: buildCoworkerAuthorizedTaskWhere({
       taskId,
       coworkerId: authContext.coworkerId,
@@ -197,9 +311,42 @@ async function requireCoworkerTaskRead(
     ...(include ? { include } : {}),
   });
 
+  if (baselineTask) {
+    return baselineTask;
+  }
+
+  if (!workspaceId) {
+    throw notFound("Task not found");
+  }
+
+  const task = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      workspaceId,
+      archivedAt: null,
+      status: { not: TaskStatus.DRAFT },
+    },
+    ...(include ? { include } : {}),
+  });
+
   if (!task) {
     throw notFound("Task not found");
   }
+
+  const grant = await getWorkspaceGrant(
+    {
+      vendorId: authContext.vendorId,
+      workspaceId,
+    },
+    tx,
+  );
+
+  await requireGrantedWorkspaceAccessOrRequest({
+    vendorId: authContext.vendorId,
+    workspaceId,
+    requestedByUserId: authContext.context?.userId ?? null,
+    grant,
+  });
 
   return task;
 }
@@ -255,7 +402,9 @@ export async function requireCoworkerTaskCollaboration(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  return await requireCoworkerAssignedTaskRead(authContext, taskId, tx);
+  const task = await requireCoworkerAssignedTaskRead(authContext, taskId, tx);
+  requireTaskNotParked(task);
+  return task;
 }
 
 /**
@@ -272,6 +421,7 @@ export async function requireTaskCollaboration(
       taskId,
       tx,
     );
+    requireTaskNotParked(task);
     return task;
   }
 
@@ -293,15 +443,13 @@ export async function requireTaskCollaboration(
       throw forbidden("You can only act on tasks assigned to your coworker");
     }
 
+    requireTaskNotParked(task);
     return task;
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
-/**
- * Comment access: workspace-visible session users, or assignee / same-vendor sibling coworkers.
- */
 export async function requireTaskCommentAccess(
   vars: EnvVariables["Variables"],
   taskId: string,
@@ -311,11 +459,13 @@ export async function requireTaskCommentAccess(
 
   if (isUserAuthContext(authContext)) {
     requireUserContext(authContext);
-    return await requireTaskReadForWorkspace(
+    const task = await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
     );
+    requireTaskNotParked(task);
+    return task;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
@@ -324,7 +474,53 @@ export async function requireTaskCommentAccess(
       ? requireWorkspaceContext(workspaceContext).workspaceId
       : null;
 
-  return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
+  const task = await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
+  requireTaskNotParked(task);
+
+  const taskMeta = await tx.task.findFirst({
+    where: { id: task.id },
+    select: {
+      coworkerId: true,
+      status: true,
+      workspaceId: true,
+      coworker: { select: { vendorId: true } },
+    },
+  });
+
+  if (!taskMeta) {
+    throw notFound("Task not found");
+  }
+
+  if (
+    isBaselineCoworkerTaskAccess({
+      actorCoworkerId: coworker.coworkerId,
+      actorVendorId: coworker.vendorId,
+      task: taskMeta,
+    })
+  ) {
+    return task;
+  }
+
+  if (!workspaceId) {
+    throwGrantAccessError(null);
+  }
+
+  const grant = await getWorkspaceGrant(
+    {
+      vendorId: coworker.vendorId,
+      workspaceId,
+    },
+    tx,
+  );
+
+  await requireGrantedWorkspaceAccessOrRequest({
+    vendorId: coworker.vendorId,
+    workspaceId,
+    requestedByUserId: coworker.context?.userId ?? null,
+    grant,
+  });
+
+  return task;
 }
 
 // -----------------------------------------------------------------------------
@@ -595,18 +791,7 @@ async function assertCoworkerCanReadJob(
     throw forbidden("You can only access jobs assigned to your coworker");
   }
 
-  const taskForSibling = await tx.task.findFirst({
-    where: buildCoworkerAuthorizedTaskWhere({
-      taskId: job.taskId,
-      coworkerId: coworker.coworkerId,
-      vendorId: coworker.vendorId,
-      workspaceId: job.workspaceId,
-    }),
-    select: { id: true },
-  });
-  if (!taskForSibling) {
-    throw notFound("Job not found");
-  }
+  await requireCoworkerTaskRead(coworker, job.taskId, job.workspaceId, tx);
 }
 
 /**
@@ -648,13 +833,34 @@ export async function requireJobReadForRouteVars(
   return job;
 }
 
+async function requireParentTaskNotParked(
+  job: Pick<Job, "taskId">,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  if (job.taskId == null) {
+    return;
+  }
+
+  const task = await tx.task.findFirst({
+    where: { id: job.taskId, archivedAt: null },
+    select: { status: true },
+  });
+
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  requireTaskNotParked(task);
+}
+
 /**
  * Collaboration (write) access for a job: the authenticated user must own the
  * job, or the delegated coworker must have the tasks capability and be assigned
  * to the job's task. Mirrors `requireTaskCollaboration` for jobs.
  *
  * @throws {forbidden} If the user does not own the job, a bare coworker is used,
- *   or a delegated coworker is not assigned to the job's task
+ *   a delegated coworker is not assigned to the job's task, or the parent task
+ *   is parked
  */
 export async function requireJobCollaboration(
   authContext: AuthenticationContext,
@@ -662,11 +868,13 @@ export async function requireJobCollaboration(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   if (isUserAuthContext(authContext)) {
-    return await requireJobOwnership(
+    const job = await requireJobOwnership(
       { source: "session", ...authContext },
       jobId,
       tx,
     );
+    await requireParentTaskNotParked(job, tx);
+    return job;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
@@ -684,6 +892,7 @@ export async function requireJobCollaboration(
     );
 
     await assertJobAssignedToCoworker(job, coworker.coworkerId, tx);
+    await requireParentTaskNotParked(job, tx);
 
     return job;
   }

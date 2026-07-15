@@ -637,6 +637,23 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows archive for the task owner while vendor grant approval is pending", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      organizations: undefined,
+      isTaskOwner: true,
+      isReadOnly: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
   it("hides share and overflow actions in read-only workspace mode", () => {
     renderActions({
       isReadOnly: true,

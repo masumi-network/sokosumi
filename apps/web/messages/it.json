@@ -1209,6 +1209,7 @@
           "DRAFT": "Bozza",
           "QUEUED": "In coda",
           "READY": "Pronto",
+          "GRANT_PENDING": "Approvazione in sospeso",
           "INPUT_REQUIRED": "Input richiesto",
           "APPROVAL_REQUIRED": "Approvazione richiesta",
           "AUTHENTICATION_REQUIRED": "Autenticazione richiesta",
@@ -1414,6 +1415,19 @@
         "inputRequired": "Input richiesto",
         "done": "Completato"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Approvazione accesso vendor richiesta",
+        "descriptionOne": "{vendorName} necessita di accesso per lavorare con le attività in questo workspace.",
+        "descriptionMany": "{count} vendor necessitano di accesso per lavorare con le attività in questo workspace.",
+        "descriptionMember": "Un coworker ha richiesto l'accesso vendor. Un proprietario o admin del workspace deve approvarlo.",
+        "descriptionMemberMany": "{count} vendor hanno richiesto l'accesso. Un proprietario o admin del workspace deve approvarlo.",
+        "parkedTasksHint": "{count, plural, one {# attività è bloccata} other {# attività sono bloccate}} finché l'accesso non viene approvato.",
+        "approve": "Approva accesso",
+        "review": "Vedi dettagli",
+        "approveSuccess": "Accesso vendor approvato.",
+        "approveError": "Impossibile approvare l'accesso vendor",
+        "approvePartialError": "Approvati {approved} vendor su {total}. Alcune approvazioni non sono riuscite — aggiorna e riprova."
+      },
       "Actions": {
         "add": "Aggiungi",
         "addTask": "Aggiungi task",
@@ -1470,6 +1484,7 @@
           "DRAFT": "Bozza",
           "QUEUED": "In coda",
           "READY": "Pronto",
+          "GRANT_PENDING": "Approvazione in sospeso",
           "INPUT_REQUIRED": "Input richiesto",
           "APPROVAL_REQUIRED": "Approvazione richiesta",
           "AUTHENTICATION_REQUIRED": "Autenticazione richiesta",
@@ -1652,7 +1667,25 @@
           "switchError": "Impossibile cambiare spazio di lavoro. Riprova."
         },
         "clonedFrom": "Clonata da {name}",
-        "schedule": "Pianificazione"
+        "schedule": "Pianificazione",
+        "pendingApproval": "Approvazione in sospeso",
+        "VendorGrantApproval": {
+          "title": "Approvazione accesso vendor richiesta",
+          "description": "Un coworker ha creato questa attività ma non ha ancora il permesso di creare attività in questo workspace. Approva l'accesso vendor per attivarla.",
+          "descriptionWithCoworker": "{coworkerName} ha creato questa attività ma non ha ancora il permesso di creare attività in questo workspace. Approva l'accesso vendor per attivarla.",
+          "approve": "Approva accesso",
+          "deny": "Nega accesso",
+          "review": "Vedi dettagli",
+          "approveSuccess": "Accesso vendor approvato. Questa attività è ora attiva.",
+          "denySuccess": "Accesso vendor negato. Questa attività è stata annullata.",
+          "approveError": "Impossibile approvare l'accesso vendor",
+          "denyError": "Impossibile negare l'accesso vendor"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "In attesa dell'approvazione dell'accesso vendor",
+          "description": "Questa attività è bloccata finché un proprietario o admin del workspace non approva l'accesso vendor.",
+          "descriptionWithCoworker": "{coworkerName} ha creato questa attività. È bloccata finché un proprietario o admin del workspace non approva l'accesso vendor."
+        }
       },
       "NewTask": {
         "title": "Nuovo task",
@@ -3476,6 +3509,38 @@
         "Schema": {
           "websiteUrl": "Inserisci un URL http o https valido"
         }
+      },
+      "VendorGrants": {
+        "title": "Accesso fornitori allo spazio di lavoro",
+        "description": "Approva l’accesso vendor al tuo spazio di lavoro personale (leggere, commentare e creare task).",
+        "vendorsTitle": "Fornitori",
+        "vendorsEmpty": "Nessuna autorizzazione fornitore ancora.",
+        "statusPending": "In sospeso",
+        "statusGranted": "Concessa",
+        "statusDenied": "Negata",
+        "statusRevoked": "Revocata",
+        "grantFormTitle": "Concedi accesso in modo proattivo",
+        "GrantForm": {
+          "vendorLabel": "Fornitore",
+          "workspaceAccessHint": "Concede l’accesso completo al workspace: leggere, commentare e creare task.",
+          "submit": "Concedi accesso",
+          "success": "Accesso fornitore concesso",
+          "error": "Impossibile concedere l’accesso fornitore"
+        },
+        "Actions": {
+          "approve": "Approva",
+          "deny": "Nega",
+          "revoke": "Revoca",
+          "approveSuccess": "Accesso fornitore approvato",
+          "denySuccess": "Accesso fornitore negato",
+          "revokeSuccess": "Accesso fornitore revocato",
+          "approveError": "Impossibile approvare l’accesso fornitore",
+          "denyError": "Impossibile negare l’accesso fornitore",
+          "revokeError": "Impossibile revocare l’accesso fornitore",
+          "grant": "Concedi",
+          "grantSuccess": "Accesso vendor concesso",
+          "grantError": "Impossibile concedere l’accesso vendor"
+        }
       }
     },
     "Organizations": {
@@ -3547,6 +3612,38 @@
           "assigned": "Assegnati",
           "unused": "Inutilizzati",
           "manageBilling": "Gestisci fatturazione"
+        },
+        "VendorGrants": {
+          "title": "Accesso workspace vendor",
+          "description": "Approva l’accesso vendor al workspace di questa organizzazione (leggere, commentare e creare task).",
+          "vendorsTitle": "Fornitori",
+          "vendorsEmpty": "Nessuna autorizzazione fornitore ancora.",
+          "statusPending": "In sospeso",
+          "statusGranted": "Concessa",
+          "statusDenied": "Negata",
+          "statusRevoked": "Revocata",
+          "grantFormTitle": "Concedi accesso in modo proattivo",
+          "GrantForm": {
+            "vendorLabel": "Fornitore",
+            "workspaceAccessHint": "Concede l’accesso completo al workspace: leggere, commentare e creare task.",
+            "submit": "Concedi accesso",
+            "success": "Accesso vendor concesso",
+            "error": "Impossibile concedere l’accesso vendor"
+          },
+          "Actions": {
+            "approve": "Approva",
+            "deny": "Rifiuta",
+            "revoke": "Revoca",
+            "approveSuccess": "Accesso vendor approvato",
+            "denySuccess": "Accesso vendor rifiutato",
+            "revokeSuccess": "Accesso vendor revocato",
+            "approveError": "Impossibile approvare l’accesso vendor",
+            "denyError": "Impossibile rifiutare l’accesso vendor",
+            "revokeError": "Impossibile revocare l’accesso vendor",
+            "grant": "Concedi",
+            "grantSuccess": "Accesso vendor concesso",
+            "grantError": "Impossibile concedere l’accesso vendor"
+          }
         }
       }
     },
@@ -3914,6 +4011,11 @@
         "failed": "{coworkerName} non è riuscito a completare {taskName}",
         "canceled": "{taskName} è stato annullato"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} ha richiesto l’accesso vendor al workspace dell’organizzazione"
     }
   }
 }

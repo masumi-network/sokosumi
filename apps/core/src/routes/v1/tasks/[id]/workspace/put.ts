@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
-import { conflict, notFound } from "@/helpers/error";
+import { requireMutableTaskOwnership } from "@/helpers/access-control";
+import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -56,33 +57,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
     const task = await serializableTransaction(async (tx) => {
-      const task = await tx.task.findFirst({
-        where: {
-          id,
-          userId: userContext.userId,
-          archivedAt: null,
-        },
-        select: {
-          workspaceId: true,
-          workspace: {
-            select: {
-              organizationId: true,
-            },
-          },
-        },
+      const ownedTask = await requireMutableTaskOwnership(userContext, id, tx);
+
+      const workspace = await tx.workspace.findUniqueOrThrow({
+        where: { id: ownedTask.workspaceId },
+        select: { organizationId: true },
       });
 
-      if (!task) {
-        throw notFound("Task not found");
-      }
-
       const workspaceChanged =
-        targetOrganizationId !== task.workspace.organizationId;
+        targetOrganizationId !== workspace.organizationId;
 
       if (!workspaceChanged) {
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext, task.workspaceId),
+          include: buildTaskIncludeForViewer(
+            authContext,
+            ownedTask.workspaceId,
+          ),
         });
       }
 
@@ -95,11 +86,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
 
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
-        userContext.userId,
-        targetOrganizationId ?? null,
-        tx,
-      );
+      const targetWorkspace =
+        await workspaceRepository.upsertWorkspaceForContext(
+          userContext.userId,
+          targetOrganizationId ?? null,
+          tx,
+        );
 
       const existingLink = await tx.taskLink.findFirst({
         where: {
@@ -121,7 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           id,
         },
         data: {
-          workspaceId: workspace.id,
+          workspaceId: targetWorkspace.id,
           projectId: null,
         },
       });
@@ -129,14 +121,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.job.updateMany({
         where: { taskId: id },
         data: {
-          workspaceId: workspace.id,
+          workspaceId: targetWorkspace.id,
           projectId: null,
         },
       });
 
       return await tx.task.findUniqueOrThrow({
         where: { id },
-        include: buildTaskIncludeForViewer(authContext, workspace.id),
+        include: buildTaskIncludeForViewer(authContext, targetWorkspace.id),
       });
     }, "Task changed by a concurrent request. Please retry.");
 

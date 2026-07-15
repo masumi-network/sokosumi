@@ -1209,6 +1209,7 @@
           "DRAFT": "草稿",
           "QUEUED": "已排队",
           "READY": "就绪",
+          "GRANT_PENDING": "待审批",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
           "AUTHENTICATION_REQUIRED": "需要认证",
@@ -1414,6 +1415,19 @@
         "inputRequired": "需要输入",
         "done": "已完成"
       },
+      "PendingVendorGrantBanner": {
+        "title": "需要批准供应商访问权限",
+        "descriptionOne": "{vendorName} 需要访问权限才能在此工作区处理任务。",
+        "descriptionMany": "{count} 个供应商需要访问权限才能在此工作区处理任务。",
+        "descriptionMember": "同事请求了供应商访问权限，需要工作区所有者或管理员批准。",
+        "descriptionMemberMany": "{count} 个供应商请求了访问权限，需要工作区所有者或管理员批准。",
+        "parkedTasksHint": "在访问权限获批前，{count, plural, other {# 个任务被阻塞}}。",
+        "approve": "批准访问",
+        "review": "查看详情",
+        "approveSuccess": "已批准供应商访问。",
+        "approveError": "批准供应商访问失败",
+        "approvePartialError": "已批准 {approved}/{total} 个供应商。部分批准失败，请刷新后重试。"
+      },
       "Actions": {
         "add": "添加",
         "addTask": "添加任务",
@@ -1470,6 +1484,7 @@
           "DRAFT": "草稿",
           "QUEUED": "已排队",
           "READY": "就绪",
+          "GRANT_PENDING": "待审批",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
           "AUTHENTICATION_REQUIRED": "需要认证",
@@ -1652,7 +1667,25 @@
           "switchError": "切换工作区失败，请重试。"
         },
         "clonedFrom": "克隆自 {name}",
-        "schedule": "计划"
+        "schedule": "计划",
+        "pendingApproval": "待审批",
+        "VendorGrantApproval": {
+          "title": "需要批准供应商访问权限",
+          "description": "同事创建了此任务，但尚未获得在此工作区创建任务的权限。请批准供应商访问以激活该任务。",
+          "descriptionWithCoworker": "{coworkerName} 创建了此任务，但尚未获得在此工作区创建任务的权限。请批准供应商访问以激活该任务。",
+          "approve": "批准访问",
+          "deny": "拒绝访问",
+          "review": "查看详情",
+          "approveSuccess": "已批准供应商访问。此任务现已激活。",
+          "denySuccess": "已拒绝供应商访问。此任务已取消。",
+          "approveError": "批准供应商访问失败",
+          "denyError": "拒绝供应商访问失败"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "等待供应商访问批准",
+          "description": "此任务已被阻塞，需工作区所有者或管理员批准供应商访问后才能继续。",
+          "descriptionWithCoworker": "{coworkerName} 创建了此任务。需工作区所有者或管理员批准供应商访问后才能继续。"
+        }
       },
       "NewTask": {
         "title": "新建任务",
@@ -3476,6 +3509,38 @@
         "Schema": {
           "websiteUrl": "请输入有效的 http 或 https URL"
         }
+      },
+      "VendorGrants": {
+        "title": "供应商工作区访问",
+        "description": "批准供应商对你个人工作区的访问（读取、评论和创建任务）。",
+        "vendorsTitle": "供应商",
+        "vendorsEmpty": "尚无供应商授权。",
+        "statusPending": "待处理",
+        "statusGranted": "已授权",
+        "statusDenied": "已拒绝",
+        "statusRevoked": "已撤销",
+        "grantFormTitle": "主动授予访问权限",
+        "GrantForm": {
+          "vendorLabel": "供应商",
+          "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
+          "submit": "授予访问权限",
+          "success": "已授予供应商访问权限",
+          "error": "授予供应商访问权限失败"
+        },
+        "Actions": {
+          "approve": "批准",
+          "deny": "拒绝",
+          "revoke": "撤销",
+          "approveSuccess": "已批准供应商访问权限",
+          "denySuccess": "已拒绝供应商访问权限",
+          "revokeSuccess": "已撤销供应商访问权限",
+          "approveError": "批准供应商访问权限失败",
+          "denyError": "拒绝供应商访问权限失败",
+          "revokeError": "撤销供应商访问权限失败",
+          "grant": "授予",
+          "grantSuccess": "已授予供应商访问权限",
+          "grantError": "授予供应商访问权限失败"
+        }
       }
     },
     "Organizations": {
@@ -3547,6 +3612,38 @@
           "assigned": "已分配",
           "unused": "未使用",
           "manageBilling": "管理账单"
+        },
+        "VendorGrants": {
+          "title": "供应商工作区访问",
+          "description": "批准供应商对此组织工作区的访问（读取、评论和创建任务）。",
+          "vendorsTitle": "供应商",
+          "vendorsEmpty": "尚无供应商授权。",
+          "statusPending": "待处理",
+          "statusGranted": "已授权",
+          "statusDenied": "已拒绝",
+          "statusRevoked": "已撤销",
+          "grantFormTitle": "主动授予访问权限",
+          "GrantForm": {
+            "vendorLabel": "供应商",
+            "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
+            "submit": "授予访问权限",
+            "success": "已授予供应商访问权限",
+            "error": "授予供应商访问权限失败"
+          },
+          "Actions": {
+            "approve": "批准",
+            "deny": "拒绝",
+            "revoke": "撤销",
+            "approveSuccess": "已批准供应商访问",
+            "denySuccess": "已拒绝供应商访问",
+            "revokeSuccess": "已撤销供应商访问",
+            "approveError": "批准供应商访问失败",
+            "denyError": "拒绝供应商访问失败",
+            "revokeError": "撤销供应商访问失败",
+            "grant": "授予",
+            "grantSuccess": "已授予供应商访问权限",
+            "grantError": "授予供应商访问权限失败"
+          }
         }
       }
     },
@@ -3914,6 +4011,11 @@
         "failed": "{coworkerName} 未能完成 {taskName}",
         "canceled": "{taskName} 已取消"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} 请求访问组织工作区的供应商权限"
     }
   }
 }

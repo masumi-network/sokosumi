@@ -1209,6 +1209,7 @@
           "DRAFT": "Rascunho",
           "QUEUED": "Na fila",
           "READY": "Pronto",
+          "GRANT_PENDING": "Aprovação pendente",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
           "AUTHENTICATION_REQUIRED": "Autenticação necessária",
@@ -1414,6 +1415,19 @@
         "inputRequired": "Input necessário",
         "done": "Concluído"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Aprovação de acesso do fornecedor necessária",
+        "descriptionOne": "{vendorName} precisa de acesso para trabalhar com tarefas neste workspace.",
+        "descriptionMany": "{count} fornecedores precisam de acesso para trabalhar com tarefas neste workspace.",
+        "descriptionMember": "Um coworker solicitou acesso do fornecedor. Um proprietário ou administrador do workspace deve aprovar.",
+        "descriptionMemberMany": "{count} fornecedores solicitaram acesso. Um proprietário ou administrador do workspace deve aprovar.",
+        "parkedTasksHint": "{count, plural, one {# tarefa está bloqueada} other {# tarefas estão bloqueadas}} até o acesso ser aprovado.",
+        "approve": "Aprovar acesso",
+        "review": "Ver detalhes",
+        "approveSuccess": "Acesso do fornecedor aprovado.",
+        "approveError": "Falha ao aprovar o acesso do fornecedor",
+        "approvePartialError": "Acesso aprovado para {approved} de {total} fornecedores. Algumas aprovações falharam — atualize e tente novamente."
+      },
       "Actions": {
         "add": "Adicionar",
         "addTask": "Adicionar tarefa",
@@ -1470,6 +1484,7 @@
           "DRAFT": "Rascunho",
           "QUEUED": "Na fila",
           "READY": "Pronto",
+          "GRANT_PENDING": "Aprovação pendente",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
           "AUTHENTICATION_REQUIRED": "Autenticação necessária",
@@ -1652,7 +1667,25 @@
           "switchError": "Não foi possível mudar de espaço de trabalho. Tente novamente."
         },
         "clonedFrom": "Clonada de {name}",
-        "schedule": "Agendamento"
+        "schedule": "Agendamento",
+        "pendingApproval": "Aprovação pendente",
+        "VendorGrantApproval": {
+          "title": "Aprovação de acesso do fornecedor necessária",
+          "description": "Um coworker criou esta tarefa, mas ainda não tem permissão para criar tarefas neste workspace. Aprove o acesso do fornecedor para ativá-la.",
+          "descriptionWithCoworker": "{coworkerName} criou esta tarefa, mas ainda não tem permissão para criar tarefas neste workspace. Aprove o acesso do fornecedor para ativá-la.",
+          "approve": "Aprovar acesso",
+          "deny": "Recusar acesso",
+          "review": "Ver detalhes",
+          "approveSuccess": "Acesso do fornecedor aprovado. Esta tarefa está ativa.",
+          "denySuccess": "Acesso do fornecedor recusado. Esta tarefa foi cancelada.",
+          "approveError": "Falha ao aprovar o acesso do fornecedor",
+          "denyError": "Falha ao recusar o acesso do fornecedor"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "A aguardar aprovação de acesso do fornecedor",
+          "description": "Esta tarefa está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor.",
+          "descriptionWithCoworker": "{coworkerName} criou esta tarefa. Está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor."
+        }
       },
       "NewTask": {
         "title": "Nova tarefa",
@@ -3476,6 +3509,38 @@
         "Schema": {
           "websiteUrl": "Introduza um URL http ou https válido"
         }
+      },
+      "VendorGrants": {
+        "title": "Acesso de fornecedores ao espaço de trabalho",
+        "description": "Aprova o acesso de fornecedores ao teu espaço de trabalho pessoal (ler, comentar e criar tarefas).",
+        "vendorsTitle": "Fornecedores",
+        "vendorsEmpty": "Ainda não existem concessões de fornecedor.",
+        "statusPending": "Pendente",
+        "statusGranted": "Concedido",
+        "statusDenied": "Negado",
+        "statusRevoked": "Revogado",
+        "grantFormTitle": "Conceder acesso proativamente",
+        "GrantForm": {
+          "vendorLabel": "Fornecedor",
+          "workspaceAccessHint": "Concede acesso total ao workspace: ler, comentar e criar tarefas.",
+          "submit": "Conceder acesso",
+          "success": "Acesso de fornecedor concedido",
+          "error": "Falha ao conceder acesso de fornecedor"
+        },
+        "Actions": {
+          "approve": "Aprovar",
+          "deny": "Negar",
+          "revoke": "Revogar",
+          "approveSuccess": "Acesso de fornecedor aprovado",
+          "denySuccess": "Acesso de fornecedor negado",
+          "revokeSuccess": "Acesso de fornecedor revogado",
+          "approveError": "Falha ao aprovar acesso de fornecedor",
+          "denyError": "Falha ao negar acesso de fornecedor",
+          "revokeError": "Falha ao revogar acesso de fornecedor",
+          "grant": "Conceder",
+          "grantSuccess": "Acesso de fornecedor concedido",
+          "grantError": "Falha ao conceder acesso de fornecedor"
+        }
       }
     },
     "Organizations": {
@@ -3547,6 +3612,38 @@
           "assigned": "Atribuídos",
           "unused": "Não utilizados",
           "manageBilling": "Gerir faturação"
+        },
+        "VendorGrants": {
+          "title": "Acesso ao workspace do fornecedor",
+          "description": "Aprove o acesso de fornecedores ao workspace desta organização (ler, comentar e criar tarefas).",
+          "vendorsTitle": "Fornecedores",
+          "vendorsEmpty": "Ainda não existem concessões de fornecedor.",
+          "statusPending": "Pendente",
+          "statusGranted": "Concedido",
+          "statusDenied": "Negado",
+          "statusRevoked": "Revogado",
+          "grantFormTitle": "Conceder acesso de forma proativa",
+          "GrantForm": {
+            "vendorLabel": "Fornecedor",
+            "workspaceAccessHint": "Concede acesso total ao workspace: ler, comentar e criar tarefas.",
+            "submit": "Conceder acesso",
+            "success": "Acesso do fornecedor concedido",
+            "error": "Falha ao conceder acesso do fornecedor"
+          },
+          "Actions": {
+            "approve": "Aprovar",
+            "deny": "Recusar",
+            "revoke": "Revogar",
+            "approveSuccess": "Acesso do fornecedor aprovado",
+            "denySuccess": "Acesso do fornecedor recusado",
+            "revokeSuccess": "Acesso do fornecedor revogado",
+            "approveError": "Falha ao aprovar acesso do fornecedor",
+            "denyError": "Falha ao recusar acesso do fornecedor",
+            "revokeError": "Falha ao revogar acesso do fornecedor",
+            "grant": "Conceder",
+            "grantSuccess": "Acesso de fornecedor concedido",
+            "grantError": "Falha ao conceder acesso de fornecedor"
+          }
         }
       }
     },
@@ -3914,6 +4011,11 @@
         "failed": "{coworkerName} não conseguiu concluir {taskName}",
         "canceled": "{taskName} foi cancelado"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} solicitou acesso de fornecedor ao workspace da organização"
     }
   }
 }

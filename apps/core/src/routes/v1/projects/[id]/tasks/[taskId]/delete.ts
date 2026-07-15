@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -30,7 +31,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
     path: "/{id}/tasks/{taskId}",
-    description: "Remove a task from a project without deleting the task",
+    description:
+      "Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. Any workspace member may unlink a workspace task.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -58,6 +60,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!project) {
       throw notFound("Project or task link not found");
     }
+
+    const task = await prisma.task.findFirst({
+      where: { id: taskId, projectId, workspaceId },
+      select: { pendingVendorGrantId: true, status: true },
+    });
+    if (!task) {
+      throw notFound("Project or task link not found");
+    }
+
+    requireTaskNotParked(task);
 
     const unlinkResult = await prisma.task.updateMany({
       where: { id: taskId, projectId, workspaceId },

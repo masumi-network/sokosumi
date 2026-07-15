@@ -37,6 +37,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskOwnership: requireTaskOwnershipMock,
+  requireMutableTaskOwnership: requireTaskOwnershipMock,
   requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
 }));
 

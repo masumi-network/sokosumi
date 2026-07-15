@@ -22,8 +22,17 @@ const {
   requireTaskOwnershipMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => {
     const t = task as Record<string, unknown>;
+    const status = t.status as string | undefined;
     return {
       ...t,
+      grantResumeStatus:
+        status === TaskStatus.GRANT_PENDING
+          ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)
+          : null,
+      pendingVendorGrantId:
+        status === TaskStatus.GRANT_PENDING
+          ? ((t.pendingVendorGrantId as string | null) ?? null)
+          : null,
       user: t.user ?? {
         id: t.userId,
         name: "Task owner",
@@ -62,6 +71,7 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskOwnership: requireTaskOwnershipMock,
+  requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
