@@ -237,7 +237,6 @@ export async function requireTaskAssignableCoworker(
 // Task collaboration (user ownership or coworker on assigned task)
 // -----------------------------------------------------------------------------
 
-/** Request a PENDING grant outside the caller's transaction. */
 async function requestWorkspaceGrantIndependently(params: {
   vendorId: string;
   workspaceId: string;
@@ -246,10 +245,6 @@ async function requestWorkspaceGrantIndependently(params: {
   return requestWorkspaceGrantCommitted(params);
 }
 
-/**
- * Upsert PENDING when workspace access is missing; allow when GRANTED (including
- * if an approver grants concurrently during the independent request tx).
- */
 async function requireGrantedWorkspaceAccessOrRequest(params: {
   vendorId: string;
   workspaceId: string;
@@ -284,11 +279,6 @@ async function requireGrantedWorkspaceAccessOrRequest(params: {
   throwGrantAccessError(grantAfterRequest.status);
 }
 
-/**
- * Coworker branch of task read: baseline assignee/sibling, or GRANTED workspace
- * access to all non-DRAFT tasks in the workspace (any vendor). Out-of-scope reads
- * upsert PENDING workspace grant and 403 `grant_required`.
- */
 async function requireCoworkerTaskRead(
   authContext: CoworkerAuthenticationContext,
   taskId: string,
@@ -460,11 +450,6 @@ export async function requireTaskCollaboration(
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
-/**
- * Comment access: workspace-visible session users, or coworkers who can read
- * and (baseline comment OR GRANTED workspace access). Beyond-baseline comment
- * without grant upserts PENDING and 403 — comment is not saved by caller.
- */
 export async function requireTaskCommentAccess(
   vars: EnvVariables["Variables"],
   taskId: string,
@@ -848,10 +833,6 @@ export async function requireJobReadForRouteVars(
   return job;
 }
 
-/**
- * Reject job writes when the parent task is parked awaiting vendor create
- * approval. Jobs without a taskId stay ungated by parking.
- */
 async function requireParentTaskNotParked(
   job: Pick<Job, "taskId">,
   tx: Prisma.TransactionClient,
@@ -875,8 +856,7 @@ async function requireParentTaskNotParked(
 /**
  * Collaboration (write) access for a job: the authenticated user must own the
  * job, or the delegated coworker must have the tasks capability and be assigned
- * to the job's task. Mirrors `requireTaskCollaboration` for jobs. Parent parked
- * tasks freeze job mutations the same way as task mutations.
+ * to the job's task. Mirrors `requireTaskCollaboration` for jobs.
  *
  * @throws {forbidden} If the user does not own the job, a bare coworker is used,
  *   a delegated coworker is not assigned to the job's task, or the parent task

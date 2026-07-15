@@ -11,7 +11,6 @@ interface ReadOnlyForViewerParams {
    * edit, comment, or mutate the task.
    */
   forceReadOnly: boolean;
-  /** Task is waiting on vendor workspace grant approval. */
   pendingApproval?: boolean;
 }
 
@@ -19,8 +18,6 @@ interface ReadOnlyForViewerParams {
  * The task detail view is read-only unless the viewer owns the task.
  *
  * - `forceReadOnly` (admin view) always wins.
- * - `pendingApproval` blocks mutations until vendor access is granted
- *   (archive stays separately exempt via {@link canArchiveParkedTaskForViewer}).
  * - Otherwise: read-only for a non-owner on an organization-workspace task
  *   (workspace collaborators inspect but do not edit). Personal-workspace owners
  *   and organization-task owners stay editable.
@@ -38,11 +35,6 @@ export function isReadOnlyForViewer({
   return taskWorkspaceOrganizationId !== null && sessionUserId !== taskUserId;
 }
 
-/**
- * Soft-archive while parked is allowed for the task owner and for org
- * OWNER/ADMIN of that workspace. Mirrors Core `requireTaskArchiveAccess`.
- * Does not unlock other mutations — API remains the gate.
- */
 export function canArchiveParkedTaskForViewer({
   forceReadOnly,
   pendingApproval = false,

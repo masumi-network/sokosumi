@@ -15,11 +15,6 @@ export function canApproveVendorGrants(params: {
   organizationId: string | null;
   isAuthenticated: boolean;
   viewerMembership?: MemberWithOrganization;
-  /**
-   * When set (task detail), personal workspace approve is only for the task
-   * owner. Omit on account/board surfaces where the active personal workspace
-   * already belongs to the session user.
-   */
   taskOwnerUserId?: string | null;
   sessionUserId?: string | null;
 }): boolean {

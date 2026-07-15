@@ -23,7 +23,6 @@ type VendorGrantFormNamespace =
 
 interface VendorGrantCreateFormProps {
   vendors: Array<{ id: string; name: string }>;
-  /** Vendor IDs already shown in the grants list — grayed out, not selectable. */
   disabledVendorIds?: string[];
   namespace: VendorGrantFormNamespace;
   onCreate: (params: {

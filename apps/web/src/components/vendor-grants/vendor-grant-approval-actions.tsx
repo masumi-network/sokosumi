@@ -56,7 +56,6 @@ export function VendorGrantApprovalActions({
             ? labels.approveError
             : (labels.denyError ?? labels.approveError);
         toast.error(result.error?.message ?? errorMessage);
-        // Partial multi-vendor approve may have succeeded for earlier vendors.
         shouldRefresh = action === "approve" && refreshAfterApproveAttempt;
         return;
       }

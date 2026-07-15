@@ -26,7 +26,6 @@ const {
   prismaTransactionMock: vi.fn(),
 }));
 
-// Use real requireUserAuthContext so coworker context cannot self-approve.
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));

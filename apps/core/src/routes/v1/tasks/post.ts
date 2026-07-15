@@ -223,8 +223,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    // Persist the grant outside task create so validation failures cannot roll
-    // back a newly requested PENDING row.
     await assertTaskProjectInWorkspace(
       body.projectId,
       workspaceContext.workspaceId,
@@ -275,8 +273,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (task.pendingVendorGrantId) {
-      // Notify after both transactions commit. createNotification is idempotent
-      // on grantId, so retries after a transient notify failure are safe.
       try {
         await notifyWorkspaceApproversOfPendingGrant({
           vendorId: authContext.vendorId,

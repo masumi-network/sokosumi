@@ -46,7 +46,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     const { grantId } = c.req.valid("param");
-    // Session-only: coworkers must not self-deny via context headers.
     const session = requireUserAuthContext(c.var.authContext);
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 

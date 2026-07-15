@@ -14,7 +14,6 @@ import { createNotification } from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
-/** API / OpenAPI permission string for vendor workspace access. */
 export const VendorPermissionApi = {
   WORKSPACE: "workspace",
 } as const;
@@ -37,10 +36,6 @@ function workspaceGrantUniqueWhere(vendorId: string, workspaceId: string) {
   } as const;
 }
 
-/**
- * Lock a vendor_grant row for the rest of the transaction so create/park and
- * approve/deny/revoke cannot interleave and leave permanently parked tasks.
- */
 async function lockVendorGrantById(
   grantId: string,
   tx: Prisma.TransactionClient,
@@ -121,7 +116,6 @@ export async function requestWorkspaceGrant(
     vendorId: string;
     workspaceId: string;
     requestedByUserId?: string | null;
-    /** When false, caller must notify after the surrounding transaction commits. */
     notify?: boolean;
   },
   tx: Prisma.TransactionClient = prisma,
@@ -131,7 +125,6 @@ export async function requestWorkspaceGrant(
     params.workspaceId,
   );
 
-  // Lock first so concurrent approve/deny wait until this create/park commits.
   const lockedRow = await lockWorkspaceGrantRow(
     { vendorId: params.vendorId, workspaceId: params.workspaceId },
     tx,
@@ -196,12 +189,10 @@ export async function requestWorkspaceGrant(
   }
 }
 
-/** Commit a workspace grant request in its own transaction. */
 export async function requestWorkspaceGrantCommitted(params: {
   vendorId: string;
   workspaceId: string;
   requestedByUserId?: string | null;
-  /** When false, caller must notify after commit. */
   notify?: boolean;
 }): Promise<{ grant: VendorGrant; created: boolean }> {
   return prisma.$transaction(async (grantTx) =>
@@ -226,10 +217,6 @@ export async function lockAndGetVendorGrantById(
   return grant;
 }
 
-/**
- * Notify grant approvers for a workspace: org OWNER/ADMIN when the workspace
- * belongs to an organization, otherwise the personal workspace owner.
- */
 export async function notifyWorkspaceApproversOfPendingGrant(
   params: {
     vendorId: string;
@@ -306,9 +293,6 @@ const vendorGrantWithVendorInclude = {
   vendor: { select: { name: true, slug: true } },
 } as const;
 
-/**
- * Create or upgrade the workspace grant to GRANTED and unpark linked tasks.
- */
 export async function grantWorkspaceAccess(
   params: {
     vendorId: string;
@@ -490,10 +474,6 @@ export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
   };
 }
 
-/**
- * Clears vendor-grant parking only. Task status is unchanged; `pendingVendorGrantId`
- * and API `pendingApproval` are the park signal.
- */
 export async function unparkTasksForGrant(
   grantId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -507,11 +487,6 @@ export async function unparkTasksForGrant(
   return result.count;
 }
 
-/**
- * Cancels non-archived parked tasks for a grant and appends a CANCELED status
- * event so activity history matches `task.status`. Soft-archived parked tasks
- * keep their status and only lose the park link via FK/onDelete or unpark.
- */
 export async function cancelParkedTasksForGrant(
   params: {
     grantId: string;
@@ -589,11 +564,6 @@ export function isBaselineCoworkerTaskAccess(params: {
   return false;
 }
 
-/**
- * Workspace list filter when coworker has GRANTED workspace access: all non-DRAFT
- * tasks in the workspace (any vendor). Without a grant, only baseline same-vendor
- * sibling visibility applies.
- */
 export function buildCoworkerTaskListAccessFilter(params: {
   coworkerId: string;
   vendorId: string;

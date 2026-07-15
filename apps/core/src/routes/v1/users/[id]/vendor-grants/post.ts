@@ -53,7 +53,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     c.req.valid("param");
     const body = c.req.valid("json");
-    // Session-only: coworkers must not self-grant via context headers.
     const session = requireUserAuthContext(c.var.authContext);
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
