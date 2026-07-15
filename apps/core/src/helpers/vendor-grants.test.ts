@@ -25,7 +25,9 @@ const vendorGrantFindFirst = vi.fn();
 const vendorGrantCreate = vi.fn();
 const vendorGrantUpsert = vi.fn();
 const vendorGrantUpdate = vi.fn();
+const taskFindMany = vi.fn();
 const taskUpdateMany = vi.fn();
+const taskEventCreate = vi.fn();
 const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
 const createNotificationMock = vi.fn();
@@ -41,7 +43,11 @@ vi.mock("@/lib/db/prisma", () => ({
       update: (...args: unknown[]) => vendorGrantUpdate(...args),
     },
     task: {
+      findMany: (...args: unknown[]) => taskFindMany(...args),
       updateMany: (...args: unknown[]) => taskUpdateMany(...args),
+    },
+    taskEvent: {
+      create: (...args: unknown[]) => taskEventCreate(...args),
     },
     member: {
       findMany: (...args: unknown[]) => memberFindMany(...args),
@@ -191,15 +197,46 @@ describe("vendor-grants helpers", () => {
       },
     });
 
+    taskFindMany.mockResolvedValue([{ id: "t1" }]);
     taskUpdateMany.mockResolvedValue({ count: 1 });
-    await expect(cancelParkedTasksForGrant("g1")).resolves.toBe(1);
+    taskEventCreate.mockResolvedValue({ id: "ev1" });
+    await expect(
+      cancelParkedTasksForGrant({ grantId: "g1", resolvedById: "u1" }),
+    ).resolves.toBe(1);
+    expect(taskFindMany).toHaveBeenCalledWith({
+      where: {
+        pendingVendorGrantId: "g1",
+        archivedAt: null,
+      },
+      select: { id: true },
+    });
     expect(taskUpdateMany).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: "g1" },
+      where: {
+        id: "t1",
+        pendingVendorGrantId: "g1",
+        archivedAt: null,
+      },
       data: {
         status: TaskStatus.CANCELED,
         pendingVendorGrantId: null,
       },
     });
+    expect(taskEventCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: "t1",
+        status: TaskStatus.CANCELED,
+        userId: "u1",
+      }),
+    });
+  });
+
+  it("skips cancel when only archived parked tasks remain", async () => {
+    taskFindMany.mockResolvedValue([]);
+    await expect(
+      cancelParkedTasksForGrant({ grantId: "g1", resolvedById: "u1" }),
+    ).resolves.toBe(0);
+    expect(taskUpdateMany).not.toHaveBeenCalled();
+    expect(taskEventCreate).not.toHaveBeenCalled();
   });
 
   it("reports GRANTED only via hasGrantedWorkspaceAccess", async () => {

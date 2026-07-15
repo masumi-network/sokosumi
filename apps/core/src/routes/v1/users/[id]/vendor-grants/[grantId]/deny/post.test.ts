@@ -10,14 +10,18 @@ import {
 } from "@/routes/v1/users/user-route-context";
 
 const {
+  taskFindManyMock,
   taskUpdateManyMock,
+  taskEventCreateMock,
   vendorGrantFindFirstMock,
   vendorGrantUpdateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
+  taskFindManyMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
+  taskEventCreateMock: vi.fn(),
   vendorGrantFindFirstMock: vi.fn(),
   vendorGrantUpdateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -80,7 +84,9 @@ describe("POST /users/{id}/vendor-grants/{grantId}/deny", () => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
+    taskFindManyMock.mockResolvedValue([{ id: "task_1" }]);
     taskUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskEventCreateMock.mockResolvedValue({ id: "ev_1" });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
@@ -90,7 +96,11 @@ describe("POST /users/{id}/vendor-grants/{grantId}/deny", () => {
             update: vendorGrantUpdateMock,
           },
           task: {
+            findMany: taskFindManyMock,
             updateMany: taskUpdateManyMock,
+          },
+          taskEvent: {
+            create: taskEventCreateMock,
           },
         }),
     );
@@ -127,11 +137,22 @@ describe("POST /users/{id}/vendor-grants/{grantId}/deny", () => {
 
     expect(response.status).toBe(200);
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: grantId },
+      where: {
+        id: "task_1",
+        pendingVendorGrantId: grantId,
+        archivedAt: null,
+      },
       data: {
         status: "CANCELED",
         pendingVendorGrantId: null,
       },
+    });
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: "task_1",
+        status: "CANCELED",
+        userId: "user_123",
+      }),
     });
   });
 });

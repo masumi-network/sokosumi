@@ -47,6 +47,7 @@ export function VendorGrantApprovalActions({
     mutation: () => Promise<Result<unknown, ActionError>>,
   ) {
     setLoadingAction(action);
+    let shouldRefresh = false;
     try {
       const result = await mutation();
       if (!result.ok) {
@@ -55,6 +56,8 @@ export function VendorGrantApprovalActions({
             ? labels.approveError
             : (labels.denyError ?? labels.approveError);
         toast.error(result.error?.message ?? errorMessage);
+        // Partial multi-vendor approve may have succeeded for earlier vendors.
+        shouldRefresh = action === "approve" && refreshAfterApproveAttempt;
         return;
       }
 
@@ -63,15 +66,16 @@ export function VendorGrantApprovalActions({
           ? labels.approveSuccess
           : (labels.denySuccess ?? labels.approveSuccess);
       toast.success(successMessage);
-      router.refresh();
+      shouldRefresh = true;
     } catch {
       toast.error(
         action === "approve"
           ? labels.approveError
           : (labels.denyError ?? labels.approveError),
       );
+      shouldRefresh = action === "approve" && refreshAfterApproveAttempt;
     } finally {
-      if (action === "approve" && refreshAfterApproveAttempt) {
+      if (shouldRefresh) {
         router.refresh();
       }
       setLoadingAction(null);

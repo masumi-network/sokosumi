@@ -562,9 +562,13 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("creates normally when workspace access is GRANTED", async () => {
-    getWorkspaceGrantMock.mockResolvedValue({
-      id: CREATE_GRANT_ID,
-      status: VendorGrantStatus.GRANTED,
+    // GRANTED is re-checked under lock via requestWorkspaceGrant (no stale fast-path).
+    requestWorkspaceGrantMock.mockResolvedValue({
+      grant: {
+        id: CREATE_GRANT_ID,
+        status: VendorGrantStatus.GRANTED,
+      },
+      created: false,
     });
 
     const response = await createDelegatedCoworkerApp().request(
@@ -583,7 +587,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(requestWorkspaceGrantMock).not.toHaveBeenCalled();
+    expect(requestWorkspaceGrantMock).toHaveBeenCalled();
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -595,9 +599,12 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("rejects create when workspace access was DENIED", async () => {
-    getWorkspaceGrantMock.mockResolvedValue({
-      id: CREATE_GRANT_ID,
-      status: VendorGrantStatus.DENIED,
+    requestWorkspaceGrantMock.mockResolvedValue({
+      grant: {
+        id: CREATE_GRANT_ID,
+        status: VendorGrantStatus.DENIED,
+      },
+      created: false,
     });
 
     const response = await createDelegatedCoworkerApp().request(

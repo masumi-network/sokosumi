@@ -3,6 +3,7 @@ import {
   NotificationKind,
   type Prisma,
   type Task,
+  TaskEventOrigin,
   type VendorGrant,
   VendorGrantStatus,
   VendorPermission,
@@ -387,7 +388,10 @@ export async function denyVendorGrantInWorkspace(
     include: vendorGrantWithVendorInclude,
   });
 
-  await cancelParkedTasksForGrant(updated.id, tx);
+  await cancelParkedTasksForGrant(
+    { grantId: updated.id, resolvedById: params.resolvedById },
+    tx,
+  );
 
   return updated;
 }
@@ -425,7 +429,10 @@ export async function revokeVendorGrantInWorkspace(
     include: vendorGrantWithVendorInclude,
   });
 
-  await cancelParkedTasksForGrant(updated.id, tx);
+  await cancelParkedTasksForGrant(
+    { grantId: updated.id, resolvedById: params.resolvedById },
+    tx,
+  );
 
   return updated;
 }
@@ -464,18 +471,59 @@ export async function unparkTasksForGrant(
   return result.count;
 }
 
+/**
+ * Cancels non-archived parked tasks for a grant and appends a CANCELED status
+ * event so activity history matches `task.status`. Soft-archived parked tasks
+ * keep their status and only lose the park link via FK/onDelete or unpark.
+ */
 export async function cancelParkedTasksForGrant(
-  grantId: string,
+  params: {
+    grantId: string;
+    resolvedById?: string | null;
+  },
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const result = await tx.task.updateMany({
-    where: { pendingVendorGrantId: grantId },
-    data: {
-      status: TaskStatus.CANCELED,
-      pendingVendorGrantId: null,
+  const parkedTasks = await tx.task.findMany({
+    where: {
+      pendingVendorGrantId: params.grantId,
+      archivedAt: null,
     },
+    select: { id: true },
   });
-  return result.count;
+
+  let canceledCount = 0;
+
+  for (const task of parkedTasks) {
+    const result = await tx.task.updateMany({
+      where: {
+        id: task.id,
+        pendingVendorGrantId: params.grantId,
+        archivedAt: null,
+      },
+      data: {
+        status: TaskStatus.CANCELED,
+        pendingVendorGrantId: null,
+      },
+    });
+
+    if (result.count === 0) {
+      continue;
+    }
+
+    await tx.taskEvent.create({
+      data: {
+        taskId: task.id,
+        status: TaskStatus.CANCELED,
+        origin: TaskEventOrigin.SOKOSUMI,
+        userId: params.resolvedById ?? null,
+        comment: null,
+        coworkerId: null,
+      },
+    });
+    canceledCount += 1;
+  }
+
+  return canceledCount;
 }
 
 export function isBaselineCoworkerTaskAccess(params: {

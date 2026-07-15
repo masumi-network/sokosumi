@@ -14,7 +14,6 @@ import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import { resolveTaskName } from "@/helpers/task-name";
 import {
-  getWorkspaceGrant,
   isGrantDeniedOrRevoked,
   notifyWorkspaceApproversOfPendingGrant,
   requestWorkspaceGrant,
@@ -208,34 +207,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    const existingGrant = await getWorkspaceGrant({
-      vendorId: authContext.vendorId,
-      workspaceId: workspaceContext.workspaceId,
-    });
-
-    if (existingGrant && isGrantDeniedOrRevoked(existingGrant.status)) {
-      throwGrantAccessError(existingGrant.status);
-    }
-
-    if (existingGrant?.status === VendorGrantStatus.GRANTED) {
-      const task = await prisma.$transaction(async (tx) =>
-        createTaskRecord(
-          {
-            userId: userContext.userId,
-            organizationId: userContext.organizationId,
-            workspaceId: workspaceContext.workspaceId,
-            body,
-            resolvedName,
-          },
-          tx,
-        ),
-      );
-
-      return created(c, taskSchema.parse(mapTask(task)));
-    }
-
-    // Lock the grant row inside the transaction (via requestWorkspaceGrant) so a
-    // concurrent approve/deny cannot leave a task permanently parked.
+    // Always resolve grant under row lock so concurrent revoke/deny cannot race a
+    // stale GRANTED read into an unparked create.
     const { task, createdPendingGrant } = await prisma.$transaction(
       async (tx) => {
         const { grant, created: pendingCreated } = await requestWorkspaceGrant(

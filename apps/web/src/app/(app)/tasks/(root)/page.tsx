@@ -180,7 +180,8 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       ),
       session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
       taskService.listTasks({
-        status: TaskStatus.READY,
+        // Parked creates keep requested status (DRAFT or READY).
+        status: [TaskStatus.DRAFT, TaskStatus.READY],
         pendingApproval: true,
         scope: activeFilters.scope,
         coworkerId: activeFilters.coworkerId ?? undefined,
