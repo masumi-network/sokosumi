@@ -38,8 +38,8 @@ read vs create permissions).
 | `grantResumeStatus` | `DRAFT` \| `READY` \| `null` | `status === GRANT_PENDING` | Target status after approval; `null` when not parked |
 | `pendingVendorGrantId` | uuid \| `null` | `status === GRANT_PENDING` | **Exposed on the task API** so integrators can correlate the parked task with the blocking grant. Cleared when not parked. |
 
-Both `grantResumeStatus` and `pendingVendorGrantId` are **omitted from the
-serialized task** (returned as `null`) once the task leaves `GRANT_PENDING`.
+Both `grantResumeStatus` and `pendingVendorGrantId` are returned as **`null`**
+when the task is not parked (not omitted from the JSON payload).
 
 **Design decision:** these fields are **intentionally exposed on the Core task
 API** while parked (not DB-only). Coworker integrators and the web app use
@@ -86,8 +86,12 @@ and the task is **not DRAFT**.
 **Delegated create** and workspace-scoped list/read require:
 
 - Coworker API token (`actor: coworker`)
-- User context headers (delegated session — e.g. `X-User-Id`, organization context)
-- Active **workspace** header (same as other workspace-scoped task routes)
+- Delegation context headers:
+  - **`X-Context-User-Id`** (required for delegated flows)
+  - **`X-Context-Organization-Id`** (optional; when set, user must be a member)
+- Workspace-scoped routes resolve the active workspace from that user/org context
+  (see Core OpenAPI global parameters in `apps/core/src/routes/v1/index.ts` and
+  `apps/core/src/middleware/coworker-context.ts`)
 
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
 `/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth. Only humans
