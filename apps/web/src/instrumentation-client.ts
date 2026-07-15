@@ -6,6 +6,7 @@ import {
 } from "@/lib/sentry/third-party-browser-environment-errors";
 import { thirdPartyDomMutationIgnoreErrors } from "@/lib/sentry/third-party-dom-mutation-errors";
 import {
+  bareNetworkErrorIgnoreErrors,
   beforeSendClientEvent,
   thirdPartyAnalyticsDenyUrls,
   thirdPartyAnalyticsIgnoreErrors,
@@ -30,6 +31,7 @@ Sentry.init({
     ...thirdPartyWalletIgnoreErrors,
     ...inAppBrowserIgnoreErrors,
     ...transientStreamIgnoreErrors,
+    ...bareNetworkErrorIgnoreErrors,
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,
