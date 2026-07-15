@@ -1,6 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { TaskEventOrigin, VendorGrantStatus } from "@sokosumi/database";
+import {
+  type Prisma,
+  TaskEventOrigin,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
@@ -105,6 +109,28 @@ const route = withGlobalHeaderParameters(
   }),
 );
 
+async function assertTaskProjectInWorkspace(
+  projectId: string | null | undefined,
+  workspaceId: string,
+  tx: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<void> {
+  if (projectId === null || projectId === undefined) {
+    return;
+  }
+
+  const project = await tx.project.findFirst({
+    where: {
+      id: projectId,
+      workspaceId,
+    },
+    select: { id: true },
+  });
+
+  if (!project) {
+    throw notFound("Project not found");
+  }
+}
+
 async function createTaskRecord(
   params: {
     userId: string;
@@ -125,19 +151,7 @@ async function createTaskRecord(
     workspaceId,
   } = params;
 
-  if (body.projectId !== null && body.projectId !== undefined) {
-    const project = await tx.project.findFirst({
-      where: {
-        id: body.projectId,
-        workspaceId,
-      },
-      select: { id: true },
-    });
-
-    if (!project) {
-      throw notFound("Project not found");
-    }
-  }
+  await assertTaskProjectInWorkspace(body.projectId, workspaceId, tx);
 
   const status = body.status;
 
@@ -211,6 +225,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Persist the grant outside task create so validation failures cannot roll
     // back a newly requested PENDING row.
+    await assertTaskProjectInWorkspace(
+      body.projectId,
+      workspaceContext.workspaceId,
+    );
+
     const { grant } = await requestWorkspaceGrantCommitted({
       vendorId: authContext.vendorId,
       workspaceId: workspaceContext.workspaceId,

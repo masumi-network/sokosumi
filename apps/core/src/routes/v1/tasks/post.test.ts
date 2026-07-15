@@ -121,6 +121,9 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    project: {
+      findFirst: projectFindFirstMock,
+    },
     workspace: {
       findUnique: workspaceFindUniqueMock,
     },
@@ -668,6 +671,38 @@ describe("POST /tasks delegated coworker create grant", () => {
     expect(response.status).toBe(403);
     expect(taskCreateMock).not.toHaveBeenCalled();
     expect(lockAndGetVendorGrantByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects delegated create with invalid projectId before requesting grant", async () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    projectFindFirstMock.mockResolvedValue(null);
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Bad Project Task",
+          description: null,
+          projectId,
+          coworkerId: null,
+          status: TaskStatus.DRAFT,
+          origin: TaskEventOrigin.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    expect(projectFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: projectId,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      select: { id: true },
+    });
+    expect(requestWorkspaceGrantCommittedMock).not.toHaveBeenCalled();
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("parks create in personal workspaces when workspace grant is missing", async () => {
