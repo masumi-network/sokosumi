@@ -71,7 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.task.findFirst({
       where: { id: body.taskId, archivedAt: null, workspaceId },
-      select: { projectId: true, pendingVendorGrantId: true },
+      select: { projectId: true, pendingVendorGrantId: true, status: true },
     });
     if (!task) {
       throw notFound("Task not found");

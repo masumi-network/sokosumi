@@ -280,7 +280,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     });
 
-    if (task.status === TaskStatus.GRANT_PENDING) {
+    if (task.status === TaskStatus.GRANT_PENDING && task.pendingVendorGrantId) {
       try {
         await notifyWorkspaceApproversOfPendingGrant({
           vendorId: authContext.vendorId,
