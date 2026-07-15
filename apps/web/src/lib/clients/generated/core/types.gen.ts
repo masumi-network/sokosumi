@@ -285,6 +285,10 @@ export type Task = {
      */
     grantResumeStatus: 'DRAFT' | 'READY' | null;
     /**
+     * Vendor grant blocking this task. Set only while status is GRANT_PENDING.
+     */
+    pendingVendorGrantId: string | null;
+    /**
      * Serialized task schedule metadata JSON
      */
     metadata: string | null;
@@ -2629,6 +2633,10 @@ export type TaskListItem = {
      * Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.
      */
     grantResumeStatus: 'DRAFT' | 'READY' | null;
+    /**
+     * Vendor grant blocking this task. Set only while status is GRANT_PENDING.
+     */
+    pendingVendorGrantId: string | null;
     /**
      * Serialized task schedule metadata JSON
      */

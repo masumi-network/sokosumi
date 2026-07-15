@@ -1210,6 +1210,15 @@ export const TaskSchema = {
             description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
             example: null
         },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Vendor grant blocking this task. Set only while status is GRANT_PENDING.',
+            example: null
+        },
         metadata: {
             type: [
                 'string',
@@ -1282,6 +1291,7 @@ export const TaskSchema = {
         'description',
         'status',
         'grantResumeStatus',
+        'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
         'credits',
@@ -9565,6 +9575,15 @@ export const TaskListItemSchema = {
             description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
             example: null
         },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Vendor grant blocking this task. Set only while status is GRANT_PENDING.',
+            example: null
+        },
         metadata: {
             type: [
                 'string',
@@ -9611,6 +9630,7 @@ export const TaskListItemSchema = {
         'description',
         'status',
         'grantResumeStatus',
+        'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
         'workspace',

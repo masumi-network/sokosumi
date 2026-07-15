@@ -81,6 +81,11 @@ const taskBaseSchema = z.object({
       "Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.",
     example: null,
   }),
+  pendingVendorGrantId: z.string().uuid().nullable().openapi({
+    description:
+      "Vendor grant blocking this task. Set only while status is GRANT_PENDING.",
+    example: null,
+  }),
   metadata: z.string().nullable().openapi({
     description: "Serialized task schedule metadata JSON",
     example: null,

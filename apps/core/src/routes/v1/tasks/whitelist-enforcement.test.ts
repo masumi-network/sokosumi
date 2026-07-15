@@ -29,6 +29,10 @@ const {
         status === TaskStatus.GRANT_PENDING
           ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)
           : null,
+      pendingVendorGrantId:
+        status === TaskStatus.GRANT_PENDING
+          ? ((t.pendingVendorGrantId as string | null) ?? null)
+          : null,
       user: t.user ?? {
         id: t.userId,
         name: "Task owner",

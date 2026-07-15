@@ -1,4 +1,4 @@
-import { TaskEventOrigin } from "@sokosumi/database";
+import { GrantResumeStatus, TaskEventOrigin } from "@sokosumi/database";
 import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -820,6 +820,55 @@ describe("mapTask", () => {
     const result = mapTask(task);
 
     expect(result.share).toEqual(share);
+  });
+
+  it("exposes grant fields only while status is GRANT_PENDING", () => {
+    const grantId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const parkedTask = {
+      id: "tsk_parked",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      organizationId: null,
+      user: defaultTaskUser,
+      organization: null,
+      coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
+      name: "Parked task",
+      description: null,
+      status: TaskStatus.GRANT_PENDING,
+      grantResumeStatus: GrantResumeStatus.READY,
+      pendingVendorGrantId: grantId,
+      share: null,
+      jobs: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    const readyTask = {
+      ...parkedTask,
+      id: "tsk_ready",
+      status: TaskStatus.READY,
+      grantResumeStatus: GrantResumeStatus.READY,
+      pendingVendorGrantId: grantId,
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(parkedTask)).toMatchObject({
+      status: TaskStatus.GRANT_PENDING,
+      grantResumeStatus: GrantResumeStatus.READY,
+      pendingVendorGrantId: grantId,
+    });
+    expect(mapTask(readyTask)).toMatchObject({
+      status: TaskStatus.READY,
+      grantResumeStatus: null,
+      pendingVendorGrantId: null,
+    });
   });
 
   it("serializes nested job workspaces", () => {

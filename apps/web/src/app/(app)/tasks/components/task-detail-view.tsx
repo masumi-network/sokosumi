@@ -30,7 +30,6 @@ import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
-import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
@@ -150,7 +149,6 @@ export async function TaskDetailView({
           <TaskVendorGrantApprovalBannerSlot
             task={task}
             forceReadOnly={forceReadOnly}
-            coworkersPromise={coworkersPromise}
             membersPromise={membersPromise}
             sessionPromise={sessionPromise}
           />
@@ -272,13 +270,11 @@ async function TaskDetailAutoSwitch({
 async function TaskVendorGrantApprovalBannerSlot({
   task,
   forceReadOnly,
-  coworkersPromise,
   membersPromise,
   sessionPromise,
 }: {
   task: Task;
   forceReadOnly: boolean;
-  coworkersPromise: Promise<CoworkersResult>;
   membersPromise: Promise<MembersResult>;
   sessionPromise: Promise<SessionResult>;
 }) {
@@ -286,25 +282,15 @@ async function TaskVendorGrantApprovalBannerSlot({
     return null;
   }
 
-  const [coworkers, members, session] = await Promise.all([
-    coworkersPromise,
-    membersPromise,
-    sessionPromise,
-  ]);
-
-  const pendingGrant =
-    await vendorGrantService.resolvePendingVendorGrantForTask({
-      taskStatus: task.status,
-      coworkerId: task.coworkerId,
-      workspaceId: task.workspace.id,
-      organizationId: task.workspace.organizationId ?? null,
-      coworkers,
-    });
-
-  const grantId = pendingGrant?.id;
+  const grantId = task.pendingVendorGrantId;
   if (!grantId) {
     return null;
   }
+
+  const [members, session] = await Promise.all([
+    membersPromise,
+    sessionPromise,
+  ]);
   const orgId = task.workspace.organizationId ?? null;
   const viewerMembership = resolveViewerOrganizationMembership(orgId, members);
   if (!session?.user.id) {

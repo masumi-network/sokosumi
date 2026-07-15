@@ -153,6 +153,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     nextRunAt: null,
     credits: 0,
     grantResumeStatus: null,
+    pendingVendorGrantId: null,
     events: [],
     jobs: [],
     workspace: {

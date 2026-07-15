@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 
-import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
+import {
+  GrantResumeStatus,
+  VendorGrantStatus,
+  VendorPermission,
+} from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { TaskStatus } from "@sokosumi/utils";
 import { afterAll, describe, it } from "vitest";
@@ -225,7 +229,8 @@ describeDatabase("vendor grants database integration", () => {
           coworkerId: context.coworkerId,
           name: "Parked integration task",
           description: "Awaiting vendor grant",
-          status: TaskStatus.READY,
+          status: TaskStatus.GRANT_PENDING,
+          grantResumeStatus: GrantResumeStatus.READY,
           pendingVendorGrantId: grant.id,
         },
       });
@@ -243,7 +248,7 @@ describeDatabase("vendor grants database integration", () => {
 
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { pendingVendorGrantId: true },
+        select: { pendingVendorGrantId: true, status: true },
       });
       const updatedGrant = await prisma.vendorGrant.findUnique({
         where: { id: grant.id },
@@ -251,6 +256,7 @@ describeDatabase("vendor grants database integration", () => {
       });
 
       assert.equal(task?.pendingVendorGrantId, null);
+      assert.equal(task?.status, TaskStatus.READY);
       assert.equal(updatedGrant?.status, VendorGrantStatus.GRANTED);
     } finally {
       await cleanupSeedContext(context);
@@ -280,7 +286,8 @@ describeDatabase("vendor grants database integration", () => {
           coworkerId: context.coworkerId,
           name: "Race integration task",
           description: "Awaiting vendor grant",
-          status: TaskStatus.READY,
+          status: TaskStatus.GRANT_PENDING,
+          grantResumeStatus: GrantResumeStatus.READY,
           pendingVendorGrantId: grant.id,
         },
       });
@@ -311,7 +318,7 @@ describeDatabase("vendor grants database integration", () => {
 
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { pendingVendorGrantId: true },
+        select: { pendingVendorGrantId: true, status: true },
       });
       const updatedGrant = await prisma.vendorGrant.findUnique({
         where: { id: grant.id },
@@ -325,6 +332,7 @@ describeDatabase("vendor grants database integration", () => {
       });
 
       assert.equal(task?.pendingVendorGrantId, null);
+      assert.equal(task?.status, TaskStatus.READY);
       assert.equal(updatedGrant?.status, VendorGrantStatus.GRANTED);
       assert.equal(grantCount, 1);
     } finally {

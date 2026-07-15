@@ -283,6 +283,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
       task.status === TaskStatus.GRANT_PENDING
         ? (task.grantResumeStatus ?? null)
         : null,
+    pendingVendorGrantId:
+      task.status === TaskStatus.GRANT_PENDING
+        ? (task.pendingVendorGrantId ?? null)
+        : null,
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
     workspace: mapWorkspaceSummary(task.workspace),

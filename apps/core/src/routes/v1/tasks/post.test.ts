@@ -41,6 +41,7 @@ function buildMapTaskResponse(task: {
   status?: TaskStatus;
   organizationId?: string | null;
   grantResumeStatus?: "DRAFT" | "READY" | null;
+  pendingVendorGrantId?: string | null;
 }) {
   const organizationId = task.organizationId ?? "org_123";
 
@@ -76,6 +77,10 @@ function buildMapTaskResponse(task: {
     grantResumeStatus:
       task.status === TaskStatus.GRANT_PENDING
         ? (task.grantResumeStatus ?? TaskStatus.DRAFT)
+        : null,
+    pendingVendorGrantId:
+      task.status === TaskStatus.GRANT_PENDING
+        ? (task.pendingVendorGrantId ?? null)
         : null,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
@@ -482,6 +487,10 @@ describe("POST /tasks delegated coworker create grant", () => {
         grantResumeStatus: task.grantResumeStatus as
           | "DRAFT"
           | "READY"
+          | null
+          | undefined,
+        pendingVendorGrantId: task.pendingVendorGrantId as
+          | string
           | null
           | undefined,
       }),
