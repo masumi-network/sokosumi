@@ -179,10 +179,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         }),
       ),
       session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
-      // Full workspace parked count — ignore board filters (scope/coworker/project/status).
       taskService.listTasks({
         pendingApproval: true,
-        scope: "workspace",
+        scope: activeFilters.scope,
+        coworkerId: activeFilters.coworkerId ?? undefined,
+        projectId: activeFilters.projectId ?? undefined,
+        status: activeFilters.status ?? undefined,
         limit: 1,
       }),
     ]);

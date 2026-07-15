@@ -59,7 +59,12 @@ vi.mock("./vendor-grants", async (importOriginal) => {
   return {
     ...actual,
     getWorkspaceGrant: getWorkspaceGrantMock,
-    requestWorkspaceGrant: requestWorkspaceGrantMock,
+    requestWorkspaceGrantCommitted: async (
+      params: Parameters<typeof requestWorkspaceGrantMock>[0],
+    ) =>
+      prismaTransactionMock(async (grantTx: Prisma.TransactionClient) =>
+        requestWorkspaceGrantMock(params, grantTx),
+      ),
   };
 });
 

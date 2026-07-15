@@ -29,7 +29,7 @@ import { resolveMemberOrganizationById } from "./organization";
 import {
   getWorkspaceGrant,
   isBaselineCoworkerTaskAccess,
-  requestWorkspaceGrant,
+  requestWorkspaceGrantCommitted,
   requireTaskNotParked,
   throwGrantAccessError,
 } from "./vendor-grants";
@@ -243,9 +243,7 @@ async function requestWorkspaceGrantIndependently(params: {
   workspaceId: string;
   requestedByUserId: string | null;
 }) {
-  return prisma.$transaction(async (grantTx) =>
-    requestWorkspaceGrant(params, grantTx),
-  );
+  return requestWorkspaceGrantCommitted(params);
 }
 
 /**

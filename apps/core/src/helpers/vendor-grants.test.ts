@@ -32,6 +32,7 @@ const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
 const createNotificationMock = vi.fn();
 const queryRawMock = vi.fn();
+const executeRawMock = vi.fn();
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -57,6 +58,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     vendor: { findUnique: vi.fn().mockResolvedValue({ name: "V", slug: "v" }) },
     $queryRaw: (...args: unknown[]) => queryRawMock(...args),
+    $executeRaw: (...args: unknown[]) => executeRawMock(...args),
   },
 }));
 
@@ -68,6 +70,7 @@ describe("vendor-grants helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryRawMock.mockResolvedValue([]);
+    executeRawMock.mockResolvedValue(undefined);
   });
 
   it("maps Prisma workspace permission to API string", () => {
@@ -428,6 +431,7 @@ describe("vendor-grants helpers", () => {
       grant: expect.objectContaining({ id: "raced-grant" }),
       created: false,
     });
+    expect(executeRawMock).toHaveBeenCalled();
   });
 
   it("grants workspace access and unparks linked tasks", async () => {

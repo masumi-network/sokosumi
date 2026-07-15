@@ -16,8 +16,9 @@ import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import { resolveTaskName } from "@/helpers/task-name";
 import {
   isGrantDeniedOrRevoked,
+  lockAndGetVendorGrantById,
   notifyWorkspaceApproversOfPendingGrant,
-  requestWorkspaceGrant,
+  requestWorkspaceGrantCommitted,
   throwGrantAccessError,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -208,72 +209,60 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    // Always resolve grant under row lock so concurrent revoke/deny cannot race a
-    // stale GRANTED read into an unparked create.
-    const { task, createdPendingGrant } = await prisma.$transaction(
-      async (tx) => {
-        const { grant, created: pendingCreated } = await requestWorkspaceGrant(
-          {
-            vendorId: authContext.vendorId,
-            workspaceId: workspaceContext.workspaceId,
-            requestedByUserId: userContext.userId,
-            notify: false,
-          },
-          tx,
-        );
+    // Persist the grant outside task create so validation failures cannot roll
+    // back a newly requested PENDING row.
+    const { grant } = await requestWorkspaceGrantCommitted({
+      vendorId: authContext.vendorId,
+      workspaceId: workspaceContext.workspaceId,
+      requestedByUserId: userContext.userId,
+      notify: false,
+    });
 
-        if (isGrantDeniedOrRevoked(grant.status)) {
-          throwGrantAccessError(grant.status);
-        }
+    if (isGrantDeniedOrRevoked(grant.status)) {
+      throwGrantAccessError(grant.status);
+    }
 
-        if (grant.status === VendorGrantStatus.GRANTED) {
-          const grantedTask = await createTaskRecord(
-            {
-              userId: userContext.userId,
-              organizationId: userContext.organizationId,
-              workspaceId: workspaceContext.workspaceId,
-              body,
-              resolvedName,
-            },
-            tx,
-          );
-          return { task: grantedTask, createdPendingGrant: null };
-        }
+    const task = await prisma.$transaction(async (tx) => {
+      const lockedGrant = await lockAndGetVendorGrantById(grant.id, tx);
 
-        const parkedTask = await createTaskRecord(
+      if (isGrantDeniedOrRevoked(lockedGrant.status)) {
+        throwGrantAccessError(lockedGrant.status);
+      }
+
+      if (lockedGrant.status === VendorGrantStatus.GRANTED) {
+        return createTaskRecord(
           {
             userId: userContext.userId,
             organizationId: userContext.organizationId,
             workspaceId: workspaceContext.workspaceId,
             body,
             resolvedName,
-            pendingVendorGrantId: grant.id,
           },
           tx,
         );
+      }
 
-        return {
-          task: parkedTask,
-          createdPendingGrant: pendingCreated
-            ? {
-                vendorId: authContext.vendorId,
-                workspaceId: workspaceContext.workspaceId,
-                grantId: grant.id,
-              }
-            : null,
-        };
-      },
-    );
+      return createTaskRecord(
+        {
+          userId: userContext.userId,
+          organizationId: userContext.organizationId,
+          workspaceId: workspaceContext.workspaceId,
+          body,
+          resolvedName,
+          pendingVendorGrantId: lockedGrant.id,
+        },
+        tx,
+      );
+    });
 
-    if (createdPendingGrant) {
-      // Notify after commit so a notification failure cannot roll back the
-      // parked task. Retry with the same PENDING grant has created:false and
-      // would not re-notify — never fail the create after the task exists.
+    if (task.pendingVendorGrantId) {
+      // Notify after both transactions commit. createNotification is idempotent
+      // on grantId, so retries after a transient notify failure are safe.
       try {
         await notifyWorkspaceApproversOfPendingGrant({
-          vendorId: createdPendingGrant.vendorId,
-          workspaceId: createdPendingGrant.workspaceId,
-          grantId: createdPendingGrant.grantId,
+          vendorId: authContext.vendorId,
+          workspaceId: workspaceContext.workspaceId,
+          grantId: task.pendingVendorGrantId,
         });
       } catch (error) {
         console.error(
@@ -282,9 +271,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
         Sentry.captureException(error, {
           extra: {
-            grantId: createdPendingGrant.grantId,
-            vendorId: createdPendingGrant.vendorId,
-            workspaceId: createdPendingGrant.workspaceId,
+            grantId: task.pendingVendorGrantId,
+            vendorId: authContext.vendorId,
+            workspaceId: workspaceContext.workspaceId,
             errorType: "vendor-grant-notify-after-create",
           },
         });

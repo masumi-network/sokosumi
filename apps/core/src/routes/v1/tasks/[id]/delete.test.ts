@@ -143,6 +143,7 @@ describe("DELETE /tasks/{id}", () => {
 
     requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
+      userId: "user_123",
       status: TaskStatus.READY,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
@@ -196,6 +197,7 @@ describe("DELETE /tasks/{id}", () => {
 
     requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
+      userId: "user_123",
       status: TaskStatus.RUNNING,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
@@ -231,6 +233,7 @@ describe("DELETE /tasks/{id}", () => {
 
     requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
+      userId: "user_other",
       status: TaskStatus.READY,
       pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -247,6 +250,42 @@ describe("DELETE /tasks/{id}", () => {
         where: expect.objectContaining({
           id: "tsk_123",
           status: TaskStatus.READY,
+          pendingVendorGrantId: { not: null },
+        }),
+      }),
+    );
+  });
+
+  it("returns 409 when org admin archive races grant approval", async () => {
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 0 });
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+          findFirstOrThrow: vi.fn(),
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      userId: "user_other",
+      status: TaskStatus.READY,
+      pendingVendorGrantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(409);
+    expect(updateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          pendingVendorGrantId: { not: null },
         }),
       }),
     );

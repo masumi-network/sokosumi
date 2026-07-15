@@ -147,6 +147,8 @@ export async function requestWorkspaceGrant(
   }
 
   try {
+    await tx.$executeRaw`SAVEPOINT vendor_grant_create`;
+
     const grant = await tx.vendorGrant.create({
       data: {
         vendorId: params.vendorId,
@@ -156,6 +158,8 @@ export async function requestWorkspaceGrant(
         requestedByUserId: params.requestedByUserId ?? null,
       },
     });
+
+    await tx.$executeRaw`RELEASE SAVEPOINT vendor_grant_create`;
 
     if (params.notify !== false) {
       await notifyWorkspaceApproversOfPendingGrant(
@@ -174,6 +178,8 @@ export async function requestWorkspaceGrant(
       throw error;
     }
 
+    await tx.$executeRaw`ROLLBACK TO SAVEPOINT vendor_grant_create`;
+
     const racedRow = await lockWorkspaceGrantRow(
       { vendorId: params.vendorId, workspaceId: params.workspaceId },
       tx,
@@ -188,6 +194,36 @@ export async function requestWorkspaceGrant(
 
     return { grant: raced, created: false };
   }
+}
+
+/** Commit a workspace grant request in its own transaction. */
+export async function requestWorkspaceGrantCommitted(params: {
+  vendorId: string;
+  workspaceId: string;
+  requestedByUserId?: string | null;
+  /** When false, caller must notify after commit. */
+  notify?: boolean;
+}): Promise<{ grant: VendorGrant; created: boolean }> {
+  return prisma.$transaction(async (grantTx) =>
+    requestWorkspaceGrant(params, grantTx),
+  );
+}
+
+export async function lockAndGetVendorGrantById(
+  grantId: string,
+  tx: Prisma.TransactionClient,
+): Promise<VendorGrant> {
+  await lockVendorGrantById(grantId, tx);
+
+  const grant = await tx.vendorGrant.findUnique({
+    where: { id: grantId },
+  });
+
+  if (!grant) {
+    throw notFound("Vendor grant not found");
+  }
+
+  return grant;
 }
 
 /**

@@ -62,12 +62,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      const isOwnerArchive = currentTask.userId === userContext.userId;
       const archivedAt = new Date();
       const updateResult = await tx.task.updateMany({
         where: {
           id,
           archivedAt: null,
           status: currentTask.status,
+          ...(isOwnerArchive ? {} : { pendingVendorGrantId: { not: null } }),
         },
         data: {
           archivedAt,
