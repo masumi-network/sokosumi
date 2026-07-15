@@ -254,6 +254,20 @@ describe("beforeSendClientEvent", () => {
     ).toBeNull();
   });
 
+  it("drops Firefox aborted stream failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [{ value: "TypeError: Error in input stream" }],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
   it("drops Next.js router hook mismatch noise", () => {
     expect(
       beforeSendClientEvent(
