@@ -1200,7 +1200,6 @@ export function createCoreClient(getClient: GetClient) {
     query?: {
       status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
       vendorId?: string;
-      permission?: "workspace";
     },
   ) {
     return executeOperation(
@@ -1282,7 +1281,6 @@ export function createCoreClient(getClient: GetClient) {
   async function getMyVendorGrants(query?: {
     status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
     vendorId?: string;
-    permission?: "workspace";
   }) {
     return executeOperation(
       getClient,

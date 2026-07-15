@@ -6,7 +6,6 @@ import type { VendorGrant } from "@/lib/clients/generated/core";
 export type ListVendorGrantsFilters = {
   status?: VendorGrant["status"];
   vendorId?: string;
-  permission?: VendorGrant["permission"];
 };
 
 export const vendorGrantService = (() => {

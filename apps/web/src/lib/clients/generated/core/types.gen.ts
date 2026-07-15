@@ -14651,7 +14651,6 @@ export type GetUsersByIdVendorGrantsData = {
     query?: {
         status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
         vendorId?: string;
-        permission?: 'workspace';
     };
     url: '/users/{id}/vendor-grants';
 };
@@ -16165,7 +16164,6 @@ export type GetOrganizationsByIdVendorGrantsData = {
     query?: {
         status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
         vendorId?: string;
-        permission?: 'workspace';
     };
     url: '/organizations/{id}/vendor-grants';
 };

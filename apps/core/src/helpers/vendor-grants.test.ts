@@ -138,8 +138,8 @@ describe("vendor-grants helpers", () => {
     expect(sqlParts.join(" ")).toContain("FOR UPDATE");
   });
 
-  it("locks newly created PENDING grants with FOR UPDATE", async () => {
-    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+  it("locks the workspace grant row before creating a PENDING grant", async () => {
+    queryRawMock.mockResolvedValueOnce([]);
     vendorGrantCreate.mockResolvedValue({
       id: "g2",
       status: VendorGrantStatus.PENDING,
@@ -153,14 +153,13 @@ describe("vendor-grants helpers", () => {
       notify: false,
     });
 
-    expect(queryRawMock).toHaveBeenCalledTimes(2);
-    const createLockSql = queryRawMock.mock
-      .calls[1]![0] as TemplateStringsArray;
-    expect(createLockSql.join(" ")).toContain("FOR UPDATE");
+    expect(queryRawMock).toHaveBeenCalledTimes(1);
+    const lockSql = queryRawMock.mock.calls[0]![0] as TemplateStringsArray;
+    expect(lockSql.join(" ")).toContain("FOR UPDATE");
   });
 
   it("creates PENDING workspace grant when no row exists", async () => {
-    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    queryRawMock.mockResolvedValueOnce([]);
     vendorGrantCreate.mockResolvedValue({
       id: "g2",
       status: VendorGrantStatus.PENDING,
@@ -291,7 +290,7 @@ describe("vendor-grants helpers", () => {
   });
 
   it("notifies approvers when a new PENDING workspace grant is created", async () => {
-    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    queryRawMock.mockResolvedValueOnce([]);
     vendorGrantCreate.mockResolvedValue({
       id: "workspace-grant",
       status: VendorGrantStatus.PENDING,
@@ -342,7 +341,7 @@ describe("vendor-grants helpers", () => {
   });
 
   it("notifies the personal workspace owner when workspace grant is requested", async () => {
-    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    queryRawMock.mockResolvedValueOnce([]);
     vendorGrantCreate.mockResolvedValue({
       id: "workspace-grant",
       status: VendorGrantStatus.PENDING,

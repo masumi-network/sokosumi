@@ -152,33 +152,42 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         ? jobsListFilters.projectId
         : null,
   };
-  const [jobsPage, columnPages, initialDesignMdAttachment] = await Promise.all([
-    taskService.listJobs({
-      scope: activeJobsListFilters.scope,
-      agentId: activeJobsListFilters.agentId ?? undefined,
-      projectId: activeJobsListFilters.projectId ?? undefined,
-      status: activeJobsListFilters.jobStatus ?? undefined,
-      limit: 20,
-    }),
-    Promise.all(
-      KANBAN_COLUMNS.map(async (column) => {
-        const page = await getTasksColumnPage({
-          columnId: column.id,
-          cursor: null,
-          limit: TASKS_COLUMN_PAGE_LIMIT,
-          scope: activeFilters.scope,
-          coworkerId: activeFilters.coworkerId,
-          status: activeFilters.status,
-          projectId: activeFilters.projectId,
-          coworkersById,
-          agentsById,
-        });
-
-        return [column.id, page] as const;
+  const [jobsPage, columnPages, initialDesignMdAttachment, parkedTasksPage] =
+    await Promise.all([
+      taskService.listJobs({
+        scope: activeJobsListFilters.scope,
+        agentId: activeJobsListFilters.agentId ?? undefined,
+        projectId: activeJobsListFilters.projectId ?? undefined,
+        status: activeJobsListFilters.jobStatus ?? undefined,
+        limit: 20,
       }),
-    ),
-    session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
-  ]);
+      Promise.all(
+        KANBAN_COLUMNS.map(async (column) => {
+          const page = await getTasksColumnPage({
+            columnId: column.id,
+            cursor: null,
+            limit: TASKS_COLUMN_PAGE_LIMIT,
+            scope: activeFilters.scope,
+            coworkerId: activeFilters.coworkerId,
+            status: activeFilters.status,
+            projectId: activeFilters.projectId,
+            coworkersById,
+            agentsById,
+          });
+
+          return [column.id, page] as const;
+        }),
+      ),
+      session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+      taskService.listTasks({
+        status: TaskStatus.READY,
+        pendingApproval: true,
+        scope: activeFilters.scope,
+        coworkerId: activeFilters.coworkerId ?? undefined,
+        projectId: activeFilters.projectId ?? undefined,
+        limit: 1,
+      }),
+    ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
   const columnNextCursorById = Object.fromEntries(
     columnPages.map(([columnId, page]) => [columnId, page.nextCursor]),
@@ -209,7 +218,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const initialProjectId =
     activeFilters.projectId ?? activeJobsListFilters.projectId;
 
-  const parkedTaskCount = tasks.filter((task) => task.pendingApproval).length;
+  const parkedTaskCount = parkedTasksPage.pagination?.total ?? 0;
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),

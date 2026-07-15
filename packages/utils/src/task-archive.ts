@@ -31,7 +31,6 @@ export function isTaskArchivableStatus(
  * Owners and org OWNER/ADMIN may soft-archive them while waiting for approval.
  */
 export function isParkedVendorGrantTask(
-  _status: string,
   pendingVendorGrantId?: string | null,
 ): boolean {
   return pendingVendorGrantId != null;
@@ -43,7 +42,7 @@ export function canArchiveTaskStatus(
 ): boolean {
   return (
     isTaskArchivableStatus(status) ||
-    isParkedVendorGrantTask(status, pendingVendorGrantId)
+    isParkedVendorGrantTask(pendingVendorGrantId)
   );
 }
 

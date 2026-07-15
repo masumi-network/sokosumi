@@ -1,10 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { toApiVendorPermission } from "@/helpers/vendor-grants";
+import { toVendorGrantApiShape } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
@@ -16,7 +15,6 @@ import {
   vendorGrantSchema,
   vendorGrantStatusSchema,
   vendorGrantsSchema,
-  vendorPermissionSchema,
 } from "@/schemas/vendor-grant.schema";
 
 const params = z.object({
@@ -26,7 +24,6 @@ const params = z.object({
 const query = z.object({
   status: vendorGrantStatusSchema.optional(),
   vendorId: z.string().uuid().optional(),
-  permission: vendorPermissionSchema.optional(),
 });
 
 const route = createRoute({
@@ -65,9 +62,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         workspaceId: workspace.id,
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.vendorId ? { vendorId: filters.vendorId } : {}),
-        ...(filters.permission
-          ? { permission: VendorPermission.workspace }
-          : {}),
       },
       include: {
         vendor: { select: { name: true, slug: true } },
@@ -79,20 +73,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       c,
       vendorGrantsSchema.parse(
         grants.map((grant) =>
-          vendorGrantSchema.parse({
-            id: grant.id,
-            vendorId: grant.vendorId,
-            vendorName: grant.vendor.name,
-            vendorSlug: grant.vendor.slug,
-            workspaceId: grant.workspaceId,
-            permission: toApiVendorPermission(grant.permission),
-            status: grant.status as VendorGrantStatus,
-            requestedByUserId: grant.requestedByUserId,
-            resolvedAt: grant.resolvedAt,
-            resolvedById: grant.resolvedById,
-            createdAt: grant.createdAt,
-            updatedAt: grant.updatedAt,
-          }),
+          vendorGrantSchema.parse(toVendorGrantApiShape(grant)),
         ),
       ),
     );

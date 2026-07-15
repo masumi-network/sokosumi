@@ -156,8 +156,6 @@ export async function requestWorkspaceGrant(
       },
     });
 
-    await lockVendorGrantById(grant.id, tx);
-
     if (params.notify !== false) {
       await notifyWorkspaceApproversOfPendingGrant(
         {
@@ -236,33 +234,31 @@ export async function notifyWorkspaceApproversOfPendingGrant(
     select: { name: true, slug: true },
   });
 
-  await Promise.all(
-    recipientUserIds.map((userId) =>
-      createNotification(
-        {
-          userId,
-          kind: NotificationKind.SYSTEM,
-          referenceId: params.grantId,
-          eventId: params.grantId,
-          messageKey: "notifications.vendorGrant.pending",
-          messageParams: {
-            vendorName: vendor?.name ?? params.vendorId,
-            vendorSlug: vendor?.slug ?? null,
-            permission: VendorPermissionApi.WORKSPACE,
-            workspaceId: params.workspaceId,
-            organizationId: workspace.organizationId,
-          },
-          metadata: {
-            vendorId: params.vendorId,
-            workspaceId: params.workspaceId,
-            organizationId: workspace.organizationId,
-            permission: VendorPermissionApi.WORKSPACE,
-          },
+  for (const userId of recipientUserIds) {
+    await createNotification(
+      {
+        userId,
+        kind: NotificationKind.SYSTEM,
+        referenceId: params.grantId,
+        eventId: params.grantId,
+        messageKey: "notifications.vendorGrant.pending",
+        messageParams: {
+          vendorName: vendor?.name ?? params.vendorId,
+          vendorSlug: vendor?.slug ?? null,
+          permission: VendorPermissionApi.WORKSPACE,
+          workspaceId: params.workspaceId,
+          organizationId: workspace.organizationId,
         },
-        tx,
-      ),
-    ),
-  );
+        metadata: {
+          vendorId: params.vendorId,
+          workspaceId: params.workspaceId,
+          organizationId: workspace.organizationId,
+          permission: VendorPermissionApi.WORKSPACE,
+        },
+      },
+      tx,
+    );
+  }
 }
 
 export type VendorGrantWithVendor = VendorGrant & {
@@ -329,17 +325,18 @@ export async function approveVendorGrantInWorkspace(
   }
 
   // Always unpark: heals tasks parked after a concurrent approve committed.
-  if (existing.status === VendorGrantStatus.GRANTED) {
-    await unparkTasksForGrant(existing.id, tx);
-    return existing;
-  }
-
-  if (
-    existing.status !== VendorGrantStatus.PENDING &&
-    existing.status !== VendorGrantStatus.DENIED &&
-    existing.status !== VendorGrantStatus.REVOKED
-  ) {
-    throw badRequest(`Cannot approve grant in status ${existing.status}`);
+  switch (existing.status) {
+    case VendorGrantStatus.GRANTED:
+      await unparkTasksForGrant(existing.id, tx);
+      return existing;
+    case VendorGrantStatus.PENDING:
+    case VendorGrantStatus.DENIED:
+    case VendorGrantStatus.REVOKED:
+      break;
+    default: {
+      const _exhaustive: never = existing.status;
+      throw badRequest(`Cannot approve grant in status ${_exhaustive}`);
+    }
   }
 
   const now = new Date();
