@@ -84,6 +84,7 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
+          $queryRaw: vi.fn().mockResolvedValue([]),
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
             update: vendorGrantUpdateMock,
@@ -136,6 +137,23 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
       permission: "workspace",
       status: "GRANTED",
     });
+  });
+
+  it("rejects coworker context with 403", async () => {
+    const coworkerAuth: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId,
+      context: { userId: "user_123", organizationId: null },
+    };
+
+    const response = await createApp(coworkerAuth).request(
+      `http://localhost/user_123/vendor-grants/${grantId}/approve`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("re-approves DENIED workspace grant and unparks linked tasks", async () => {

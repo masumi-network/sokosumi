@@ -36,6 +36,32 @@ function workspaceGrantUniqueWhere(vendorId: string, workspaceId: string) {
   } as const;
 }
 
+/**
+ * Lock a vendor_grant row for the rest of the transaction so create/park and
+ * approve/deny/revoke cannot interleave and leave permanently parked tasks.
+ */
+async function lockVendorGrantById(
+  grantId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await tx.$queryRaw`
+    SELECT 1 FROM "vendor_grant" WHERE "id" = ${grantId}::uuid FOR UPDATE
+  `;
+}
+
+async function lockWorkspaceGrantRow(
+  params: { vendorId: string; workspaceId: string },
+  tx: Prisma.TransactionClient,
+): Promise<{ id: string } | null> {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "vendor_grant"
+    WHERE "vendorId" = ${params.vendorId}::uuid
+      AND "workspaceId" = ${params.workspaceId}::uuid
+    FOR UPDATE
+  `;
+  return rows[0] ?? null;
+}
+
 export function isGrantDeniedOrRevoked(status: VendorGrantStatus): boolean {
   return (
     status === VendorGrantStatus.DENIED || status === VendorGrantStatus.REVOKED
@@ -104,12 +130,19 @@ export async function requestWorkspaceGrant(
     params.workspaceId,
   );
 
-  const existing = await tx.vendorGrant.findUnique({
-    where: uniqueWhere,
-  });
+  // Lock first so concurrent approve/deny wait until this create/park commits.
+  const lockedRow = await lockWorkspaceGrantRow(
+    { vendorId: params.vendorId, workspaceId: params.workspaceId },
+    tx,
+  );
 
-  if (existing) {
-    return { grant: existing, created: false };
+  if (lockedRow) {
+    const existing = await tx.vendorGrant.findUnique({
+      where: { id: lockedRow.id },
+    });
+    if (existing) {
+      return { grant: existing, created: false };
+    }
   }
 
   try {
@@ -122,6 +155,8 @@ export async function requestWorkspaceGrant(
         requestedByUserId: params.requestedByUserId ?? null,
       },
     });
+
+    await lockVendorGrantById(grant.id, tx);
 
     if (params.notify !== false) {
       await notifyWorkspaceApproversOfPendingGrant(
@@ -140,9 +175,13 @@ export async function requestWorkspaceGrant(
       throw error;
     }
 
-    const raced = await tx.vendorGrant.findUnique({
-      where: uniqueWhere,
-    });
+    const racedRow = await lockWorkspaceGrantRow(
+      { vendorId: params.vendorId, workspaceId: params.workspaceId },
+      tx,
+    );
+    const raced = racedRow
+      ? await tx.vendorGrant.findUnique({ where: { id: racedRow.id } })
+      : await tx.vendorGrant.findUnique({ where: uniqueWhere });
 
     if (!raced) {
       throw error;
@@ -264,6 +303,7 @@ export async function grantWorkspaceAccess(
     include: vendorGrantWithVendorInclude,
   });
 
+  await lockVendorGrantById(grant.id, tx);
   await unparkTasksForGrant(grant.id, tx);
 
   return grant;
@@ -277,6 +317,8 @@ export async function approveVendorGrantInWorkspace(
   },
   tx: Prisma.TransactionClient,
 ): Promise<VendorGrantWithVendor> {
+  await lockVendorGrantById(params.grantId, tx);
+
   const existing = await tx.vendorGrant.findFirst({
     where: { id: params.grantId, workspaceId: params.workspaceId },
     include: vendorGrantWithVendorInclude,
@@ -286,7 +328,9 @@ export async function approveVendorGrantInWorkspace(
     throw notFound("Vendor grant not found");
   }
 
+  // Always unpark: heals tasks parked after a concurrent approve committed.
   if (existing.status === VendorGrantStatus.GRANTED) {
+    await unparkTasksForGrant(existing.id, tx);
     return existing;
   }
 
@@ -322,6 +366,8 @@ export async function denyVendorGrantInWorkspace(
   },
   tx: Prisma.TransactionClient,
 ): Promise<VendorGrantWithVendor> {
+  await lockVendorGrantById(params.grantId, tx);
+
   const existing = await tx.vendorGrant.findFirst({
     where: { id: params.grantId, workspaceId: params.workspaceId },
     include: vendorGrantWithVendorInclude,
@@ -358,6 +404,8 @@ export async function revokeVendorGrantInWorkspace(
   },
   tx: Prisma.TransactionClient,
 ): Promise<VendorGrantWithVendor> {
+  await lockVendorGrantById(params.grantId, tx);
+
   const existing = await tx.vendorGrant.findFirst({
     where: { id: params.grantId, workspaceId: params.workspaceId },
     include: vendorGrantWithVendorInclude,

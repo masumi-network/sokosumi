@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  approveVendorGrantInWorkspace,
   buildCoworkerTaskListAccessFilter,
   cancelParkedTasksForGrant,
   grantWorkspaceAccess,
@@ -20,19 +21,24 @@ import {
 } from "./vendor-grants";
 
 const vendorGrantFindUnique = vi.fn();
+const vendorGrantFindFirst = vi.fn();
 const vendorGrantCreate = vi.fn();
 const vendorGrantUpsert = vi.fn();
+const vendorGrantUpdate = vi.fn();
 const taskUpdateMany = vi.fn();
 const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
 const createNotificationMock = vi.fn();
+const queryRawMock = vi.fn();
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     vendorGrant: {
       findUnique: (...args: unknown[]) => vendorGrantFindUnique(...args),
+      findFirst: (...args: unknown[]) => vendorGrantFindFirst(...args),
       create: (...args: unknown[]) => vendorGrantCreate(...args),
       upsert: (...args: unknown[]) => vendorGrantUpsert(...args),
+      update: (...args: unknown[]) => vendorGrantUpdate(...args),
     },
     task: {
       updateMany: (...args: unknown[]) => taskUpdateMany(...args),
@@ -44,6 +50,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: (...args: unknown[]) => workspaceFindUnique(...args),
     },
     vendor: { findUnique: vi.fn().mockResolvedValue({ name: "V", slug: "v" }) },
+    $queryRaw: (...args: unknown[]) => queryRawMock(...args),
   },
 }));
 
@@ -54,6 +61,7 @@ vi.mock("@/helpers/notifications", () => ({
 describe("vendor-grants helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryRawMock.mockResolvedValue([]);
   });
 
   it("maps Prisma workspace permission to API string", () => {
@@ -111,6 +119,7 @@ describe("vendor-grants helpers", () => {
   });
 
   it("does not reopen existing grants on requestWorkspaceGrant", async () => {
+    queryRawMock.mockResolvedValue([{ id: "g1" }]);
     vendorGrantFindUnique.mockResolvedValue({
       id: "g1",
       status: VendorGrantStatus.DENIED,
@@ -127,7 +136,7 @@ describe("vendor-grants helpers", () => {
   });
 
   it("creates PENDING workspace grant when no row exists", async () => {
-    vendorGrantFindUnique.mockResolvedValue(null);
+    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
     vendorGrantCreate.mockResolvedValue({
       id: "g2",
       status: VendorGrantStatus.PENDING,
@@ -258,7 +267,7 @@ describe("vendor-grants helpers", () => {
   });
 
   it("notifies approvers when a new PENDING workspace grant is created", async () => {
-    vendorGrantFindUnique.mockResolvedValue(null);
+    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
     vendorGrantCreate.mockResolvedValue({
       id: "workspace-grant",
       status: VendorGrantStatus.PENDING,
@@ -292,6 +301,7 @@ describe("vendor-grants helpers", () => {
   });
 
   it("does not re-notify when workspace grant already exists", async () => {
+    queryRawMock.mockResolvedValue([{ id: "workspace-grant" }]);
     vendorGrantFindUnique.mockResolvedValue({
       id: "workspace-grant",
       status: VendorGrantStatus.PENDING,
@@ -308,7 +318,7 @@ describe("vendor-grants helpers", () => {
   });
 
   it("notifies the personal workspace owner when workspace grant is requested", async () => {
-    vendorGrantFindUnique.mockResolvedValue(null);
+    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
     vendorGrantCreate.mockResolvedValue({
       id: "workspace-grant",
       status: VendorGrantStatus.PENDING,
@@ -337,7 +347,10 @@ describe("vendor-grants helpers", () => {
   });
 
   it("returns existing grant on concurrent PENDING create unique race", async () => {
-    vendorGrantFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+    queryRawMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "raced-grant" }]);
+    vendorGrantFindUnique.mockResolvedValue({
       id: "raced-grant",
       status: VendorGrantStatus.PENDING,
       permission: VendorPermission.workspace,
@@ -390,6 +403,49 @@ describe("vendor-grants helpers", () => {
       }),
     );
     expect(taskUpdateMany).toHaveBeenCalled();
+  });
+
+  it("unparks on approve even when grant is already GRANTED", async () => {
+    const existing = {
+      id: "g1",
+      vendorId: "v1",
+      workspaceId: "w1",
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.GRANTED,
+      requestedByUserId: null,
+      resolvedAt: new Date(),
+      resolvedById: "u1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: { name: "V", slug: "v" },
+    };
+    vendorGrantFindFirst.mockResolvedValue(existing);
+    taskUpdateMany.mockResolvedValue({ count: 1 });
+
+    const tx = {
+      $queryRaw: queryRawMock,
+      vendorGrant: {
+        findFirst: vendorGrantFindFirst,
+        update: vendorGrantUpdate,
+      },
+      task: { updateMany: taskUpdateMany },
+    };
+
+    const result = await approveVendorGrantInWorkspace(
+      {
+        grantId: "g1",
+        workspaceId: "w1",
+        resolvedById: "u1",
+      },
+      tx as never,
+    );
+
+    expect(result.status).toBe(VendorGrantStatus.GRANTED);
+    expect(vendorGrantUpdate).not.toHaveBeenCalled();
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: { pendingVendorGrantId: "g1" },
+      data: { pendingVendorGrantId: null },
+    });
   });
 
   it("notifies approvers via notifyWorkspaceApproversOfPendingGrant", async () => {

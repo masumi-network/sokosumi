@@ -107,6 +107,7 @@ describe("POST /users/{id}/vendor-grants", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
+          $queryRaw: vi.fn().mockResolvedValue([]),
           vendorGrant: {
             upsert: vendorGrantUpsertMock,
           },

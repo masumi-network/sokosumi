@@ -234,8 +234,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    // Resolve grant status inside the transaction so a concurrent approve/deny
-    // cannot leave a task permanently parked with pendingVendorGrantId set.
+    // Lock the grant row inside the transaction (via requestWorkspaceGrant) so a
+    // concurrent approve/deny cannot leave a task permanently parked.
     const { task, createdPendingGrant } = await prisma.$transaction(
       async (tx) => {
         const { grant, created: pendingCreated } = await requestWorkspaceGrant(

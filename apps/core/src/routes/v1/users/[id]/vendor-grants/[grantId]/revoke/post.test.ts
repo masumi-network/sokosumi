@@ -84,6 +84,7 @@ describe("POST /users/{id}/vendor-grants/{grantId}/revoke", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
+          $queryRaw: vi.fn().mockResolvedValue([]),
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
             update: vendorGrantUpdateMock,

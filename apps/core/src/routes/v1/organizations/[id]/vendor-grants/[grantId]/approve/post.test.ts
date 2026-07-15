@@ -27,7 +27,7 @@ const {
 }));
 
 vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
+  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, { message: "User authentication required" });
     }
@@ -93,6 +93,7 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/approve", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
+          $queryRaw: vi.fn().mockResolvedValue([]),
           vendorGrant: {
             findFirst: vendorGrantFindFirstMock,
             update: vendorGrantUpdateMock,
@@ -150,6 +151,23 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/approve", () => {
       permission: "workspace",
       status: "GRANTED",
     });
+  });
+
+  it("rejects coworker context with 403", async () => {
+    const coworkerAuth: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId: vendorId,
+      context: { userId: "user_123", organizationId: orgId },
+    };
+
+    const response = await createApp(coworkerAuth).request(
+      `http://localhost/${orgId}/vendor-grants/${grantId}/approve`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("re-approves DENIED workspace grant and unparks linked tasks", async () => {
