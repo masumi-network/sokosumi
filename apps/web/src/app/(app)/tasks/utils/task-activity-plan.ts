@@ -49,3 +49,19 @@ export async function resolveTaskActivityPlan(
     throw error;
   }
 }
+
+/**
+ * Resolves the viewer plan for task detail activity. Admin read-only views skip
+ * the Core subscription lookup entirely — the viewer's plan is unavailable.
+ */
+export function resolveTaskDetailViewerPlan(
+  forceReadOnly: boolean,
+  session: SessionResult,
+  organizationId: string | null,
+): Promise<SubscriptionPlanName | null> {
+  if (forceReadOnly) {
+    return Promise.resolve(null);
+  }
+
+  return resolveTaskActivityPlan(session, organizationId);
+}

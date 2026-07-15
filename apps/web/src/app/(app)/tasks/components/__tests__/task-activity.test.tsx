@@ -33,6 +33,7 @@ vi.mock("next-intl", () => ({
       "billingCta.addCredits": "Add credits",
       "billingCta.placeholder":
         "This task needs credits to continue. Open billing to proceed.",
+      "billingCta.statusUnavailable": "This task is out of credits.",
       sendWith: "Send with",
       ctrl: "Ctrl",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
@@ -544,10 +545,13 @@ describe("TaskActivitySection", () => {
     );
 
     expect(
-      screen.getByText(
+      screen.getByText("This task is out of credits."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
         "This task needs credits to continue. Open billing to proceed.",
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Get more credits" }),
     ).not.toBeInTheDocument();

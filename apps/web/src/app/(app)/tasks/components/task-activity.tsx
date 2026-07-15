@@ -511,6 +511,10 @@ export function TaskActivitySection({
             const billingCtaHref = isFreePlan
               ? "/billing?tab=subscription"
               : "/billing?tab=credits";
+            const billingPlaceholderLabel =
+              viewerPlan == null
+                ? t("billingCta.statusUnavailable")
+                : t("billingCta.placeholder");
             const isCommentEvent = Boolean(formattedComment);
             const isAuthEvent = shouldShowAuthenticateButton;
             const isBillingEvent = isOutOfCreditsEvent;
@@ -616,7 +620,7 @@ export function TaskActivitySection({
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
                       <p className="text-foreground/70 text-sm">
-                        {t("billingCta.placeholder")}
+                        {billingPlaceholderLabel}
                       </p>
                     ) : null}
                     {hasCommentSources ? (

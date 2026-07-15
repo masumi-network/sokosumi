@@ -34,7 +34,10 @@ vi.mock("@/components/billing/subscription-plan-utils", () => ({
   parsePlanName: (plan: string | null | undefined) => plan ?? null,
 }));
 
-import { resolveTaskActivityPlan } from "@/app/tasks/utils/task-activity-plan";
+import {
+  resolveTaskActivityPlan,
+  resolveTaskDetailViewerPlan,
+} from "@/app/tasks/utils/task-activity-plan";
 
 describe("resolveTaskActivityPlan", () => {
   beforeEach(() => {
@@ -135,5 +138,46 @@ describe("resolveTaskActivityPlan", () => {
 
     expect(getMyActiveSubscriptionMock).toHaveBeenCalled();
     expect(getOrganizationActiveSubscriptionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveTaskDetailViewerPlan", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("skips Core subscription lookup when forceReadOnly is true", async () => {
+    await expect(
+      resolveTaskDetailViewerPlan(
+        true,
+        {
+          user: { id: "admin_1" },
+          session: { id: "sess_1", activeOrganizationId: null },
+        } as never,
+        "org_other",
+      ),
+    ).resolves.toBeNull();
+
+    expect(getOrganizationActiveSubscriptionMock).not.toHaveBeenCalled();
+    expect(getMyActiveSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("delegates to resolveTaskActivityPlan when forceReadOnly is false", async () => {
+    getOrganizationActiveSubscriptionMock.mockResolvedValue({
+      data: { subscription: { plan: "pro" } },
+    });
+
+    await expect(
+      resolveTaskDetailViewerPlan(
+        false,
+        {
+          user: { id: "user_1" },
+          session: { id: "sess_1", activeOrganizationId: "org_1" },
+        } as never,
+        "org_1",
+      ),
+    ).resolves.toBe("pro");
+
+    expect(getOrganizationActiveSubscriptionMock).toHaveBeenCalledWith("org_1");
   });
 });

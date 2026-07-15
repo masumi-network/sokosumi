@@ -16,7 +16,7 @@ import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-r
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
-import { resolveTaskActivityPlan } from "@/app/tasks/utils/task-activity-plan";
+import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import {
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
@@ -80,11 +80,9 @@ export async function TaskDetailView({
   const localePromise = getLocale();
   // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
   // org subscription call that used to 403 → auth-redirect bounce.
-  const currentPlanPromise: Promise<SubscriptionPlanName | null> = forceReadOnly
-    ? Promise.resolve(null)
-    : sessionPromise.then((session) =>
-        resolveTaskActivityPlan(session, task.organizationId),
-      );
+  const currentPlanPromise = sessionPromise.then((session) =>
+    resolveTaskDetailViewerPlan(forceReadOnly, session, task.organizationId),
+  );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
   const parentTask = linkedTasks.find((link) => link.relation === "child");
