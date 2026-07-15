@@ -406,4 +406,47 @@ describe("GET /tasks", () => {
       }),
     );
   });
+
+  it("filters todo tasks without pending vendor grants", async () => {
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?status=${TaskStatus.READY},${TaskStatus.CREDITS_TOPPED_UP}&pendingApproval=false`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP] },
+          pendingVendorGrantId: null,
+        }),
+      }),
+    );
+  });
+
+  it("includes parked READY tasks when includeParkedReady is true", async () => {
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?status=${TaskStatus.INPUT_REQUIRED}&includeParkedReady=true`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            {
+              OR: [
+                { status: { in: [TaskStatus.INPUT_REQUIRED] } },
+                {
+                  status: TaskStatus.READY,
+                  pendingVendorGrantId: { not: null },
+                },
+              ],
+            },
+          ]),
+        }),
+      }),
+    );
+  });
 });

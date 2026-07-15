@@ -26,15 +26,7 @@ const {
   prismaTransactionMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, { message: "User authentication required" });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
-
+// Use real requireUserAuthContext so coworker context cannot self-grant.
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
@@ -185,6 +177,28 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     );
 
     expect(response.status).toBe(404);
+    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker context with 403 via real requireUserAuthContext", async () => {
+    const coworkerAuth: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId,
+      context: { userId: "user_123", organizationId: orgId },
+    };
+
+    const response = await createApp(coworkerAuth).request(
+      `http://localhost/${orgId}/vendor-grants`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendorId }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
   });
 });

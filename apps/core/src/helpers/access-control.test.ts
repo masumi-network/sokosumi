@@ -34,11 +34,24 @@ const {
   getWorkspaceGrantMock,
   requestWorkspaceGrantMock,
   resolveMemberOrganizationByIdMock,
-} = vi.hoisted(() => ({
-  getWorkspaceGrantMock: vi.fn(),
-  requestWorkspaceGrantMock: vi.fn(),
-  resolveMemberOrganizationByIdMock: vi.fn(),
-}));
+  prismaTransactionMock,
+  independentGrantTxClient,
+} = vi.hoisted(() => {
+  const independentGrantTxClient = {
+    label: "independent-grant-tx",
+  } as unknown as Prisma.TransactionClient;
+
+  return {
+    getWorkspaceGrantMock: vi.fn(),
+    requestWorkspaceGrantMock: vi.fn(),
+    resolveMemberOrganizationByIdMock: vi.fn(),
+    independentGrantTxClient,
+    prismaTransactionMock: vi.fn(
+      async (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+        callback(independentGrantTxClient),
+    ),
+  };
+});
 
 vi.mock("./vendor-grants", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./vendor-grants")>();
@@ -49,6 +62,12 @@ vi.mock("./vendor-grants", async (importOriginal) => {
     requestWorkspaceGrant: requestWorkspaceGrantMock,
   };
 });
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: prismaTransactionMock,
+  },
+}));
 
 vi.mock("./organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
@@ -560,6 +579,7 @@ describe("requireTaskCommentAccess", () => {
   beforeEach(() => {
     getWorkspaceGrantMock.mockReset();
     requestWorkspaceGrantMock.mockReset();
+    prismaTransactionMock.mockClear();
   });
 
   it("allows a bare coworker to comment on a same-vendor sibling task", async () => {
@@ -715,12 +735,15 @@ describe("requireTaskCommentAccess", () => {
       return true;
     });
 
+    // The grant request must persist even though the route transaction rolls
+    // back on the 403, so it runs in its own transaction — not on the route tx.
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({
         vendorId: defaultVendorId,
         workspaceId,
       }),
-      expect.anything(),
+      independentGrantTxClient,
     );
   });
 
@@ -766,6 +789,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
   beforeEach(() => {
     getWorkspaceGrantMock.mockReset();
     requestWorkspaceGrantMock.mockReset();
+    prismaTransactionMock.mockClear();
   });
 
   it("requests PENDING workspace grant on first out-of-scope read", async () => {
@@ -813,12 +837,16 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       return true;
     });
 
+    // The grant request must persist even though callers often run this inside
+    // a route transaction that rolls back on the 403 — it uses its own
+    // transaction, never the caller's tx.
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({
         vendorId: defaultVendorId,
         workspaceId,
       }),
-      expect.anything(),
+      independentGrantTxClient,
     );
   });
 

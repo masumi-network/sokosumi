@@ -19,6 +19,10 @@ import {
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import {
+  applyTaskListStatusWhere,
+  buildTaskListStatusWhere,
+} from "@/helpers/task-list-filters";
+import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -89,6 +93,30 @@ const taskSortQuerySchema = z
     example: "nextRunAt",
   });
 
+const booleanQuerySchema = (name: string, description: string) =>
+  z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({
+      param: { name, in: "query" },
+      description,
+      example: "true",
+    });
+
+function parseBooleanQuery(
+  value: "true" | "false" | undefined,
+): boolean | undefined {
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return undefined;
+}
+
 const query = z
   .object({
     q: taskNameQuerySchema,
@@ -96,6 +124,14 @@ const query = z
     scope: taskScopeQuerySchema,
     projectId: projectIdQuerySchema,
     sort: taskSortQuerySchema,
+    pendingApproval: booleanQuerySchema(
+      "pendingApproval",
+      "When true, only tasks parked for vendor grant approval. When false, only tasks without a pending grant.",
+    ),
+    includeParkedReady: booleanQuerySchema(
+      "includeParkedReady",
+      "When true, include READY tasks parked for vendor grant approval alongside the status filter.",
+    ),
     coworkerId: z
       .string()
       .optional()
@@ -131,12 +167,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const {
       coworkerId,
+      includeParkedReady: includeParkedReadyQuery,
+      pendingApproval: pendingApprovalQuery,
       projectId,
       q,
       scope,
       sort,
       status: statuses,
     } = queryParams;
+    const pendingApproval = parseBooleanQuery(pendingApprovalQuery);
+    const includeParkedReady = includeParkedReadyQuery === "true";
+    const statusWhere = buildTaskListStatusWhere({
+      statuses,
+      pendingApproval,
+      includeParkedReady,
+    });
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -179,36 +224,44 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const workspaceContext = requireWorkspaceContext(
           c.var.workspaceContext,
         );
-        where = {
-          archivedAt: null,
-          workspaceId: workspaceContext.workspaceId,
-          AND: [listAccessFilter],
-          ...(scope === "owned" ? { userId: authContext.context.userId } : {}),
-          ...(statuses ? { status: { in: statuses } } : {}),
-          ...(coworkerId ? { coworkerId } : {}),
-          ...projectFilter,
-          ...searchFilter,
-        };
+        where = applyTaskListStatusWhere(
+          {
+            archivedAt: null,
+            workspaceId: workspaceContext.workspaceId,
+            AND: [listAccessFilter],
+            ...(scope === "owned"
+              ? { userId: authContext.context.userId }
+              : {}),
+            ...(coworkerId ? { coworkerId } : {}),
+            ...projectFilter,
+            ...searchFilter,
+          },
+          statusWhere,
+        );
       } else {
-        where = {
-          archivedAt: null,
-          AND: [listAccessFilter],
-          ...(statuses ? { status: { in: statuses } } : {}),
-          ...projectFilter,
-          ...searchFilter,
-        };
+        where = applyTaskListStatusWhere(
+          {
+            archivedAt: null,
+            AND: [listAccessFilter],
+            ...projectFilter,
+            ...searchFilter,
+          },
+          statusWhere,
+        );
       }
     } else {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      where = {
-        archivedAt: null,
-        workspaceId: workspaceContext.workspaceId,
-        ...(scope === "owned" ? { userId: authContext.userId } : {}),
-        ...(statuses ? { status: { in: statuses } } : {}),
-        ...(coworkerId ? { coworkerId } : {}),
-        ...projectFilter,
-        ...searchFilter,
-      };
+      where = applyTaskListStatusWhere(
+        {
+          archivedAt: null,
+          workspaceId: workspaceContext.workspaceId,
+          ...(scope === "owned" ? { userId: authContext.userId } : {}),
+          ...(coworkerId ? { coworkerId } : {}),
+          ...projectFilter,
+          ...searchFilter,
+        },
+        statusWhere,
+      );
     }
 
     const takePlusOne = take + 1;

@@ -26,15 +26,7 @@ const {
   prismaTransactionMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, { message: "User authentication required" });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
-
+// Use real requireUserAuthContext so coworker context cannot self-revoke.
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
@@ -165,5 +157,23 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/revoke", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("rejects coworker context with 403 via real requireUserAuthContext", async () => {
+    const coworkerAuth: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId,
+      context: { userId: "user_123", organizationId: orgId },
+    };
+
+    const response = await createApp(coworkerAuth).request(
+      `http://localhost/${orgId}/vendor-grants/${grantId}/revoke`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,10 @@
 import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import { getColumnId, getColumnQueryStatuses } from "@/lib/utils/task-column";
+import {
+  getColumnId,
+  getColumnListQueryOptions,
+} from "@/lib/utils/task-column";
 
 describe("getColumnId", () => {
   it("maps READY tasks to todo by default", () => {
@@ -24,16 +27,41 @@ describe("getColumnId", () => {
   });
 });
 
-describe("getColumnQueryStatuses", () => {
-  it("includes READY when loading input-required for parked grant tasks", () => {
-    expect(getColumnQueryStatuses("input-required", null)).toContain(
-      TaskStatus.READY,
-    );
+describe("getColumnListQueryOptions", () => {
+  it("excludes parked READY tasks from todo column queries", () => {
+    expect(getColumnListQueryOptions("todo", null)).toEqual({
+      statuses: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
+      pendingApproval: false,
+    });
   });
 
-  it("does not add READY to input-required when filtering to another status", () => {
+  it("includes parked READY tasks via includeParkedReady for input-required", () => {
+    expect(getColumnListQueryOptions("input-required", null)).toEqual({
+      statuses: [
+        TaskStatus.INPUT_REQUIRED,
+        TaskStatus.APPROVAL_REQUIRED,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
+      ],
+      includeParkedReady: true,
+    });
+  });
+
+  it("filters input-required READY status to parked tasks only", () => {
     expect(
-      getColumnQueryStatuses("input-required", TaskStatus.INPUT_REQUIRED),
-    ).toEqual([TaskStatus.INPUT_REQUIRED]);
+      getColumnListQueryOptions("input-required", TaskStatus.READY),
+    ).toEqual({
+      statuses: [TaskStatus.READY],
+      pendingApproval: true,
+    });
+  });
+
+  it("does not add parked READY when filtering input-required to another status", () => {
+    expect(
+      getColumnListQueryOptions("input-required", TaskStatus.INPUT_REQUIRED),
+    ).toEqual({
+      statuses: [TaskStatus.INPUT_REQUIRED],
+      includeParkedReady: false,
+    });
   });
 });

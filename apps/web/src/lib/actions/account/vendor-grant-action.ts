@@ -3,6 +3,7 @@
 import * as z from "zod";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -17,32 +18,6 @@ const vendorGrantActionSchema = z.object({
 const createVendorGrantActionSchema = z.object({
   vendorId: z.string().uuid(),
 });
-
-function parseVendorGrantActionError(error: unknown): ActionError {
-  if (error instanceof Error) {
-    const errorWithStatus = error as Error & { status?: unknown };
-    if (errorWithStatus.status === "FORBIDDEN") {
-      return {
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: error.message,
-      };
-    }
-
-    if (
-      errorWithStatus.status === "BAD_REQUEST" ||
-      errorWithStatus.status === "NOT_FOUND"
-    ) {
-      return {
-        code: CommonErrorCode.BAD_INPUT,
-        message: error.message,
-      };
-    }
-  }
-
-  return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-  };
-}
 
 interface VendorGrantMutationParameters extends AuthenticatedRequest {
   grantId: string;
@@ -68,7 +43,7 @@ export const approveMyVendorGrant = withSession<
     return Ok({ grantId: grant.id });
   } catch (error) {
     console.error("Failed to approve personal vendor grant", error);
-    return Err(parseVendorGrantActionError(error));
+    return Err(toCoreApiActionError(error));
   }
 });
 
@@ -88,7 +63,7 @@ export const denyMyVendorGrant = withSession<
     return Ok({ grantId: grant.id });
   } catch (error) {
     console.error("Failed to deny personal vendor grant", error);
-    return Err(parseVendorGrantActionError(error));
+    return Err(toCoreApiActionError(error));
   }
 });
 
@@ -108,7 +83,7 @@ export const revokeMyVendorGrant = withSession<
     return Ok({ grantId: grant.id });
   } catch (error) {
     console.error("Failed to revoke personal vendor grant", error);
-    return Err(parseVendorGrantActionError(error));
+    return Err(toCoreApiActionError(error));
   }
 });
 
@@ -128,6 +103,6 @@ export const createMyVendorGrant = withSession<
     return Ok({ grantId: grant.id });
   } catch (error) {
     console.error("Failed to create personal vendor grant", error);
-    return Err(parseVendorGrantActionError(error));
+    return Err(toCoreApiActionError(error));
   }
 });

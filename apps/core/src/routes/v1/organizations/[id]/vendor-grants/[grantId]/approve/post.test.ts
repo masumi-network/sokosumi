@@ -26,15 +26,7 @@ const {
   prismaTransactionMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, { message: "User authentication required" });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
-
+// Use real requireUserAuthContext so coworker context cannot self-approve.
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
@@ -153,11 +145,11 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/approve", () => {
     });
   });
 
-  it("rejects coworker context with 403", async () => {
+  it("rejects coworker context with 403 via real requireUserAuthContext", async () => {
     const coworkerAuth: AuthenticationContext = {
       actor: "coworker",
       coworkerId: "coworker_1",
-      vendorId: vendorId,
+      vendorId,
       context: { userId: "user_123", organizationId: orgId },
     };
 
@@ -167,7 +159,38 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/approve", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("unparks linked tasks when grant is already GRANTED", async () => {
+    const existing = {
+      id: grantId,
+      vendorId,
+      workspaceId,
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.GRANTED,
+      requestedByUserId: null,
+      resolvedAt: new Date("2026-07-01T12:00:00.000Z"),
+      resolvedById: "user_123",
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+      vendor: { name: "Acme", slug: "acme" },
+    };
+
+    vendorGrantFindFirstMock.mockResolvedValue(existing);
+
+    const response = await createApp().request(
+      `http://localhost/${orgId}/vendor-grants/${grantId}/approve`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(vendorGrantUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: { pendingVendorGrantId: grantId },
+      data: { pendingVendorGrantId: null },
+    });
   });
 
   it("re-approves DENIED workspace grant and unparks linked tasks", async () => {

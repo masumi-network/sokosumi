@@ -21202,6 +21202,14 @@ export type GetTasksData = {
          */
         sort?: 'nextRunAt';
         /**
+         * When true, only tasks parked for vendor grant approval. When false, only tasks without a pending grant.
+         */
+        pendingApproval?: 'true' | 'false';
+        /**
+         * When true, include READY tasks parked for vendor grant approval alongside the status filter.
+         */
+        includeParkedReady?: 'true' | 'false';
+        /**
          * Filter tasks by coworker ID
          */
         coworkerId?: string;

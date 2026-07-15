@@ -428,6 +428,7 @@ export function mapCoreApiStatusToCommonErrorCode(
       return CommonErrorCode.UNAUTHORIZED;
     case 404:
       return CommonErrorCode.NOT_FOUND;
+    case 400:
     case 409:
     case 422:
       return CommonErrorCode.BAD_INPUT;

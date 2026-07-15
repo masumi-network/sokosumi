@@ -521,7 +521,10 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
   });
 
-  it("creates unparked when grant becomes GRANTED during create race", async () => {
+  it("creates unparked when requestWorkspaceGrant already returns GRANTED", async () => {
+    // Route-level mock: covers the in-tx branch where the locked grant is already
+    // GRANTED (approve won before park). Concurrent lock/heal coverage lives in
+    // vendor-grants helper tests (FOR UPDATE + already-GRANTED unpark).
     getWorkspaceGrantMock.mockResolvedValue(null);
     requestWorkspaceGrantMock.mockResolvedValue({
       grant: {

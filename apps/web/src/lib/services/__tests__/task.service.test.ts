@@ -82,6 +82,8 @@ describe("task.service", () => {
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY],
+      pendingApproval: undefined,
+      includeParkedReady: undefined,
       coworkerId: "cow-1",
       q: "alpha",
       cursor: "task-1",
@@ -146,10 +148,44 @@ describe("task.service", () => {
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY, TaskStatus.COMPLETED],
+      pendingApproval: undefined,
+      includeParkedReady: undefined,
       coworkerId: undefined,
       q: undefined,
       cursor: undefined,
       limit: 20,
+    });
+  });
+
+  it("forwards kanban column filters to the core client", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [buildTask()],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 10,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { taskService } = await import("../task.service");
+    await taskService.listTasks({
+      status: [TaskStatus.INPUT_REQUIRED],
+      includeParkedReady: true,
+      limit: 10,
+    });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      status: [TaskStatus.INPUT_REQUIRED],
+      pendingApproval: undefined,
+      includeParkedReady: "true",
+      coworkerId: undefined,
+      q: undefined,
+      scope: undefined,
+      cursor: undefined,
+      limit: 10,
     });
   });
 
@@ -237,6 +273,8 @@ describe("task.service", () => {
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: undefined,
+      pendingApproval: undefined,
+      includeParkedReady: undefined,
       coworkerId: undefined,
       q: undefined,
       scope: "owned",

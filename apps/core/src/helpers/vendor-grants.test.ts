@@ -133,6 +133,30 @@ describe("vendor-grants helpers", () => {
 
     expect(result.created).toBe(false);
     expect(vendorGrantCreate).not.toHaveBeenCalled();
+    expect(queryRawMock).toHaveBeenCalled();
+    const sqlParts = queryRawMock.mock.calls[0]![0] as TemplateStringsArray;
+    expect(sqlParts.join(" ")).toContain("FOR UPDATE");
+  });
+
+  it("locks newly created PENDING grants with FOR UPDATE", async () => {
+    queryRawMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    vendorGrantCreate.mockResolvedValue({
+      id: "g2",
+      status: VendorGrantStatus.PENDING,
+      permission: VendorPermission.workspace,
+    });
+
+    await requestWorkspaceGrant({
+      vendorId: "v1",
+      workspaceId: "w1",
+      requestedByUserId: "u1",
+      notify: false,
+    });
+
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
+    const createLockSql = queryRawMock.mock
+      .calls[1]![0] as TemplateStringsArray;
+    expect(createLockSql.join(" ")).toContain("FOR UPDATE");
   });
 
   it("creates PENDING workspace grant when no row exists", async () => {
@@ -446,6 +470,8 @@ describe("vendor-grants helpers", () => {
       where: { pendingVendorGrantId: "g1" },
       data: { pendingVendorGrantId: null },
     });
+    const lockSql = queryRawMock.mock.calls[0]![0] as TemplateStringsArray;
+    expect(lockSql.join(" ")).toContain("FOR UPDATE");
   });
 
   it("notifies approvers via notifyWorkspaceApproversOfPendingGrant", async () => {

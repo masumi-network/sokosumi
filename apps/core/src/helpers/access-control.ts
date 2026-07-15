@@ -238,6 +238,26 @@ export async function requireTaskAssignableCoworker(
 // -----------------------------------------------------------------------------
 
 /**
+ * Persist a PENDING workspace grant request in its own transaction.
+ *
+ * Callers invoke this right before throwing the grant 403. Access checks often
+ * run inside a larger route transaction; throwing would roll back the grant
+ * upsert and its approver notifications, so the request must commit
+ * independently of any enclosing transaction client. Running in a dedicated
+ * transaction also makes the row locks inside {@link requestWorkspaceGrant}
+ * effective when the caller passed the bare Prisma client.
+ */
+async function requestWorkspaceGrantIndependently(params: {
+  vendorId: string;
+  workspaceId: string;
+  requestedByUserId: string | null;
+}): Promise<void> {
+  await prisma.$transaction(async (grantTx) => {
+    await requestWorkspaceGrant(params, grantTx);
+  });
+}
+
+/**
  * Coworker branch of task read: baseline assignee/sibling, or GRANTED workspace
  * access to all non-DRAFT tasks in the workspace (any vendor). Out-of-scope reads
  * upsert PENDING workspace grant and 403 `grant_required`.
@@ -315,14 +335,11 @@ async function requireCoworkerTaskRead(
     throwGrantAccessError(grant.status);
   }
 
-  await requestWorkspaceGrant(
-    {
-      vendorId: authContext.vendorId,
-      workspaceId,
-      requestedByUserId: authContext.context?.userId ?? null,
-    },
-    tx,
-  );
+  await requestWorkspaceGrantIndependently({
+    vendorId: authContext.vendorId,
+    workspaceId,
+    requestedByUserId: authContext.context?.userId ?? null,
+  });
 
   throwGrantAccessError(grant?.status ?? null);
 }
@@ -505,14 +522,11 @@ export async function requireTaskCommentAccess(
     throwGrantAccessError(grant.status);
   }
 
-  await requestWorkspaceGrant(
-    {
-      vendorId: coworker.vendorId,
-      workspaceId,
-      requestedByUserId: coworker.context?.userId ?? null,
-    },
-    tx,
-  );
+  await requestWorkspaceGrantIndependently({
+    vendorId: coworker.vendorId,
+    workspaceId,
+    requestedByUserId: coworker.context?.userId ?? null,
+  });
 
   throwGrantAccessError(grant?.status ?? null);
 }

@@ -54,17 +54,44 @@ export function getColumnQueryStatuses(
   columnId: KanbanColumnId,
   statusFilter: TaskStatus | null,
 ): TaskStatus[] {
+  return getColumnListQueryOptions(columnId, statusFilter).statuses;
+}
+
+export interface ColumnListQueryOptions {
+  statuses: TaskStatus[];
+  pendingApproval?: boolean;
+  includeParkedReady?: boolean;
+}
+
+/** Core list query options for a kanban column page. */
+export function getColumnListQueryOptions(
+  columnId: KanbanColumnId,
+  statusFilter: TaskStatus | null,
+): ColumnListQueryOptions {
   const statuses = COLUMN_TASK_STATUSES[columnId].filter(
     (columnStatus) => statusFilter === null || columnStatus === statusFilter,
   );
 
-  if (
-    columnId === "input-required" &&
-    (statusFilter === null || statusFilter === TaskStatus.READY) &&
-    !statuses.includes(TaskStatus.READY)
-  ) {
-    return [...statuses, TaskStatus.READY];
+  if (columnId === "todo") {
+    return {
+      statuses,
+      pendingApproval: false,
+    };
   }
 
-  return statuses;
+  if (columnId === "input-required") {
+    if (statusFilter === TaskStatus.READY) {
+      return {
+        statuses: [TaskStatus.READY],
+        pendingApproval: true,
+      };
+    }
+
+    return {
+      statuses,
+      includeParkedReady: statusFilter === null,
+    };
+  }
+
+  return { statuses };
 }

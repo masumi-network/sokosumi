@@ -223,19 +223,13 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).not.toHaveBeenCalled();
   });
 
-  it("excludes parked READY tasks from the todo column", async () => {
+  it("excludes parked READY tasks from the todo column via core filters", async () => {
     listTasksMock.mockResolvedValue({
       tasks: [
         buildTask({
           id: "task-ready",
           status: TaskStatus.READY,
           updatedAt: "2026-03-03T02:00:00.000Z",
-        }),
-        buildTask({
-          id: "task-parked",
-          status: TaskStatus.READY,
-          updatedAt: "2026-03-03T01:00:00.000Z",
-          pendingApproval: true,
         }),
       ],
       pagination: { nextCursor: null },
@@ -254,9 +248,19 @@ describe("getTasksColumnPage", () => {
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-ready"]);
+    expect(listTasksMock).toHaveBeenCalledWith({
+      status: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
+      pendingApproval: false,
+      includeParkedReady: undefined,
+      scope: "owned",
+      coworkerId: undefined,
+      projectId: undefined,
+      cursor: null,
+      limit: 10,
+    });
   });
 
-  it("includes parked READY tasks in the input-required column", async () => {
+  it("includes parked READY tasks in the input-required column via core filters", async () => {
     listTasksMock.mockResolvedValue({
       tasks: [
         buildTask({
@@ -264,11 +268,6 @@ describe("getTasksColumnPage", () => {
           status: TaskStatus.READY,
           updatedAt: "2026-03-03T01:00:00.000Z",
           pendingApproval: true,
-        }),
-        buildTask({
-          id: "task-ready",
-          status: TaskStatus.READY,
-          updatedAt: "2026-03-03T02:00:00.000Z",
         }),
       ],
       pagination: { nextCursor: null },
@@ -287,10 +286,20 @@ describe("getTasksColumnPage", () => {
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-parked"]);
-    expect(listTasksMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: expect.arrayContaining([TaskStatus.READY]),
-      }),
-    );
+    expect(listTasksMock).toHaveBeenCalledWith({
+      status: [
+        TaskStatus.INPUT_REQUIRED,
+        TaskStatus.APPROVAL_REQUIRED,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
+      ],
+      pendingApproval: undefined,
+      includeParkedReady: true,
+      scope: "owned",
+      coworkerId: undefined,
+      projectId: undefined,
+      cursor: null,
+      limit: 10,
+    });
   });
 });
