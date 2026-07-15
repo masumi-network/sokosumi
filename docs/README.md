@@ -2,10 +2,22 @@
 
 This directory contains documentation for the Sokosumi monorepo.
 
-## Future Structure
+## Coworker integrators
+
+- [`coworker/vendor-workspace-grants-api.md`](./coworker/vendor-workspace-grants-api.md) — Core API behavior for vendor workspace grants (`GRANT_PENDING`, delegated create, 403 kinds)
+- [`coworker-metadata.md`](./coworker-metadata.md) — Marketplace profile and Ready-To-Run offers JSON
+
+## Agent tooling
+
+- [`agents/issue-tracker.md`](./agents/issue-tracker.md)
+- [`agents/triage-labels.md`](./agents/triage-labels.md)
+- [`agents/domain.md`](./agents/domain.md)
+
+## Future structure
 
 Planned documentation includes:
-- `architecture/` - Architecture decision records and diagrams
-- `api/` - API documentation
-- `guides/` - Development guides and tutorials
+
+- `architecture/` — Architecture decision records and diagrams
+- `api/` — Additional API documentation
+- `guides/` — Development guides and tutorials
 

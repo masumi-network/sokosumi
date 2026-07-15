@@ -281,11 +281,11 @@ export type Task = {
      */
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
-     * Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.
+     * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
     grantResumeStatus: 'DRAFT' | 'READY' | null;
     /**
-     * Vendor grant blocking this task. Set only while status is GRANT_PENDING.
+     * Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.
      */
     pendingVendorGrantId: string | null;
     /**
@@ -2630,11 +2630,11 @@ export type TaskListItem = {
      */
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
-     * Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.
+     * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
     grantResumeStatus: 'DRAFT' | 'READY' | null;
     /**
-     * Vendor grant blocking this task. Set only while status is GRANT_PENDING.
+     * Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.
      */
     pendingVendorGrantId: string | null;
     /**

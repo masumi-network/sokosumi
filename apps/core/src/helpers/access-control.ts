@@ -28,7 +28,6 @@ import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
 import {
   getWorkspaceGrant,
-  isBaselineCoworkerTaskAccess,
   requestWorkspaceGrantCommitted,
   requireTaskNotParked,
   throwGrantAccessError,
@@ -476,49 +475,6 @@ export async function requireTaskCommentAccess(
 
   const task = await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
   requireTaskNotParked(task);
-
-  const taskMeta = await tx.task.findFirst({
-    where: { id: task.id },
-    select: {
-      coworkerId: true,
-      status: true,
-      workspaceId: true,
-      coworker: { select: { vendorId: true } },
-    },
-  });
-
-  if (!taskMeta) {
-    throw notFound("Task not found");
-  }
-
-  if (
-    isBaselineCoworkerTaskAccess({
-      actorCoworkerId: coworker.coworkerId,
-      actorVendorId: coworker.vendorId,
-      task: taskMeta,
-    })
-  ) {
-    return task;
-  }
-
-  if (!workspaceId) {
-    throwGrantAccessError(null);
-  }
-
-  const grant = await getWorkspaceGrant(
-    {
-      vendorId: coworker.vendorId,
-      workspaceId,
-    },
-    tx,
-  );
-
-  await requireGrantedWorkspaceAccessOrRequest({
-    vendorId: coworker.vendorId,
-    workspaceId,
-    requestedByUserId: coworker.context?.userId ?? null,
-    grant,
-  });
 
   return task;
 }

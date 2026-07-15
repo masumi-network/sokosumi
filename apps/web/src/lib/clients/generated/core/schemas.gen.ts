@@ -1207,7 +1207,7 @@ export const TaskSchema = {
                 'READY',
                 null
             ],
-            description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
+            description: 'Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.',
             example: null
         },
         pendingVendorGrantId: {
@@ -1216,7 +1216,7 @@ export const TaskSchema = {
                 'null'
             ],
             format: 'uuid',
-            description: 'Vendor grant blocking this task. Set only while status is GRANT_PENDING.',
+            description: 'Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.',
             example: null
         },
         metadata: {
@@ -9572,7 +9572,7 @@ export const TaskListItemSchema = {
                 'READY',
                 null
             ],
-            description: 'Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.',
+            description: 'Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.',
             example: null
         },
         pendingVendorGrantId: {
@@ -9581,7 +9581,7 @@ export const TaskListItemSchema = {
                 'null'
             ],
             format: 'uuid',
-            description: 'Vendor grant blocking this task. Set only while status is GRANT_PENDING.',
+            description: 'Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.',
             example: null
         },
         metadata: {
