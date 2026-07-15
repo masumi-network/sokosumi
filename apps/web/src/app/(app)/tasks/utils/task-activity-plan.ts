@@ -12,19 +12,22 @@ import {
 type SessionResult = Awaited<ReturnType<typeof getSession>>;
 
 /**
- * Resolves the plan used for task-activity billing CTAs.
+ * Resolves the viewer's plan for task-activity billing CTAs.
  *
- * Uses the non-redirecting Core client: a 403 here means the viewer is not a
- * member of the task's organization (admin review, revoked membership), not a
- * dead session. Routing that through the redirect proxy sends authenticated
- * admins to `/signin` → landing and looks like the detail page "crashes".
+ * Returns `null` when the plan is unavailable (no session, or the viewer
+ * cannot resolve the task's organization subscription). Do not treat those as
+ * `"free"` — that would show an "upgrade plan" CTA for admins / outsiders.
+ *
+ * Uses the non-redirecting Core client: a 403 here is a membership miss, not a
+ * dead session. Routing it through the redirect proxy sends authenticated
+ * admins to `/signin` → landing.
  */
 export async function resolveTaskActivityPlan(
   session: SessionResult,
   organizationId: string | null,
-): Promise<SubscriptionPlanName> {
+): Promise<SubscriptionPlanName | null> {
   if (!session) {
-    return "free";
+    return null;
   }
 
   try {
@@ -34,13 +37,14 @@ export async function resolveTaskActivityPlan(
         )
       : await coreClientNoRedirect.getMyActiveSubscription();
 
+    // Member who can resolve the subscription: null plan from Core means free.
     return parsePlanName(data.subscription?.plan) ?? "free";
   } catch (error) {
     if (
       error instanceof CoreApiRequestError &&
       (error.status === 403 || error.status === 404)
     ) {
-      return "free";
+      return null;
     }
     throw error;
   }

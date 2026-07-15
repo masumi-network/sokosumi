@@ -5,6 +5,7 @@ import {
   extractFileLikeLinks,
   extractHttpLinks,
   resolveIpfsOrHttpUrl,
+  type SubscriptionPlanName,
   TaskEventOrigin,
   TaskStatus,
 } from "@sokosumi/utils";
@@ -120,7 +121,12 @@ interface TaskActivityProps {
   currentUser?: ({ id: string } & ActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
-  isFreePlan?: boolean;
+  /**
+   * Viewer's subscription plan for out-of-credits billing CTAs.
+   * `null` when the plan is unavailable (admin/read-only, membership miss) —
+   * show status copy but no billing link for the viewer.
+   */
+  viewerPlan?: SubscriptionPlanName | null;
   canComment?: boolean;
 }
 
@@ -179,7 +185,7 @@ export function TaskActivitySection({
   currentUser,
   expandLabel = "Expand",
   collapseLabel = "Show less",
-  isFreePlan = true,
+  viewerPlan = null,
   canComment = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
@@ -492,8 +498,13 @@ export function TaskActivitySection({
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
               Boolean(event.authenticationUrl);
-            const shouldShowBillingButton =
+            const isOutOfCreditsEvent =
               index === 0 && event.status === TaskStatus.OUT_OF_CREDITS;
+            // Only link to billing when we know the viewer's plan. Unknown
+            // (admin / outside workspace) must not pretend the viewer is free.
+            const shouldShowBillingButton =
+              isOutOfCreditsEvent && viewerPlan != null;
+            const isFreePlan = viewerPlan === "free";
             const billingCtaLabel = isFreePlan
               ? t("billingCta.upgradePlan")
               : t("billingCta.addCredits");
@@ -502,7 +513,7 @@ export function TaskActivitySection({
               : "/billing?tab=credits";
             const isCommentEvent = Boolean(formattedComment);
             const isAuthEvent = shouldShowAuthenticateButton;
-            const isBillingEvent = shouldShowBillingButton;
+            const isBillingEvent = isOutOfCreditsEvent;
             const shouldShowBillingPlaceholder =
               isBillingEvent && !formattedComment;
             const isCardEvent = isCommentEvent || isAuthEvent || isBillingEvent;

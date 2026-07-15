@@ -41,13 +41,13 @@ describe("resolveTaskActivityPlan", () => {
     vi.clearAllMocks();
   });
 
-  it("returns free without calling Core when there is no session", async () => {
-    await expect(resolveTaskActivityPlan(null, "org_1")).resolves.toBe("free");
+  it("returns null without calling Core when there is no session", async () => {
+    await expect(resolveTaskActivityPlan(null, "org_1")).resolves.toBeNull();
     expect(getOrganizationActiveSubscriptionMock).not.toHaveBeenCalled();
     expect(getMyActiveSubscriptionMock).not.toHaveBeenCalled();
   });
 
-  it("treats org membership 403 as free instead of propagating", async () => {
+  it("returns null for org membership 403 instead of freefalling to free", async () => {
     getOrganizationActiveSubscriptionMock.mockRejectedValue(
       new CoreApiRequestError("You are not a member of this organization", {
         status: 403,
@@ -62,12 +62,44 @@ describe("resolveTaskActivityPlan", () => {
         } as never,
         "org_other",
       ),
-    ).resolves.toBe("free");
+    ).resolves.toBeNull();
 
     expect(getOrganizationActiveSubscriptionMock).toHaveBeenCalledWith(
       "org_other",
     );
     expect(getMyActiveSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null when the organization subscription is not found", async () => {
+    getOrganizationActiveSubscriptionMock.mockRejectedValue(
+      new CoreApiRequestError("Organization not found", { status: 404 }),
+    );
+
+    await expect(
+      resolveTaskActivityPlan(
+        {
+          user: { id: "user_1" },
+          session: { id: "sess_1", activeOrganizationId: null },
+        } as never,
+        "org_missing",
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("returns free when a member resolves a null subscription", async () => {
+    getOrganizationActiveSubscriptionMock.mockResolvedValue({
+      data: { subscription: null },
+    });
+
+    await expect(
+      resolveTaskActivityPlan(
+        {
+          user: { id: "user_1" },
+          session: { id: "sess_1", activeOrganizationId: "org_1" },
+        } as never,
+        "org_1",
+      ),
+    ).resolves.toBe("free");
   });
 
   it("returns the organization plan when the viewer can resolve it", async () => {

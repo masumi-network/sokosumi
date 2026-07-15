@@ -78,10 +78,10 @@ export async function TaskDetailView({
   const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();
   const localePromise = getLocale();
-  // Admin read-only view never comments, so skip subscription lookup for orgs
-  // the admin is not in (those 403s used to bounce via the auth-redirect proxy).
-  const currentPlanPromise: Promise<SubscriptionPlanName> = forceReadOnly
-    ? Promise.resolve("free")
+  // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
+  // org subscription call that used to 403 → auth-redirect bounce.
+  const currentPlanPromise: Promise<SubscriptionPlanName | null> = forceReadOnly
+    ? Promise.resolve(null)
     : sessionPromise.then((session) =>
         resolveTaskActivityPlan(session, task.organizationId),
       );
@@ -429,9 +429,9 @@ async function TaskActivitySectionContent({
   forceReadOnly: boolean;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
-  currentPlanPromise: Promise<SubscriptionPlanName>;
+  currentPlanPromise: Promise<SubscriptionPlanName | null>;
 }) {
-  const [agents, session, currentPlan, t] = await Promise.all([
+  const [agents, session, viewerPlan, t] = await Promise.all([
     agentsPromise,
     sessionPromise,
     currentPlanPromise,
@@ -458,7 +458,6 @@ async function TaskActivitySectionContent({
       }
     : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
-  const isFreePlan = currentPlan === "free";
 
   return (
     <TaskActivitySection
@@ -479,7 +478,7 @@ async function TaskActivitySectionContent({
       currentUser={currentUser}
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
-      isFreePlan={isFreePlan}
+      viewerPlan={viewerPlan}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
         taskUserId: task.userId,
