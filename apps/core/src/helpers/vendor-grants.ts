@@ -526,11 +526,9 @@ export async function unparkTasksForGrant(
   let unparkedCount = 0;
 
   for (const task of parkedTasks) {
-    if (!task.grantResumeStatus) {
-      continue;
-    }
-
-    const resumeStatus = grantResumeStatusToTaskStatus(task.grantResumeStatus);
+    const resumeStatus = task.grantResumeStatus
+      ? grantResumeStatusToTaskStatus(task.grantResumeStatus)
+      : TaskStatus.READY;
 
     const result = await tx.task.updateMany({
       where: {

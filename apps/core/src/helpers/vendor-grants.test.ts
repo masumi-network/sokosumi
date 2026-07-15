@@ -265,6 +265,35 @@ describe("vendor-grants helpers", () => {
     });
   });
 
+  it("unparks parked tasks with null grantResumeStatus to READY", async () => {
+    taskFindMany.mockResolvedValue([{ id: "t1", grantResumeStatus: null }]);
+    taskUpdateMany.mockResolvedValue({ count: 1 });
+    taskEventCreate.mockResolvedValue({ id: "ev1" });
+
+    await expect(unparkTasksForGrant("g1", undefined, "u1")).resolves.toBe(1);
+
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "t1",
+        pendingVendorGrantId: "g1",
+        archivedAt: null,
+        status: TaskStatus.GRANT_PENDING,
+      },
+      data: {
+        status: TaskStatus.READY,
+        pendingVendorGrantId: null,
+        grantResumeStatus: null,
+      },
+    });
+    expect(taskEventCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: "t1",
+        status: TaskStatus.READY,
+        userId: "u1",
+      }),
+    });
+  });
+
   it("skips cancel when only archived parked tasks remain", async () => {
     taskFindMany.mockResolvedValue([]);
     await expect(
