@@ -27,6 +27,8 @@ export const vendorGrantRepository = {
   /**
    * Grants Serviceplan workspace access when a workspace is first created.
    * Skips when a grant row already exists so user denials/revocations are preserved.
+   * In-process cache is a perf hint only; entries are set for committed reads (existing
+   * row or unique race), never for uncommitted creates.
    */
   async ensureServiceplanWorkspaceGrantOnCreate({
     workspaceId,
@@ -78,7 +80,7 @@ export const vendorGrantRepository = {
           resolvedById: resolvedByUserId,
         },
       });
-      markServiceplanGrantChecked(workspaceId);
+      // Do not cache here: outer transaction may still roll back.
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
         markServiceplanGrantChecked(workspaceId);

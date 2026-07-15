@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 
-import { describe, it } from "vitest";
+import { beforeEach, describe, it } from "vitest";
 
 import type { Prisma } from "../../generated/prisma/client.js";
+import { vendorGrantRepository } from "../vendor-grant.repository.js";
 import { workspaceRepository } from "../workspace.repository.js";
 
 describe("workspaceRepository", () => {
+  beforeEach(() => {
+    vendorGrantRepository.clearServiceplanGrantWorkspaceCacheForTests();
+  });
+
   it("returns the existing personal workspace when resolving a personal context", async () => {
     let findUniqueCall: unknown;
     let grantFindUniqueCall: unknown;

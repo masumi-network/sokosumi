@@ -139,10 +139,14 @@ describe("vendorGrantRepository", () => {
     assert.equal(findUniqueCalls, 1);
   });
 
-  it("skips when the Serviceplan vendor seed is missing", async () => {
+  it("retries grant lookup when the Serviceplan vendor seed is missing", async () => {
+    let findUniqueCalls = 0;
     const tx = {
       vendorGrant: {
-        findUnique: async () => null,
+        findUnique: async () => {
+          findUniqueCalls += 1;
+          return null;
+        },
         create: async () => {
           throw new Error("create should not be called");
         },
@@ -157,5 +161,12 @@ describe("vendorGrantRepository", () => {
       resolvedByUserId: null,
       tx,
     });
+    await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+      workspaceId: "workspace-1",
+      resolvedByUserId: null,
+      tx,
+    });
+
+    assert.equal(findUniqueCalls, 2);
   });
 });
