@@ -1271,8 +1271,7 @@ model Task {
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
   pendingVendorGrantId String?      @db.Uuid
-  /// Parking is cleared when the grant row is deleted (`onDelete: SetNull`).
-  /// Application code must not hard-delete grants while tasks remain parked.
+  /// Cleared when the grant row is deleted (onDelete: SetNull).
   pendingVendorGrant   VendorGrant? @relation(fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
 
   share PublicShare?

@@ -63,7 +63,6 @@ export interface ColumnListQueryOptions {
   includeParkedReady?: boolean;
 }
 
-/** Core list query options for a kanban column page. */
 export function getColumnListQueryOptions(
   columnId: KanbanColumnId,
   statusFilter: TaskStatus | null,

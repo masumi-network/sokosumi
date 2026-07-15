@@ -217,9 +217,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throwGrantAccessError(existingGrant.status);
     }
 
-    // Fast path when access is already granted. Grant status is read outside the
-    // create transaction; a concurrent approve can still park another request,
-    // but approveVendorGrantInWorkspace always unparks linked tasks on commit.
     if (existingGrant?.status === VendorGrantStatus.GRANTED) {
       const task = await prisma.$transaction(async (tx) =>
         createTaskRecord(

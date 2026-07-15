@@ -237,16 +237,7 @@ export async function requireTaskAssignableCoworker(
 // Task collaboration (user ownership or coworker on assigned task)
 // -----------------------------------------------------------------------------
 
-/**
- * Persist a PENDING workspace grant request in its own transaction.
- *
- * Callers invoke this right before throwing the grant 403. Access checks often
- * run inside a larger route transaction; throwing would roll back the grant
- * upsert and its approver notifications, so the request must commit
- * independently of any enclosing transaction client. Running in a dedicated
- * transaction also makes the row locks inside {@link requestWorkspaceGrant}
- * effective when the caller passed the bare Prisma client.
- */
+/** Request a PENDING grant outside the caller's transaction. */
 async function requestWorkspaceGrantIndependently(params: {
   vendorId: string;
   workspaceId: string;

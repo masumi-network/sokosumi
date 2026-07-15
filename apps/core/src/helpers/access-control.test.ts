@@ -692,7 +692,6 @@ describe("requireTaskCommentAccess", () => {
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    // Baseline read miss, then grant read path finds the task.
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
@@ -735,8 +734,6 @@ describe("requireTaskCommentAccess", () => {
       return true;
     });
 
-    // The grant request must persist even though the route transaction rolls
-    // back on the 403, so it runs in its own transaction — not on the route tx.
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -837,9 +834,6 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       return true;
     });
 
-    // The grant request must persist even though callers often run this inside
-    // a route transaction that rolls back on the 403 — it uses its own
-    // transaction, never the caller's tx.
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1415,7 +1409,6 @@ describe("requireJobReadForRouteVars", () => {
       taskId: "tsk_123",
       workspaceId,
     } as never);
-    // Baseline miss + out-of-scope task missing → not found
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);

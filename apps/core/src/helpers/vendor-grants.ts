@@ -324,7 +324,6 @@ export async function approveVendorGrantInWorkspace(
     throw notFound("Vendor grant not found");
   }
 
-  // Always unpark: heals tasks parked after a concurrent approve committed.
   switch (existing.status) {
     case VendorGrantStatus.GRANTED:
       await unparkTasksForGrant(existing.id, tx);
