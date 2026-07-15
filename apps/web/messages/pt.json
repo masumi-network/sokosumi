@@ -1581,7 +1581,8 @@
         "billingCta": {
           "upgradePlan": "Obter mais créditos",
           "addCredits": "Adicionar créditos",
-          "placeholder": "Esta tarefa precisa de créditos para continuar. Abra a faturação para prosseguir."
+          "placeholder": "Esta tarefa precisa de créditos para continuar. Abra a faturação para prosseguir.",
+          "statusUnavailable": "Esta tarefa ficou sem créditos."
         },
         "actions": {
           "edit": "Editar",

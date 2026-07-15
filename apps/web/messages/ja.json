@@ -1581,7 +1581,8 @@
         "billingCta": {
           "upgradePlan": "クレジットをもっと入手",
           "addCredits": "クレジットを追加",
-          "placeholder": "このタスクを続行するにはクレジットが必要です。請求を開いて続行してください。"
+          "placeholder": "このタスクを続行するにはクレジットが必要です。請求を開いて続行してください。",
+          "statusUnavailable": "このタスクはクレジット不足です。"
         },
         "actions": {
           "edit": "編集",

@@ -1581,7 +1581,8 @@
         "billingCta": {
           "upgradePlan": "Obtener más créditos",
           "addCredits": "Añadir Credits",
-          "placeholder": "Este Task necesita Credits para continuar. Ve a Billing para continuar."
+          "placeholder": "Este Task necesita Credits para continuar. Ve a Billing para continuar.",
+          "statusUnavailable": "Este task se ha quedado sin créditos."
         },
         "actions": {
           "edit": "Editar",

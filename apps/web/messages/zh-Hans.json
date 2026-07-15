@@ -1581,7 +1581,8 @@
         "billingCta": {
           "upgradePlan": "获取更多积分",
           "addCredits": "添加积分",
-          "placeholder": "此任务需要积分才能继续。请打开计费页面以继续。"
+          "placeholder": "此任务需要积分才能继续。请打开计费页面以继续。",
+          "statusUnavailable": "此任务积分已用尽。"
         },
         "actions": {
           "edit": "编辑",
