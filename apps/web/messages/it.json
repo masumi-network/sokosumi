@@ -1209,6 +1209,7 @@
           "DRAFT": "Bozza",
           "QUEUED": "In coda",
           "READY": "Pronto",
+          "GRANT_PENDING": "Approvazione in sospeso",
           "INPUT_REQUIRED": "Input richiesto",
           "APPROVAL_REQUIRED": "Approvazione richiesta",
           "AUTHENTICATION_REQUIRED": "Autenticazione richiesta",

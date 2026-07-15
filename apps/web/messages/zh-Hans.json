@@ -1209,6 +1209,7 @@
           "DRAFT": "草稿",
           "QUEUED": "已排队",
           "READY": "就绪",
+          "GRANT_PENDING": "待审批",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
           "AUTHENTICATION_REQUIRED": "需要认证",

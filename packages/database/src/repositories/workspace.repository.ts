@@ -1,5 +1,7 @@
 import { Prisma, type Workspace } from "../generated/prisma/client.js";
 
+import { vendorGrantRepository } from "./vendor-grant.repository.js";
+
 function isPrismaUniqueConstraintError(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -35,9 +37,17 @@ export const workspaceRepository = {
     }
 
     try {
-      return await tx.workspace.create({
+      const workspace = await tx.workspace.create({
         data: { userId },
       });
+
+      await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+        workspaceId: workspace.id,
+        resolvedByUserId: userId,
+        tx,
+      });
+
+      return workspace;
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
         const racedWorkspace = await this.findPersonalWorkspace({ userId, tx });
@@ -78,9 +88,17 @@ export const workspaceRepository = {
     }
 
     try {
-      return await tx.workspace.create({
+      const workspace = await tx.workspace.create({
         data: { organizationId },
       });
+
+      await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+        workspaceId: workspace.id,
+        resolvedByUserId: null,
+        tx,
+      });
+
+      return workspace;
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
         const racedWorkspace = await this.findOrganizationWorkspace({

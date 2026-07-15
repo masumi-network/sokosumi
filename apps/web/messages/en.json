@@ -1220,6 +1220,7 @@
           "DRAFT": "Draft",
           "QUEUED": "Queued",
           "READY": "Ready",
+          "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
           "APPROVAL_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "Authentication required",

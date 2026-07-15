@@ -1209,6 +1209,7 @@
           "DRAFT": "Rascunho",
           "QUEUED": "Na fila",
           "READY": "Pronto",
+          "GRANT_PENDING": "Aprovação pendente",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
           "AUTHENTICATION_REQUIRED": "Autenticação necessária",

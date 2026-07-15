@@ -1209,6 +1209,7 @@
           "DRAFT": "Brouillon",
           "QUEUED": "En file d'attente",
           "READY": "Prêt",
+          "GRANT_PENDING": "Approbation en attente",
           "INPUT_REQUIRED": "Saisie requise",
           "APPROVAL_REQUIRED": "Approbation requise",
           "AUTHENTICATION_REQUIRED": "Authentification requise",

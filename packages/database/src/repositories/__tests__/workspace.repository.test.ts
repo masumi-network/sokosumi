@@ -41,6 +41,7 @@ describe("workspaceRepository", () => {
   it("creates the organization workspace when it is missing", async () => {
     let findUniqueCall: unknown;
     let createCall: unknown;
+    let grantCreateCall: unknown;
     const tx = {
       workspace: {
         findUnique: async (args: unknown) => {
@@ -58,6 +59,18 @@ describe("workspaceRepository", () => {
           };
         },
       },
+      vendorGrant: {
+        findUnique: async () => null,
+        create: async (args: unknown) => {
+          grantCreateCall = args;
+          return { id: "grant-1" };
+        },
+      },
+      vendor: {
+        findUnique: async () => ({
+          id: "01960001-0001-7001-8001-000000000001",
+        }),
+      },
     } as unknown as Prisma.TransactionClient;
 
     const workspace = await workspaceRepository.upsertWorkspaceForContext(
@@ -72,6 +85,17 @@ describe("workspaceRepository", () => {
     });
     assert.deepEqual(createCall, {
       data: { organizationId: "org-1" },
+    });
+    assert.deepEqual(grantCreateCall, {
+      data: {
+        vendorId: "01960001-0001-7001-8001-000000000001",
+        workspaceId: "workspace-org-1",
+        permission: "workspace",
+        status: "GRANTED",
+        resolvedAt: (grantCreateCall as { data: { resolvedAt: Date } }).data
+          .resolvedAt,
+        resolvedById: null,
+      },
     });
   });
 
