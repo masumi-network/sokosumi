@@ -33,6 +33,7 @@ vi.mock("next-intl", () => ({
       "billingCta.addCredits": "Add credits",
       "billingCta.placeholder":
         "This task needs credits to continue. Open billing to proceed.",
+      "billingCta.statusUnavailable": "This task is out of credits.",
       sendWith: "Send with",
       ctrl: "Ctrl",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
@@ -503,7 +504,7 @@ describe("TaskActivitySection", () => {
     ];
 
     render(
-      <TaskActivitySection {...baseProps} events={events} isFreePlan={true} />,
+      <TaskActivitySection {...baseProps} events={events} viewerPlan="free" />,
     );
 
     const cta = screen.getByRole("link", { name: "Get more credits" });
@@ -515,6 +516,50 @@ describe("TaskActivitySection", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows add-credits billing CTA for latest out-of-credits event on paid plan", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-out-of-credits", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.OUT_OF_CREDITS,
+      }),
+    ];
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} viewerPlan="pro" />,
+    );
+
+    const cta = screen.getByRole("link", { name: "Add credits" });
+    expect(cta).toHaveAttribute("href", "/billing?tab=credits");
+  });
+
+  it("shows out-of-credits status without billing CTA when plan is unavailable", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-out-of-credits", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.OUT_OF_CREDITS,
+      }),
+    ];
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} viewerPlan={null} />,
+    );
+
+    expect(
+      screen.getByText("This task is out of credits."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "This task needs credits to continue. Open billing to proceed.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Get more credits" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Add credits" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not show billing CTA for latest credits-topped-up event", () => {
     const events: TaskEvent[] = [
       createEvent("latest-credits-topped-up", {
@@ -524,7 +569,7 @@ describe("TaskActivitySection", () => {
     ];
 
     render(
-      <TaskActivitySection {...baseProps} events={events} isFreePlan={false} />,
+      <TaskActivitySection {...baseProps} events={events} viewerPlan="pro" />,
     );
 
     expect(

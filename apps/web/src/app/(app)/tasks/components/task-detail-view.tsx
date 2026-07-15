@@ -16,14 +16,13 @@ import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-r
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
+import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import {
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/auth.server";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -79,8 +78,10 @@ export async function TaskDetailView({
   const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();
   const localePromise = getLocale();
+  // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
+  // org subscription call that used to 403 → auth-redirect bounce.
   const currentPlanPromise = sessionPromise.then((session) =>
-    getCurrentPlan(session, task.organizationId),
+    resolveTaskDetailViewerPlan(forceReadOnly, session, task.organizationId),
   );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
@@ -426,9 +427,9 @@ async function TaskActivitySectionContent({
   forceReadOnly: boolean;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
-  currentPlanPromise: Promise<SubscriptionPlanName>;
+  currentPlanPromise: Promise<SubscriptionPlanName | null>;
 }) {
-  const [agents, session, currentPlan, t] = await Promise.all([
+  const [agents, session, viewerPlan, t] = await Promise.all([
     agentsPromise,
     sessionPromise,
     currentPlanPromise,
@@ -455,7 +456,6 @@ async function TaskActivitySectionContent({
       }
     : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
-  const isFreePlan = currentPlan === "free";
 
   return (
     <TaskActivitySection
@@ -476,7 +476,7 @@ async function TaskActivitySectionContent({
       currentUser={currentUser}
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
-      isFreePlan={isFreePlan}
+      viewerPlan={viewerPlan}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
         taskUserId: task.userId,
@@ -485,33 +485,6 @@ async function TaskActivitySectionContent({
       })}
     />
   );
-}
-
-async function getCurrentPlan(
-  session: SessionResult,
-  organizationId: string | null,
-): Promise<SubscriptionPlanName> {
-  if (!session) {
-    return "free";
-  }
-
-  try {
-    const { data } = organizationId
-      ? await coreClient.getOrganizationActiveSubscription(organizationId)
-      : await coreClient.getMyActiveSubscription();
-
-    return parsePlanName(data.subscription?.plan) ?? "free";
-  } catch (error) {
-    // Tasks can be viewed in workspaces the caller can no longer resolve a
-    // subscription for (e.g. revoked membership) — treat those as free.
-    if (
-      error instanceof CoreApiRequestError &&
-      (error.status === 403 || error.status === 404)
-    ) {
-      return "free";
-    }
-    throw error;
-  }
 }
 
 function buildTaskDetailContext(

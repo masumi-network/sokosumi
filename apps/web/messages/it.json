@@ -1568,7 +1568,8 @@
         "billingCta": {
           "upgradePlan": "Ottieni più crediti",
           "addCredits": "Aggiungi crediti",
-          "placeholder": "Questo task richiede crediti per continuare. Apri la fatturazione per procedere."
+          "placeholder": "Questo task richiede crediti per continuare. Apri la fatturazione per procedere.",
+          "statusUnavailable": "Questo task ha esaurito i crediti."
         },
         "actions": {
           "edit": "Modifica",
