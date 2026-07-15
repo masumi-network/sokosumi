@@ -235,23 +235,6 @@ export async function requestWorkspaceGrantCommitted(params: {
   );
 }
 
-export async function lockAndGetVendorGrantById(
-  grantId: string,
-  tx: Prisma.TransactionClient,
-): Promise<VendorGrant> {
-  await lockVendorGrantById(grantId, tx);
-
-  const grant = await tx.vendorGrant.findUnique({
-    where: { id: grantId },
-  });
-
-  if (!grant) {
-    throw notFound("Vendor grant not found");
-  }
-
-  return grant;
-}
-
 export async function notifyWorkspaceApproversOfPendingGrant(
   params: {
     vendorId: string;

@@ -11,7 +11,6 @@ import mountPostTask, { createTaskRequestSchema } from "./post";
 
 const {
   generateTaskNameMock,
-  getWorkspaceGrantMock,
   mapTaskMock,
   notifyWorkspaceApproversOfPendingGrantMock,
   projectFindFirstMock,
@@ -22,7 +21,6 @@ const {
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   generateTaskNameMock: vi.fn(),
-  getWorkspaceGrantMock: vi.fn(),
   mapTaskMock: vi.fn(),
   notifyWorkspaceApproversOfPendingGrantMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -106,7 +104,6 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
 
   return {
     ...actual,
-    getWorkspaceGrant: getWorkspaceGrantMock,
     requestWorkspaceGrant: requestWorkspaceGrantMock,
     notifyWorkspaceApproversOfPendingGrant:
       notifyWorkspaceApproversOfPendingGrantMock,
@@ -506,7 +503,6 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("parks create with pendingVendorGrantId when workspace access is missing", async () => {
-    getWorkspaceGrantMock.mockResolvedValue(null);
     mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     notifyWorkspaceApproversOfPendingGrantMock.mockResolvedValue(undefined);
 
@@ -593,7 +589,6 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("creates unparked when requestWorkspaceGrant already returns GRANTED", async () => {
-    getWorkspaceGrantMock.mockResolvedValue(null);
     mockWorkspaceGrantInTransaction(VendorGrantStatus.GRANTED, false);
 
     const response = await createDelegatedCoworkerApp().request(
@@ -710,7 +705,6 @@ describe("POST /tasks delegated coworker create grant", () => {
 
   it("parks create in personal workspaces when workspace grant is missing", async () => {
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
-    getWorkspaceGrantMock.mockResolvedValue(null);
     mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     notifyWorkspaceApproversOfPendingGrantMock.mockResolvedValue(undefined);
 

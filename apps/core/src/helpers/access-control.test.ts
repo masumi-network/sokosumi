@@ -605,9 +605,7 @@ describe("requireTaskCommentAccess", () => {
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(siblingTask as never)
-      .mockResolvedValueOnce(siblingTask as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(siblingTask as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -671,9 +669,7 @@ describe("requireTaskCommentAccess", () => {
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(siblingTask as never)
-      .mockResolvedValueOnce(siblingTask as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(siblingTask as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -704,14 +700,6 @@ describe("requireTaskCommentAccess", () => {
         coworkerId: "cow_foreign",
         status: TaskStatus.READY,
         pendingVendorGrantId: null,
-      } as never)
-      .mockResolvedValueOnce({
-        id: "tsk_123",
-        coworkerId: "cow_foreign",
-        status: TaskStatus.READY,
-        workspaceId,
-        coworker: { vendorId: foreignVendorId },
-        workspace: { organizationId: "org_123" },
       } as never);
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
       organizationId: "org_123",
@@ -773,7 +761,6 @@ describe("requireTaskCommentAccess", () => {
     } as never);
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(foreignTask as never)
       .mockResolvedValueOnce(foreignTask as never);
     getWorkspaceGrantMock.mockResolvedValue({
       id: "workspace-grant",
@@ -816,9 +803,7 @@ describe("requireTaskCommentAccess", () => {
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(siblingTask as never)
-      .mockResolvedValueOnce(siblingTask as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(siblingTask as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
