@@ -67,6 +67,8 @@ const thirdPartyDynamicImportFailurePattern =
  */
 const bareNetworkErrorPattern = /^(?:TypeError: )?network error$/i;
 
+export const bareNetworkErrorIgnoreErrors: RegExp[] = [bareNetworkErrorPattern];
+
 /** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13). */
 export const thirdPartyScriptDenyUrls: RegExp[] = [
   /hook\.js/i,

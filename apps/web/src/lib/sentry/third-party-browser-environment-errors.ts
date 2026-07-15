@@ -14,6 +14,7 @@ export const inAppBrowserIgnoreErrors: RegExp[] = [
  */
 export const transientStreamIgnoreErrors: RegExp[] = [
   /^Connection closed\.?$/i,
+  /^(?:TypeError: )?Error in input stream$/i,
 ];
 
 export function isInAppBrowserEnvironmentError(message: string): boolean {
