@@ -686,7 +686,6 @@ describe("requireTaskCommentAccess", () => {
       userId: "user_delegate",
       organizationId: "org_123",
     });
-    const foreignVendorId = "01960001-0002-7001-8001-000000000002";
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValue({
       id: "cow_123",
