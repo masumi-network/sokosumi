@@ -279,6 +279,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
+    // Grant parking fields are intentional API surface while GRANT_PENDING so
+    // coworkers and web can correlate the task with the blocking vendor grant.
     grantResumeStatus:
       task.status === TaskStatus.GRANT_PENDING
         ? (task.grantResumeStatus ?? null)

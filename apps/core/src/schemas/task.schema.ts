@@ -78,12 +78,12 @@ const taskBaseSchema = z.object({
   }),
   grantResumeStatus: z.enum(["DRAFT", "READY"]).nullable().openapi({
     description:
-      "Target status after vendor workspace grant approval. Set only while status is GRANT_PENDING.",
+      "Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.",
     example: null,
   }),
   pendingVendorGrantId: z.string().uuid().nullable().openapi({
     description:
-      "Vendor grant blocking this task. Set only while status is GRANT_PENDING.",
+      "Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.",
     example: null,
   }),
   metadata: z.string().nullable().openapi({

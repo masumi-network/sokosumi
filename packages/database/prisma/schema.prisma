@@ -1271,7 +1271,7 @@ model Task {
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
   pendingVendorGrantId String?      @db.Uuid
-  /// Cleared when the grant row is deleted (onDelete: SetNull).
+  /// Cleared when the grant row is deleted (onDelete: SetNull). Exposed on the Core task API while status is GRANT_PENDING.
   pendingVendorGrant   VendorGrant? @relation(fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
 
   /// Target status after vendor workspace grant approval. Only set while status is GRANT_PENDING.
