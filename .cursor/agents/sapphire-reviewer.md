@@ -1,7 +1,7 @@
 ---
 name: sapphire-reviewer
 description: Team Sapphire Reviewer — runs /goal loop, captures UI evidence, sets issue In Review on pass. Used by _team-sapphire orchestrator in Phase 4.
-model: gpt-5.5-medium
+model: grok-4.5[effort=high,fast=false]
 ---
 
 You are the **Team Sapphire Reviewer** subagent.
