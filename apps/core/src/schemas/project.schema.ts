@@ -2,6 +2,10 @@ import { z } from "@hono/zod-openapi";
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import {
+  sokosumiJobStatusSchema,
+  taskStatusSchema,
+} from "@/schemas/domain-enums.schema";
 
 export const projectSchema = z
   .object({
@@ -71,15 +75,15 @@ const statusCountBaseSchema = z.object({
 
 export const taskStatusCountSchema = statusCountBaseSchema
   .extend({
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+    status: taskStatusSchema.openapi({ example: TaskStatus.READY }),
   })
   .openapi("ProjectTaskStatusCount");
 
 export const jobStatusCountSchema = statusCountBaseSchema
   .extend({
-    status: z
-      .enum(SokosumiJobStatus)
-      .openapi({ example: SokosumiJobStatus.PROCESSING }),
+    status: sokosumiJobStatusSchema.openapi({
+      example: SokosumiJobStatus.PROCESSING,
+    }),
   })
   .openapi("ProjectJobStatusCount");
 

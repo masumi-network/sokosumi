@@ -2,7 +2,10 @@ import type { Prisma } from "@sokosumi/database";
 import {
   type Consumption,
   creditBucketRepository,
+  InsufficientBalanceError,
 } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 
 import { unprocessableEntity } from "./error";
 
@@ -11,6 +14,20 @@ interface CreateTaskEventTransactionInput {
   organizationId: string | null;
   cents: bigint;
   tx: Prisma.TransactionClient;
+}
+
+export function isInsufficientBalanceError(error: unknown): boolean {
+  if (!(error instanceof HTTPException) || error.status !== 422) {
+    return false;
+  }
+
+  const cause = error.cause;
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    "kind" in cause &&
+    cause.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE
+  );
 }
 
 export async function createTaskEventTransaction(
@@ -29,6 +46,11 @@ export async function createTaskEventTransaction(
       input.tx,
     );
   } catch (error) {
+    if (error instanceof InsufficientBalanceError) {
+      throw unprocessableEntity(error.message, {
+        kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+      });
+    }
     if (error instanceof Error) {
       throw unprocessableEntity(error.message);
     }

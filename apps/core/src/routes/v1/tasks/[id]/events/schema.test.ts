@@ -160,13 +160,21 @@ describe("createTaskEventRequestSchema", () => {
     expect(doc.components?.schemas?.TaskEvent).toMatchObject({
       properties: {
         origin: {
-          deprecated: true,
-          description: "Deprecated. Use channel instead.",
+          allOf: [
+            { $ref: "#/components/schemas/Channel" },
+            {
+              deprecated: true,
+              description: "Deprecated. Use channel instead.",
+            },
+          ],
         },
-        channel: expect.objectContaining({
-          type: "string",
-        }),
+        channel: {
+          $ref: "#/components/schemas/Channel",
+        },
       },
+    });
+    expect(doc.components?.schemas?.Channel).toMatchObject({
+      type: "string",
     });
   });
 

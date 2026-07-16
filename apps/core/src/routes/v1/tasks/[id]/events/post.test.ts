@@ -1,6 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Channel, NotificationKind } from "@sokosumi/database";
-import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  convertCreditsToCents,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -55,9 +59,14 @@ vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
 }));
 
-vi.mock("@/helpers/task-credits", () => ({
-  createTaskEventTransaction: createTaskEventTransactionMock,
-}));
+vi.mock("@/helpers/task-credits", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/task-credits")>();
+  return {
+    ...actual,
+    createTaskEventTransaction: createTaskEventTransactionMock,
+  };
+});
 
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: publishTaskEventDataMock,
@@ -278,17 +287,13 @@ describe("POST /{id}/events", () => {
     requireTaskCommentAccessMock.mockResolvedValue(createTask());
   });
 
-  it("allows coworkers to create OUT_OF_CREDITS events", async () => {
+  it("rejects coworkers creating OUT_OF_CREDITS events manually", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi
-          .fn()
-          .mockResolvedValue(
-            createTaskEvent({ status: TaskStatus.OUT_OF_CREDITS }),
-          ),
+        create: vi.fn(),
       },
       task: {
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        updateMany: vi.fn(),
       },
     };
 
@@ -311,24 +316,9 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
-
-    const body = await response.json();
-    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
-    expect(tx.taskEvent.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: TaskStatus.OUT_OF_CREDITS,
-          coworkerId: COWORKER_ID,
-          userId: null,
-        }),
-      }),
-    );
-    expect(tx.task.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { status: TaskStatus.OUT_OF_CREDITS },
-      }),
-    );
+    expect(response.status).toBe(422);
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
   it("creates an in-app notification for user-meaningful status transitions", async () => {
@@ -403,8 +393,8 @@ describe("POST /{id}/events", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        status: TaskStatus.OUT_OF_CREDITS,
-        comment: "Need top-up",
+        status: TaskStatus.INPUT_REQUIRED,
+        comment: "Need input",
       }),
     });
 
@@ -430,8 +420,8 @@ describe("POST /{id}/events", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        status: TaskStatus.OUT_OF_CREDITS,
-        comment: "Need top-up",
+        status: TaskStatus.INPUT_REQUIRED,
+        comment: "Need input",
       }),
     });
 
@@ -453,8 +443,8 @@ describe("POST /{id}/events", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        status: TaskStatus.OUT_OF_CREDITS,
-        comment: "Need top-up",
+        status: TaskStatus.INPUT_REQUIRED,
+        comment: "Need input",
       }),
     });
 
@@ -495,7 +485,178 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("fails COMPLETED for coworkers when credits are insufficient", async () => {
+  it("auto-sets OUT_OF_CREDITS when COMPLETED credits are insufficient", async () => {
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.OUT_OF_CREDITS,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockRejectedValue(
+      new HTTPException(422, {
+        message: "Insufficient balance",
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+      }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        credits: 2,
+        comment: "Done but unpaid",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cents: convertCreditsToCents(2),
+      }),
+    );
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.OUT_OF_CREDITS,
+          comment: "Done but unpaid",
+          cents: undefined,
+          transactionId: null,
+          coworkerId: COWORKER_ID,
+        }),
+      }),
+    );
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: TaskStatus.OUT_OF_CREDITS },
+      }),
+    );
+  });
+
+  it("auto-sets OUT_OF_CREDITS when CANCELED credits are insufficient", async () => {
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.OUT_OF_CREDITS,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockRejectedValue(
+      new HTTPException(422, {
+        message: "Insufficient balance",
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+      }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        credits: 2,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.OUT_OF_CREDITS,
+          cents: undefined,
+          transactionId: null,
+        }),
+      }),
+    );
+  });
+
+  it("auto-sets OUT_OF_CREDITS when masumiPayment charge is insufficient", async () => {
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.OUT_OF_CREDITS,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockRejectedValue(
+      new HTTPException(422, {
+        message: "Insufficient balance",
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+      }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.OUT_OF_CREDITS,
+          cents: undefined,
+          transactionId: null,
+        }),
+      }),
+    );
+  });
+
+  it("still rejects insufficient credits when task is already OUT_OF_CREDITS", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.OUT_OF_CREDITS }),
+    );
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn(),
@@ -509,6 +670,7 @@ describe("POST /{id}/events", () => {
     createTaskEventTransactionMock.mockRejectedValue(
       new HTTPException(422, {
         message: "Insufficient balance",
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
       }),
     );
 
@@ -530,11 +692,6 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cents: convertCreditsToCents(2),
-      }),
-    );
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });

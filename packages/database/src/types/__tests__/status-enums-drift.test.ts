@@ -43,6 +43,10 @@ import { MemberRole as DatabaseMemberRole } from "../organization.js";
  * statuses so the web bundle does not depend on `@sokosumi/database`. The
  * Prisma-generated enums can only be edited via the schema, so guard against
  * silent drift between the two definitions here, where both are importable.
+ *
+ * Generated Core client const maps (apps/web) are guarded against these utils
+ * maps in `apps/web/src/lib/clients/__tests__/core-enums-drift.test.ts`, so
+ * generated → utils → Prisma stays a closed chain (SOK-590).
  */
 describe("status enum drift guard", () => {
   it("utils TaskStatus matches the Prisma-generated TaskStatus enum", () => {

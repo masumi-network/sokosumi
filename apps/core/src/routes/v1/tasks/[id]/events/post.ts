@@ -30,7 +30,10 @@ import {
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "@/helpers/task";
-import { createTaskEventTransaction } from "@/helpers/task-credits";
+import {
+  createTaskEventTransaction,
+  isInsufficientBalanceError,
+} from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -104,10 +107,43 @@ function getCreditEventActorData(authContext: AuthenticationContext) {
   };
 }
 
+async function chargeTaskCreditsOrMarkOutOfCredits(params: {
+  userId: string;
+  organizationId: string | null;
+  cents: bigint;
+  currentStatus: TaskStatus;
+  tx: Prisma.TransactionClient;
+}): Promise<{
+  transactionId: string | null;
+  /** When set, the billed status was rejected for balance and replaced. */
+  eventStatus: TaskStatus | null;
+}> {
+  try {
+    const transactionId = await createTaskEventTransaction({
+      userId: params.userId,
+      organizationId: params.organizationId,
+      cents: params.cents,
+      tx: params.tx,
+    });
+    return { transactionId, eventStatus: null };
+  } catch (error) {
+    if (
+      !isInsufficientBalanceError(error) ||
+      params.currentStatus === TaskStatus.OUT_OF_CREDITS
+    ) {
+      throw error;
+    }
+    // Return 201 with OUT_OF_CREDITS in the event body (not 422). Callers must
+    // read `data.status` — HTTP success does not mean the billed status landed.
+    return { transactionId: null, eventStatus: TaskStatus.OUT_OF_CREDITS };
+  }
+}
+
 interface SettleTaskEventChargeParams {
   task: {
     userId: string;
     organizationId: string | null;
+    status: TaskStatus;
   };
   credits?: number | null;
   masumiPayment?: z.infer<
@@ -116,15 +152,20 @@ interface SettleTaskEventChargeParams {
   tx: Prisma.TransactionClient;
 }
 
+interface SettleTaskEventChargeResult {
+  cents: bigint | undefined;
+  transactionId: string | null;
+  /** When set, charge failed for balance and status was replaced. */
+  eventStatus: TaskStatus | null;
+  chargedMasumiPayment: boolean;
+}
+
 async function settleTaskEventCharge({
   task,
   credits,
   masumiPayment,
   tx,
-}: SettleTaskEventChargeParams): Promise<{
-  cents: bigint | undefined;
-  transactionId: string | null;
-}> {
+}: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
   if (masumiPayment) {
     console.info("[tasks] masumi task payment: using masumiPayment", {
       masumiPayment,
@@ -145,13 +186,27 @@ async function settleTaskEventCharge({
         `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
       );
     }
-    const transactionId = await createTaskEventTransaction({
+    const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.userId,
       organizationId: task.organizationId,
       cents,
+      currentStatus: task.status,
       tx,
     });
-    return { cents, transactionId };
+    if (charge.eventStatus != null) {
+      return {
+        cents: undefined,
+        transactionId: null,
+        eventStatus: charge.eventStatus,
+        chargedMasumiPayment: false,
+      };
+    }
+    return {
+      cents,
+      transactionId: charge.transactionId,
+      eventStatus: null,
+      chargedMasumiPayment: true,
+    };
   }
 
   if (credits != null && credits > 0) {
@@ -161,16 +216,35 @@ async function settleTaskEventCharge({
         `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
       );
     }
-    const transactionId = await createTaskEventTransaction({
+    const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.userId,
       organizationId: task.organizationId,
       cents,
+      currentStatus: task.status,
       tx,
     });
-    return { cents, transactionId };
+    if (charge.eventStatus != null) {
+      return {
+        cents: undefined,
+        transactionId: null,
+        eventStatus: charge.eventStatus,
+        chargedMasumiPayment: false,
+      };
+    }
+    return {
+      cents,
+      transactionId: charge.transactionId,
+      eventStatus: null,
+      chargedMasumiPayment: false,
+    };
   }
 
-  return { cents: undefined, transactionId: null };
+  return {
+    cents: undefined,
+    transactionId: null,
+    eventStatus: null,
+    chargedMasumiPayment: false,
+  };
 }
 
 async function mapCreatedTaskEventForResponse(
@@ -356,6 +430,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         let cents: bigint | undefined;
         let transactionId: string | null = null;
+        let eventStatus: TaskStatus | null = status ?? null;
+        let chargedMasumiPayment = false;
 
         if (
           isAgent &&
@@ -369,10 +445,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
           cents = settled.cents;
           transactionId = settled.transactionId;
+          chargedMasumiPayment = settled.chargedMasumiPayment;
+          if (settled.eventStatus != null) {
+            eventStatus = settled.eventStatus;
+          }
         }
 
         const actorData =
-          status !== undefined
+          status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
             ? getStatusEventActorData(authContext)
             : credits != null
               ? getCreditEventActorData(authContext)
@@ -381,7 +461,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const createdEvent = await tx.taskEvent.create({
           data: {
             taskId,
-            status: status ?? null,
+            status: eventStatus,
             comment,
             authenticationUrl,
             channel,
@@ -391,10 +471,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
-        if (status !== undefined) {
+        // Update task when the caller requested a status change, or when a
+        // failed charge replaced the outcome with OUT_OF_CREDITS (incl.
+        // credit-only bodies that had no status).
+        if (eventStatus != null) {
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
-            data: { status },
+            data: { status: eventStatus },
           });
           if (updateResult.count !== 1) {
             throw conflict("Task status was changed by another request");
@@ -402,9 +485,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         const payment =
-          masumiPayment !== undefined &&
-          status === TaskStatus.COMPLETED &&
-          isAgent
+          chargedMasumiPayment && masumiPayment !== undefined
             ? masumiPayment
             : null;
 

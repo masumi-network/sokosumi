@@ -1,9 +1,13 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { MemberRole, TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { stripeSubscriptionStatusNullableSchema } from "@/schemas/domain-enums.schema";
+import {
+  memberRoleSchema,
+  stripeSubscriptionStatusNullableSchema,
+  taskStatusSchema,
+} from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 
@@ -165,7 +169,7 @@ export const adminOrganizationMemberOverviewItemSchema = z
   .object({
     id: z.string().openapi({ example: "member_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
-    role: z.enum(["owner", "admin", "member"]).openapi({ example: "member" }),
+    role: memberRoleSchema.openapi({ example: MemberRole.MEMBER }),
     seatAssignedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
     user: z.object({
@@ -268,16 +272,16 @@ export const adminAddOrganizationMemberBodySchema = z
       description: "User ID to add as a member",
       example: "user_123",
     }),
-    role: z.enum(["owner", "admin", "member"]).default("member").openapi({
-      example: "member",
+    role: memberRoleSchema.default(MemberRole.MEMBER).openapi({
+      example: MemberRole.MEMBER,
     }),
   })
   .openapi("AdminAddOrganizationMemberBody");
 
 export const adminUpdateOrganizationMemberRoleBodySchema = z
   .object({
-    role: z.enum(["owner", "admin", "member"]).openapi({
-      example: "admin",
+    role: memberRoleSchema.openapi({
+      example: MemberRole.ADMIN,
     }),
   })
   .openapi("AdminUpdateOrganizationMemberRoleBody");
@@ -330,7 +334,7 @@ export const adminTaskListItemSchema = z
   .object({
     id: z.string().openapi({ example: "0195b9f4-7d35-7a4e-b14e-111111111111" }),
     name: z.string().openapi({ example: "Quarterly report" }),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
+    status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
     user: z.object({
       id: z.string().openapi({ example: "user_123" }),

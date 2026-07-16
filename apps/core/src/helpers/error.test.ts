@@ -6,6 +6,7 @@ import {
   getErrorName,
   notFound,
   payloadTooLarge,
+  unprocessableEntity,
 } from "./error";
 
 describe("payloadTooLarge", () => {
@@ -22,6 +23,7 @@ describe("error kind metadata", () => {
     [badRequest, 400],
     [forbidden, 403],
     [notFound, 404],
+    [unprocessableEntity, 422],
   ] as const)(
     "carries the kind in the exception cause (%#)",
     (helper, status) => {
