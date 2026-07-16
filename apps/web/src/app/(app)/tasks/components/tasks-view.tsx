@@ -27,6 +27,12 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
+import {
+  KANBAN_COLUMNS,
+  type KanbanColumnDefinition,
+  type KanbanColumnId,
+  type TaskWithCoworker,
+} from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import {
   getJobsListFiltersFromSearchParams,
@@ -58,12 +64,6 @@ import {
   TaskStatus,
 } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import {
-  KANBAN_COLUMNS,
-  type KanbanColumnDefinition,
-  type KanbanColumnId,
-  type TaskWithCoworker,
-} from "@/lib/types/task";
 import {
   serializeTasksDensityCookie,
   type TasksDensity,

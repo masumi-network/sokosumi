@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { TasksLoadingView } from "@/app/tasks/components/tasks-loading-view";
-import type { KanbanColumnId } from "@/lib/types/task";
+import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import {
   parseTasksViewMode,
   TASKS_VIEW_MODE_COOKIE_NAME,

@@ -1712,6 +1712,11 @@ export const JobSummarySchema = {
                 'null'
             ],
             example: 'seller_vkey_hex'
+        },
+        jobStatusSettled: {
+            type: 'boolean',
+            example: false,
+            description: 'True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).'
         }
     },
     required: [
@@ -1724,7 +1729,8 @@ export const JobSummarySchema = {
         'workspace',
         'jobType',
         'status',
-        'credits'
+        'credits',
+        'jobStatusSettled'
     ]
 } as const;
 
@@ -7806,6 +7812,11 @@ export const JobSchema = {
             ],
             example: 'seller_vkey_hex'
         },
+        jobStatusSettled: {
+            type: 'boolean',
+            example: false,
+            description: 'True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).'
+        },
         input: {
             type: [
                 'string',
@@ -8060,6 +8071,7 @@ export const JobSchema = {
         'jobType',
         'status',
         'credits',
+        'jobStatusSettled',
         'agentJobId',
         'workspace',
         'agent',

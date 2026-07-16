@@ -1,6 +1,5 @@
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { TaskStatus } from "@/lib/clients/generated/core";
-
-import type { TaskWithCoworker } from "@/lib/types/task";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 

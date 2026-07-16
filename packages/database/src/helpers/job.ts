@@ -354,16 +354,34 @@ export function getResultHash(job: JobWithPurchase): string | null {
   return job.purchase?.resultHash ?? null;
 }
 
+/**
+ * Whether a job's status is considered settled for UI (sidebar dots, Ably).
+ * FREE: settled once completed. PAID: settled after external dispute unlock.
+ */
+export function isJobStatusSettled(
+  job: Pick<Job, "jobType" | "externalDisputeUnlockTime">,
+  completedAt: Date | null,
+  now: Date = new Date(),
+): boolean {
+  switch (job.jobType) {
+    case JobType.FREE:
+      return completedAt != null;
+    case JobType.PAID:
+      return job.externalDisputeUnlockTime != null
+        ? now > job.externalDisputeUnlockTime
+        : false;
+    default: {
+      const _exhaustive: never = job.jobType;
+      throw new Error(`Unhandled job type: ${_exhaustive}`);
+    }
+  }
+}
+
 export function mapJobWithStatus(
   job: JobWithEvents & JobWithTransaction & JobWithPurchase,
 ): JobWithSokosumiStatus {
   const completedAt = getCompletedAt(job);
-  const jobStatusSettled =
-    job.jobType === JobType.PAID
-      ? job.externalDisputeUnlockTime != null
-        ? new Date() > job.externalDisputeUnlockTime
-        : false
-      : completedAt != null;
+  const jobStatusSettled = isJobStatusSettled(job, completedAt);
 
   const baseJobWithStatus = {
     ...job,

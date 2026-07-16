@@ -457,6 +457,10 @@ export type JobSummary = {
     unlockTime?: Date | null;
     externalDisputeUnlockTime?: Date | null;
     sellerVkey?: string | null;
+    /**
+     * True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).
+     */
+    jobStatusSettled: boolean;
 };
 
 export type WorkspaceSummary = {
@@ -2354,6 +2358,10 @@ export type Job = {
     unlockTime?: Date | null;
     externalDisputeUnlockTime?: Date | null;
     sellerVkey?: string | null;
+    /**
+     * True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).
+     */
+    jobStatusSettled: boolean;
     input?: string | null;
     inputHash?: string | null;
     inputSchema?: string | null;

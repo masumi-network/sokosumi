@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { TaskStatus } from "@/lib/clients/generated/core";
-
 import {
   getColumnId,
   getColumnListQueryOptions,
-} from "@/lib/utils/task-column";
+} from "@/app/tasks/utils/task-column";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 describe("getColumnId", () => {
   it("maps READY tasks to todo by default", () => {

@@ -67,6 +67,7 @@ function createJob(): Job {
     jobType: "FREE",
     status: SokosumiJobStatus.COMPLETED,
     credits: 0,
+    jobStatusSettled: false,
     onChainStatus: null,
     onChainTransactionHash: null,
     result: "final result",

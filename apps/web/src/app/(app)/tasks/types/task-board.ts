@@ -6,15 +6,11 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
 
-export type { TaskEvent };
-
-export type KanbanColumnId =
-  | "backlog"
-  | "todo"
-  | "in-progress"
-  | "input-required"
-  | "done";
-
+/**
+ * Tasks board view model — Core `Task` / `TaskListItem` plus UI joins
+ * (coworker, agents, kanban column, plain description). Built next to the
+ * tasks UI via `mapTaskToTaskWithCoworker`; services must return Core DTOs.
+ */
 export interface TaskWithCoworker {
   id: string;
   name: string;
@@ -35,6 +31,13 @@ export interface TaskWithCoworker {
   metadata?: string | null;
   nextRunAt?: string | null;
 }
+
+export type KanbanColumnId =
+  | "backlog"
+  | "todo"
+  | "in-progress"
+  | "input-required"
+  | "done";
 
 export interface KanbanColumnDefinition {
   id: KanbanColumnId;

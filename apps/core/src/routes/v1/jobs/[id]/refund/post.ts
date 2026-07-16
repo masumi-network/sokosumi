@@ -48,6 +48,7 @@ const route = withGlobalHeaderParameters(
           status: "refund_pending",
           completedAt: null,
           credits: 5,
+          jobStatusSettled: false,
           onChainStatus: null,
           onChainTransactionHash: null,
           result: null,

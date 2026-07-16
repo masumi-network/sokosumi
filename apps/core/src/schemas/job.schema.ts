@@ -100,6 +100,11 @@ export const jobSummarySchema = z
     unlockTime: dateTimeSchema.nullish(),
     externalDisputeUnlockTime: dateTimeSchema.nullish(),
     sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
+    jobStatusSettled: z.boolean().openapi({
+      example: false,
+      description:
+        "True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).",
+    }),
   })
   .openapi("JobSummary");
 
@@ -221,6 +226,11 @@ export const jobSchema = z
     unlockTime: dateTimeSchema.nullish(),
     externalDisputeUnlockTime: dateTimeSchema.nullish(),
     sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
+    jobStatusSettled: z.boolean().openapi({
+      example: false,
+      description:
+        "True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).",
+    }),
     input: z.string().nullish().openapi({
       example: '{"prompt":"How many planets are in the solar system?"}',
     }),
