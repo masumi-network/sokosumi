@@ -380,6 +380,28 @@ export const MarkdownEditor = forwardRef<
       return `${fenceHeader}\n${codeContent}\n${fence}\n`;
     }
 
+    function isBlockMarkdownElement(
+      childTag: string,
+      childMarkdown: string,
+    ): boolean {
+      // Chrome contentEditable Enter wraps later lines in <div>/<p>. Those
+      // blocks already serialize with a trailing newline, but the preceding
+      // sibling (often a bare text node for the first line) does not — so we
+      // must insert a separator before the block or the first break is lost.
+      return (
+        childTag === "pre" ||
+        childTag === "div" ||
+        childTag === "p" ||
+        childTag === "h1" ||
+        childTag === "h2" ||
+        childTag === "h3" ||
+        childTag === "ul" ||
+        childTag === "ol" ||
+        childTag === "li" ||
+        (childTag === "code" && childMarkdown.startsWith("```"))
+      );
+    }
+
     function appendChildMarkdown(
       acc: string,
       child: Node,
@@ -392,15 +414,12 @@ export const MarkdownEditor = forwardRef<
 
       const childElement = child as HTMLElement;
       const childTag = childElement.tagName.toLowerCase();
-      const shouldTreatAsBlockCode =
-        childTag === "pre" ||
-        (childTag === "code" && childMarkdown.startsWith("```"));
+      const shouldSeparateAsBlock = isBlockMarkdownElement(
+        childTag,
+        childMarkdown,
+      );
 
-      if (!shouldTreatAsBlockCode) {
-        return acc + childMarkdown;
-      }
-
-      if (acc.length > 0 && !acc.endsWith("\n")) {
+      if (shouldSeparateAsBlock && acc.length > 0 && !acc.endsWith("\n")) {
         return `${acc}\n${childMarkdown}`;
       }
 

@@ -379,4 +379,42 @@ describe("MarkdownEditor", () => {
     const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
     expect(savedMarkdown).toContain("```\nline 1\nline 2\n```\n");
   });
+
+  it("preserves the first newline for Chrome contentEditable div lines", async () => {
+    const onChange = vi.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    // Chrome Enter after the first line leaves bare text, then wraps later
+    // lines in <div> — without a separator the first break becomes "testtest".
+    editor.innerHTML = "test<div>test</div><div>test</div>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toBe("test\ntest\ntest\n");
+    expect(savedMarkdown).not.toContain("testtest");
+  });
+
+  it("preserves the first newline for paragraph-wrapped lines", async () => {
+    const onChange = vi.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "test<p>test</p><p>test</p>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toBe("test\ntest\ntest\n");
+    expect(savedMarkdown).not.toContain("testtest");
+  });
 });
