@@ -1,13 +1,11 @@
 "use client";
 
-import { MemberRole } from "@sokosumi/utils";
 import { Ellipsis } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import {
   AsyncSearchCombobox,
   buildComboboxLabels,
@@ -45,6 +43,7 @@ import {
 } from "@/lib/actions/admin-organizations/member-actions";
 import { searchUsersClient } from "@/lib/actions/admin-search/client";
 import type { ActionError } from "@/lib/actions/errors";
+import { MemberRole } from "@/lib/clients/generated/core";
 import type {
   AdminOrganizationMemberOverviewItem,
   AdminOrganizationMemberOverviewPage,
