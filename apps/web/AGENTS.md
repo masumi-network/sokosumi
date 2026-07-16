@@ -216,7 +216,7 @@ Import **pure helpers** and the **documented exceptions** above from `@sokosumi/
 
 **Do not import from `@sokosumi/utils` in app code** (use generated Core instead):
 
-- Domain enum **runtime const maps** that exist on Core OpenAPI — e.g. `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`, `AgentStatus`, …
+- Domain enum **runtime const maps** that exist on Core OpenAPI — e.g. `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`, …
 - Prisma-shaped entity mirrors or database helpers (web never imports `@sokosumi/database`)
 
 The drift test (`core-enums-drift.test.ts`) may import `SokosumiJobStatus` from utils as a parity guard — that is the only intended domain-enum exception in web.

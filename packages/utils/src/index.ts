@@ -93,11 +93,6 @@ export {
   extractHttpLinks,
   extractLinks,
 } from "./markdown-links-extract.js";
-export type {
-  NextJobAction as NextJobActionType,
-  NextJobActionErrorType as NextJobActionErrorTypeType,
-  OnChainTransactionStatus as OnChainTransactionStatusType,
-} from "./masumi-protocol.js";
 export {
   NextJobAction,
   NextJobActionErrorType,
@@ -107,7 +102,6 @@ export {
   serializeMetadataRecord,
   stringifyMetadataRecord,
 } from "./metadata-record.js";
-export { NotificationKind } from "./notification-kind.js";
 export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,
@@ -158,6 +152,7 @@ export {
 } from "./task-editable.js";
 export {
   canUserTransitionTaskStatus,
+  type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
 export {

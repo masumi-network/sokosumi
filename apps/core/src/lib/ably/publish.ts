@@ -1,8 +1,8 @@
+import { NotificationKind } from "@sokosumi/database";
 import {
   makeAgentJobsChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
-  NotificationKind,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 

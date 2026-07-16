@@ -7,7 +7,7 @@
  */
 
 /** Task statuses referenced by the user transition table. */
-type UserTransitionTaskStatus =
+export type UserTransitionTaskStatus =
   | "DRAFT"
   | "QUEUED"
   | "READY"
@@ -47,24 +47,15 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   CANCEL_REQUESTED: [],
 };
 
-function isUserTransitionTaskStatus(
-  status: string,
-): status is UserTransitionTaskStatus {
-  return status in USER_TASK_STATUS_TRANSITIONS;
-}
-
-export function canUserTransitionTaskStatus(from: string, to: string): boolean {
+export function canUserTransitionTaskStatus(
+  from: UserTransitionTaskStatus,
+  to: UserTransitionTaskStatus,
+): boolean {
   if (from === to) {
     return false;
   }
 
-  if (!isUserTransitionTaskStatus(from)) {
-    return false;
-  }
-
-  return USER_TASK_STATUS_TRANSITIONS[from].includes(
-    to as UserTransitionTaskStatus,
-  );
+  return USER_TASK_STATUS_TRANSITIONS[from].includes(to);
 }
 
 /**
@@ -73,8 +64,8 @@ export function canUserTransitionTaskStatus(from: string, to: string): boolean {
  * create-task-event for non-agent actors.
  */
 export function userTaskStatusTransitionRequiresComment(
-  from: string,
-  to: string,
+  from: UserTransitionTaskStatus,
+  to: UserTransitionTaskStatus,
 ): boolean {
   return to === "READY" && (from === "CANCELED" || from === "COMPLETED");
 }
