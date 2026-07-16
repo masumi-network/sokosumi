@@ -53,11 +53,11 @@ Resume runs: pick start phase with **artifact-aware resume** (below) — not sta
 
 Investigator runs on the **orchestrator model** (no override). Phases 2–4 delegate to subagents — use `/sapphire-tech-lead`, `/sapphire-coder`, `/sapphire-reviewer` or Task with the same `model` slug.
 
-| Role | Subagent | Model |
-|------|----------|-------|
-| Tech Lead | `sapphire-tech-lead` | `claude-opus-4-8` |
-| Coder(s) | `sapphire-coder` | `composer-2.5` |
-| Reviewer | `sapphire-reviewer` | `gpt-5.5-medium` |
+| Role | Subagent |
+|------|----------|
+| Tech Lead | `sapphire-tech-lead` |
+| Coder(s) | `sapphire-coder` |
+| Reviewer | `sapphire-reviewer` |
 
 Subagent definitions: `.cursor/agents/sapphire-*.md`. When launching Task subagents for coders, always pass `model: composer-2.5`.
 
@@ -105,7 +105,7 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 
 ### Phase 2 — Tech Lead
 
-1. Delegate to **`sapphire-tech-lead`** (`model: claude-opus-4-8`) with Requirement (Linear) + Investigation (**session**).
+1. Delegate to **`sapphire-tech-lead`** with Requirement (Linear) + Investigation (**session**).
 2. Receive final spec per `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md`.
 3. Keep the spec markdown **in session** — pass the full text to Coder and Reviewer. Do **not** merge `## Spec` into the Linear description.
 4. **Gate (blocking):** `save_comment` → `**Sapphire · Tech Lead complete**` (coder count, order, 3–5 bullets). Then `save_issue` → Tech Lead row `done`. Do **not** open Phase 3 until both succeed.

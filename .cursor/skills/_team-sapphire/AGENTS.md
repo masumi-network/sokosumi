@@ -18,9 +18,9 @@ Single-issue squad: Investigator → Tech Lead → Coder(s) → Reviewer.
 
 | Role | File | Model |
 |------|------|-------|
-| Tech Lead | `.cursor/agents/sapphire-tech-lead.md` | `claude-opus-4-8` |
+| Tech Lead | `.cursor/agents/sapphire-tech-lead.md` | `grok-4.5` |
 | Coder | `.cursor/agents/sapphire-coder.md` | `composer-2.5` |
-| Reviewer | `.cursor/agents/sapphire-reviewer.md` | `gpt-5.5-medium` |
+| Reviewer | `.cursor/agents/sapphire-reviewer.md` | `grok-4.5` |
 
 Investigator uses the orchestrator model — no subagent override.
 
