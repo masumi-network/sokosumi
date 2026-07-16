@@ -1,4 +1,4 @@
-import { GrantResumeStatus, TaskEventOrigin } from "@sokosumi/database";
+import { Channel, GrantResumeStatus } from "@sokosumi/database";
 import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -970,7 +970,7 @@ describe("mapTask", () => {
           status: TaskStatus.CANCELED,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_cancel",
@@ -989,7 +989,7 @@ describe("mapTask", () => {
           status: TaskStatus.READY,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: "user_123",
           coworkerId: null,
           transactionId: null,
@@ -1005,7 +1005,7 @@ describe("mapTask", () => {
           status: TaskStatus.COMPLETED,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_complete",
@@ -1060,7 +1060,7 @@ describe("mapTask", () => {
           status: TaskStatus.COMPLETED,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_complete",
@@ -1077,7 +1077,7 @@ describe("mapTask", () => {
           status: TaskStatus.CREDITS_TOPPED_UP,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: "user_123",
           coworkerId: null,
           transactionId: null,
@@ -1128,7 +1128,7 @@ describe("mapTask", () => {
           status: TaskStatus.OUT_OF_CREDITS,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_partial",

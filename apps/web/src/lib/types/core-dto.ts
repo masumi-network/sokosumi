@@ -34,7 +34,7 @@ export type AgentJobStatus = JobEvent["status"];
 export type OnChainJobStatus = NonNullable<Job["onChainStatus"]>;
 export type BlobStatus = CoreJobFile["status"];
 export type NoticeKind = Notice["kind"];
-export type TaskEventOrigin = TaskEvent["origin"];
+export type Channel = TaskEvent["channel"];
 export type RiskClassification = AgentDetail["riskClassification"];
 
 const UNAVAILABLE_AGENT_DATE = new Date(0);

@@ -41,6 +41,7 @@ const route = createRoute({
             coworkerId: "cow_123",
             comment: "Looks good.",
             authenticationUrl: null,
+            channel: "SOKOSUMI",
             origin: "SOKOSUMI",
             status: "RUNNING",
           },

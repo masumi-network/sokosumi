@@ -236,7 +236,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           comment,
           credits,
           authenticationUrl,
-          origin,
+          channel,
           masumiPayment,
         } = body;
 
@@ -349,7 +349,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               status,
               comment,
               authenticationUrl,
-              origin,
+              channel,
               cents,
               transactionId,
               ...getStatusEventActorData(authContext),
@@ -385,7 +385,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             taskId,
             status: null,
             comment,
-            origin,
+            channel,
             ...getCommentEventActorData(authContext),
           },
         });

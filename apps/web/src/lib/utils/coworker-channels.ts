@@ -1,17 +1,17 @@
-import { TaskEventOrigin } from "@sokosumi/utils";
+import { Channel } from "@sokosumi/utils";
 
 import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
 import type { CoworkerChannel } from "@/lib/types/coworker";
 
 const COWORKER_CHANNEL_SPECS: ReadonlyArray<{
   channelKey: string;
-  origin: TaskEventOrigin;
+  channel: Channel;
 }> = [
-  { channelKey: "email", origin: TaskEventOrigin.EMAIL },
-  { channelKey: "whatsapp", origin: TaskEventOrigin.WHATSAPP },
-  { channelKey: "telegram", origin: TaskEventOrigin.TELEGRAM },
-  { channelKey: "teams", origin: TaskEventOrigin.TEAMS },
-  { channelKey: "discord", origin: TaskEventOrigin.DISCORD },
+  { channelKey: "email", channel: Channel.EMAIL },
+  { channelKey: "whatsapp", channel: Channel.WHATSAPP },
+  { channelKey: "telegram", channel: Channel.TELEGRAM },
+  { channelKey: "teams", channel: Channel.TEAMS },
+  { channelKey: "discord", channel: Channel.DISCORD },
 ];
 
 /**
@@ -24,11 +24,11 @@ export function getCoworkerMetadataChannels(
   const metadataChannels = coworker.metadata?.channels ?? {};
   const channels: CoworkerChannel[] = [];
 
-  for (const { channelKey, origin } of COWORKER_CHANNEL_SPECS) {
+  for (const { channelKey, channel } of COWORKER_CHANNEL_SPECS) {
     const raw = metadataChannels[channelKey];
     const value = typeof raw === "string" ? raw.trim() : "";
     if (value) {
-      channels.push({ origin, value });
+      channels.push({ channel, value });
     }
   }
 

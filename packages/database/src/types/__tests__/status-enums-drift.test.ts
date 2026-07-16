@@ -2,6 +2,7 @@ import {
   AgentJobStatus,
   AgentStatus,
   BlobStatus,
+  Channel,
   InvitationStatus,
   JobType,
   MemberRole,
@@ -13,7 +14,6 @@ import {
   PricingType,
   RiskClassification,
   SokosumiJobStatus,
-  TaskEventOrigin,
   TaskLinkType,
   TaskStatus,
 } from "@sokosumi/utils";
@@ -23,6 +23,7 @@ import {
   AgentJobStatus as PrismaAgentJobStatus,
   AgentStatus as PrismaAgentStatus,
   BlobStatus as PrismaBlobStatus,
+  Channel as PrismaChannel,
   JobType as PrismaJobType,
   NextJobAction as PrismaNextJobAction,
   NextJobActionErrorType as PrismaNextJobActionErrorType,
@@ -31,7 +32,6 @@ import {
   OnChainTransactionStatus as PrismaOnChainTransactionStatus,
   PricingType as PrismaPricingType,
   RiskClassification as PrismaRiskClassification,
-  TaskEventOrigin as PrismaTaskEventOrigin,
   TaskLinkType as PrismaTaskLinkType,
   TaskStatus as PrismaTaskStatus,
 } from "../../generated/prisma/enums.js";
@@ -87,8 +87,8 @@ describe("status enum drift guard", () => {
     expect({ ...RiskClassification }).toEqual({ ...PrismaRiskClassification });
   });
 
-  it("utils TaskEventOrigin matches the Prisma-generated TaskEventOrigin enum", () => {
-    expect({ ...TaskEventOrigin }).toEqual({ ...PrismaTaskEventOrigin });
+  it("utils Channel matches the Prisma-generated Channel enum", () => {
+    expect({ ...Channel }).toEqual({ ...PrismaChannel });
   });
 
   it("utils TaskLinkType matches the Prisma-generated TaskLinkType enum", () => {

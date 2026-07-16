@@ -1,10 +1,13 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { jobSchema } from "@/schemas/job.schema.js";
 import { jobShareSchema, taskShareSchema } from "@/schemas/share.schema.js";
+import {
+  taskEventChannelField,
+  taskEventDeprecatedOriginField,
+} from "@/schemas/task.schema";
 
 export const putJobShareRequestSchema = z.object({
   allowSearchIndexing: z.boolean().openapi({ example: true }),
@@ -42,9 +45,8 @@ export const publicSharedTaskMilestoneSchema = z
     id: z.string().openapi({ example: "evt_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    origin: z
-      .enum(TaskEventOrigin)
-      .openapi({ example: TaskEventOrigin.SOKOSUMI }),
+    channel: taskEventChannelField,
+    origin: taskEventDeprecatedOriginField,
     status: z
       .enum(TaskStatus)
       .nullable()

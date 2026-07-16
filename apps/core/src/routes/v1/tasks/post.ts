@@ -3,7 +3,6 @@ import * as Sentry from "@sentry/node";
 import {
   GrantResumeStatus,
   type Prisma,
-  TaskEventOrigin,
   VendorGrantStatus,
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
@@ -18,6 +17,10 @@ import {
 } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
+import {
+  refineChannelOriginConflict,
+  resolveTaskEventChannel,
+} from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
 import {
   isGrantDeniedOrRevoked,
@@ -33,7 +36,11 @@ import {
 } from "@/lib/hono";
 import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { taskSchema } from "@/schemas/task.schema";
+import {
+  taskEventChannelField,
+  taskEventDeprecatedOriginField,
+  taskSchema,
+} from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z
@@ -58,17 +65,12 @@ export const createTaskRequestSchema = z
       .optional()
       .default(TaskStatus.DRAFT)
       .openapi({ example: TaskStatus.READY }),
-    origin: z
-      .enum(TaskEventOrigin)
-      .optional()
-      .default(TaskEventOrigin.SOKOSUMI)
-      .openapi({
-        example: TaskEventOrigin.SLACK,
-        description:
-          "Origin of the initial task event. Defaults to SOKOSUMI if not provided.",
-      }),
+    channel: taskEventChannelField.optional(),
+    origin: taskEventDeprecatedOriginField.optional(),
   })
   .superRefine((data, ctx) => {
+    refineChannelOriginConflict(data, ctx);
+
     const hasCoworkerId =
       data.coworkerId !== null && data.coworkerId !== undefined;
 
@@ -79,7 +81,11 @@ export const createTaskRequestSchema = z
         path: ["coworkerId"],
       });
     }
-  });
+  })
+  .transform((data) => ({
+    ...data,
+    channel: resolveTaskEventChannel(data),
+  }));
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -178,7 +184,7 @@ async function createTaskRecord(
         create: {
           status: initialEventStatus,
           comment: null,
-          origin: body.origin,
+          channel: body.channel,
           userId,
           coworkerId: null,
         },

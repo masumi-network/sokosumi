@@ -1,9 +1,9 @@
 import {
   BlobStatus,
+  Channel,
   extractFileLikeLinks,
   extractHttpLinks,
   SokosumiJobStatus,
-  TaskEventOrigin,
   TaskStatus,
 } from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
@@ -24,9 +24,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import type { PublicSharedTask } from "@/lib/clients/generated/core";
 import {
-  ORIGIN_APP_NAME_KEY_MAP,
-  ORIGIN_ICON_MAP,
-} from "@/lib/constants/task-event-origin-icons";
+  CHANNEL_APP_NAME_KEY_MAP,
+  CHANNEL_ICON_MAP,
+} from "@/lib/constants/channel-icons";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { formatTimeAgo } from "@/lib/utils/datetime";
@@ -238,14 +238,14 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                 ) : (
                   <div className="space-y-3">
                     {visibleEvents.map((event) => {
-                      const origin = event.origin as TaskEventOrigin;
-                      const originAppName = tTaskDetail(
-                        `originApp.${ORIGIN_APP_NAME_KEY_MAP[origin]}`,
+                      const channel = event.channel as Channel;
+                      const channelAppName = tTaskDetail(
+                        `channelApp.${CHANNEL_APP_NAME_KEY_MAP[channel]}`,
                       );
                       const originFromLabel = tTaskDetail("originFromApp", {
-                        appName: originAppName,
+                        appName: channelAppName,
                       });
-                      const OriginIcon = ORIGIN_ICON_MAP[origin];
+                      const ChannelIcon = CHANNEL_ICON_MAP[channel];
                       const actorName =
                         event.actorName ?? tTaskDetail("actorSystem");
                       const action = event.comment
@@ -348,7 +348,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                     {!event.status ? (
                                       <>
                                         <span>{originFromLabel}</span>
-                                        <OriginIcon
+                                        <ChannelIcon
                                           className="text-muted-foreground/50 size-3.5 shrink-0"
                                           role="img"
                                           aria-label={originFromLabel}
@@ -369,7 +369,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                       />
                                       <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                                         <span>{originFromLabel}</span>
-                                        <OriginIcon
+                                        <ChannelIcon
                                           className="text-muted-foreground/50 size-3.5 shrink-0"
                                           role="img"
                                           aria-label={originFromLabel}

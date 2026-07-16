@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { type Prisma, TaskEventOrigin, TaskLinkType } from "@sokosumi/database";
+import { Channel, type Prisma, TaskLinkType } from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/database/types/task-schedule-metadata";
 import { TaskStatus } from "@sokosumi/utils";
 
@@ -89,7 +89,7 @@ function getCloneTaskData(
     events: {
       create: {
         status: TaskStatus.READY,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
         userId: template.userId,
       },
     },
@@ -128,7 +128,7 @@ async function promoteOneTimeTask(
     data: {
       taskId: templateId,
       status: TaskStatus.READY,
-      origin: TaskEventOrigin.SOKOSUMI,
+      channel: Channel.SOKOSUMI,
       userId,
     },
   });

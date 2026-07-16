@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskEventOrigin, VendorGrantStatus } from "@sokosumi/database";
+import { Channel, VendorGrantStatus } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -305,7 +305,7 @@ describe("POST /tasks", () => {
         description: null,
         coworkerId: null,
         status: TaskStatus.DRAFT,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
       }),
     });
 
@@ -338,7 +338,7 @@ describe("POST /tasks", () => {
         projectId,
         coworkerId: null,
         status: TaskStatus.DRAFT,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
       }),
     });
 
@@ -392,7 +392,7 @@ describe("POST /tasks", () => {
         description: "Build landing page",
         coworkerId: null,
         status: TaskStatus.DRAFT,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
       }),
     });
 
@@ -416,7 +416,7 @@ describe("POST /tasks", () => {
         description: "Build landing page",
         coworkerId: null,
         status: TaskStatus.DRAFT,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
       }),
     });
 
@@ -516,7 +516,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           description: null,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );
@@ -554,7 +554,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           description: null,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );
@@ -577,7 +577,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           description: null,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );
@@ -601,7 +601,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           description: null,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );
@@ -631,7 +631,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           description: null,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );
@@ -661,7 +661,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           description: null,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );
@@ -686,7 +686,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           projectId,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );
@@ -718,7 +718,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           description: null,
           coworkerId: null,
           status: TaskStatus.DRAFT,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
         }),
       },
     );

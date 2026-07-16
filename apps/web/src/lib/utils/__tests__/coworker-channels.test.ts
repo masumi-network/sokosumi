@@ -1,4 +1,4 @@
-import { TaskEventOrigin } from "@sokosumi/utils";
+import { Channel } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { Coworker } from "@/lib/clients/generated/core";
@@ -20,7 +20,7 @@ describe("getCoworkerMetadataChannels", () => {
       }),
     );
     expect(channels).toEqual([
-      { origin: TaskEventOrigin.EMAIL, value: "ops@example.com" },
+      { channel: Channel.EMAIL, value: "ops@example.com" },
     ]);
   });
 
@@ -33,7 +33,7 @@ describe("getCoworkerMetadataChannels", () => {
       }),
     );
     expect(channels).toEqual([
-      { origin: TaskEventOrigin.WHATSAPP, value: "+49151xxxx" },
+      { channel: Channel.WHATSAPP, value: "+49151xxxx" },
     ]);
   });
 
@@ -49,8 +49,8 @@ describe("getCoworkerMetadataChannels", () => {
       }),
     );
     expect(channels).toEqual([
-      { origin: TaskEventOrigin.EMAIL, value: "primary@example.com" },
-      { origin: TaskEventOrigin.WHATSAPP, value: "+49" },
+      { channel: Channel.EMAIL, value: "primary@example.com" },
+      { channel: Channel.WHATSAPP, value: "+49" },
     ]);
   });
 
@@ -62,9 +62,7 @@ describe("getCoworkerMetadataChannels", () => {
         },
       }),
     );
-    expect(channels).toEqual([
-      { origin: TaskEventOrigin.TELEGRAM, value: "@ops" },
-    ]);
+    expect(channels).toEqual([{ channel: Channel.TELEGRAM, value: "@ops" }]);
   });
 
   it("builds Teams channel from metadata.channels", () => {
@@ -77,7 +75,7 @@ describe("getCoworkerMetadataChannels", () => {
     );
     expect(channels).toEqual([
       {
-        origin: TaskEventOrigin.TEAMS,
+        channel: Channel.TEAMS,
         value: "https://teams.microsoft.com/l/chat/0/0",
       },
     ]);
@@ -92,7 +90,7 @@ describe("getCoworkerMetadataChannels", () => {
       }),
     );
     expect(channels).toEqual([
-      { origin: TaskEventOrigin.DISCORD, value: "user#1234" },
+      { channel: Channel.DISCORD, value: "user#1234" },
     ]);
   });
 
@@ -111,11 +109,11 @@ describe("getCoworkerMetadataChannels", () => {
       }),
     );
     expect(channels).toEqual([
-      { origin: TaskEventOrigin.EMAIL, value: "e@x.com" },
-      { origin: TaskEventOrigin.WHATSAPP, value: "w" },
-      { origin: TaskEventOrigin.TELEGRAM, value: "tg" },
-      { origin: TaskEventOrigin.TEAMS, value: "t" },
-      { origin: TaskEventOrigin.DISCORD, value: "d" },
+      { channel: Channel.EMAIL, value: "e@x.com" },
+      { channel: Channel.WHATSAPP, value: "w" },
+      { channel: Channel.TELEGRAM, value: "tg" },
+      { channel: Channel.TEAMS, value: "t" },
+      { channel: Channel.DISCORD, value: "d" },
     ]);
   });
 

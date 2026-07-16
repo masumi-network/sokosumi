@@ -211,10 +211,12 @@ export function validateTaskCoworkerAssignment({
 }
 
 export function mapTaskEvent(event: TaskEventForMapping) {
-  const { cents, user, coworker, ...rest } = event;
+  const { cents, user, coworker, channel, ...rest } = event;
 
   return {
     ...rest,
+    channel,
+    origin: channel,
     credits: cents != null ? convertCentsToCredits(cents) : null,
     ...(event.userId != null && user != null
       ? {

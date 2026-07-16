@@ -1,4 +1,4 @@
-import { TaskEventOrigin } from "@sokosumi/database";
+import { Channel } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
@@ -13,7 +13,8 @@ describe("taskEventWithTaskIdSchema", () => {
       updatedAt: new Date("2025-01-01T00:00:00.000Z"),
       comment: "Looks good.",
       authenticationUrl: null,
-      origin: TaskEventOrigin.SOKOSUMI,
+      channel: Channel.SOKOSUMI,
+      origin: Channel.SOKOSUMI,
       status: TaskStatus.RUNNING,
       userId: "user_123",
       coworkerId: "cow_123",
@@ -34,7 +35,8 @@ describe("taskEventWithTaskIdSchema", () => {
         id: "evt_123",
         createdAt: new Date("2025-01-01T00:00:00.000Z"),
         updatedAt: new Date("2025-01-01T00:00:00.000Z"),
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
+        origin: Channel.SOKOSUMI,
         status: TaskStatus.RUNNING,
         userId: "user_123",
         coworkerId: "cow_123",

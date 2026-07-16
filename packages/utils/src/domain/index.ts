@@ -2,6 +2,7 @@ export type {
   AgentJobStatus as AgentJobStatusType,
   AgentStatus as AgentStatusType,
   BlobStatus as BlobStatusType,
+  Channel as ChannelType,
   JobType as JobTypeType,
   NextJobAction as NextJobActionType,
   NextJobActionErrorType as NextJobActionErrorTypeType,
@@ -11,13 +12,13 @@ export type {
   PaymentType as PaymentTypeType,
   PricingType as PricingTypeType,
   RiskClassification as RiskClassificationType,
-  TaskEventOrigin as TaskEventOriginType,
   TaskLinkType as TaskLinkTypeType,
 } from "./enums.js";
 export {
   AgentJobStatus,
   AgentStatus,
   BlobStatus,
+  Channel,
   JobType,
   NextJobAction,
   NextJobActionErrorType,
@@ -27,7 +28,6 @@ export {
   PaymentType,
   PricingType,
   RiskClassification,
-  TaskEventOrigin,
   TaskLinkType,
 } from "./enums.js";
 export type { InvitationStatus as InvitationStatusType } from "./invitation-status.js";

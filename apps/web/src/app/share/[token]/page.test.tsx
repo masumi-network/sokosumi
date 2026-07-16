@@ -60,8 +60,8 @@ vi.mock("next-intl/server", () => ({
           actionUpdatedStatus: "changed status to",
           sourcesFiles: "Files",
           sourcesLinks: "Links",
-          "originApp.email": "Email",
-          "originApp.sokosumi": "Sokosumi",
+          "channelApp.email": "Email",
+          "channelApp.sokosumi": "Sokosumi",
         };
 
         return detailLabels[key] ?? key;

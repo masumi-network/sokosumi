@@ -1353,7 +1353,7 @@ enum TaskStatus {
   CANCELED
 }
 
-enum TaskEventOrigin {
+enum Channel {
   SLACK
   TEAMS
   EMAIL
@@ -1382,7 +1382,7 @@ model TaskEvent {
   comment           String?
   cents             BigInt?
   authenticationUrl String?
-  origin            TaskEventOrigin @default(SOKOSUMI)
+  channel           Channel @default(SOKOSUMI)
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)

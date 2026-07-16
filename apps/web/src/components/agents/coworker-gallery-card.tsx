@@ -1,6 +1,6 @@
 "use client";
 
-import { TaskEventOrigin } from "@sokosumi/utils";
+import { Channel } from "@sokosumi/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -9,9 +9,9 @@ import { type MouseEvent, useState } from "react";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import { canUseNextImageSrc } from "@/config/next-image";
 import {
-  ORIGIN_APP_NAME_KEY_MAP,
-  ORIGIN_ICON_MAP,
-} from "@/lib/constants/task-event-origin-icons";
+  CHANNEL_APP_NAME_KEY_MAP,
+  CHANNEL_ICON_MAP,
+} from "@/lib/constants/channel-icons";
 import type { CoworkerChannel } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 
@@ -34,12 +34,12 @@ function normalizeWhatsAppPhone(value: string): string {
 }
 
 function getChannelHref(channel: CoworkerChannel): string | null {
-  if (channel.origin === TaskEventOrigin.EMAIL) {
+  if (channel.channel === Channel.EMAIL) {
     const address = channel.value.trim();
     return address ? `mailto:${address}` : null;
   }
 
-  if (channel.origin === TaskEventOrigin.WHATSAPP) {
+  if (channel.channel === Channel.WHATSAPP) {
     const normalizedPhone = normalizeWhatsAppPhone(channel.value);
     return normalizedPhone ? `https://wa.me/${normalizedPhone}` : null;
   }
@@ -72,17 +72,15 @@ function CoworkerGalleryCard({
 }: CoworkerGalleryCardProps) {
   const galleryCardT = useTranslations("App.Agents.CoworkerGalleryCard");
   const taskDetailT = useTranslations("App.Tasks.Detail");
-  const [expandedOrigin, setExpandedOrigin] = useState<TaskEventOrigin | null>(
-    null,
-  );
+  const [expandedChannel, setExpandedChannel] = useState<Channel | null>(null);
 
   function handleChannelButtonClick(
     event: MouseEvent<HTMLButtonElement>,
-    origin: TaskEventOrigin,
+    channel: Channel,
   ) {
     event.preventDefault();
     event.stopPropagation();
-    setExpandedOrigin((previous) => (previous === origin ? null : origin));
+    setExpandedChannel((previous) => (previous === channel ? null : channel));
   }
 
   const imageSrc =
@@ -107,13 +105,13 @@ function CoworkerGalleryCard({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex flex-wrap gap-1.5">
-          {channels.map(({ origin, value }) => {
-            const OriginIcon = ORIGIN_ICON_MAP[origin];
+          {channels.map(({ channel, value }) => {
+            const ChannelIcon = CHANNEL_ICON_MAP[channel];
             const label = taskDetailT(
-              `originApp.${ORIGIN_APP_NAME_KEY_MAP[origin]}`,
+              `channelApp.${CHANNEL_APP_NAME_KEY_MAP[channel]}`,
             );
-            const isExpanded = expandedOrigin === origin;
-            const href = getChannelHref({ origin, value });
+            const isExpanded = expandedChannel === channel;
+            const href = getChannelHref({ channel, value });
             const sharedClasses = cn(
               "cursor-pointer inline-flex size-7 items-center justify-center rounded-md border border-transparent text-white/55 transition-colors hover:text-white",
               isExpanded && "border-white/30 bg-white/15 text-white",
@@ -122,14 +120,14 @@ function CoworkerGalleryCard({
             if (href && useAnchorForExternalChannels) {
               return (
                 <a
-                  key={`${origin}-${value.slice(0, 12)}`}
+                  key={`${channel}-${value.slice(0, 12)}`}
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={sharedClasses}
                   aria-label={label}
                 >
-                  <OriginIcon className="size-4 shrink-0" aria-hidden />
+                  <ChannelIcon className="size-4 shrink-0" aria-hidden />
                 </a>
               );
             }
@@ -137,7 +135,7 @@ function CoworkerGalleryCard({
             if (href) {
               return (
                 <button
-                  key={`${origin}-${value.slice(0, 12)}`}
+                  key={`${channel}-${value.slice(0, 12)}`}
                   type="button"
                   onClick={(event) =>
                     handleChannelExternalLinkClick(event, href)
@@ -145,28 +143,28 @@ function CoworkerGalleryCard({
                   className={sharedClasses}
                   aria-label={label}
                 >
-                  <OriginIcon className="size-4 shrink-0" aria-hidden />
+                  <ChannelIcon className="size-4 shrink-0" aria-hidden />
                 </button>
               );
             }
 
             return (
               <button
-                key={`${origin}-${value.slice(0, 12)}`}
+                key={`${channel}-${value.slice(0, 12)}`}
                 type="button"
-                onClick={(event) => handleChannelButtonClick(event, origin)}
+                onClick={(event) => handleChannelButtonClick(event, channel)}
                 className={sharedClasses}
                 aria-label={label}
                 aria-pressed={isExpanded}
               >
-                <OriginIcon className="size-4 shrink-0" aria-hidden />
+                <ChannelIcon className="size-4 shrink-0" aria-hidden />
               </button>
             );
           })}
         </div>
-        {expandedOrigin ? (
+        {expandedChannel ? (
           <p className="text-xs break-all text-white/90">
-            {channels.find((c) => c.origin === expandedOrigin)?.value}
+            {channels.find((c) => c.channel === expandedChannel)?.value}
           </p>
         ) : null}
       </div>

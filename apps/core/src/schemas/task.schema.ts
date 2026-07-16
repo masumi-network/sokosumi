@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
+import { Channel } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
@@ -13,6 +13,20 @@ import { taskShareSchema } from "@/schemas/share.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
+
+const deprecatedOriginField = z.enum(Channel).openapi({
+  deprecated: true,
+  example: Channel.SLACK,
+  description: "Deprecated. Use channel instead.",
+});
+
+export const taskEventChannelField = z.enum(Channel).openapi({
+  example: Channel.SLACK,
+  description:
+    "Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.",
+});
+
+export const taskEventDeprecatedOriginField = deprecatedOriginField;
 
 export const taskEventSchema = z
   .object({
@@ -37,7 +51,8 @@ export const taskEventSchema = z
       .string()
       .nullish()
       .openapi({ example: "https://example.com/oauth/authorize" }),
-    origin: z.enum(TaskEventOrigin).openapi({ example: TaskEventOrigin.SLACK }),
+    channel: taskEventChannelField,
+    origin: taskEventDeprecatedOriginField,
     status: z
       .enum(TaskStatus)
       .nullish()

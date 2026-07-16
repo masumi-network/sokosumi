@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { NotificationKind, TaskEventOrigin } from "@sokosumi/database";
+import { Channel, NotificationKind } from "@sokosumi/database";
 import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
@@ -126,7 +126,7 @@ interface TaskEventRecord {
   status: TaskStatus | null;
   comment: string | null;
   authenticationUrl: string | null;
-  origin: TaskEventOrigin;
+  channel: Channel;
   userId: string | null;
   coworkerId: string | null;
   transactionId: string | null;
@@ -173,7 +173,7 @@ function createTaskEvent(
     status: TaskStatus.OUT_OF_CREDITS,
     comment: null,
     authenticationUrl: null,
-    origin: TaskEventOrigin.SOKOSUMI,
+    channel: Channel.SOKOSUMI,
     userId: null,
     coworkerId: COWORKER_ID,
     transactionId: null,
