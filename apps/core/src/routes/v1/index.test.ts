@@ -32,6 +32,7 @@ vi.mock("./projects/index.js", () => ({ default: new Hono() }));
 vi.mock("./tasks/index.js", () => ({ default: new Hono() }));
 vi.mock("./users/index.js", () => ({ default: new Hono() }));
 vi.mock("./products/index.js", () => ({ default: new Hono() }));
+vi.mock("./vendors/index.js", () => ({ default: new Hono() }));
 vi.mock("./workspaces/index.js", () => ({ default: new Hono() }));
 
 describe("v1 router", () => {

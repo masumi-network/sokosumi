@@ -10,6 +10,7 @@
 export const CORE_API_ERROR_KINDS = {
   INVOICE_INVALID: "invoice_invalid",
   INVOICE_NOT_FOUND: "invoice_not_found",
+  INSUFFICIENT_BALANCE: "insufficient_balance",
   MEMBER_NOT_FOUND: "member_not_found",
   ORGANIZATION_MEMBERSHIP_REQUIRED: "organization_membership_required",
   ORGANIZATION_NOT_FOUND: "organization_not_found",
@@ -18,6 +19,7 @@ export const CORE_API_ERROR_KINDS = {
   SUBSCRIPTION_CHANGE_NOT_ALLOWED: "subscription_change_not_allowed",
   SUBSCRIPTION_NOT_ACTIVE: "subscription_not_active",
   SUBSCRIPTION_SEATS_BELOW_ASSIGNED: "subscription_seats_below_assigned",
+  FREE_CREDIT_INVALID: "free_credit_invalid",
 } as const;
 
 export type CoreApiErrorKind =

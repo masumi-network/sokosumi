@@ -1,8 +1,9 @@
-import { TaskStatus } from "@sokosumi/utils";
+"use client";
 
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
-import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { hasActiveSchedule } from "@/lib/utils/task-schedule";
 import { TaskDetailLink } from "./task-detail-link";
@@ -52,12 +53,14 @@ export function TaskCard({
         >
           <div className="space-y-2.5">
             <div className="space-y-2">
-              <TaskStatusBadge
-                status={task.status}
-                label={statusLabels?.[task.status]}
-                showDot={task.columnId === "in-progress"}
-                className="w-fit rounded-sm"
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <TaskStatusBadge
+                  status={task.status}
+                  label={statusLabels?.[task.status]}
+                  showDot={task.columnId === "in-progress"}
+                  className="w-fit rounded-sm"
+                />
+              </div>
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>

@@ -1,5 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 

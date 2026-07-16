@@ -7,6 +7,7 @@ const listAdminInvoicesMock = vi.fn();
 const createAdminInvoiceMock = vi.fn();
 const getAdminInvoiceMock = vi.fn();
 const markAdminInvoicePaidMock = vi.fn();
+const deleteAdminInvoiceMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
@@ -16,6 +17,7 @@ vi.mock("@/lib/clients/core.client", () => ({
     getAdminInvoice: (...args: unknown[]) => getAdminInvoiceMock(...args),
     markAdminInvoicePaid: (...args: unknown[]) =>
       markAdminInvoicePaidMock(...args),
+    deleteAdminInvoice: (...args: unknown[]) => deleteAdminInvoiceMock(...args),
   },
 }));
 
@@ -89,7 +91,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
       credits: 10,
       ttlDays: 30,
       priceId: "price_1",
-      markFree: false,
     });
 
     expect(createAdminInvoiceMock).toHaveBeenCalledWith({
@@ -98,7 +99,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
       credits: 10,
       ttlDays: 30,
       priceId: "price_1",
-      markFree: false,
     });
     expect(summary).toEqual(SUMMARY);
   });
@@ -117,7 +117,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
         credits: -1,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow(InvoiceValidationError);
     await expect(
@@ -126,7 +125,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
         credits: -1,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow("Credits must be a positive integer");
   });
@@ -142,7 +140,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
         credits: 10,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow(CoreApiRequestError);
   });
@@ -238,5 +235,29 @@ describe("invoiceAdminService (core client wrapper)", () => {
       invoiceAdminService.markInvoicePaid("in_1"),
     ).resolves.toMatchObject({ status: "paid" });
     expect(markAdminInvoicePaidMock).toHaveBeenCalledWith("in_1");
+  });
+
+  it("calls delete through the core client", async () => {
+    deleteAdminInvoiceMock.mockResolvedValue({
+      data: undefined,
+      response: { ok: true, status: 204 },
+    });
+
+    await invoiceAdminService.deleteInvoice("in_1");
+
+    expect(deleteAdminInvoiceMock).toHaveBeenCalledWith("in_1");
+  });
+
+  it("maps delete validation errors to InvoiceValidationError", async () => {
+    deleteAdminInvoiceMock.mockRejectedValue(
+      new CoreApiRequestError("Only draft or open invoices can be deleted", {
+        status: 400,
+        kind: "invoice_invalid",
+      }),
+    );
+
+    await expect(invoiceAdminService.deleteInvoice("in_1")).rejects.toThrow(
+      "Only draft or open invoices can be deleted",
+    );
   });
 });

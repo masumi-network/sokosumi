@@ -1,7 +1,10 @@
 /* eslint-disable no-restricted-properties */
 import * as Sentry from "@sentry/nextjs";
 
-import { isExpectedAuthRequestError } from "@/lib/sentry/expected-request-errors";
+import {
+  isExpectedAuthRequestError,
+  isExpectedBusinessRequestError,
+} from "@/lib/sentry/expected-request-errors";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
@@ -18,7 +21,10 @@ export const onRequestError: typeof Sentry.captureRequestError = (
   request,
   errorContext,
 ) => {
-  if (isExpectedAuthRequestError(error)) {
+  if (
+    isExpectedAuthRequestError(error) ||
+    isExpectedBusinessRequestError(error)
+  ) {
     return;
   }
 

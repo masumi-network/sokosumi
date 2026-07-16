@@ -75,7 +75,7 @@ vi.mock("@/middleware/auth", () => ({
       userId: string;
       organizationId: string | null;
       role: string;
-      delegation?: { userId: string; organizationId: string | null };
+      context?: { userId: string; organizationId: string | null };
     };
     if (a.actor === "user") {
       return {
@@ -86,11 +86,11 @@ vi.mock("@/middleware/auth", () => ({
         role: a.role,
       };
     }
-    if (a.actor === "coworker" && a.delegation) {
+    if (a.actor === "coworker" && a.context) {
       return {
-        source: "delegation" as const,
-        userId: a.delegation.userId,
-        organizationId: a.delegation.organizationId,
+        source: "context" as const,
+        userId: a.context.userId,
+        organizationId: a.context.organizationId,
       };
     }
     throw new Error("mock requireUserContext: unsupported auth context");
@@ -135,6 +135,7 @@ function createSerializedJob(overrides: Record<string, unknown> = {}) {
     jobType: JobType.PAID,
     status: SokosumiJobStatus.PROCESSING,
     credits: 5,
+    jobStatusSettled: false,
     onChainStatus: null,
     onChainTransactionHash: null,
     result: null,

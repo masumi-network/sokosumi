@@ -1,9 +1,11 @@
-import { convertCentsToCredits, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAgentContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
+  type TaskDetailPayload,
   type TaskListItemWithIncludes,
   type TaskWithIncludes,
   taskEventApiInclude,
@@ -61,7 +63,6 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.INPUT_REQUIRED,
@@ -69,12 +70,12 @@ function getAllowedTransitions(
         TaskStatus.CANCELED,
         TaskStatus.QUEUED,
       ],
+      [TaskStatus.GRANT_PENDING]: [],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -84,7 +85,6 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.INPUT_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -94,11 +94,12 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
+      // OUT_OF_CREDITS is system-set when a billed event fails for insufficient
+      // balance — coworkers must not set it manually.
       [TaskStatus.OUT_OF_CREDITS]: [
         TaskStatus.CANCELED,
         TaskStatus.FAILED,
@@ -110,7 +111,6 @@ function getAllowedTransitions(
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -120,7 +120,6 @@ function getAllowedTransitions(
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -130,18 +129,15 @@ function getAllowedTransitions(
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
-      [TaskStatus.COMPLETED]: [],
+      // Agents may reopen COMPLETED → RUNNING (SOK-581).
+      [TaskStatus.COMPLETED]: [TaskStatus.RUNNING],
       [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCEL_REQUESTED]: [
-        TaskStatus.CANCELED,
-        TaskStatus.OUT_OF_CREDITS,
-      ],
-      [TaskStatus.CANCELED]: [],
+      // Agents may reopen CANCELED → RUNNING (SOK-581).
+      [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
     };
   }
 
@@ -157,20 +153,22 @@ function getAllowedTransitions(
       TaskStatus.CANCELED,
       TaskStatus.QUEUED,
     ],
-    [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
-    [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
-    [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.GRANT_PENDING]: [],
+    [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
+    [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
+    [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
     [TaskStatus.OUT_OF_CREDITS]: [
       TaskStatus.CREDITS_TOPPED_UP,
-      TaskStatus.CANCEL_REQUESTED,
+      TaskStatus.CANCELED,
     ],
-    [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
-    [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
-    [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
-    [TaskStatus.COMPLETED]: [],
+    [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
+    [TaskStatus.RUNNING]: [TaskStatus.CANCELED],
+    [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCELED],
+    // Users may reopen COMPLETED → READY with a required comment (SOK-631).
+    [TaskStatus.COMPLETED]: [TaskStatus.READY],
     [TaskStatus.FAILED]: [],
-    [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
-    [TaskStatus.CANCEL_REQUESTED]: [],
+    // Users may reopen CANCELED → READY with a required comment (SOK-631).
+    [TaskStatus.CANCELED]: [TaskStatus.READY],
   };
 }
 
@@ -207,10 +205,12 @@ export function validateTaskCoworkerAssignment({
 }
 
 export function mapTaskEvent(event: TaskEventForMapping) {
-  const { cents, user, coworker, ...rest } = event;
+  const { cents, user, coworker, channel, ...rest } = event;
 
   return {
     ...rest,
+    channel,
+    origin: channel,
     credits: cents != null ? convertCentsToCredits(cents) : null,
     ...(event.userId != null && user != null
       ? {
@@ -234,28 +234,7 @@ export function mapTaskEvent(event: TaskEventForMapping) {
   };
 }
 
-export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
-  if (status === undefined) {
-    return false;
-  }
-
-  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
-}
-
-function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
-  const credits = task.events.reduce((total, event) => {
-    const amount = event.transaction?.amount;
-    if (amount === undefined || amount === null) {
-      return total;
-    }
-
-    if (amount >= 0n) {
-      return total;
-    }
-
-    return total + convertCentsToCredits(amount * -1n);
-  }, 0);
-
+function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
     task.organizationId,
@@ -288,16 +267,45 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
+    // Grant parking fields are intentional API surface while GRANT_PENDING so
+    // coworkers and web can correlate the task with the blocking vendor grant.
+    grantResumeStatus:
+      task.status === TaskStatus.GRANT_PENDING
+        ? (task.grantResumeStatus ?? null)
+        : null,
+    pendingVendorGrantId:
+      task.status === TaskStatus.GRANT_PENDING
+        ? (task.pendingVendorGrantId ?? null)
+        : null,
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
-    events: task.events.map(mapTaskEvent),
-    jobs: task.jobs.map(flattenJob),
-    credits,
     workspace: mapWorkspaceSummary(task.workspace),
   };
 }
 
-export function mapTask(task: TaskWithIncludes) {
+function mapTaskBase(task: TaskWithIncludes) {
+  const credits = task.events.reduce((total, event) => {
+    const amount = event.transaction?.amount;
+    if (amount === undefined || amount === null) {
+      return total;
+    }
+
+    if (amount >= 0n) {
+      return total;
+    }
+
+    return total + convertCentsToCredits(amount * -1n);
+  }, 0);
+
+  return {
+    ...mapTaskSummary(task),
+    events: task.events.map(mapTaskEvent),
+    jobs: task.jobs.map(flattenJob),
+    credits,
+  };
+}
+
+export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
   const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
 
   return {
@@ -308,5 +316,9 @@ export function mapTask(task: TaskWithIncludes) {
 }
 
 export function mapTaskListItem(task: TaskListItemWithIncludes) {
-  return mapTaskBase(task);
+  return {
+    ...mapTaskSummary(task),
+    jobsCount: task._count.jobs,
+    commentsCount: task._count.events,
+  };
 }

@@ -1,11 +1,18 @@
 import * as Sentry from "@sentry/nextjs";
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
+import {
+  inAppBrowserIgnoreErrors,
+  transientStreamIgnoreErrors,
+} from "@/lib/sentry/third-party-browser-environment-errors";
 import { thirdPartyDomMutationIgnoreErrors } from "@/lib/sentry/third-party-dom-mutation-errors";
 import {
+  bareNetworkErrorIgnoreErrors,
   beforeSendClientEvent,
   thirdPartyAnalyticsDenyUrls,
   thirdPartyAnalyticsIgnoreErrors,
+  thirdPartyScriptDenyUrls,
 } from "@/lib/sentry/third-party-fetch-errors";
+import { thirdPartyWalletIgnoreErrors } from "@/lib/sentry/third-party-wallet-errors";
 
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
@@ -17,10 +24,14 @@ Sentry.init({
   // TODO: Uncomment this when Sentry team fixed open issue
   // https://github.com/getsentry/sentry-javascript/issues/16542
 
-  denyUrls: thirdPartyAnalyticsDenyUrls,
+  denyUrls: [...thirdPartyAnalyticsDenyUrls, ...thirdPartyScriptDenyUrls],
   ignoreErrors: [
     ...thirdPartyDomMutationIgnoreErrors,
     ...thirdPartyAnalyticsIgnoreErrors,
+    ...thirdPartyWalletIgnoreErrors,
+    ...inAppBrowserIgnoreErrors,
+    ...transientStreamIgnoreErrors,
+    ...bareNetworkErrorIgnoreErrors,
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,

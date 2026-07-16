@@ -1,5 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { CircleAlert } from "lucide-react";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,6 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
   [TaskStatus.COMPLETED]: "Complete",
   [TaskStatus.FAILED]: "Failed",
-  [TaskStatus.CANCEL_REQUESTED]: "Cancel requested",
   [TaskStatus.CANCELED]: "Canceled",
 };
 
@@ -82,11 +81,6 @@ const STATUS_PILL_STYLES: Partial<
     bg: "bg-destructive/10",
     text: "text-destructive",
     dot: "bg-red-500",
-  },
-  [TaskStatus.CANCEL_REQUESTED]: {
-    bg: "bg-fuchsia-500/10",
-    text: "text-fuchsia-600 dark:text-fuchsia-400",
-    dot: "bg-fuchsia-500",
   },
   [TaskStatus.CANCELED]: {
     bg: "bg-muted",

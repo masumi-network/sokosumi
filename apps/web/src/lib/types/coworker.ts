@@ -1,8 +1,8 @@
-import type { Coworker } from "@/lib/clients/generated/core";
-import type { TaskEventOrigin } from "@/lib/types/core-dto";
+import type { Coworker, Vendor } from "@/lib/clients/generated/core";
+import type { Channel } from "@/lib/types/core-dto";
 
 export interface CoworkerChannel {
-  origin: TaskEventOrigin;
+  channel: Channel;
   value: string;
 }
 
@@ -25,8 +25,7 @@ export interface CoworkerOption {
   image: string;
   description?: string;
   caption?: string;
-  company?: string;
-  companyLogo?: string;
+  vendor: Pick<Vendor, "id" | "name" | "slug" | "logos">;
   /** Sort/recommend weight — higher surfaces first. From `Coworker.priority`. */
   priority?: number;
   profile?: CoworkerProfile;

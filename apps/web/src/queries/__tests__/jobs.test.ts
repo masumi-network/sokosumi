@@ -1,4 +1,4 @@
-import { type Session } from "@sokosumi/utils";
+import type { Session } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { getJobQueryOptions } from "@/queries/jobs";

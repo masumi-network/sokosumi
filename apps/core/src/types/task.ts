@@ -14,7 +14,9 @@ import {
 
 export const taskEventApiInclude = {
   user: { select: { id: true, name: true, image: true } },
-  coworker: { select: { id: true, name: true, image: true, slug: true } },
+  coworker: {
+    select: { id: true, name: true, image: true, slug: true, vendorId: true },
+  },
   transaction: { select: { amount: true } },
 } as const;
 
@@ -47,7 +49,20 @@ const taskBaseInclude = {
   },
 } as const;
 
-export const taskListInclude = taskBaseInclude;
+export const taskListInclude = {
+  ...workspaceRelationInclude,
+  ...taskUserOrganizationInclude,
+  _count: {
+    select: {
+      events: {
+        where: {
+          comment: { not: null },
+        },
+      },
+      jobs: true,
+    },
+  },
+} as const;
 
 export const taskInclude = {
   ...taskBaseInclude,
@@ -63,7 +78,7 @@ export function buildTaskIncludeForViewer(
     ...taskBaseInclude,
     share: true,
     ...buildVisibleTaskLinksInclude(authContext, workspaceId),
-  } satisfies Prisma.TaskInclude;
+  };
 }
 
 export type TaskListItemWithIncludes = Prisma.TaskGetPayload<{
@@ -72,4 +87,10 @@ export type TaskListItemWithIncludes = Prisma.TaskGetPayload<{
 
 export type TaskWithIncludes = Prisma.TaskGetPayload<{
   include: typeof taskInclude;
+}>;
+
+type TaskDetailInclude = ReturnType<typeof buildTaskIncludeForViewer>;
+
+export type TaskDetailPayload = Prisma.TaskGetPayload<{
+  include: TaskDetailInclude;
 }>;

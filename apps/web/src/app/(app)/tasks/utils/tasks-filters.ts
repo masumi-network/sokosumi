@@ -1,6 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
-
-import type { TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 

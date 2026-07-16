@@ -1,9 +1,8 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { JobMetaDetails } from "@/components/jobs/job-details/job-meta-details";
 import type { Job } from "@/lib/clients/generated/core";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -72,6 +71,7 @@ function createJob(overrides: Partial<Job> = {}): Job {
       name: "Agent",
     },
     ...overrides,
+    jobStatusSettled: overrides?.jobStatusSettled ?? false,
   };
 }
 

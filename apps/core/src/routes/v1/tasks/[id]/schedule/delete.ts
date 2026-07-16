@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
-import { requireTaskOwnership } from "@/helpers/access-control";
+import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -41,7 +41,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const existingTask = await requireTaskOwnership(userContext, id, tx);
+      const existingTask = await requireMutableTaskOwnership(
+        userContext,
+        id,
+        tx,
+      );
 
       return tx.task.update({
         where: { id },

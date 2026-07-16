@@ -1,8 +1,9 @@
-import { TaskEventOrigin } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { Channel, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import { LIMITS } from "@/config/constants";
+import { taskEventSchema } from "@/schemas/task.schema";
 
 import { createTaskEventRequestSchema } from "./schema";
 
@@ -27,69 +28,153 @@ const validMasumiPayment = {
 } as const;
 
 describe("createTaskEventRequestSchema", () => {
-  it("accepts a valid origin", () => {
+  it("accepts a valid channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
-      origin: TaskEventOrigin.SLACK,
+      channel: Channel.SLACK,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.SLACK);
+      expect(result.data.channel).toBe(Channel.SLACK);
     }
   });
 
-  it("accepts DISCORD origin", () => {
+  it("accepts deprecated origin as channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
-      origin: TaskEventOrigin.DISCORD,
+      origin: Channel.SLACK,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.DISCORD);
+      expect(result.data.channel).toBe(Channel.SLACK);
+      expect(result.data.origin).toBe(Channel.SLACK);
     }
   });
 
-  it("accepts MESSENGER origin", () => {
+  it("accepts DISCORD channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
-      origin: TaskEventOrigin.MESSENGER,
+      channel: Channel.DISCORD,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.MESSENGER);
+      expect(result.data.channel).toBe(Channel.DISCORD);
     }
   });
 
-  it("throws an error for unsupported origins", () => {
+  it("accepts MESSENGER channel", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      channel: Channel.MESSENGER,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.channel).toBe(Channel.MESSENGER);
+    }
+  });
+
+  it("accepts matching channel and origin", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      channel: Channel.TEAMS,
+      origin: Channel.TEAMS,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.channel).toBe(Channel.TEAMS);
+    }
+  });
+
+  it("rejects conflicting channel and origin", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      channel: Channel.SLACK,
+      origin: Channel.EMAIL,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("throws an error for unsupported channels", () => {
     expect(() => {
       taskEventRequestSchema.parse({
         status: TaskStatus.RUNNING,
-        origin: "Discord",
+        channel: "Discord",
       });
     }).toThrow();
   });
 
-  it("throws an error for null origin", () => {
+  it("throws an error for null channel", () => {
     expect(() => {
       taskEventRequestSchema.parse({
         status: TaskStatus.RUNNING,
-        origin: null,
+        channel: null,
       });
     }).toThrow();
   });
 
-  it("defaults missing origin to SOKOSUMI", () => {
+  it("defaults missing channel and origin to SOKOSUMI", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.SOKOSUMI);
+      expect(result.data.channel).toBe(Channel.SOKOSUMI);
     }
+  });
+
+  it("marks TaskEvent.origin as deprecated in OpenAPI", () => {
+    const app = new OpenAPIHono();
+    app.openapi(
+      createRoute({
+        method: "get",
+        path: "/probe",
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: taskEventSchema,
+              },
+            },
+            description: "probe",
+          },
+        },
+      }),
+      () => {
+        throw new Error("unreachable");
+      },
+    );
+
+    const doc = app.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "test", version: "1" },
+    });
+
+    expect(doc.components?.schemas?.TaskEvent).toMatchObject({
+      properties: {
+        origin: {
+          allOf: [
+            { $ref: "#/components/schemas/Channel" },
+            {
+              deprecated: true,
+              description: "Deprecated. Use channel instead.",
+            },
+          ],
+        },
+        channel: {
+          $ref: "#/components/schemas/Channel",
+        },
+      },
+    });
+    expect(doc.components?.schemas?.Channel).toMatchObject({
+      type: "string",
+    });
   });
 
   it("accepts authentication required with https url", () => {
@@ -145,13 +230,36 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects credits for running tasks", () => {
+  it("accepts credits-only body", () => {
+    const result = taskEventRequestSchema.safeParse({
+      credits: 3,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty body", () => {
+    const result = taskEventRequestSchema.safeParse({});
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts credits for running tasks", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
       credits: 3,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts credits for comment-only requests", () => {
+    const result = taskEventRequestSchema.safeParse({
+      comment: "hello",
+      credits: 5,
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("accepts out-of-credits tasks", () => {
@@ -170,17 +278,17 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it.each([
-    TaskStatus.COMPLETED,
-    TaskStatus.CANCELED,
-  ])("accepts fractional credits for %s tasks", (status) => {
-    const result = taskEventRequestSchema.safeParse({
-      status,
-      credits: 0.25,
-    });
+  it.each([TaskStatus.COMPLETED, TaskStatus.CANCELED])(
+    "accepts fractional credits for %s tasks",
+    (status) => {
+      const result = taskEventRequestSchema.safeParse({
+        status,
+        credits: 0.25,
+      });
 
-    expect(result.success).toBe(true);
-  });
+      expect(result.success).toBe(true);
+    },
+  );
 
   it("accepts null credits for completed tasks", () => {
     const result = taskEventRequestSchema.safeParse({
@@ -200,7 +308,7 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("accepts null credits for non-spendable statuses", () => {
+  it("accepts null credits for non-terminal statuses", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.INPUT_REQUIRED,
       credits: null,
@@ -209,28 +317,28 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects credits for non-spendable statuses", () => {
+  it("accepts credits for input-required tasks", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.INPUT_REQUIRED,
       credits: 2,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it("rejects credits for credits-topped-up tasks", () => {
+  it("accepts credits for credits-topped-up tasks", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.CREDITS_TOPPED_UP,
       credits: 2,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it("rejects credits when status is omitted (comment-only request)", () => {
+  it("rejects credits below minimum regardless of status", () => {
     const result = taskEventRequestSchema.safeParse({
-      comment: "hello",
-      credits: 5,
+      status: TaskStatus.RUNNING,
+      credits: LIMITS.MIN_CHARGEABLE_CREDITS / 10,
     });
 
     expect(result.success).toBe(false);
@@ -300,13 +408,30 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects masumiPayment when status is CANCELED", () => {
+  it("accepts masumiPayment when status is RUNNING", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      masumiPayment: validMasumiPayment,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts masumiPayment when status is CANCELED", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.CANCELED,
       masumiPayment: validMasumiPayment,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts charge-only masumiPayment without status, comment, or credits", () => {
+    const result = taskEventRequestSchema.safeParse({
+      masumiPayment: validMasumiPayment,
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("rejects PaymentSource.network mismatch", () => {

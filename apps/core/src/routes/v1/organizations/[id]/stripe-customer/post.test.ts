@@ -1,18 +1,18 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  createOrganizationCustomerMock,
+  provisionOrganizationStripeCustomerMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  createOrganizationCustomerMock: vi.fn(),
+  provisionOrganizationStripeCustomerMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -33,10 +33,9 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/clients/stripe.client", () => ({
-  stripeClient: {
-    createOrganizationCustomer: createOrganizationCustomerMock,
-  },
+vi.mock("@/services/stripe-customer-provision.service", () => ({
+  provisionOrganizationStripeCustomer: (...args: unknown[]) =>
+    provisionOrganizationStripeCustomerMock(...args),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -49,6 +48,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
 };
 
 let mountPostOrganizationStripeCustomer: (app: OpenAPIHonoWithAuth) => void;
@@ -79,7 +79,7 @@ function setMembership(role: string | null, stripeCustomerId: string | null) {
     id: "org_123",
     slug: "acme",
     name: "Acme",
-    metadata: JSON.stringify({ invoiceEmail: "billing@acme.test" }),
+    metadata: JSON.stringify({ url: "https://acme.test" }),
     stripeCustomerId,
   });
   memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
@@ -129,7 +129,7 @@ describe("POST /organizations/{id}/stripe-customer", () => {
       { method: "POST" },
     );
     expect(response.status).toBe(403);
-    expect(createOrganizationCustomerMock).not.toHaveBeenCalled();
+    expect(provisionOrganizationStripeCustomerMock).not.toHaveBeenCalled();
   });
 
   it("returns the existing customer id without creating a new one", async () => {
@@ -141,12 +141,12 @@ describe("POST /organizations/{id}/stripe-customer", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ stripeCustomerId: "cus_org" });
-    expect(createOrganizationCustomerMock).not.toHaveBeenCalled();
+    expect(provisionOrganizationStripeCustomerMock).not.toHaveBeenCalled();
   });
 
   it("creates a Stripe customer when none is provisioned", async () => {
     setMembership("member", null);
-    createOrganizationCustomerMock.mockResolvedValue({ id: "cus_new" });
+    provisionOrganizationStripeCustomerMock.mockResolvedValue("cus_new");
     const response = await createApp().request(
       "http://localhost/org_123/stripe-customer",
       { method: "POST" },
@@ -154,10 +154,9 @@ describe("POST /organizations/{id}/stripe-customer", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ stripeCustomerId: "cus_new" });
-    expect(createOrganizationCustomerMock).toHaveBeenCalledWith({
-      invoiceEmail: "billing@acme.test",
+    expect(provisionOrganizationStripeCustomerMock).toHaveBeenCalledWith({
+      id: "org_123",
       name: "Acme",
-      organizationId: "org_123",
       slug: "acme",
     });
   });

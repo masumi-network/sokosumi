@@ -10,7 +10,10 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-import { useSidebarSubmenu } from "./sidebar-submenu";
+import {
+  SIDEBAR_SUBMENU_SLIDE_DURATION_MS,
+  useSidebarSubmenu,
+} from "./sidebar-submenu";
 
 function isSettingsRouteActive(pathname: string): boolean {
   return (
@@ -32,6 +35,10 @@ export default function SettingsMenuButton() {
   function handleClick() {
     if (state === "collapsed") {
       setOpen(true);
+      window.setTimeout(() => {
+        openSubmenu("settings");
+      }, SIDEBAR_SUBMENU_SLIDE_DURATION_MS);
+      return;
     }
 
     openSubmenu("settings");

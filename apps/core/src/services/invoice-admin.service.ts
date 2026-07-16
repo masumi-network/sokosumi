@@ -6,12 +6,13 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import { hasStripeBillingAddressWithCountry } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
-import { getEnv } from "@/config/env";
+import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
 import prisma from "@/lib/db/prisma";
+import { stripeCustomerBillingService } from "@/services/stripe-customer-billing.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
 /**
@@ -22,7 +23,6 @@ import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service
  */
 
 const ADMIN_INVOICE_SOURCE = "admin_one_time_credit";
-const MAX_TTL_DAYS = 3650;
 
 export type InvoiceTargetType = "user" | "organization";
 
@@ -242,6 +242,19 @@ function toInvoiceListItem(
   };
 }
 
+function matchesListStatusFilter(
+  itemStatus: Stripe.Invoice.Status | null,
+  filter: InvoiceStatusFilter,
+): boolean {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "unfinished") {
+    return itemStatus === "draft" || itemStatus === "open";
+  }
+  return itemStatus === filter;
+}
+
 export const invoiceAdminService = (() => {
   async function ensureOrganizationStripeCustomerId(
     organizationId: string,
@@ -265,12 +278,10 @@ export const invoiceAdminService = (() => {
       };
     }
 
-    const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
     const customer = await stripeClient.createOrganizationCustomer({
       organizationId: organization.id,
       slug: organization.slug,
       name: organization.name,
-      invoiceEmail,
     });
 
     await prisma.organization.update({
@@ -523,6 +534,10 @@ export const invoiceAdminService = (() => {
           )
           .map((invoice) => toInvoiceListItem(invoice, accountId))
           .filter((item): item is InvoiceListItem => item !== null)
+          // Stripe search is eventually consistent — an invoice voided moments
+          // ago can still match an earlier status:"open" query. Re-check the
+          // live status on each result so filters stay accurate.
+          .filter((item) => matchesListStatusFilter(item.status, status))
           // De-dupe across per-status queries (statuses are disjoint, so this
           // is belt-and-suspenders) before sorting newest-first.
           .filter((item) => {
@@ -542,8 +557,6 @@ export const invoiceAdminService = (() => {
       credits: number;
       ttlDays: number | null;
       priceId: string | null;
-      /** When true, applies the support coupon so the invoice is free ($0). */
-      markFree: boolean;
     }): Promise<InvoiceSummary> {
       if (!isPositiveIntegerCredits(params.credits)) {
         throw new InvoiceValidationError("Credits must be a positive integer");
@@ -553,21 +566,34 @@ export const invoiceAdminService = (() => {
         if (
           !Number.isInteger(params.ttlDays) ||
           params.ttlDays <= 0 ||
-          params.ttlDays > MAX_TTL_DAYS
+          params.ttlDays > MAX_ADMIN_CREDIT_TTL_DAYS
         ) {
           throw new InvoiceValidationError(
-            `Expiry must be a positive integer of at most ${MAX_TTL_DAYS} days`,
+            `Expiry must be a positive integer of at most ${MAX_ADMIN_CREDIT_TTL_DAYS} days`,
           );
         }
       }
 
-      // These are independent reads (target lookup, price lookup, Stripe
-      // account id) — run them concurrently rather than serially.
-      const [target, price, accountId] = await Promise.all([
+      // Target lookup, price lookup, Stripe account id, and billing details are
+      // independent reads — run them concurrently rather than serially.
+      const [target, price, accountId, billingDetails] = await Promise.all([
         resolveTarget(params.target),
         resolvePrice(params.priceId),
         stripeClient.getAccountId(),
+        params.target.targetType === "user"
+          ? stripeCustomerBillingService.getUserBillingDetails(
+              params.target.targetId,
+            )
+          : stripeCustomerBillingService.getOrganizationBillingDetailsById(
+              params.target.targetId,
+            ),
       ]);
+
+      if (!hasStripeBillingAddressWithCountry(billingDetails.address)) {
+        throw new InvoiceValidationError(
+          "Recipient billing address with country is required for invoicing",
+        );
+      }
 
       const invoice = await stripeClient.createAdminInvoice({
         customerId: target.stripeCustomerId,
@@ -575,29 +601,16 @@ export const invoiceAdminService = (() => {
         priceId: price.id,
         currency: price.currency,
         ttlDays: params.ttlDays ?? undefined,
-        ...(params.markFree
-          ? { couponId: getEnv().STRIPE_SUPPORT_COUPON }
-          : {}),
       });
-
-      // A free grant must be fully discounted to $0 by the support coupon. If
-      // it isn't (e.g. the coupon is misconfigured as fixed-amount or <100%),
-      // the invoice stays payable and would silently become a normal open
-      // invoice — fail loudly instead so the misconfiguration is obvious.
-      if (params.markFree && (invoice.amount_due ?? 0) !== 0) {
-        throw new InvoiceValidationError(
-          "Free grant invoice was not fully discounted to $0. Check that STRIPE_SUPPORT_COUPON is a 100%-off coupon that applies to the credit product.",
-        );
-      }
 
       // A non-free grant must cost something. Billing `quantity × price` lets
       // Stripe round a tiny fractional total down to $0, which would finalize
       // as paid and silently grant credits for free. Reject it so the admin
-      // raises the credit amount, picks a higher price, or marks it free —
-      // this preserves the old `getCreditTopUpTotalMinorUnits` >= 1 invariant.
-      if (!params.markFree && (invoice.amount_due ?? 0) === 0) {
+      // raises the credit amount or picks a higher price — this preserves the
+      // old `getCreditTopUpTotalMinorUnits` >= 1 invariant.
+      if ((invoice.amount_due ?? 0) === 0) {
         throw new InvoiceValidationError(
-          "Grant total rounded to $0. Increase the credit amount, choose a higher price, or mark the grant as free.",
+          "Grant total rounded to $0. Increase the credit amount or choose a higher price.",
         );
       }
 
@@ -656,6 +669,38 @@ export const invoiceAdminService = (() => {
      * `invoice.paid` webhook later arrives (or is retried). Returns null when
      * the invoice does not exist, so the caller can surface a 404.
      */
+    /**
+     * Deletes or voids an admin invoice in Stripe. Draft invoices are
+     * permanently deleted; open invoices are voided. Returns null when the
+     * invoice does not exist, so the caller can surface a 404.
+     */
+    async deleteInvoice(invoiceId: string): Promise<void | null> {
+      let existing: Stripe.Invoice;
+      try {
+        existing = await stripeClient.getInvoice(invoiceId);
+      } catch {
+        return null;
+      }
+
+      if (existing.metadata?.grant_source !== ADMIN_INVOICE_SOURCE) {
+        throw new InvoiceValidationError("Invoice is not an admin invoice");
+      }
+
+      if (existing.status === "draft") {
+        await stripeClient.deleteDraftInvoice(invoiceId);
+        return;
+      }
+
+      if (existing.status === "open") {
+        await stripeClient.voidInvoice(invoiceId);
+        return;
+      }
+
+      throw new InvoiceValidationError(
+        "Only draft or open invoices can be deleted",
+      );
+    },
+
     async markInvoicePaid(invoiceId: string): Promise<InvoiceSummary | null> {
       let existing: Stripe.Invoice;
       try {

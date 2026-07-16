@@ -1209,6 +1209,7 @@
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
           "READY": "Listo",
+          "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
           "APPROVAL_REQUIRED": "Aprobación requerida",
           "AUTHENTICATION_REQUIRED": "Autenticación requerida",
@@ -1218,7 +1219,6 @@
           "AWAITING_EXTERNAL": "Esperando externo",
           "COMPLETED": "Completado",
           "FAILED": "Fallido",
-          "CANCEL_REQUESTED": "Cancelación solicitada",
           "CANCELED": "Cancelado"
         }
       },
@@ -1414,6 +1414,19 @@
         "inputRequired": "Input requerido",
         "done": "Hecho"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Se requiere aprobación de acceso del proveedor",
+        "descriptionOne": "{vendorName} necesita acceso para trabajar con tareas en este espacio de trabajo.",
+        "descriptionMany": "{count} proveedores necesitan acceso para trabajar con tareas en este espacio de trabajo.",
+        "descriptionMember": "Un coworker solicitó acceso del proveedor. Un propietario o administrador del espacio de trabajo debe aprobarlo.",
+        "descriptionMemberMany": "{count} proveedores solicitaron acceso. Un propietario o administrador del espacio de trabajo debe aprobarlo.",
+        "parkedTasksHint": "{count, plural, one {# tarea está bloqueada} other {# tareas están bloqueadas}} hasta que se apruebe el acceso.",
+        "approve": "Aprobar acceso",
+        "review": "Ver detalles",
+        "approveSuccess": "Acceso del proveedor aprobado.",
+        "approveError": "No se pudo aprobar el acceso del proveedor",
+        "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
+      },
       "Actions": {
         "add": "Añadir",
         "addTask": "Añadir Task",
@@ -1470,6 +1483,7 @@
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
           "READY": "Listo",
+          "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
           "APPROVAL_REQUIRED": "Aprobación requerida",
           "AUTHENTICATION_REQUIRED": "Autenticación requerida",
@@ -1479,7 +1493,6 @@
           "AWAITING_EXTERNAL": "Esperando externo",
           "COMPLETED": "Completado",
           "FAILED": "Fallido",
-          "CANCEL_REQUESTED": "Cancelación solicitada",
           "CANCELED": "Cancelado"
         }
       },
@@ -1512,6 +1525,7 @@
         "project": "Proyecto",
         "personalWorkspace": "Personal",
         "coworker": "Coworker",
+        "credits": "Créditos",
         "created": "Creado",
         "updated": "Actualizado",
         "description": "Descripción",
@@ -1542,7 +1556,7 @@
         "actorUser": "Usuario",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
-        "originApp": {
+        "channelApp": {
           "sokosumi": "Sokosumi",
           "slack": "Slack",
           "teams": "Teams",
@@ -1562,13 +1576,13 @@
         "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} cobrados",
         "statusLabels": {
           "outOfCredits": "Sin Credits",
-          "creditsToppedUp": "Credits recargados",
-          "cancelRequested": "Cancelación solicitada"
+          "creditsToppedUp": "Credits recargados"
         },
         "billingCta": {
           "upgradePlan": "Obtener más créditos",
           "addCredits": "Añadir Credits",
-          "placeholder": "Este Task necesita Credits para continuar. Ve a Billing para continuar."
+          "placeholder": "Este Task necesita Credits para continuar. Ve a Billing para continuar.",
+          "statusUnavailable": "Este task se ha quedado sin créditos."
         },
         "actions": {
           "edit": "Editar",
@@ -1577,8 +1591,15 @@
           "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista; no se elimina permanentemente de la base de datos.",
           "archiveError": "No se pudo archivar la tarea",
           "markAsReady": "Marcar como listo",
+          "reopenToReady": "Reabrir como Lista",
+          "reopenToReadyTitle": "Reabrir tarea",
+          "reopenToReadyDescription": "Añade un comentario para que tu coworker sepa qué hacer a continuación. La tarea volverá a Lista.",
+          "reopenToReadyCommentLabel": "Comentario",
+          "reopenToReadyCommentPlaceholder": "Describe lo que aún hay que hacer…",
+          "reopenToReadyCommentRequired": "Se requiere un comentario para reabrir esta tarea",
+          "reopenToReadyConfirm": "Reabrir como Lista",
           "revertToDraft": "Revertir a borrador",
-          "cancelRequest": "Cancelar solicitud",
+          "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
           "moveToWorkspace": "Mover a otro espacio de trabajo",
@@ -1651,7 +1672,25 @@
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
         "clonedFrom": "Clonada de {name}",
-        "schedule": "Programación"
+        "schedule": "Programación",
+        "pendingApproval": "Aprobación pendiente",
+        "VendorGrantApproval": {
+          "title": "Se requiere aprobación de acceso del proveedor",
+          "description": "Un coworker creó esta tarea pero aún no tiene permiso para crear tareas en este espacio de trabajo. Aprueba el acceso del proveedor para activarla.",
+          "descriptionWithCoworker": "{coworkerName} creó esta tarea pero aún no tiene permiso para crear tareas en este espacio de trabajo. Aprueba el acceso del proveedor para activarla.",
+          "approve": "Aprobar acceso",
+          "deny": "Denegar acceso",
+          "review": "Ver detalles",
+          "approveSuccess": "Acceso del proveedor aprobado. Esta tarea ya está activa.",
+          "denySuccess": "Acceso del proveedor denegado. Esta tarea se canceló.",
+          "approveError": "No se pudo aprobar el acceso del proveedor",
+          "denyError": "No se pudo denegar el acceso del proveedor"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "Esperando la aprobación del acceso del proveedor",
+          "description": "Esta tarea está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor.",
+          "descriptionWithCoworker": "{coworkerName} creó esta tarea. Está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor."
+        }
       },
       "NewTask": {
         "title": "Nuevo Task",
@@ -1830,7 +1869,6 @@
             "AWAITING_EXTERNAL": "En espera",
             "COMPLETED": "Completo",
             "FAILED": "Error",
-            "CANCEL_REQUESTED": "Cancelando",
             "CANCELED": "Cancelada"
           },
           "jobStatusAbbreviations": {
@@ -2637,7 +2675,6 @@
       "billingPortalTitle": "Portal de Billing",
       "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tus suscripciones y facturas.",
       "billingPortalDescriptionWithPlan": "Actualmente usas {plan}. Gestiona tus suscripciones, datos de pago y facturas en Stripe.",
-      "openingBillingPortal": "Abriendo...",
       "billingPortalCta": "Abrir portal de Billing",
       "freePrice": "Gratis",
       "customPrice": "Personalizado",
@@ -2826,6 +2863,10 @@
           "tasks": {
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
+          },
+          "freeCredits": {
+            "title": "Créditos gratuitos",
+            "description": "Otorga créditos gratuitos directamente a un usuario u organización sin factura de Stripe."
           }
         }
       },
@@ -2929,6 +2970,15 @@
         "title": "Facturas",
         "description": "Otorga créditos únicos a un usuario u organización mediante una factura de Stripe. Al marcar la factura como pagada, los créditos se otorgan al instante.",
         "cardTitle": "Nueva factura",
+        "newGrant": "Nueva factura",
+        "backToList": "Volver a la lista",
+        "delete": "Eliminar",
+        "deleting": "Eliminando…",
+        "deleteSuccess": "Factura eliminada",
+        "deleteError": "No se pudo eliminar la factura",
+        "deleteConfirmTitle": "¿Eliminar factura?",
+        "deleteConfirmDescription": "Los borradores se eliminan de forma permanente. Las facturas abiertas se anulan y ya no se pueden pagar.",
+        "cancel": "Cancelar",
         "Form": {
           "Fields": {
             "organization": "Organización",
@@ -2949,7 +2999,32 @@
           "createError": "No se pudo crear la factura",
           "pricePlaceholder": "Selecciona un precio",
           "priceHelper": "Precio por crédito utilizado para el importe de la factura.",
-          "priceRequired": "Selecciona un precio"
+          "priceRequired": "Selecciona un precio",
+          "billingLoadErrorTitle": "No se pudieron cargar los datos de facturación",
+          "billingLoadError": "No se pudieron cargar los datos de facturación del destinatario",
+          "billingRefresh": "Actualizar",
+          "billingIncomplete": "Se requiere una dirección de facturación con país",
+          "billingIncompleteUser": "Este usuario debe añadir una dirección de facturación con país en la configuración de su cuenta antes de que puedas crear una factura.",
+          "billingIncompleteOrganization": "Esta organización debe añadir una dirección de facturación con país en la configuración de la organización antes de que puedas crear una factura.",
+          "BillingDetails": {
+            "title": "Información de facturación",
+            "description": "Dirección de facturación y datos fiscales almacenados en el cliente de Stripe del destinatario.",
+            "addressLabel": "Dirección de facturación",
+            "taxIdLabel": "IVA / ID fiscal",
+            "taxIdVerification": "Estado de verificación: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verificado",
+              "pending": "Pendiente",
+              "unverified": "No verificado",
+              "unavailable": "No disponible",
+              "verification_failed": "Verificación fallida"
+            },
+            "invoiceEmailLabel": "Correo de facturación",
+            "invoiceEmailEmpty": "No hay correo de facturación registrado",
+            "stripeCustomerIdLabel": "ID de cliente de Stripe",
+            "stripeCustomerIdEmpty": "No hay cliente de Stripe registrado",
+            "empty": "No hay dirección de facturación registrada"
+          }
         },
         "Result": {
           "heading": "Factura",
@@ -2989,6 +3064,35 @@
           "backToList": "Volver a tareas",
           "personalWorkspace": "Espacio de trabajo personal"
         }
+      },
+      "FreeCredits": {
+        "title": "Créditos gratuitos",
+        "description": "Otorga créditos gratuitos directamente a un usuario u organización. Los créditos se aplican de inmediato.",
+        "backToAdmin": "Volver al administrador",
+        "Form": {
+          "Fields": {
+            "target": "Destinatario",
+            "credits": "Créditos",
+            "expiryDays": "Caducidad (días)",
+            "referenceNote": "Nota de referencia"
+          },
+          "Tabs": {
+            "organization": "Organización",
+            "user": "Usuario"
+          },
+          "targetRequired": "Selecciona un destinatario",
+          "creditsRequired": "Introduce un número positivo de créditos",
+          "creditsHelper": "Número de créditos que se otorgarán al destinatario.",
+          "expiryHelper": "Opcional. Días hasta que caduquen los créditos. Déjalo en blanco para que no caduquen.",
+          "expiryPlaceholder": "Sin caducidad",
+          "expiryInvalid": "La caducidad debe ser un número entero positivo de días",
+          "referenceNoteHelper": "Nota opcional almacenada en el bucket de créditos para referencia interna.",
+          "referenceNotePlaceholder": "p. ej. Problema de facturación, gesto de cortesía",
+          "submit": "Otorgar créditos",
+          "submitting": "Otorgando créditos…",
+          "grantSuccess": "Créditos gratuitos otorgados",
+          "grantError": "No se pudieron otorgar los créditos gratuitos"
+        }
       }
     },
     "Billing": {
@@ -3002,9 +3106,8 @@
         "credits": "Credits",
         "coupon": "Cupón"
       },
-      "billingPortalDescription": "Descarga tus facturas, cambia tus direcciones de facturación y gestiona otra información de facturación.",
-      "manageYourBilling": "Gestionar facturación",
-      "openingBillingPortal": "Abriendo...",
+      "billingPortalDescription": "Actualiza dirección de facturación, identificación fiscal, métodos de pago, email de facturación y suscripciones en Stripe.",
+      "manageYourBilling": "Gestionar en Stripe",
       "orgAccessRestrictedTitle": "Acceso a Billing restringido",
       "orgAccessRestrictedDescription": "Solo los propietarios y admins de la organización pueden ver los detalles de Billing.",
       "orgAccessRestrictedHint": "Cambia a tu cuenta personal o contacta a un admin de la organización si necesitas acceso.",
@@ -3231,6 +3334,29 @@
         "loading": "Guardando configuración...",
         "error": "No se pudo actualizar la configuración de notificaciones"
       },
+      "BillingDetails": {
+        "title": "Información de facturación",
+        "description": "La dirección de facturación, identificación fiscal, email de facturación y métodos de pago se gestionan en Stripe.",
+        "addressLabel": "Dirección de facturación",
+        "taxIdLabel": "IVA / identificación fiscal",
+        "taxIdVerification": "Estado de verificación: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verificado",
+          "pending": "Pendiente",
+          "unverified": "No verificado",
+          "unavailable": "No disponible",
+          "verification_failed": "Verificación fallida"
+        },
+        "invoiceEmailLabel": "Email de facturación",
+        "invoiceEmailEmpty": "No hay email de facturación registrado",
+        "empty": "No hay dirección de facturación registrada",
+        "loadErrorTitle": "No se pudo cargar la información de facturación",
+        "loadError": "No pudimos cargar tu información de facturación en este momento.",
+        "retry": "Reintentar",
+        "Errors": {
+          "general": "No se pudo abrir Stripe"
+        }
+      },
       "Delete": {
         "title": "Eliminar cuenta",
         "description": "Eliminar permanentemente tu cuenta y todos los datos asociados",
@@ -3453,6 +3579,38 @@
         "Schema": {
           "websiteUrl": "Introduce una URL http o https válida"
         }
+      },
+      "VendorGrants": {
+        "title": "Acceso de proveedores al espacio de trabajo",
+        "description": "Aprueba el acceso de proveedores al espacio de trabajo personal (leer, comentar y crear tareas).",
+        "vendorsTitle": "Proveedores",
+        "vendorsEmpty": "Aún no hay permisos de proveedor.",
+        "statusPending": "Pendiente",
+        "statusGranted": "Concedido",
+        "statusDenied": "Denegado",
+        "statusRevoked": "Revocado",
+        "grantFormTitle": "Conceder acceso de forma proactiva",
+        "GrantForm": {
+          "vendorLabel": "Proveedor",
+          "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
+          "submit": "Conceder acceso",
+          "success": "Acceso de proveedor concedido",
+          "error": "No se pudo conceder el acceso de proveedor"
+        },
+        "Actions": {
+          "approve": "Aprobar",
+          "deny": "Denegar",
+          "revoke": "Revocar",
+          "approveSuccess": "Acceso de proveedor aprobado",
+          "denySuccess": "Acceso de proveedor denegado",
+          "revokeSuccess": "Acceso de proveedor revocado",
+          "approveError": "No se pudo aprobar el acceso de proveedor",
+          "denyError": "No se pudo denegar el acceso de proveedor",
+          "revokeError": "No se pudo revocar el acceso de proveedor",
+          "grant": "Conceder",
+          "grantSuccess": "Acceso de proveedor concedido",
+          "grantError": "No se pudo conceder acceso de proveedor"
+        }
       }
     },
     "Organizations": {
@@ -3472,24 +3630,28 @@
         "delete": "Eliminar",
         "invite": "Invitar miembro",
         "bulkInvite": "Invitar en bloque",
-        "InvoiceEmail": {
-          "title": "Email de facturación",
-          "description": "Dirección de email para recibir facturas y notificaciones de Billing",
-          "label": "Email de facturación",
-          "placeholder": "billing@example.com",
-          "help": "Esta dirección de email recibirá todas las facturas y comunicaciones de Billing de Stripe",
-          "edit": "Editar",
-          "save": "Guardar",
-          "cancel": "Cancelar",
-          "Success": {
-            "update": "Email de facturación actualizado correctamente"
+        "BillingDetails": {
+          "title": "Información de facturación",
+          "description": "La dirección de facturación, identificación fiscal, email de facturación y métodos de pago se gestionan en Stripe.",
+          "addressLabel": "Dirección de facturación",
+          "taxIdLabel": "IVA / identificación fiscal",
+          "taxIdVerification": "Estado de verificación: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verificado",
+            "pending": "Pendiente",
+            "unverified": "No verificado",
+            "unavailable": "No disponible",
+            "verification_failed": "Verificación fallida"
           },
+          "invoiceEmailLabel": "Email de facturación",
+          "invoiceEmailEmpty": "No hay email de facturación registrado",
+          "empty": "No hay dirección de facturación registrada",
+          "loadErrorTitle": "No se pudo cargar la información de facturación",
+          "loadError": "No pudimos cargar la información de facturación de esta organización en este momento.",
+          "retry": "Reintentar",
           "Errors": {
-            "unauthenticated": "Por favor, inicia sesión para continuar",
-            "unauthenticatedAction": "Iniciar sesión",
-            "unauthorized": "Solo los propietarios y admins pueden actualizar el email de facturación",
-            "badInput": "Por favor, introduce una dirección de email válida",
-            "general": "No se pudo actualizar el email de facturación"
+            "unauthorized": "Solo los propietarios y administradores pueden abrir la facturación de Stripe",
+            "general": "No se pudo abrir Stripe"
           }
         },
         "Subscription": {
@@ -3520,6 +3682,38 @@
           "assigned": "Asignados",
           "unused": "Sin usar",
           "manageBilling": "Gestionar facturación"
+        },
+        "VendorGrants": {
+          "title": "Acceso al workspace del proveedor",
+          "description": "Aprueba el acceso de proveedores al espacio de trabajo de esta organización (leer, comentar y crear tareas).",
+          "vendorsTitle": "Proveedores",
+          "vendorsEmpty": "Aún no hay permisos de proveedor.",
+          "statusPending": "Pendiente",
+          "statusGranted": "Concedido",
+          "statusDenied": "Denegado",
+          "statusRevoked": "Revocado",
+          "grantFormTitle": "Conceder acceso de forma proactiva",
+          "GrantForm": {
+            "vendorLabel": "Proveedor",
+            "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
+            "submit": "Conceder acceso",
+            "success": "Acceso del proveedor concedido",
+            "error": "No se pudo conceder el acceso del proveedor"
+          },
+          "Actions": {
+            "approve": "Aprobar",
+            "deny": "Denegar",
+            "revoke": "Revocar",
+            "approveSuccess": "Acceso del proveedor aprobado",
+            "denySuccess": "Acceso del proveedor denegado",
+            "revokeSuccess": "Acceso del proveedor revocado",
+            "approveError": "No se pudo aprobar el acceso del proveedor",
+            "denyError": "No se pudo denegar el acceso del proveedor",
+            "revokeError": "No se pudo revocar el acceso del proveedor",
+            "grant": "Conceder",
+            "grantSuccess": "Acceso de proveedor concedido",
+            "grantError": "No se pudo conceder acceso de proveedor"
+          }
         }
       }
     },
@@ -3918,6 +4112,11 @@
         "failed": "{coworkerName} no pudo completar {taskName}",
         "canceled": "{taskName} fue cancelado"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} solicitó acceso de proveedor al workspace de la organización"
     }
   }
 }

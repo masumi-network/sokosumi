@@ -1,7 +1,7 @@
 import type { Session } from "@sokosumi/utils";
-import { MemberRole } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemberRole } from "@/lib/clients/generated/core";
 
 export {};
 

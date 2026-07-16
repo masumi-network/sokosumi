@@ -1,14 +1,26 @@
-import { creditBucketRepository } from "@sokosumi/database/repositories";
+import {
+  creditBucketRepository,
+  InsufficientBalanceError,
+} from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTaskEventTransaction } from "./task-credits";
+import {
+  createTaskEventTransaction,
+  isInsufficientBalanceError,
+} from "./task-credits";
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: {
-    prepareConsumption: vi.fn(),
-  },
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    creditBucketRepository: {
+      prepareConsumption: vi.fn(),
+    },
+  };
+});
 
 describe("createTaskEventTransaction", () => {
   beforeEach(() => {
@@ -108,14 +120,12 @@ describe("createTaskEventTransaction", () => {
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 
-  it("throws bad request when credits are insufficient", async () => {
+  it("throws when credits are insufficient", async () => {
     const prepareConsumption = vi.mocked(
       creditBucketRepository.prepareConsumption,
     );
     prepareConsumption.mockRejectedValue(
-      new Error(
-        "Insufficient balance: tried to consume 500 but only 200 available",
-      ),
+      new InsufficientBalanceError(500n, 200n),
     );
 
     const tx = {
@@ -137,8 +147,35 @@ describe("createTaskEventTransaction", () => {
       status: 422,
       message:
         "Insufficient balance: tried to consume 500 but only 200 available",
-    } satisfies Pick<HTTPException, "status" | "message">);
+      cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+    } satisfies Pick<HTTPException, "status" | "message" | "cause">);
 
     expect(tx.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("detects insufficient-balance errors by kind", () => {
+    expect(
+      isInsufficientBalanceError(
+        new HTTPException(422, {
+          message: "Insufficient balance",
+          cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+        }),
+      ),
+    ).toBe(true);
+
+    expect(
+      isInsufficientBalanceError(
+        new HTTPException(422, { message: "Insufficient balance" }),
+      ),
+    ).toBe(false);
+
+    expect(
+      isInsufficientBalanceError(
+        new HTTPException(422, {
+          message: "Other error",
+          cause: { kind: "other" },
+        }),
+      ),
+    ).toBe(false);
   });
 });

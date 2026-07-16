@@ -2,7 +2,9 @@ import type { Account } from "@sokosumi/utils";
 import type { ReactNode } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md";
 import { AccountProvider } from "@/lib/auth/types";
-
+import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
+import { AccountBillingDetails } from "./account-billing-details";
+import { AccountVendorGrants } from "./account-vendor-grants";
 import { BrandProfileSection } from "./brand-profile-section";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
@@ -15,6 +17,8 @@ import { PreferencesSection } from "./preferences-section";
 
 interface AccountSettingsProps {
   accounts: Account[];
+  billingDetails?: StripeCustomerBillingDetails;
+  billingDetailsLoadError?: ReactNode;
   designMdValue?: DesignMdProfileValue;
   credentialAccountsLoadError?: ReactNode;
   notificationsOptIn: boolean;
@@ -25,6 +29,8 @@ interface AccountSettingsProps {
 
 export function AccountSettings({
   accounts,
+  billingDetails,
+  billingDetailsLoadError,
   designMdValue,
   credentialAccountsLoadError,
   notificationsOptIn,
@@ -64,6 +70,10 @@ export function AccountSettings({
       </div>
 
       <div className="border-t pt-8">
+        <AccountVendorGrants />
+      </div>
+
+      <div className="border-t pt-8">
         <PreferencesSection />
       </div>
 
@@ -72,6 +82,14 @@ export function AccountSettings({
           notificationsOptIn={notificationsOptIn}
           marketingOptIn={marketingOptIn}
         />
+      </div>
+
+      <div className="border-t pt-8">
+        {billingDetailsLoadError ? (
+          billingDetailsLoadError
+        ) : billingDetails ? (
+          <AccountBillingDetails billingDetails={billingDetails} />
+        ) : null}
       </div>
 
       <div className="border-t pt-8">

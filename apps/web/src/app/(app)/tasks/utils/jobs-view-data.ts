@@ -1,9 +1,9 @@
 import "server-only";
 
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { coreClient } from "@/lib/clients/core.client";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { taskService } from "@/lib/services/task.service";

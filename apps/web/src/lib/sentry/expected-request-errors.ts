@@ -7,6 +7,11 @@ const UNAUTHENTICATED_MESSAGE = /^user is not authenticated$/i;
 const NEXT_ROUTER_HOOKS_MISMATCH =
   /rendered more hooks than during the previous render/i;
 
+/** Next.js masks real RSC failures in production; the client surfaces them as
+ * unhandled rejections without actionable detail (SOKOSUMI-W on `/agents`). */
+export const MASKED_PRODUCTION_RSC_RENDER_ERROR =
+  /an error occurred in the server components render/i;
+
 function getThrownErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -44,6 +49,68 @@ function getEventErrorType(event: ErrorEvent): string | undefined {
   return event.exception?.values?.[0]?.type;
 }
 
+interface CoreApiRequestErrorShape {
+  name: string;
+  status?: number;
+}
+
+function isCoreApiRequestError(
+  error: unknown,
+): error is CoreApiRequestErrorShape {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as CoreApiRequestErrorShape).name === "CoreApiRequestError"
+  );
+}
+
+function isClientErrorHttpStatus(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 401;
+}
+
+/**
+ * User-facing Core API validation/conflict responses rethrown from server
+ * actions (SOKOSUMI-PY, SOKOSUMI-GT, SOKOSUMI-KP on `POST /tasks/[taskId]`).
+ */
+const expectedBusinessErrorMessages: RegExp[] = [
+  /cannot move a task with related tasks/i,
+];
+
+export function isExpectedBusinessRequestError(error: unknown): boolean {
+  if (
+    isCoreApiRequestError(error) &&
+    typeof error.status === "number" &&
+    isClientErrorHttpStatus(error.status)
+  ) {
+    return true;
+  }
+
+  const message = getThrownErrorMessage(error);
+  return expectedBusinessErrorMessages.some((pattern) => pattern.test(message));
+}
+
+export function isExpectedBusinessSentryEvent(event: ErrorEvent): boolean {
+  const message = getEventErrorMessage(event);
+  const type = getEventErrorType(event);
+
+  if (type === "CoreApiRequestError") {
+    const statusTag = event.tags?.["http.status_code"];
+    const statusFromTag =
+      typeof statusTag === "string"
+        ? Number.parseInt(statusTag, 10)
+        : undefined;
+    if (
+      typeof statusFromTag === "number" &&
+      isClientErrorHttpStatus(statusFromTag)
+    ) {
+      return true;
+    }
+  }
+
+  return expectedBusinessErrorMessages.some((pattern) => pattern.test(message));
+}
+
 export function isExpectedAuthRequestError(error: unknown): boolean {
   if (getThrownErrorName(error) === "UnAuthenticatedError") {
     return true;
@@ -68,8 +135,13 @@ export const browserExtensionIgnoreErrors: RegExp[] = [
 
 export const expectedClientNoiseIgnoreErrors: RegExp[] = [
   NEXT_ROUTER_HOOKS_MISMATCH,
+  MASKED_PRODUCTION_RSC_RENDER_ERROR,
   ...browserExtensionIgnoreErrors,
 ];
+
+export function isMaskedProductionRscRenderError(message: string): boolean {
+  return MASKED_PRODUCTION_RSC_RENDER_ERROR.test(message);
+}
 
 export function isExpectedClientNoiseErrorMessage(message: string): boolean {
   return expectedClientNoiseIgnoreErrors.some((pattern) =>
@@ -99,7 +171,10 @@ export function beforeSendServerEvent(
   event: ErrorEvent,
   _hint: EventHint,
 ): ErrorEvent | null {
-  if (isExpectedAuthSentryEvent(event)) {
+  if (
+    isExpectedAuthSentryEvent(event) ||
+    isExpectedBusinessSentryEvent(event)
+  ) {
     return null;
   }
 

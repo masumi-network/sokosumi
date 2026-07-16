@@ -14,6 +14,7 @@ const getConversationsMock = vi.fn();
 const getAgentsByIdInputSchemaMock = vi.fn();
 const getShareByTokenMock = vi.fn();
 const getHistoryMock = vi.fn();
+const getTasksMock = vi.fn();
 const getTasksByIdMock = vi.fn();
 const getUsersByIdNoticesPendingMock = vi.fn();
 const postUsersByIdNoticesByNoticeIdAcknowledgeMock = vi.fn();
@@ -53,6 +54,7 @@ vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
   getConversations: getConversationsMock,
   getHistory: getHistoryMock,
+  getTasks: getTasksMock,
   getShareByToken: getShareByTokenMock,
   getTasksById: getTasksByIdMock,
   getUsersByIdNoticesPending: getUsersByIdNoticesPendingMock,
@@ -582,9 +584,13 @@ describe("core.client", () => {
                 id: "event_1",
                 createdAt: "2026-03-26T10:20:00.000Z",
                 updatedAt: "2026-03-26T10:20:00.000Z",
+                channel: "SOKOSUMI",
                 origin: "SOKOSUMI",
                 status: "READY",
+                comment: null,
                 credits: null,
+                actorName: null,
+                actorImage: null,
               },
             ],
           },
@@ -623,6 +629,7 @@ describe("core.client", () => {
     expect(response.task.events[0]?.createdAt).toEqual(
       new Date("2026-03-26T10:20:00.000Z"),
     );
+    expect(response.task.events[0]?.channel).toBe("SOKOSUMI");
   });
 
   it("normalizes history updatedAt and archivedAt strings through the server transport", async () => {
@@ -683,6 +690,83 @@ describe("core.client", () => {
     );
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
+    );
+  });
+
+  it("normalizes slim task list items without events or jobs arrays", async () => {
+    getTasksMock.mockImplementation(
+      async (options: {
+        responseTransformer?: (data: unknown) => Promise<unknown>;
+      }) => {
+        const rawResponse = {
+          data: [
+            {
+              id: "task_1",
+              createdAt: "2026-07-13T10:00:00.000Z",
+              updatedAt: "2026-07-13T10:05:00.000Z",
+              userId: "user_1",
+              user: { id: "user_1", name: "Ada", image: null },
+              organizationId: null,
+              organization: null,
+              projectId: null,
+              coworkerId: null,
+              coworker: null,
+              name: "Review onboarding",
+              description: null,
+              status: "READY",
+              metadata: null,
+              nextRunAt: null,
+              jobsCount: 2,
+              commentsCount: 4,
+              workspace: {
+                id: "ws_1",
+                organizationId: null,
+                organization: null,
+              },
+            },
+          ],
+          meta: {
+            requestId: "req_123",
+            timestamp: "2026-07-13T10:00:00.000Z",
+            pagination: {
+              cursor: null,
+              limit: 20,
+              total: 1,
+              nextCursor: null,
+            },
+          },
+        };
+
+        return {
+          data: options.responseTransformer
+            ? await options.responseTransformer(rawResponse)
+            : rawResponse,
+          response: new Response("{}", { status: 200 }),
+        };
+      },
+    );
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.getTasks({ limit: 20 });
+
+    expect(getTasksMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+      query: { limit: 20 },
+      responseTransformer: expect.any(Function),
+    });
+    expect(response.data).toHaveLength(1);
+    expect(response.data[0]?.createdAt).toEqual(
+      new Date("2026-07-13T10:00:00.000Z"),
+    );
+    expect(response.data[0]).toMatchObject({
+      jobsCount: 2,
+      commentsCount: 4,
+    });
+    expect(response.data[0]).not.toHaveProperty("events");
+    expect(response.data[0]).not.toHaveProperty("jobs");
+    expect(response.meta?.timestamp).toEqual(
+      new Date("2026-07-13T10:00:00.000Z"),
     );
   });
 

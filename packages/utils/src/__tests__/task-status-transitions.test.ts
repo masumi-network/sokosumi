@@ -1,30 +1,62 @@
 import { describe, expect, it } from "vitest";
 
-import { TaskStatus } from "../task-status.js";
-import { canUserTransitionTaskStatus } from "../task-status-transitions.js";
+import {
+  canUserTransitionTaskStatus,
+  userTaskStatusTransitionRequiresComment,
+} from "../task-status-transitions.js";
 
 describe("canUserTransitionTaskStatus", () => {
   it("rejects same-status transitions", () => {
-    expect(
-      canUserTransitionTaskStatus(TaskStatus.READY, TaskStatus.READY),
-    ).toBe(false);
+    expect(canUserTransitionTaskStatus("READY", "READY")).toBe(false);
   });
 
   it.each([
-    [TaskStatus.DRAFT, TaskStatus.QUEUED],
-    [TaskStatus.QUEUED, TaskStatus.READY],
-    [TaskStatus.READY, TaskStatus.QUEUED],
-    [TaskStatus.CANCELED, TaskStatus.DRAFT],
-  ])("accepts %s → %s", (from, to) => {
+    ["DRAFT", "QUEUED"],
+    ["QUEUED", "READY"],
+    ["READY", "QUEUED"],
+    ["RUNNING", "CANCELED"],
+    ["AWAITING_EXTERNAL", "CANCELED"],
+    ["INPUT_REQUIRED", "CANCELED"],
+    ["APPROVAL_REQUIRED", "CANCELED"],
+    ["AUTHENTICATION_REQUIRED", "CANCELED"],
+    ["OUT_OF_CREDITS", "CANCELED"],
+    ["CREDITS_TOPPED_UP", "CANCELED"],
+    ["COMPLETED", "READY"],
+    ["CANCELED", "READY"],
+  ] as const)("accepts %s → %s", (from, to) => {
     expect(canUserTransitionTaskStatus(from, to)).toBe(true);
   });
 
+  it.each([
+    ["COMPLETED", "DRAFT"],
+    ["FAILED", "DRAFT"],
+    ["FAILED", "READY"],
+    ["CANCELED", "DRAFT"],
+  ] as const)("rejects %s → %s", (from, to) => {
+    expect(canUserTransitionTaskStatus(from, to)).toBe(false);
+  });
+
   it("rejects CREDITS_TOPPED_UP → QUEUED (scheduled column drag)", () => {
-    expect(
-      canUserTransitionTaskStatus(
-        TaskStatus.CREDITS_TOPPED_UP,
-        TaskStatus.QUEUED,
-      ),
-    ).toBe(false);
+    expect(canUserTransitionTaskStatus("CREDITS_TOPPED_UP", "QUEUED")).toBe(
+      false,
+    );
+  });
+});
+
+describe("userTaskStatusTransitionRequiresComment", () => {
+  it.each([
+    ["CANCELED", "READY"],
+    ["COMPLETED", "READY"],
+  ] as const)("requires comment for %s → %s", (from, to) => {
+    expect(userTaskStatusTransitionRequiresComment(from, to)).toBe(true);
+  });
+
+  it.each([
+    ["DRAFT", "READY"],
+    ["READY", "DRAFT"],
+    ["CANCELED", "RUNNING"],
+    ["FAILED", "READY"],
+  ] as const)("does not require comment for %s → %s", (from, to) => {
+    expect(userTaskStatusTransitionRequiresComment(from, to)).toBe(false);
   });
 });

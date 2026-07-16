@@ -1,11 +1,9 @@
-import type { createTaskLink } from "@/lib/actions/task/action";
 import {
   type TaskLink,
-  TaskLinkRelation,
-  type TaskLinkRelation as TaskLinkRelationValue,
+  type TaskLinkRelation,
   type TaskListItem,
-} from "@/lib/clients/generated/core/types.gen";
-import type { TaskStatus } from "@/lib/types/core-dto";
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 
 export type { TaskStatus };
 
@@ -19,66 +17,7 @@ export interface VisibleTaskLink {
   id: string;
   name: string;
   status: TaskStatus;
-  relation: TaskLinkRelationValue;
-}
-
-export const TASK_STATUS = {
-  DRAFT: "DRAFT",
-  QUEUED: "QUEUED",
-  READY: "READY",
-  INPUT_REQUIRED: "INPUT_REQUIRED",
-  APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
-  AUTHENTICATION_REQUIRED: "AUTHENTICATION_REQUIRED",
-  OUT_OF_CREDITS: "OUT_OF_CREDITS",
-  CREDITS_TOPPED_UP: "CREDITS_TOPPED_UP",
-  RUNNING: "RUNNING",
-  AWAITING_EXTERNAL: "AWAITING_EXTERNAL",
-  COMPLETED: "COMPLETED",
-  FAILED: "FAILED",
-  CANCEL_REQUESTED: "CANCEL_REQUESTED",
-  CANCELED: "CANCELED",
-} as const satisfies Record<TaskStatus, TaskStatus>;
-
-type TaskLinkActionInput = Pick<
-  Parameters<typeof createTaskLink>[0],
-  "type" | "direction"
->;
-
-export function getTaskLinkActionInput(
-  relation: TaskLinkRelationValue,
-): TaskLinkActionInput {
-  switch (relation) {
-    case TaskLinkRelation.RELATED:
-      return {
-        type: "RELATES" as TaskLinkActionInput["type"],
-        direction: "outgoing",
-      };
-    case TaskLinkRelation.BLOCKS:
-      return {
-        type: "BLOCKS" as TaskLinkActionInput["type"],
-        direction: "outgoing",
-      };
-    case TaskLinkRelation.BLOCKED_BY:
-      return {
-        type: "BLOCKS" as TaskLinkActionInput["type"],
-        direction: "incoming",
-      };
-    case TaskLinkRelation.PARENT:
-      return {
-        type: "PARENT" as TaskLinkActionInput["type"],
-        direction: "outgoing",
-      };
-    case TaskLinkRelation.CHILD:
-      return {
-        type: "PARENT" as TaskLinkActionInput["type"],
-        direction: "incoming",
-      };
-    case TaskLinkRelation.DUPLICATE:
-      return {
-        type: "DUPLICATE" as TaskLinkActionInput["type"],
-        direction: "outgoing",
-      };
-  }
+  relation: TaskLinkRelation;
 }
 
 export function mapTaskListItemToTaskPickerTask(

@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { Prisma, TaskStatus } from "@sokosumi/database";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -18,6 +17,14 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
+import {
+  applyTaskListStatusWhere,
+  buildTaskListStatusWhere,
+} from "@/helpers/task-list-filters";
+import {
+  buildCoworkerTaskListAccessFilter,
+  hasGrantedWorkspaceAccess,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -133,6 +140,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       sort,
       status: statuses,
     } = queryParams;
+    const statusWhere = buildTaskListStatusWhere({
+      statuses,
+    });
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -151,47 +161,68 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
 
-      if (authContext.delegation) {
+      if (statuses?.includes(TaskStatus.DRAFT)) {
+        throw badRequest(
+          "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
+        );
+      }
+
+      const hasWorkspaceGrant = authContext.context
+        ? await hasGrantedWorkspaceAccess({
+            vendorId: authContext.vendorId,
+            workspaceId: requireWorkspaceContext(c.var.workspaceContext)
+              .workspaceId,
+          })
+        : false;
+
+      const listAccessFilter = buildCoworkerTaskListAccessFilter({
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+        hasWorkspaceGrant,
+      });
+
+      if (authContext.context) {
         const workspaceContext = requireWorkspaceContext(
           c.var.workspaceContext,
         );
-        where = {
-          archivedAt: null,
-          workspaceId: workspaceContext.workspaceId,
-          ...(scope === "owned"
-            ? { userId: authContext.delegation.userId }
-            : {}),
-          ...(statuses ? { status: { in: statuses } } : {}),
-          ...(coworkerId ? { coworkerId } : {}),
-          ...projectFilter,
-          ...searchFilter,
-        };
+        where = applyTaskListStatusWhere(
+          {
+            archivedAt: null,
+            workspaceId: workspaceContext.workspaceId,
+            AND: [listAccessFilter],
+            ...(scope === "owned"
+              ? { userId: authContext.context.userId }
+              : {}),
+            ...(coworkerId ? { coworkerId } : {}),
+            ...projectFilter,
+            ...searchFilter,
+          },
+          statusWhere,
+        );
       } else {
-        if (statuses?.includes(TaskStatus.DRAFT)) {
-          throw badRequest(
-            "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
-          );
-        }
-        where = {
-          coworkerId: authContext.coworkerId,
-          archivedAt: null,
-          ...(statuses ? { status: { in: statuses } } : {}),
-          ...projectFilter,
-          ...searchFilter,
-          NOT: { status: { in: [TaskStatus.DRAFT] } },
-        };
+        where = applyTaskListStatusWhere(
+          {
+            archivedAt: null,
+            AND: [listAccessFilter],
+            ...projectFilter,
+            ...searchFilter,
+          },
+          statusWhere,
+        );
       }
     } else {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      where = {
-        archivedAt: null,
-        workspaceId: workspaceContext.workspaceId,
-        ...(scope === "owned" ? { userId: authContext.userId } : {}),
-        ...(statuses ? { status: { in: statuses } } : {}),
-        ...(coworkerId ? { coworkerId } : {}),
-        ...projectFilter,
-        ...searchFilter,
-      };
+      where = applyTaskListStatusWhere(
+        {
+          archivedAt: null,
+          workspaceId: workspaceContext.workspaceId,
+          ...(scope === "owned" ? { userId: authContext.userId } : {}),
+          ...(coworkerId ? { coworkerId } : {}),
+          ...projectFilter,
+          ...searchFilter,
+        },
+        statusWhere,
+      );
     }
 
     const takePlusOne = take + 1;
@@ -202,10 +233,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             { id: "asc" as const },
           ] as const)
         : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
-    // Read-only list + count: run as independent queries instead of an
-    // interactive transaction. The transaction added a 5s timeout that the
-    // heavy nested include could exceed (esp. on a cold remote DB), surfacing
-    // as a 500. A list view does not need list/count snapshot consistency.
+    // A list view does not need list/count snapshot consistency, so run these
+    // as independent queries. The list include uses relation counts instead of
+    // loading each task's full event and job graphs.
     const [tasks, count] = await Promise.all([
       prisma.task.findMany({
         where,

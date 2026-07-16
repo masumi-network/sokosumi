@@ -1,8 +1,8 @@
-import { TaskEventOrigin } from "@sokosumi/database";
-import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
+import { Channel, GrantResumeStatus, TaskStatus } from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
 import type { AuthenticationContext } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
@@ -14,6 +14,17 @@ import {
 const coworkerContext: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
+};
+
+const delegatedCoworkerContext: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
+  context: {
+    userId: "user_123",
+    organizationId: null,
+  },
 };
 
 const userContext: AuthenticationContext = {
@@ -100,16 +111,6 @@ describe("validateStatusTransition", () => {
           coworkerContext,
           TaskStatus.READY,
           TaskStatus.COMPLETED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("READY → OUT_OF_CREDITS", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.READY,
-          TaskStatus.OUT_OF_CREDITS,
         ),
       ).not.toThrow();
     });
@@ -284,16 +285,6 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("RUNNING → OUT_OF_CREDITS", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.RUNNING,
-          TaskStatus.OUT_OF_CREDITS,
-        ),
-      ).not.toThrow();
-    });
-
     it("AWAITING_EXTERNAL → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -314,47 +305,23 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("CANCEL_REQUESTED → CANCELED", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.CANCEL_REQUESTED,
-          TaskStatus.CANCELED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("CANCEL_REQUESTED → OUT_OF_CREDITS", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.CANCEL_REQUESTED,
-          TaskStatus.OUT_OF_CREDITS,
-        ),
-      ).not.toThrow();
-    });
-
     it.each([
       [TaskStatus.READY, TaskStatus.AWAITING_EXTERNAL],
       [TaskStatus.READY, TaskStatus.INPUT_REQUIRED],
       [TaskStatus.READY, TaskStatus.FAILED],
       [TaskStatus.INPUT_REQUIRED, TaskStatus.AWAITING_EXTERNAL],
-      [TaskStatus.INPUT_REQUIRED, TaskStatus.OUT_OF_CREDITS],
       [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.AWAITING_EXTERNAL],
-      [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.OUT_OF_CREDITS],
       [TaskStatus.OUT_OF_CREDITS, TaskStatus.CANCELED],
       [TaskStatus.OUT_OF_CREDITS, TaskStatus.FAILED],
       [TaskStatus.OUT_OF_CREDITS, TaskStatus.COMPLETED],
       [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.AWAITING_EXTERNAL],
       [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.INPUT_REQUIRED],
       [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.AUTHENTICATION_REQUIRED],
-      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.OUT_OF_CREDITS],
       [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.COMPLETED],
       [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.FAILED],
       [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.CANCELED],
       [TaskStatus.AWAITING_EXTERNAL, TaskStatus.INPUT_REQUIRED],
       [TaskStatus.AWAITING_EXTERNAL, TaskStatus.AUTHENTICATION_REQUIRED],
-      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.OUT_OF_CREDITS],
       [TaskStatus.AWAITING_EXTERNAL, TaskStatus.COMPLETED],
       [TaskStatus.AWAITING_EXTERNAL, TaskStatus.FAILED],
       [TaskStatus.AWAITING_EXTERNAL, TaskStatus.CANCELED],
@@ -376,14 +343,24 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
-    it("COMPLETED has no outgoing transitions", () => {
+    it("COMPLETED → RUNNING (agent reopen)", () => {
       expect(() =>
         validateStatusTransition(
           coworkerContext,
           TaskStatus.COMPLETED,
           TaskStatus.RUNNING,
         ),
-      ).toThrow();
+      ).not.toThrow();
+    });
+
+    it("CANCELED → RUNNING (agent reopen)", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CANCELED,
+          TaskStatus.RUNNING,
+        ),
+      ).not.toThrow();
     });
 
     it("FAILED has no outgoing transitions", () => {
@@ -396,14 +373,24 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
-    it("CANCELED has no outgoing transitions", () => {
+    it("CANCELED → RUNNING is invalid for users", () => {
       expect(() =>
         validateStatusTransition(
-          coworkerContext,
+          userContext,
           TaskStatus.CANCELED,
           TaskStatus.RUNNING,
         ),
-      ).toThrow();
+      ).toThrow(/Invalid status transition/);
+    });
+
+    it("COMPLETED → RUNNING is invalid for users", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow(/Invalid status transition/);
     });
 
     it("OUT_OF_CREDITS → CREDITS_TOPPED_UP is invalid for coworkers", () => {
@@ -426,13 +413,17 @@ describe("validateStatusTransition", () => {
       ).toThrow("Invalid status transition: same status");
     });
 
-    it("CANCEL_REQUESTED → RUNNING is invalid for coworkers", () => {
+    it.each([
+      [TaskStatus.READY, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.INPUT_REQUIRED, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.APPROVAL_REQUIRED, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.RUNNING, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.OUT_OF_CREDITS],
+    ])("rejects manual %s → OUT_OF_CREDITS", (from, to) => {
       expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.CANCEL_REQUESTED,
-          TaskStatus.RUNNING,
-        ),
+        validateStatusTransition(coworkerContext, from, to),
       ).toThrow();
     });
 
@@ -499,17 +490,17 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("CANCELED → DRAFT", () => {
+    it("rejects CANCELED → DRAFT (terminal)", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
           TaskStatus.CANCELED,
           TaskStatus.DRAFT,
         ),
-      ).not.toThrow();
+      ).toThrow(/Invalid status transition/);
     });
 
-    it("CANCELED → READY", () => {
+    it("CANCELED → READY (user reopen)", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
@@ -517,6 +508,46 @@ describe("validateStatusTransition", () => {
           TaskStatus.READY,
         ),
       ).not.toThrow();
+    });
+
+    it("COMPLETED → READY (user reopen)", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("COMPLETED → READY for delegated coworker user-context", () => {
+      expect(() =>
+        validateStatusTransition(
+          delegatedCoworkerContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("rejects agent COMPLETED → READY", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.READY,
+        ),
+      ).toThrow(/Invalid status transition/);
+    });
+
+    it("rejects FAILED → READY", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.FAILED,
+          TaskStatus.READY,
+        ),
+      ).toThrow(/Invalid status transition/);
     });
 
     it("OUT_OF_CREDITS → CREDITS_TOPPED_UP", () => {
@@ -529,43 +560,17 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("RUNNING → CANCEL_REQUESTED", () => {
+    it.each([
+      [TaskStatus.RUNNING, TaskStatus.CANCELED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.CANCELED],
+      [TaskStatus.INPUT_REQUIRED, TaskStatus.CANCELED],
+      [TaskStatus.APPROVAL_REQUIRED, TaskStatus.CANCELED],
+      [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.CANCELED],
+      [TaskStatus.OUT_OF_CREDITS, TaskStatus.CANCELED],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.CANCELED],
+    ])("accepts %s → %s (direct cancel)", (from, to) => {
       expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.RUNNING,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("OUT_OF_CREDITS → CANCEL_REQUESTED", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.OUT_OF_CREDITS,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("AWAITING_EXTERNAL → CANCEL_REQUESTED", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.AWAITING_EXTERNAL,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("APPROVAL_REQUIRED → CANCEL_REQUESTED", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.APPROVAL_REQUIRED,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
+        validateStatusTransition(userContext, from, to),
       ).not.toThrow();
     });
   });
@@ -641,16 +646,6 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
-    it("rejects CANCEL_REQUESTED → CANCELED", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.CANCEL_REQUESTED,
-          TaskStatus.CANCELED,
-        ),
-      ).toThrow();
-    });
-
     it("rejects QUEUED → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -666,7 +661,8 @@ describe("validateStatusTransition", () => {
     const delegatedCoworkerContext: AuthenticationContext = {
       actor: "coworker",
       coworkerId: "cow_123",
-      delegation: {
+      vendorId: TEST_VENDOR_ID,
+      context: {
         userId: "user_123",
         organizationId: null,
       },
@@ -820,6 +816,55 @@ describe("mapTask", () => {
     expect(result.share).toEqual(share);
   });
 
+  it("exposes grant fields only while status is GRANT_PENDING", () => {
+    const grantId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const parkedTask = {
+      id: "tsk_parked",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      organizationId: null,
+      user: defaultTaskUser,
+      organization: null,
+      coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
+      name: "Parked task",
+      description: null,
+      status: TaskStatus.GRANT_PENDING,
+      grantResumeStatus: GrantResumeStatus.READY,
+      pendingVendorGrantId: grantId,
+      share: null,
+      jobs: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    const readyTask = {
+      ...parkedTask,
+      id: "tsk_ready",
+      status: TaskStatus.READY,
+      grantResumeStatus: GrantResumeStatus.READY,
+      pendingVendorGrantId: grantId,
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(parkedTask)).toMatchObject({
+      status: TaskStatus.GRANT_PENDING,
+      grantResumeStatus: GrantResumeStatus.READY,
+      pendingVendorGrantId: grantId,
+    });
+    expect(mapTask(readyTask)).toMatchObject({
+      status: TaskStatus.READY,
+      grantResumeStatus: null,
+      pendingVendorGrantId: null,
+    });
+  });
+
   it("serializes nested job workspaces", () => {
     const task = {
       id: "tsk_123",
@@ -887,7 +932,7 @@ describe("mapTask", () => {
     });
   });
 
-  it("aggregates credits from multiple charged events", () => {
+  it("aggregates credits from multiple charged events (historical rows)", () => {
     const task = {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -919,7 +964,7 @@ describe("mapTask", () => {
           status: TaskStatus.CANCELED,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_cancel",
@@ -938,7 +983,7 @@ describe("mapTask", () => {
           status: TaskStatus.READY,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: "user_123",
           coworkerId: null,
           transactionId: null,
@@ -954,7 +999,7 @@ describe("mapTask", () => {
           status: TaskStatus.COMPLETED,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_complete",
@@ -1009,7 +1054,7 @@ describe("mapTask", () => {
           status: TaskStatus.COMPLETED,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_complete",
@@ -1026,7 +1071,7 @@ describe("mapTask", () => {
           status: TaskStatus.CREDITS_TOPPED_UP,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: "user_123",
           coworkerId: null,
           transactionId: null,
@@ -1077,7 +1122,7 @@ describe("mapTask", () => {
           status: TaskStatus.OUT_OF_CREDITS,
           comment: null,
           authenticationUrl: null,
-          origin: TaskEventOrigin.SOKOSUMI,
+          channel: Channel.SOKOSUMI,
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_partial",

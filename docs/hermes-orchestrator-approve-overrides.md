@@ -44,8 +44,9 @@ Web use this as the shared approve-time contract for `sokosumi_create_task` and
   can be a UUID or cuid, up to 64 characters, using alphanumeric characters,
   `_`, and `-`.
 - Literal JSON `null` means personal scope. The orchestrator creates the task
-  without `X-Delegation-Organization-Id`, so it lands in the user's private
-  board.
+  without `X-Context-Organization-Id`, so it lands in the user's private
+  board. (Legacy `X-Delegation-Organization-Id` is still accepted at runtime
+  when context headers are absent.)
 - Unknown fields under `overrides` should be ignored for forward
   compatibility.
 

@@ -1,10 +1,9 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-
 import JobDetails from "@/components/jobs/job-details/job-details";
 import type { Job } from "@/lib/clients/generated/core";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const useQueryMock = vi.fn();
@@ -115,6 +114,7 @@ function createJob(overrides?: Partial<Job>): Job {
       overrideLegalOther: null,
     },
     ...overrides,
+    jobStatusSettled: overrides?.jobStatusSettled ?? false,
   };
 }
 

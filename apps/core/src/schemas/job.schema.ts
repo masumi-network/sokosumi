@@ -9,6 +9,12 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import {
+  agentJobStatusSchema,
+  jobTypeSchema,
+  onChainJobStatusSchema,
+  sokosumiJobStatusSchema,
+} from "@/schemas/domain-enums.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 
@@ -33,7 +39,9 @@ export const jobEventSchema = z
     id: z.string().openapi({ example: "event_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    status: z.enum(AgentJobStatus).openapi({ example: AgentJobStatus.RUNNING }),
+    status: agentJobStatusSchema.openapi({
+      example: AgentJobStatus.RUNNING,
+    }),
     inputSchema: z.string().nullish().openapi({ example: "input_schema" }),
     input: jobInputSchema.nullish(),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
@@ -64,14 +72,14 @@ export const jobSummarySchema = z
     workspace: workspaceSummarySchema,
     taskId: z.string().nullish().openapi({ example: "task_123" }),
     name: z.string().nullish().openapi({ example: "My Job" }),
-    jobType: z.enum(JobType).openapi({ example: JobType.PAID }),
-    status: z
-      .enum(SokosumiJobStatus)
-      .openapi({ example: SokosumiJobStatus.PROCESSING }),
+    jobType: jobTypeSchema.openapi({ example: JobType.PAID }),
+    status: sokosumiJobStatusSchema.openapi({
+      example: SokosumiJobStatus.PROCESSING,
+    }),
     credits: z.number().openapi({ example: 5 }),
     onChainStatus: z
-      .enum(OnChainJobStatus)
-      .nullish()
+      .union([onChainJobStatusSchema, z.null()])
+      .optional()
       .openapi({ example: OnChainJobStatus.RESULT_SUBMITTED }),
     onChainTransactionHash: z
       .string()
@@ -88,6 +96,11 @@ export const jobSummarySchema = z
     unlockTime: dateTimeSchema.nullish(),
     externalDisputeUnlockTime: dateTimeSchema.nullish(),
     sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
+    jobStatusSettled: z.boolean().openapi({
+      example: false,
+      description:
+        "True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).",
+    }),
   })
   .openapi("JobSummary");
 
@@ -156,7 +169,9 @@ export const jobDetailsEventSchema = z.object({
   id: z.string().openapi({ example: "event_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
-  status: z.enum(AgentJobStatus).openapi({ example: AgentJobStatus.COMPLETED }),
+  status: agentJobStatusSchema.openapi({
+    example: AgentJobStatus.COMPLETED,
+  }),
   inputSchema: z.string().nullish().openapi({ example: "input_schema_123" }),
   input: jobDetailsEventInputSchema.nullish(),
   result: z.string().nullish().openapi({ example: "# Result" }),
@@ -183,14 +198,14 @@ export const jobSchema = z
     }),
     taskId: z.string().nullish().openapi({ example: "task_123" }),
     name: z.string().nullish().openapi({ example: "Research Task" }),
-    jobType: z.enum(JobType).openapi({ example: JobType.PAID }),
-    status: z
-      .enum(SokosumiJobStatus)
-      .openapi({ example: SokosumiJobStatus.COMPLETED }),
+    jobType: jobTypeSchema.openapi({ example: JobType.PAID }),
+    status: sokosumiJobStatusSchema.openapi({
+      example: SokosumiJobStatus.COMPLETED,
+    }),
     credits: z.number().openapi({ example: 5 }),
     onChainStatus: z
-      .enum(OnChainJobStatus)
-      .nullish()
+      .union([onChainJobStatusSchema, z.null()])
+      .optional()
       .openapi({ example: OnChainJobStatus.RESULT_SUBMITTED }),
     onChainTransactionHash: z
       .string()
@@ -207,6 +222,11 @@ export const jobSchema = z
     unlockTime: dateTimeSchema.nullish(),
     externalDisputeUnlockTime: dateTimeSchema.nullish(),
     sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
+    jobStatusSettled: z.boolean().openapi({
+      example: false,
+      description:
+        "True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).",
+    }),
     input: z.string().nullish().openapi({
       example: '{"prompt":"How many planets are in the solar system?"}',
     }),

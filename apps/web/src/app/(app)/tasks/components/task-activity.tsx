@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  BlobStatus,
   extractFileLikeLinks,
   extractHttpLinks,
   resolveIpfsOrHttpUrl,
-  TaskEventOrigin,
-  TaskStatus,
+  type SubscriptionPlanName,
 } from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -22,7 +20,6 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
@@ -39,11 +36,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
+import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import {
-  ORIGIN_APP_NAME_KEY_MAP,
-  ORIGIN_ICON_MAP,
-} from "@/lib/constants/task-event-origin-icons";
+  CHANNEL_APP_NAME_KEY_MAP,
+  CHANNEL_ICON_MAP,
+} from "@/lib/constants/channel-icons";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
@@ -120,7 +118,12 @@ interface TaskActivityProps {
   currentUser?: ({ id: string } & ActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
-  isFreePlan?: boolean;
+  /**
+   * Viewer's subscription plan for out-of-credits billing CTAs.
+   * `null` when the plan is unavailable (admin/read-only, membership miss) —
+   * show status copy but no billing link for the viewer.
+   */
+  viewerPlan?: SubscriptionPlanName | null;
   canComment?: boolean;
 }
 
@@ -179,7 +182,7 @@ export function TaskActivitySection({
   currentUser,
   expandLabel = "Expand",
   collapseLabel = "Show less",
-  isFreePlan = true,
+  viewerPlan = null,
   canComment = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
@@ -256,7 +259,8 @@ export function TaskActivitySection({
       status: null,
       comment: trimmedComment,
       authenticationUrl: null,
-      origin: TaskEventOrigin.SOKOSUMI,
+      channel: Channel.SOKOSUMI,
+      origin: Channel.SOKOSUMI,
       userId: currentUser?.id ?? null,
       user: currentUser
         ? {
@@ -449,12 +453,12 @@ export function TaskActivitySection({
             const action = event.comment
               ? actionCommentedLabel
               : actionUpdatedStatusLabel;
-            const OriginIcon = ORIGIN_ICON_MAP[event.origin];
-            const originAppName = t(
-              `originApp.${ORIGIN_APP_NAME_KEY_MAP[event.origin]}`,
+            const ChannelIcon = CHANNEL_ICON_MAP[event.channel];
+            const channelAppName = t(
+              `channelApp.${CHANNEL_APP_NAME_KEY_MAP[event.channel]}`,
             );
             const originFromLabel = t("originFromApp", {
-              appName: originAppName,
+              appName: channelAppName,
             });
             const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
             const formattedComment = event.comment
@@ -492,17 +496,26 @@ export function TaskActivitySection({
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
               Boolean(event.authenticationUrl);
-            const shouldShowBillingButton =
+            const isOutOfCreditsEvent =
               index === 0 && event.status === TaskStatus.OUT_OF_CREDITS;
+            // Only link to billing when we know the viewer's plan. Unknown
+            // (admin / outside workspace) must not pretend the viewer is free.
+            const shouldShowBillingButton =
+              isOutOfCreditsEvent && viewerPlan != null;
+            const isFreePlan = viewerPlan === "free";
             const billingCtaLabel = isFreePlan
               ? t("billingCta.upgradePlan")
               : t("billingCta.addCredits");
             const billingCtaHref = isFreePlan
               ? "/billing?tab=subscription"
               : "/billing?tab=credits";
+            const billingPlaceholderLabel =
+              viewerPlan == null
+                ? t("billingCta.statusUnavailable")
+                : t("billingCta.placeholder");
             const isCommentEvent = Boolean(formattedComment);
             const isAuthEvent = shouldShowAuthenticateButton;
-            const isBillingEvent = shouldShowBillingButton;
+            const isBillingEvent = isOutOfCreditsEvent;
             const shouldShowBillingPlaceholder =
               isBillingEvent && !formattedComment;
             const isCardEvent = isCommentEvent || isAuthEvent || isBillingEvent;
@@ -558,7 +571,7 @@ export function TaskActivitySection({
                           {!event.status ? (
                             <>
                               <span>{originFromLabel}</span>
-                              <OriginIcon
+                              <ChannelIcon
                                 className="text-muted-foreground/50 size-3.5 shrink-0"
                                 role="img"
                                 aria-label={originFromLabel}
@@ -578,7 +591,7 @@ export function TaskActivitySection({
                             />
                             <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                               <span>{originFromLabel}</span>
-                              <OriginIcon
+                              <ChannelIcon
                                 className="text-muted-foreground/50 size-3.5 shrink-0"
                                 role="img"
                                 aria-label={originFromLabel}
@@ -605,7 +618,7 @@ export function TaskActivitySection({
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
                       <p className="text-foreground/70 text-sm">
-                        {t("billingCta.placeholder")}
+                        {billingPlaceholderLabel}
                       </p>
                     ) : null}
                     {hasCommentSources ? (

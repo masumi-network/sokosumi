@@ -1,6 +1,5 @@
 "use client";
 
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
@@ -27,6 +26,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 import { filterCoworkersForUiListing } from "@/lib/coworkers/ui-restricted-slugs";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";

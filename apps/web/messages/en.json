@@ -1220,6 +1220,7 @@
           "DRAFT": "Draft",
           "QUEUED": "Queued",
           "READY": "Ready",
+          "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
           "APPROVAL_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "Authentication required",
@@ -1229,7 +1230,6 @@
           "AWAITING_EXTERNAL": "Awaiting external",
           "COMPLETED": "Completed",
           "FAILED": "Failed",
-          "CANCEL_REQUESTED": "Cancel requested",
           "CANCELED": "Canceled"
         }
       },
@@ -1425,6 +1425,19 @@
         "inputRequired": "Input Required",
         "done": "Done"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Vendor access approval required",
+        "descriptionOne": "{vendorName} needs access to work with tasks in this workspace.",
+        "descriptionMany": "{count} vendors need access to work with tasks in this workspace.",
+        "descriptionMember": "A coworker requested vendor access. A workspace owner or admin must approve it.",
+        "descriptionMemberMany": "{count} vendors requested access. A workspace owner or admin must approve it.",
+        "parkedTasksHint": "{count, plural, one {# task is blocked} other {# tasks are blocked}} until access is approved.",
+        "approve": "Approve access",
+        "review": "Review details",
+        "approveSuccess": "Vendor access approved.",
+        "approveError": "Failed to approve vendor access",
+        "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
+      },
       "Actions": {
         "add": "Add",
         "addTask": "Add Task",
@@ -1481,6 +1494,7 @@
           "DRAFT": "Draft",
           "QUEUED": "Queued",
           "READY": "Ready",
+          "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
           "APPROVAL_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "Authentication required",
@@ -1490,7 +1504,6 @@
           "AWAITING_EXTERNAL": "Awaiting external",
           "COMPLETED": "Completed",
           "FAILED": "Failed",
-          "CANCEL_REQUESTED": "Cancel requested",
           "CANCELED": "Canceled"
         }
       },
@@ -1518,11 +1531,13 @@
         "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
+        "pendingApproval": "Pending approval",
         "owner": "Owner",
         "organization": "Organization",
         "project": "Project",
         "personalWorkspace": "Personal",
         "coworker": "Coworker",
+        "credits": "Credits",
         "created": "Created",
         "updated": "Updated",
         "description": "Description",
@@ -1553,7 +1568,7 @@
         "actorUser": "User",
         "actorSystem": "System",
         "originFromApp": "from {appName}",
-        "originApp": {
+        "channelApp": {
           "sokosumi": "Sokosumi",
           "slack": "Slack",
           "teams": "Teams",
@@ -1573,13 +1588,13 @@
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
         "statusLabels": {
           "outOfCredits": "Out of credits",
-          "creditsToppedUp": "Credits topped up",
-          "cancelRequested": "Cancel requested"
+          "creditsToppedUp": "Credits topped up"
         },
         "billingCta": {
           "upgradePlan": "Get more credits",
           "addCredits": "Add credits",
-          "placeholder": "This task needs credits to continue. Open billing to proceed."
+          "placeholder": "This task needs credits to continue. Open billing to proceed.",
+          "statusUnavailable": "This task is out of credits."
         },
         "actions": {
           "edit": "Edit",
@@ -1588,8 +1603,15 @@
           "confirmArchiveDescription": "This hides the task from your list. It is not permanently removed from the database.",
           "archiveError": "Failed to archive task",
           "markAsReady": "Mark as Ready",
+          "reopenToReady": "Reopen to Ready",
+          "reopenToReadyTitle": "Reopen task",
+          "reopenToReadyDescription": "Add a comment so your coworker knows what to do next. The task will move back to Ready.",
+          "reopenToReadyCommentLabel": "Comment",
+          "reopenToReadyCommentPlaceholder": "Describe what still needs to be done…",
+          "reopenToReadyCommentRequired": "A comment is required to reopen this task",
+          "reopenToReadyConfirm": "Reopen to Ready",
           "revertToDraft": "Revert to Draft",
-          "cancelRequest": "Cancel Request",
+          "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
           "moveToWorkspace": "Move to workspace",
@@ -1662,7 +1684,24 @@
           "switchError": "Failed to switch workspace. Please try again."
         },
         "clonedFrom": "Cloned from {name}",
-        "schedule": "Schedule"
+        "schedule": "Schedule",
+        "VendorGrantApproval": {
+          "title": "Vendor access approval required",
+          "description": "A coworker created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
+          "descriptionWithCoworker": "{coworkerName} created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
+          "approve": "Approve access",
+          "deny": "Deny access",
+          "review": "Review details",
+          "approveSuccess": "Vendor access approved. This task is now active.",
+          "denySuccess": "Vendor access denied. This task was canceled.",
+          "approveError": "Failed to approve vendor access",
+          "denyError": "Failed to deny vendor access"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "Waiting for vendor access approval",
+          "description": "This task is blocked until a workspace owner or admin approves vendor access.",
+          "descriptionWithCoworker": "{coworkerName} created this task. It is blocked until a workspace owner or admin approves vendor access."
+        }
       },
       "NewTask": {
         "title": "New Task",
@@ -1841,7 +1880,6 @@
             "AWAITING_EXTERNAL": "Waiting",
             "COMPLETED": "Complete",
             "FAILED": "Failed",
-            "CANCEL_REQUESTED": "Canceling",
             "CANCELED": "Canceled"
           },
           "jobStatusAbbreviations": {
@@ -2687,7 +2725,6 @@
       "billingPortalTitle": "Billing Portal",
       "billingPortalDescription": "Open Stripe Billing Portal to manage your subscriptions and invoices.",
       "billingPortalDescriptionWithPlan": "You are currently on {plan}. Manage your subscriptions, billing details, and invoices in Stripe.",
-      "openingBillingPortal": "Opening...",
       "billingPortalCta": "Open billing portal",
       "freePrice": "Free",
       "customPrice": "Custom",
@@ -2859,20 +2896,25 @@
         "cardTitle": "New invoice",
         "newGrant": "New invoice",
         "backToList": "Back to list",
+        "delete": "Delete",
+        "deleting": "Deleting…",
+        "deleteSuccess": "Invoice deleted",
+        "deleteError": "Failed to delete invoice",
+        "deleteConfirmTitle": "Delete invoice?",
+        "deleteConfirmDescription": "Draft invoices are permanently deleted. Open invoices are voided and can no longer be paid.",
+        "cancel": "Cancel",
         "Form": {
           "Fields": {
             "target": "Recipient",
             "organization": "Organization",
             "credits": "Credits",
             "expiryDays": "Expiry (days)",
-            "price": "Price per credit",
-            "markFree": "Mark as free"
+            "price": "Price per credit"
           },
           "Tabs": {
             "organization": "Organization",
             "user": "User"
           },
-          "markFreeHelper": "Applies the support coupon so the invoice is $0. The recipient still receives the full credits.",
           "targetRequired": "Select a recipient",
           "organizationRequired": "Select an organization",
           "creditsRequired": "Enter a positive number of credits",
@@ -2886,7 +2928,32 @@
           "createSuccess": "Invoice created",
           "createError": "Failed to create invoice",
           "pricePlaceholder": "Select a price",
-          "priceRequired": "Select a price"
+          "priceRequired": "Select a price",
+          "billingLoadErrorTitle": "Could not load billing details",
+          "billingLoadError": "Failed to load recipient billing details",
+          "billingRefresh": "Refresh",
+          "billingIncomplete": "Recipient billing address with country is required",
+          "billingIncompleteUser": "This user must add a billing address with country in their account settings before you can create an invoice.",
+          "billingIncompleteOrganization": "This organization must add a billing address with country in its organization settings before you can create an invoice.",
+          "BillingDetails": {
+            "title": "Billing information",
+            "description": "Billing address and tax details stored on the recipient's Stripe customer.",
+            "addressLabel": "Billing address",
+            "taxIdLabel": "VAT / tax ID",
+            "taxIdVerification": "Verification status: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verified",
+              "pending": "Pending",
+              "unverified": "Unverified",
+              "unavailable": "Unavailable",
+              "verification_failed": "Verification failed"
+            },
+            "invoiceEmailLabel": "Invoice email",
+            "invoiceEmailEmpty": "No invoice email on file",
+            "stripeCustomerIdLabel": "Stripe customer ID",
+            "stripeCustomerIdEmpty": "No Stripe customer on file",
+            "empty": "No billing address on file"
+          }
         },
         "Result": {
           "heading": "Invoice",
@@ -2941,6 +3008,35 @@
           }
         }
       },
+      "FreeCredits": {
+        "title": "Free credits",
+        "description": "Grant free credits directly to a user or organization. Credits are applied immediately.",
+        "backToAdmin": "Back to admin",
+        "Form": {
+          "Fields": {
+            "target": "Recipient",
+            "credits": "Credits",
+            "expiryDays": "Expiry (days)",
+            "referenceNote": "Reference note"
+          },
+          "Tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "targetRequired": "Select a recipient",
+          "creditsRequired": "Enter a positive number of credits",
+          "creditsHelper": "Number of credits to grant to the recipient.",
+          "expiryHelper": "Optional. Days until the credits expire. Leave blank for no expiry.",
+          "expiryPlaceholder": "No expiry",
+          "expiryInvalid": "Expiry must be a positive whole number of days",
+          "referenceNoteHelper": "Optional note stored on the credit bucket for internal reference.",
+          "referenceNotePlaceholder": "e.g. Billing issue, goodwill gesture",
+          "submit": "Grant credits",
+          "submitting": "Granting credits…",
+          "grantSuccess": "Free credits granted",
+          "grantError": "Failed to grant free credits"
+        }
+      },
       "Overview": {
         "title": "Admin",
         "description": "Internal tools for managing organizations and billing.",
@@ -2952,6 +3048,10 @@
           "invoices": {
             "title": "Invoices",
             "description": "View admin invoices and grant one-time credits to a user or organization."
+          },
+          "freeCredits": {
+            "title": "Free credits",
+            "description": "Grant free credits directly to a user or organization without a Stripe invoice."
           },
           "users": {
             "title": "Users",
@@ -3095,9 +3195,8 @@
         "credits": "Credits",
         "coupon": "Coupon"
       },
-      "billingPortalDescription": "Download your invoices, change your billing addresses and manage other billing information.",
-      "manageYourBilling": "Manage your billing",
-      "openingBillingPortal": "Opening...",
+      "billingPortalDescription": "Update billing address, tax ID, payment methods, invoice email, and subscriptions in Stripe.",
+      "manageYourBilling": "Manage in Stripe",
       "purchasedSeatsLabel": "Purchased seats",
       "assignedSeatsLabel": "Assigned",
       "unusedSeatsLabel": "Unused seats",
@@ -3324,6 +3423,29 @@
         "loading": "Saving preference...",
         "error": "Failed to update notification preference"
       },
+      "BillingDetails": {
+        "title": "Billing information",
+        "description": "Billing address, tax ID, invoice email, and payment methods are managed in Stripe.",
+        "addressLabel": "Billing address",
+        "taxIdLabel": "VAT / tax ID",
+        "taxIdVerification": "Verification status: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verified",
+          "pending": "Pending",
+          "unverified": "Unverified",
+          "unavailable": "Unavailable",
+          "verification_failed": "Verification failed"
+        },
+        "invoiceEmailLabel": "Invoice email",
+        "invoiceEmailEmpty": "No invoice email on file",
+        "empty": "No billing address on file",
+        "loadErrorTitle": "Could not load billing information",
+        "loadError": "We could not load your billing information right now.",
+        "retry": "Try again",
+        "Errors": {
+          "general": "Failed to open Stripe"
+        }
+      },
       "Delete": {
         "title": "Delete account",
         "description": "Permanently delete your account and all associated data",
@@ -3546,6 +3668,38 @@
         "Schema": {
           "websiteUrl": "Enter a valid http or https URL"
         }
+      },
+      "VendorGrants": {
+        "title": "Vendor workspace access",
+        "description": "Approve vendor workspace access for your personal workspace (read, comment, and create tasks).",
+        "vendorsTitle": "Vendors",
+        "vendorsEmpty": "No vendor grants yet.",
+        "statusPending": "Pending",
+        "statusGranted": "Granted",
+        "statusDenied": "Denied",
+        "statusRevoked": "Revoked",
+        "grantFormTitle": "Grant access proactively",
+        "GrantForm": {
+          "vendorLabel": "Vendor",
+          "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
+          "submit": "Grant access",
+          "success": "Vendor access granted",
+          "error": "Failed to grant vendor access"
+        },
+        "Actions": {
+          "approve": "Approve",
+          "deny": "Deny",
+          "revoke": "Revoke",
+          "approveSuccess": "Vendor access approved",
+          "denySuccess": "Vendor access denied",
+          "revokeSuccess": "Vendor access revoked",
+          "approveError": "Failed to approve vendor access",
+          "denyError": "Failed to deny vendor access",
+          "revokeError": "Failed to revoke vendor access",
+          "grant": "Grant",
+          "grantSuccess": "Vendor access granted",
+          "grantError": "Failed to grant vendor access"
+        }
       }
     },
     "Organizations": {
@@ -3565,24 +3719,28 @@
         "delete": "Delete",
         "invite": "Invite Member",
         "bulkInvite": "Bulk invite",
-        "InvoiceEmail": {
-          "title": "Invoice Email",
-          "description": "Email address for receiving invoices and billing notifications",
-          "label": "Invoice Email",
-          "placeholder": "billing@example.com",
-          "help": "This email will receive all invoices and billing-related communications from Stripe",
-          "edit": "Edit",
-          "save": "Save",
-          "cancel": "Cancel",
-          "Success": {
-            "update": "Invoice email updated successfully"
+        "BillingDetails": {
+          "title": "Billing information",
+          "description": "Billing address, tax ID, invoice email, and payment methods are managed in Stripe.",
+          "addressLabel": "Billing address",
+          "taxIdLabel": "VAT / tax ID",
+          "taxIdVerification": "Verification status: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verified",
+            "pending": "Pending",
+            "unverified": "Unverified",
+            "unavailable": "Unavailable",
+            "verification_failed": "Verification failed"
           },
+          "invoiceEmailLabel": "Invoice email",
+          "invoiceEmailEmpty": "No invoice email on file",
+          "empty": "No billing address on file",
+          "loadErrorTitle": "Could not load billing information",
+          "loadError": "We could not load billing information for this organization right now.",
+          "retry": "Try again",
           "Errors": {
-            "unauthenticated": "Please log in to continue",
-            "unauthenticatedAction": "Log in",
-            "unauthorized": "Only organization owners and admins can update the invoice email",
-            "badInput": "Please enter a valid email address",
-            "general": "Failed to update invoice email"
+            "unauthorized": "Only organization owners and admins can open Stripe billing",
+            "general": "Failed to open Stripe"
           }
         },
         "Subscription": {
@@ -3614,6 +3772,38 @@
           "assigned": "Assigned",
           "unused": "Unused",
           "manageBilling": "Manage billing"
+        },
+        "VendorGrants": {
+          "title": "Vendor workspace access",
+          "description": "Approve vendor workspace access for this organization (read, comment, and create tasks).",
+          "vendorsTitle": "Vendors",
+          "vendorsEmpty": "No vendor grants yet.",
+          "statusPending": "Pending",
+          "statusGranted": "Granted",
+          "statusDenied": "Denied",
+          "statusRevoked": "Revoked",
+          "grantFormTitle": "Grant access proactively",
+          "GrantForm": {
+            "vendorLabel": "Vendor",
+            "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
+            "submit": "Grant access",
+            "success": "Vendor access granted",
+            "error": "Failed to grant vendor access"
+          },
+          "Actions": {
+            "approve": "Approve",
+            "deny": "Deny",
+            "revoke": "Revoke",
+            "approveSuccess": "Vendor access approved",
+            "denySuccess": "Vendor access denied",
+            "revokeSuccess": "Vendor access revoked",
+            "approveError": "Failed to approve vendor access",
+            "denyError": "Failed to deny vendor access",
+            "revokeError": "Failed to revoke vendor access",
+            "grant": "Grant",
+            "grantSuccess": "Vendor access granted",
+            "grantError": "Failed to grant vendor access"
+          }
         }
       }
     },
@@ -4036,6 +4226,11 @@
         "failed": "{coworkerName} failed to complete {taskName}",
         "canceled": "{taskName} was canceled"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} requested vendor access to your workspace"
     }
   }
 }

@@ -1,4 +1,3 @@
-import { MemberRole } from "@sokosumi/utils";
 import {
   BookOpen,
   Bot,
@@ -13,8 +12,8 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
-
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 export interface HelpLinkItem {
@@ -43,7 +42,7 @@ export interface AccountNavItem {
 
 export const HELP_LINKS: HelpLinkItem[] = [
   {
-    url: "https://docs.sokosumi.com/documentation",
+    url: "https://www.masumi.network/dev/sokosumi/documentation",
     translationKey: "documentation",
     icon: BookOpen,
   },

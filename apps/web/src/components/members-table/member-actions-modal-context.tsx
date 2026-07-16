@@ -1,11 +1,9 @@
 "use client";
 
-import { MemberRole } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-
 import { createModalContext } from "@/components/common/modal-context";
 import type {
   BetterAuthClientError,
@@ -13,6 +11,7 @@ import type {
 } from "@/lib/actions";
 import { unassignOrganizationSeat } from "@/lib/actions/organization/seat-action";
 import { authClient } from "@/lib/auth/auth.client";
+import { MemberRole } from "@/lib/clients/generated/core";
 
 import { useSeatManagementContext } from "./seat-management-context";
 import type { OrganizationMember } from "./types";

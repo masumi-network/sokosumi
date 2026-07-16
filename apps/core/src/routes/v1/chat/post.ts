@@ -446,6 +446,7 @@ async function runCoworkerStreamPreamble(params: {
         await clearPendingResponseMirror(params.conversationId);
         throw serviceUnavailable(
           "Coworker chat could not verify an in-flight response. Try again shortly.",
+          { reportToSentry: false },
         );
       }
 
@@ -984,6 +985,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const result = streamText({
         model: getSokosumiProvider()(selectedModel),
         messages: modelMessages,
+        allowSystemInMessages: true,
         maxRetries: 0,
         providerOptions: {
           sokosumi: sokosumiProviderOptions,
@@ -1094,7 +1096,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const coworkerStreamResponseOptions = releaseOwnedCoworkerStreamLock
         ? {
-            onError: () => {
+            onError: (error: unknown) => {
+              console.error(
+                "Coworker chat UI stream error (POST /chat):",
+                error,
+              );
               finalizeCoworkerStreamLock();
               return "An error occurred.";
             },

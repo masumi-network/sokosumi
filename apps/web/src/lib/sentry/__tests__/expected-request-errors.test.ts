@@ -4,6 +4,8 @@ import {
   beforeSendServerEvent,
   isExpectedAuthRequestError,
   isExpectedAuthSentryEvent,
+  isExpectedBusinessRequestError,
+  isExpectedBusinessSentryEvent,
   isExpectedClientNoiseErrorMessage,
 } from "@/lib/sentry/expected-request-errors";
 
@@ -27,6 +29,59 @@ describe("isExpectedAuthRequestError", () => {
     expect(isExpectedAuthRequestError(new Error("Database unavailable"))).toBe(
       false,
     );
+  });
+});
+
+describe("isExpectedBusinessRequestError", () => {
+  it("matches Core API 4xx errors", () => {
+    const error = new Error("Cannot move a task with related tasks.");
+    error.name = "CoreApiRequestError";
+    (error as Error & { status: number }).status = 409;
+
+    expect(isExpectedBusinessRequestError(error)).toBe(true);
+  });
+
+  it("matches rethrown business validation messages", () => {
+    expect(
+      isExpectedBusinessRequestError(
+        new Error(
+          "Cannot move a task with related tasks. Remove its links first.",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores 5xx Core API errors", () => {
+    const error = new Error("Database unavailable");
+    error.name = "CoreApiRequestError";
+    (error as Error & { status: number }).status = 503;
+
+    expect(isExpectedBusinessRequestError(error)).toBe(false);
+  });
+
+  it("ignores unrelated errors", () => {
+    expect(
+      isExpectedBusinessRequestError(new Error("Database unavailable")),
+    ).toBe(false);
+  });
+});
+
+describe("isExpectedBusinessSentryEvent", () => {
+  it("drops task workspace conflict events", () => {
+    expect(
+      isExpectedBusinessSentryEvent({
+        type: undefined,
+        exception: {
+          values: [
+            {
+              type: "Error",
+              value:
+                "Cannot move a task with related tasks. Remove its links first.",
+            },
+          ],
+        },
+      }),
+    ).toBe(true);
   });
 });
 
@@ -94,6 +149,26 @@ describe("beforeSendServerEvent", () => {
 
     expect(beforeSendServerEvent(event, {})).toBe(event);
   });
+
+  it("returns null for expected business validation events", () => {
+    expect(
+      beforeSendServerEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "Error",
+                value:
+                  "Cannot move a task with related tasks. Remove its links first.",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("isExpectedClientNoiseErrorMessage", () => {
@@ -109,6 +184,14 @@ describe("isExpectedClientNoiseErrorMessage", () => {
     expect(
       isExpectedClientNoiseErrorMessage(
         "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches masked production RSC render errors", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage(
+        "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details.",
       ),
     ).toBe(true);
   });

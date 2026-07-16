@@ -1,20 +1,19 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskLinkType } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import {
+  buildCoworkerAuthorizedTaskWhere,
+  buildCoworkerSiblingTaskListFilter,
+} from "@/helpers/vendor-siblings";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
-
 import mountGetTaskById from "./get";
 
-const { taskFindFirstMock, taskFindUniqueMock, coworkerFindFirstMock } =
-  vi.hoisted(() => ({
-    taskFindFirstMock: vi.fn(),
-    taskFindUniqueMock: vi.fn(),
-    coworkerFindFirstMock: vi.fn(),
-  }));
+const { taskFindFirstMock, coworkerFindFirstMock } = vi.hoisted(() => ({
+  taskFindFirstMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -23,7 +22,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     task: {
       findFirst: taskFindFirstMock,
-      findUnique: taskFindUniqueMock,
     },
   },
 }));
@@ -33,14 +31,14 @@ const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
 interface CreateAppOptions {
   actor?: "user" | "coworker";
   userId?: string;
-  delegation?: {
+  context?: {
     userId: string;
     organizationId: string | null;
   };
 }
 
 function createApp(options: CreateAppOptions = {}) {
-  const { actor = "user", userId = "user_123", delegation } = options;
+  const { actor = "user", userId = "user_123", context } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -53,7 +51,8 @@ function createApp(options: CreateAppOptions = {}) {
         ? ({
             actor: "coworker",
             coworkerId: "cow_123",
-            ...(delegation ? { delegation } : {}),
+            vendorId: "01960001-0001-7001-8001-000000000001",
+            ...(context ? { context } : {}),
           } satisfies AuthenticationContext)
         : ({
             actor: "user",
@@ -64,11 +63,11 @@ function createApp(options: CreateAppOptions = {}) {
     );
     c.set(
       "workspaceContext",
-      actor === "user" || delegation
+      actor === "user" || context
         ? {
             workspaceId: testWorkspaceId,
-            userId: delegation?.userId ?? null,
-            organizationId: delegation?.organizationId ?? "org_123",
+            userId: context?.userId ?? null,
+            organizationId: context?.organizationId ?? "org_123",
           }
         : null,
     );
@@ -117,6 +116,8 @@ function createTask(
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
+    metadata: null,
+    nextRunAt: null,
     events: [],
     jobs: [],
     workspace: {
@@ -134,8 +135,28 @@ function createTask(
   };
 }
 
-/** Payload returned for the viewer query (`findUnique` with `include`). Access checks use `findFirst` (user) or `findUnique` (coworker) without include. */
+/** Payload returned for the viewer query (`findFirst` with `include`). */
 let viewerTaskIncludeResult = createTask();
+
+const defaultVendorId = "01960001-0001-7001-8001-000000000001";
+const defaultCoworkerId = "cow_123";
+
+const bareCoworkerVisiblePeerTaskWhere = {
+  archivedAt: null,
+  ...buildCoworkerSiblingTaskListFilter({
+    coworkerId: defaultCoworkerId,
+    vendorId: defaultVendorId,
+  }),
+};
+
+const delegatedCoworkerVisiblePeerTaskWhere = {
+  workspaceId: testWorkspaceId,
+  archivedAt: null,
+  ...buildCoworkerSiblingTaskListFilter({
+    coworkerId: defaultCoworkerId,
+    vendorId: defaultVendorId,
+  }),
+};
 
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
@@ -146,13 +167,18 @@ describe("GET /tasks/{id}", () => {
       slug: "cow",
       baseURL: "http://coworker.test",
     });
-    taskFindFirstMock.mockResolvedValue(createTask());
-    taskFindUniqueMock.mockImplementation(
+    taskFindFirstMock.mockImplementation(
       async (args: { include?: unknown }) => {
         if (args.include !== undefined) {
           return viewerTaskIncludeResult;
         }
-        return createTask();
+        return {
+          id: "tsk_a",
+          userId: "user_123",
+          coworkerId: "cow_123",
+          status: TaskStatus.READY,
+          coworker: { vendorId: defaultVendorId },
+        };
       },
     );
   });
@@ -164,7 +190,7 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
@@ -276,7 +302,7 @@ describe("GET /tasks/{id}", () => {
       };
     };
     expect(body.data.links).toHaveLength(1);
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
@@ -318,23 +344,18 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        status: { not: TaskStatus.DRAFT },
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_a",
         coworkerId: "cow_123",
-      },
+        vendorId: defaultVendorId,
+      }),
       include: expect.objectContaining({
         share: true,
         linksFrom: {
           where: {
             toTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
-              },
+              is: bareCoworkerVisiblePeerTaskWhere,
             },
           },
           include: {
@@ -360,11 +381,7 @@ describe("GET /tasks/{id}", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
-              },
+              is: bareCoworkerVisiblePeerTaskWhere,
             },
           },
           include: {
@@ -394,7 +411,7 @@ describe("GET /tasks/{id}", () => {
   it("uses workspace-scoped reads for delegated coworkers", async () => {
     const app = createApp({
       actor: "coworker",
-      delegation: {
+      context: {
         userId: "user_delegate",
         organizationId: "org_delegate",
       },
@@ -404,28 +421,20 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenCalledTimes(1);
     expect(taskFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_a",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
         workspaceId: testWorkspaceId,
-      },
-    });
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        workspaceId: testWorkspaceId,
-      },
+      }),
       include: expect.objectContaining({
         share: true,
         linksFrom: {
           where: {
             toTask: {
-              is: {
-                workspaceId: testWorkspaceId,
-                archivedAt: null,
-              },
+              is: delegatedCoworkerVisiblePeerTaskWhere,
             },
           },
           include: expect.any(Object),
@@ -434,15 +443,96 @@ describe("GET /tasks/{id}", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
-                workspaceId: testWorkspaceId,
-                archivedAt: null,
-              },
+              is: delegatedCoworkerVisiblePeerTaskWhere,
             },
           },
           include: expect.any(Object),
           orderBy: { createdAt: "asc" },
         },
+      }),
+    });
+  });
+
+  it("allows a delegated coworker to read a same-vendor sibling task", async () => {
+    viewerTaskIncludeResult = createTask();
+    taskFindFirstMock.mockImplementation(
+      async (args: { include?: unknown }) => {
+        if (args.include !== undefined) {
+          return viewerTaskIncludeResult;
+        }
+        return {
+          id: "tsk_a",
+          userId: "user_123",
+          coworkerId: "cow_sibling",
+          status: TaskStatus.READY,
+          coworker: { vendorId: defaultVendorId },
+        };
+      },
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      context: {
+        userId: "user_delegate",
+        organizationId: "org_delegate",
+      },
+    });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects a delegated coworker reading a cross-vendor sibling task", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp({
+      actor: "coworker",
+      context: {
+        userId: "user_delegate",
+        organizationId: "org_delegate",
+      },
+    });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(404);
+    expect(taskFindFirstMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("allows a bare coworker to read a same-vendor sibling task without workspace scoping", async () => {
+    viewerTaskIncludeResult = createTask();
+    taskFindFirstMock.mockImplementation(
+      async (args: { include?: unknown }) => {
+        if (args.include !== undefined) {
+          return viewerTaskIncludeResult;
+        }
+        return {
+          id: "tsk_a",
+          userId: "user_123",
+          coworkerId: "cow_sibling",
+          status: TaskStatus.READY,
+          coworker: { vendorId: defaultVendorId },
+        };
+      },
+    );
+
+    const app = createApp({ actor: "coworker" });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_a",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
+      }),
+      include: expect.objectContaining({
+        share: true,
       }),
     });
   });

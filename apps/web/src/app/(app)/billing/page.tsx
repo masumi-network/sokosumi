@@ -1,9 +1,8 @@
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
-import { MemberRole } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
+import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
@@ -17,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { MemberRole } from "@/lib/clients/generated/core";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -62,6 +62,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     userService.getActiveOrganization(),
   ]);
   const activeTab = parseBillingTab(query.tab);
+  const billingPortalReturnPath = `/billing?tab=${activeTab}`;
 
   if (!session) {
     return null;
@@ -170,16 +171,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const organizationBillingPortal =
       organizationStripeCustomerId && showOrganizationBillingPortal ? (
         <BalanceBillingPortalLink
-          baseReturnPath="/billing"
           description={t("billingPortalDescription")}
-          generalErrorMessage={t("Errors.general")}
           label={t("manageYourBilling")}
-          openingLabel={t("openingBillingPortal")}
           organizationId={activeOrganization.id}
-          returnPath="/billing"
-          unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-          unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-          unauthorizedErrorMessage={t("Errors.unauthorized")}
+          returnPath={billingPortalReturnPath}
         />
       ) : null;
 
@@ -196,6 +191,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
     return (
       <div className="min-h-full w-full">
+        <BillingPortalErrorToast
+          generalMessage={t("Errors.general")}
+          unauthorizedMessage={t("Errors.unauthorized")}
+        />
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
           {enterpriseContractSummary ? (
             <EnterpriseContractSummary summary={enterpriseContractSummary} />
@@ -302,6 +301,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   return (
     <div className="min-h-full w-full">
+      <BillingPortalErrorToast
+        generalMessage={t("Errors.general")}
+        unauthorizedMessage={t("Errors.unauthorized")}
+      />
       <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
         <BalanceSection
           title={t("balanceTitle")}
@@ -314,14 +317,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           billingPortal={
             stripeCustomerId ? (
               <BalanceBillingPortalLink
-                baseReturnPath="/billing"
                 description={t("billingPortalDescription")}
-                generalErrorMessage={t("Errors.general")}
                 label={t("manageYourBilling")}
-                openingLabel={t("openingBillingPortal")}
-                returnPath="/billing"
-                unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-                unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+                returnPath={billingPortalReturnPath}
               />
             ) : null
           }

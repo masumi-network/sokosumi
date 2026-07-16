@@ -170,9 +170,84 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 - **Web does not access Postgres or Prisma.** All reads and writes go through the Core API (`coreClient` in `src/lib/clients/core.client.ts`).
 - **Entity DTOs** (`Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …) come from the generated Core client (`src/lib/clients/generated/core`). Use `src/lib/types/core-dto.ts` for web helpers (`CoreAgentDto`, credit/rating accessors, placeholders) and enum **type** aliases derived from Core fields (`TaskStatus`, `JobType`, `SokosumiJobStatus`, …).
-- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) still live in `@sokosumi/utils` until OpenAPI codegen exports const enums. **Pure helpers** (URLs, credits, locale, auth cookies) also stay in `@sokosumi/utils` — not entity mirrors.
-- Do not import `@sokosumi/database` from web. Do not add Prisma-shaped composites under `packages/utils/src/domain/`.
-- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
+- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) come from the generated Core client barrel (`@/lib/clients/generated/core`). Do not import domain enum values from `@sokosumi/utils`. **Pure helpers** (URLs, credits, locale, auth cookies, task-status transitions) stay in `@sokosumi/utils` — not entity mirrors. The drift test (`core-enums-drift.test.ts`) locks generated const shapes (and `SokosumiJobStatus` against the shared utils map).
+- Codegen stays **web-only** under `src/lib/clients/generated/core` (no `packages/api-types`); same pattern as `TaskLinkRelation`.
+- Do not import `@sokosumi/database` from web. Do not add Prisma/Core enum mirrors or Prisma-shaped composites under `@sokosumi/utils`.
+- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`). Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
+
+#### Boundary rules (SOK-596)
+
+Keep web on the Core DTO boundary (convention / review — not a separate CI grep job):
+
+- **Never** import `@sokosumi/database` from web (including `package.json` dependencies).
+- **Never** import domain enum **runtime const maps** from `@sokosumi/utils` — use `@/lib/clients/generated/core`. Forbidden names include: `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`.
+- **Allowed** from utils: Masumi protocol enums (`NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus`) and the approved pure helpers listed under [Core DTO boundary](#core-dto-boundary).
+- **Allowlist:** `src/lib/clients/__tests__/core-enums-drift.test.ts` may import `SokosumiJobStatus` from `@sokosumi/utils` only (parity guard against the shared Core/DB map).
+- After Core client regen, run `pnpm --filter web typecheck` (CI `typecheck` also covers this).
+
+### Core DTO boundary
+
+Generated Core `/v1` types are the source of truth for **entity** data web shows and mutates. Some shared symbols intentionally stay **outside** Core REST DTOs — do **not** promote them into OpenAPI entity schemas just to “finish” the Core DTO migration (SOK-588 phase 6).
+
+#### In Core REST DTOs (use generated client)
+
+- Entity shapes: `Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …
+- Domain enum **types and runtime const maps** that appear in OpenAPI (e.g. `TaskStatus`, `JobType`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `NotificationKind`, …) from `@/lib/clients/generated/core`
+- Cross-cutting helpers / field-derived aliases in `src/lib/types/core-dto.ts`
+
+#### Not Core REST DTOs (do not add to `/v1` OpenAPI entity schemas)
+
+| Category | Examples | Canonical home | Rule |
+| -------- | -------- | -------------- | ---- |
+| Masumi / payment protocol | `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus` | `@sokosumi/utils` (`masumi-protocol.ts`; used when bridging Masumi purchaser / payment responses, e.g. `job-transformers.ts`) | Payment-protocol state machine values, not `/v1` display DTOs. When the UI needs on-chain outcome, use Core job fields (`OnChainJobStatus`, `jobStatusSettled`, …). Do not invent Core REST DTOs that mirror Masumi purchaser `NextAction` shapes. |
+| Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
+| UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
+| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |
+| Localized view models | `TaskWithCoworker`, jobs-tab row types | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
+
+**Decision test:** If a value is (a) Masumi payment-protocol state, (b) a stable error `kind`, (c) UI-derived display state, (d) Better Auth `/auth` shape, or (e) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
+
+#### Approved `@sokosumi/utils` imports for web
+
+Import **pure helpers** and the **documented exceptions** above from `@sokosumi/utils` directly (no passthrough re-export files). Approved categories:
+
+1. **Auth session types** — `Session`, `SessionUser`, `SessionRecord`, `Account`
+2. **Auth helpers** — `resolveBetterAuthCookieName`, `resolveBetterAuthCookiePrefix`, Better Auth public URL helpers, `betterAuthUserAdditionalFields` / `betterAuthOrganizationAdditionalFields`
+3. **Error kinds** — `CORE_API_ERROR_KINDS`, `CoreApiErrorKind`
+4. **Credits & billing vocabulary** — `convertCentsToCredits`, `convertCreditsToCents`, `isPositiveIntegerCredits`, credit top-up pricing helpers, `SelfServeSubscriptionPlanName` / `PaidSubscriptionPlanName` / `SubscriptionPlanName` / `OrganizationBillingPlanName` and their parsers, `FREE_SUBSCRIPTION_MONTHLY_CREDITS`, `hasStripeBillingAddressWithCountry`
+5. **Locale** — `AppLocale`, `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `LOCALE_COOKIE_NAME`, `parseLocalePreference`, `resolveRequestLocale`, …
+6. **URL / file / markdown** — `file-url` helpers (`getExtensionFromUrl`, `isImageUrl`, `isUrlString`, …), IPFS helpers (`resolveIpfsOrHttpUrl`, …), markdown link extract/escape, `sanitizeFileName`
+7. **Metadata** — `getOrganizationMetadata`, `getUserMetadata`, `parseOrganizationMetadata` / `parseUserMetadata`, `buildOrganizationMetadataWith*` / `buildUserMetadataWith*`
+8. **Task pure helpers** (status **logic**, not enum maps) — `canUserTransitionTaskStatus`, `isTaskArchivableStatus`, `isTaskEditableStatus`, archive/editable status helpers
+9. **Uploads & org logo** — user-upload content-type/path helpers, `ORGANIZATION_LOGO_*` constants
+10. **Realtime / chat helpers** — Ably channel name builders, `isChatUiProviderReasoningPartType`, OpenRouter react-envelope helpers
+11. **Masumi payment-protocol bridges** — `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus` **only** when transforming Masumi purchaser/payment responses (not as stand-ins for Core job DTOs)
+12. **Other pure helpers** — user-name helpers, design-md attachment helpers, webhook helpers when needed
+
+**Do not import from `@sokosumi/utils` in app code** (use generated Core instead):
+
+- Domain enum **runtime const maps** that exist on Core OpenAPI — e.g. `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`, …
+- Prisma-shaped entity mirrors or database helpers (web never imports `@sokosumi/database`)
+
+The drift test (`core-enums-drift.test.ts`) may import `SokosumiJobStatus` from utils as a parity guard — that is the only intended domain-enum exception in web.
+
+### Better Auth session types vs Core DTOs
+
+Better Auth session and account shapes are a **documented exception** under [Core DTO boundary](#core-dto-boundary) (SOK-588): they live in `@sokosumi/utils`, not in the generated Core REST client.
+
+- **Canonical types** — `Session`, `SessionUser`, `SessionRecord`, and `Account` from `@sokosumi/utils` (`packages/utils/src/better-auth-types.ts`). Import them directly; do **not** add a Session-type passthrough (e.g. `@/lib/auth/session-types.ts`). Existing `@/lib/auth/types.ts` stays for `AccountProvider` only — do not turn it into a Session/Account re-export.
+- **Protocol shapes, not entity DTOs** — These match Core Better Auth `/auth` JSON responses. They are **not** generated Core `/v1` entity DTOs (`Agent`, `Job`, `OrganizationRecord`, …).
+- **Not Prisma models** — Do not confuse with `@sokosumi/database` `Session` / `Account` tables or Prisma-inferred row types.
+- **Import rules** — Prefer `import type { Session, SessionUser, … } from "@sokosumi/utils"` everywhere (client/UI, services, tests). Do **not** add a type-only passthrough under `@/lib/auth/`. Callers that already import runtime helpers from `@/lib/auth/auth.server` may also use that module’s existing `export type { Session }` — treat it as incidental to the fetch module, not a second ownership path.
+- **Helpers vs fetch** — Cookie names, public URLs, and client schema helpers stay in `@sokosumi/utils` unchanged. Session **fetch** stays in web auth modules (`auth.client.ts`, `auth.server.ts`, `core-auth-http.server.ts`) → Core `/auth` only. There is no session-shaped Core REST display endpoint in this phase.
+
+### View models vs Core DTOs
+
+- **Services and actions return Core DTOs** (`Agent`, `JobSummary`, `Task`, `TaskListItem`, …). Do not invent a web-wide domain model layer that parallels Core shapes.
+- **Thin view models are allowed only where UI needs computed or joined fields.** Keep them next to the consuming feature (e.g. `apps/web/src/app/(app)/tasks/types/task-board.ts` for `TaskWithCoworker`, `tasks/types/tasks-view-job.ts` for the jobs tab row). Document the type as a view model in a short comment.
+- **Mappers live next to the consuming UI** (e.g. `mapTaskToTaskWithCoworker` in `tasks/utils/task-view-model.ts`). Do not put feature view-model mappers under `src/lib/types/` or generic `src/lib/utils/`.
+- **Prefer pushing shared computed fields to Core** when more than one surface needs them. Example: `jobStatusSettled` is on Core `JobSummary` / `Job` — web must not recompute settlement from timestamps.
+- **`src/lib/types/core-dto.ts`** stays for cross-cutting Core helpers and field-derived type aliases — not for feature view models.
 
 ### Core API reads & caching (performance)
 
@@ -218,7 +293,7 @@ Stripe **test mode** and **live mode** are separate environments. The app does n
 2. **Stripe customer** – Users have a `stripeCustomerId` in your DB; in production that ID must refer to a customer in the **live** Stripe account. New production users get a customer created in live when they first use Stripe.
 3. **Auth in server actions** – When claiming a coupon from a server action, the credits flow passes the request auth into `stripeService.claimCoupon` so it does not rely on `getAuthContext()` again (which can be null in production if cookies/headers differ).
 
-Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CREDIT_PRODUCT_ID`. The webhook secret (`STRIPE_WEBHOOK_SECRET`) and welcome coupon (`STRIPE_WELCOME_COUPON`) are configured on the core app, which owns the `customer.created` webhook.
+Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CREDIT_PRODUCT_ID`. The webhook secret (`STRIPE_WEBHOOK_SECRET`) is configured on the core app, which owns the `customer.created` webhook. Signup bonus credits (`SIGNUP_BONUS_CREDITS`, `SIGNUP_BONUS_TTL_DAYS`) are also configured on core and granted directly on user creation.
 
 **Enterprise subscription products:** Enterprise products are discovered from Stripe product metadata, not env vars. Configure each active enterprise product with `metadata.slug=enterprise`, `metadata.credits=<positive integer>`, and a monthly recurring `default_price`.
 
@@ -332,7 +407,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Additional Rules
 
-- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import pure helpers from `@sokosumi/utils` directly; no passthrough files
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)

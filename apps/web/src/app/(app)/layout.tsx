@@ -1,10 +1,8 @@
-import { NoticeKind } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog";
@@ -25,20 +23,23 @@ import type {
   GetUsersByIdCreditsResponse,
   Notice,
 } from "@/lib/clients/generated/core";
+import { NoticeKind } from "@/lib/clients/generated/core";
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
-import { userService } from "@/lib/services";
+import { userHasPaidOrEnterpriseCoverage, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
+import { resolveSubscriptionOnboardingGateDecision } from "@/lib/subscription-onboarding-gate-decision";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 import { resolveAccountNotice } from "./components/account-notice-state";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
 import Header from "./components/header";
 import { LoginAccountNoticeToast } from "./components/login-account-notice-toast.client";
+import { MarkSubscriptionOnboardingGateSeen } from "./components/mark-subscription-onboarding-gate-seen";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
 import { NotificationToaster } from "./components/notification-toaster.client";
@@ -128,12 +129,28 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const subscriptionOnboardingGateCookie = cookieStore.get(
     SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
   )?.value;
-  const shouldLoadSubscriptionOnboarding =
-    shouldShowFreeSubscriptionGate &&
-    !hasSubscriptionOnboardingGateBeenServedForSession(
+  const subscriptionOnboardingGateAlreadyServed =
+    hasSubscriptionOnboardingGateBeenServedForSession(
       subscriptionOnboardingGateCookie,
       session.session.id,
     );
+  // Credits can report "free" while the user still has personal/org paid
+  // coverage or an enterprise contract — check before mounting the gate.
+  const shouldResolveCoverage =
+    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed;
+  const hasPaidOrEnterpriseCoverage = shouldResolveCoverage
+    ? await userHasPaidOrEnterpriseCoverage()
+    : false;
+  const subscriptionOnboardingGateDecision =
+    resolveSubscriptionOnboardingGateDecision({
+      alreadyServed: subscriptionOnboardingGateAlreadyServed,
+      hasPaidOrEnterpriseCoverage,
+      shouldShowFreeSubscriptionGate,
+    });
+  const shouldLoadSubscriptionOnboarding =
+    subscriptionOnboardingGateDecision === "load";
+  const shouldMarkSubscriptionOnboardingGateSeen =
+    subscriptionOnboardingGateDecision === "mark-seen";
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
@@ -228,6 +245,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                     activeOrganization={activeOrganization}
                     loginId={session.session.id}
                     subscriptionOnly
+                  />
+                ) : shouldMarkSubscriptionOnboardingGateSeen ? (
+                  <MarkSubscriptionOnboardingGateSeen
+                    loginId={session.session.id}
                   />
                 ) : null}
               </CoworkersProvider>

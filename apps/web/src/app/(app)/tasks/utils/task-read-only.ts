@@ -1,3 +1,5 @@
+import { TaskStatus } from "@/lib/clients/generated/core";
+
 interface ReadOnlyForViewerParams {
   /** Organization of the task's workspace; `null` for a personal workspace. */
   taskWorkspaceOrganizationId: string | null;
@@ -11,6 +13,11 @@ interface ReadOnlyForViewerParams {
    * edit, comment, or mutate the task.
    */
   forceReadOnly: boolean;
+  taskStatus: string;
+}
+
+function isGrantPendingStatus(status: string): boolean {
+  return status === TaskStatus.GRANT_PENDING;
 }
 
 /**
@@ -26,9 +33,56 @@ export function isReadOnlyForViewer({
   taskUserId,
   sessionUserId,
   forceReadOnly,
+  taskStatus,
 }: ReadOnlyForViewerParams): boolean {
-  if (forceReadOnly) {
+  if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
     return true;
   }
   return taskWorkspaceOrganizationId !== null && sessionUserId !== taskUserId;
+}
+
+export function canArchiveParkedTaskForViewer({
+  forceReadOnly,
+  taskStatus,
+  isTaskOwner,
+  isOrgOwnerOrAdmin,
+}: {
+  forceReadOnly: boolean;
+  taskStatus: string;
+  isTaskOwner: boolean;
+  isOrgOwnerOrAdmin: boolean;
+}): boolean {
+  if (forceReadOnly || !isGrantPendingStatus(taskStatus)) {
+    return false;
+  }
+
+  return isTaskOwner || isOrgOwnerOrAdmin;
+}
+
+type CanCommentOnTaskForViewerParams = ReadOnlyForViewerParams;
+
+/**
+ * Organization workspace collaborators may comment without owning the task.
+ * Mutations stay gated by {@link isReadOnlyForViewer}.
+ */
+export function canCommentOnTaskForViewer({
+  taskWorkspaceOrganizationId,
+  taskUserId,
+  sessionUserId,
+  forceReadOnly,
+  taskStatus,
+}: CanCommentOnTaskForViewerParams): boolean {
+  if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
+    return false;
+  }
+
+  if (sessionUserId === taskUserId) {
+    return true;
+  }
+
+  return (
+    taskWorkspaceOrganizationId !== null &&
+    sessionUserId !== null &&
+    sessionUserId !== undefined
+  );
 }

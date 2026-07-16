@@ -48,6 +48,7 @@ const route = withGlobalHeaderParameters(
           status: SokosumiJobStatus.COMPLETED,
           completedAt: "2025-01-15T10:35:00.000Z",
           credits: 5,
+          jobStatusSettled: true,
           onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
           onChainTransactionHash: "0x123abc",
           result: "# Answer\n\nThere are 8 planets in the solar system.",

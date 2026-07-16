@@ -1,6 +1,6 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 const filterDropdownMenuMock = vi.fn();
 
@@ -10,6 +10,8 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
     return <div data-testid="filter-dropdown-menu" />;
   },
 }));
+
+import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 import { TasksViewFilters } from "../tasks-view-filters";
 
@@ -38,6 +40,7 @@ const labels = {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.QUEUED]: "Queued",
     [TaskStatus.READY]: "Ready",
+    [TaskStatus.GRANT_PENDING]: "Grant pending",
     [TaskStatus.INPUT_REQUIRED]: "Input required",
     [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
     [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
@@ -47,7 +50,6 @@ const labels = {
     [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
     [TaskStatus.COMPLETED]: "Completed",
     [TaskStatus.FAILED]: "Failed",
-    [TaskStatus.CANCEL_REQUESTED]: "Cancel requested",
     [TaskStatus.CANCELED]: "Canceled",
   },
 } as const;
@@ -57,12 +59,12 @@ function renderTasksViewFilters(activeOrganizationId: string | null) {
     <TasksViewFilters
       activeOrganizationId={activeOrganizationId}
       coworkerOptions={[
-        {
+        mockCoworkerOption({
           id: "coworker-1",
           slug: "elena",
           name: "Elena",
           image: "elena.png",
-        },
+        }),
       ]}
       projectOptions={[
         {

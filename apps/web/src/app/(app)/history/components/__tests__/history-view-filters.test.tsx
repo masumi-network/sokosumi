@@ -1,6 +1,6 @@
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const filterDropdownMenuMock = vi.fn();
 
@@ -45,6 +45,7 @@ const labels = {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.QUEUED]: "Queued",
     [TaskStatus.READY]: "Ready",
+    [TaskStatus.GRANT_PENDING]: "Grant pending",
     [TaskStatus.INPUT_REQUIRED]: "Input required",
     [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
     [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
@@ -54,7 +55,6 @@ const labels = {
     [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
     [TaskStatus.COMPLETED]: "Completed",
     [TaskStatus.FAILED]: "Failed",
-    [TaskStatus.CANCEL_REQUESTED]: "Cancel requested",
     [TaskStatus.CANCELED]: "Canceled",
     [SokosumiJobStatus.STARTED]: "Hiring",
     [SokosumiJobStatus.RESULT_PENDING]: "Result missing",

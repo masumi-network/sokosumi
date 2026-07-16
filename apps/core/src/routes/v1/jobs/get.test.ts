@@ -1,9 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetJobs from "./get";
 
@@ -155,7 +155,8 @@ describe("GET /jobs", () => {
       c.set("authContext", {
         actor: "coworker",
         coworkerId: "cow_123",
-        delegation: {
+        vendorId: TEST_VENDOR_ID,
+        context: {
           userId: "user_123",
           organizationId: "org_123",
         },
@@ -177,7 +178,7 @@ describe("GET /jobs", () => {
     expect(getUserJobsMock).toHaveBeenCalledWith(
       {
         userContext: {
-          source: "delegation",
+          source: "context",
           userId: "user_123",
           organizationId: "org_123",
         },

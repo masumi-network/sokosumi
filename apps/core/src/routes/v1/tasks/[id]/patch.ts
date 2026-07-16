@@ -1,10 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { isTaskEditableStatus, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
+import { isTaskEditableStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import {
+  requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
-  requireTaskOwnership,
 } from "@/helpers/access-control";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -85,7 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { name, description, projectId, coworkerId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      const task = await requireTaskOwnership(userContext, id, tx);
+      const task = await requireMutableTaskOwnership(userContext, id, tx);
 
       if (!isTaskEditableStatus(task.status)) {
         throw forbidden("You can only update draft, queued, or ready tasks");

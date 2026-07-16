@@ -1,7 +1,6 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { MemberRole } from "@sokosumi/utils";
 import {
   BookOpen,
   Bot,
@@ -38,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface UserAvatarClientProps {
@@ -207,7 +207,7 @@ export default function UserAvatarClient({
                 onClick={() => {
                   closeMenu();
                   handleOpenExternalLink(
-                    "https://docs.sokosumi.com/documentation",
+                    "https://www.masumi.network/dev/sokosumi/documentation",
                   );
                 }}
               >

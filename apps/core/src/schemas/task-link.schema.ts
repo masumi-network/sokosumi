@@ -1,7 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 
 const taskLinkPeerTaskExample = {
   id: "tsk_b",
@@ -34,7 +35,7 @@ export const taskLinkPeerTaskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_b" }),
     name: z.string().openapi({ example: "Review onboarding copy" }),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+    status: taskStatusSchema.openapi({ example: TaskStatus.READY }),
     archivedAt: dateTimeSchema.nullable().openapi({ example: null }),
   })
   .openapi("TaskLinkPeerTask");

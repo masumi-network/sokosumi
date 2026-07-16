@@ -1,11 +1,11 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { forbidden, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler.js";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
   resolveMemberOrganizationByIdMock,
@@ -44,6 +44,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_1",
+  vendorId: TEST_VENDOR_ID,
 };
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {

@@ -1,5 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import {
   isDnDDragColumn,
@@ -10,14 +10,15 @@ import {
 
 describe("task-dnd", () => {
   describe("isDnDDragColumn", () => {
-    it("allows backlog and todo as drag sources", () => {
+    it("allows backlog, todo, and done as drag sources", () => {
       expect(isDnDDragColumn("backlog")).toBe(true);
       expect(isDnDDragColumn("todo")).toBe(true);
+      expect(isDnDDragColumn("done")).toBe(true);
     });
 
     it("disallows other columns as drag sources", () => {
       expect(isDnDDragColumn("in-progress")).toBe(false);
-      expect(isDnDDragColumn("done")).toBe(false);
+      expect(isDnDDragColumn("input-required")).toBe(false);
     });
   });
 
@@ -44,6 +45,7 @@ describe("task-dnd", () => {
 
     it("returns null for non-dnd columns", () => {
       expect(statusForColumn("in-progress")).toBeNull();
+      expect(statusForColumn("done")).toBeNull();
     });
   });
 
@@ -51,6 +53,12 @@ describe("task-dnd", () => {
     const scheduledMetadata = JSON.stringify({
       schedule: { mode: "daily", timezone: "UTC" },
     });
+    const coworker = {
+      id: "cow-1",
+      name: "Elena",
+      slug: "elena",
+      image: null,
+    };
 
     it("allows draft backlog tasks", () => {
       expect(
@@ -58,6 +66,7 @@ describe("task-dnd", () => {
           status: TaskStatus.DRAFT,
           metadata: null,
           nextRunAt: null,
+          coworker: null,
         }),
       ).toBe(true);
     });
@@ -68,6 +77,7 @@ describe("task-dnd", () => {
           status: TaskStatus.QUEUED,
           metadata: scheduledMetadata,
           nextRunAt: "2026-06-25T09:00:00.000Z",
+          coworker,
         }),
       ).toBe(false);
     });
@@ -78,8 +88,50 @@ describe("task-dnd", () => {
           status: TaskStatus.QUEUED,
           metadata: null,
           nextRunAt: null,
+          coworker,
         }),
       ).toBe(true);
+    });
+
+    it("allows completed and canceled tasks with a coworker for reopen", () => {
+      expect(
+        isTaskDnDDraggable({
+          status: TaskStatus.COMPLETED,
+          metadata: null,
+          nextRunAt: null,
+          coworker,
+        }),
+      ).toBe(true);
+      expect(
+        isTaskDnDDraggable({
+          status: TaskStatus.CANCELED,
+          metadata: null,
+          nextRunAt: null,
+          coworker,
+        }),
+      ).toBe(true);
+    });
+
+    it("disallows terminal done tasks without a coworker", () => {
+      expect(
+        isTaskDnDDraggable({
+          status: TaskStatus.COMPLETED,
+          metadata: null,
+          nextRunAt: null,
+          coworker: null,
+        }),
+      ).toBe(false);
+    });
+
+    it("disallows failed tasks", () => {
+      expect(
+        isTaskDnDDraggable({
+          status: TaskStatus.FAILED,
+          metadata: null,
+          nextRunAt: null,
+          coworker,
+        }),
+      ).toBe(false);
     });
   });
 });

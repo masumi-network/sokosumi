@@ -1,10 +1,10 @@
-import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
-import type { TaskStatus } from "@/lib/types/core-dto";
 import type {
   KanbanColumnDefinition,
   KanbanColumnId,
   TaskWithCoworker,
-} from "@/lib/types/task";
+} from "@/app/tasks/types/task-board";
+import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
+import type { TaskStatus } from "@/lib/types/core-dto";
 
 import {
   DraggableTask,

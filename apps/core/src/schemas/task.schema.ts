@@ -1,9 +1,9 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { Channel, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
+import { channelSchema, taskStatusSchema } from "@/schemas/domain-enums.schema";
 import {
   createJobRequestSchema,
   jobSummariesSchema,
@@ -13,6 +13,20 @@ import { taskShareSchema } from "@/schemas/share.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
+
+const deprecatedOriginField = channelSchema.openapi({
+  deprecated: true,
+  example: Channel.SLACK,
+  description: "Deprecated. Use channel instead.",
+});
+
+export const taskEventChannelField = channelSchema.openapi({
+  example: Channel.SLACK,
+  description:
+    "Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.",
+});
+
+export const taskEventDeprecatedOriginField = deprecatedOriginField;
 
 export const taskEventSchema = z
   .object({
@@ -37,10 +51,11 @@ export const taskEventSchema = z
       .string()
       .nullish()
       .openapi({ example: "https://example.com/oauth/authorize" }),
-    origin: z.enum(TaskEventOrigin).openapi({ example: TaskEventOrigin.SLACK }),
+    channel: taskEventChannelField,
+    origin: taskEventDeprecatedOriginField,
     status: z
-      .enum(TaskStatus)
-      .nullish()
+      .union([taskStatusSchema, z.null()])
+      .optional()
       .openapi({ example: TaskStatus.RUNNING }),
   })
   .openapi("TaskEvent");
@@ -71,7 +86,21 @@ const taskBaseSchema = z.object({
   coworker: coworkerSummarySchema.nullable(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
-  status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+  status: taskStatusSchema.openapi({
+    example: TaskStatus.READY,
+    description:
+      "GRANT_PENDING: blocked until vendor workspace access is granted.",
+  }),
+  grantResumeStatus: z.enum(["DRAFT", "READY"]).nullable().openapi({
+    description:
+      "Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.",
+    example: null,
+  }),
+  pendingVendorGrantId: z.string().uuid().nullable().openapi({
+    description:
+      "Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.",
+    example: null,
+  }),
   metadata: z.string().nullable().openapi({
     description: "Serialized task schedule metadata JSON",
     example: null,
@@ -86,7 +115,13 @@ const taskBaseSchema = z.object({
   workspace: workspaceSummarySchema,
 });
 
-export const taskListItemSchema = taskBaseSchema.openapi("TaskListItem");
+export const taskListItemSchema = taskBaseSchema
+  .omit({ credits: true, events: true, jobs: true })
+  .extend({
+    jobsCount: z.number().int().nonnegative().openapi({ example: 2 }),
+    commentsCount: z.number().int().nonnegative().openapi({ example: 4 }),
+  })
+  .openapi("TaskListItem");
 
 export const taskSchema = taskBaseSchema
   .extend({

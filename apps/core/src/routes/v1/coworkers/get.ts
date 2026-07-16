@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
@@ -81,8 +81,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const coworkers = await prisma.coworker.findMany({
       where,
       orderBy: [{ priority: "desc" }, { slug: "asc" }],
+      include: coworkerInclude,
     });
 
-    return ok(c, z.array(coworkerSchema).parse(coworkers));
+    return ok(c, coworkers.map(mapCoworker));
   });
 }

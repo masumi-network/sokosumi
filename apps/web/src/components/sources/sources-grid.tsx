@@ -1,8 +1,7 @@
-import { BlobStatus } from "@sokosumi/utils";
 import { FileIcon } from "lucide-react";
-
 import { Favicon } from "@/components/ui/favicon";
 import { FileChip } from "@/components/ui/file-chip";
+import { BlobStatus } from "@/lib/clients/generated/core";
 import { getBlobUrl } from "@/lib/helpers/blob";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";

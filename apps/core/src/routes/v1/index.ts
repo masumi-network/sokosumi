@@ -25,6 +25,7 @@ import projectsRouter from "./projects/index.js";
 import shareRouter from "./share/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
+import vendorsRouter from "./vendors/index.js";
 import workspacesRouter from "./workspaces/index.js";
 
 const app = new OpenAPIHono();
@@ -48,11 +49,11 @@ app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
   },
 });
 
-app.openAPIRegistry.registerComponent("parameters", "DelegationUserId", {
-  name: "X-Delegation-User-Id",
+app.openAPIRegistry.registerComponent("parameters", "ContextUserId", {
+  name: "X-Context-User-Id",
   in: "header",
   description:
-    "Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.",
+    "Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.",
   required: false,
   schema: {
     type: "string",
@@ -60,21 +61,17 @@ app.openAPIRegistry.registerComponent("parameters", "DelegationUserId", {
   },
 });
 
-app.openAPIRegistry.registerComponent(
-  "parameters",
-  "DelegationOrganizationId",
-  {
-    name: "X-Delegation-Organization-Id",
-    in: "header",
-    description:
-      "Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.",
-    required: false,
-    schema: {
-      type: "string",
-      example: "org_xyz789",
-    },
+app.openAPIRegistry.registerComponent("parameters", "ContextOrganizationId", {
+  name: "X-Context-Organization-Id",
+  in: "header",
+  description:
+    "Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.",
+  required: false,
+  schema: {
+    type: "string",
+    example: "org_xyz789",
   },
-);
+});
 
 app.use(
   "*",
@@ -84,6 +81,8 @@ app.use(
       "Content-Type",
       "Authorization",
       "X-Organization-Slug",
+      "X-Context-User-Id",
+      "X-Context-Organization-Id",
       "X-Delegation-User-Id",
       "X-Delegation-Organization-Id",
     ],
@@ -131,6 +130,7 @@ app.route("/share", shareRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);
 app.route("/products", productsRouter);
+app.route("/vendors", vendorsRouter);
 app.route("/workspaces", workspacesRouter);
 
 export default app;

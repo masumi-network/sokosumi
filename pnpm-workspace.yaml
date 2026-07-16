@@ -36,6 +36,11 @@ overrides:
   # via vite@8.0.16 (esbuild@0.27.7) and tsup@8.5.1. Force all resolving copies
   # below the patched line to 0.28.1.
   "esbuild@<0.28.1": "0.28.1"
+  # undici GHSA-vxpw-j846-p89q (WebSocket DoS), GHSA-p88m-4jfj-68fv (Set-Cookie
+  # header injection), GHSA-35p6-xmwp-9g52 (keep-alive poisoning),
+  # GHSA-g8m3-5g58-fq7m (SameSite downgrade) — @vercel/blob@2.5.0 still resolves
+  # undici@6.26.0. Force patched 6.27 line (direct blob HTTP client path).
+  "undici@<6.27.0": "6.27.0"
 
 allowBuilds:
   # pnpm 11: workspace prepare scripts are blocked unless listed (strictDepBuilds).

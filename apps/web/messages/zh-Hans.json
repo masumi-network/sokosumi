@@ -1209,6 +1209,7 @@
           "DRAFT": "草稿",
           "QUEUED": "已排队",
           "READY": "就绪",
+          "GRANT_PENDING": "待审批",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
           "AUTHENTICATION_REQUIRED": "需要认证",
@@ -1218,7 +1219,6 @@
           "AWAITING_EXTERNAL": "等待外部",
           "COMPLETED": "已完成",
           "FAILED": "失败",
-          "CANCEL_REQUESTED": "已请求取消",
           "CANCELED": "已取消"
         }
       },
@@ -1414,6 +1414,19 @@
         "inputRequired": "需要输入",
         "done": "已完成"
       },
+      "PendingVendorGrantBanner": {
+        "title": "需要批准供应商访问权限",
+        "descriptionOne": "{vendorName} 需要访问权限才能在此工作区处理任务。",
+        "descriptionMany": "{count} 个供应商需要访问权限才能在此工作区处理任务。",
+        "descriptionMember": "同事请求了供应商访问权限，需要工作区所有者或管理员批准。",
+        "descriptionMemberMany": "{count} 个供应商请求了访问权限，需要工作区所有者或管理员批准。",
+        "parkedTasksHint": "在访问权限获批前，{count, plural, other {# 个任务被阻塞}}。",
+        "approve": "批准访问",
+        "review": "查看详情",
+        "approveSuccess": "已批准供应商访问。",
+        "approveError": "批准供应商访问失败",
+        "approvePartialError": "已批准 {approved}/{total} 个供应商。部分批准失败，请刷新后重试。"
+      },
       "Actions": {
         "add": "添加",
         "addTask": "添加任务",
@@ -1470,6 +1483,7 @@
           "DRAFT": "草稿",
           "QUEUED": "已排队",
           "READY": "就绪",
+          "GRANT_PENDING": "待审批",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
           "AUTHENTICATION_REQUIRED": "需要认证",
@@ -1479,7 +1493,6 @@
           "AWAITING_EXTERNAL": "等待外部",
           "COMPLETED": "已完成",
           "FAILED": "失败",
-          "CANCEL_REQUESTED": "已请求取消",
           "CANCELED": "已取消"
         }
       },
@@ -1512,6 +1525,7 @@
         "project": "项目",
         "personalWorkspace": "个人",
         "coworker": "协作伙伴",
+        "credits": "积分",
         "created": "创建时间",
         "updated": "更新时间",
         "description": "描述",
@@ -1542,7 +1556,7 @@
         "actorUser": "用户",
         "actorSystem": "系统",
         "originFromApp": "来自 {appName}",
-        "originApp": {
+        "channelApp": {
           "sokosumi": "Sokosumi",
           "slack": "Slack",
           "teams": "Teams",
@@ -1562,13 +1576,13 @@
         "actionChargedCredits": "扣除 {credits, plural, =1 {# 积分} other {# 积分}}",
         "statusLabels": {
           "outOfCredits": "积分不足",
-          "creditsToppedUp": "已充值积分",
-          "cancelRequested": "已请求取消"
+          "creditsToppedUp": "已充值积分"
         },
         "billingCta": {
           "upgradePlan": "获取更多积分",
           "addCredits": "添加积分",
-          "placeholder": "此任务需要积分才能继续。请打开计费页面以继续。"
+          "placeholder": "此任务需要积分才能继续。请打开计费页面以继续。",
+          "statusUnavailable": "此任务积分已用尽。"
         },
         "actions": {
           "edit": "编辑",
@@ -1577,8 +1591,15 @@
           "confirmArchiveDescription": "任务将从列表中隐藏，不会从数据库中永久删除。",
           "archiveError": "归档任务失败",
           "markAsReady": "标记为就绪",
+          "reopenToReady": "重新打开为就绪",
+          "reopenToReadyTitle": "重新打开任务",
+          "reopenToReadyDescription": "请添加评论，让协作同事知道下一步该做什么。任务将回到就绪状态。",
+          "reopenToReadyCommentLabel": "评论",
+          "reopenToReadyCommentPlaceholder": "说明仍需完成的工作…",
+          "reopenToReadyCommentRequired": "重新打开此任务需要填写评论",
+          "reopenToReadyConfirm": "重新打开为就绪",
           "revertToDraft": "恢复为草稿",
-          "cancelRequest": "请求取消",
+          "cancel": "取消",
           "share": "Share",
           "updateStatusSuccess": "任务状态已更新",
           "moveToWorkspace": "移到其他工作区",
@@ -1651,7 +1672,25 @@
           "switchError": "切换工作区失败，请重试。"
         },
         "clonedFrom": "克隆自 {name}",
-        "schedule": "计划"
+        "schedule": "计划",
+        "pendingApproval": "待审批",
+        "VendorGrantApproval": {
+          "title": "需要批准供应商访问权限",
+          "description": "同事创建了此任务，但尚未获得在此工作区创建任务的权限。请批准供应商访问以激活该任务。",
+          "descriptionWithCoworker": "{coworkerName} 创建了此任务，但尚未获得在此工作区创建任务的权限。请批准供应商访问以激活该任务。",
+          "approve": "批准访问",
+          "deny": "拒绝访问",
+          "review": "查看详情",
+          "approveSuccess": "已批准供应商访问。此任务现已激活。",
+          "denySuccess": "已拒绝供应商访问。此任务已取消。",
+          "approveError": "批准供应商访问失败",
+          "denyError": "拒绝供应商访问失败"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "等待供应商访问批准",
+          "description": "此任务已被阻塞，需工作区所有者或管理员批准供应商访问后才能继续。",
+          "descriptionWithCoworker": "{coworkerName} 创建了此任务。需工作区所有者或管理员批准供应商访问后才能继续。"
+        }
       },
       "NewTask": {
         "title": "新建任务",
@@ -1830,7 +1869,6 @@
             "AWAITING_EXTERNAL": "等待中",
             "COMPLETED": "已完成",
             "FAILED": "失败",
-            "CANCEL_REQUESTED": "取消中",
             "CANCELED": "已取消"
           },
           "jobStatusAbbreviations": {
@@ -2668,7 +2706,6 @@
       "billingPortalTitle": "计费门户",
       "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅和发票。",
       "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理订阅、账单信息和发票。",
-      "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "freePrice": "免费",
       "customPrice": "自定义",
@@ -2857,6 +2894,10 @@
           "tasks": {
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
+          },
+          "freeCredits": {
+            "title": "免费积分",
+            "description": "无需 Stripe 发票，直接向用户或组织发放免费积分。"
           }
         }
       },
@@ -2960,6 +3001,15 @@
         "title": "发票",
         "description": "通过 Stripe 发票向用户或组织授予一次性积分。将发票标记为已支付后，积分将立即授予。",
         "cardTitle": "新建发票",
+        "newGrant": "新建发票",
+        "backToList": "返回列表",
+        "delete": "删除",
+        "deleting": "正在删除…",
+        "deleteSuccess": "发票已删除",
+        "deleteError": "删除发票失败",
+        "deleteConfirmTitle": "删除发票？",
+        "deleteConfirmDescription": "草稿将被永久删除。未付款发票将被作废，无法再支付。",
+        "cancel": "取消",
         "Form": {
           "Fields": {
             "organization": "组织",
@@ -2980,7 +3030,32 @@
           "createError": "创建发票失败",
           "pricePlaceholder": "选择价格",
           "priceHelper": "用于发票金额的每积分价格。",
-          "priceRequired": "请选择价格"
+          "priceRequired": "请选择价格",
+          "billingLoadErrorTitle": "无法加载账单信息",
+          "billingLoadError": "无法加载收件人的账单信息",
+          "billingRefresh": "刷新",
+          "billingIncomplete": "需要包含国家的账单地址",
+          "billingIncompleteUser": "创建发票前，该用户必须在其账户设置中添加包含国家的账单地址。",
+          "billingIncompleteOrganization": "创建发票前，该组织必须在其组织设置中添加包含国家的账单地址。",
+          "BillingDetails": {
+            "title": "账单信息",
+            "description": "存储在收件人 Stripe 客户上的账单地址和税务信息。",
+            "addressLabel": "账单地址",
+            "taxIdLabel": "增值税 / 税号",
+            "taxIdVerification": "验证状态：{status}",
+            "taxIdVerificationStatus": {
+              "verified": "已验证",
+              "pending": "待处理",
+              "unverified": "未验证",
+              "unavailable": "不可用",
+              "verification_failed": "验证失败"
+            },
+            "invoiceEmailLabel": "发票邮箱",
+            "invoiceEmailEmpty": "未设置发票邮箱",
+            "stripeCustomerIdLabel": "Stripe 客户 ID",
+            "stripeCustomerIdEmpty": "暂无 Stripe 客户",
+            "empty": "未设置账单地址"
+          }
         },
         "Result": {
           "heading": "发票",
@@ -3020,6 +3095,35 @@
           "backToList": "返回任务列表",
           "personalWorkspace": "个人工作区"
         }
+      },
+      "FreeCredits": {
+        "title": "免费积分",
+        "description": "直接向用户或组织发放免费积分。积分会立即入账。",
+        "backToAdmin": "返回管理后台",
+        "Form": {
+          "Fields": {
+            "target": "接收方",
+            "credits": "积分",
+            "expiryDays": "有效期（天）",
+            "referenceNote": "引用备注"
+          },
+          "Tabs": {
+            "organization": "组织",
+            "user": "用户"
+          },
+          "targetRequired": "请选择接收方",
+          "creditsRequired": "请输入正数积分",
+          "creditsHelper": "将发放给接收方的积分数量。",
+          "expiryHelper": "可选。积分到期前的天数。留空表示永不过期。",
+          "expiryPlaceholder": "永不过期",
+          "expiryInvalid": "有效期必须是正整数天数",
+          "referenceNoteHelper": "可选备注，会保存在积分桶中供内部参考。",
+          "referenceNotePlaceholder": "例如：账单问题、善意补偿",
+          "submit": "发放积分",
+          "submitting": "正在发放积分…",
+          "grantSuccess": "免费积分已发放",
+          "grantError": "发放免费积分失败"
+        }
       }
     },
     "Billing": {
@@ -3033,9 +3137,8 @@
         "credits": "积分",
         "coupon": "优惠券"
       },
-      "billingPortalDescription": "下载您的发票，更改账单地址并管理其他账单信息。",
-      "manageYourBilling": "管理账单",
-      "openingBillingPortal": "正在打开...",
+      "billingPortalDescription": "在 Stripe 中更新账单地址、税号、支付方式、发票邮箱和订阅。",
+      "manageYourBilling": "在 Stripe 中管理",
       "orgAccessRestrictedTitle": "计费访问受限",
       "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
       "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",
@@ -3262,6 +3365,29 @@
         "loading": "正在保存偏好设置...",
         "error": "更新通知偏好失败"
       },
+      "BillingDetails": {
+        "title": "账单信息",
+        "description": "账单地址、税号、发票邮箱和支付方式均在 Stripe 中管理。",
+        "addressLabel": "账单地址",
+        "taxIdLabel": "增值税 / 税号",
+        "taxIdVerification": "验证状态：{status}",
+        "taxIdVerificationStatus": {
+          "verified": "已验证",
+          "pending": "待处理",
+          "unverified": "未验证",
+          "unavailable": "不可用",
+          "verification_failed": "验证失败"
+        },
+        "invoiceEmailLabel": "发票邮箱",
+        "invoiceEmailEmpty": "尚未设置发票邮箱",
+        "empty": "尚未保存账单地址",
+        "loadErrorTitle": "无法加载账单信息",
+        "loadError": "暂时无法加载你的账单信息。",
+        "retry": "重试",
+        "Errors": {
+          "general": "无法打开 Stripe"
+        }
+      },
       "Delete": {
         "title": "删除账户",
         "description": "永久删除您的账户及所有关联数据",
@@ -3484,6 +3610,38 @@
         "Schema": {
           "websiteUrl": "请输入有效的 http 或 https URL"
         }
+      },
+      "VendorGrants": {
+        "title": "供应商工作区访问",
+        "description": "批准供应商对你个人工作区的访问（读取、评论和创建任务）。",
+        "vendorsTitle": "供应商",
+        "vendorsEmpty": "尚无供应商授权。",
+        "statusPending": "待处理",
+        "statusGranted": "已授权",
+        "statusDenied": "已拒绝",
+        "statusRevoked": "已撤销",
+        "grantFormTitle": "主动授予访问权限",
+        "GrantForm": {
+          "vendorLabel": "供应商",
+          "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
+          "submit": "授予访问权限",
+          "success": "已授予供应商访问权限",
+          "error": "授予供应商访问权限失败"
+        },
+        "Actions": {
+          "approve": "批准",
+          "deny": "拒绝",
+          "revoke": "撤销",
+          "approveSuccess": "已批准供应商访问权限",
+          "denySuccess": "已拒绝供应商访问权限",
+          "revokeSuccess": "已撤销供应商访问权限",
+          "approveError": "批准供应商访问权限失败",
+          "denyError": "拒绝供应商访问权限失败",
+          "revokeError": "撤销供应商访问权限失败",
+          "grant": "授予",
+          "grantSuccess": "已授予供应商访问权限",
+          "grantError": "授予供应商访问权限失败"
+        }
       }
     },
     "Organizations": {
@@ -3503,24 +3661,28 @@
         "delete": "删除",
         "invite": "邀请成员",
         "bulkInvite": "批量邀请",
-        "InvoiceEmail": {
-          "title": "发票邮箱",
-          "description": "用于接收发票和计费通知的邮箱地址",
-          "label": "发票邮箱",
-          "placeholder": "billing@example.com",
-          "help": "该邮箱将接收来自 Stripe 的所有发票和计费相关通信",
-          "edit": "编辑",
-          "save": "保存",
-          "cancel": "取消",
-          "Success": {
-            "update": "发票邮箱更新成功"
+        "BillingDetails": {
+          "title": "账单信息",
+          "description": "账单地址、税号、发票邮箱和支付方式均在 Stripe 中管理。",
+          "addressLabel": "账单地址",
+          "taxIdLabel": "增值税 / 税号",
+          "taxIdVerification": "验证状态：{status}",
+          "taxIdVerificationStatus": {
+            "verified": "已验证",
+            "pending": "待处理",
+            "unverified": "未验证",
+            "unavailable": "不可用",
+            "verification_failed": "验证失败"
           },
+          "invoiceEmailLabel": "发票邮箱",
+          "invoiceEmailEmpty": "尚未设置发票邮箱",
+          "empty": "尚未保存账单地址",
+          "loadErrorTitle": "无法加载账单信息",
+          "loadError": "暂时无法加载此组织的账单信息。",
+          "retry": "重试",
           "Errors": {
-            "unauthenticated": "请登录以继续",
-            "unauthenticatedAction": "登录",
-            "unauthorized": "只有组织所有者和管理员可以更新发票邮箱",
-            "badInput": "请输入有效的邮箱地址",
-            "general": "更新发票邮箱失败"
+            "unauthorized": "仅组织所有者和管理员可以打开 Stripe 账单管理",
+            "general": "无法打开 Stripe"
           }
         },
         "Subscription": {
@@ -3551,6 +3713,38 @@
           "assigned": "已分配",
           "unused": "未使用",
           "manageBilling": "管理账单"
+        },
+        "VendorGrants": {
+          "title": "供应商工作区访问",
+          "description": "批准供应商对此组织工作区的访问（读取、评论和创建任务）。",
+          "vendorsTitle": "供应商",
+          "vendorsEmpty": "尚无供应商授权。",
+          "statusPending": "待处理",
+          "statusGranted": "已授权",
+          "statusDenied": "已拒绝",
+          "statusRevoked": "已撤销",
+          "grantFormTitle": "主动授予访问权限",
+          "GrantForm": {
+            "vendorLabel": "供应商",
+            "workspaceAccessHint": "授予完整工作区访问权限：读取、评论和创建任务。",
+            "submit": "授予访问权限",
+            "success": "已授予供应商访问权限",
+            "error": "授予供应商访问权限失败"
+          },
+          "Actions": {
+            "approve": "批准",
+            "deny": "拒绝",
+            "revoke": "撤销",
+            "approveSuccess": "已批准供应商访问",
+            "denySuccess": "已拒绝供应商访问",
+            "revokeSuccess": "已撤销供应商访问",
+            "approveError": "批准供应商访问失败",
+            "denyError": "拒绝供应商访问失败",
+            "revokeError": "撤销供应商访问失败",
+            "grant": "授予",
+            "grantSuccess": "已授予供应商访问权限",
+            "grantError": "授予供应商访问权限失败"
+          }
         }
       }
     },
@@ -3918,6 +4112,11 @@
         "failed": "{coworkerName} 未能完成 {taskName}",
         "canceled": "{taskName} 已取消"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} 请求访问组织工作区的供应商权限"
     }
   }
 }

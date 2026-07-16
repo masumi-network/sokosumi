@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -29,7 +30,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/tasks",
-    description: "Add an existing task to a project",
+    description:
+      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Any workspace member may link a workspace task.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -69,11 +71,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.task.findFirst({
       where: { id: body.taskId, archivedAt: null, workspaceId },
-      select: { projectId: true },
+      select: { projectId: true, pendingVendorGrantId: true, status: true },
     });
     if (!task) {
       throw notFound("Task not found");
     }
+
+    requireTaskNotParked(task);
 
     if (task.projectId !== null && task.projectId !== projectId) {
       throw conflict("Task is already assigned to a project");

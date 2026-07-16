@@ -17,12 +17,12 @@ const organizations = [
 ];
 
 describe("isConfirmationOrgAwareTool", () => {
-  it.each([
-    "sokosumi_create_task",
-    "sokosumi_create_job",
-  ])("shows the same organization picker path for %s", (toolName) => {
-    expect(isConfirmationOrgAwareTool(toolName)).toBe(true);
-  });
+  it.each(["sokosumi_create_task", "sokosumi_create_job"])(
+    "shows the same organization picker path for %s",
+    (toolName) => {
+      expect(isConfirmationOrgAwareTool(toolName)).toBe(true);
+    },
+  );
 
   it("does not show the organization picker for resource-scoped tools", () => {
     expect(isConfirmationOrgAwareTool("sokosumi_add_task_comment")).toBe(false);

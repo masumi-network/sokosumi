@@ -7,15 +7,17 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
-import { TaskStatus } from "@sokosumi/utils";
 import { type CSSProperties, type ReactNode, useRef } from "react";
-
-import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";
+import type {
+  KanbanColumnId,
+  TaskWithCoworker,
+} from "@/app/tasks/types/task-board";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { hasActiveSchedule } from "@/lib/utils/task-schedule";
 
 /** Columns whose tasks can be dragged. */
-const DND_DRAG_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo"]);
+const DND_DRAG_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo", "done"]);
 
 /** Columns that accept drops. */
 const DND_DROP_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo"]);
@@ -57,10 +59,27 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
   }
 }
 
-/** Scheduled backlog tasks must not be dragged; status changes require clearing the schedule first. */
+/**
+ * Whether a task card may start a board/list drag. Terminal done tasks are
+ * only draggable when they can reopen to READY (completed/canceled + coworker).
+ * Scheduled backlog tasks must not be dragged; clearing the schedule is required first.
+ */
 export function isTaskDnDDraggable(
-  task: Pick<TaskWithCoworker, "status" | "metadata" | "nextRunAt">,
+  task: Pick<TaskWithCoworker, "status" | "metadata" | "nextRunAt"> & {
+    coworker?: { id: string } | null;
+  },
 ): boolean {
+  if (
+    task.status === TaskStatus.COMPLETED ||
+    task.status === TaskStatus.CANCELED
+  ) {
+    return Boolean(task.coworker?.id);
+  }
+
+  if (task.status === TaskStatus.FAILED) {
+    return false;
+  }
+
   if (task.status !== TaskStatus.QUEUED) {
     return true;
   }

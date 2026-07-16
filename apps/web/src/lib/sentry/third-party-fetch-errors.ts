@@ -1,5 +1,16 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
+import { isExpectedChatStreamSurfaceError } from "@/lib/sentry/chat-stream-surface-errors";
+import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
+import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
+import {
+  isInAppBrowserEnvironmentError,
+  isTransientStreamClosureError,
+} from "@/lib/sentry/third-party-browser-environment-errors";
+import { isBrowserExtensionOnlyStackError } from "@/lib/sentry/third-party-browser-extension-errors";
+import { isThirdPartyDomMutationError } from "@/lib/sentry/third-party-dom-mutation-errors";
+import { isThirdPartyWalletError } from "@/lib/sentry/third-party-wallet-errors";
+
 /** Hostnames for marketing/analytics scripts loaded via GTM or similar. */
 const THIRD_PARTY_ANALYTICS_HOSTS = [
   "plausible.io",
@@ -39,23 +50,39 @@ const thirdPartyFetchFailurePattern =
 const transientFetchFailurePattern =
   /^(?:TypeError: )?(?:Failed to fetch|Load failed) \(([^)]+)\)$/;
 
+/**
+ * Safari on iOS reports aborted RSC/fetch work as bare `Load failed` with no
+ * hostname and no stack (SOKOSUMI-18 on `/chat`).
+ */
+const bareTransientNetworkFailurePattern =
+  /^(?:TypeError: )?(?:Load failed|Failed to fetch)$/;
+
+/** Consent SDK chunk load failures from Usercentrics (SOKOSUMI-7V). */
+const thirdPartyDynamicImportFailurePattern =
+  /Failed to fetch dynamically imported module: https?:\/\/[^/]*usercentrics/i;
+
+/**
+ * Firefox and some WebKit builds report offline or aborted fetches as a bare
+ * `network error` with no hostname (SOKOSUMI-D6 on `/tasks/:taskId`).
+ */
+const bareNetworkErrorPattern = /^(?:TypeError: )?network error$/i;
+
+export const bareNetworkErrorIgnoreErrors: RegExp[] = [bareNetworkErrorPattern];
+
+/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13). */
+export const thirdPartyScriptDenyUrls: RegExp[] = [
+  /hook\.js/i,
+  /cardano\.bundle\.js/i,
+];
+
 /** Core API hosts where client-side connectivity blips are user/network noise. */
 const FIRST_PARTY_API_HOSTS = [
   "api.sokosumi.com",
   "api.preprod.sokosumi.com",
 ] as const;
 
-function getEventErrorMessage(event: ErrorEvent): string {
-  const exceptionValue = event.exception?.values?.[0]?.value;
-  if (typeof exceptionValue === "string" && exceptionValue.length > 0) {
-    return exceptionValue;
-  }
-
-  if (typeof event.message === "string") {
-    return event.message;
-  }
-
-  return "";
+function getEventErrorMessage(event: ErrorEvent, hint?: EventHint): string {
+  return getSentryErrorEventMessage(event, hint);
 }
 
 function isKnownThirdPartyHost(host: string): boolean {
@@ -102,15 +129,40 @@ export function isTransientFirstPartyApiFetchFailure(message: string): boolean {
   return isKnownFirstPartyApiHost(match[1]);
 }
 
+export function isBareTransientNetworkFailure(message: string): boolean {
+  return bareTransientNetworkFailurePattern.test(message);
+}
+
+export function isBareNetworkError(message: string): boolean {
+  return bareNetworkErrorPattern.test(message);
+}
+
+export function isThirdPartyDynamicImportFailure(message: string): boolean {
+  return thirdPartyDynamicImportFailurePattern.test(message);
+}
+
 export function beforeSendClientEvent(
   event: ErrorEvent,
-  _hint: EventHint,
+  hint: EventHint,
 ): ErrorEvent | null {
-  const message = getEventErrorMessage(event);
+  if (isBrowserExtensionOnlyStackError(event)) {
+    return null;
+  }
+
+  const message = getEventErrorMessage(event, hint);
 
   if (
     isThirdPartyAnalyticsFetchFailure(message) ||
-    isTransientFirstPartyApiFetchFailure(message)
+    isTransientFirstPartyApiFetchFailure(message) ||
+    isBareTransientNetworkFailure(message) ||
+    isBareNetworkError(message) ||
+    isThirdPartyDynamicImportFailure(message) ||
+    isExpectedClientNoiseErrorMessage(message) ||
+    isThirdPartyDomMutationError(message) ||
+    isInAppBrowserEnvironmentError(message) ||
+    isTransientStreamClosureError(message) ||
+    isExpectedChatStreamSurfaceError(event) ||
+    isThirdPartyWalletError(message, event)
   ) {
     return null;
   }

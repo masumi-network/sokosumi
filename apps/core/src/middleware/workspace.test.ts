@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
-  captureExceptionMock,
+  captureExternalServiceErrorMock,
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
@@ -13,7 +13,7 @@ const {
   userFindUniqueMock,
   memberFindUniqueMock,
 } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
+  captureExternalServiceErrorMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
@@ -24,12 +24,16 @@ const {
   memberFindUniqueMock: vi.fn(),
 }));
 
+vi.mock("@/lib/external-service-errors", () => ({
+  captureExternalServiceError: (...args: unknown[]) =>
+    captureExternalServiceErrorMock(...args),
+}));
+
 vi.mock("@sentry/node", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sentry/node")>();
 
   return {
     ...actual,
-    captureException: (...args: unknown[]) => captureExceptionMock(...args),
   };
 });
 
@@ -181,10 +185,11 @@ describe("workspaceMiddleware", () => {
       "user_123",
       "org_123",
       expect.objectContaining({
-        coworkerApiKey: expect.any(Object),
-        member: expect.any(Object),
+        oauthAccessToken: expect.any(Object),
+        oauthConsent: expect.any(Object),
       }),
     );
+    expect(prismaTransactionMock).toHaveBeenCalled();
   });
 
   it("creates workspaceContext when the active workspace was missing", async () => {
@@ -247,15 +252,21 @@ describe("workspaceMiddleware", () => {
       },
       workspaceContext: null,
     });
-    expect(captureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        activeOrganizationId: "org_existing",
-        userId: "user_123",
+    expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      {
+        label: "workspace_context_resolution",
+        sentry: {
+          extra: {
+            activeOrganizationId: "org_existing",
+            userId: "user_123",
+          },
+          tags: {
+            context: "workspace_context_resolution",
+          },
+        },
       },
-      tags: {
-        context: "workspace_context_resolution",
-      },
-    });
+    );
   });
 
   it("leaves workspaceContext null for coworker requests", async () => {
@@ -265,6 +276,7 @@ describe("workspaceMiddleware", () => {
       expiresAt: null,
       coworker: {
         archivedAt: null,
+        vendorId: TEST_VENDOR_ID,
       },
     });
 
@@ -281,6 +293,7 @@ describe("workspaceMiddleware", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       },
       workspaceContext: null,
     });
@@ -294,6 +307,7 @@ describe("workspaceMiddleware", () => {
       expiresAt: null,
       coworker: {
         archivedAt: null,
+        vendorId: TEST_VENDOR_ID,
       },
     });
     userFindUniqueMock.mockResolvedValue({ id: "user_delegate" });
@@ -316,7 +330,8 @@ describe("workspaceMiddleware", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
-        delegation: {
+        vendorId: TEST_VENDOR_ID,
+        context: {
           userId: "user_delegate",
           organizationId: null,
         },
@@ -331,9 +346,10 @@ describe("workspaceMiddleware", () => {
       "user_delegate",
       null,
       expect.objectContaining({
-        coworkerApiKey: expect.any(Object),
-        member: expect.any(Object),
+        oauthAccessToken: expect.any(Object),
+        oauthConsent: expect.any(Object),
       }),
     );
+    expect(prismaTransactionMock).toHaveBeenCalled();
   });
 });

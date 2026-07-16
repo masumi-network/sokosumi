@@ -1,7 +1,11 @@
 import * as Sentry from "@sentry/node";
-import { type Prisma, TaskEventOrigin, TaskLinkType } from "@sokosumi/database";
+import {
+  Channel,
+  type Prisma,
+  TaskLinkType,
+  TaskStatus,
+} from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/database/types/task-schedule-metadata";
-import { TaskStatus } from "@sokosumi/utils";
 
 import {
   computeScheduleNextRun,
@@ -89,7 +93,7 @@ function getCloneTaskData(
     events: {
       create: {
         status: TaskStatus.READY,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
         userId: template.userId,
       },
     },
@@ -128,7 +132,7 @@ async function promoteOneTimeTask(
     data: {
       taskId: templateId,
       status: TaskStatus.READY,
-      origin: TaskEventOrigin.SOKOSUMI,
+      channel: Channel.SOKOSUMI,
       userId,
     },
   });
@@ -212,6 +216,7 @@ async function processDueTask(
         id: templateId,
         status: TaskStatus.QUEUED,
         archivedAt: null,
+        pendingVendorGrantId: null,
         nextRunAt: { lte: new Date() },
       },
       select: {
@@ -361,6 +366,7 @@ async function syncDueTaskSchedules(
       where: {
         status: TaskStatus.QUEUED,
         archivedAt: null,
+        pendingVendorGrantId: null,
         nextRunAt: { lte: new Date() },
       },
       orderBy: [{ nextRunAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],

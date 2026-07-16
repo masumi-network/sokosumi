@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthVariables } from "./auth";
 import { authMiddleware, requireAdminAuthContext } from "./auth";
@@ -90,6 +91,7 @@ describe("authMiddleware", () => {
       expiresAt: null,
       coworker: {
         archivedAt: null,
+        vendorId: "01960001-0001-7001-8001-000000000001",
       },
     });
 
@@ -104,6 +106,7 @@ describe("authMiddleware", () => {
     expect(await response.json()).toEqual({
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
     });
     expect(coworkerApiKeyFindUniqueMock).toHaveBeenCalledWith({
       where: {
@@ -116,6 +119,7 @@ describe("authMiddleware", () => {
         coworker: {
           select: {
             archivedAt: true,
+            vendorId: true,
           },
         },
       },
@@ -401,6 +405,7 @@ describe("requireAdminAuthContext", () => {
       requireAdminAuthContext({
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       }),
     ).toThrowError("User authentication required");
   });
@@ -410,7 +415,8 @@ describe("requireAdminAuthContext", () => {
       requireAdminAuthContext({
         actor: "coworker",
         coworkerId: "cow_123",
-        delegation: {
+        vendorId: TEST_VENDOR_ID,
+        context: {
           userId: "user_456",
           organizationId: "org_1",
         },

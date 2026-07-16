@@ -11,7 +11,6 @@ interface OrganizationMetadataRecord extends MetadataRecord {}
 export interface OrganizationMetadata {
   designMdExtractionId: null | string;
   designMdUrl: null | string;
-  invoiceEmail: null | string;
   url: null | string;
 }
 
@@ -32,7 +31,6 @@ export function getOrganizationMetadata(
       "designMdExtractionId",
     ),
     designMdUrl: getNormalizedStringField(parsedMetadata, "designMdUrl"),
-    invoiceEmail: getNormalizedStringField(parsedMetadata, "invoiceEmail"),
     url: getNormalizedStringField(parsedMetadata, "url"),
   };
 }

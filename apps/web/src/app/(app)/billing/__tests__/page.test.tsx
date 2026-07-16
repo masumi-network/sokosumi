@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { MemberRole } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
+import { MemberRole } from "@/lib/clients/generated/core";
 
 const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
@@ -109,6 +109,10 @@ vi.mock("@/components/billing/balance-billing-portal-link", () => ({
     balanceBillingPortalLinkMock(props);
     return <div data-testid="balance-billing-portal-link" />;
   },
+}));
+
+vi.mock("@/components/billing/billing-portal-error-toast", () => ({
+  BillingPortalErrorToast: () => null,
 }));
 
 vi.mock("@/components/billing/billing-tabs", () => ({

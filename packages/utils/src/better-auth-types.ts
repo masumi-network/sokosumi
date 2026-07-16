@@ -1,6 +1,15 @@
 /**
- * Client-safe Better Auth session types for web (and other consumers).
- * Shapes match Core `/auth` JSON responses — not tied to web `auth.ts`.
+ * Client-safe Better Auth protocol shapes for web and other consumers.
+ *
+ * **SOK-588 documented exception** — session/account types intentionally live in
+ * `@sokosumi/utils` (not `packages/auth-types`, not generated Core `/v1` DTOs).
+ *
+ * - Shapes match Core Better Auth `/auth` JSON — **not** Core REST entity DTOs
+ *   (`Agent`, `Job`, `OrganizationRecord`, … from `/v1`).
+ * - **Not** Prisma `Session` / `Account` models from `@sokosumi/database`.
+ * - Kept next to cookie, public-URL, and client-schema helpers; parity tests
+ *   guard `SessionUser` keys against `betterAuthUserAdditionalFields` (client
+ *   schema), not live Core `/auth` HTTP payloads.
  */
 
 export interface SessionUser {

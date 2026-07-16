@@ -1,6 +1,5 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/utils";
 import { ListTodo, Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { unassignedWorkspaceTasksQuery } from "@/app/projects/constants";
@@ -14,6 +13,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type {
   GetTasksResponse,
   TaskListItem,

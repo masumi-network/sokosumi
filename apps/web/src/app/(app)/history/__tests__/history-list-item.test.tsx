@@ -1,7 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   getHistoryItemHref,
   HistoryListItem,
@@ -12,6 +10,7 @@ import {
   getHistoryRowSubtitle,
   type HistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/services/history.service";
 
 const iconMocks = vi.hoisted(() => ({
@@ -65,6 +64,7 @@ const labels: HistoryListItemLabels = {
     [TaskStatus.DRAFT]: "Entwurf",
     [TaskStatus.QUEUED]: "In Warteschlange",
     [TaskStatus.READY]: "Bereit",
+    [TaskStatus.GRANT_PENDING]: "Freigabe ausstehend",
     [TaskStatus.INPUT_REQUIRED]: "Eingabe erforderlich",
     [TaskStatus.APPROVAL_REQUIRED]: "Genehmigung erforderlich",
     [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentifizierung erforderlich",
@@ -74,7 +74,6 @@ const labels: HistoryListItemLabels = {
     [TaskStatus.AWAITING_EXTERNAL]: "Wartet auf Externes",
     [TaskStatus.COMPLETED]: "Abgeschlossen",
     [TaskStatus.FAILED]: "Fehlgeschlagen",
-    [TaskStatus.CANCEL_REQUESTED]: "Abbruch angefordert",
     [TaskStatus.CANCELED]: "Abgebrochen",
   },
 };

@@ -1,6 +1,5 @@
 "use client";
 
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { unassignedWorkspaceJobsQuery } from "@/app/projects/constants";
@@ -14,6 +13,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type {
   GetJobsResponse,
   JobSummary,

@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -26,7 +26,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskOwnership: requireTaskOwnershipMock,
+  requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -73,6 +73,8 @@ function createTaskApi(projectId: string | null = null) {
     status: TaskStatus.DRAFT,
     metadata: null,
     nextRunAt: null,
+    grantResumeStatus: null,
+    pendingVendorGrantId: null,
     credits: 0,
     events: [],
     jobs: [],

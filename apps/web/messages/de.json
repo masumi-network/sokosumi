@@ -1209,6 +1209,7 @@
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
           "READY": "Bereit",
+          "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
           "APPROVAL_REQUIRED": "Genehmigung erforderlich",
           "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
@@ -1218,7 +1219,6 @@
           "AWAITING_EXTERNAL": "Wartet auf Externes",
           "COMPLETED": "Abgeschlossen",
           "FAILED": "Fehlgeschlagen",
-          "CANCEL_REQUESTED": "Abbruch angefordert",
           "CANCELED": "Abgebrochen"
         }
       },
@@ -1414,6 +1414,19 @@
         "inputRequired": "Input erforderlich",
         "done": "Erledigt"
       },
+      "PendingVendorGrantBanner": {
+        "title": "Freigabe des Vendor-Zugriffs erforderlich",
+        "descriptionOne": "{vendorName} benötigt Zugriff, um mit Aufgaben in diesem Workspace zu arbeiten.",
+        "descriptionMany": "{count} Vendors benötigen Zugriff, um mit Aufgaben in diesem Workspace zu arbeiten.",
+        "descriptionMember": "Ein Coworker hat Vendor-Zugriff angefragt. Ein Workspace-Inhaber oder Admin muss dies genehmigen.",
+        "descriptionMemberMany": "{count} Vendors haben Zugriff angefragt. Ein Workspace-Inhaber oder Admin muss dies genehmigen.",
+        "parkedTasksHint": "{count, plural, one {# Aufgabe ist blockiert} other {# Aufgaben sind blockiert}}, bis der Zugriff genehmigt wurde.",
+        "approve": "Zugriff genehmigen",
+        "review": "Details ansehen",
+        "approveSuccess": "Vendor-Zugriff genehmigt.",
+        "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+        "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
+      },
       "Actions": {
         "add": "Hinzufügen",
         "addTask": "Task hinzufügen",
@@ -1470,6 +1483,7 @@
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
           "READY": "Bereit",
+          "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
           "APPROVAL_REQUIRED": "Genehmigung erforderlich",
           "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
@@ -1479,7 +1493,6 @@
           "AWAITING_EXTERNAL": "Wartet auf Externes",
           "COMPLETED": "Abgeschlossen",
           "FAILED": "Fehlgeschlagen",
-          "CANCEL_REQUESTED": "Abbruch angefordert",
           "CANCELED": "Abgebrochen"
         }
       },
@@ -1512,6 +1525,7 @@
         "project": "Projekt",
         "personalWorkspace": "Persönlich",
         "coworker": "Coworker",
+        "credits": "Credits",
         "created": "Erstellt",
         "updated": "Aktualisiert",
         "description": "Beschreibung",
@@ -1542,7 +1556,7 @@
         "actorUser": "Nutzer",
         "actorSystem": "System",
         "originFromApp": "von {appName}",
-        "originApp": {
+        "channelApp": {
           "sokosumi": "Sokosumi",
           "slack": "Slack",
           "teams": "Teams",
@@ -1562,13 +1576,13 @@
         "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} berechnet",
         "statusLabels": {
           "outOfCredits": "Keine Credits mehr",
-          "creditsToppedUp": "Credits aufgeladen",
-          "cancelRequested": "Stornierung beantragt"
+          "creditsToppedUp": "Credits aufgeladen"
         },
         "billingCta": {
           "upgradePlan": "Mehr Credits erhalten",
           "addCredits": "Credits hinzufügen",
-          "placeholder": "Dieser Task benötigt Credits. Geh zu Billing, um fortzufahren."
+          "placeholder": "Dieser Task benötigt Credits. Geh zu Billing, um fortzufahren.",
+          "statusUnavailable": "Dieser Task hat keine Credits mehr."
         },
         "actions": {
           "edit": "Bearbeiten",
@@ -1577,8 +1591,15 @@
           "confirmArchiveDescription": "Der Task wird in deiner Liste ausgeblendet und nicht dauerhaft aus der Datenbank gelöscht.",
           "archiveError": "Task konnte nicht archiviert werden",
           "markAsReady": "Als bereit markieren",
+          "reopenToReady": "Als Bereit wiedereröffnen",
+          "reopenToReadyTitle": "Aufgabe wiedereröffnen",
+          "reopenToReadyDescription": "Füge einen Kommentar hinzu, damit dein Coworker weiß, was als Nächstes zu tun ist. Die Aufgabe wird wieder auf Bereit gesetzt.",
+          "reopenToReadyCommentLabel": "Kommentar",
+          "reopenToReadyCommentPlaceholder": "Beschreibe, was noch zu erledigen ist…",
+          "reopenToReadyCommentRequired": "Zum Wiedereröffnen ist ein Kommentar erforderlich",
+          "reopenToReadyConfirm": "Als Bereit wiedereröffnen",
           "revertToDraft": "In Entwurf zurücksetzen",
-          "cancelRequest": "Anfrage abbrechen",
+          "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
           "moveToWorkspace": "In anderen Arbeitsbereich verschieben",
@@ -1651,7 +1672,25 @@
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
         "clonedFrom": "Geklont von {name}",
-        "schedule": "Zeitplan"
+        "schedule": "Zeitplan",
+        "pendingApproval": "Freigabe ausstehend",
+        "VendorGrantApproval": {
+          "title": "Freigabe des Vendor-Zugriffs erforderlich",
+          "description": "Ein Coworker hat diese Aufgabe erstellt, hat aber noch keine Berechtigung, Aufgaben in diesem Workspace anzulegen. Genehmigen Sie den Vendor-Zugriff, um die Aufgabe zu aktivieren.",
+          "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt, hat aber noch keine Berechtigung, Aufgaben in diesem Workspace anzulegen. Genehmigen Sie den Vendor-Zugriff, um die Aufgabe zu aktivieren.",
+          "approve": "Zugriff genehmigen",
+          "deny": "Zugriff ablehnen",
+          "review": "Details ansehen",
+          "approveSuccess": "Vendor-Zugriff genehmigt. Diese Aufgabe ist jetzt aktiv.",
+          "denySuccess": "Vendor-Zugriff abgelehnt. Diese Aufgabe wurde abgebrochen.",
+          "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+          "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "Warten auf Freigabe des Vendor-Zugriffs",
+          "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
+          "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
+        }
       },
       "NewTask": {
         "title": "Neuer Task",
@@ -1830,7 +1869,6 @@
             "AWAITING_EXTERNAL": "Wartet",
             "COMPLETED": "Komplett",
             "FAILED": "Fehler",
-            "CANCEL_REQUESTED": "Abbruch",
             "CANCELED": "Abgebrochen"
           },
           "jobStatusAbbreviations": {
@@ -2637,7 +2675,6 @@
       "billingPortalTitle": "Billing-Portal",
       "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Abonnements und Rechnungen zu verwalten.",
       "billingPortalDescriptionWithPlan": "Du nutzt aktuell {plan}. Verwalte Abonnements, Zahlungsdetails und Rechnungen in Stripe.",
-      "openingBillingPortal": "Wird geöffnet...",
       "billingPortalCta": "Billing-Portal öffnen",
       "freePrice": "Kostenlos",
       "customPrice": "Individuell",
@@ -2826,6 +2863,10 @@
           "tasks": {
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
+          },
+          "freeCredits": {
+            "title": "Kostenlose Credits",
+            "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
           }
         }
       },
@@ -2929,6 +2970,15 @@
         "title": "Rechnungen",
         "description": "Gewähren Sie einem Benutzer oder einer Organisation einmalige Credits über eine Stripe-Rechnung. Sobald die Rechnung als bezahlt markiert ist, werden die Credits sofort gewährt.",
         "cardTitle": "Neue Rechnung",
+        "newGrant": "Neue Rechnung",
+        "backToList": "Zurück zur Liste",
+        "delete": "Löschen",
+        "deleting": "Wird gelöscht…",
+        "deleteSuccess": "Rechnung gelöscht",
+        "deleteError": "Rechnung konnte nicht gelöscht werden",
+        "deleteConfirmTitle": "Rechnung löschen?",
+        "deleteConfirmDescription": "Entwürfe werden dauerhaft gelöscht. Offene Rechnungen werden storniert und können nicht mehr bezahlt werden.",
+        "cancel": "Abbrechen",
         "Form": {
           "Fields": {
             "organization": "Organisation",
@@ -2949,7 +2999,32 @@
           "createError": "Rechnung konnte nicht erstellt werden",
           "pricePlaceholder": "Preis auswählen",
           "priceHelper": "Preis pro Credit für den Rechnungsbetrag.",
-          "priceRequired": "Wählen Sie einen Preis aus"
+          "priceRequired": "Wählen Sie einen Preis aus",
+          "billingLoadErrorTitle": "Rechnungsdaten konnten nicht geladen werden",
+          "billingLoadError": "Rechnungsdaten des Empfängers konnten nicht geladen werden",
+          "billingRefresh": "Aktualisieren",
+          "billingIncomplete": "Rechnungsadresse mit Land ist erforderlich",
+          "billingIncompleteUser": "Dieser Benutzer muss in den Kontoeinstellungen eine Rechnungsadresse mit Land hinterlegen, bevor Sie eine Rechnung erstellen können.",
+          "billingIncompleteOrganization": "Diese Organisation muss in den Organisationseinstellungen eine Rechnungsadresse mit Land hinterlegen, bevor Sie eine Rechnung erstellen können.",
+          "BillingDetails": {
+            "title": "Rechnungsinformationen",
+            "description": "Rechnungsadresse und Steuerdaten des Stripe-Kunden des Empfängers.",
+            "addressLabel": "Rechnungsadresse",
+            "taxIdLabel": "USt-IdNr. / Steuernummer",
+            "taxIdVerification": "Verifizierungsstatus: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verifiziert",
+              "pending": "Ausstehend",
+              "unverified": "Nicht verifiziert",
+              "unavailable": "Nicht verfügbar",
+              "verification_failed": "Verifizierung fehlgeschlagen"
+            },
+            "invoiceEmailLabel": "Rechnungs-E-Mail",
+            "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
+            "stripeCustomerIdLabel": "Stripe-Kunden-ID",
+            "stripeCustomerIdEmpty": "Kein Stripe-Kunde hinterlegt",
+            "empty": "Keine Rechnungsadresse hinterlegt"
+          }
         },
         "Result": {
           "heading": "Rechnung",
@@ -2989,6 +3064,35 @@
           "backToList": "Zurück zu Aufgaben",
           "personalWorkspace": "Persönlicher Workspace"
         }
+      },
+      "FreeCredits": {
+        "title": "Kostenlose Credits",
+        "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren. Credits werden sofort gutgeschrieben.",
+        "backToAdmin": "Zurück zur Administration",
+        "Form": {
+          "Fields": {
+            "target": "Empfänger",
+            "credits": "Credits",
+            "expiryDays": "Ablauf (Tage)",
+            "referenceNote": "Referenznotiz"
+          },
+          "Tabs": {
+            "organization": "Organisation",
+            "user": "Benutzer"
+          },
+          "targetRequired": "Empfänger auswählen",
+          "creditsRequired": "Positive Anzahl von Credits eingeben",
+          "creditsHelper": "Anzahl der Credits, die dem Empfänger gewährt werden.",
+          "expiryHelper": "Optional. Tage bis zum Ablauf der Credits. Leer lassen für kein Ablaufdatum.",
+          "expiryPlaceholder": "Kein Ablauf",
+          "expiryInvalid": "Der Ablauf muss eine positive ganze Zahl von Tagen sein",
+          "referenceNoteHelper": "Optionale Notiz, die am Credit-Bucket zur internen Referenz gespeichert wird.",
+          "referenceNotePlaceholder": "z. B. Abrechnungsproblem, Kulanz",
+          "submit": "Credits gewähren",
+          "submitting": "Credits werden gewährt…",
+          "grantSuccess": "Kostenlose Credits gewährt",
+          "grantError": "Kostenlose Credits konnten nicht gewährt werden"
+        }
       }
     },
     "Billing": {
@@ -3002,9 +3106,8 @@
         "credits": "Credits",
         "coupon": "Gutschein"
       },
-      "billingPortalDescription": "Lade deine Rechnungen herunter, ändere deine Rechnungsadressen und verwalte weitere Rechnungsinformationen.",
-      "manageYourBilling": "Billing verwalten",
-      "openingBillingPortal": "Wird geöffnet...",
+      "billingPortalDescription": "Rechnungsadresse, Steuer-ID, Zahlungsmethoden, Rechnungs-E-Mail und Abonnements in Stripe verwalten.",
+      "manageYourBilling": "In Stripe verwalten",
       "orgAccessRestrictedTitle": "Billing-Zugang eingeschränkt",
       "orgAccessRestrictedDescription": "Nur Eigentümer und Admins der Organisation können Billing-Details einsehen.",
       "orgAccessRestrictedHint": "Wechsle zu deinem persönlichen Account oder kontaktiere einen Organisations-Admin, wenn du Zugang benötigst.",
@@ -3231,6 +3334,29 @@
         "loading": "Einstellung wird gespeichert...",
         "error": "Benachrichtigungseinstellung konnte nicht aktualisiert werden"
       },
+      "BillingDetails": {
+        "title": "Rechnungsinformationen",
+        "description": "Rechnungsadresse, Steuer-ID, Rechnungs-E-Mail und Zahlungsmethoden werden in Stripe verwaltet.",
+        "addressLabel": "Rechnungsadresse",
+        "taxIdLabel": "USt-IdNr. / Steuer-ID",
+        "taxIdVerification": "Verifizierungsstatus: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verifiziert",
+          "pending": "Ausstehend",
+          "unverified": "Nicht verifiziert",
+          "unavailable": "Nicht verfügbar",
+          "verification_failed": "Verifizierung fehlgeschlagen"
+        },
+        "invoiceEmailLabel": "Rechnungs-E-Mail",
+        "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
+        "empty": "Keine Rechnungsadresse hinterlegt",
+        "loadErrorTitle": "Rechnungsinformationen konnten nicht geladen werden",
+        "loadError": "Deine Rechnungsinformationen konnten gerade nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "Errors": {
+          "general": "Stripe konnte nicht geöffnet werden"
+        }
+      },
       "Delete": {
         "title": "Account löschen",
         "description": "Deinen Account und alle zugehörigen Daten dauerhaft löschen",
@@ -3453,6 +3579,38 @@
         "Schema": {
           "websiteUrl": "Gib eine gültige HTTP- oder HTTPS-URL ein"
         }
+      },
+      "VendorGrants": {
+        "title": "Vendor-Workspace-Zugriff",
+        "description": "Genehmige Vendor-Workspace-Zugriff für deinen persönlichen Workspace (Aufgaben lesen, kommentieren und erstellen).",
+        "vendorsTitle": "Anbieter",
+        "vendorsEmpty": "Noch keine Anbieterfreigaben.",
+        "statusPending": "Ausstehend",
+        "statusGranted": "Gewährt",
+        "statusDenied": "Abgelehnt",
+        "statusRevoked": "Widerrufen",
+        "grantFormTitle": "Zugriff proaktiv gewähren",
+        "GrantForm": {
+          "vendorLabel": "Anbieter",
+          "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
+          "submit": "Zugriff gewähren",
+          "success": "Vendor-Zugriff gewährt",
+          "error": "Vendor-Zugriff konnte nicht gewährt werden"
+        },
+        "Actions": {
+          "approve": "Genehmigen",
+          "deny": "Ablehnen",
+          "revoke": "Widerrufen",
+          "approveSuccess": "Vendor-Zugriff genehmigt",
+          "denySuccess": "Vendor-Zugriff abgelehnt",
+          "revokeSuccess": "Vendor-Zugriff widerrufen",
+          "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+          "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
+          "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+          "grant": "Gewähren",
+          "grantSuccess": "Vendor-Zugriff gewährt",
+          "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+        }
       }
     },
     "Organizations": {
@@ -3472,24 +3630,28 @@
         "delete": "Löschen",
         "invite": "Mitglied einladen",
         "bulkInvite": "Mehrere einladen",
-        "InvoiceEmail": {
-          "title": "Rechnungs-E-Mail",
-          "description": "E-Mail-Adresse für den Empfang von Rechnungen und Billing-Benachrichtigungen",
-          "label": "Rechnungs-E-Mail",
-          "placeholder": "billing@example.com",
-          "help": "Diese E-Mail-Adresse erhält alle Rechnungen und billing-bezogenen Mitteilungen von Stripe",
-          "edit": "Bearbeiten",
-          "save": "Speichern",
-          "cancel": "Abbrechen",
-          "Success": {
-            "update": "Rechnungs-E-Mail erfolgreich aktualisiert"
+        "BillingDetails": {
+          "title": "Rechnungsinformationen",
+          "description": "Rechnungsadresse, Steuer-ID, Rechnungs-E-Mail und Zahlungsmethoden werden in Stripe verwaltet.",
+          "addressLabel": "Rechnungsadresse",
+          "taxIdLabel": "USt-IdNr. / Steuer-ID",
+          "taxIdVerification": "Verifizierungsstatus: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verifiziert",
+            "pending": "Ausstehend",
+            "unverified": "Nicht verifiziert",
+            "unavailable": "Nicht verfügbar",
+            "verification_failed": "Verifizierung fehlgeschlagen"
           },
+          "invoiceEmailLabel": "Rechnungs-E-Mail",
+          "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
+          "empty": "Keine Rechnungsadresse hinterlegt",
+          "loadErrorTitle": "Rechnungsinformationen konnten nicht geladen werden",
+          "loadError": "Die Rechnungsinformationen dieser Organisation konnten gerade nicht geladen werden.",
+          "retry": "Erneut versuchen",
           "Errors": {
-            "unauthenticated": "Bitte melde dich an, um fortzufahren",
-            "unauthenticatedAction": "Anmelden",
-            "unauthorized": "Nur Eigentümer und Admins der Organisation können die Rechnungs-E-Mail aktualisieren",
-            "badInput": "Bitte gib eine gültige E-Mail-Adresse ein",
-            "general": "Rechnungs-E-Mail konnte nicht aktualisiert werden"
+            "unauthorized": "Nur Eigentümer und Admins der Organisation können Stripe-Billing öffnen",
+            "general": "Stripe konnte nicht geöffnet werden"
           }
         },
         "Subscription": {
@@ -3520,6 +3682,38 @@
           "assigned": "Zugewiesen",
           "unused": "Ungenutzt",
           "manageBilling": "Abrechnung verwalten"
+        },
+        "VendorGrants": {
+          "title": "Vendor-Workspace-Zugriff",
+          "description": "Genehmige Vendor-Workspace-Zugriff für diese Organisation (Aufgaben lesen, kommentieren und erstellen).",
+          "vendorsTitle": "Anbieter",
+          "vendorsEmpty": "Noch keine Anbieterfreigaben.",
+          "statusPending": "Ausstehend",
+          "statusGranted": "Gewährt",
+          "statusDenied": "Abgelehnt",
+          "statusRevoked": "Widerrufen",
+          "grantFormTitle": "Zugriff proaktiv gewähren",
+          "GrantForm": {
+            "vendorLabel": "Anbieter",
+            "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
+            "submit": "Zugriff gewähren",
+            "success": "Vendor-Zugriff gewährt",
+            "error": "Vendor-Zugriff konnte nicht gewährt werden"
+          },
+          "Actions": {
+            "approve": "Genehmigen",
+            "deny": "Ablehnen",
+            "revoke": "Widerrufen",
+            "approveSuccess": "Vendor-Zugriff genehmigt",
+            "denySuccess": "Vendor-Zugriff abgelehnt",
+            "revokeSuccess": "Vendor-Zugriff widerrufen",
+            "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+            "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
+            "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+            "grant": "Gewähren",
+            "grantSuccess": "Vendor-Zugriff gewährt",
+            "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+          }
         }
       }
     },
@@ -3918,6 +4112,11 @@
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert"
     }
   }
 }

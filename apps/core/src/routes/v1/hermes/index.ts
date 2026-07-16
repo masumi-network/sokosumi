@@ -87,6 +87,7 @@ import {
 import { conflictWithData, ok } from "@/helpers/response";
 
 import prisma from "@/lib/db/prisma";
+import { isTransientFetchError } from "@/lib/external-service-errors";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
@@ -2733,6 +2734,9 @@ function mapSkillsCatalogError(error: unknown, fallback: string): never {
       "The skills marketplace is currently unavailable.",
     );
   }
+  if (isTransientFetchError(error)) {
+    throw serviceUnavailable(`${fallback}.`, { reportToSentry: false });
+  }
   // A real skills.sh failure (e.g. the OIDC token was rejected) — capture it so
   // we can distinguish an auth/config problem from an empty catalog.
   Sentry.captureException(error, {
@@ -2930,7 +2934,10 @@ app.openapi(browseSkillsRoute, async (c) => {
     const skills = await browseSkills({ view, page, perPage });
     return ok(c, skillCatalogListSchema.parse({ skills }));
   } catch (error) {
-    if (error instanceof SkillsShUnavailableError) {
+    if (
+      error instanceof SkillsShUnavailableError ||
+      isTransientFetchError(error)
+    ) {
       return ok(c, skillCatalogListSchema.parse({ skills: [] }));
     }
     return mapSkillsCatalogError(error, "Failed to load skills");
@@ -2944,7 +2951,10 @@ app.openapi(searchSkillsRoute, async (c) => {
     const skills = await searchSkills({ q, limit });
     return ok(c, skillCatalogListSchema.parse({ skills }));
   } catch (error) {
-    if (error instanceof SkillsShUnavailableError) {
+    if (
+      error instanceof SkillsShUnavailableError ||
+      isTransientFetchError(error)
+    ) {
       return ok(c, skillCatalogListSchema.parse({ skills: [] }));
     }
     return mapSkillsCatalogError(error, "Failed to search skills");
@@ -2957,7 +2967,10 @@ app.openapi(curatedSkillsRoute, async (c) => {
     const skills = await getCuratedSkills();
     return ok(c, skillCatalogListSchema.parse({ skills }));
   } catch (error) {
-    if (error instanceof SkillsShUnavailableError) {
+    if (
+      error instanceof SkillsShUnavailableError ||
+      isTransientFetchError(error)
+    ) {
       return ok(c, skillCatalogListSchema.parse({ skills: [] }));
     }
     return mapSkillsCatalogError(error, "Failed to load curated skills");

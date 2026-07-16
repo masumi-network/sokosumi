@@ -1,9 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountArchiveConversation from "./archive";
 
@@ -68,7 +68,8 @@ function conversation(metadata: Record<string, unknown>) {
 const delegatedCoworker: AuthVariables["authContext"] = {
   actor: "coworker",
   coworkerId: "cow_123",
-  delegation: {
+  vendorId: TEST_VENDOR_ID,
+  context: {
     userId: "delegated_user_123",
     organizationId: "delegated_org_123",
   },

@@ -1209,6 +1209,7 @@
           "DRAFT": "下書き",
           "QUEUED": "キュー中",
           "READY": "準備完了",
+          "GRANT_PENDING": "承認待ち",
           "INPUT_REQUIRED": "入力が必要",
           "APPROVAL_REQUIRED": "承認が必要",
           "AUTHENTICATION_REQUIRED": "認証が必要",
@@ -1218,7 +1219,6 @@
           "AWAITING_EXTERNAL": "外部待ち",
           "COMPLETED": "完了",
           "FAILED": "失敗",
-          "CANCEL_REQUESTED": "キャンセル要求済み",
           "CANCELED": "キャンセル済み"
         }
       },
@@ -1414,6 +1414,19 @@
         "inputRequired": "入力が必要",
         "done": "完了"
       },
+      "PendingVendorGrantBanner": {
+        "title": "ベンダーアクセスの承認が必要です",
+        "descriptionOne": "{vendorName} がこのワークスペースでタスクを扱うにはアクセスが必要です。",
+        "descriptionMany": "{count} 件のベンダーがこのワークスペースでタスクを扱うにはアクセスが必要です。",
+        "descriptionMember": "コワーカーがベンダーアクセスをリクエストしました。ワークスペースのオーナーまたは管理者が承認する必要があります。",
+        "descriptionMemberMany": "{count} 件のベンダーがアクセスをリクエストしました。ワークスペースのオーナーまたは管理者が承認する必要があります。",
+        "parkedTasksHint": "アクセスが承認されるまで、{count, plural, other {# 件のタスクがブロックされています}}。",
+        "approve": "アクセスを承認",
+        "review": "詳細を確認",
+        "approveSuccess": "ベンダーアクセスを承認しました。",
+        "approveError": "ベンダーアクセスの承認に失敗しました",
+        "approvePartialError": "{total} 件中 {approved} 件のベンダーアクセスを承認しました。一部の承認に失敗したため、更新して再度お試しください。"
+      },
       "Actions": {
         "add": "追加",
         "addTask": "タスクを追加",
@@ -1470,6 +1483,7 @@
           "DRAFT": "下書き",
           "QUEUED": "キュー中",
           "READY": "準備完了",
+          "GRANT_PENDING": "承認待ち",
           "INPUT_REQUIRED": "入力が必要",
           "APPROVAL_REQUIRED": "承認が必要",
           "AUTHENTICATION_REQUIRED": "認証が必要",
@@ -1479,7 +1493,6 @@
           "AWAITING_EXTERNAL": "外部待ち",
           "COMPLETED": "完了",
           "FAILED": "失敗",
-          "CANCEL_REQUESTED": "キャンセル要求済み",
           "CANCELED": "キャンセル済み"
         }
       },
@@ -1512,6 +1525,7 @@
         "project": "プロジェクト",
         "personalWorkspace": "個人",
         "coworker": "同僚",
+        "credits": "クレジット",
         "created": "作成日",
         "updated": "更新日",
         "description": "説明",
@@ -1542,7 +1556,7 @@
         "actorUser": "ユーザー",
         "actorSystem": "システム",
         "originFromApp": "{appName}から",
-        "originApp": {
+        "channelApp": {
           "sokosumi": "Sokosumi",
           "slack": "Slack",
           "teams": "Teams",
@@ -1562,13 +1576,13 @@
         "actionChargedCredits": "{credits, plural, =1 {# クレジットを消費} other {# クレジットを消費}}",
         "statusLabels": {
           "outOfCredits": "クレジット不足",
-          "creditsToppedUp": "クレジットを追加しました",
-          "cancelRequested": "キャンセル申請済み"
+          "creditsToppedUp": "クレジットを追加しました"
         },
         "billingCta": {
           "upgradePlan": "クレジットをもっと入手",
           "addCredits": "クレジットを追加",
-          "placeholder": "このタスクを続行するにはクレジットが必要です。請求を開いて続行してください。"
+          "placeholder": "このタスクを続行するにはクレジットが必要です。請求を開いて続行してください。",
+          "statusUnavailable": "このタスクはクレジット不足です。"
         },
         "actions": {
           "edit": "編集",
@@ -1577,8 +1591,15 @@
           "confirmArchiveDescription": "一覧から非表示になります。データベースから完全には削除されません。",
           "archiveError": "タスクをアーカイブできませんでした",
           "markAsReady": "準備完了にする",
+          "reopenToReady": "準備完了に再開",
+          "reopenToReadyTitle": "タスクを再開",
+          "reopenToReadyDescription": "同僚が次に何をすべきか分かるようコメントを追加してください。タスクは準備完了に戻ります。",
+          "reopenToReadyCommentLabel": "コメント",
+          "reopenToReadyCommentPlaceholder": "まだ必要な作業を記入…",
+          "reopenToReadyCommentRequired": "タスクを再開するにはコメントが必要です",
+          "reopenToReadyConfirm": "準備完了に再開",
           "revertToDraft": "下書きに戻す",
-          "cancelRequest": "キャンセルを申請",
+          "cancel": "キャンセル",
           "share": "Share",
           "updateStatusSuccess": "タスクステータスを更新しました",
           "moveToWorkspace": "ワークスペースへ移動",
@@ -1651,7 +1672,25 @@
           "switchError": "ワークスペースを切り替えられませんでした。もう一度お試しください。"
         },
         "clonedFrom": "{name} から複製",
-        "schedule": "スケジュール"
+        "schedule": "スケジュール",
+        "pendingApproval": "承認待ち",
+        "VendorGrantApproval": {
+          "title": "ベンダーアクセスの承認が必要です",
+          "description": "コワーカーがこのタスクを作成しましたが、このワークスペースでタスクを作成する権限がまだありません。ベンダーアクセスを承認してタスクを有効化してください。",
+          "descriptionWithCoworker": "{coworkerName} がこのタスクを作成しましたが、このワークスペースでタスクを作成する権限がまだありません。ベンダーアクセスを承認してタスクを有効化してください。",
+          "approve": "アクセスを承認",
+          "deny": "アクセスを拒否",
+          "review": "詳細を確認",
+          "approveSuccess": "ベンダーアクセスを承認しました。このタスクは有効になりました。",
+          "denySuccess": "ベンダーアクセスを拒否しました。このタスクはキャンセルされました。",
+          "approveError": "ベンダーアクセスの承認に失敗しました",
+          "denyError": "ベンダーアクセスの拒否に失敗しました"
+        },
+        "VendorGrantPendingInfo": {
+          "title": "ベンダーアクセスの承認待ち",
+          "description": "ワークスペースのオーナーまたは管理者がベンダーアクセスを承認するまで、このタスクはブロックされています。",
+          "descriptionWithCoworker": "{coworkerName} がこのタスクを作成しました。ワークスペースのオーナーまたは管理者がベンダーアクセスを承認するまでブロックされています。"
+        }
       },
       "NewTask": {
         "title": "新しいタスク",
@@ -1830,7 +1869,6 @@
             "AWAITING_EXTERNAL": "待機中",
             "COMPLETED": "完了",
             "FAILED": "失敗",
-            "CANCEL_REQUESTED": "キャンセル中",
             "CANCELED": "キャンセル済み"
           },
           "jobStatusAbbreviations": {
@@ -2668,7 +2706,6 @@
       "billingPortalTitle": "請求ポータル",
       "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプションと請求書を管理します。",
       "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe でサブスクリプション、請求情報、請求書を管理してください。",
-      "openingBillingPortal": "開いています...",
       "billingPortalCta": "請求ポータルを開く",
       "freePrice": "無料",
       "customPrice": "カスタム",
@@ -2857,6 +2894,10 @@
           "tasks": {
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
+          },
+          "freeCredits": {
+            "title": "無料クレジット",
+            "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
           }
         }
       },
@@ -2960,6 +3001,15 @@
         "title": "請求書",
         "description": "Stripe の請求書を通じてユーザーまたは組織に一度限りのクレジットを付与します。請求書を支払い済みにすると、クレジットが即座に付与されます。",
         "cardTitle": "新しい請求書",
+        "newGrant": "新しい請求書",
+        "backToList": "一覧に戻る",
+        "delete": "削除",
+        "deleting": "削除中…",
+        "deleteSuccess": "請求書を削除しました",
+        "deleteError": "請求書の削除に失敗しました",
+        "deleteConfirmTitle": "請求書を削除しますか？",
+        "deleteConfirmDescription": "下書きは完全に削除されます。未払いの請求書は無効化され、支払えなくなります。",
+        "cancel": "キャンセル",
         "Form": {
           "Fields": {
             "organization": "組織",
@@ -2980,7 +3030,32 @@
           "createError": "請求書の作成に失敗しました",
           "pricePlaceholder": "価格を選択",
           "priceHelper": "請求金額に使用するクレジットあたりの価格。",
-          "priceRequired": "価格を選択してください"
+          "priceRequired": "価格を選択してください",
+          "billingLoadErrorTitle": "請求情報を読み込めませんでした",
+          "billingLoadError": "受取人の請求情報を読み込めませんでした",
+          "billingRefresh": "更新",
+          "billingIncomplete": "国を含む請求先住所が必要です",
+          "billingIncompleteUser": "請求書を作成する前に、このユーザーはアカウント設定で国を含む請求先住所を追加する必要があります。",
+          "billingIncompleteOrganization": "請求書を作成する前に、この組織は組織設定で国を含む請求先住所を追加する必要があります。",
+          "BillingDetails": {
+            "title": "請求情報",
+            "description": "受取人の Stripe 顧客に保存されている請求先住所と税務情報。",
+            "addressLabel": "請求先住所",
+            "taxIdLabel": "VAT / 税 ID",
+            "taxIdVerification": "確認ステータス: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "確認済み",
+              "pending": "保留中",
+              "unverified": "未確認",
+              "unavailable": "利用不可",
+              "verification_failed": "確認に失敗"
+            },
+            "invoiceEmailLabel": "請求書メール",
+            "invoiceEmailEmpty": "請求書メールが登録されていません",
+            "stripeCustomerIdLabel": "Stripe 顧客 ID",
+            "stripeCustomerIdEmpty": "Stripe顧客が登録されていません",
+            "empty": "請求先住所が登録されていません"
+          }
         },
         "Result": {
           "heading": "請求書",
@@ -3020,6 +3095,35 @@
           "backToList": "タスク一覧に戻る",
           "personalWorkspace": "個人ワークスペース"
         }
+      },
+      "FreeCredits": {
+        "title": "無料クレジット",
+        "description": "ユーザーまたは組織に無料クレジットを直接付与します。クレジットは即時に反映されます。",
+        "backToAdmin": "管理画面に戻る",
+        "Form": {
+          "Fields": {
+            "target": "付与先",
+            "credits": "クレジット",
+            "expiryDays": "有効期限（日）",
+            "referenceNote": "参照メモ"
+          },
+          "Tabs": {
+            "organization": "組織",
+            "user": "ユーザー"
+          },
+          "targetRequired": "付与先を選択してください",
+          "creditsRequired": "正のクレジット数を入力してください",
+          "creditsHelper": "付与先に付与するクレジット数です。",
+          "expiryHelper": "任意。クレジットの有効期限までの日数。無期限の場合は空欄のままにしてください。",
+          "expiryPlaceholder": "無期限",
+          "expiryInvalid": "有効期限は正の整数（日数）である必要があります",
+          "referenceNoteHelper": "内部参照用にクレジットバケットへ保存する任意のメモです。",
+          "referenceNotePlaceholder": "例: 請求の問題、 goodwill 措置",
+          "submit": "クレジットを付与",
+          "submitting": "クレジットを付与中…",
+          "grantSuccess": "無料クレジットを付与しました",
+          "grantError": "無料クレジットの付与に失敗しました"
+        }
       }
     },
     "Billing": {
@@ -3033,9 +3137,8 @@
         "credits": "クレジット",
         "coupon": "クーポン"
       },
-      "billingPortalDescription": "請求書をダウンロードし、請求先住所を変更し、その他の請求情報を管理できます。",
-      "manageYourBilling": "請求を管理",
-      "openingBillingPortal": "開いています...",
+      "billingPortalDescription": "Stripeで請求先住所、税ID、支払い方法、請求書メール、サブスクリプションを管理します。",
+      "manageYourBilling": "Stripe で管理",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
@@ -3262,6 +3365,29 @@
         "loading": "設定を保存しています...",
         "error": "通知設定の更新に失敗しました"
       },
+      "BillingDetails": {
+        "title": "請求情報",
+        "description": "請求先住所、税 ID、請求書メール、支払い方法は Stripe で管理されます。",
+        "addressLabel": "請求先住所",
+        "taxIdLabel": "VAT / 税 ID",
+        "taxIdVerification": "確認ステータス: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "確認済み",
+          "pending": "保留中",
+          "unverified": "未確認",
+          "unavailable": "利用不可",
+          "verification_failed": "確認に失敗"
+        },
+        "invoiceEmailLabel": "請求書送付先メール",
+        "invoiceEmailEmpty": "請求書送付先メールは未登録です",
+        "empty": "請求先住所は未登録です",
+        "loadErrorTitle": "請求情報を読み込めませんでした",
+        "loadError": "現在、請求情報を読み込めませんでした。",
+        "retry": "再試行",
+        "Errors": {
+          "general": "Stripe を開けませんでした"
+        }
+      },
       "Delete": {
         "title": "アカウントを削除",
         "description": "アカウントと関連するすべてのデータを完全に削除します",
@@ -3484,6 +3610,38 @@
         "Schema": {
           "websiteUrl": "有効な http または https URL を入力してください"
         }
+      },
+      "VendorGrants": {
+        "title": "ベンダーのワークスペースアクセス",
+        "description": "個人ワークスペースのベンダーアクセスを承認します（タスクの閲覧・コメント・作成）。",
+        "vendorsTitle": "ベンダー",
+        "vendorsEmpty": "ベンダー権限はまだありません。",
+        "statusPending": "保留中",
+        "statusGranted": "許可済み",
+        "statusDenied": "拒否",
+        "statusRevoked": "取り消し",
+        "grantFormTitle": "事前にアクセスを付与",
+        "GrantForm": {
+          "vendorLabel": "ベンダー",
+          "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
+          "submit": "アクセスを付与",
+          "success": "ベンダーアクセスを付与しました",
+          "error": "ベンダーアクセスの付与に失敗しました"
+        },
+        "Actions": {
+          "approve": "承認",
+          "deny": "拒否",
+          "revoke": "取り消し",
+          "approveSuccess": "ベンダーアクセスを承認しました",
+          "denySuccess": "ベンダーアクセスを拒否しました",
+          "revokeSuccess": "ベンダーアクセスを取り消しました",
+          "approveError": "ベンダーアクセスの承認に失敗しました",
+          "denyError": "ベンダーアクセスの拒否に失敗しました",
+          "revokeError": "ベンダーアクセスの取り消しに失敗しました",
+          "grant": "付与",
+          "grantSuccess": "ベンダーアクセスを付与しました",
+          "grantError": "ベンダーアクセスの付与に失敗しました"
+        }
       }
     },
     "Organizations": {
@@ -3503,24 +3661,28 @@
         "delete": "削除",
         "invite": "メンバーを招待",
         "bulkInvite": "一括招待",
-        "InvoiceEmail": {
-          "title": "請求書送付先メール",
-          "description": "請求書および請求関連の通知を受け取るメールアドレス",
-          "label": "請求書送付先メール",
-          "placeholder": "billing@example.com",
-          "help": "このメールアドレス宛てに、Stripe からの請求書および請求に関する連絡が届きます",
-          "edit": "編集",
-          "save": "保存",
-          "cancel": "キャンセル",
-          "Success": {
-            "update": "請求書送付先メールを更新しました"
+        "BillingDetails": {
+          "title": "請求情報",
+          "description": "請求先住所、税 ID、請求書メール、支払い方法は Stripe で管理されます。",
+          "addressLabel": "請求先住所",
+          "taxIdLabel": "VAT / 税 ID",
+          "taxIdVerification": "確認ステータス: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "確認済み",
+            "pending": "保留中",
+            "unverified": "未確認",
+            "unavailable": "利用不可",
+            "verification_failed": "確認に失敗"
           },
+          "invoiceEmailLabel": "請求書送付先メール",
+          "invoiceEmailEmpty": "請求書送付先メールは未登録です",
+          "empty": "請求先住所は未登録です",
+          "loadErrorTitle": "請求情報を読み込めませんでした",
+          "loadError": "現在、この組織の請求情報を読み込めませんでした。",
+          "retry": "再試行",
           "Errors": {
-            "unauthenticated": "続行するにはログインしてください",
-            "unauthenticatedAction": "ログイン",
-            "unauthorized": "請求書送付先メールを更新できるのは、組織のオーナーと管理者のみです",
-            "badInput": "有効なメールアドレスを入力してください",
-            "general": "請求書送付先メールの更新に失敗しました"
+            "unauthorized": "Stripe の請求管理を開けるのはオーナーと管理者のみです",
+            "general": "Stripe を開けませんでした"
           }
         },
         "Subscription": {
@@ -3551,6 +3713,38 @@
           "assigned": "割り当て済み",
           "unused": "未使用",
           "manageBilling": "請求を管理"
+        },
+        "VendorGrants": {
+          "title": "ベンダーワークスペースアクセス",
+          "description": "この組織ワークスペースのベンダーアクセスを承認します（タスクの閲覧・コメント・作成）。",
+          "vendorsTitle": "ベンダー",
+          "vendorsEmpty": "ベンダー権限はまだありません。",
+          "statusPending": "保留中",
+          "statusGranted": "許可済み",
+          "statusDenied": "拒否",
+          "statusRevoked": "取り消し",
+          "grantFormTitle": "事前にアクセスを付与",
+          "GrantForm": {
+            "vendorLabel": "ベンダー",
+            "workspaceAccessHint": "ワークスペースへのフルアクセスを付与します（タスクの閲覧・コメント・作成）。",
+            "submit": "アクセスを付与",
+            "success": "ベンダーアクセスを付与しました",
+            "error": "ベンダーアクセスの付与に失敗しました"
+          },
+          "Actions": {
+            "approve": "承認",
+            "deny": "拒否",
+            "revoke": "取り消し",
+            "approveSuccess": "ベンダーアクセスを承認しました",
+            "denySuccess": "ベンダーアクセスを拒否しました",
+            "revokeSuccess": "ベンダーアクセスを取り消しました",
+            "approveError": "ベンダーアクセスの承認に失敗しました",
+            "denyError": "ベンダーアクセスの拒否に失敗しました",
+            "revokeError": "ベンダーアクセスの取り消しに失敗しました",
+            "grant": "付与",
+            "grantSuccess": "ベンダーアクセスを付与しました",
+            "grantError": "ベンダーアクセスの付与に失敗しました"
+          }
         }
       }
     },
@@ -3918,6 +4112,11 @@
         "failed": "{coworkerName}は{taskName}を完了できませんでした",
         "canceled": "{taskName}はキャンセルされました"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} が組織ワークスペースへのベンダーアクセスをリクエストしました"
     }
   }
 }

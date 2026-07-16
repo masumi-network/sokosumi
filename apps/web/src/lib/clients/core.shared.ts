@@ -1,4 +1,3 @@
-import { NoticeKind } from "@sokosumi/utils";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
@@ -37,7 +36,6 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
-  PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
@@ -59,8 +57,10 @@ import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   claimCoupon as coreClaimCoupon,
+  createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
+  deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
@@ -117,12 +117,14 @@ import {
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
+  getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
+  getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -132,6 +134,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
@@ -140,6 +143,7 @@ import {
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
+  getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
@@ -148,6 +152,7 @@ import {
   listAdminTasks as coreListAdminTasks,
   listAdminUsers as coreListAdminUsers,
   listCreditPrices as coreListCreditPrices,
+  listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
@@ -157,7 +162,6 @@ import {
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
-  patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -179,6 +183,10 @@ import {
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
+  postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
+  postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
+  postOrganizationsByIdVendorGrantsByGrantIdDeny as corePostOrganizationsByIdVendorGrantsByGrantIdDeny,
+  postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
@@ -188,6 +196,10 @@ import {
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdUploads as corePostUsersByIdUploads,
+  postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
+  postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
+  postUsersByIdVendorGrantsByGrantIdDeny as corePostUsersByIdVendorGrantsByGrantIdDeny,
+  postUsersByIdVendorGrantsByGrantIdRevoke as corePostUsersByIdVendorGrantsByGrantIdRevoke,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -203,6 +215,7 @@ import {
   searchAdminUsers as coreSearchAdminUsers,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  NoticeKind,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -262,6 +275,23 @@ function transformHistoryResponseEnvelope(data: any) {
     updatedAt: toDate(item.updatedAt),
     archivedAt: item.archivedAt ? toDate(item.archivedAt) : null,
   }));
+  if (data.meta?.timestamp) {
+    data.meta.timestamp = toDate(data.meta.timestamp);
+  }
+
+  return data;
+}
+
+function transformTaskListResponseEnvelope(data: any) {
+  data.data = (data.data ?? []).map((item: any) => {
+    item.createdAt = toDate(item.createdAt);
+    item.updatedAt = toDate(item.updatedAt);
+    if (item.nextRunAt) {
+      item.nextRunAt = toDate(item.nextRunAt);
+    }
+
+    return item;
+  });
   if (data.meta?.timestamp) {
     data.meta.timestamp = toDate(data.meta.timestamp);
   }
@@ -364,7 +394,7 @@ async function executeOperation<TData, TError>(
     );
   }
 
-  if (result.error || !result.data) {
+  if (result.error) {
     const message = extractErrorMessage(result.error, result.response?.status);
     throw new CoreApiRequestError(message, {
       details: result.error,
@@ -373,7 +403,20 @@ async function executeOperation<TData, TError>(
     });
   }
 
-  return result.data;
+  const isNoContentSuccess =
+    result.response?.ok === true &&
+    (result.response.status === 204 || result.response.status === 205);
+
+  if (result.data == null && !isNoContentSuccess) {
+    const message = extractErrorMessage(result.error, result.response?.status);
+    throw new CoreApiRequestError(message, {
+      details: result.error,
+      kind: extractErrorKind(result.error),
+      status: result.response?.status,
+    });
+  }
+
+  return result.data as TData;
 }
 
 export function mapCoreApiStatusToCommonErrorCode(
@@ -385,6 +428,7 @@ export function mapCoreApiStatusToCommonErrorCode(
       return CommonErrorCode.UNAUTHORIZED;
     case 404:
       return CommonErrorCode.NOT_FOUND;
+    case 400:
     case 409:
     case 422:
       return CommonErrorCode.BAD_INPUT;
@@ -547,6 +591,8 @@ export function createCoreClient(getClient: GetClient) {
           client,
           query,
           cache: "no-store",
+          responseTransformer: async (data) =>
+            transformTaskListResponseEnvelope(data),
         }),
       "Failed to fetch tasks",
     );
@@ -691,7 +737,6 @@ export function createCoreClient(getClient: GetClient) {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    markFree: boolean;
   }) {
     return executeOperation(
       getClient,
@@ -702,6 +747,25 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to create admin invoice",
+    );
+  }
+
+  async function createAdminFreeCreditGrant(body: {
+    targetType: "user" | "organization";
+    targetId: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminFreeCreditGrant({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to grant free credits",
     );
   }
 
@@ -728,6 +792,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to mark admin invoice paid",
+    );
+  }
+
+  async function deleteAdminInvoice(invoiceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteAdminInvoice({
+          client,
+          path: { id: invoiceId },
+          cache: "no-store",
+        }),
+      "Failed to delete admin invoice",
     );
   }
 
@@ -1118,6 +1195,155 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOrganizationVendorGrants(
+    organizationId: string,
+    query?: {
+      status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
+      vendorId?: string;
+    },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdVendorGrants({
+          client,
+          path: { id: organizationId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch vendor grants",
+    );
+  }
+
+  async function createOrganizationVendorGrant(
+    organizationId: string,
+    body: {
+      vendorId: string;
+    },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrants({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to create vendor grant",
+    );
+  }
+
+  async function approveOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdApprove({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to approve vendor grant",
+    );
+  }
+
+  async function denyOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdDeny({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to deny vendor grant",
+    );
+  }
+
+  async function revokeOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdRevoke({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to revoke vendor grant",
+    );
+  }
+
+  async function getMyVendorGrants(query?: {
+    status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
+    vendorId?: string;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdVendorGrants({
+          client,
+          path: { id: "me" },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch personal vendor grants",
+    );
+  }
+
+  async function createMyVendorGrant(body: { vendorId: string }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrants({
+          client,
+          path: { id: "me" },
+          body,
+        }),
+      "Failed to create personal vendor grant",
+    );
+  }
+
+  async function approveMyVendorGrant(grantId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrantsByGrantIdApprove({
+          client,
+          path: { id: "me", grantId },
+        }),
+      "Failed to approve personal vendor grant",
+    );
+  }
+
+  async function denyMyVendorGrant(grantId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrantsByGrantIdDeny({
+          client,
+          path: { id: "me", grantId },
+        }),
+      "Failed to deny personal vendor grant",
+    );
+  }
+
+  async function revokeMyVendorGrant(grantId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdVendorGrantsByGrantIdRevoke({
+          client,
+          path: { id: "me", grantId },
+        }),
+      "Failed to revoke personal vendor grant",
+    );
+  }
+
   /**
    * Seat usage summary for an organization the caller is a member of:
    * assigned and purchased seat counts alongside the resolved paid plan.
@@ -1244,6 +1470,19 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOrganizationBillingDetails(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdBillingDetails({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization billing details",
+    );
+  }
+
   async function getOrganizationBillingPlan(organizationId: string) {
     return executeOperation(
       getClient,
@@ -1324,6 +1563,32 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to create user Stripe customer",
+    );
+  }
+
+  async function getMyBillingDetails() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdBillingDetails({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user billing details",
+    );
+  }
+
+  async function getUserBillingDetails(userId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdBillingDetails({
+          client,
+          path: { id: userId },
+          cache: "no-store",
+        }),
+      "Failed to fetch user billing details",
     );
   }
 
@@ -1638,6 +1903,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function listVendors() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListVendors({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch vendors",
+    );
+  }
+
   async function createTask(body: {
     name?: string;
     description?: string | null;
@@ -1665,6 +1942,7 @@ export function createCoreClient(getClient: GetClient) {
         | "DRAFT"
         | "QUEUED"
         | "READY"
+        | "GRANT_PENDING"
         | "INPUT_REQUIRED"
         | "APPROVAL_REQUIRED"
         | "AUTHENTICATION_REQUIRED"
@@ -1674,7 +1952,6 @@ export function createCoreClient(getClient: GetClient) {
         | "AWAITING_EXTERNAL"
         | "COMPLETED"
         | "FAILED"
-        | "CANCEL_REQUESTED"
         | "CANCELED";
       comment?: string;
     },
@@ -1991,26 +2268,6 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to save organization DESIGN.md",
-    );
-  }
-
-  /**
-   * Sets (or clears, when `invoiceEmail` is null) an organization's invoice
-   * email. Core enforces that the caller is an organization owner or admin.
-   */
-  async function updateOrganizationInvoiceEmail(
-    organizationId: string,
-    body: NonNullable<PatchOrganizationsByIdInvoiceEmailData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchOrganizationsByIdInvoiceEmail({
-          client,
-          path: { id: organizationId },
-          body,
-        }),
-      "Failed to update organization invoice email",
     );
   }
 
@@ -2751,8 +3008,10 @@ export function createCoreClient(getClient: GetClient) {
     unassignAdminOrganizationMemberSeat,
     listAdminInvoices,
     createAdminInvoice,
+    createAdminFreeCreditGrant,
     getAdminInvoice,
     markAdminInvoicePaid,
+    deleteAdminInvoice,
     listCreditPrices,
     getCreditTopUpPriceCatalog,
     getSubscriptionCatalog,
@@ -2772,13 +3031,27 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     createMyStripeCustomer,
     createOrganizationStripeCustomer,
+    getMyBillingDetails,
+    getUserBillingDetails,
     getMyStripeCustomer,
     getOrganizationActiveSubscription,
+    getOrganizationBillingDetails,
     getOrganizationBillingPlan,
     getOrganizationById,
     getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
+    getOrganizationVendorGrants,
+    createOrganizationVendorGrant,
+    approveOrganizationVendorGrant,
+    denyOrganizationVendorGrant,
+    revokeOrganizationVendorGrant,
+    getMyVendorGrants,
+    createMyVendorGrant,
+    approveMyVendorGrant,
+    denyMyVendorGrant,
+    revokeMyVendorGrant,
+    listVendors,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
@@ -2816,7 +3089,6 @@ export function createCoreClient(getClient: GetClient) {
     unassignOrganizationSeat,
     updateConversation,
     updateHermesInstance,
-    updateOrganizationInvoiceEmail,
     updateOrganizationSubscriptionSeats,
   };
 }

@@ -1,10 +1,18 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import {
+  sokosumiJobStatusSchema,
+  taskStatusSchema,
+} from "@/schemas/domain-enums.schema";
 import { jobSchema } from "@/schemas/job.schema.js";
 import { jobShareSchema, taskShareSchema } from "@/schemas/share.schema.js";
+import {
+  taskEventChannelField,
+  taskEventDeprecatedOriginField,
+} from "@/schemas/task.schema";
 
 export const putJobShareRequestSchema = z.object({
   allowSearchIndexing: z.boolean().openapi({ example: true }),
@@ -29,9 +37,9 @@ export const publicSharedTaskJobSchema = z
     createdAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     name: z.string().nullish().openapi({ example: "Draft answer" }),
-    status: z
-      .enum(SokosumiJobStatus)
-      .openapi({ example: SokosumiJobStatus.PROCESSING }),
+    status: sokosumiJobStatusSchema.openapi({
+      example: SokosumiJobStatus.PROCESSING,
+    }),
     agentName: z.string().openapi({ example: "Research Agent" }),
     shareToken: z.string().nullish().openapi({ example: "public-share-token" }),
   })
@@ -42,12 +50,10 @@ export const publicSharedTaskMilestoneSchema = z
     id: z.string().openapi({ example: "evt_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    origin: z
-      .enum(TaskEventOrigin)
-      .openapi({ example: TaskEventOrigin.SOKOSUMI }),
+    channel: taskEventChannelField,
+    origin: taskEventDeprecatedOriginField,
     status: z
-      .enum(TaskStatus)
-      .nullable()
+      .union([taskStatusSchema, z.null()])
       .openapi({ example: TaskStatus.RUNNING }),
     comment: z
       .string()
@@ -68,7 +74,7 @@ export const publicSharedTaskSchema = z
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+    status: taskStatusSchema.openapi({ example: TaskStatus.READY }),
     coworker: publicSharedTaskCoworkerSchema.nullish(),
     jobs: z.array(publicSharedTaskJobSchema).openapi({ example: [] }),
     events: z.array(publicSharedTaskMilestoneSchema).openapi({ example: [] }),

@@ -79,4 +79,18 @@ describe("webhookClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(captureMessageMock).not.toHaveBeenCalled();
   });
+
+  it("skips Sentry reporting on transient webhook timeouts", async () => {
+    fetchMock.mockRejectedValue(
+      Object.assign(new Error("The operation was aborted"), {
+        name: "AbortError",
+      }),
+    );
+    const { webhookClient } = await import("./webhook.client");
+
+    await webhookClient.callWebhook("userCreated", { userId: "u1" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
 });

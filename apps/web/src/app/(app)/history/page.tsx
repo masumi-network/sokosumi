@@ -1,7 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-
 import { HistoryList } from "@/app/history/components/history-list";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import { HISTORY_PAGE_LIMIT } from "@/app/history/constants";
@@ -14,6 +12,7 @@ import {
 import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getSession } from "@/lib/auth/auth.server";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { historyService } from "@/lib/services/history.service";
 
@@ -73,6 +72,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
     [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
     [TaskStatus.READY]: t("Filters.statusOptions.READY"),
+    [TaskStatus.GRANT_PENDING]: t("Filters.statusOptions.GRANT_PENDING"),
     [TaskStatus.INPUT_REQUIRED]: t("Filters.statusOptions.INPUT_REQUIRED"),
     [TaskStatus.APPROVAL_REQUIRED]: t(
       "Filters.statusOptions.APPROVAL_REQUIRED",
@@ -90,7 +90,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     ),
     [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
     [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
-    [TaskStatus.CANCEL_REQUESTED]: t("Filters.statusOptions.CANCEL_REQUESTED"),
     [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
   };
 

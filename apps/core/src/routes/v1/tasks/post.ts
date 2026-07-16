@@ -1,22 +1,46 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import * as Sentry from "@sentry/node";
+import {
+  GrantResumeStatus,
+  type Prisma,
+  TaskStatus,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
-import { notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { errorResponseSchema, notFound } from "@/helpers/error";
+import {
+  jsonContent,
+  jsonErrorResponse,
+  jsonSuccessResponse,
+} from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
+import {
+  refineChannelOriginConflict,
+  resolveTaskEventChannel,
+} from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
+import {
+  isGrantDeniedOrRevoked,
+  notifyWorkspaceApproversOfPendingGrant,
+  parseGrantResumeStatus,
+  requestWorkspaceGrant,
+  throwGrantAccessError,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { taskSchema } from "@/schemas/task.schema";
+import {
+  taskEventChannelField,
+  taskEventDeprecatedOriginField,
+  taskSchema,
+} from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z
@@ -41,17 +65,12 @@ export const createTaskRequestSchema = z
       .optional()
       .default(TaskStatus.DRAFT)
       .openapi({ example: TaskStatus.READY }),
-    origin: z
-      .enum(TaskEventOrigin)
-      .optional()
-      .default(TaskEventOrigin.SOKOSUMI)
-      .openapi({
-        example: TaskEventOrigin.SLACK,
-        description:
-          "Origin of the initial task event. Defaults to SOKOSUMI if not provided.",
-      }),
+    channel: taskEventChannelField.optional(),
+    origin: taskEventDeprecatedOriginField.optional(),
   })
   .superRefine((data, ctx) => {
+    refineChannelOriginConflict(data, ctx);
+
     const hasCoworkerId =
       data.coworkerId !== null && data.coworkerId !== undefined;
 
@@ -62,7 +81,11 @@ export const createTaskRequestSchema = z
         path: ["coworkerId"],
       });
     }
-  });
+  })
+  .transform((data) => ({
+    ...data,
+    channel: resolveTaskEventChannel(data),
+  }));
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -83,15 +106,98 @@ const route = withGlobalHeaderParameters(
       201: jsonSuccessResponse(taskSchema, "Create task"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
+      403: {
+        description:
+          "Forbidden. Delegated coworker create may return kind `grant_denied` / `grant_revoked` when vendor create access was denied.",
+        content: jsonContent(errorResponseSchema),
+      },
       404: jsonErrorResponse("Not Found"),
     },
   }),
 );
 
+async function assertTaskProjectInWorkspace(
+  projectId: string | null | undefined,
+  workspaceId: string,
+  tx: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<void> {
+  if (projectId === null || projectId === undefined) {
+    return;
+  }
+
+  const project = await tx.project.findFirst({
+    where: {
+      id: projectId,
+      workspaceId,
+    },
+    select: { id: true },
+  });
+
+  if (!project) {
+    throw notFound("Project not found");
+  }
+}
+
+async function createTaskRecord(
+  params: {
+    userId: string;
+    organizationId: string | null;
+    workspaceId: string;
+    body: z.infer<typeof createTaskRequestSchema>;
+    resolvedName: string;
+    pendingVendorGrantId?: string | null;
+    grantResumeStatus?: GrantResumeStatus | null;
+  },
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+) {
+  const {
+    body,
+    organizationId,
+    grantResumeStatus,
+    pendingVendorGrantId,
+    resolvedName,
+    userId,
+    workspaceId,
+  } = params;
+
+  await assertTaskProjectInWorkspace(body.projectId, workspaceId, tx);
+
+  const isGrantPending = pendingVendorGrantId != null;
+  const status = isGrantPending ? TaskStatus.GRANT_PENDING : body.status;
+  const initialEventStatus = status;
+
+  return tx.task.create({
+    data: {
+      userId,
+      organizationId,
+      workspaceId,
+      projectId: body.projectId ?? null,
+      name: resolvedName,
+      description: body.description ?? null,
+      coworkerId: body.coworkerId ?? null,
+      status,
+      grantResumeStatus: isGrantPending ? grantResumeStatus : null,
+      metadata: null,
+      nextRunAt: null,
+      pendingVendorGrantId: pendingVendorGrantId ?? null,
+      events: {
+        create: {
+          status: initialEventStatus,
+          comment: null,
+          channel: body.channel,
+          userId,
+          coworkerId: null,
+        },
+      },
+    },
+    include: taskInclude,
+  });
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const authContext = c.var.authContext;
+    const userContext = requireUserContext(authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
@@ -100,55 +206,105 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       description: body.description,
     });
 
-    const task = await prisma.$transaction(async (tx) => {
-      validateTaskCoworkerAssignment({
-        status: body.status,
-        coworkerId: body.coworkerId,
-      });
+    validateTaskCoworkerAssignment({
+      status: body.status,
+      coworkerId: body.coworkerId,
+    });
 
-      if (body.coworkerId !== null && body.coworkerId !== undefined) {
-        await requireTaskAssignableCoworker(body.coworkerId, tx);
-      }
+    if (body.coworkerId !== null && body.coworkerId !== undefined) {
+      await requireTaskAssignableCoworker(body.coworkerId);
+    }
 
-      if (body.projectId !== null && body.projectId !== undefined) {
-        const project = await tx.project.findFirst({
-          where: {
-            id: body.projectId,
+    const shouldEnforceCreateGrant =
+      isCoworkerAuthContext(authContext) && Boolean(authContext.context);
+
+    if (!shouldEnforceCreateGrant) {
+      const task = await prisma.$transaction(async (tx) =>
+        createTaskRecord(
+          {
+            userId: userContext.userId,
+            organizationId: userContext.organizationId,
             workspaceId: workspaceContext.workspaceId,
+            body,
+            resolvedName,
           },
-          select: { id: true },
-        });
+          tx,
+        ),
+      );
 
-        if (!project) {
-          throw notFound("Project not found");
-        }
+      return created(c, taskSchema.parse(mapTask(task)));
+    }
+
+    const task = await prisma.$transaction(async (tx) => {
+      await assertTaskProjectInWorkspace(
+        body.projectId,
+        workspaceContext.workspaceId,
+        tx,
+      );
+
+      const { grant } = await requestWorkspaceGrant(
+        {
+          vendorId: authContext.vendorId,
+          workspaceId: workspaceContext.workspaceId,
+          requestedByUserId: userContext.userId,
+          notify: false,
+        },
+        tx,
+      );
+
+      if (isGrantDeniedOrRevoked(grant.status)) {
+        throwGrantAccessError(grant.status);
       }
 
-      return tx.task.create({
-        data: {
+      if (grant.status === VendorGrantStatus.GRANTED) {
+        return createTaskRecord(
+          {
+            userId: userContext.userId,
+            organizationId: userContext.organizationId,
+            workspaceId: workspaceContext.workspaceId,
+            body,
+            resolvedName,
+          },
+          tx,
+        );
+      }
+
+      return createTaskRecord(
+        {
           userId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
-          projectId: body.projectId ?? null,
-          name: resolvedName,
-          description: body.description ?? null,
-          coworkerId: body.coworkerId ?? null,
-          status: body.status,
-          metadata: null,
-          nextRunAt: null,
-          events: {
-            create: {
-              status: body.status,
-              comment: null,
-              origin: body.origin,
-              userId: userContext.userId,
-              coworkerId: null,
-            },
-          },
+          body,
+          resolvedName,
+          pendingVendorGrantId: grant.id,
+          grantResumeStatus: parseGrantResumeStatus(body.status),
         },
-        include: taskInclude,
-      });
+        tx,
+      );
     });
+
+    if (task.status === TaskStatus.GRANT_PENDING && task.pendingVendorGrantId) {
+      try {
+        await notifyWorkspaceApproversOfPendingGrant({
+          vendorId: authContext.vendorId,
+          workspaceId: workspaceContext.workspaceId,
+          grantId: task.pendingVendorGrantId,
+        });
+      } catch (error) {
+        console.error(
+          "Failed to notify approvers of pending vendor grant after task create",
+          error,
+        );
+        Sentry.captureException(error, {
+          extra: {
+            grantId: task.pendingVendorGrantId,
+            vendorId: authContext.vendorId,
+            workspaceId: workspaceContext.workspaceId,
+            errorType: "vendor-grant-notify-after-create",
+          },
+        });
+      }
+    }
 
     return created(c, taskSchema.parse(mapTask(task)));
   });

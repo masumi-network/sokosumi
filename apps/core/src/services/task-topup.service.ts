@@ -1,5 +1,4 @@
-import { type Prisma, TaskEventOrigin } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { Channel, type Prisma, TaskStatus } from "@sokosumi/database";
 
 function isPrismaRecordNotFoundError(error: unknown): boolean {
   return (
@@ -45,7 +44,7 @@ export async function markOutOfCreditsTasksAsToppedUp(params: {
           events: {
             create: {
               status: TaskStatus.CREDITS_TOPPED_UP,
-              origin: TaskEventOrigin.SOKOSUMI,
+              channel: Channel.SOKOSUMI,
               userId: params.userId,
               coworkerId: null,
             },

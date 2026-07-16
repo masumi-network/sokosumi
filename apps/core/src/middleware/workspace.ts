@@ -1,8 +1,8 @@
-import * as Sentry from "@sentry/node";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
 import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
@@ -40,10 +40,10 @@ function getWorkspaceOwnerContext(authContext: AuthenticationContext): {
     };
   }
 
-  if (isCoworkerAuthContext(authContext) && authContext.delegation) {
+  if (isCoworkerAuthContext(authContext) && authContext.context) {
     return {
-      userId: authContext.delegation.userId,
-      organizationId: authContext.delegation.organizationId ?? null,
+      userId: authContext.context.userId,
+      organizationId: authContext.context.organizationId ?? null,
     };
   }
 
@@ -77,10 +77,12 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
     }
 
     try {
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
-        workspaceOwnerContext.userId,
-        workspaceOwnerContext.organizationId,
-        prisma,
+      const workspace = await prisma.$transaction((tx) =>
+        workspaceRepository.upsertWorkspaceForContext(
+          workspaceOwnerContext.userId,
+          workspaceOwnerContext.organizationId,
+          tx,
+        ),
       );
 
       const workspaceContext: WorkspaceContext = {
@@ -91,13 +93,16 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
 
       c.set("workspaceContext", workspaceContext);
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: {
-          context: "workspace_context_resolution",
-        },
-        extra: {
-          activeOrganizationId: workspaceOwnerContext.organizationId,
-          userId: workspaceOwnerContext.userId,
+      captureExternalServiceError(error, {
+        label: "workspace_context_resolution",
+        sentry: {
+          tags: {
+            context: "workspace_context_resolution",
+          },
+          extra: {
+            activeOrganizationId: workspaceOwnerContext.organizationId,
+            userId: workspaceOwnerContext.userId,
+          },
         },
       });
       c.set("workspaceContext", null);

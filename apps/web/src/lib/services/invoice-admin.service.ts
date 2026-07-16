@@ -4,6 +4,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { coreClient } from "@/lib/clients/core.client";
 import { CoreApiRequestError } from "@/lib/clients/core.shared";
+import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 
 export type InvoiceTargetType = "user" | "organization";
 
@@ -131,8 +132,6 @@ export const invoiceAdminService = {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    /** When true, applies the support coupon so the invoice is free ($0). */
-    markFree: boolean;
   }): Promise<InvoiceSummary> {
     const response = await coreClient
       .createAdminInvoice({
@@ -141,7 +140,6 @@ export const invoiceAdminService = {
         credits: params.credits,
         ttlDays: params.ttlDays,
         priceId: params.priceId,
-        markFree: params.markFree,
       })
       .catch(mapCoreError);
     return response.data;
@@ -177,6 +175,24 @@ export const invoiceAdminService = {
     const response = await coreClient
       .markAdminInvoicePaid(invoiceId)
       .catch(mapCoreError);
+    return response.data;
+  },
+
+  /**
+   * Deletes or voids an admin invoice in Stripe. Draft invoices are
+   * permanently deleted; open invoices are voided.
+   */
+  async deleteInvoice(invoiceId: string): Promise<void> {
+    await coreClient.deleteAdminInvoice(invoiceId).catch(mapCoreError);
+  },
+
+  async getRecipientBillingDetails(
+    target: InvoiceTarget,
+  ): Promise<StripeCustomerBillingDetails> {
+    const response =
+      target.targetType === "user"
+        ? await coreClient.getUserBillingDetails(target.targetId)
+        : await coreClient.getOrganizationBillingDetails(target.targetId);
     return response.data;
   },
 };

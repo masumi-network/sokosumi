@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const markInvoicePaidMock = vi.fn();
+const deleteInvoiceMock = vi.fn();
 const revalidatePathMock = vi.fn();
 
 vi.mock("next/cache", () => ({
@@ -35,6 +36,7 @@ vi.mock("@/lib/services/invoice-admin.service", () => {
     InvoiceValidationError,
     invoiceAdminService: {
       markInvoicePaid: (...args: unknown[]) => markInvoicePaidMock(...args),
+      deleteInvoice: (...args: unknown[]) => deleteInvoiceMock(...args),
     },
   };
 });
@@ -43,7 +45,10 @@ import { CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError } from "@/lib/clients/core.shared";
 import { InvoiceValidationError } from "@/lib/services/invoice-admin.service";
 
-import { markAdminInvoicePaidAction } from "../action";
+import {
+  deleteAdminInvoiceAction,
+  markAdminInvoicePaidAction,
+} from "../action";
 
 const SUMMARY = {
   invoiceId: "in_1",
@@ -180,5 +185,43 @@ describe("markAdminInvoicePaidAction", () => {
     }
     expect(result.error.code).toBe(CommonErrorCode.UNAUTHORIZED);
     expect(markInvoicePaidMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteAdminInvoiceAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    deleteInvoiceMock.mockResolvedValue(undefined);
+  });
+
+  it("deletes the invoice and revalidates on success", async () => {
+    const result = await deleteAdminInvoiceAction({
+      session: adminSession,
+      invoiceId: "in_1",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(deleteInvoiceMock).toHaveBeenCalledWith("in_1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/invoices");
+  });
+
+  it("maps a core invoice_not_found error to NOT_FOUND", async () => {
+    deleteInvoiceMock.mockRejectedValue(
+      new CoreApiRequestError("Admin invoice not found", {
+        status: 404,
+        kind: "invoice_not_found",
+      }),
+    );
+
+    const result = await deleteAdminInvoiceAction({
+      session: adminSession,
+      invoiceId: "in_missing",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+    expect(result.error.code).toBe(CommonErrorCode.NOT_FOUND);
   });
 });

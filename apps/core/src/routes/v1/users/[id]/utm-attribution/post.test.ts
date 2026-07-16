@@ -1,13 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostUtmAttribution from "./post";
 
@@ -59,6 +59,7 @@ function createApp(actor: "user" | "coworker" | "unauthenticated" = "user") {
       c.set("authContext", {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       });
     } else {
       c.set("authContext", {

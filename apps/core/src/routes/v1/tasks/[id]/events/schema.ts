@@ -1,9 +1,15 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
-import { isTaskStatusSpendable } from "@/helpers/task";
+import {
+  refineChannelOriginConflict,
+  resolveTaskEventChannel,
+} from "@/helpers/task-event-channel";
+import {
+  taskEventChannelField,
+  taskEventDeprecatedOriginField,
+} from "@/schemas/task.schema";
 
 const masumiPaymentAmountSchema = z.object({
   amount: z.string().min(1).openapi({ example: "470000000000" }),
@@ -81,26 +87,27 @@ export function createTaskEventRequestSchema(
         description:
           "Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.",
       }),
-      origin: z
-        .enum(TaskEventOrigin)
-        .optional()
-        .default(TaskEventOrigin.SOKOSUMI)
-        .openapi({
-          example: TaskEventOrigin.SLACK,
-          description:
-            "The origin of the task event. Defaults to SOKOSUMI if undefined.",
-        }),
+      channel: taskEventChannelField.optional(),
+      origin: taskEventDeprecatedOriginField.optional(),
       masumiPayment: masumiPaymentPayloadSchema.optional().openapi({
         description:
-          "On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.",
+          "On-chain Masumi credit charge for a credit-bearing task event. Coworker-only; allowed on any credit-bearing event; omit credits when set.",
       }),
     })
     .superRefine((data, ctx) => {
-      if (data.status === undefined && data.comment === undefined) {
+      refineChannelOriginConflict(data, ctx);
+
+      if (
+        data.status === undefined &&
+        data.comment === undefined &&
+        data.credits == null &&
+        data.masumiPayment === undefined
+      ) {
         ctx.addIssue({
           code: "custom",
-          message: "At least one of status or comment is required",
-          path: ["status", "comment"],
+          message:
+            "At least one of status, comment, credits, or masumiPayment is required",
+          path: ["status", "comment", "credits", "masumiPayment"],
         });
       }
 
@@ -114,14 +121,6 @@ export function createTaskEventRequestSchema(
           });
         }
 
-        if (data.status !== TaskStatus.COMPLETED) {
-          ctx.addIssue({
-            code: "custom",
-            message: "masumiPayment is only allowed when status is COMPLETED",
-            path: ["masumiPayment"],
-          });
-        }
-
         const sourceNetwork = data.masumiPayment.PaymentSource?.network;
         if (sourceNetwork !== undefined && sourceNetwork !== serverNetwork) {
           ctx.addIssue({
@@ -132,17 +131,7 @@ export function createTaskEventRequestSchema(
         }
       }
 
-      if (!isTaskStatusSpendable(data.status) && data.credits != null) {
-        ctx.addIssue({
-          code: "custom",
-          message:
-            "Credits can only be set when completing or canceling a task",
-          path: ["credits"],
-        });
-      }
-
       if (
-        isTaskStatusSpendable(data.status) &&
         data.credits != null &&
         data.credits < LIMITS.MIN_CHARGEABLE_CREDITS
       ) {
@@ -176,5 +165,9 @@ export function createTaskEventRequestSchema(
           path: ["authenticationUrl"],
         });
       }
-    });
+    })
+    .transform((data) => ({
+      ...data,
+      channel: resolveTaskEventChannel(data),
+    }));
 }

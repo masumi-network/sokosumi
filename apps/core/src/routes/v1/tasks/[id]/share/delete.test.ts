@@ -7,7 +7,7 @@ import mountDeleteTaskShareById from "./delete";
 const {
   authContextState,
   prismaTransactionMock,
-  taskFindUniqueMock,
+  requireMutableTaskOwnershipMock,
   deleteByTaskIdMock,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -24,8 +24,13 @@ const {
     } | null,
   },
   prismaTransactionMock: vi.fn(),
-  taskFindUniqueMock: vi.fn(),
+  requireMutableTaskOwnershipMock: vi.fn(),
   deleteByTaskIdMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/access-control", () => ({
+  requireMutableTaskOwnership: (...args: unknown[]) =>
+    requireMutableTaskOwnershipMock(...args),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -63,7 +68,7 @@ vi.mock("@/middleware/auth", () => ({
       userId: string;
       organizationId: string | null;
       role: string;
-      delegation?: { userId: string; organizationId: string | null };
+      context?: { userId: string; organizationId: string | null };
     };
     if (a.actor === "user") {
       return {
@@ -74,11 +79,11 @@ vi.mock("@/middleware/auth", () => ({
         role: a.role,
       };
     }
-    if (a.actor === "coworker" && a.delegation) {
+    if (a.actor === "coworker" && a.context) {
       return {
-        source: "delegation" as const,
-        userId: a.delegation.userId,
-        organizationId: a.delegation.organizationId,
+        source: "context" as const,
+        userId: a.context.userId,
+        organizationId: a.context.organizationId,
       };
     }
     throw new Error("mock requireUserContext: unsupported auth context");
@@ -117,16 +122,12 @@ describe("DELETE /tasks/{id}/share", () => {
       role: "user",
     };
     prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          task: {
-            findUnique: taskFindUniqueMock,
-          },
-        }),
+      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
     );
-    taskFindUniqueMock.mockResolvedValue({
+    requireMutableTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       userId: "user_123",
+      pendingVendorGrantId: null,
     });
     deleteByTaskIdMock.mockResolvedValue({ count: 1 });
   });
@@ -159,23 +160,26 @@ describe("DELETE /tasks/{id}/share", () => {
     expect(deleteByTaskIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the task is owned by another user", async () => {
-    taskFindUniqueMock.mockResolvedValue({
-      id: "tsk_123",
-      userId: "other_user",
-    });
+  it("returns 404 when the task is not owned by the caller", async () => {
+    const { notFound } = await import("@/helpers/error");
+    requireMutableTaskOwnershipMock.mockRejectedValue(
+      notFound("Task not found"),
+    );
     const app = createApp();
 
     const response = await app.request("http://localhost/tsk_123/share", {
       method: "DELETE",
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
     expect(deleteByTaskIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task does not exist", async () => {
-    taskFindUniqueMock.mockResolvedValue(null);
+    const { notFound } = await import("@/helpers/error");
+    requireMutableTaskOwnershipMock.mockRejectedValue(
+      notFound("Task not found"),
+    );
     const app = createApp();
 
     const response = await app.request("http://localhost/tsk_123/share", {

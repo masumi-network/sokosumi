@@ -1,10 +1,9 @@
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/utils";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
-import type { TaskEvent } from "@/lib/types/task";
+import type { TaskEvent } from "@/lib/clients/generated/core";
+import { Channel, TaskStatus } from "@/lib/clients/generated/core";
 
 const {
   uploadTaskAttachmentMock,
@@ -33,22 +32,23 @@ vi.mock("next-intl", () => ({
       "billingCta.addCredits": "Add credits",
       "billingCta.placeholder":
         "This task needs credits to continue. Open billing to proceed.",
+      "billingCta.statusUnavailable": "This task is out of credits.",
       sendWith: "Send with",
       ctrl: "Ctrl",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
       fileLabel: "File",
-      "originApp.sokosumi": "Sokosumi",
-      "originApp.slack": "Slack",
-      "originApp.teams": "Teams",
-      "originApp.email": "Email",
-      "originApp.linear": "Linear",
-      "originApp.github": "GitHub",
-      "originApp.whatsapp": "WhatsApp",
-      "originApp.telegram": "Telegram",
-      "originApp.signal": "Signal",
-      "originApp.discord": "Discord",
-      "originApp.chat": "Chat",
-      "originApp.unknown": "Unknown",
+      "channelApp.sokosumi": "Sokosumi",
+      "channelApp.slack": "Slack",
+      "channelApp.teams": "Teams",
+      "channelApp.email": "Email",
+      "channelApp.linear": "Linear",
+      "channelApp.github": "GitHub",
+      "channelApp.whatsapp": "WhatsApp",
+      "channelApp.telegram": "Telegram",
+      "channelApp.signal": "Signal",
+      "channelApp.discord": "Discord",
+      "channelApp.chat": "Chat",
+      "channelApp.unknown": "Unknown",
     };
 
     const translator = (
@@ -122,7 +122,7 @@ function createEvent(
     status,
     comment = null,
     authenticationUrl = null,
-    origin = TaskEventOrigin.SOKOSUMI,
+    channel = Channel.SOKOSUMI,
     userId = "user-1",
     user,
     coworkerId = null,
@@ -132,7 +132,7 @@ function createEvent(
     status: TaskStatus | null;
     comment?: string | null;
     authenticationUrl?: string | null;
-    origin?: TaskEventOrigin;
+    channel?: Channel;
     userId?: string | null;
     user?: TaskEvent["user"];
     coworkerId?: string | null;
@@ -147,7 +147,8 @@ function createEvent(
     status,
     comment,
     authenticationUrl,
-    origin,
+    channel,
+    origin: channel,
     userId,
     user,
     coworkerId,
@@ -476,13 +477,13 @@ describe("TaskActivitySection", () => {
         createdAt: "2026-01-01T12:00:00.000Z",
         status: null,
         comment: "Posted in app",
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
       }),
       createEvent("older-email", {
         createdAt: "2026-01-01T11:00:00.000Z",
         status: null,
         comment: "Sent by email",
-        origin: TaskEventOrigin.EMAIL,
+        channel: Channel.EMAIL,
       }),
     ];
 
@@ -503,7 +504,7 @@ describe("TaskActivitySection", () => {
     ];
 
     render(
-      <TaskActivitySection {...baseProps} events={events} isFreePlan={true} />,
+      <TaskActivitySection {...baseProps} events={events} viewerPlan="free" />,
     );
 
     const cta = screen.getByRole("link", { name: "Get more credits" });
@@ -515,6 +516,50 @@ describe("TaskActivitySection", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows add-credits billing CTA for latest out-of-credits event on paid plan", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-out-of-credits", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.OUT_OF_CREDITS,
+      }),
+    ];
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} viewerPlan="pro" />,
+    );
+
+    const cta = screen.getByRole("link", { name: "Add credits" });
+    expect(cta).toHaveAttribute("href", "/billing?tab=credits");
+  });
+
+  it("shows out-of-credits status without billing CTA when plan is unavailable", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-out-of-credits", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.OUT_OF_CREDITS,
+      }),
+    ];
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} viewerPlan={null} />,
+    );
+
+    expect(
+      screen.getByText("This task is out of credits."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "This task needs credits to continue. Open billing to proceed.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Get more credits" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Add credits" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not show billing CTA for latest credits-topped-up event", () => {
     const events: TaskEvent[] = [
       createEvent("latest-credits-topped-up", {
@@ -524,7 +569,7 @@ describe("TaskActivitySection", () => {
     ];
 
     render(
-      <TaskActivitySection {...baseProps} events={events} isFreePlan={false} />,
+      <TaskActivitySection {...baseProps} events={events} viewerPlan="pro" />,
     );
 
     expect(

@@ -9,6 +9,16 @@ const organizationLogoSchema = z.preprocess(
   z.union([z.httpUrl(), z.literal(""), z.null()]),
 );
 
+const organizationMetadataSchema = z
+  .object({
+    url: z.httpUrl().nullable().optional(),
+  })
+  .catchall(z.unknown())
+  .transform((metadata) => {
+    const { invoiceEmail: _invoiceEmail, ...rest } = metadata;
+    return rest;
+  });
+
 export const organizationSchema = z.object({
   id: z.string().openapi({ example: "org_123" }),
   createdAt: dateTimeSchema,
@@ -17,12 +27,7 @@ export const organizationSchema = z.object({
   logo: organizationLogoSchema.openapi({
     example: "https://example.com/logo.png",
   }),
-  metadata: z
-    .object({
-      url: z.httpUrl().nullable().optional(),
-      invoiceEmail: z.string().nullable().optional(),
-    })
-    .catchall(z.unknown())
+  metadata: organizationMetadataSchema
     .nullable()
     .openapi({ example: { url: "https://example.com" } }),
 });
@@ -63,40 +68,6 @@ export const organizationRecordSchema = z
   .openapi("OrganizationRecord");
 
 export type OrganizationRecord = z.infer<typeof organizationRecordSchema>;
-
-/**
- * Request body for setting (or clearing) an organization's invoice email.
- * Pass a null `invoiceEmail` to clear it.
- */
-export const organizationInvoiceEmailWriteSchema = z
-  .object({
-    invoiceEmail: z.email().nullable().openapi({
-      example: "billing@acme.example",
-      description: "Invoice email to set, or null to clear it",
-    }),
-  })
-  .openapi("OrganizationInvoiceEmailWrite");
-
-export type OrganizationInvoiceEmailWrite = z.infer<
-  typeof organizationInvoiceEmailWriteSchema
->;
-
-/**
- * The persisted invoice email of an organization, or `null` when none is
- * configured.
- */
-export const organizationInvoiceEmailSchema = z
-  .object({
-    invoiceEmail: z.string().nullable().openapi({
-      example: "billing@acme.example",
-      description: "The persisted invoice email, or null when none",
-    }),
-  })
-  .openapi("OrganizationInvoiceEmail");
-
-export type OrganizationInvoiceEmail = z.infer<
-  typeof organizationInvoiceEmailSchema
->;
 
 export const organizationSummarySchema = z
   .object({

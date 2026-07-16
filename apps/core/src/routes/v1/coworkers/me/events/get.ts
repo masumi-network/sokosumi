@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
@@ -41,6 +41,7 @@ const route = createRoute({
             coworkerId: "cow_123",
             comment: "Looks good.",
             authenticationUrl: null,
+            channel: "SOKOSUMI",
             origin: "SOKOSUMI",
             status: "RUNNING",
           },

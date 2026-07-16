@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getAgentJobsMock = vi.fn();
-const mapCoreJobSummaryToJobWithSokosumiStatusMock = vi.fn();
-
-vi.mock("@/lib/agents/core-dto-mappers", () => ({
-  mapCoreJobSummaryToJobWithSokosumiStatus: (...args: unknown[]) =>
-    mapCoreJobSummaryToJobWithSokosumiStatusMock(...args),
-}));
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
@@ -41,13 +35,6 @@ describe("getCachedMyJobs", () => {
           },
         },
       });
-
-    mapCoreJobSummaryToJobWithSokosumiStatusMock.mockImplementation(
-      (job: { id: string; createdAt: string }) => ({
-        id: job.id,
-        createdAt: new Date(job.createdAt),
-      }),
-    );
 
     const { getCachedMyJobs } = await import("../get-cached-my-jobs");
     const jobs = await getCachedMyJobs("agent-1");

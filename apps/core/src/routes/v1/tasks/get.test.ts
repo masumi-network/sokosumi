@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,12 +9,17 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasks from "./get";
 
-const { requireCoworkerCapabilityMock, taskCountMock, taskFindManyMock } =
-  vi.hoisted(() => ({
-    requireCoworkerCapabilityMock: vi.fn(),
-    taskCountMock: vi.fn(),
-    taskFindManyMock: vi.fn(),
-  }));
+const {
+  requireCoworkerCapabilityMock,
+  taskCountMock,
+  taskFindManyMock,
+  vendorGrantFindUniqueMock,
+} = vi.hoisted(() => ({
+  requireCoworkerCapabilityMock: vi.fn(),
+  taskCountMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  vendorGrantFindUniqueMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
@@ -25,6 +30,9 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       count: taskCountMock,
       findMany: taskFindManyMock,
+    },
+    vendorGrant: {
+      findUnique: vendorGrantFindUniqueMock,
     },
   },
 }));
@@ -39,12 +47,14 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: "01960001-0001-7001-8001-000000000001",
 };
 
 const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
-  delegation: {
+  vendorId: "01960001-0001-7001-8001-000000000001",
+  context: {
     userId: "user_delegate",
     organizationId: "org_delegate",
   },
@@ -61,6 +71,32 @@ const DELEGATED_WORKSPACE_CONTEXT = {
   userId: "user_delegate",
   organizationId: "org_delegate",
 } satisfies WorkspaceVariables["workspaceContext"];
+
+const DELEGATED_VENDOR_ID = "01960001-0001-7001-8001-000000000001";
+
+const COWORKER_SIBLING_LIST_FILTER = {
+  status: { not: TaskStatus.DRAFT },
+  OR: [
+    { coworkerId: "cow_123" },
+    {
+      coworkerId: { not: "cow_123" },
+      coworker: {
+        vendorId: DELEGATED_VENDOR_ID,
+      },
+    },
+  ],
+} as const;
+
+function delegatedCoworkerListWhere(
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    archivedAt: null,
+    workspaceId: "22222222-2222-7222-8222-222222222222",
+    AND: [COWORKER_SIBLING_LIST_FILTER],
+    ...extra,
+  };
+}
 
 function createApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
@@ -106,8 +142,10 @@ function createTask() {
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
-    events: [],
-    jobs: [],
+    _count: {
+      events: 0,
+      jobs: 0,
+    },
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: "org_123",
@@ -126,6 +164,7 @@ describe("GET /tasks", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
+    vendorGrantFindUniqueMock.mockResolvedValue(null);
   });
 
   it("parses multiple statuses into an IN filter", async () => {
@@ -164,6 +203,22 @@ describe("GET /tasks", () => {
             contains: "review",
             mode: "insensitive",
           },
+        },
+      }),
+    );
+  });
+
+  it("scopes owned task lists to the authenticated user", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
         },
       }),
     );
@@ -221,15 +276,25 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("does not include task links for user-scoped task list reads", async () => {
+  it("uses relation counts instead of loading task detail graphs", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
     const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
+    expect(include).not.toHaveProperty("events");
+    expect(include).not.toHaveProperty("jobs");
     expect(include).not.toHaveProperty("linksFrom");
     expect(include).not.toHaveProperty("linksTo");
+    expect(include).toMatchObject({
+      _count: {
+        select: {
+          events: { where: { comment: { not: null } } },
+          jobs: true,
+        },
+      },
+    });
   });
 
   it("does not include task links for coworker-scoped task list reads", async () => {
@@ -256,6 +321,12 @@ describe("GET /tasks", () => {
     };
     expect(body.data).toHaveLength(1);
     expect(body.data[0]).not.toHaveProperty("links");
+    expect(body.data[0]).not.toHaveProperty("events");
+    expect(body.data[0]).not.toHaveProperty("jobs");
+    expect(body.data[0]).toMatchObject({
+      commentsCount: 0,
+      jobsCount: 0,
+    });
   });
 
   it("rejects coworker requests that include DRAFT", async () => {
@@ -275,12 +346,11 @@ describe("GET /tasks", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          coworkerId: "cow_123",
           archivedAt: null,
+          AND: [COWORKER_SIBLING_LIST_FILTER],
           status: {
             in: [TaskStatus.QUEUED],
           },
-          NOT: { status: { in: [TaskStatus.DRAFT] } },
         },
       }),
     );
@@ -311,11 +381,9 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
+        where: delegatedCoworkerListWhere({
           userId: "user_delegate",
-        },
+        }),
       }),
     );
   });
@@ -332,11 +400,41 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
+        where: delegatedCoworkerListWhere({
           coworkerId: "cow_999",
-        },
+        }),
+      }),
+    );
+  });
+
+  it("filters tasks by status list only", async () => {
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?status=${TaskStatus.READY},${TaskStatus.CREDITS_TOPPED_UP}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP] },
+        }),
+      }),
+    );
+  });
+
+  it("filters grant-pending tasks by status", async () => {
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?status=${TaskStatus.GRANT_PENDING}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: [TaskStatus.GRANT_PENDING] },
+        }),
       }),
     );
   });

@@ -182,6 +182,10 @@ const config = {
 4. Bootstrap database: `pnpm prisma:migrate:dev`
 5. Generate Prisma clients: `pnpm prisma:generate`
 
+### Git hooks
+
+Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Skip with `git commit --no-verify` or `HUSKY=0`.
+
 ## Commands
 
 | Command                | Purpose                       |
@@ -295,7 +299,8 @@ docs(readme): update setup instructions
 
 - **Forbidden in `apps/web`**: importing `@sokosumi/database` repositories/helpers, instantiating or calling the Prisma client, or issuing raw SQL. Web services (`src/lib/services/`) and actions (`src/lib/actions/`) coordinate domain flows but obtain their data by calling Core endpoints.
 - **Required in `apps/core`**: every new data-access need is implemented as a versioned route under `apps/core/src/routes/v1/`, backed by `@sokosumi/database` repositories, validated with the Core Zod/OpenAPI schemas (`apps/core/src/schemas/`).
-- **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).
+- **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`) to catch DTO drift. Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).
+- **Web DTO boundary**: do not import `@sokosumi/database` or domain enum **values** from `@sokosumi/utils` in web — use the generated Core client. Details and approved utils exceptions live in `apps/web/AGENTS.md` (Core DTO boundary).
 - **Why**: a single owner for data access keeps authorization, validation, and schema invariants in one place, lets the web app stay a thin client, and removes Prisma/Postgres credentials from the web runtime.
 
 ### Code References
@@ -318,6 +323,8 @@ Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Ca
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). See [`docs/agents/domain.md`](./docs/agents/domain.md).
 
+**Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds.
+
 ## Additional Rules
 
 - [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
@@ -335,3 +342,29 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 - [Next.js App Router](https://nextjs.org/docs/app)
 - [Shadcn UI](https://ui.shadcn.com/)
 - [Tailwind CSS](https://tailwindcss.com/)
+
+## Cursor Cloud specific instructions
+
+These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script only runs `pnpm install`; everything below (Node 24, PostgreSQL, `.env` files, applied migrations) is baked into the VM snapshot and persists across runs.
+
+### Runtime versions
+
+- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.10.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+
+### Database (local PostgreSQL, not Neon)
+
+- The dev DB is a **local PostgreSQL 16 cluster** (installed via apt). It is **not started on boot** — start it with `sudo pg_ctlcluster 16 main start` (check with `pg_lsclusters`). DB `core`, role `sokosumi` / password `sokosumi`, on `localhost:5432`.
+- **Gotcha — injected `DATABASE_URL`:** the platform injects a stale/invalid Neon `DATABASE_URL` env var (`...neon.tech...`, `neondb_owner` auth fails). `dotenv` does **not** override an already-set env var, so it would shadow `apps/core/.env`. A `~/.bashrc` line exports the local `DATABASE_URL`, which wins in **login/interactive** shells. Therefore **run the dev servers in a login shell** (tmux started with `bash -l`, or `bash -lc "…"`). If you see `Authentication failed against the database server, the provided database credentials for (not available)` or a `neon.tech` host, the injected var leaked into a non-login shell — prefix the command with the local `DATABASE_URL` or use a login shell.
+- Schema is already applied. After pulling schema changes, run `pnpm prisma:generate` then `pnpm prisma:migrate:deploy` (needs `DATABASE_URL`; use a login shell). To inspect: `PGPASSWORD=sokosumi psql -h localhost -U sokosumi -d core`.
+
+### `.env` files (gitignored, snapshot-persisted)
+
+`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost`; `POSTMARK_FROM_EMAIL` and `HERMES_ORCH_BASE_URL` set to valid dummy values; invalid placeholders removed (`COMPOSIO_API_KEY`, `AGENT_HIRED_WEBHOOK`); `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
+
+### Running & known local gotchas
+
+- Start services (login shell): `pnpm core:dev` → Core API on `:8787` (Swagger at `/`, OpenAPI at `/v1/openapi.json`); `pnpm web:dev` → web on `:3000`. `pnpm dev` runs everything. Standard scripts/ports are in the Commands table above and each app's `AGENTS.md`.
+- **Auth for a test account:** email/password signup works with no email verification and auto sign-in (`/signup`). Google/Microsoft OAuth and magic-link email do **not** work (placeholder credentials). Use email/password.
+- **Agents catalog is empty and 500s by default:** `GET /v1/agents` and `/v1/categories` throw `Failed to get credit information for agents` until the `credit_cost` table has rows (seeded in real envs via the admin `POST /v1/credit-costs` endpoint / `/admin` UI). This breaks the Agents marketplace and the Chat/Tasks landing pages until seeded — it is missing data, not a broken build.
+- **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` returns 500 (`No key specified`) and chat pages surface a "Something went wrong" modal, because `ABLY_SUBSCRIBE_ONLY_KEY` / Core `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.
+- Lint (`pnpm lint`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.

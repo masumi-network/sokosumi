@@ -7,7 +7,7 @@ import {
   SquaresExclude,
 } from "lucide-react";
 
-import type { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
+import type { TaskLinkRelation } from "@/lib/clients/generated/core";
 
 export function getTaskLinkRelationIcon(
   relation: TaskLinkRelation,

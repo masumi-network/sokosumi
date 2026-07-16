@@ -3,6 +3,7 @@ import { buildWebhookFailureContext, postWebhook } from "@sokosumi/utils";
 
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import { isTransientFetchError } from "@/lib/external-service-errors";
 
 export type WebhookType = "userCreated" | "userUpdated" | "accountCreated";
 
@@ -32,6 +33,16 @@ export const webhookClient = (() => {
         {
           responseStatus: result.httpStatus,
           responseStatusText: result.statusText,
+        },
+      );
+      return;
+    }
+
+    if (isTransientFetchError(result.error)) {
+      console.warn(
+        `Webhook ${webhookType} call failed transiently; skipping Sentry report.`,
+        {
+          error: result.error.message,
         },
       );
       return;

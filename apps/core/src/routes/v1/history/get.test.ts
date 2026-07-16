@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { HistoryKind } from "@sokosumi/database";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { HistoryKind, TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
@@ -344,7 +344,7 @@ describe("GET /history", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(prismaQueryRawMock).toHaveBeenCalledOnce();
+    expect(prismaQueryRawMock).toHaveBeenCalledTimes(1);
     expect(historyFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -399,7 +399,9 @@ describe("GET /history", () => {
 
   it("only includes conversations when status filter is active", async () => {
     const app = createApp();
-    const response = await app.request("http://localhost/?status=active");
+    const response = await app.request(
+      "http://localhost/?status=active&types=conversation",
+    );
 
     expect(response.status).toBe(200);
     expect(prismaQueryRawMock).not.toHaveBeenCalled();

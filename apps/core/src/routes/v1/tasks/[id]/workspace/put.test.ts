@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,23 +14,31 @@ const {
   jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
+  requireMutableTaskOwnershipMock,
   upsertWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
   taskLinkFindFirstMock,
   taskFindUniqueOrThrowMock,
   taskUpdateMock,
+  workspaceFindUniqueOrThrowMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  requireMutableTaskOwnershipMock: vi.fn(),
   upsertWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskLinkFindFirstMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
+  workspaceFindUniqueOrThrowMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/access-control", () => ({
+  requireMutableTaskOwnership: requireMutableTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -82,6 +90,9 @@ interface TransactionMock {
   };
   taskLink: {
     findFirst: ReturnType<typeof vi.fn>;
+  };
+  workspace: {
+    findUniqueOrThrow: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -141,6 +152,8 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     metadata: null,
     nextRunAt: null,
     credits: 0,
+    grantResumeStatus: null,
+    pendingVendorGrantId: null,
     events: [],
     jobs: [],
     workspace: {
@@ -227,6 +240,20 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     const defaultTask = createTaskRecord();
     taskFindFirstMock.mockResolvedValue(defaultTask);
+    requireMutableTaskOwnershipMock.mockImplementation(async () => {
+      const task = await taskFindFirstMock();
+      if (!task) {
+        const { notFound } = await import("@/helpers/error");
+        throw notFound("Task not found");
+      }
+      return task;
+    });
+    workspaceFindUniqueOrThrowMock.mockImplementation(async () => {
+      const task = await taskFindFirstMock();
+      return {
+        organizationId: task?.workspace?.organizationId ?? null,
+      };
+    });
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: {
         id: "org_target",
@@ -265,6 +292,9 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       taskLink: {
         findFirst: taskLinkFindFirstMock,
+      },
+      workspace: {
+        findUniqueOrThrow: workspaceFindUniqueOrThrowMock,
       },
     });
   });
@@ -670,6 +700,9 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       taskLink: {
         findFirst: taskLinkFindFirstMock,
+      },
+      workspace: {
+        findUniqueOrThrow: workspaceFindUniqueOrThrowMock,
       },
     });
     mapTaskMock.mockReturnValue(

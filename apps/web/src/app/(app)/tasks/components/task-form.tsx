@@ -1,6 +1,5 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
@@ -26,7 +25,7 @@ import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { CompanyMark } from "@/components/agents/company-mark";
+import { VendorMark } from "@/components/agents/vendor-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
@@ -808,13 +808,11 @@ export function TaskForm({
                   </p>
                 ) : null}
               </div>
-              {selectedOption.company ? (
-                <CompanyMark
-                  company={selectedOption.company}
-                  className="h-5 shrink-0"
-                  textClassName="text-muted-foreground shrink-0 text-xs font-medium"
-                />
-              ) : null}
+              <VendorMark
+                vendor={selectedOption.vendor}
+                className="h-5 shrink-0"
+                textClassName="text-muted-foreground shrink-0 text-xs font-medium"
+              />
             </div>
           ) : null}
 

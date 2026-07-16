@@ -9,6 +9,7 @@ export const TASK_ARCHIVABLE_STATUSES = [
   "DRAFT",
   "QUEUED",
   "READY",
+  "GRANT_PENDING",
   "CANCELED",
   "COMPLETED",
   "FAILED",
@@ -24,6 +25,14 @@ export function isTaskArchivableStatus(
   status: string,
 ): status is TaskArchivableStatus {
   return (TASK_ARCHIVABLE_STATUSES as readonly string[]).includes(status);
+}
+
+export function isGrantPendingTaskStatus(status: string): boolean {
+  return status === "GRANT_PENDING";
+}
+
+export function canArchiveTaskStatus(status: string): boolean {
+  return isTaskArchivableStatus(status);
 }
 
 export function getTaskCannotArchiveMessage(currentStatus: string): string {

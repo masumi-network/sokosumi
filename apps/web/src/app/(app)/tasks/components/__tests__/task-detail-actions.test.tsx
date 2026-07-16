@@ -14,11 +14,6 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import {
-  getTaskLinkActionInput,
-  TASK_STATUS,
-  type TaskStatus,
-} from "@/app/tasks/components/task-detail-api-types";
-import {
   createTaskAndLink,
   createTaskLink,
   deleteTask,
@@ -26,7 +21,8 @@ import {
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
+import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
+import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const { pushMock, refreshMock, browserCoreClientMock, isMobileMock } =
   vi.hoisted(() => ({
@@ -391,7 +387,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
           const result = await onCreateTask({
             description: "Created related task",
             coworkerId: initialValues?.coworkerId ?? null,
-            status: TASK_STATUS.READY,
+            status: TaskStatus.READY,
           });
           onSuccess?.(result.taskId);
         }}
@@ -424,7 +420,7 @@ function buildTaskListItem(
     coworkerId: null,
     name: "Alpha task",
     description: null,
-    status: TASK_STATUS.READY,
+    status: TaskStatus.READY,
     credits: 0,
     events: [],
     jobs: [],
@@ -439,8 +435,16 @@ const labels = {
   confirmArchiveDescription: "Are you sure?",
   archiveError: "Archive error",
   markAsReady: "Mark as Ready",
+  reopenToReady: "Reopen to Ready",
+  reopenToReadyTitle: "Reopen task",
+  reopenToReadyDescription:
+    "Add a comment so your coworker knows what to do next.",
+  reopenToReadyCommentLabel: "Comment",
+  reopenToReadyCommentPlaceholder: "Describe what still needs to be done…",
+  reopenToReadyCommentRequired: "A comment is required to reopen this task",
+  reopenToReadyConfirm: "Reopen to Ready",
   revertToDraft: "Revert to Draft",
-  cancelRequest: "Cancel Request",
+  cancel: "Cancel",
   share: "Share",
 };
 
@@ -462,7 +466,7 @@ const defaultTaskLinks = [
     peerTask: {
       id: "task-parent",
       name: "Parent task",
-      status: TASK_STATUS.READY,
+      status: TaskStatus.READY,
       archivedAt: null,
     },
   },
@@ -478,7 +482,7 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-related",
       name: "Related task",
-      status: TASK_STATUS.READY,
+      status: TaskStatus.READY,
       archivedAt: null,
     },
   },
@@ -491,7 +495,7 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-blocked",
       name: "Blocked task",
-      status: TASK_STATUS.DRAFT,
+      status: TaskStatus.DRAFT,
       archivedAt: null,
     },
   },
@@ -504,7 +508,7 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-subtask",
       name: "Sub-task",
-      status: TASK_STATUS.READY,
+      status: TaskStatus.READY,
       archivedAt: null,
     },
   },
@@ -517,19 +521,18 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-archived",
       name: "Archived duplicate",
-      status: TASK_STATUS.CANCELED,
+      status: TaskStatus.CANCELED,
       archivedAt: new Date("2024-01-02T00:00:00.000Z"),
     },
   },
 ] as const;
 
 const coworkerOptions = [
-  {
+  mockCoworkerOption({
     id: "coworker-1",
     slug: "elena",
     name: "Elena",
-    image: "",
-  },
+  }),
 ];
 
 function renderActions(
@@ -539,7 +542,7 @@ function renderActions(
     <TaskDetailActions
       taskId="task-1"
       share={null}
-      status={TASK_STATUS.READY}
+      status={TaskStatus.READY}
       jobsCount={0}
       taskLinks={[]}
       coworkerOptions={coworkerOptions}
@@ -572,25 +575,35 @@ describe("TaskDetailActions", () => {
   });
 
   it.each([
-    TASK_STATUS.COMPLETED,
-    TASK_STATUS.FAILED,
-  ] as const)("shows archive in the overflow menu for finalized status %s without edit", async (status) => {
-    const user = userEvent.setup();
-    renderActions({ status });
+    TaskStatus.COMPLETED,
+    TaskStatus.FAILED,
+    TaskStatus.CANCELED,
+  ] as const)(
+    "shows archive in the overflow menu for finalized status %s without edit",
+    async (status) => {
+      const user = userEvent.setup();
+      renderActions({ status });
 
-    expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
-    expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
-  });
+      expect(
+        screen.getByRole("menuitem", { name: labels.archive }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+      expect(
+        screen.queryByRole("menuitem", { name: "Revert to Draft" }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("menuitem", { name: "Mark as Ready" }),
+      ).toBeNull();
+    },
+  );
 
   it("shows edit for queued tasks", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.QUEUED,
+      status: TaskStatus.QUEUED,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
@@ -601,7 +614,7 @@ describe("TaskDetailActions", () => {
   it("hides archive while the coworker is running", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.RUNNING,
+      status: TaskStatus.RUNNING,
       organizations: undefined,
     });
 
@@ -610,14 +623,14 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: labels.cancelRequest }),
+      screen.getByRole("menuitem", { name: labels.cancel }),
     ).toBeInTheDocument();
   });
 
-  it("shows cancel request while approval is required", async () => {
+  it("shows cancel while approval is required", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.APPROVAL_REQUIRED,
+      status: TaskStatus.APPROVAL_REQUIRED,
       organizations: undefined,
     });
 
@@ -626,8 +639,62 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: labels.cancelRequest }),
+      screen.getByRole("menuitem", { name: labels.cancel }),
     ).toBeInTheDocument();
+  });
+
+  it("shows cancel while awaiting external", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.AWAITING_EXTERNAL,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+  });
+
+  it("sets task status to canceled when cancel is chosen", async () => {
+    const user = userEvent.setup();
+    const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
+    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+
+    renderActions({
+      status: TaskStatus.RUNNING,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: labels.cancel }));
+
+    await waitFor(() => {
+      expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.CANCELED,
+      });
+    });
+  });
+
+  it("shows archive for the task owner while vendor grant approval is pending", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      organizations: undefined,
+      isTaskOwner: true,
+      isReadOnly: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
   it("hides share and overflow actions in read-only workspace mode", () => {
@@ -650,7 +717,7 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockReturnValueOnce(deferred.promise);
 
     renderActions({
-      status: TASK_STATUS.CANCELED,
+      status: TaskStatus.DRAFT,
       organizations: undefined,
     });
 
@@ -658,7 +725,7 @@ describe("TaskDetailActions", () => {
       name: actionsMenuLabel,
     });
     await user.click(actionsButton);
-    await user.click(screen.getByRole("menuitem", { name: "Revert to Draft" }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
 
     await waitFor(() => {
       expect(actionsButton).toBeDisabled();
@@ -666,7 +733,7 @@ describe("TaskDetailActions", () => {
 
     expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
       taskId: "task-1",
-      desiredStatus: TASK_STATUS.DRAFT,
+      desiredStatus: TaskStatus.READY,
     });
 
     deferred.resolve({ taskId: "task-1" });
@@ -682,33 +749,105 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
 
     renderActions({
-      status: TASK_STATUS.CANCELED,
+      status: TaskStatus.DRAFT,
       organizations: undefined,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Revert to Draft" }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
 
     await waitFor(() => {
       expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
         taskId: "task-1",
-        desiredStatus: TASK_STATUS.DRAFT,
+        desiredStatus: TaskStatus.READY,
       });
     });
   });
 
-  it("renders a single separator between status actions and archive for canceled tasks", async () => {
+  it("offers reopen-to-ready with a required comment for canceled tasks", async () => {
     const user = userEvent.setup();
+    const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
+    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+
     renderActions({
-      status: TASK_STATUS.CANCELED,
+      status: TaskStatus.CANCELED,
+      defaultCoworkerId: "cow-1",
       organizations: undefined,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
     expect(
-      document.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
-    ).toBe(1);
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Revert to Draft" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Mark as Ready" }),
+    ).toBeNull();
+
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: labels.reopenToReadyTitle }),
+    ).toBeInTheDocument();
+
+    const confirmButton = screen.getByRole("button", {
+      name: labels.reopenToReadyConfirm,
+    });
+    expect(confirmButton).toBeDisabled();
+
+    await user.type(
+      screen.getByLabelText(labels.reopenToReadyCommentLabel),
+      "Please continue from the last draft",
+    );
+    expect(confirmButton).toBeEnabled();
+
+    await user.click(confirmButton);
+
+    await waitFor(() => {
+      expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.READY,
+        comment: "Please continue from the last draft",
+      });
+    });
+  });
+
+  it("offers reopen-to-ready for completed tasks", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.COMPLETED,
+      defaultCoworkerId: "cow-1",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides reopen when a canceled task has no coworker", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.CANCELED,
+      defaultCoworkerId: null,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
   });
 
   it("shows move to workspace when the task can be moved", async () => {
@@ -874,7 +1013,7 @@ describe("TaskDetailActions", () => {
       expect(createTaskLinkMock).toHaveBeenCalledWith({
         taskId: "task-1",
         relatedTaskId: "task-3",
-        ...getTaskLinkActionInput(TaskLinkRelation.RELATED),
+        relation: TaskLinkRelation.RELATED,
       });
     });
   });
@@ -892,7 +1031,7 @@ describe("TaskDetailActions", () => {
         buildTaskListItem({
           id: "task-3",
           name: "Beta task",
-          status: TASK_STATUS.DRAFT,
+          status: TaskStatus.DRAFT,
         }),
       ],
       meta: {
@@ -924,7 +1063,7 @@ describe("TaskDetailActions", () => {
       expect(createTaskLinkMock).toHaveBeenCalledWith({
         taskId: "task-1",
         relatedTaskId: "task-2",
-        ...getTaskLinkActionInput(TaskLinkRelation.RELATED),
+        relation: TaskLinkRelation.RELATED,
       });
       expect(alphaTaskButton).toBeDisabled();
       expect(betaTaskButton).toBeDisabled();
@@ -1040,8 +1179,8 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         coworkerId: "coworker-1",
-        status: TASK_STATUS.READY,
-        ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
+        status: TaskStatus.READY,
+        relation: TaskLinkRelation.PARENT,
       });
     });
 
@@ -1090,7 +1229,7 @@ describe("TaskDetailActions", () => {
       peerTask: {
         id: "task-parent-2",
         name: "Other parent",
-        status: TASK_STATUS.READY,
+        status: TaskStatus.READY,
         archivedAt: null,
       },
     } as const;
@@ -1332,8 +1471,8 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         coworkerId: "coworker-1",
-        status: TASK_STATUS.READY,
-        ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
+        status: TaskStatus.READY,
+        relation: TaskLinkRelation.PARENT,
       });
     });
 

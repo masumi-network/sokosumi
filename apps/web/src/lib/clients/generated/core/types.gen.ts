@@ -51,12 +51,31 @@ export type AdminUserOverviewItem = {
     /**
      * Stripe subscription lifecycle status, or null when absent
      */
-    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+    subscriptionStatus: StripeSubscriptionStatus | null;
     /**
      * Number of tasks the user has started (status beyond DRAFT)
      */
     startedTaskCount: number;
 };
+
+/**
+ * Stripe subscription lifecycle status
+ */
+export const StripeSubscriptionStatus = {
+    ACTIVE: 'active',
+    CANCELED: 'canceled',
+    INCOMPLETE: 'incomplete',
+    INCOMPLETE_EXPIRED: 'incomplete_expired',
+    PAST_DUE: 'past_due',
+    PAUSED: 'paused',
+    TRIALING: 'trialing',
+    UNPAID: 'unpaid'
+} as const;
+
+/**
+ * Stripe subscription lifecycle status
+ */
+export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
 export type AdminOrganizationOverviewItem = {
     id: string;
@@ -74,7 +93,7 @@ export type AdminOrganizationOverviewItem = {
     /**
      * Stripe subscription lifecycle status, or null when absent
      */
-    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+    subscriptionStatus: StripeSubscriptionStatus | null;
 };
 
 export type AdminOrganizationOverviewDetail = {
@@ -124,7 +143,7 @@ export type AdminOrganizationOverviewDetail = {
 export type AdminOrganizationMemberOverviewItem = {
     id: string;
     organizationId: string;
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
     user: {
@@ -144,19 +163,33 @@ export type AdminOrganizationMemberOverviewItem = {
     /**
      * Stripe subscription lifecycle status, or null when absent
      */
-    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+    subscriptionStatus: StripeSubscriptionStatus | null;
 };
+
+/**
+ * Organization member role
+ */
+export const MemberRole = {
+    OWNER: 'owner',
+    ADMIN: 'admin',
+    MEMBER: 'member'
+} as const;
+
+/**
+ * Organization member role
+ */
+export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
 
 export type AdminAddOrganizationMemberBody = {
     /**
      * User ID to add as a member
      */
     userId: string;
-    role?: 'owner' | 'admin' | 'member';
+    role?: MemberRole;
 };
 
 export type AdminUpdateOrganizationMemberRoleBody = {
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole & unknown;
 };
 
 export type OrganizationSeatAssignment = {
@@ -212,13 +245,30 @@ export type CreateInvoice = {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    markFree: boolean;
+};
+
+export type FreeCreditGrant = {
+    bucketId: string;
+    targetType: 'user' | 'organization';
+    targetId: string;
+    targetName: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
+};
+
+export type CreateFreeCreditGrant = {
+    targetType: 'user' | 'organization';
+    targetId: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
 };
 
 export type AdminTaskListItem = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus;
     createdAt: Date;
     user: {
         id: string;
@@ -231,6 +281,25 @@ export type AdminTaskListItem = {
         slug: string;
     } | null;
 };
+
+export const TaskStatus = {
+    DRAFT: 'DRAFT',
+    QUEUED: 'QUEUED',
+    READY: 'READY',
+    GRANT_PENDING: 'GRANT_PENDING',
+    INPUT_REQUIRED: 'INPUT_REQUIRED',
+    APPROVAL_REQUIRED: 'APPROVAL_REQUIRED',
+    AUTHENTICATION_REQUIRED: 'AUTHENTICATION_REQUIRED',
+    OUT_OF_CREDITS: 'OUT_OF_CREDITS',
+    CREDITS_TOPPED_UP: 'CREDITS_TOPPED_UP',
+    RUNNING: 'RUNNING',
+    AWAITING_EXTERNAL: 'AWAITING_EXTERNAL',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    CANCELED: 'CANCELED'
+} as const;
+
+export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 export type AdminTaskDetail = {
     task: Task;
@@ -259,7 +328,15 @@ export type Task = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
+    /**
+     * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
+     */
+    grantResumeStatus: 'DRAFT' | 'READY' | null;
+    /**
+     * Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.
+     */
+    pendingVendorGrantId: string | null;
     /**
      * Serialized task schedule metadata JSON
      */
@@ -323,9 +400,34 @@ export type TaskEvent = {
     credits?: number | null;
     comment?: string | null;
     authenticationUrl?: string | null;
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    channel: Channel;
+    origin: Channel & unknown;
+    status?: TaskStatus | null;
 };
+
+/**
+ * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
+ */
+export const Channel = {
+    SLACK: 'SLACK',
+    TEAMS: 'TEAMS',
+    EMAIL: 'EMAIL',
+    LINEAR: 'LINEAR',
+    GITHUB: 'GITHUB',
+    WHATSAPP: 'WHATSAPP',
+    TELEGRAM: 'TELEGRAM',
+    SIGNAL: 'SIGNAL',
+    DISCORD: 'DISCORD',
+    CHAT: 'CHAT',
+    MESSENGER: 'MESSENGER',
+    SOKOSUMI: 'SOKOSUMI',
+    UNKNOWN: 'UNKNOWN'
+} as const;
+
+/**
+ * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
+ */
+export type Channel = typeof Channel[keyof typeof Channel];
 
 export type JobSummary = {
     id: string;
@@ -341,10 +443,10 @@ export type JobSummary = {
     workspace: WorkspaceSummary;
     taskId?: string | null;
     name?: string | null;
-    jobType: 'FREE' | 'PAID';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    jobType: JobType;
+    status: SokosumiJobStatus;
     credits: number;
-    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainStatus?: OnChainJobStatus | null;
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
@@ -354,6 +456,10 @@ export type JobSummary = {
     unlockTime?: Date | null;
     externalDisputeUnlockTime?: Date | null;
     sellerVkey?: string | null;
+    /**
+     * True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).
+     */
+    jobStatusSettled: boolean;
 };
 
 export type WorkspaceSummary = {
@@ -365,6 +471,40 @@ export type WorkspaceSummary = {
         slug: string;
     } | null;
 };
+
+export const JobType = { FREE: 'FREE', PAID: 'PAID' } as const;
+
+export type JobType = typeof JobType[keyof typeof JobType];
+
+export const SokosumiJobStatus = {
+    STARTED: 'started',
+    COMPLETED: 'completed',
+    PROCESSING: 'processing',
+    INPUT_REQUIRED: 'input_required',
+    RESULT_PENDING: 'result_pending',
+    FAILED: 'failed',
+    PAYMENT_PENDING: 'payment_pending',
+    PAYMENT_FAILED: 'payment_failed',
+    REFUND_PENDING: 'refund_pending',
+    REFUND_RESOLVED: 'refund_resolved',
+    DISPUTE_PENDING: 'dispute_pending',
+    DISPUTE_RESOLVED: 'dispute_resolved'
+} as const;
+
+export type SokosumiJobStatus = typeof SokosumiJobStatus[keyof typeof SokosumiJobStatus];
+
+export const OnChainJobStatus = {
+    FUNDS_LOCKED: 'FUNDS_LOCKED',
+    FUNDS_OR_DATUM_INVALID: 'FUNDS_OR_DATUM_INVALID',
+    FUNDS_WITHDRAWN: 'FUNDS_WITHDRAWN',
+    RESULT_SUBMITTED: 'RESULT_SUBMITTED',
+    REFUND_REQUESTED: 'REFUND_REQUESTED',
+    REFUND_WITHDRAWN: 'REFUND_WITHDRAWN',
+    DISPUTED: 'DISPUTED',
+    DISPUTED_WITHDRAWN: 'DISPUTED_WITHDRAWN'
+} as const;
+
+export type OnChainJobStatus = typeof OnChainJobStatus[keyof typeof OnChainJobStatus];
 
 export type TaskShare = {
     id: string;
@@ -398,8 +538,41 @@ export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRela
 export type TaskLinkPeerTask = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
     archivedAt: Date | null;
+};
+
+export type VendorList = Array<Vendor>;
+
+export type Vendor = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    slug: string;
+    logos: VendorLogos;
+};
+
+export type VendorLogos = {
+    light: string | null;
+    dark: string | null;
+};
+
+export type CreateVendorRequest = {
+    name: string;
+    slug: string;
+    logos?: VendorLogosInput;
+};
+
+export type VendorLogosInput = {
+    light?: string | null;
+    dark?: string | null;
+};
+
+export type PatchVendorRequest = {
+    name?: string;
+    slug?: string;
+    logos?: VendorLogosInput;
 };
 
 export type Agent = {
@@ -583,10 +756,7 @@ export type AgentDetail = {
      * Categories this agent belongs to
      */
     categories: Array<Category>;
-    /**
-     * The agent's risk classification
-     */
-    riskClassification: 'MINIMAL' | 'LIMITED' | 'HIGH' | 'UNACCEPTABLE';
+    riskClassification: RiskClassification;
     /**
      * Resolved tags for the agent, using override tags when present
      */
@@ -596,6 +766,21 @@ export type AgentDetail = {
      */
     exampleOutputs: Array<AgentExampleOutput>;
 };
+
+/**
+ * The agent's risk classification
+ */
+export const RiskClassification = {
+    MINIMAL: 'MINIMAL',
+    LIMITED: 'LIMITED',
+    HIGH: 'HIGH',
+    UNACCEPTABLE: 'UNACCEPTABLE'
+} as const;
+
+/**
+ * The agent's risk classification
+ */
+export type RiskClassification = typeof RiskClassification[keyof typeof RiskClassification];
 
 export type AgentExampleOutput = {
     name: string;
@@ -1104,11 +1289,7 @@ export type HermesUploadedFile = {
     dataUrl: string;
 };
 
-export type HermesGetInstanceEnvelope = ({
-    hasInstance: false;
-} & HermesGetInstanceNone) | ({
-    hasInstance: true;
-} & HermesGetInstanceSome);
+export type HermesGetInstanceEnvelope = HermesGetInstanceNone | HermesGetInstanceSome;
 
 export type HermesGetInstanceNone = {
     hasInstance: false;
@@ -1510,7 +1691,7 @@ export type HistoryTaskItem = {
      */
     owner: HistoryOwner | null;
     kind: 'task';
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus;
     /**
      * Project ID for the task, when assigned
      */
@@ -1566,7 +1747,7 @@ export type HistoryJobItem = {
      */
     owner: HistoryOwner | null;
     kind: 'job';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    status: SokosumiJobStatus & unknown;
     /**
      * Project ID for the job, when assigned
      */
@@ -1707,10 +1888,7 @@ export type MemberWithOrganization = {
     id: string;
     userId: string;
     organizationId: string;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
     organization: OrganizationRecord;
@@ -1734,23 +1912,16 @@ export type Organization = {
     logo?: string | '' | null;
     metadata: {
         url?: string | null;
-        invoiceEmail?: string | null;
         [key: string]: unknown;
     } | null;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
 };
 
 export type MemberRecord = {
     id: string;
     userId: string;
     organizationId: string;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
 };
@@ -1764,13 +1935,17 @@ export type PreferredOrganization = {
 
 export type Notice = {
     id: string;
-    kind: 'LEGAL_TERMS' | 'ANNOUNCEMENT';
+    kind: NoticeKind;
     bodyMarkdown: string;
     effectiveAt: Date;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
+
+export const NoticeKind = { LEGAL_TERMS: 'LEGAL_TERMS', ANNOUNCEMENT: 'ANNOUNCEMENT' } as const;
+
+export type NoticeKind = typeof NoticeKind[keyof typeof NoticeKind];
 
 export type BlobFile = {
     /**
@@ -1892,6 +2067,21 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type VendorGrant = {
+    id: string;
+    vendorId: string;
+    vendorName: string;
+    vendorSlug: string;
+    workspaceId: string;
+    permission: 'workspace';
+    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+    requestedByUserId: string | null;
+    resolvedAt: Date | null;
+    resolvedById: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 export type StripeCustomer = {
     /**
      * Stripe customer id
@@ -1906,13 +2096,49 @@ export type ProvisionedStripeCustomer = {
     stripeCustomerId: string;
 };
 
+export type StripeCustomerBillingDetails = {
+    /**
+     * Stripe customer id
+     */
+    stripeCustomerId: string | null;
+    /**
+     * Stripe customer email used for invoices
+     */
+    email: string | null;
+    address: StripeCustomerBillingAddress;
+    taxIds: Array<StripeCustomerBillingTaxId>;
+};
+
+export type StripeCustomerBillingAddress = {
+    line1: string;
+    /**
+     * Optional second line
+     */
+    line2: string | null;
+    city: string;
+    /**
+     * State or province when required
+     */
+    state: string | null;
+    postalCode: string;
+    /**
+     * ISO 3166-1 alpha-2 country code, or empty when not set on Stripe
+     */
+    country: string;
+} | null;
+
+export type StripeCustomerBillingTaxId = {
+    id: string;
+    type: string;
+    value: string;
+    country: string | null;
+    verificationStatus: string | null;
+};
+
 export type ActiveSubscriptionResponse = {
     subscription: {
         plan: string;
-        /**
-         * Stripe subscription lifecycle status
-         */
-        status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+        status: StripeSubscriptionStatus;
         cancelAtPeriodEnd?: boolean | null;
         periodStart?: Date | null;
         periodEnd?: Date | null;
@@ -1934,10 +2160,7 @@ export type User = {
 export type Member = {
     id: string;
     organizationId: string;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
     user: {
@@ -1957,17 +2180,29 @@ export type PendingInvitation = {
     organizationId: string;
     email: string;
     /**
-     * Organization member role
+     * Organization member role, or null when absent
      */
-    role: 'owner' | 'admin' | 'member' | null;
-    /**
-     * Invitation lifecycle status stored in the database
-     */
-    status: 'pending' | 'accepted' | 'rejected' | 'canceled';
+    role: MemberRole | null;
+    status: InvitationStatus;
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;
 };
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export const InvitationStatus = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    REJECTED: 'rejected',
+    CANCELED: 'canceled'
+} as const;
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
 
 export type OrganizationSeatSummary = {
     /**
@@ -2048,20 +2283,6 @@ export type UpdateOrganizationSubscriptionSeats = {
     seats: number;
 };
 
-export type OrganizationInvoiceEmail = {
-    /**
-     * The persisted invoice email, or null when none
-     */
-    invoiceEmail: string | null;
-};
-
-export type OrganizationInvoiceEmailWrite = {
-    /**
-     * Invoice email to set, or null to clear it
-     */
-    invoiceEmail: string | null;
-};
-
 export type ProjectListItem = Project & {
     taskCount: number;
     jobCount: number;
@@ -2099,12 +2320,12 @@ export type ProjectStatsEntry = {
 
 export type ProjectTaskStatusCount = {
     count: number;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
 };
 
 export type ProjectJobStatusCount = {
     count: number;
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    status: SokosumiJobStatus;
 };
 
 export type AddProjectJobRequest = {
@@ -2138,10 +2359,10 @@ export type Job = {
     projectId: string | null;
     taskId?: string | null;
     name?: string | null;
-    jobType: 'FREE' | 'PAID';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    jobType: JobType;
+    status: SokosumiJobStatus & unknown;
     credits: number;
-    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainStatus?: OnChainJobStatus | null;
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
@@ -2151,6 +2372,10 @@ export type Job = {
     unlockTime?: Date | null;
     externalDisputeUnlockTime?: Date | null;
     sellerVkey?: string | null;
+    /**
+     * True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).
+     */
+    jobStatusSettled: boolean;
     input?: string | null;
     inputHash?: string | null;
     inputSchema?: string | null;
@@ -2177,7 +2402,7 @@ export type Job = {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+        status: AgentJobStatus;
         inputSchema?: string | null;
         input?: {
             id: string;
@@ -2191,6 +2416,17 @@ export type Job = {
     }>;
     share: JobShare | null;
 };
+
+export const AgentJobStatus = {
+    INITIATED: 'INITIATED',
+    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+    AWAITING_INPUT: 'AWAITING_INPUT',
+    RUNNING: 'RUNNING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED'
+} as const;
+
+export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
 
 export type File = {
     id: string;
@@ -2208,10 +2444,7 @@ export type File = {
      * Name of the file
      */
     name?: string | null;
-    /**
-     * Status of the file
-     */
-    status: 'PENDING' | 'READY' | 'FAILED';
+    status: BlobStatus;
     /**
      * Size in bytes
      */
@@ -2225,6 +2458,20 @@ export type File = {
      */
     fileUrl?: string | null;
 };
+
+/**
+ * Status of the file
+ */
+export const BlobStatus = {
+    PENDING: 'PENDING',
+    READY: 'READY',
+    FAILED: 'FAILED'
+} as const;
+
+/**
+ * Status of the file
+ */
+export type BlobStatus = typeof BlobStatus[keyof typeof BlobStatus];
 
 export type Link = {
     id: string;
@@ -2255,7 +2502,7 @@ export type JobEvent = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+    status: AgentJobStatus & unknown;
     inputSchema?: string | null;
     input?: JobInput & ({
         [key: string]: unknown;
@@ -2390,7 +2637,7 @@ export type PublicSharedTask = {
     updatedAt: Date;
     name: string;
     description?: string | null;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
     coworker?: PublicSharedTaskCoworker;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
@@ -2408,7 +2655,7 @@ export type PublicSharedTaskJob = {
     createdAt: Date;
     completedAt?: Date | null;
     name?: string | null;
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    status: SokosumiJobStatus;
     agentName: string;
     shareToken?: string | null;
 };
@@ -2417,8 +2664,9 @@ export type PublicSharedTaskMilestone = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    channel: Channel;
+    origin: Channel & unknown;
+    status: TaskStatus | null;
     comment: string | null;
     credits: number | null;
     actorName: string | null;
@@ -2438,8 +2686,7 @@ export type Coworker = {
     slug: string;
     name: string;
     caption?: string | null;
-    company?: string | null;
-    companyLogo?: string | null;
+    vendor: Vendor;
     url?: string | null;
     /**
      * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -2545,7 +2792,15 @@ export type TaskListItem = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
+    /**
+     * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
+     */
+    grantResumeStatus: 'DRAFT' | 'READY' | null;
+    /**
+     * Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.
+     */
+    pendingVendorGrantId: string | null;
     /**
      * Serialized task schedule metadata JSON
      */
@@ -2554,10 +2809,9 @@ export type TaskListItem = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
-    credits: number;
-    events: Array<TaskEvent>;
-    jobs: Array<JobSummary>;
     workspace: WorkspaceSummary;
+    jobsCount: number;
+    commentsCount: number;
 };
 
 export type TaskLinkDeleted = {
@@ -2615,7 +2869,7 @@ export type TaskWorkspace = {
 };
 
 /**
- * On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.
+ * On-chain Masumi credit charge for a credit-bearing task event. Coworker-only; allowed on any credit-bearing event; omit credits when set.
  */
 export type MasumiPayment = {
     blockchainIdentifier: string;
@@ -2705,14 +2959,14 @@ export type WorkspaceOrganization = {
 export type OrganizationSlug = string;
 
 /**
- * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+ * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
  */
-export type DelegationUserId = string;
+export type ContextUserId = string;
 
 /**
- * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+ * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
  */
-export type DelegationOrganizationId = string;
+export type ContextOrganizationId = string;
 
 export type SearchAdminUsersData = {
     body?: never;
@@ -3847,6 +4101,102 @@ export type MarkAdminInvoicePaidResponses = {
 
 export type MarkAdminInvoicePaidResponse = MarkAdminInvoicePaidResponses[keyof MarkAdminInvoicePaidResponses];
 
+export type DeleteAdminInvoiceData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe invoice ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/invoices/{id}';
+};
+
+export type DeleteAdminInvoiceErrors = {
+    /**
+     * Bad Request - not an admin invoice, or invoice cannot be deleted
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - invoice missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminInvoiceError = DeleteAdminInvoiceErrors[keyof DeleteAdminInvoiceErrors];
+
+export type DeleteAdminInvoiceResponses = {
+    /**
+     * Admin invoice deleted or voided
+     */
+    204: void;
+};
+
+export type DeleteAdminInvoiceResponse = DeleteAdminInvoiceResponses[keyof DeleteAdminInvoiceResponses];
+
 export type GetAdminInvoiceData = {
     body?: never;
     path: {
@@ -3935,6 +4285,90 @@ export type GetAdminInvoiceResponses = {
 };
 
 export type GetAdminInvoiceResponse = GetAdminInvoiceResponses[keyof GetAdminInvoiceResponses];
+
+export type CreateAdminFreeCreditGrantData = {
+    body?: CreateFreeCreditGrant;
+    path?: never;
+    query?: never;
+    url: '/admin/credits';
+};
+
+export type CreateAdminFreeCreditGrantErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminFreeCreditGrantError = CreateAdminFreeCreditGrantErrors[keyof CreateAdminFreeCreditGrantErrors];
+
+export type CreateAdminFreeCreditGrantResponses = {
+    /**
+     * The created free credit grant
+     */
+    200: {
+        data: FreeCreditGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminFreeCreditGrantResponse = CreateAdminFreeCreditGrantResponses[keyof CreateAdminFreeCreditGrantResponses];
 
 export type ListAdminTasksData = {
     body?: never;
@@ -4077,6 +4511,331 @@ export type GetAdminTaskResponses = {
 
 export type GetAdminTaskResponse = GetAdminTaskResponses[keyof GetAdminTaskResponses];
 
+export type ListAdminVendorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/vendors';
+};
+
+export type ListAdminVendorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminVendorsError = ListAdminVendorsErrors[keyof ListAdminVendorsErrors];
+
+export type ListAdminVendorsResponses = {
+    /**
+     * List of vendors
+     */
+    200: {
+        data: VendorList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminVendorsResponse = ListAdminVendorsResponses[keyof ListAdminVendorsResponses];
+
+export type CreateAdminVendorData = {
+    body?: CreateVendorRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/vendors';
+};
+
+export type CreateAdminVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor slug already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminVendorError = CreateAdminVendorErrors[keyof CreateAdminVendorErrors];
+
+export type CreateAdminVendorResponses = {
+    /**
+     * The created vendor
+     */
+    200: {
+        data: Vendor;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminVendorResponse = CreateAdminVendorResponses[keyof CreateAdminVendorResponses];
+
+export type DeleteAdminVendorData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/vendors/{id}';
+};
+
+export type DeleteAdminVendorErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - vendor missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor is referenced by coworkers
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminVendorError = DeleteAdminVendorErrors[keyof DeleteAdminVendorErrors];
+
+export type DeleteAdminVendorResponses = {
+    /**
+     * Vendor deleted
+     */
+    204: void;
+};
+
+export type DeleteAdminVendorResponse = DeleteAdminVendorResponses[keyof DeleteAdminVendorResponses];
+
+export type PatchAdminVendorData = {
+    body?: PatchVendorRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/vendors/{id}';
+};
+
+export type PatchAdminVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - vendor missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor slug already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchAdminVendorError = PatchAdminVendorErrors[keyof PatchAdminVendorErrors];
+
+export type PatchAdminVendorResponses = {
+    /**
+     * The updated vendor
+     */
+    200: {
+        data: Vendor;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchAdminVendorResponse = PatchAdminVendorResponses[keyof PatchAdminVendorResponses];
+
 export type GetAgentsData = {
     body?: never;
     headers?: {
@@ -4085,13 +4844,13 @@ export type GetAgentsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -4168,13 +4927,13 @@ export type GetAgentsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4240,13 +4999,13 @@ export type GetAgentsByIdReviewsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4321,13 +5080,13 @@ export type GetAgentsByIdReviewsMeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4393,13 +5152,13 @@ export type GetAgentsByIdRatingsEligibilityData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4465,13 +5224,13 @@ export type PostAgentsByIdRatingsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4565,13 +5324,13 @@ export type GetAgentsByIdInputSchemaData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5586,13 +6345,13 @@ export type GetAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6645,13 +7404,13 @@ export type PostAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6787,13 +7546,13 @@ export type GetCategoriesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -6843,13 +7602,13 @@ export type GetChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query: {
@@ -7064,13 +7823,13 @@ export type PostChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -7211,13 +7970,13 @@ export type GetChatStreamByConversationIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -7484,13 +8243,13 @@ export type GetConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -7568,13 +8327,13 @@ export type PostConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -7666,13 +8425,13 @@ export type GetConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -7769,13 +8528,13 @@ export type PatchConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -7872,13 +8631,13 @@ export type GetConversationsByIdWarmupData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -7975,13 +8734,13 @@ export type PatchConversationsByIdArchiveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -8078,13 +8837,13 @@ export type GetConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -8190,13 +8949,13 @@ export type PostConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -9437,13 +10196,13 @@ export type PostHermesChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9560,13 +10319,13 @@ export type DeleteHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9644,13 +10403,13 @@ export type GetHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9728,13 +10487,13 @@ export type PatchHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9840,13 +10599,13 @@ export type PostHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9938,13 +10697,13 @@ export type GetHermesMeMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -10017,13 +10776,13 @@ export type GetHermesMeUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10087,13 +10846,13 @@ export type PostHermesMeInboxSeenData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10171,13 +10930,13 @@ export type PostHermesMeSecretsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10283,13 +11042,13 @@ export type PostHermesMeInstanceOnboardData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10381,13 +11140,13 @@ export type GetHermesMeInstanceOnboardingProgressData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10465,13 +11224,13 @@ export type GetHermesMeInstanceIntegrationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10549,13 +11308,13 @@ export type GetHermesMeInstanceSchedulesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10633,13 +11392,13 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         scheduleId: string;
@@ -10747,13 +11506,13 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         confirmationId: string;
@@ -10847,13 +11606,13 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         confirmationId: string;
@@ -10947,13 +11706,13 @@ export type DeleteHermesMeInstanceIntegrationsByProviderData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         provider: HermesIntegrationProvider;
@@ -11033,13 +11792,13 @@ export type PostHermesMeInstanceIntegrationsInitiateData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11131,13 +11890,13 @@ export type PostHermesMeInstanceIntegrationsFinalizeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11229,13 +11988,13 @@ export type GetHermesMeInstanceSkillsCatalogData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -11303,13 +12062,13 @@ export type GetHermesMeInstanceSkillsCatalogSearchData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query: {
@@ -11376,13 +12135,13 @@ export type GetHermesMeInstanceSkillsCatalogCuratedData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11446,13 +12205,13 @@ export type GetHermesMeInstanceSkillsCatalogDetailData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query: {
@@ -11533,13 +12292,13 @@ export type GetHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11603,13 +12362,13 @@ export type PostHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11729,13 +12488,13 @@ export type GetHermesMeInstanceSkillsPreinstalledData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11799,13 +12558,13 @@ export type DeleteHermesMeInstanceSkillsBySlugData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         slug: string;
@@ -11899,13 +12658,13 @@ export type GetHistoryData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -12110,13 +12869,13 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -12200,10 +12959,7 @@ export type GetUsersByIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                /**
-                 * Stripe subscription lifecycle status
-                 */
-                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                status: StripeSubscriptionStatus;
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -12231,10 +12987,7 @@ export type GetUsersByIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    /**
-                     * Stripe subscription lifecycle status
-                     */
-                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                    status: StripeSubscriptionStatus;
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -12745,10 +13498,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                /**
-                 * Stripe subscription lifecycle status
-                 */
-                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                status: StripeSubscriptionStatus;
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -12776,10 +13526,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    /**
-                     * Stripe subscription lifecycle status
-                     */
-                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                    status: StripeSubscriptionStatus;
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -14051,6 +14798,462 @@ export type PostUsersByIdUtmAttributionResponses = {
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
 
+export type GetUsersByIdVendorGrantsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: {
+        status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+        vendorId?: string;
+    };
+    url: '/users/{id}/vendor-grants';
+};
+
+export type GetUsersByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdVendorGrantsError = GetUsersByIdVendorGrantsErrors[keyof GetUsersByIdVendorGrantsErrors];
+
+export type GetUsersByIdVendorGrantsResponses = {
+    /**
+     * List vendor grants
+     */
+    200: {
+        data: Array<VendorGrant>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdVendorGrantsResponse = GetUsersByIdVendorGrantsResponses[keyof GetUsersByIdVendorGrantsResponses];
+
+export type PostUsersByIdVendorGrantsData = {
+    body?: {
+        vendorId: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants';
+};
+
+export type PostUsersByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsError = PostUsersByIdVendorGrantsErrors[keyof PostUsersByIdVendorGrantsErrors];
+
+export type PostUsersByIdVendorGrantsResponses = {
+    /**
+     * Grant created or upgraded
+     */
+    201: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsResponse = PostUsersByIdVendorGrantsResponses[keyof PostUsersByIdVendorGrantsResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/approve';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveError = PostUsersByIdVendorGrantsByGrantIdApproveErrors[keyof PostUsersByIdVendorGrantsByGrantIdApproveErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveResponses = {
+    /**
+     * Grant approved
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdApproveResponse = PostUsersByIdVendorGrantsByGrantIdApproveResponses[keyof PostUsersByIdVendorGrantsByGrantIdApproveResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/deny';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyError = PostUsersByIdVendorGrantsByGrantIdDenyErrors[keyof PostUsersByIdVendorGrantsByGrantIdDenyErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyResponses = {
+    /**
+     * Grant denied
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdDenyResponse = PostUsersByIdVendorGrantsByGrantIdDenyResponses[keyof PostUsersByIdVendorGrantsByGrantIdDenyResponses];
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-grants/{grantId}/revoke';
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeError = PostUsersByIdVendorGrantsByGrantIdRevokeErrors[keyof PostUsersByIdVendorGrantsByGrantIdRevokeErrors];
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeResponses = {
+    /**
+     * Grant revoked
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorGrantsByGrantIdRevokeResponse = PostUsersByIdVendorGrantsByGrantIdRevokeResponses[keyof PostUsersByIdVendorGrantsByGrantIdRevokeResponses];
+
 export type GetUsersByIdStripeCustomerData = {
     body?: never;
     headers?: {
@@ -14059,13 +15262,13 @@ export type GetUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -14162,13 +15365,13 @@ export type PostUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -14257,6 +15460,109 @@ export type PostUsersByIdStripeCustomerResponses = {
 
 export type PostUsersByIdStripeCustomerResponse = PostUsersByIdStripeCustomerResponses[keyof PostUsersByIdStripeCustomerResponses];
 
+export type GetUsersByIdBillingDetailsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/billing-details';
+};
+
+export type GetUsersByIdBillingDetailsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdBillingDetailsError = GetUsersByIdBillingDetailsErrors[keyof GetUsersByIdBillingDetailsErrors];
+
+export type GetUsersByIdBillingDetailsResponses = {
+    /**
+     * The user's Stripe billing details
+     */
+    200: {
+        data: StripeCustomerBillingDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdBillingDetailsResponse = GetUsersByIdBillingDetailsResponses[keyof GetUsersByIdBillingDetailsResponses];
+
 export type GetUsersByIdSubscriptionData = {
     body?: never;
     headers?: {
@@ -14265,13 +15571,13 @@ export type GetUsersByIdSubscriptionData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -15005,6 +16311,448 @@ export type GetOrganizationsByIdInvitationsResponses = {
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
 
+export type GetOrganizationsByIdVendorGrantsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: {
+        status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+        vendorId?: string;
+    };
+    url: '/organizations/{id}/vendor-grants';
+};
+
+export type GetOrganizationsByIdVendorGrantsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdVendorGrantsError = GetOrganizationsByIdVendorGrantsErrors[keyof GetOrganizationsByIdVendorGrantsErrors];
+
+export type GetOrganizationsByIdVendorGrantsResponses = {
+    /**
+     * List vendor grants
+     */
+    200: {
+        data: Array<VendorGrant>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdVendorGrantsResponse = GetOrganizationsByIdVendorGrantsResponses[keyof GetOrganizationsByIdVendorGrantsResponses];
+
+export type PostOrganizationsByIdVendorGrantsData = {
+    body?: {
+        vendorId: string;
+    };
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants';
+};
+
+export type PostOrganizationsByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsError = PostOrganizationsByIdVendorGrantsErrors[keyof PostOrganizationsByIdVendorGrantsErrors];
+
+export type PostOrganizationsByIdVendorGrantsResponses = {
+    /**
+     * Grant created or upgraded
+     */
+    201: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsResponse = PostOrganizationsByIdVendorGrantsResponses[keyof PostOrganizationsByIdVendorGrantsResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/approve';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveError = PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses = {
+    /**
+     * Grant approved
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveResponse = PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyData = {
+    body?: never;
+    path: {
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/deny';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyError = PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses = {
+    /**
+     * Grant denied
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyResponse = PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/revoke';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeError = PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses = {
+    /**
+     * Grant revoked
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponse = PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses];
+
 export type GetOrganizationsByIdSeatSummaryData = {
     body?: never;
     path: {
@@ -15450,6 +17198,95 @@ export type PostOrganizationsByIdStripeCustomerResponses = {
 
 export type PostOrganizationsByIdStripeCustomerResponse = PostOrganizationsByIdStripeCustomerResponses[keyof PostOrganizationsByIdStripeCustomerResponses];
 
+export type GetOrganizationsByIdBillingDetailsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/billing-details';
+};
+
+export type GetOrganizationsByIdBillingDetailsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not an owner or admin of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingDetailsError = GetOrganizationsByIdBillingDetailsErrors[keyof GetOrganizationsByIdBillingDetailsErrors];
+
+export type GetOrganizationsByIdBillingDetailsResponses = {
+    /**
+     * The organization's Stripe billing details
+     */
+    200: {
+        data: StripeCustomerBillingDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingDetailsResponse = GetOrganizationsByIdBillingDetailsResponses[keyof GetOrganizationsByIdBillingDetailsResponses];
+
 export type GetOrganizationsByIdSubscriptionData = {
     body?: never;
     path: {
@@ -15848,109 +17685,6 @@ export type PutOrganizationsByIdDesignMdResponses = {
 
 export type PutOrganizationsByIdDesignMdResponse = PutOrganizationsByIdDesignMdResponses[keyof PutOrganizationsByIdDesignMdResponses];
 
-export type PatchOrganizationsByIdInvoiceEmailData = {
-    body?: OrganizationInvoiceEmailWrite;
-    path: {
-        /**
-         * Organization ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/organizations/{id}/invoice-email';
-};
-
-export type PatchOrganizationsByIdInvoiceEmailErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - You must be an organization owner or admin
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Organization not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchOrganizationsByIdInvoiceEmailError = PatchOrganizationsByIdInvoiceEmailErrors[keyof PatchOrganizationsByIdInvoiceEmailErrors];
-
-export type PatchOrganizationsByIdInvoiceEmailResponses = {
-    /**
-     * The persisted invoice email for the organization
-     */
-    200: {
-        data: OrganizationInvoiceEmail;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchOrganizationsByIdInvoiceEmailResponse = PatchOrganizationsByIdInvoiceEmailResponses[keyof PatchOrganizationsByIdInvoiceEmailResponses];
-
 export type GetProjectsData = {
     body?: never;
     headers?: {
@@ -15959,13 +17693,13 @@ export type GetProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -16052,13 +17786,13 @@ export type PostProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -16122,13 +17856,13 @@ export type GetProjectsStatsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -16211,13 +17945,13 @@ export type PostProjectsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16311,13 +18045,13 @@ export type DeleteProjectsByIdJobsByJobIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16398,13 +18132,13 @@ export type PostProjectsByIdTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16498,13 +18232,13 @@ export type DeleteProjectsByIdTasksByTaskIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16585,13 +18319,13 @@ export type DeleteProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16671,13 +18405,13 @@ export type GetProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16757,13 +18491,13 @@ export type PatchProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16857,13 +18591,13 @@ export type GetJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -16966,13 +18700,13 @@ export type GetJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17068,13 +18802,13 @@ export type PatchJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17182,13 +18916,13 @@ export type PostJobsByIdRefundData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17296,13 +19030,13 @@ export type GetJobsByIdFilesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17396,13 +19130,13 @@ export type GetJobsByIdLinksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17496,13 +19230,13 @@ export type GetJobsByIdInputRequestData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17611,13 +19345,13 @@ export type PostJobsByIdInputsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17753,13 +19487,13 @@ export type GetJobsByIdEventsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17853,13 +19587,13 @@ export type DeleteJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17943,13 +19677,13 @@ export type PutJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -18031,13 +19765,13 @@ export type PutJobsByIdWorkspaceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -18145,13 +19879,13 @@ export type GetNotificationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -18246,13 +19980,13 @@ export type GetNotificationsUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -18316,13 +20050,13 @@ export type PatchNotificationsByIdReadData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -18419,13 +20153,13 @@ export type PatchNotificationsReadAllData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -18641,8 +20375,6 @@ export type PostCoworkersData = {
     body?: {
         name: string;
         caption?: string | null;
-        company?: string | null;
-        companyLogo?: string | null;
         url?: string | null;
         /**
          * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -18655,6 +20387,10 @@ export type PostCoworkersData = {
          */
         priority?: number;
         metadata?: CoworkerMetadata;
+        /**
+         * Vendor that owns this coworker.
+         */
+        vendorId: string;
         /**
          * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
          */
@@ -19422,8 +21158,6 @@ export type PatchCoworkersByIdData = {
     body?: {
         name?: string;
         caption?: string | null;
-        company?: string | null;
-        companyLogo?: string | null;
         url?: string | null;
         /**
          * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -19593,13 +21327,13 @@ export type GetTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -19610,7 +21344,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
+        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED'>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -19709,10 +21443,8 @@ export type PostTasksData = {
         projectId?: string | null;
         coworkerId?: string | null;
         status?: 'DRAFT' | 'READY';
-        /**
-         * Origin of the initial task event. Defaults to SOKOSUMI if not provided.
-         */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
+        channel?: Channel;
+        origin?: Channel & unknown;
     };
     headers?: {
         /**
@@ -19720,13 +21452,13 @@ export type PostTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -19763,7 +21495,7 @@ export type PostTasksErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden. Delegated coworker create may return kind `grant_denied` / `grant_revoked` when vendor create access was denied.
      */
     403: {
         error: string;
@@ -20177,6 +21909,20 @@ export type DeleteTasksByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -20938,17 +22684,15 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
         comment?: string;
         authenticationUrl?: string;
         /**
          * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
          */
         credits?: number | null;
-        /**
-         * The origin of the task event. Defaults to SOKOSUMI if undefined.
-         */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
+        channel?: Channel;
+        origin?: Channel & unknown;
         masumiPayment?: MasumiPayment;
     };
     path: {
@@ -21030,12 +22774,13 @@ export type PostTasksByIdEventsErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.
      */
     422: {
         error: string;
         message: string;
         kind?: string;
+        data?: TaskEvent;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22377,6 +24122,62 @@ export type GetSubscriptionCatalogResponses = {
 };
 
 export type GetSubscriptionCatalogResponse = GetSubscriptionCatalogResponses[keyof GetSubscriptionCatalogResponses];
+
+export type ListVendorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/vendors';
+};
+
+export type ListVendorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListVendorsError = ListVendorsErrors[keyof ListVendorsErrors];
+
+export type ListVendorsResponses = {
+    /**
+     * List of vendors
+     */
+    200: {
+        data: VendorList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListVendorsResponse = ListVendorsResponses[keyof ListVendorsResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;

@@ -1,7 +1,12 @@
 import { z } from "@hono/zod-openapi";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import {
+  sokosumiJobStatusSchema,
+  taskStatusSchema,
+} from "@/schemas/domain-enums.schema";
 
 const historyOwnerObjectSchema = z
   .object({
@@ -60,7 +65,7 @@ const historyBaseItemSchema = z.object({
 export const historyTaskItemSchema = historyBaseItemSchema
   .extend({
     kind: z.literal("task"),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
+    status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     projectId: z.string().uuid().nullable().openapi({
       description: "Project ID for the task, when assigned",
       example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
@@ -75,9 +80,9 @@ export const historyTaskItemSchema = historyBaseItemSchema
 export const historyJobItemSchema = historyBaseItemSchema
   .extend({
     kind: z.literal("job"),
-    status: z
-      .enum(SokosumiJobStatus)
-      .openapi({ example: SokosumiJobStatus.COMPLETED }),
+    status: sokosumiJobStatusSchema.openapi({
+      example: SokosumiJobStatus.COMPLETED,
+    }),
     projectId: z.string().uuid().nullable().openapi({
       description: "Project ID for the job, when assigned",
       example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",

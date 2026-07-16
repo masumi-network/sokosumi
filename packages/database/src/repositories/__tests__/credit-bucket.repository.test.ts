@@ -11,7 +11,10 @@ import {
   buildCreditBucketScopeWhere,
   type CreditBucketScopeContext,
 } from "../../helpers/credit-bucket-scope.js";
-import { creditBucketRepository } from "../credit-bucket.repository.js";
+import {
+  creditBucketRepository,
+  InsufficientBalanceError,
+} from "../credit-bucket.repository.js";
 
 const defaultScopeContext: CreditBucketScopeContext = {
   userId: "user-1",
@@ -92,7 +95,11 @@ describe("creditBucketRepository.prepareConsumption (personal)", () => {
 
     await assert.rejects(
       () => creditBucketRepository.prepareConsumption("user-1", null, 100n, tx),
-      /Insufficient balance/,
+      (error: unknown) => {
+        assert.ok(error instanceof InsufficientBalanceError);
+        assert.match(error.message, /Insufficient balance/);
+        return true;
+      },
     );
   });
 });
@@ -149,7 +156,11 @@ describe("creditBucketRepository.prepareConsumption (organization)", () => {
     await assert.rejects(
       () =>
         creditBucketRepository.prepareConsumption("user-1", "org-1", 100n, tx),
-      /Insufficient balance/,
+      (error: unknown) => {
+        assert.ok(error instanceof InsufficientBalanceError);
+        assert.match(error.message, /Insufficient balance/);
+        return true;
+      },
     );
   });
 });

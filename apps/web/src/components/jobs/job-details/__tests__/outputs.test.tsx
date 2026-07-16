@@ -1,10 +1,12 @@
-import { AgentJobStatus, SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import type { JobEvent } from "@/components/jobs/job-details/job-details-events.utils";
 import JobDetailsOutputs from "@/components/jobs/job-details/outputs";
 import type { Job } from "@/lib/clients/generated/core";
+import {
+  AgentJobStatus,
+  SokosumiJobStatus,
+} from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -65,6 +67,7 @@ function createJob(): Job {
     jobType: "FREE",
     status: SokosumiJobStatus.COMPLETED,
     credits: 0,
+    jobStatusSettled: false,
     onChainStatus: null,
     onChainTransactionHash: null,
     result: "final result",

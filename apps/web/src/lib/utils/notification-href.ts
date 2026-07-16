@@ -1,8 +1,8 @@
-import type { NotificationKind } from "@sokosumi/utils";
 import {
   CHAT_APP_ROUTE_PREFIX,
   FALLBACK_BUCKET_SEGMENT,
 } from "@/app/chat-ui/utils/chat-route-base";
+import type { NotificationKind } from "@/lib/clients/generated/core";
 
 interface NotificationHrefItem {
   kind: NotificationKind;

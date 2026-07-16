@@ -1,5 +1,7 @@
 import { Prisma, type Workspace } from "../generated/prisma/client.js";
 
+import { vendorGrantRepository } from "./vendor-grant.repository.js";
+
 function isPrismaUniqueConstraintError(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -7,6 +9,18 @@ function isPrismaUniqueConstraintError(error: unknown): boolean {
     "code" in error &&
     error.code === "P2002"
   );
+}
+
+async function ensureServiceplanGrantForWorkspace(
+  workspace: Workspace,
+  resolvedByUserId: string | null,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
+    workspaceId: workspace.id,
+    resolvedByUserId,
+    tx,
+  });
 }
 
 export const workspaceRepository = {
@@ -31,17 +45,23 @@ export const workspaceRepository = {
   }): Promise<Workspace> {
     const existingWorkspace = await this.findPersonalWorkspace({ userId, tx });
     if (existingWorkspace) {
+      await ensureServiceplanGrantForWorkspace(existingWorkspace, userId, tx);
       return existingWorkspace;
     }
 
     try {
-      return await tx.workspace.create({
+      const workspace = await tx.workspace.create({
         data: { userId },
       });
+
+      await ensureServiceplanGrantForWorkspace(workspace, userId, tx);
+
+      return workspace;
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
         const racedWorkspace = await this.findPersonalWorkspace({ userId, tx });
         if (racedWorkspace) {
+          await ensureServiceplanGrantForWorkspace(racedWorkspace, userId, tx);
           return racedWorkspace;
         }
       }
@@ -74,13 +94,18 @@ export const workspaceRepository = {
       tx,
     });
     if (existingWorkspace) {
+      await ensureServiceplanGrantForWorkspace(existingWorkspace, null, tx);
       return existingWorkspace;
     }
 
     try {
-      return await tx.workspace.create({
+      const workspace = await tx.workspace.create({
         data: { organizationId },
       });
+
+      await ensureServiceplanGrantForWorkspace(workspace, null, tx);
+
+      return workspace;
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
         const racedWorkspace = await this.findOrganizationWorkspace({
@@ -88,6 +113,7 @@ export const workspaceRepository = {
           tx,
         });
         if (racedWorkspace) {
+          await ensureServiceplanGrantForWorkspace(racedWorkspace, null, tx);
           return racedWorkspace;
         }
       }

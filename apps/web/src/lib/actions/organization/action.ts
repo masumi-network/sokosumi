@@ -1,11 +1,11 @@
 "use server";
 
-import { CORE_API_ERROR_KINDS, MemberRole } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import * as z from "zod";
-
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { MemberRole } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
   type OrganizationInformationFormSchemaType,
@@ -46,71 +46,9 @@ export async function generateOrganizationSlug(
   }
 }
 
-const updateInvoiceEmailSchema = z.object({
-  organizationId: z.string(),
-  invoiceEmail: z.email().nullable(),
-});
-
 const bulkInviteEmailsSchema = z.object({
   organizationId: z.string().min(1),
   rawEmails: z.string().min(1),
-});
-
-interface UpdateOrganizationInvoiceEmailParameters
-  extends AuthenticatedRequest {
-  organizationId: string;
-  invoiceEmail: string | null;
-}
-
-export const updateOrganizationInvoiceEmail = withSession<
-  UpdateOrganizationInvoiceEmailParameters,
-  Result<{ invoiceEmail: string | null }, ActionError>
->(async (parameters) => {
-  // Validate input
-  const parsedResult = updateInvoiceEmailSchema.safeParse({
-    organizationId: parameters.organizationId,
-    invoiceEmail: parameters.invoiceEmail,
-  });
-  if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
-  }
-  const { organizationId, invoiceEmail } = parsedResult.data;
-
-  // Update the invoice email via Core, which enforces that the caller is an
-  // organization owner or admin.
-  let persisted: { invoiceEmail: string | null };
-  try {
-    const { data } = await coreClient.updateOrganizationInvoiceEmail(
-      organizationId,
-      { invoiceEmail },
-    );
-    persisted = data;
-  } catch (error) {
-    // Core reports missing access via stable kinds (organization missing, no
-    // membership, insufficient role); the status fallback covers responses
-    // without a kind.
-    if (
-      error instanceof CoreApiRequestError &&
-      (error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND ||
-        error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED ||
-        error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_ROLE_FORBIDDEN ||
-        error.status === 403 ||
-        error.status === 404)
-    ) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: error.message,
-      });
-    }
-    throw error;
-  }
-
-  return Ok({
-    invoiceEmail: persisted.invoiceEmail,
-  });
 });
 
 interface InviteOrganizationMembersBulkParameters extends AuthenticatedRequest {

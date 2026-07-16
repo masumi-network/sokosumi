@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
-import { requireTaskOwnership } from "@/helpers/access-control";
+import { requireTaskCollaboration } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -13,7 +13,6 @@ import {
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -59,7 +58,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -72,24 +70,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Unable to compute the next scheduled run");
     }
 
+    const existingTask = await requireTaskCollaboration(
+      authContext,
+      id,
+      prisma,
+    );
+
+    if (!SCHEDULABLE_STATUSES.includes(existingTask.status)) {
+      throw forbidden("You can only schedule draft, ready, or queued tasks");
+    }
+
+    const nextStatus =
+      existingTask.status !== TaskStatus.QUEUED
+        ? TaskStatus.QUEUED
+        : existingTask.status;
+
+    if (nextStatus === TaskStatus.QUEUED) {
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.QUEUED,
+        coworkerId: existingTask.coworkerId,
+      });
+    }
+
     const task = await prisma.$transaction(async (tx) => {
-      const existingTask = await requireTaskOwnership(userContext, id, tx);
-
-      if (!SCHEDULABLE_STATUSES.includes(existingTask.status)) {
-        throw forbidden("You can only schedule draft, ready, or queued tasks");
-      }
-
-      const nextStatus =
-        existingTask.status !== TaskStatus.QUEUED
-          ? TaskStatus.QUEUED
-          : existingTask.status;
-
-      if (nextStatus === TaskStatus.QUEUED) {
-        validateTaskCoworkerAssignment({
-          status: TaskStatus.QUEUED,
-          coworkerId: existingTask.coworkerId,
-        });
-      }
+      await requireTaskCollaboration(authContext, id, tx);
 
       return tx.task.update({
         where: { id },

@@ -13,14 +13,19 @@ import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
+import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
+import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
-import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
+import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
+import {
+  canCommentOnTaskForViewer,
+  isReadOnlyForViewer,
+} from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { parsePlanName } from "@/components/billing/subscription-plan-utils";
+import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -28,7 +33,11 @@ import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { formatShortDateTime } from "@/lib/utils/datetime";
-import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
+import {
+  buildVendorGrantReviewHref,
+  canApproveVendorGrants,
+  resolveViewerOrganizationMembership,
+} from "@/lib/utils/vendor-grant-approval";
 
 type SessionResult = Awaited<ReturnType<typeof getSession>>;
 type AgentsResult = Awaited<
@@ -71,13 +80,15 @@ export async function TaskDetailView({
   enableAutoSwitch = false,
 }: TaskDetailViewProps) {
   const taskId = task.id;
-  const coworkersPromise = coworkerService.listCoworkers();
+  const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();
   const localePromise = getLocale();
+  // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
+  // org subscription call that used to 403 → auth-redirect bounce.
   const currentPlanPromise = sessionPromise.then((session) =>
-    getCurrentPlan(session, task.organizationId),
+    resolveTaskDetailViewerPlan(forceReadOnly, session, task.organizationId),
   );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
@@ -133,6 +144,15 @@ export async function TaskDetailView({
             </Suspense>
           }
         />
+
+        <Suspense fallback={null}>
+          <TaskVendorGrantApprovalBannerSlot
+            task={task}
+            forceReadOnly={forceReadOnly}
+            membersPromise={membersPromise}
+            sessionPromise={sessionPromise}
+          />
+        </Suspense>
 
         <div className="mt-6 space-y-8">
           <Suspense
@@ -247,6 +267,71 @@ async function TaskDetailAutoSwitch({
   );
 }
 
+async function TaskVendorGrantApprovalBannerSlot({
+  task,
+  forceReadOnly,
+  membersPromise,
+  sessionPromise,
+}: {
+  task: Task;
+  forceReadOnly: boolean;
+  membersPromise: Promise<MembersResult>;
+  sessionPromise: Promise<SessionResult>;
+}) {
+  if (forceReadOnly || task.status !== "GRANT_PENDING") {
+    return null;
+  }
+
+  const grantId = task.pendingVendorGrantId;
+  if (!grantId) {
+    return null;
+  }
+
+  const [members, session] = await Promise.all([
+    membersPromise,
+    sessionPromise,
+  ]);
+  const orgId = task.workspace.organizationId ?? null;
+  const viewerMembership = resolveViewerOrganizationMembership(orgId, members);
+  if (!session?.user.id) {
+    return null;
+  }
+
+  const canApprove = canApproveVendorGrants({
+    organizationId: orgId,
+    isAuthenticated: true,
+    viewerMembership,
+    taskOwnerUserId: task.userId,
+    sessionUserId: session.user.id,
+  });
+
+  if (!canApprove) {
+    return (
+      <TaskVendorGrantPendingInfoBanner
+        coworkerName={task.coworker?.name ?? null}
+      />
+    );
+  }
+
+  const reviewHref = buildVendorGrantReviewHref({
+    organizationId: orgId,
+    organizationSlug: viewerMembership?.organization.slug,
+  });
+
+  if (!reviewHref) {
+    return null;
+  }
+
+  return (
+    <TaskVendorGrantApprovalBanner
+      grantId={grantId}
+      coworkerName={task.coworker?.name ?? null}
+      organizationId={orgId}
+      reviewHref={reviewHref}
+    />
+  );
+}
+
 async function TaskOverviewSection({
   task,
   coworkersPromise,
@@ -284,7 +369,15 @@ async function TaskOverviewSection({
       />
 
       <TaskMetadata
-        task={task}
+        task={{
+          status: task.status,
+          user: task.user,
+          organization: task.organization,
+          coworker: task.coworker,
+          credits: task.credits,
+          metadata: task.metadata,
+          nextRunAt: task.nextRunAt,
+        }}
         project={project ? { id: project.id, name: project.name } : null}
         createdAtLabel={formatShortDateTime(task.createdAt, locale)}
         updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
@@ -297,6 +390,7 @@ async function TaskOverviewSection({
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
           coworker: t("coworker"),
+          credits: t("credits"),
           created: t("created"),
           updated: t("updated"),
           schedule: t("schedule"),
@@ -342,7 +436,15 @@ async function TaskDetailActionsSlot({
     taskUserId: task.userId,
     sessionUserId: session?.user.id,
     forceReadOnly,
+    taskStatus: task.status,
   });
+  const orgId = task.workspace.organizationId ?? null;
+  const viewerMembership =
+    orgId === null
+      ? undefined
+      : members.find((member) => member.organizationId === orgId);
+  const isOrgOwnerOrAdmin =
+    viewerMembership?.role === "owner" || viewerMembership?.role === "admin";
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -362,6 +464,9 @@ async function TaskDetailActionsSlot({
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
+      forceReadOnly={forceReadOnly}
+      isTaskOwner={session?.user.id === task.userId}
+      isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),
@@ -370,8 +475,17 @@ async function TaskDetailActionsSlot({
         confirmArchiveDescription: t("actions.confirmArchiveDescription"),
         archiveError: t("actions.archiveError"),
         markAsReady: t("actions.markAsReady"),
+        reopenToReady: t("actions.reopenToReady"),
+        reopenToReadyTitle: t("actions.reopenToReadyTitle"),
+        reopenToReadyDescription: t("actions.reopenToReadyDescription"),
+        reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
+        reopenToReadyCommentPlaceholder: t(
+          "actions.reopenToReadyCommentPlaceholder",
+        ),
+        reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
+        reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
         revertToDraft: t("actions.revertToDraft"),
-        cancelRequest: t("actions.cancelRequest"),
+        cancel: t("actions.cancel"),
         share: t("actions.share"),
       }}
     />
@@ -423,9 +537,9 @@ async function TaskActivitySectionContent({
   forceReadOnly: boolean;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
-  currentPlanPromise: Promise<SubscriptionPlanName>;
+  currentPlanPromise: Promise<SubscriptionPlanName | null>;
 }) {
-  const [agents, session, currentPlan, t] = await Promise.all([
+  const [agents, session, viewerPlan, t] = await Promise.all([
     agentsPromise,
     sessionPromise,
     currentPlanPromise,
@@ -452,13 +566,6 @@ async function TaskActivitySectionContent({
       }
     : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
-  const isFreePlan = currentPlan === "free";
-  const isReadOnlyWorkspaceView = isReadOnlyForViewer({
-    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskUserId: task.userId,
-    sessionUserId: session?.user.id,
-    forceReadOnly,
-  });
 
   return (
     <TaskActivitySection
@@ -479,37 +586,16 @@ async function TaskActivitySectionContent({
       currentUser={currentUser}
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
-      isFreePlan={isFreePlan}
-      canComment={!isReadOnlyWorkspaceView}
+      viewerPlan={viewerPlan}
+      canComment={canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+        taskUserId: task.userId,
+        sessionUserId: session?.user.id,
+        forceReadOnly,
+        taskStatus: task.status,
+      })}
     />
   );
-}
-
-async function getCurrentPlan(
-  session: SessionResult,
-  organizationId: string | null,
-): Promise<SubscriptionPlanName> {
-  if (!session) {
-    return "free";
-  }
-
-  try {
-    const { data } = organizationId
-      ? await coreClient.getOrganizationActiveSubscription(organizationId)
-      : await coreClient.getMyActiveSubscription();
-
-    return parsePlanName(data.subscription?.plan) ?? "free";
-  } catch (error) {
-    // Tasks can be viewed in workspaces the caller can no longer resolve a
-    // subscription for (e.g. revoked membership) — treat those as free.
-    if (
-      error instanceof CoreApiRequestError &&
-      (error.status === 403 || error.status === 404)
-    ) {
-      return "free";
-    }
-    throw error;
-  }
 }
 
 function buildTaskDetailContext(

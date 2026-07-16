@@ -34,17 +34,18 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@react-email/render": "2.0.9",
+    "@react-email/render": "2.1.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "react-email": "6.6.3",
-    "use-intl": "4.13.0"
+    "react-email": "6.8.1",
+    "use-intl": "4.13.2"
   },
   "devDependencies": {
-    "@types/node": "24.13.2",
+    "@types/node": "24.13.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "@typescript/native": "npm:typescript@7.0.2",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "vitest": "4.1.10"
   }
 }

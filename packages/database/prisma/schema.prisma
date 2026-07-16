@@ -70,6 +70,9 @@ model User {
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
+  vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
+  vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
+
   // Credit Buckets
   creditBuckets CreditBucket[]
 
@@ -224,11 +227,68 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs     Job[]
-  tasks    Task[]
-  projects Project[]
+  jobs         Job[]
+  tasks        Task[]
+  projects     Project[]
+  vendorGrants VendorGrant[]
 
   @@map("workspace")
+}
+
+enum VendorPermission {
+  workspace @map("workspace")
+}
+
+enum VendorGrantStatus {
+  PENDING
+  GRANTED
+  DENIED
+  REVOKED
+}
+
+model Vendor {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+  slug String @unique
+  logoLight String?
+  logoDark  String?
+
+  coworkers    Coworker[]
+  vendorGrants VendorGrant[]
+
+  @@map("vendor")
+}
+
+/// Vendor workspace access grant (personal or organization). One row per (vendorId, workspaceId).
+model VendorGrant {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  permission VendorPermission
+  status     VendorGrantStatus @default(PENDING)
+
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("VendorGrantResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  requestedByUserId String?
+  requestedBy       User?   @relation("VendorGrantRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  pendingTasks Task[]
+
+  @@unique([vendorId, workspaceId])
+  @@index([workspaceId, status])
+  @@map("vendor_grant")
 }
 
 enum HistoryKind {
@@ -670,6 +730,7 @@ model CreditBucket {
 
   referenceId   String?
   referenceType CreditBucketReferenceType?
+  referenceNote String?
 
   // Link to the transaction that created this bucket (topup)
   sourceTransactionId String      @unique
@@ -699,6 +760,8 @@ enum CreditBucketReferenceType {
   REFUND
   ENTERPRISE_PERIOD
   ENTERPRISE_TOP_UP
+  SIGNUP_BONUS
+  FREE
 }
 
 model CreditConsumption {
@@ -1141,8 +1204,6 @@ model Coworker {
   slug        String  @unique
   name        String
   caption     String?
-  company     String?
-  companyLogo String?
   url         String?
   baseURL     String?
   description String?
@@ -1152,6 +1213,9 @@ model Coworker {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
   coworkerApiKeys CoworkerApiKey[]
 
   tasks          Task[]
@@ -1159,6 +1223,7 @@ model Coworker {
   coworkerUsages CoworkerUsage[]
 
   @@index([archivedAt])
+  @@index([vendorId])
   @@map("coworker")
 }
 
@@ -1205,6 +1270,13 @@ model Task {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
+  pendingVendorGrantId String?      @db.Uuid
+  /// Cleared when the grant row is deleted (onDelete: SetNull). Exposed on the Core task API while status is GRANT_PENDING.
+  pendingVendorGrant   VendorGrant? @relation(fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
+
+  /// Target status after vendor workspace grant approval. Only set while status is GRANT_PENDING.
+  grantResumeStatus GrantResumeStatus?
+
   share PublicShare?
 
   events TaskEvent[]
@@ -1226,6 +1298,7 @@ model Task {
   @@index([userId, organizationId])
   @@index([projectId])
   @@index([status, nextRunAt])
+  @@index([pendingVendorGrantId])
   @@map("task")
 }
 
@@ -1257,10 +1330,16 @@ model TaskLink {
   @@map("task_link")
 }
 
+enum GrantResumeStatus {
+  DRAFT
+  READY
+}
+
 enum TaskStatus {
   DRAFT
   QUEUED
   READY
+  GRANT_PENDING
   INPUT_REQUIRED
   APPROVAL_REQUIRED
   AUTHENTICATION_REQUIRED
@@ -1270,11 +1349,10 @@ enum TaskStatus {
   AWAITING_EXTERNAL
   COMPLETED
   FAILED
-  CANCEL_REQUESTED
   CANCELED
 }
 
-enum TaskEventOrigin {
+enum Channel {
   SLACK
   TEAMS
   EMAIL
@@ -1303,7 +1381,7 @@ model TaskEvent {
   comment           String?
   cents             BigInt?
   authenticationUrl String?
-  origin            TaskEventOrigin @default(SOKOSUMI)
+  channel           Channel @default(SOKOSUMI)
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
