@@ -1,4 +1,7 @@
--- Backfill legacy cancel-request rows (idempotent with 20260716150000).
+-- Backfill legacy cancel-request rows, then drop CANCEL_REQUESTED from TaskStatus.
+-- Idempotent with 20260716150000 for task rows; also rewrites taskEvent.
+BEGIN;
+
 UPDATE "task"
 SET "status" = 'CANCELED'
 WHERE "status" = 'CANCEL_REQUESTED';
@@ -7,8 +10,6 @@ UPDATE "taskEvent"
 SET "status" = 'CANCELED'
 WHERE "status" = 'CANCEL_REQUESTED';
 
--- Remove CANCEL_REQUESTED from TaskStatus enum.
-BEGIN;
 CREATE TYPE "TaskStatus_new" AS ENUM (
   'DRAFT',
   'QUEUED',
@@ -32,4 +33,5 @@ ALTER TYPE "TaskStatus" RENAME TO "TaskStatus_old";
 ALTER TYPE "TaskStatus_new" RENAME TO "TaskStatus";
 DROP TYPE "public"."TaskStatus_old";
 ALTER TABLE "task" ALTER COLUMN "status" SET DEFAULT 'DRAFT';
+
 COMMIT;

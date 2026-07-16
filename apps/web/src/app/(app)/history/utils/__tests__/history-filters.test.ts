@@ -107,6 +107,12 @@ describe("history-filters", () => {
       );
       expect(sanitizeHistoryStatusInput("not-a-status")).toBeNull();
       expect(sanitizeHistoryStatusInput(null)).toBeNull();
+      expect(sanitizeHistoryStatusInput("CANCEL_REQUESTED")).toBe(
+        TaskStatus.CANCELED,
+      );
+      expect(sanitizeHistoryStatusInput(" CANCEL_REQUESTED ")).toBe(
+        TaskStatus.CANCELED,
+      );
     });
   });
 

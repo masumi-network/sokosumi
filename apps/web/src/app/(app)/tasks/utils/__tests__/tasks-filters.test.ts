@@ -78,6 +78,18 @@ describe("tasks-filters", () => {
         TaskStatus.DRAFT,
       );
     });
+
+    it("maps legacy CANCEL_REQUESTED bookmarks to CANCELED", () => {
+      expect(sanitizeTasksStatusInput("CANCEL_REQUESTED")).toBe(
+        TaskStatus.CANCELED,
+      );
+      expect(sanitizeTasksStatusInput(" CANCEL_REQUESTED ")).toBe(
+        TaskStatus.CANCELED,
+      );
+      expect(
+        parseTasksFilters({ status: "CANCEL_REQUESTED" }, "org-1").status,
+      ).toBe(TaskStatus.CANCELED);
+    });
   });
 
   describe("sanitizeProjectIdFilterInput", () => {

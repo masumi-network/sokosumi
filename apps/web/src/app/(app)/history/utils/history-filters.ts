@@ -217,6 +217,11 @@ export function sanitizeHistoryStatusInput(raw: unknown): HistoryStatus | null {
   if (typeof raw !== "string") return null;
 
   const normalized = raw.trim();
+  // Legacy bookmarks used CANCEL_REQUESTED before SOK-632 removed the enum.
+  // Map to CANCELED so filters still match rewritten rows.
+  if (normalized === "CANCEL_REQUESTED") {
+    return TaskStatus.CANCELED;
+  }
   return isHistoryStatusValue(normalized) ? normalized : null;
 }
 

@@ -79,6 +79,11 @@ export function sanitizeTasksStatusInput(raw: unknown): TaskStatus | null {
   if (!normalized) {
     return null;
   }
+  // Legacy bookmarks used CANCEL_REQUESTED before SOK-632 removed the enum.
+  // Map to CANCELED so filters still match rewritten rows.
+  if (normalized === "CANCEL_REQUESTED") {
+    return TaskStatus.CANCELED;
+  }
   return isTaskStatusValue(normalized) ? normalized : null;
 }
 
