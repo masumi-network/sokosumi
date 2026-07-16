@@ -2,7 +2,7 @@ import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnId,
   type TaskWithCoworker,
-} from "@/lib/types/task";
+} from "@/app/tasks/types/task-board";
 
 import { ColumnHeader } from "./column-header";
 import { TaskListItem } from "./task-list-item";

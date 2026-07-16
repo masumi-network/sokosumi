@@ -114,6 +114,7 @@ function createJob(overrides?: Partial<Job>): Job {
       overrideLegalOther: null,
     },
     ...overrides,
+    jobStatusSettled: overrides?.jobStatusSettled ?? false,
   };
 }
 

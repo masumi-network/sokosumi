@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, it } from "vitest";
 import { JobType } from "../generated/prisma/client.js";
-import { computeJobStatus } from "./job.js";
+import { computeJobStatus, isJobStatusSettled } from "./job.js";
 
 function createPaidJob(overrides: Record<string, unknown> = {}) {
   const now = new Date();
@@ -162,5 +162,58 @@ describe("computeJobStatus", () => {
     });
 
     assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_FAILED);
+  });
+});
+
+describe("isJobStatusSettled", () => {
+  it("marks FREE jobs settled only when completedAt is set", () => {
+    assert.equal(
+      isJobStatusSettled(
+        { jobType: JobType.FREE, externalDisputeUnlockTime: null },
+        null,
+      ),
+      false,
+    );
+    assert.equal(
+      isJobStatusSettled(
+        { jobType: JobType.FREE, externalDisputeUnlockTime: null },
+        new Date("2026-01-01T00:00:00.000Z"),
+      ),
+      true,
+    );
+  });
+
+  it("marks PAID jobs settled only after external dispute unlock", () => {
+    const now = new Date("2026-06-01T12:00:00.000Z");
+    assert.equal(
+      isJobStatusSettled(
+        { jobType: JobType.PAID, externalDisputeUnlockTime: null },
+        new Date("2026-01-01T00:00:00.000Z"),
+        now,
+      ),
+      false,
+    );
+    assert.equal(
+      isJobStatusSettled(
+        {
+          jobType: JobType.PAID,
+          externalDisputeUnlockTime: new Date("2026-06-01T13:00:00.000Z"),
+        },
+        new Date("2026-01-01T00:00:00.000Z"),
+        now,
+      ),
+      false,
+    );
+    assert.equal(
+      isJobStatusSettled(
+        {
+          jobType: JobType.PAID,
+          externalDisputeUnlockTime: new Date("2026-06-01T11:00:00.000Z"),
+        },
+        new Date("2026-01-01T00:00:00.000Z"),
+        now,
+      ),
+      true,
+    );
   });
 });

@@ -1,5 +1,6 @@
 "use server";
 
+import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import {
   sanitizeAgentJobStatusInput,
   sanitizeJobAgentIdForPersistedFilter,
@@ -17,7 +18,6 @@ import type { Task } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
-import type { KanbanColumnId } from "@/lib/types/task";
 
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 

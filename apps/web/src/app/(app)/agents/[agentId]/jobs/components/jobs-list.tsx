@@ -9,7 +9,6 @@ import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
-import type { CoreJobListItem } from "@/lib/helpers/job";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
@@ -25,7 +24,7 @@ interface JobStatusUpdateData {
 }
 
 interface JobsListProps {
-  jobs: CoreJobListItem[];
+  jobs: JobSummary[];
   userId: string;
   agentId: string;
   selectedJobId?: string;
@@ -105,8 +104,8 @@ export function JobsList({
   const { locale } = useLocalizedDateTime();
   const routeParams = useParams<{ jobId?: string }>();
   const router = useRouter();
-  const [localJobs, setLocalJobs] = useState<CoreJobListItem[]>(jobs);
-  const [filteredJobs, setFilteredJobs] = useState<CoreJobListItem[]>(jobs);
+  const [localJobs, setLocalJobs] = useState<JobSummary[]>(jobs);
+  const [filteredJobs, setFilteredJobs] = useState<JobSummary[]>(jobs);
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
   // Sync local state when jobs prop changes (e.g., after revalidatePath)
@@ -133,7 +132,7 @@ export function JobsList({
     }
 
     const completedAtFallback = new Date();
-    const updater = (prev: CoreJobListItem[]) =>
+    const updater = (prev: JobSummary[]) =>
       prev.map((job) => {
         const update = latestByJobId.get(job.id);
         if (!update) {
@@ -163,7 +162,7 @@ export function JobsList({
     setFilteredJobs(updater);
   }
 
-  function handleJobClick(job: CoreJobListItem) {
+  function handleJobClick(job: JobSummary) {
     const qs = new URLSearchParams(window.location.search).toString();
     const base = `/agents/${job.agentId}/jobs/${job.id}`;
     router.push(qs ? `${base}?${qs}` : base);
