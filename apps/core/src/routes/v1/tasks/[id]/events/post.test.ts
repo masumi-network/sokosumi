@@ -1148,6 +1148,96 @@ describe("POST /{id}/events", () => {
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
+  it("reopens COMPLETED → READY for delegated coworker user-context with a comment", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            comment: "Continue via delegated reopen",
+            userId: USER_ID,
+            coworkerId: COWORKER_ID,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.COMPLETED }),
+    );
+
+    // SOK-631 actor is "user (session / user context)". Delegated coworker
+    // keys with context headers use the user transition table + comment gate.
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+      context: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.READY,
+        comment: "Continue via delegated reopen",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          comment: "Continue via delegated reopen",
+          userId: USER_ID,
+          coworkerId: COWORKER_ID,
+        }),
+      }),
+    );
+  });
+
+  it("rejects agent COMPLETED → READY (agent reopen is to RUNNING only)", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.COMPLETED }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.READY,
+        comment: "Agent should not reopen to ready",
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
   it("reopens COMPLETED → RUNNING without credits", async () => {
     const tx: TransactionMock = {
       taskEvent: {

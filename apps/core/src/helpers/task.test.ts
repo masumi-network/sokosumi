@@ -17,6 +17,16 @@ const coworkerContext: AuthenticationContext = {
   vendorId: TEST_VENDOR_ID,
 };
 
+const delegatedCoworkerContext: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
+  context: {
+    userId: "user_123",
+    organizationId: null,
+  },
+};
+
 const userContext: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -529,6 +539,26 @@ describe("validateStatusTransition", () => {
           TaskStatus.READY,
         ),
       ).not.toThrow();
+    });
+
+    it("COMPLETED → READY for delegated coworker user-context", () => {
+      expect(() =>
+        validateStatusTransition(
+          delegatedCoworkerContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("rejects agent COMPLETED → READY", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.READY,
+        ),
+      ).toThrow(/Invalid status transition/);
     });
 
     it("rejects FAILED → READY", () => {
