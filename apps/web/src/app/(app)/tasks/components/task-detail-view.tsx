@@ -485,7 +485,7 @@ async function TaskDetailActionsSlot({
         reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
         reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
         revertToDraft: t("actions.revertToDraft"),
-        cancelRequest: t("actions.cancelRequest"),
+        cancel: t("actions.cancel"),
         share: t("actions.share"),
       }}
     />

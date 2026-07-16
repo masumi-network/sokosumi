@@ -1602,7 +1602,7 @@
           "reopenToReadyCommentRequired": "É necessário um comentário para reabrir esta tarefa",
           "reopenToReadyConfirm": "Reabrir como Pronta",
           "revertToDraft": "Reverter para rascunho",
-          "cancelRequest": "Cancelar pedido",
+          "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado da tarefa atualizado",
           "moveToWorkspace": "Mover para outro espaço de trabalho",

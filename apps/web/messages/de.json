@@ -1602,7 +1602,7 @@
           "reopenToReadyCommentRequired": "Zum Wiedereröffnen ist ein Kommentar erforderlich",
           "reopenToReadyConfirm": "Als Bereit wiedereröffnen",
           "revertToDraft": "In Entwurf zurücksetzen",
-          "cancelRequest": "Anfrage abbrechen",
+          "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
           "moveToWorkspace": "In anderen Arbeitsbereich verschieben",

@@ -1614,7 +1614,7 @@
           "reopenToReadyCommentRequired": "A comment is required to reopen this task",
           "reopenToReadyConfirm": "Reopen to Ready",
           "revertToDraft": "Revert to Draft",
-          "cancelRequest": "Cancel Request",
+          "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
           "moveToWorkspace": "Move to workspace",

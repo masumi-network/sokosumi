@@ -100,7 +100,7 @@ interface TaskDetailActionsLabels {
   reopenToReadyCommentRequired: string;
   reopenToReadyConfirm: string;
   revertToDraft: string;
-  cancelRequest: string;
+  cancel: string;
   share: string;
 }
 
@@ -964,7 +964,7 @@ function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
       return RotateCcw;
     case TaskStatus.READY:
       return CheckCircle2;
-    case TaskStatus.CANCEL_REQUESTED:
+    case TaskStatus.CANCELED:
       return Ban;
     default:
       return CheckCircle2;
@@ -990,12 +990,13 @@ function getTaskStatusActions(
     status === TaskStatus.AUTHENTICATION_REQUIRED ||
     status === TaskStatus.OUT_OF_CREDITS ||
     status === TaskStatus.CREDITS_TOPPED_UP ||
-    status === TaskStatus.RUNNING
+    status === TaskStatus.RUNNING ||
+    status === TaskStatus.AWAITING_EXTERNAL
   ) {
     return [
       {
-        label: labels.cancelRequest,
-        target: TaskStatus.CANCEL_REQUESTED,
+        label: labels.cancel,
+        target: TaskStatus.CANCELED,
       },
     ];
   }

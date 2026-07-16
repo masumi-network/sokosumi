@@ -17,6 +17,13 @@ describe("canUserTransitionTaskStatus", () => {
     [TaskStatus.DRAFT, TaskStatus.QUEUED],
     [TaskStatus.QUEUED, TaskStatus.READY],
     [TaskStatus.READY, TaskStatus.QUEUED],
+    [TaskStatus.RUNNING, TaskStatus.CANCELED],
+    [TaskStatus.AWAITING_EXTERNAL, TaskStatus.CANCELED],
+    [TaskStatus.INPUT_REQUIRED, TaskStatus.CANCELED],
+    [TaskStatus.APPROVAL_REQUIRED, TaskStatus.CANCELED],
+    [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.CANCELED],
+    [TaskStatus.OUT_OF_CREDITS, TaskStatus.CANCELED],
+    [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.CANCELED],
     [TaskStatus.COMPLETED, TaskStatus.READY],
     [TaskStatus.CANCELED, TaskStatus.READY],
   ])("accepts %s → %s", (from, to) => {

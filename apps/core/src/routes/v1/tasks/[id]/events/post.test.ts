@@ -1328,6 +1328,59 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
+  it("charges credit-only on CANCELED task without changing status", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: null,
+            cents: convertCreditsToCents(4),
+            transactionId: "txn_credit_only_canceled",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue(
+      "txn_credit_only_canceled",
+    );
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.CANCELED }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        credits: 4,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: null,
+          cents: convertCreditsToCents(4),
+          coworkerId: COWORKER_ID,
+          userId: null,
+        }),
+      }),
+    );
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
   it("rejects FAILED → RUNNING reopen", async () => {
     const tx: TransactionMock = {
       taskEvent: {

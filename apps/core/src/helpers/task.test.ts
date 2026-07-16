@@ -551,43 +551,17 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("RUNNING → CANCEL_REQUESTED", () => {
+    it.each([
+      [TaskStatus.RUNNING, TaskStatus.CANCELED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.CANCELED],
+      [TaskStatus.INPUT_REQUIRED, TaskStatus.CANCELED],
+      [TaskStatus.APPROVAL_REQUIRED, TaskStatus.CANCELED],
+      [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.CANCELED],
+      [TaskStatus.OUT_OF_CREDITS, TaskStatus.CANCELED],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.CANCELED],
+    ])("accepts %s → %s (direct cancel)", (from, to) => {
       expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.RUNNING,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("OUT_OF_CREDITS → CANCEL_REQUESTED", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.OUT_OF_CREDITS,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("AWAITING_EXTERNAL → CANCEL_REQUESTED", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.AWAITING_EXTERNAL,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("APPROVAL_REQUIRED → CANCEL_REQUESTED", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.APPROVAL_REQUIRED,
-          TaskStatus.CANCEL_REQUESTED,
-        ),
+        validateStatusTransition(userContext, from, to),
       ).not.toThrow();
     });
   });
@@ -663,12 +637,22 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
-    it("rejects CANCEL_REQUESTED → CANCELED", () => {
+    it("rejects CANCEL_REQUESTED → CANCELED (legacy intermediate)", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
           TaskStatus.CANCEL_REQUESTED,
           TaskStatus.CANCELED,
+        ),
+      ).toThrow();
+    });
+
+    it("rejects RUNNING → CANCEL_REQUESTED (legacy intermediate)", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.RUNNING,
+          TaskStatus.CANCEL_REQUESTED,
         ),
       ).toThrow();
     });

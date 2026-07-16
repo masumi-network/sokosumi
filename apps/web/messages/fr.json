@@ -1602,7 +1602,7 @@
           "reopenToReadyCommentRequired": "Un commentaire est requis pour rouvrir cette tâche",
           "reopenToReadyConfirm": "Rouvrir en Prêt",
           "revertToDraft": "Revenir au brouillon",
-          "cancelRequest": "Annuler la demande",
+          "cancel": "Annuler",
           "share": "Share",
           "updateStatusSuccess": "Statut de la tâche mis à jour",
           "moveToWorkspace": "Déplacer vers un autre espace de travail",

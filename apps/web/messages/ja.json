@@ -1602,7 +1602,7 @@
           "reopenToReadyCommentRequired": "タスクを再開するにはコメントが必要です",
           "reopenToReadyConfirm": "準備完了に再開",
           "revertToDraft": "下書きに戻す",
-          "cancelRequest": "キャンセルを申請",
+          "cancel": "キャンセル",
           "share": "Share",
           "updateStatusSuccess": "タスクステータスを更新しました",
           "moveToWorkspace": "ワークスペースへ移動",

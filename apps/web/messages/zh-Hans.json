@@ -1602,7 +1602,7 @@
           "reopenToReadyCommentRequired": "重新打开此任务需要填写评论",
           "reopenToReadyConfirm": "重新打开为就绪",
           "revertToDraft": "恢复为草稿",
-          "cancelRequest": "请求取消",
+          "cancel": "取消",
           "share": "Share",
           "updateStatusSuccess": "任务状态已更新",
           "moveToWorkspace": "移到其他工作区",
