@@ -170,7 +170,8 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 - **Web does not access Postgres or Prisma.** All reads and writes go through the Core API (`coreClient` in `src/lib/clients/core.client.ts`).
 - **Entity DTOs** (`Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …) come from the generated Core client (`src/lib/clients/generated/core`). Use `src/lib/types/core-dto.ts` for web helpers (`CoreAgentDto`, credit/rating accessors, placeholders) and enum **type** aliases derived from Core fields (`TaskStatus`, `JobType`, `SokosumiJobStatus`, …).
-- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) still live in `@sokosumi/utils` until OpenAPI codegen exports const enums. **Pure helpers** (URLs, credits, locale, auth cookies) also stay in `@sokosumi/utils` — not entity mirrors.
+- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) are exported as const maps from the generated Core client when the OpenAPI schema uses a named enum (`.openapi("TaskStatus")`). Prefer those imports. `@sokosumi/utils` still mirrors some sets until SOK-594 migrates remaining call sites. **Pure helpers** (URLs, credits, locale, auth cookies) stay in `@sokosumi/utils` — not entity mirrors.
+- Codegen stays **web-only** under `src/lib/clients/generated/core` (no `packages/api-types`); same pattern as `TaskLinkRelation`.
 - Do not import `@sokosumi/database` from web. Do not add Prisma-shaped composites under `packages/utils/src/domain/`.
 - After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
 

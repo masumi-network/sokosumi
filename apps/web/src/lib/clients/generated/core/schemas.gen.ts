@@ -120,20 +120,13 @@ export const AdminUserOverviewItemSchema = {
             example: 'pro'
         },
         subscriptionStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'active',
-                'canceled',
-                'incomplete',
-                'incomplete_expired',
-                'past_due',
-                'paused',
-                'trialing',
-                'unpaid',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'active',
             description: 'Stripe subscription lifecycle status, or null when absent'
@@ -155,6 +148,22 @@ export const AdminUserOverviewItemSchema = {
         'subscriptionStatus',
         'startedTaskCount'
     ]
+} as const;
+
+export const StripeSubscriptionStatusSchema = {
+    type: 'string',
+    enum: [
+        'active',
+        'canceled',
+        'incomplete',
+        'incomplete_expired',
+        'past_due',
+        'paused',
+        'trialing',
+        'unpaid'
+    ],
+    example: 'active',
+    description: 'Stripe subscription lifecycle status'
 } as const;
 
 export const AdminOrganizationOverviewItemSchema = {
@@ -214,20 +223,13 @@ export const AdminOrganizationOverviewItemSchema = {
             example: 'starter'
         },
         subscriptionStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'active',
-                'canceled',
-                'incomplete',
-                'incomplete_expired',
-                'past_due',
-                'paused',
-                'trialing',
-                'unpaid',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'active',
             description: 'Stripe subscription lifecycle status, or null when absent'
@@ -471,13 +473,7 @@ export const AdminOrganizationMemberOverviewItemSchema = {
             example: 'org_123'
         },
         role: {
-            type: 'string',
-            enum: [
-                'owner',
-                'admin',
-                'member'
-            ],
-            example: 'member'
+            $ref: '#/components/schemas/MemberRole'
         },
         seatAssignedAt: {
             type: [
@@ -536,20 +532,13 @@ export const AdminOrganizationMemberOverviewItemSchema = {
             example: 'starter'
         },
         subscriptionStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'active',
-                'canceled',
-                'incomplete',
-                'incomplete_expired',
-                'past_due',
-                'paused',
-                'trialing',
-                'unpaid',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'active',
             description: 'Stripe subscription lifecycle status, or null when absent'
@@ -569,6 +558,17 @@ export const AdminOrganizationMemberOverviewItemSchema = {
     ]
 } as const;
 
+export const MemberRoleSchema = {
+    type: 'string',
+    enum: [
+        'owner',
+        'admin',
+        'member'
+    ],
+    example: 'member',
+    description: 'Organization member role'
+} as const;
+
 export const AdminAddOrganizationMemberBodySchema = {
     type: 'object',
     properties: {
@@ -579,14 +579,7 @@ export const AdminAddOrganizationMemberBodySchema = {
             example: 'user_123'
         },
         role: {
-            type: 'string',
-            enum: [
-                'owner',
-                'admin',
-                'member'
-            ],
-            default: 'member',
-            example: 'member'
+            $ref: '#/components/schemas/MemberRole'
         }
     },
     required: [
@@ -598,13 +591,14 @@ export const AdminUpdateOrganizationMemberRoleBodySchema = {
     type: 'object',
     properties: {
         role: {
-            type: 'string',
-            enum: [
-                'owner',
-                'admin',
-                'member'
-            ],
-            example: 'admin'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/MemberRole'
+                },
+                {
+                    example: 'admin'
+                }
+            ]
         }
     },
     required: [
@@ -968,25 +962,7 @@ export const AdminTaskListItemSchema = {
             example: 'Quarterly report'
         },
         status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'RUNNING'
+            $ref: '#/components/schemas/TaskStatus'
         },
         createdAt: {
             type: 'string',
@@ -1049,6 +1025,28 @@ export const AdminTaskListItemSchema = {
         'user',
         'organization'
     ]
+} as const;
+
+export const TaskStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'QUEUED',
+        'READY',
+        'GRANT_PENDING',
+        'INPUT_REQUIRED',
+        'APPROVAL_REQUIRED',
+        'AUTHENTICATION_REQUIRED',
+        'OUT_OF_CREDITS',
+        'CREDITS_TOPPED_UP',
+        'RUNNING',
+        'AWAITING_EXTERNAL',
+        'COMPLETED',
+        'FAILED',
+        'CANCEL_REQUESTED',
+        'CANCELED'
+    ],
+    example: 'RUNNING'
 } as const;
 
 export const AdminTaskDetailSchema = {
@@ -1176,26 +1174,15 @@ export const TaskSchema = {
             example: 'Notes go here'
         },
         status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'READY',
-            description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    example: 'READY',
+                    description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
+                }
+            ]
         },
         grantResumeStatus: {
             type: [
@@ -1512,68 +1499,27 @@ export const TaskEventSchema = {
             example: 'https://example.com/oauth/authorize'
         },
         channel: {
-            type: 'string',
-            enum: [
-                'SLACK',
-                'TEAMS',
-                'EMAIL',
-                'LINEAR',
-                'GITHUB',
-                'WHATSAPP',
-                'TELEGRAM',
-                'SIGNAL',
-                'DISCORD',
-                'CHAT',
-                'MESSENGER',
-                'SOKOSUMI',
-                'UNKNOWN'
-            ],
-            example: 'SLACK',
-            description: 'Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.'
+            $ref: '#/components/schemas/Channel'
         },
         origin: {
-            type: 'string',
-            enum: [
-                'SLACK',
-                'TEAMS',
-                'EMAIL',
-                'LINEAR',
-                'GITHUB',
-                'WHATSAPP',
-                'TELEGRAM',
-                'SIGNAL',
-                'DISCORD',
-                'CHAT',
-                'MESSENGER',
-                'SOKOSUMI',
-                'UNKNOWN'
-            ],
-            deprecated: true,
-            example: 'SLACK',
-            description: 'Deprecated. Use channel instead.'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/Channel'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use channel instead.'
+                }
+            ]
         },
         status: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'RUNNING'
         }
@@ -1586,6 +1532,27 @@ export const TaskEventSchema = {
         'channel',
         'origin'
     ]
+} as const;
+
+export const ChannelSchema = {
+    type: 'string',
+    enum: [
+        'SLACK',
+        'TEAMS',
+        'EMAIL',
+        'LINEAR',
+        'GITHUB',
+        'WHATSAPP',
+        'TELEGRAM',
+        'SIGNAL',
+        'DISCORD',
+        'CHAT',
+        'MESSENGER',
+        'SOKOSUMI',
+        'UNKNOWN'
+    ],
+    example: 'SLACK',
+    description: 'Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.'
 } as const;
 
 export const JobSummarySchema = {
@@ -1659,50 +1626,23 @@ export const JobSummarySchema = {
             example: 'My Job'
         },
         jobType: {
-            type: 'string',
-            enum: [
-                'FREE',
-                'PAID'
-            ],
-            example: 'PAID'
+            $ref: '#/components/schemas/JobType'
         },
         status: {
-            type: 'string',
-            enum: [
-                'started',
-                'completed',
-                'processing',
-                'input_required',
-                'result_pending',
-                'failed',
-                'payment_pending',
-                'payment_failed',
-                'refund_pending',
-                'refund_resolved',
-                'dispute_pending',
-                'dispute_resolved'
-            ],
-            example: 'processing'
+            $ref: '#/components/schemas/SokosumiJobStatus'
         },
         credits: {
             type: 'number',
             example: 5
         },
         onChainStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'FUNDS_LOCKED',
-                'FUNDS_OR_DATUM_INVALID',
-                'FUNDS_WITHDRAWN',
-                'RESULT_SUBMITTED',
-                'REFUND_REQUESTED',
-                'REFUND_WITHDRAWN',
-                'DISPUTED',
-                'DISPUTED_WITHDRAWN',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/OnChainJobStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'RESULT_SUBMITTED'
         },
@@ -1836,6 +1776,48 @@ export const WorkspaceSummarySchema = {
     ]
 } as const;
 
+export const JobTypeSchema = {
+    type: 'string',
+    enum: [
+        'FREE',
+        'PAID'
+    ],
+    example: 'PAID'
+} as const;
+
+export const SokosumiJobStatusSchema = {
+    type: 'string',
+    enum: [
+        'started',
+        'completed',
+        'processing',
+        'input_required',
+        'result_pending',
+        'failed',
+        'payment_pending',
+        'payment_failed',
+        'refund_pending',
+        'refund_resolved',
+        'dispute_pending',
+        'dispute_resolved'
+    ],
+    example: 'processing'
+} as const;
+
+export const OnChainJobStatusSchema = {
+    type: 'string',
+    enum: [
+        'FUNDS_LOCKED',
+        'FUNDS_OR_DATUM_INVALID',
+        'FUNDS_WITHDRAWN',
+        'RESULT_SUBMITTED',
+        'REFUND_REQUESTED',
+        'REFUND_WITHDRAWN',
+        'DISPUTED',
+        'DISPUTED_WITHDRAWN'
+    ]
+} as const;
+
 export const TaskShareSchema = {
     type: 'object',
     properties: {
@@ -1955,25 +1937,14 @@ export const TaskLinkPeerTaskSchema = {
             example: 'Review onboarding copy'
         },
         status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'READY'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    example: 'READY'
+                }
+            ]
         },
         archivedAt: {
             type: [
@@ -2798,15 +2769,7 @@ export const AgentDetailSchema = {
             description: 'Categories this agent belongs to'
         },
         riskClassification: {
-            type: 'string',
-            enum: [
-                'MINIMAL',
-                'LIMITED',
-                'HIGH',
-                'UNACCEPTABLE'
-            ],
-            example: 'MINIMAL',
-            description: 'The agent\'s risk classification'
+            $ref: '#/components/schemas/RiskClassification'
         },
         tags: {
             type: 'array',
@@ -2845,6 +2808,18 @@ export const AgentDetailSchema = {
         'tags',
         'exampleOutputs'
     ]
+} as const;
+
+export const RiskClassificationSchema = {
+    type: 'string',
+    enum: [
+        'MINIMAL',
+        'LIMITED',
+        'HIGH',
+        'UNACCEPTABLE'
+    ],
+    example: 'MINIMAL',
+    description: 'The agent\'s risk classification'
 } as const;
 
 export const AgentExampleOutputSchema = {
@@ -5736,25 +5711,7 @@ export const HistoryTaskItemSchema = {
             ]
         },
         status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'RUNNING'
+            $ref: '#/components/schemas/TaskStatus'
         },
         projectId: {
             type: [
@@ -5881,22 +5838,14 @@ export const HistoryJobItemSchema = {
             ]
         },
         status: {
-            type: 'string',
-            enum: [
-                'started',
-                'completed',
-                'processing',
-                'input_required',
-                'result_pending',
-                'failed',
-                'payment_pending',
-                'payment_failed',
-                'refund_pending',
-                'refund_resolved',
-                'dispute_pending',
-                'dispute_resolved'
-            ],
-            example: 'completed'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/SokosumiJobStatus'
+                },
+                {
+                    example: 'completed'
+                }
+            ]
         },
         projectId: {
             type: [
@@ -6222,14 +6171,7 @@ export const MemberWithOrganizationSchema = {
             example: 'org_123'
         },
         role: {
-            type: 'string',
-            enum: [
-                'owner',
-                'admin',
-                'member'
-            ],
-            example: 'member',
-            description: 'Organization member role'
+            $ref: '#/components/schemas/MemberRole'
         },
         seatAssignedAt: {
             type: [
@@ -6370,14 +6312,7 @@ export const OrganizationSchema = {
             }
         },
         role: {
-            type: 'string',
-            enum: [
-                'owner',
-                'admin',
-                'member'
-            ],
-            example: 'member',
-            description: 'Organization member role'
+            $ref: '#/components/schemas/MemberRole'
         }
     },
     required: [
@@ -6406,14 +6341,7 @@ export const MemberRecordSchema = {
             example: 'org_123'
         },
         role: {
-            type: 'string',
-            enum: [
-                'owner',
-                'admin',
-                'member'
-            ],
-            example: 'member',
-            description: 'Organization member role'
+            $ref: '#/components/schemas/MemberRole'
         },
         seatAssignedAt: {
             type: [
@@ -6464,12 +6392,7 @@ export const NoticeSchema = {
             example: 'notice_123'
         },
         kind: {
-            type: 'string',
-            enum: [
-                'LEGAL_TERMS',
-                'ANNOUNCEMENT'
-            ],
-            example: 'LEGAL_TERMS'
+            $ref: '#/components/schemas/NoticeKind'
         },
         bodyMarkdown: {
             type: 'string',
@@ -6504,6 +6427,15 @@ export const NoticeSchema = {
         'createdAt',
         'updatedAt'
     ]
+} as const;
+
+export const NoticeKindSchema = {
+    type: 'string',
+    enum: [
+        'LEGAL_TERMS',
+        'ANNOUNCEMENT'
+    ],
+    example: 'LEGAL_TERMS'
 } as const;
 
 export const BlobFileSchema = {
@@ -6991,19 +6923,7 @@ export const ActiveSubscriptionResponseSchema = {
                     example: 'starter'
                 },
                 status: {
-                    type: 'string',
-                    enum: [
-                        'active',
-                        'canceled',
-                        'incomplete',
-                        'incomplete_expired',
-                        'past_due',
-                        'paused',
-                        'trialing',
-                        'unpaid'
-                    ],
-                    example: 'active',
-                    description: 'Stripe subscription lifecycle status'
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
                 },
                 cancelAtPeriodEnd: {
                     type: [
@@ -7112,14 +7032,7 @@ export const MemberSchema = {
             example: 'org_123'
         },
         role: {
-            type: 'string',
-            enum: [
-                'owner',
-                'admin',
-                'member'
-            ],
-            example: 'member',
-            description: 'Organization member role'
+            $ref: '#/components/schemas/MemberRole'
         },
         seatAssignedAt: {
             type: [
@@ -7201,29 +7114,19 @@ export const PendingInvitationSchema = {
             example: 'jane@example.com'
         },
         role: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'owner',
-                'admin',
-                'member',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MemberRole'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'member',
-            description: 'Organization member role'
+            description: 'Organization member role, or null when absent'
         },
         status: {
-            type: 'string',
-            enum: [
-                'pending',
-                'accepted',
-                'rejected',
-                'canceled'
-            ],
-            example: 'pending',
-            description: 'Invitation lifecycle status stored in the database'
+            $ref: '#/components/schemas/InvitationStatus'
         },
         expiresAt: {
             type: 'string',
@@ -7250,6 +7153,18 @@ export const PendingInvitationSchema = {
         'inviterId',
         'createdAt'
     ]
+} as const;
+
+export const InvitationStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'accepted',
+        'rejected',
+        'canceled'
+    ],
+    example: 'pending',
+    description: 'Invitation lifecycle status stored in the database'
 } as const;
 
 export const OrganizationSeatSummarySchema = {
@@ -7628,25 +7543,14 @@ export const ProjectTaskStatusCountSchema = {
             example: 2
         },
         status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'READY'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    example: 'READY'
+                }
+            ]
         }
     },
     required: [
@@ -7664,22 +7568,7 @@ export const ProjectJobStatusCountSchema = {
             example: 2
         },
         status: {
-            type: 'string',
-            enum: [
-                'started',
-                'completed',
-                'processing',
-                'input_required',
-                'result_pending',
-                'failed',
-                'payment_pending',
-                'payment_failed',
-                'refund_pending',
-                'refund_resolved',
-                'dispute_pending',
-                'dispute_resolved'
-            ],
-            example: 'processing'
+            $ref: '#/components/schemas/SokosumiJobStatus'
         }
     },
     required: [
@@ -7823,50 +7712,30 @@ export const JobSchema = {
             example: 'Research Task'
         },
         jobType: {
-            type: 'string',
-            enum: [
-                'FREE',
-                'PAID'
-            ],
-            example: 'PAID'
+            $ref: '#/components/schemas/JobType'
         },
         status: {
-            type: 'string',
-            enum: [
-                'started',
-                'completed',
-                'processing',
-                'input_required',
-                'result_pending',
-                'failed',
-                'payment_pending',
-                'payment_failed',
-                'refund_pending',
-                'refund_resolved',
-                'dispute_pending',
-                'dispute_resolved'
-            ],
-            example: 'completed'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/SokosumiJobStatus'
+                },
+                {
+                    example: 'completed'
+                }
+            ]
         },
         credits: {
             type: 'number',
             example: 5
         },
         onChainStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'FUNDS_LOCKED',
-                'FUNDS_OR_DATUM_INVALID',
-                'FUNDS_WITHDRAWN',
-                'RESULT_SUBMITTED',
-                'REFUND_REQUESTED',
-                'REFUND_WITHDRAWN',
-                'DISPUTED',
-                'DISPUTED_WITHDRAWN',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/OnChainJobStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'RESULT_SUBMITTED'
         },
@@ -8093,16 +7962,7 @@ export const JobSchema = {
                         example: '2021-01-01T00:00:00.000Z'
                     },
                     status: {
-                        type: 'string',
-                        enum: [
-                            'INITIATED',
-                            'AWAITING_PAYMENT',
-                            'AWAITING_INPUT',
-                            'RUNNING',
-                            'COMPLETED',
-                            'FAILED'
-                        ],
-                        example: 'COMPLETED'
+                        $ref: '#/components/schemas/AgentJobStatus'
                     },
                     inputSchema: {
                         type: [
@@ -8208,6 +8068,19 @@ export const JobSchema = {
     ]
 } as const;
 
+export const AgentJobStatusSchema = {
+    type: 'string',
+    enum: [
+        'INITIATED',
+        'AWAITING_PAYMENT',
+        'AWAITING_INPUT',
+        'RUNNING',
+        'COMPLETED',
+        'FAILED'
+    ],
+    example: 'COMPLETED'
+} as const;
+
 export const FileSchema = {
     type: 'object',
     properties: {
@@ -8244,14 +8117,7 @@ export const FileSchema = {
             description: 'Name of the file'
         },
         status: {
-            type: 'string',
-            enum: [
-                'PENDING',
-                'READY',
-                'FAILED'
-            ],
-            example: 'READY',
-            description: 'Status of the file'
+            $ref: '#/components/schemas/BlobStatus'
         },
         size: {
             type: [
@@ -8286,6 +8152,17 @@ export const FileSchema = {
         'sourceUrl',
         'status'
     ]
+} as const;
+
+export const BlobStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'READY',
+        'FAILED'
+    ],
+    example: 'READY',
+    description: 'Status of the file'
 } as const;
 
 export const LinkSchema = {
@@ -8420,16 +8297,14 @@ export const Job_EventSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         status: {
-            type: 'string',
-            enum: [
-                'INITIATED',
-                'AWAITING_PAYMENT',
-                'AWAITING_INPUT',
-                'RUNNING',
-                'COMPLETED',
-                'FAILED'
-            ],
-            example: 'RUNNING'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/AgentJobStatus'
+                },
+                {
+                    example: 'RUNNING'
+                }
+            ]
         },
         inputSchema: {
             type: [
@@ -8831,25 +8706,14 @@ export const PublicSharedTaskSchema = {
             example: 'Notes go here'
         },
         status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'READY'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    example: 'READY'
+                }
+            ]
         },
         coworker: {
             $ref: '#/components/schemas/PublicSharedTaskCoworker'
@@ -8941,22 +8805,7 @@ export const PublicSharedTaskJobSchema = {
             example: 'Draft answer'
         },
         status: {
-            type: 'string',
-            enum: [
-                'started',
-                'completed',
-                'processing',
-                'input_required',
-                'result_pending',
-                'failed',
-                'payment_pending',
-                'payment_failed',
-                'refund_pending',
-                'refund_resolved',
-                'dispute_pending',
-                'dispute_resolved'
-            ],
-            example: 'processing'
+            $ref: '#/components/schemas/SokosumiJobStatus'
         },
         agentName: {
             type: 'string',
@@ -8996,68 +8845,27 @@ export const PublicSharedTaskMilestoneSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         channel: {
-            type: 'string',
-            enum: [
-                'SLACK',
-                'TEAMS',
-                'EMAIL',
-                'LINEAR',
-                'GITHUB',
-                'WHATSAPP',
-                'TELEGRAM',
-                'SIGNAL',
-                'DISCORD',
-                'CHAT',
-                'MESSENGER',
-                'SOKOSUMI',
-                'UNKNOWN'
-            ],
-            example: 'SLACK',
-            description: 'Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.'
+            $ref: '#/components/schemas/Channel'
         },
         origin: {
-            type: 'string',
-            enum: [
-                'SLACK',
-                'TEAMS',
-                'EMAIL',
-                'LINEAR',
-                'GITHUB',
-                'WHATSAPP',
-                'TELEGRAM',
-                'SIGNAL',
-                'DISCORD',
-                'CHAT',
-                'MESSENGER',
-                'SOKOSUMI',
-                'UNKNOWN'
-            ],
-            deprecated: true,
-            example: 'SLACK',
-            description: 'Deprecated. Use channel instead.'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/Channel'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use channel instead.'
+                }
+            ]
         },
         status: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'RUNNING'
         },
@@ -9587,26 +9395,15 @@ export const TaskListItemSchema = {
             example: 'Notes go here'
         },
         status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'READY',
-            description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    example: 'READY',
+                    description: 'GRANT_PENDING: blocked until vendor workspace access is granted.'
+                }
+            ]
         },
         grantResumeStatus: {
             type: [

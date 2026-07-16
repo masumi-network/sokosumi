@@ -4,10 +4,13 @@ import {
   TaskLinkRelation,
   type TaskLinkRelation as TaskLinkRelationValue,
   type TaskListItem,
+  TaskStatus,
 } from "@/lib/clients/generated/core/types.gen";
-import type { TaskStatus } from "@/lib/types/core-dto";
 
 export type { TaskStatus };
+
+/** Runtime TaskStatus const from generated Core client (SOK-590). */
+export const TASK_STATUS = TaskStatus;
 
 export interface TaskPickerTask {
   id: string;
@@ -21,24 +24,6 @@ export interface VisibleTaskLink {
   status: TaskStatus;
   relation: TaskLinkRelationValue;
 }
-
-export const TASK_STATUS = {
-  DRAFT: "DRAFT",
-  QUEUED: "QUEUED",
-  READY: "READY",
-  GRANT_PENDING: "GRANT_PENDING",
-  INPUT_REQUIRED: "INPUT_REQUIRED",
-  APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
-  AUTHENTICATION_REQUIRED: "AUTHENTICATION_REQUIRED",
-  OUT_OF_CREDITS: "OUT_OF_CREDITS",
-  CREDITS_TOPPED_UP: "CREDITS_TOPPED_UP",
-  RUNNING: "RUNNING",
-  AWAITING_EXTERNAL: "AWAITING_EXTERNAL",
-  COMPLETED: "COMPLETED",
-  FAILED: "FAILED",
-  CANCEL_REQUESTED: "CANCEL_REQUESTED",
-  CANCELED: "CANCELED",
-} as const satisfies Record<TaskStatus, TaskStatus>;
 
 type TaskLinkActionInput = Pick<
   Parameters<typeof createTaskLink>[0],
