@@ -1,5 +1,6 @@
-import { NotificationKind, SokosumiJobStatus } from "@sokosumi/utils";
+import { NotificationKind } from "@sokosumi/utils";
 import * as z from "zod";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 export const jobStatusDataSchema = z.object({
   jobId: z.string().min(1),

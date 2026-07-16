@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 interface StatusPillStyle {
   bg: string;

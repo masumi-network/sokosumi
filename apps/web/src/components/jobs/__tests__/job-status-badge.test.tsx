@@ -1,9 +1,8 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
