@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { NotificationKind, Prisma } from "@sokosumi/database";
 import {
+  CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   convertCreditsToCents,
   TaskStatus,
@@ -20,12 +21,15 @@ import {
   calculateCentsFromMasumiAmountStrings,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
-import { conflict, unprocessableEntity } from "@/helpers/error";
+import {
+  conflict,
+  errorResponseWithExtensionsSchema,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { created } from "@/helpers/response";
+import { created, unprocessableWithData } from "@/helpers/response";
 import {
-  isTaskStatusSpendable,
   mapTaskEvent,
   taskEventApiInclude,
   validateStatusTransition,
@@ -91,6 +95,177 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
+  };
+}
+
+/** Attribution only — credit auth is enforced at the route gate (`isAgent`). */
+function getCoworkerActorData(authContext: AuthenticationContext) {
+  if (isUserAuthContext(authContext)) {
+    throw new Error(
+      "getCoworkerActorData called without coworker auth context",
+    );
+  }
+
+  return {
+    userId: null,
+    coworkerId: authContext.coworkerId,
+  };
+}
+
+/** Statuses that may be paused to OUT_OF_CREDITS on insufficient balance. */
+const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
+  TaskStatus.DRAFT,
+  TaskStatus.QUEUED,
+  TaskStatus.READY,
+  TaskStatus.GRANT_PENDING,
+  TaskStatus.INPUT_REQUIRED,
+  TaskStatus.APPROVAL_REQUIRED,
+  TaskStatus.AUTHENTICATION_REQUIRED,
+  TaskStatus.CREDITS_TOPPED_UP,
+  TaskStatus.RUNNING,
+  TaskStatus.AWAITING_EXTERNAL,
+  TaskStatus.CANCEL_REQUESTED,
+]);
+
+async function chargeTaskCreditsOrMarkOutOfCredits(params: {
+  userId: string;
+  organizationId: string | null;
+  cents: bigint;
+  currentStatus: TaskStatus;
+  tx: Prisma.TransactionClient;
+}): Promise<{
+  transactionId: string | null;
+  /** When set, the billed status was rejected for balance and replaced. */
+  eventStatus: TaskStatus | null;
+}> {
+  try {
+    const transactionId = await createTaskEventTransaction({
+      userId: params.userId,
+      organizationId: params.organizationId,
+      cents: params.cents,
+      tx: params.tx,
+    });
+    return { transactionId, eventStatus: null };
+  } catch (error) {
+    // Terminal tasks (COMPLETED/FAILED/CANCELED) and already-OUT_OF_CREDITS keep
+    // their status — rethrow as 422. Only mid-run tasks pause to OUT_OF_CREDITS.
+    if (
+      !isInsufficientBalanceError(error) ||
+      !OUT_OF_CREDITS_PAUSE_STATUSES.has(params.currentStatus)
+    ) {
+      throw error;
+    }
+    // Route persists OUT_OF_CREDITS then returns 422 with that event in `data`
+    // (not 201 — the requested billed status did not land).
+    return { transactionId: null, eventStatus: TaskStatus.OUT_OF_CREDITS };
+  }
+}
+
+interface SettleTaskEventChargeParams {
+  task: {
+    userId: string;
+    organizationId: string | null;
+    status: TaskStatus;
+  };
+  credits?: number | null;
+  masumiPayment?: z.infer<
+    ReturnType<typeof createTaskEventRequestSchema>
+  >["masumiPayment"];
+  tx: Prisma.TransactionClient;
+}
+
+interface SettleTaskEventChargeResult {
+  cents: bigint | undefined;
+  transactionId: string | null;
+  /** When set, charge failed for balance and status was replaced. */
+  eventStatus: TaskStatus | null;
+  chargedMasumiPayment: boolean;
+}
+
+async function settleTaskEventCharge({
+  task,
+  credits,
+  masumiPayment,
+  tx,
+}: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
+  if (masumiPayment) {
+    console.info("[tasks] masumi task payment: using masumiPayment", {
+      masumiPayment,
+    });
+    const creditCosts = await getCreditCostsOrThrow(tx);
+    const cents = calculateCentsFromMasumiAmountStrings(
+      masumiPayment.Amounts,
+      creditCosts,
+    );
+    if (cents === 0n) {
+      throw unprocessableEntity(
+        `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
+      );
+    }
+    const creditsValue = convertCentsToCredits(cents);
+    if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
+      throw unprocessableEntity(
+        `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
+      );
+    }
+    const charge = await chargeTaskCreditsOrMarkOutOfCredits({
+      userId: task.userId,
+      organizationId: task.organizationId,
+      cents,
+      currentStatus: task.status,
+      tx,
+    });
+    if (charge.eventStatus != null) {
+      return {
+        cents: undefined,
+        transactionId: null,
+        eventStatus: charge.eventStatus,
+        chargedMasumiPayment: false,
+      };
+    }
+    return {
+      cents,
+      transactionId: charge.transactionId,
+      eventStatus: null,
+      chargedMasumiPayment: true,
+    };
+  }
+
+  if (credits != null && credits > 0) {
+    const cents = convertCreditsToCents(credits);
+    if (cents === 0n) {
+      throw unprocessableEntity(
+        `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
+      );
+    }
+    const charge = await chargeTaskCreditsOrMarkOutOfCredits({
+      userId: task.userId,
+      organizationId: task.organizationId,
+      cents,
+      currentStatus: task.status,
+      tx,
+    });
+    if (charge.eventStatus != null) {
+      return {
+        cents: undefined,
+        transactionId: null,
+        eventStatus: charge.eventStatus,
+        chargedMasumiPayment: false,
+      };
+    }
+    return {
+      cents,
+      transactionId: charge.transactionId,
+      eventStatus: null,
+      chargedMasumiPayment: false,
+    };
+  }
+
+  return {
+    cents: undefined,
+    transactionId: null,
+    eventStatus: null,
+    chargedMasumiPayment: false,
   };
 }
 
@@ -195,38 +370,6 @@ async function dispatchTaskNotification(
   }
 }
 
-async function chargeTaskCreditsOrMarkOutOfCredits(params: {
-  userId: string;
-  organizationId: string | null;
-  cents: bigint;
-  currentStatus: TaskStatus;
-  tx: Prisma.TransactionClient;
-}): Promise<{
-  transactionId: string | null;
-  /** When set, the billed status was rejected for balance and replaced. */
-  eventStatus: TaskStatus | null;
-}> {
-  try {
-    const transactionId = await createTaskEventTransaction({
-      userId: params.userId,
-      organizationId: params.organizationId,
-      cents: params.cents,
-      tx: params.tx,
-    });
-    return { transactionId, eventStatus: null };
-  } catch (error) {
-    if (
-      !isInsufficientBalanceError(error) ||
-      params.currentStatus === TaskStatus.OUT_OF_CREDITS
-    ) {
-      throw error;
-    }
-    // Return 201 with OUT_OF_CREDITS in the event body (not 422). Callers must
-    // read `data.status` — HTTP success does not mean the billed status landed.
-    return { transactionId: null, eventStatus: TaskStatus.OUT_OF_CREDITS };
-  }
-}
-
 export default function mount(app: OpenAPIHonoWithAuth) {
   const taskEventRequestBodySchema = createTaskEventRequestSchema({
     serverNetwork: getEnv().NETWORK,
@@ -254,7 +397,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse("Conflict"),
-      422: jsonErrorResponse("Unprocessable Entity"),
+      422: {
+        description:
+          "Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.",
+        content: {
+          "application/json": {
+            schema: errorResponseWithExtensionsSchema({
+              data: taskEventSchema.optional(),
+            }),
+          },
+        },
+      },
       500: jsonErrorResponse("Internal Server Error"),
     },
   });
@@ -264,8 +417,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const { event, userId, masumiPayment } = await serializableTransaction(
-      async (tx) => {
+    const { event, userId, masumiPayment, pausedForInsufficientBalance } =
+      await serializableTransaction(async (tx) => {
         const {
           status,
           comment,
@@ -285,128 +438,78 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? await requireTaskCollaboration(authContext, taskId, tx)
           : await requireTaskCommentAccess(c.var, taskId, tx);
 
+        const isAgent = isCoworkerAgentContext(authContext);
+
+        if (!isAgent && credits != null) {
+          throw unprocessableEntity(
+            "Only the assigned coworker can set credits on task events",
+          );
+        }
+
+        if (status === undefined && comment === undefined && credits == null) {
+          throw unprocessableEntity(
+            "At least one of status, comment, or credits is required",
+          );
+        }
+
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
           validateTaskCoworkerAssignment({
             status,
             coworkerId: task.coworkerId,
           });
+        }
 
-          // Only the assigned coworker agent settles billing.
-          const isAgent = isCoworkerAgentContext(authContext);
-          const isAgentSpend = isAgent && isTaskStatusSpendable(status);
+        let cents: bigint | undefined;
+        let transactionId: string | null = null;
+        let eventStatus: TaskStatus | null = status ?? null;
+        let chargedMasumiPayment = false;
+        let pausedForInsufficientBalance = false;
 
-          // User and delegated-coworker callers use the user transition table,
-          // and the charge branch below is gated on isAgent — so credits from
-          // them would be silently dropped. Reject it.
-          //
-          // masumiPayment needs no check here: the schema only allows it with
-          // status COMPLETED, which the user transition table can never reach,
-          // so a non-agent caller is already rejected upstream (400/422).
-          if (!isAgent && credits != null) {
-            throw unprocessableEntity(
-              "Only the assigned coworker can set credits when changing task status",
-            );
-          }
-
-          let cents: bigint | undefined;
-          let transactionId: string | null = null;
-          let eventStatus = status;
-          let chargedMasumiPayment = false;
-
-          if (isAgentSpend) {
-            const wantsCharge =
-              masumiPayment != null || (credits != null && credits > 0);
-
-            if (wantsCharge) {
-              // One billed terminal outcome per task lifetime. Prevents
-              // duplicate completion/cancel charges from retries or reopen.
-              const priorBilledEvent = await tx.taskEvent.findFirst({
-                where: {
-                  taskId,
-                  transactionId: { not: null },
-                  status: {
-                    in: [TaskStatus.COMPLETED, TaskStatus.CANCELED],
-                  },
-                },
-                select: { id: true },
-              });
-              if (priorBilledEvent) {
-                throw unprocessableEntity(
-                  "Task already has a billed completion or cancellation; further credit usage is not allowed",
-                );
-              }
-            }
-
-            if (masumiPayment) {
-              console.info("[tasks] masumi task payment: using masumiPayment", {
-                masumiPayment,
-              });
-              const creditCosts = await getCreditCostsOrThrow(tx);
-              cents = calculateCentsFromMasumiAmountStrings(
-                masumiPayment.Amounts,
-                creditCosts,
-              );
-              if (cents === 0n) {
-                throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-                );
-              }
-              const creditsValue = convertCentsToCredits(cents);
-              if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
-                throw unprocessableEntity(
-                  `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
-                );
-              }
-              const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-                userId: task.userId,
-                organizationId: task.organizationId,
-                cents,
-                currentStatus: task.status,
-                tx,
-              });
-              transactionId = charge.transactionId;
-              if (charge.eventStatus != null) {
-                eventStatus = charge.eventStatus;
-                cents = undefined;
-              } else {
-                chargedMasumiPayment = true;
-              }
-            } else if (credits != null && credits > 0) {
-              cents = convertCreditsToCents(credits);
-              if (cents === 0n) {
-                throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-                );
-              }
-              const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-                userId: task.userId,
-                organizationId: task.organizationId,
-                cents,
-                currentStatus: task.status,
-                tx,
-              });
-              transactionId = charge.transactionId;
-              if (charge.eventStatus != null) {
-                eventStatus = charge.eventStatus;
-                cents = undefined;
-              }
-            }
-          }
-
-          const createdEvent = await tx.taskEvent.create({
-            data: {
-              taskId,
-              status: eventStatus,
-              comment,
-              authenticationUrl,
-              channel,
-              cents,
-              transactionId,
-              ...getStatusEventActorData(authContext),
-            },
+        if (
+          isAgent &&
+          (masumiPayment != null || (credits != null && credits > 0))
+        ) {
+          const settled = await settleTaskEventCharge({
+            task,
+            credits,
+            masumiPayment,
+            tx,
           });
+          cents = settled.cents;
+          transactionId = settled.transactionId;
+          chargedMasumiPayment = settled.chargedMasumiPayment;
+          if (settled.eventStatus != null) {
+            eventStatus = settled.eventStatus;
+            pausedForInsufficientBalance =
+              settled.eventStatus === TaskStatus.OUT_OF_CREDITS;
+          }
+        }
 
+        const actorData =
+          status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
+            ? getStatusEventActorData(authContext)
+            : credits != null
+              ? getCoworkerActorData(authContext)
+              : getCommentEventActorData(authContext);
+
+        const createdEvent = await tx.taskEvent.create({
+          data: {
+            taskId,
+            status: eventStatus,
+            comment,
+            authenticationUrl,
+            channel,
+            cents,
+            transactionId,
+            ...actorData,
+          },
+        });
+
+        // Update task when the caller requested a status change, or when a
+        // failed charge replaced the outcome with OUT_OF_CREDITS (incl.
+        // credit-only bodies that had no status).
+        if (eventStatus != null) {
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
             data: { status: eventStatus },
@@ -414,43 +517,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (updateResult.count !== 1) {
             throw conflict("Task status was changed by another request");
           }
-
-          const payment =
-            chargedMasumiPayment && masumiPayment !== undefined
-              ? masumiPayment
-              : null;
-
-          return {
-            event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
-            userId: task.userId,
-            masumiPayment: payment,
-          };
         }
 
-        if (comment === undefined) {
-          throw unprocessableEntity(
-            "Either status or comment must be provided",
-          );
-        }
-
-        const createdEvent = await tx.taskEvent.create({
-          data: {
-            taskId,
-            status: null,
-            comment,
-            channel,
-            ...getCommentEventActorData(authContext),
-          },
-        });
+        const payment =
+          chargedMasumiPayment && masumiPayment !== undefined
+            ? masumiPayment
+            : null;
 
         return {
           event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
           userId: task.userId,
-          masumiPayment: null,
+          masumiPayment: payment,
+          pausedForInsufficientBalance,
         };
-      },
-      "Task changed by a concurrent request. Please retry.",
-    );
+      }, "Task changed by a concurrent request. Please retry.");
 
     if (event.status) {
       const taskEventId = event.id;
@@ -624,6 +704,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    return created(c, taskEventSchema.parse(event));
+    const parsedEvent = taskEventSchema.parse(event);
+
+    // Charge failed but OUT_OF_CREDITS pause was committed — not what the
+    // requester asked to create, so 422 with the pause event in `data`.
+    if (pausedForInsufficientBalance) {
+      return unprocessableWithData(c, parsedEvent, {
+        message: "Insufficient balance",
+        kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+      });
+    }
+
+    return created(c, parsedEvent);
   });
 }
