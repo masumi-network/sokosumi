@@ -1,8 +1,8 @@
-import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
+import { JobType, SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";

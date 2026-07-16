@@ -1,5 +1,5 @@
-import { MemberRole } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemberRole } from "@/lib/clients/generated/core";
 
 const createAuthClientMock = vi.fn();
 const getAuthClientPluginsMock = vi.fn(() => ["plugin-1"]);

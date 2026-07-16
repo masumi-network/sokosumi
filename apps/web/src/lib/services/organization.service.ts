@@ -1,11 +1,11 @@
 import "server-only";
 
-import { MemberRole } from "@sokosumi/utils";
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
 import { coreClient } from "@/lib/clients/core.client";
 import type { PendingInvitation } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 
 export type BulkInviteResultRow = {
   email: string;

@@ -1,6 +1,5 @@
 "use client";
 
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import {
   ExternalLink,
   HandCoins,
@@ -12,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +36,7 @@ import {
   requestRefundJob,
 } from "@/lib/actions";
 import type { Job } from "@/lib/clients/generated/core";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /**

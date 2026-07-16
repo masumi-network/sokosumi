@@ -1,4 +1,7 @@
-import { TaskStatus, type TaskStatus as TaskStatusType } from "@sokosumi/utils";
+import {
+  TaskStatus,
+  type TaskStatus as TaskStatusType,
+} from "@/lib/clients/generated/core";
 
 /** UI display order for task statuses (stats chips, label builders, etc.). */
 export const TASK_STATUS_DISPLAY_ORDER = [

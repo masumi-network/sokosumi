@@ -1,7 +1,5 @@
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
-import { MemberRole } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
@@ -18,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { MemberRole } from "@/lib/clients/generated/core";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";

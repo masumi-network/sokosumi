@@ -1,13 +1,11 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/utils";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { ProjectTaskPickerDialog } from "@/app/projects/components/project-task-picker-dialog";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TimeAgo } from "@/components/time-ago";
@@ -26,6 +24,7 @@ import {
   addProjectTask,
   removeProjectTask,
 } from "@/lib/actions/project/action";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskListItem } from "@/lib/clients/generated/core/types.gen";
 
 interface ProjectTasksSectionLabels {

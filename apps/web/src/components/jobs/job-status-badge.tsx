@@ -1,11 +1,10 @@
 "use client";
 
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { CircleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
-
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getJobStatusPillStyle } from "@/components/jobs/job-status-styles";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { getTasksColumnPage } from "../tasks-column-page";
 

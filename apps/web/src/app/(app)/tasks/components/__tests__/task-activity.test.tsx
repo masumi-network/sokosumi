@@ -1,9 +1,8 @@
-import { Channel, TaskStatus } from "@sokosumi/utils";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
+import { Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskEvent } from "@/lib/types/task";
 
 const {

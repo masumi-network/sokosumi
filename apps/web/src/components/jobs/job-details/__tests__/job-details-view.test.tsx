@@ -1,9 +1,8 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import JobDetailsView from "@/components/jobs/job-details/job-details-view";
 import type { Job } from "@/lib/clients/generated/core";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const useQueryMock = vi.fn();
@@ -219,7 +218,7 @@ describe("JobDetailsView", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
         id: "agent-1",
-        creditsPrice: { cents: BigInt(100) },
+        credits: 100,
       },
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,
@@ -239,7 +238,7 @@ describe("JobDetailsView", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
         id: "agent-1",
-        creditsPrice: { cents: BigInt(100) },
+        credits: 100,
       },
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,
@@ -280,7 +279,7 @@ describe("JobDetailsView", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
         id: "agent-1",
-        creditsPrice: { cents: BigInt(100) },
+        credits: 100,
       },
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,

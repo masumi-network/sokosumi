@@ -1,17 +1,17 @@
 "use server";
 
-import { TaskLinkType, TaskStatus } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import {
   CoreApiRequestError,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import type {
-  Task,
-  TaskLink,
+import {
+  type Task,
+  type TaskLink,
   TaskLinkRelation,
-} from "@/lib/clients/generated/core/types.gen";
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
@@ -72,8 +72,7 @@ interface CreateTaskCommentParameters extends AuthenticatedRequest {
 interface CreateTaskLinkParameters extends AuthenticatedRequest {
   taskId: string;
   relatedTaskId: string;
-  type: TaskLinkType;
-  direction?: "outgoing" | "incoming";
+  relation: TaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
 }
@@ -91,8 +90,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
-  type: TaskLinkType;
-  direction?: "outgoing" | "incoming";
+  relation: TaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
 }
@@ -189,26 +187,6 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
   return trimmedNote ? trimmedNote : null;
 }
 
-function taskLinkTypeAndDirectionToRelation(
-  type: TaskLinkType,
-  direction: "outgoing" | "incoming",
-): TaskLinkRelation {
-  switch (type) {
-    case TaskLinkType.RELATES:
-      return "related";
-    case TaskLinkType.BLOCKS:
-      return direction === "outgoing" ? "blocks" : "blocked_by";
-    case TaskLinkType.PARENT:
-      return direction === "outgoing" ? "parent" : "child";
-    case TaskLinkType.DUPLICATE:
-      return "duplicate";
-    default: {
-      const _exhaustive: never = type;
-      throw new Error(`Unsupported link type: ${_exhaustive}`);
-    }
-  }
-}
-
 function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
@@ -261,13 +239,11 @@ async function createTaskFromDescription(input: {
 async function collectParentLinksToReplace(input: {
   taskId: string;
   nextParentTaskId: string;
-  type: TaskLinkType;
-  direction: "outgoing" | "incoming";
+  relation: TaskLinkRelation;
   replaceExistingParent?: boolean;
 }): Promise<TaskLink[]> {
   const shouldReplaceParent =
-    input.type === TaskLinkType.PARENT &&
-    input.direction === "incoming" &&
+    input.relation === TaskLinkRelation.CHILD &&
     input.replaceExistingParent !== false;
 
   if (!shouldReplaceParent) {
@@ -618,61 +594,45 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
 export const createTaskLink = withSession<
   CreateTaskLinkParameters,
   { taskId: string; linkId: string; relatedTaskId: string }
->(
-  async ({
-    taskId,
-    relatedTaskId,
-    type,
-    direction,
-    note,
-    replaceExistingParent,
-  }) => {
-    const normalizedTaskId = taskId.trim();
-    const normalizedRelatedTaskId = relatedTaskId.trim();
-    if (!normalizedTaskId || !normalizedRelatedTaskId) {
-      throw new Error("Task required");
-    }
+>(async ({ taskId, relatedTaskId, relation, note, replaceExistingParent }) => {
+  const normalizedTaskId = taskId.trim();
+  const normalizedRelatedTaskId = relatedTaskId.trim();
+  if (!normalizedTaskId || !normalizedRelatedTaskId) {
+    throw new Error("Task required");
+  }
 
-    const normalizedDirection = direction ?? "outgoing";
-    const relation = taskLinkTypeAndDirectionToRelation(
-      type,
-      normalizedDirection,
-    );
+  try {
+    const parentLinksToReplace = await collectParentLinksToReplace({
+      taskId: normalizedTaskId,
+      nextParentTaskId: normalizedRelatedTaskId,
+      relation,
+      replaceExistingParent,
+    });
 
-    try {
-      const parentLinksToReplace = await collectParentLinksToReplace({
-        taskId: normalizedTaskId,
-        nextParentTaskId: normalizedRelatedTaskId,
-        type,
-        direction: normalizedDirection,
-        replaceExistingParent,
-      });
+    const link = await taskService.createTaskLink(normalizedTaskId, {
+      toTaskId: normalizedRelatedTaskId,
+      relation,
+      note: normalizeLinkNote(note),
+    });
 
-      const link = await taskService.createTaskLink(normalizedTaskId, {
-        toTaskId: normalizedRelatedTaskId,
-        relation,
-        note: normalizeLinkNote(note),
-      });
+    await deletePreviousParentLinks({
+      taskId: normalizedTaskId,
+      createdLinkId: link.id,
+      parentLinksToReplace,
+    });
 
-      await deletePreviousParentLinks({
-        taskId: normalizedTaskId,
-        createdLinkId: link.id,
-        parentLinksToReplace,
-      });
-
-      revalidateTaskMutationRoutes(normalizedTaskId, normalizedRelatedTaskId);
-      return {
-        taskId: normalizedTaskId,
-        relatedTaskId: normalizedRelatedTaskId,
-        linkId: link.id,
-      };
-    } catch (error) {
-      console.error("Failed to create task link", error);
-      const { message } = toCoreApiActionError(error);
-      throw new Error(message ?? "Failed to create task link");
-    }
-  },
-);
+    revalidateTaskMutationRoutes(normalizedTaskId, normalizedRelatedTaskId);
+    return {
+      taskId: normalizedTaskId,
+      relatedTaskId: normalizedRelatedTaskId,
+      linkId: link.id,
+    };
+  } catch (error) {
+    console.error("Failed to create task link", error);
+    const { message } = toCoreApiActionError(error);
+    throw new Error(message ?? "Failed to create task link");
+  }
+});
 
 export const deleteTaskLink = withSession<
   DeleteTaskLinkParameters,
@@ -718,8 +678,7 @@ export const createTaskAndLink = withSession<
     status,
     skipDesignMdAttachment,
     schedule,
-    type,
-    direction,
+    relation,
     note,
     replaceExistingParent,
   }) => {
@@ -727,12 +686,6 @@ export const createTaskAndLink = withSession<
     if (!normalizedTaskId) {
       throw new Error("Task required");
     }
-
-    const normalizedDirection = direction ?? "outgoing";
-    const relation = taskLinkTypeAndDirectionToRelation(
-      type,
-      normalizedDirection,
-    );
 
     let createdTask: Task | null = null;
 
@@ -749,8 +702,7 @@ export const createTaskAndLink = withSession<
       const parentLinksToReplace = await collectParentLinksToReplace({
         taskId: normalizedTaskId,
         nextParentTaskId: createdTask.id,
-        type,
-        direction: normalizedDirection,
+        relation,
         replaceExistingParent,
       });
 

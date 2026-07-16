@@ -64,16 +64,12 @@ import type {
 import {
   type TaskLink,
   TaskLinkRelation,
-} from "@/lib/clients/generated/core/types.gen";
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import {
-  getTaskLinkActionInput,
-  TASK_STATUS,
-  type TaskStatus,
-} from "./task-detail-api-types";
 import { TaskForm, type TaskFormLabels } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
@@ -189,10 +185,10 @@ export function TaskDetailActions({
     canArchiveParked ||
     (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
   const isFinalized =
-    status === TASK_STATUS.COMPLETED ||
-    status === TASK_STATUS.FAILED ||
-    status === TASK_STATUS.CANCELED ||
-    status === TASK_STATUS.CANCEL_REQUESTED;
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.FAILED ||
+    status === TaskStatus.CANCELED ||
+    status === TaskStatus.CANCEL_REQUESTED;
   const canManageRelations = canMutateTask && !isFinalized;
   const canMove =
     canMutateTask &&
@@ -330,11 +326,10 @@ export function TaskDetailActions({
 
     startLinkTransition(async () => {
       try {
-        const linkInput = getTaskLinkActionInput(option.relation);
         await createTaskLink({
           taskId,
           relatedTaskId,
-          ...linkInput,
+          relation: option.relation,
         });
         setIsTaskPickerOpen(false);
         setSelectedTaskPickerOption(null);
@@ -842,9 +837,6 @@ export function TaskDetailActions({
               status,
               schedule,
             }) => {
-              const linkInput = getTaskLinkActionInput(
-                selectedCreateRelatedOption.relation,
-              );
               const result = await createTaskAndLink({
                 taskId,
                 description,
@@ -852,7 +844,7 @@ export function TaskDetailActions({
                 projectId,
                 status,
                 schedule,
-                ...linkInput,
+                relation: selectedCreateRelatedOption.relation,
               });
 
               return {
@@ -884,11 +876,11 @@ export function TaskDetailActions({
 /** Icons for status transitions in the mobile overflow menu (aligned with action meaning). */
 function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
   switch (target) {
-    case TASK_STATUS.DRAFT:
+    case TaskStatus.DRAFT:
       return RotateCcw;
-    case TASK_STATUS.READY:
+    case TaskStatus.READY:
       return CheckCircle2;
-    case TASK_STATUS.CANCEL_REQUESTED:
+    case TaskStatus.CANCEL_REQUESTED:
       return Ban;
     default:
       return CheckCircle2;
@@ -899,26 +891,26 @@ function getTaskStatusActions(
   status: TaskStatus,
   labels: TaskDetailActionsLabels,
 ) {
-  if (status === TASK_STATUS.DRAFT) {
-    return [{ label: labels.markAsReady, target: TASK_STATUS.READY }];
+  if (status === TaskStatus.DRAFT) {
+    return [{ label: labels.markAsReady, target: TaskStatus.READY }];
   }
 
-  if (status === TASK_STATUS.READY) {
-    return [{ label: labels.revertToDraft, target: TASK_STATUS.DRAFT }];
+  if (status === TaskStatus.READY) {
+    return [{ label: labels.revertToDraft, target: TaskStatus.DRAFT }];
   }
 
   if (
-    status === TASK_STATUS.INPUT_REQUIRED ||
-    status === TASK_STATUS.APPROVAL_REQUIRED ||
-    status === TASK_STATUS.AUTHENTICATION_REQUIRED ||
-    status === TASK_STATUS.OUT_OF_CREDITS ||
-    status === TASK_STATUS.CREDITS_TOPPED_UP ||
-    status === TASK_STATUS.RUNNING
+    status === TaskStatus.INPUT_REQUIRED ||
+    status === TaskStatus.APPROVAL_REQUIRED ||
+    status === TaskStatus.AUTHENTICATION_REQUIRED ||
+    status === TaskStatus.OUT_OF_CREDITS ||
+    status === TaskStatus.CREDITS_TOPPED_UP ||
+    status === TaskStatus.RUNNING
   ) {
     return [
       {
         label: labels.cancelRequest,
-        target: TASK_STATUS.CANCEL_REQUESTED,
+        target: TaskStatus.CANCEL_REQUESTED,
       },
     ];
   }

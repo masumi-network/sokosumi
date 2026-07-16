@@ -1,7 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-
 import { HistoryList } from "@/app/history/components/history-list";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import { HISTORY_PAGE_LIMIT } from "@/app/history/constants";
@@ -14,6 +12,7 @@ import {
 import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getSession } from "@/lib/auth/auth.server";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { historyService } from "@/lib/services/history.service";
 

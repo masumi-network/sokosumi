@@ -1,6 +1,6 @@
-import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { JobSummary } from "@/lib/clients/generated/core";
+import { JobType, SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 import { buildJobDayGroups } from "../jobs-list.utils";
 

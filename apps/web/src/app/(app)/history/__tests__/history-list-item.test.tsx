@@ -1,7 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   getHistoryItemHref,
   HistoryListItem,
@@ -12,6 +10,7 @@ import {
   getHistoryRowSubtitle,
   type HistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/services/history.service";
 
 const iconMocks = vi.hoisted(() => ({

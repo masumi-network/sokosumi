@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import type { TaskWithCoworker } from "@/lib/types/task";
 

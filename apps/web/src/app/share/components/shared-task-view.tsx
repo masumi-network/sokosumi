@@ -1,11 +1,4 @@
-import {
-  BlobStatus,
-  Channel,
-  extractFileLikeLinks,
-  extractHttpLinks,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@sokosumi/utils";
+import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter } from "next-intl";
@@ -22,7 +15,13 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import type { PublicSharedTask } from "@/lib/clients/generated/core";
+import {
+  BlobStatus,
+  Channel,
+  type PublicSharedTask,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,

@@ -1,10 +1,8 @@
-import { NoticeKind } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog";
@@ -25,6 +23,7 @@ import type {
   GetUsersByIdCreditsResponse,
   Notice,
 } from "@/lib/clients/generated/core";
+import { NoticeKind } from "@/lib/clients/generated/core";
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userHasPaidOrEnterpriseCoverage, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";

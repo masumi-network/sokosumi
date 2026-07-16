@@ -1,15 +1,14 @@
 "use client";
 
 import { hashResult } from "@sokosumi/masumi/hash";
-import { AgentJobStatus } from "@sokosumi/utils";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { Separator } from "@/components/ui/separator";
 import type { Job } from "@/lib/clients/generated/core";
+import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 import CopyMarkdown from "./copy-markdown";
 import DownloadButton from "./download-button";

@@ -1,13 +1,12 @@
 "use client";
 
-import { Channel } from "@sokosumi/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type MouseEvent, useState } from "react";
-
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import { canUseNextImageSrc } from "@/config/next-image";
+import { Channel } from "@/lib/clients/generated/core";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,

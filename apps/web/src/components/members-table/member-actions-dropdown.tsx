@@ -1,4 +1,3 @@
-import { MemberRole } from "@sokosumi/utils";
 import { Ellipsis } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { assignOrganizationSeat } from "@/lib/actions/organization/seat-action";
+import { MemberRole } from "@/lib/clients/generated/core";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 

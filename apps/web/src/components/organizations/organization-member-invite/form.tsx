@@ -1,17 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MemberRole } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
+import { MemberRole } from "@/lib/clients/generated/core";
 import {
   type InviteFormSchemaType,
   inviteFormData,
