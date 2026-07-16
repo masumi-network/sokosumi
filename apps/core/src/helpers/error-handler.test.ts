@@ -7,12 +7,19 @@ import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-ro
 import { conflict, serviceUnavailable } from "./error";
 import { errorHandler } from "./error-handler";
 
-const { captureExceptionMock } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-}));
+const { captureExceptionMock, captureExternalServiceErrorMock } = vi.hoisted(
+  () => ({
+    captureExceptionMock: vi.fn(),
+    captureExternalServiceErrorMock: vi.fn(),
+  }),
+);
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
+}));
+
+vi.mock("@/lib/external-service-errors", () => ({
+  captureExternalServiceError: captureExternalServiceErrorMock,
 }));
 
 function createApp() {
@@ -171,5 +178,32 @@ describe("errorHandler", () => {
         tags: { error_type: "unexpected_validation" },
       }),
     );
+  });
+
+  it("routes unexpected errors through captureExternalServiceError", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw new Error("database blew up");
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe("InternalServerError");
+    expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        label: "unhandled_route_error",
+        sentry: expect.objectContaining({
+          level: "fatal",
+          tags: { error_type: "unexpected" },
+        }),
+      }),
+    );
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 });

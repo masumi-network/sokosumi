@@ -4,6 +4,8 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 
+import { captureExternalServiceError } from "@/lib/external-service-errors";
+
 import {
   type ErrorResponse,
   getErrorName,
@@ -118,9 +120,12 @@ export function errorHandler<E extends { Variables: RequestIdVariables }>(
     stack: error.stack,
   });
 
-  Sentry.captureException(error, {
-    level: "fatal",
-    tags: { error_type: "unexpected" },
+  captureExternalServiceError(error, {
+    label: "unhandled_route_error",
+    sentry: {
+      level: "fatal",
+      tags: { error_type: "unexpected" },
+    },
   });
 
   return c.json(

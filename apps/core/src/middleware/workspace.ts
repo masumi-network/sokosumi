@@ -1,8 +1,8 @@
-import * as Sentry from "@sentry/node";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
 import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
@@ -93,13 +93,16 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
 
       c.set("workspaceContext", workspaceContext);
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: {
-          context: "workspace_context_resolution",
-        },
-        extra: {
-          activeOrganizationId: workspaceOwnerContext.organizationId,
-          userId: workspaceOwnerContext.userId,
+      captureExternalServiceError(error, {
+        label: "workspace_context_resolution",
+        sentry: {
+          tags: {
+            context: "workspace_context_resolution",
+          },
+          extra: {
+            activeOrganizationId: workspaceOwnerContext.organizationId,
+            userId: workspaceOwnerContext.userId,
+          },
         },
       });
       c.set("workspaceContext", null);

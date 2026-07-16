@@ -54,6 +54,25 @@ describe("serializableTransaction", () => {
     await expect(promise).rejects.toBeInstanceOf(HTTPException);
   });
 
+  it("maps DriverAdapterError write conflicts to a 409 conflict", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      Object.assign(new Error("TransactionWriteConflict"), {
+        name: "DriverAdapterError",
+      }),
+    );
+
+    const promise = serializableTransaction(
+      vi.fn(),
+      "Resource changed. Please retry.",
+    );
+
+    await expect(promise).rejects.toMatchObject({
+      status: 409,
+      message: "Resource changed. Please retry.",
+      cause: { kind: CONCURRENCY_CONFLICT_KIND },
+    });
+  });
+
   it("rethrows non-conflict errors unchanged", async () => {
     const error = new Error("Connection lost");
     prismaTransactionMock.mockRejectedValueOnce(error);

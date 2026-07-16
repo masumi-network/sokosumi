@@ -19,6 +19,14 @@ describe("isTransientFetchError", () => {
     ).toBe(true);
   });
 
+  it("treats webhook-style timeout messages as transient", () => {
+    expect(
+      isTransientFetchError(
+        new Error("Webhook request timed out after 10000ms"),
+      ),
+    ).toBe(true);
+  });
+
   it("treats dropped upstream connections as transient", () => {
     expect(
       isTransientFetchError(new Error("Connection terminated unexpectedly")),

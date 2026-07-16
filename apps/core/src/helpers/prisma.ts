@@ -10,14 +10,36 @@ export function isPrismaUniqueViolation(error: unknown): boolean {
 }
 
 /**
- * Returns true if the error is a Prisma transaction conflict / serialization failure (P2034).
+ * Returns true when Postgres aborted a transaction due to concurrent writes.
+ * Prisma surfaces this as P2034; the pg driver adapter can also raise
+ * `DriverAdapterError: TransactionWriteConflict` without a Prisma code.
  */
 export function isPrismaTransactionConflict(error: unknown): boolean {
   if (!error || typeof error !== "object") {
     return false;
   }
 
-  return (error as { code?: unknown }).code === "P2034";
+  if ((error as { code?: unknown }).code === "P2034") {
+    return true;
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof (error as { message?: unknown }).message === "string"
+        ? (error as { message: string }).message
+        : "";
+
+  const name =
+    error instanceof Error
+      ? error.name
+      : typeof (error as { name?: unknown }).name === "string"
+        ? (error as { name: string }).name
+        : "";
+
+  return (
+    name === "DriverAdapterError" && /transactionwriteconflict/i.test(message)
+  );
 }
 
 /**

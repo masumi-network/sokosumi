@@ -411,6 +411,33 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(409);
   });
 
+  it("returns 409 when the pg adapter reports a write conflict", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      Object.assign(new Error("TransactionWriteConflict"), {
+        name: "DriverAdapterError",
+      }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.OUT_OF_CREDITS,
+        comment: "Need top-up",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+  });
+
   it("rethrows non-conflict transaction errors as 500", async () => {
     prismaTransactionMock.mockRejectedValueOnce(new Error("Connection lost"));
 
