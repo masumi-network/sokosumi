@@ -1,7 +1,6 @@
-import { Channel } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
 import type { Coworker } from "@/lib/clients/generated/core";
+import { Channel } from "@/lib/clients/generated/core";
 import { mockCoreCoworker } from "@/test-fixtures/coworker";
 
 import { getCoworkerMetadataChannels } from "../coworker-channels";

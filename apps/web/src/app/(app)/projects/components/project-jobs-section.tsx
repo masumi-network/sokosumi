@@ -1,12 +1,10 @@
 "use client";
 
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { ProjectJobPickerDialog } from "@/app/projects/components/project-job-picker-dialog";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import {
@@ -21,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { addProjectJob, removeProjectJob } from "@/lib/actions/project/action";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 

@@ -10,7 +10,7 @@ import { groupAgentsByCategory } from "../agent-grouping";
 import { createMockCoreAgent } from "./fixtures/core-agent";
 
 // Helper function to create mock Core Category for agent.categories field
-function createMockPrismaCategory(
+function createMockCoreCategory(
   slug: string,
   name: string,
   priority: number = 0,
@@ -37,15 +37,15 @@ describe("groupAgentsByCategory", () => {
     const agents = [
       createMockAgent({
         name: "Coding Agent",
-        categories: [createMockPrismaCategory("coding", "Coding")],
+        categories: [createMockCoreCategory("coding", "Coding")],
       }),
       createMockAgent({
         name: "Design Agent",
-        categories: [createMockPrismaCategory("design", "Design")],
+        categories: [createMockCoreCategory("design", "Design")],
       }),
       createMockAgent({
         name: "Another Coding",
-        categories: [createMockPrismaCategory("coding", "Coding")],
+        categories: [createMockCoreCategory("coding", "Coding")],
       }),
     ];
     const categories: Category[] = [
@@ -69,7 +69,7 @@ describe("groupAgentsByCategory", () => {
         name: "Featured Agent",
         createdAt: oldDate,
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
             "Featured",
           ),
@@ -79,19 +79,19 @@ describe("groupAgentsByCategory", () => {
         name: "New Agent",
         createdAt: newDate,
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+          createMockCoreCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
         ],
       }),
       createMockAgent({
         name: "Regular Agent",
         createdAt: oldDate,
-        categories: [createMockPrismaCategory("coding", "Coding")],
+        categories: [createMockCoreCategory("coding", "Coding")],
       }),
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
             "Others",
           ),
@@ -123,11 +123,11 @@ describe("groupAgentsByCategory", () => {
         name: "Featured New Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
             "Featured",
           ),
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+          createMockCoreCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
         ],
       }),
     ];
@@ -160,12 +160,12 @@ describe("groupAgentsByCategory", () => {
         name: "Multi Category Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
             "Featured",
           ),
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
-          createMockPrismaCategory("coding", "Coding"),
+          createMockCoreCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+          createMockCoreCategory("coding", "Coding"),
         ],
       }),
     ];
@@ -208,7 +208,7 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 1",
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
             "Others",
           ),
@@ -217,7 +217,7 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 2",
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
             "Others",
           ),
@@ -235,7 +235,7 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 1",
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
             "Others",
           ),
@@ -244,7 +244,7 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 2",
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
             "Others",
           ),
@@ -289,7 +289,7 @@ describe("groupAgentsByCategory", () => {
     const agents = [
       createMockAgent({
         name: "Agent 1",
-        categories: [createMockPrismaCategory("unknown-category", "Unknown")],
+        categories: [createMockCoreCategory("unknown-category", "Unknown")],
       }),
     ];
     const categories: Category[] = [
@@ -307,7 +307,7 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 1",
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
             "Others",
           ),
@@ -333,7 +333,7 @@ describe("groupAgentsByCategory", () => {
     const agents = [
       createMockAgent({
         name: "Coding Agent",
-        categories: [createMockPrismaCategory("coding", "Coding")],
+        categories: [createMockCoreCategory("coding", "Coding")],
       }),
     ];
     const categories: Category[] = [
@@ -359,8 +359,8 @@ describe("groupAgentsByCategory", () => {
         name: "New Coding Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
-          createMockPrismaCategory("coding", "Coding"),
+          createMockCoreCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+          createMockCoreCategory("coding", "Coding"),
         ],
       }),
     ];
@@ -386,11 +386,11 @@ describe("groupAgentsByCategory", () => {
         name: "Featured New Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockPrismaCategory(
+          createMockCoreCategory(
             SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
             "Featured",
           ),
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+          createMockCoreCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
         ],
       }),
     ];
@@ -421,7 +421,7 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Coding Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        categories: [createMockPrismaCategory("coding", "Coding")],
+        categories: [createMockCoreCategory("coding", "Coding")],
       }),
     ];
     const categories: Category[] = [
@@ -448,7 +448,7 @@ describe("groupAgentsByCategory", () => {
     ];
     const agents = [
       createMockAgent({
-        categories: [createMockPrismaCategory("coding", "Coding")],
+        categories: [createMockCoreCategory("coding", "Coding")],
       }),
     ];
     const result = groupAgentsByCategory(agents, categories);

@@ -218,7 +218,7 @@ describe("JobDetailsView", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
         id: "agent-1",
-        creditsPrice: { cents: BigInt(100) },
+        credits: 100,
       },
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,
@@ -238,7 +238,7 @@ describe("JobDetailsView", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
         id: "agent-1",
-        creditsPrice: { cents: BigInt(100) },
+        credits: 100,
       },
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,
@@ -279,7 +279,7 @@ describe("JobDetailsView", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
         id: "agent-1",
-        creditsPrice: { cents: BigInt(100) },
+        credits: 100,
       },
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,

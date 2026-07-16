@@ -1,4 +1,3 @@
-import { NoticeKind } from "@sokosumi/utils";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
@@ -216,6 +215,7 @@ import {
   searchAdminUsers as coreSearchAdminUsers,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  NoticeKind,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
