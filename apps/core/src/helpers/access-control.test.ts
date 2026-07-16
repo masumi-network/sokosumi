@@ -1,5 +1,9 @@
-import { MemberRole, type Prisma, VendorGrantStatus } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import {
+  MemberRole,
+  type Prisma,
+  TaskStatus,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

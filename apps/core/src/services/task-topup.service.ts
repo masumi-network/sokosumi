@@ -1,5 +1,4 @@
-import { Channel, type Prisma } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { Channel, type Prisma, TaskStatus } from "@sokosumi/database";
 
 function isPrismaRecordNotFoundError(error: unknown): boolean {
   return (

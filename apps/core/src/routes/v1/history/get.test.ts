@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { HistoryKind } from "@sokosumi/database";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { HistoryKind, TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";

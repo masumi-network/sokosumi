@@ -1,4 +1,4 @@
-import { Channel, TaskStatus } from "@sokosumi/utils";
+import { Channel, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import { taskEventSchema } from "./task.schema";

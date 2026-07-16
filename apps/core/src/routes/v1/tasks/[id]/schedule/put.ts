@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";

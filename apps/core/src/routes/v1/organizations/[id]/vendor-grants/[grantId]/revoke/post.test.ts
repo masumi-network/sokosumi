@@ -1,10 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   MemberRole,
+  TaskStatus,
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
