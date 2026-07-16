@@ -1,6 +1,6 @@
 "use client";
 
-import { SessionUser } from "@sokosumi/utils";
+import type { SessionUser } from "@sokosumi/utils";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";

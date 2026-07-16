@@ -1,4 +1,4 @@
-import { Session } from "@sokosumi/utils";
+import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
