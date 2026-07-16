@@ -1219,7 +1219,6 @@
           "AWAITING_EXTERNAL": "En attente externe",
           "COMPLETED": "Terminé",
           "FAILED": "Échoué",
-          "CANCEL_REQUESTED": "Annulation demandée",
           "CANCELED": "Annulé"
         }
       },
@@ -1494,7 +1493,6 @@
           "AWAITING_EXTERNAL": "En attente externe",
           "COMPLETED": "Terminé",
           "FAILED": "Échoué",
-          "CANCEL_REQUESTED": "Annulation demandée",
           "CANCELED": "Annulé"
         }
       },
@@ -1578,8 +1576,7 @@
         "actionChargedCredits": "a facturé {credits, plural, =1 {# crédit} other {# crédits}}",
         "statusLabels": {
           "outOfCredits": "Crédits insuffisants",
-          "creditsToppedUp": "Crédits rechargés",
-          "cancelRequested": "Annulation demandée"
+          "creditsToppedUp": "Crédits rechargés"
         },
         "billingCta": {
           "upgradePlan": "Obtenir plus de crédits",
@@ -1872,7 +1869,6 @@
             "AWAITING_EXTERNAL": "En attente",
             "COMPLETED": "Terminé",
             "FAILED": "Échec",
-            "CANCEL_REQUESTED": "Annulation",
             "CANCELED": "Annulé"
           },
           "jobStatusAbbreviations": {

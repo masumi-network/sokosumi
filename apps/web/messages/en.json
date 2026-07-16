@@ -1230,7 +1230,6 @@
           "AWAITING_EXTERNAL": "Awaiting external",
           "COMPLETED": "Completed",
           "FAILED": "Failed",
-          "CANCEL_REQUESTED": "Cancel requested",
           "CANCELED": "Canceled"
         }
       },
@@ -1505,7 +1504,6 @@
           "AWAITING_EXTERNAL": "Awaiting external",
           "COMPLETED": "Completed",
           "FAILED": "Failed",
-          "CANCEL_REQUESTED": "Cancel requested",
           "CANCELED": "Canceled"
         }
       },
@@ -1590,8 +1588,7 @@
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
         "statusLabels": {
           "outOfCredits": "Out of credits",
-          "creditsToppedUp": "Credits topped up",
-          "cancelRequested": "Cancel requested"
+          "creditsToppedUp": "Credits topped up"
         },
         "billingCta": {
           "upgradePlan": "Get more credits",
@@ -1883,7 +1880,6 @@
             "AWAITING_EXTERNAL": "Waiting",
             "COMPLETED": "Complete",
             "FAILED": "Failed",
-            "CANCEL_REQUESTED": "Canceling",
             "CANCELED": "Canceled"
           },
           "jobStatusAbbreviations": {

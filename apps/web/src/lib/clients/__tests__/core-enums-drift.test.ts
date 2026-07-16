@@ -41,7 +41,6 @@ describe("generated Core enum drift guard", () => {
       AWAITING_EXTERNAL: "AWAITING_EXTERNAL",
       COMPLETED: "COMPLETED",
       FAILED: "FAILED",
-      CANCEL_REQUESTED: "CANCEL_REQUESTED",
       CANCELED: "CANCELED",
     });
   });

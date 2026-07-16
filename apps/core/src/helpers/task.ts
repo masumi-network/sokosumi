@@ -136,7 +136,6 @@ function getAllowedTransitions(
       // Agents may reopen COMPLETED → RUNNING (SOK-581).
       [TaskStatus.COMPLETED]: [TaskStatus.RUNNING],
       [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCEL_REQUESTED]: [TaskStatus.CANCELED],
       // Agents may reopen CANCELED → RUNNING (SOK-581).
       [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
     };
@@ -170,7 +169,6 @@ function getAllowedTransitions(
     [TaskStatus.FAILED]: [],
     // Users may reopen CANCELED → READY with a required comment (SOK-631).
     [TaskStatus.CANCELED]: [TaskStatus.READY],
-    [TaskStatus.CANCEL_REQUESTED]: [],
   };
 }
 
