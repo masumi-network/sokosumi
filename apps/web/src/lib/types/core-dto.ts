@@ -26,7 +26,9 @@ export type OrganizationWithLimitedInfo = Pick<
 
 export type OrganizationMembershipSelf = Pick<MemberRecord, "id" | "role">;
 
-/** Core API enum unions — use `@sokosumi/utils` const maps for runtime values. */
+/** Core API enum unions — prefer generated const maps for runtime values
+ * (`TaskStatus.RUNNING` from `@/lib/clients/generated/core`). Utils maps remain
+ * until SOK-594 finishes the web migration. */
 export type TaskStatus = Task["status"];
 export type SokosumiJobStatus = JobSummary["status"];
 export type JobType = Job["jobType"];

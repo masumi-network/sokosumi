@@ -1,11 +1,7 @@
 import { z } from "@hono/zod-openapi";
-import { NoticeKind as DatabaseNoticeKind } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime";
-
-export const noticeKindSchema = z
-  .enum(DatabaseNoticeKind)
-  .openapi({ example: "LEGAL_TERMS" });
+import { noticeKindSchema } from "@/schemas/domain-enums.schema";
 
 export const noticeSchema = z
   .object({
