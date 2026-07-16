@@ -19,6 +19,15 @@ export interface Consumption {
   amount: bigint;
 }
 
+export class InsufficientBalanceError extends Error {
+  constructor(cents: bigint, available: bigint) {
+    super(
+      `Insufficient balance: tried to consume ${cents} but only ${available} available`,
+    );
+    this.name = "InsufficientBalanceError";
+  }
+}
+
 /** Per-bucket amounts in cents from listAvailableBucketsWithBalances */
 export interface CreditBucketBalanceRow {
   totalCents: bigint;
@@ -302,9 +311,7 @@ export const creditBucketRepository = {
     }
 
     if (remaining > BigInt(0)) {
-      throw new Error(
-        `Insufficient balance: tried to consume ${cents} but only ${cents - remaining} available`,
-      );
+      throw new InsufficientBalanceError(cents, cents - remaining);
     }
 
     return consumptions;
