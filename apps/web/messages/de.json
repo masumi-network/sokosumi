@@ -1576,8 +1576,7 @@
         "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} berechnet",
         "statusLabels": {
           "outOfCredits": "Keine Credits mehr",
-          "creditsToppedUp": "Credits aufgeladen",
-          "cancelRequested": "Stornierung beantragt"
+          "creditsToppedUp": "Credits aufgeladen"
         },
         "billingCta": {
           "upgradePlan": "Mehr Credits erhalten",

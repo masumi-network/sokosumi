@@ -1576,8 +1576,7 @@
         "actionChargedCredits": "扣除 {credits, plural, =1 {# 积分} other {# 积分}}",
         "statusLabels": {
           "outOfCredits": "积分不足",
-          "creditsToppedUp": "已充值积分",
-          "cancelRequested": "已请求取消"
+          "creditsToppedUp": "已充值积分"
         },
         "billingCta": {
           "upgradePlan": "获取更多积分",

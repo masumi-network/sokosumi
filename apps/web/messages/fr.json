@@ -1576,8 +1576,7 @@
         "actionChargedCredits": "a facturé {credits, plural, =1 {# crédit} other {# crédits}}",
         "statusLabels": {
           "outOfCredits": "Crédits insuffisants",
-          "creditsToppedUp": "Crédits rechargés",
-          "cancelRequested": "Annulation demandée"
+          "creditsToppedUp": "Crédits rechargés"
         },
         "billingCta": {
           "upgradePlan": "Obtenir plus de crédits",

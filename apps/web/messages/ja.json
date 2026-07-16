@@ -1576,8 +1576,7 @@
         "actionChargedCredits": "{credits, plural, =1 {# クレジットを消費} other {# クレジットを消費}}",
         "statusLabels": {
           "outOfCredits": "クレジット不足",
-          "creditsToppedUp": "クレジットを追加しました",
-          "cancelRequested": "キャンセル申請済み"
+          "creditsToppedUp": "クレジットを追加しました"
         },
         "billingCta": {
           "upgradePlan": "クレジットをもっと入手",
