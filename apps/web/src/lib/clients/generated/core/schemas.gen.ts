@@ -120,7 +120,16 @@ export const AdminUserOverviewItemSchema = {
             example: 'pro'
         },
         subscriptionStatus: {
-            $ref: '#/components/schemas/StripeSubscriptionStatus'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
         },
         startedTaskCount: {
             type: 'integer',
@@ -142,10 +151,7 @@ export const AdminUserOverviewItemSchema = {
 } as const;
 
 export const StripeSubscriptionStatusSchema = {
-    type: [
-        'string',
-        'null'
-    ],
+    type: 'string',
     enum: [
         'active',
         'canceled',
@@ -154,11 +160,10 @@ export const StripeSubscriptionStatusSchema = {
         'past_due',
         'paused',
         'trialing',
-        'unpaid',
-        null
+        'unpaid'
     ],
     example: 'active',
-    description: 'Stripe subscription lifecycle status, or null when absent'
+    description: 'Stripe subscription lifecycle status'
 } as const;
 
 export const AdminOrganizationOverviewItemSchema = {
@@ -218,7 +223,16 @@ export const AdminOrganizationOverviewItemSchema = {
             example: 'starter'
         },
         subscriptionStatus: {
-            $ref: '#/components/schemas/StripeSubscriptionStatus'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
         }
     },
     required: [
@@ -518,7 +532,16 @@ export const AdminOrganizationMemberOverviewItemSchema = {
             example: 'starter'
         },
         subscriptionStatus: {
-            $ref: '#/components/schemas/StripeSubscriptionStatus'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
         }
     },
     required: [
@@ -1490,27 +1513,13 @@ export const TaskEventSchema = {
             ]
         },
         status: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'RUNNING'
         }
@@ -6914,14 +6923,7 @@ export const ActiveSubscriptionResponseSchema = {
                     example: 'starter'
                 },
                 status: {
-                    allOf: [
-                        {
-                            $ref: '#/components/schemas/StripeSubscriptionStatus'
-                        },
-                        {
-                            description: 'Stripe subscription lifecycle status'
-                        }
-                    ]
+                    $ref: '#/components/schemas/StripeSubscriptionStatus'
                 },
                 cancelAtPeriodEnd: {
                     type: [
@@ -7112,23 +7114,16 @@ export const PendingInvitationSchema = {
             example: 'jane@example.com'
         },
         role: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/MemberRole'
                 },
                 {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    enum: [
-                        'owner',
-                        'admin',
-                        'member',
-                        null
-                    ]
+                    type: 'null'
                 }
-            ]
+            ],
+            example: 'member',
+            description: 'Organization member role, or null when absent'
         },
         status: {
             $ref: '#/components/schemas/InvitationStatus'
@@ -7734,20 +7729,13 @@ export const JobSchema = {
             example: 5
         },
         onChainStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'FUNDS_LOCKED',
-                'FUNDS_OR_DATUM_INVALID',
-                'FUNDS_WITHDRAWN',
-                'RESULT_SUBMITTED',
-                'REFUND_REQUESTED',
-                'REFUND_WITHDRAWN',
-                'DISPUTED',
-                'DISPUTED_WITHDRAWN',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/OnChainJobStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             example: 'RESULT_SUBMITTED'
         },
@@ -8871,17 +8859,15 @@ export const PublicSharedTaskMilestoneSchema = {
             ]
         },
         status: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/TaskStatus'
                 },
                 {
-                    type: [
-                        'string',
-                        'null'
-                    ]
+                    type: 'null'
                 }
-            ]
+            ],
+            example: 'RUNNING'
         },
         comment: {
             type: [

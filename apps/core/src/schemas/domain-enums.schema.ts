@@ -67,15 +67,15 @@ export const memberRoleSchema = z
     description: "Organization member role",
   });
 
-// `enum` is set explicitly here: `z.enum(...).nullable()` emits
-// `type: ["string", "null"]` but keeps the non-null enum, which makes the
-// generated client drop the nullable union. Listing `null` in the enum keeps
-// the OpenAPI artifact and generated type (`... | null`) consistent.
-export const memberRoleNullableSchema = memberRoleSchema.nullable().openapi({
-  example: MemberRole.MEMBER,
-  enum: [...MEMBER_ROLE_VALUES, null],
-  description: "Organization member role",
-});
+// Prefer `z.union([namedEnum, z.null()])` over `namedEnum.nullable().openapi({
+// enum: [...values, null] })`. The latter can overwrite the named OpenAPI
+// component and make hey-api emit `NULL: null` on the runtime const map.
+export const memberRoleNullableSchema = z
+  .union([memberRoleSchema, z.null()])
+  .openapi({
+    example: MemberRole.MEMBER,
+    description: "Organization member role, or null when absent",
+  });
 
 /** Invitation statuses persisted in Postgres (excludes frontend-only `expired`). */
 export const INVITATION_DB_STATUS_VALUES = [
@@ -121,9 +121,9 @@ export const stripeSubscriptionStatusSchema = z
     description: "Stripe subscription lifecycle status",
   });
 
-export const stripeSubscriptionStatusNullableSchema =
-  stripeSubscriptionStatusSchema.nullable().openapi({
+export const stripeSubscriptionStatusNullableSchema = z
+  .union([stripeSubscriptionStatusSchema, z.null()])
+  .openapi({
     example: "active",
-    enum: [...STRIPE_SUBSCRIPTION_STATUS_VALUES, null],
     description: "Stripe subscription lifecycle status, or null when absent",
   });

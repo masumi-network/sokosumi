@@ -51,8 +51,8 @@ export const publicSharedTaskMilestoneSchema = z
     updatedAt: dateTimeSchema,
     channel: taskEventChannelField,
     origin: taskEventDeprecatedOriginField,
-    status: taskStatusSchema
-      .nullable()
+    status: z
+      .union([taskStatusSchema, z.null()])
       .openapi({ example: TaskStatus.RUNNING }),
     comment: z
       .string()

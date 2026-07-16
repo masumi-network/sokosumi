@@ -54,7 +54,10 @@ export const taskEventSchema = z
       .openapi({ example: "https://example.com/oauth/authorize" }),
     channel: taskEventChannelField,
     origin: taskEventDeprecatedOriginField,
-    status: taskStatusSchema.nullish().openapi({ example: TaskStatus.RUNNING }),
+    status: z
+      .union([taskStatusSchema, z.null()])
+      .optional()
+      .openapi({ example: TaskStatus.RUNNING }),
   })
   .openapi("TaskEvent");
 

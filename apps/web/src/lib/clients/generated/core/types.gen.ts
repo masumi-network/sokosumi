@@ -48,7 +48,10 @@ export type AdminUserOverviewItem = {
      * Active subscription plan, if any
      */
     subscriptionPlan: string | null;
-    subscriptionStatus: StripeSubscriptionStatus;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: StripeSubscriptionStatus | null;
     /**
      * Number of tasks the user has started (status beyond DRAFT)
      */
@@ -56,7 +59,7 @@ export type AdminUserOverviewItem = {
 };
 
 /**
- * Stripe subscription lifecycle status, or null when absent
+ * Stripe subscription lifecycle status
  */
 export const StripeSubscriptionStatus = {
     ACTIVE: 'active',
@@ -66,12 +69,11 @@ export const StripeSubscriptionStatus = {
     PAST_DUE: 'past_due',
     PAUSED: 'paused',
     TRIALING: 'trialing',
-    UNPAID: 'unpaid',
-    NULL: null
+    UNPAID: 'unpaid'
 } as const;
 
 /**
- * Stripe subscription lifecycle status, or null when absent
+ * Stripe subscription lifecycle status
  */
 export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
@@ -88,7 +90,10 @@ export type AdminOrganizationOverviewItem = {
      * Active organization subscription plan, if any
      */
     subscriptionPlan: string | null;
-    subscriptionStatus: StripeSubscriptionStatus;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: StripeSubscriptionStatus | null;
 };
 
 export type AdminOrganizationOverviewDetail = {
@@ -155,7 +160,10 @@ export type AdminOrganizationMemberOverviewItem = {
      * Member subscription plan in organization context
      */
     subscriptionPlan: string | null;
-    subscriptionStatus: StripeSubscriptionStatus;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: StripeSubscriptionStatus | null;
 };
 
 /**
@@ -395,7 +403,7 @@ export type TaskEvent = {
     authenticationUrl?: string | null;
     channel: Channel;
     origin: Channel & unknown;
-    status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status?: TaskStatus | null;
 };
 
 /**
@@ -2112,7 +2120,7 @@ export type StripeCustomerBillingTaxId = {
 export type ActiveSubscriptionResponse = {
     subscription: {
         plan: string;
-        status: StripeSubscriptionStatus & unknown;
+        status: StripeSubscriptionStatus;
         cancelAtPeriodEnd?: boolean | null;
         periodStart?: Date | null;
         periodEnd?: Date | null;
@@ -2153,7 +2161,10 @@ export type PendingInvitation = {
     id: string;
     organizationId: string;
     email: string;
-    role: MemberRole & ('owner' | 'admin' | 'member' | null);
+    /**
+     * Organization member role, or null when absent
+     */
+    role: MemberRole | null;
     status: InvitationStatus;
     expiresAt: Date;
     inviterId: string;
@@ -2333,7 +2344,7 @@ export type Job = {
     jobType: JobType;
     status: SokosumiJobStatus & unknown;
     credits: number;
-    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainStatus?: OnChainJobStatus | null;
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
@@ -2633,7 +2644,7 @@ export type PublicSharedTaskMilestone = {
     updatedAt: Date;
     channel: Channel;
     origin: Channel & unknown;
-    status: TaskStatus & (string | null);
+    status: TaskStatus | null;
     comment: string | null;
     credits: number | null;
     actorName: string | null;
@@ -12926,7 +12937,7 @@ export type GetUsersByIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                status: StripeSubscriptionStatus & unknown;
+                status: StripeSubscriptionStatus;
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -12954,7 +12965,7 @@ export type GetUsersByIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    status: StripeSubscriptionStatus & unknown;
+                    status: StripeSubscriptionStatus;
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -13465,7 +13476,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                status: StripeSubscriptionStatus & unknown;
+                status: StripeSubscriptionStatus;
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -13493,7 +13504,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    status: StripeSubscriptionStatus & unknown;
+                    status: StripeSubscriptionStatus;
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;

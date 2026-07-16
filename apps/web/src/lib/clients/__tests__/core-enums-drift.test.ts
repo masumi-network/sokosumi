@@ -22,8 +22,10 @@ import {
   MemberRole,
   NoticeKind,
   OnChainJobStatus,
+  type PublicSharedTaskMilestone,
   RiskClassification,
   SokosumiJobStatus,
+  StripeSubscriptionStatus,
   TaskStatus,
 } from "@/lib/clients/generated/core";
 
@@ -83,5 +85,17 @@ describe("generated Core enum drift guard", () => {
 
   it("web can import TaskStatus.RUNNING from generated Core client", () => {
     expect(TaskStatus.RUNNING).toBe("RUNNING");
+  });
+
+  it("StripeSubscriptionStatus runtime map excludes null", () => {
+    expect(Object.values(StripeSubscriptionStatus)).not.toContain(null);
+    expect(
+      "NULL" in StripeSubscriptionStatus || "null" in StripeSubscriptionStatus,
+    ).toBe(false);
+  });
+
+  it("PublicSharedTaskMilestone.status admits null in the generated type", () => {
+    const status: PublicSharedTaskMilestone["status"] = null;
+    expect(status).toBeNull();
   });
 });
