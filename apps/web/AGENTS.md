@@ -175,6 +175,16 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Do not import `@sokosumi/database` from web. Do not add Prisma-shaped composites under `packages/utils/src/domain/`.
 - After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
 
+### Better Auth session types vs Core DTOs
+
+Better Auth session and account shapes are a **documented exception** (SOK-588): they live in `@sokosumi/utils`, not in the generated Core REST client.
+
+- **Canonical types** — `Session`, `SessionUser`, `SessionRecord`, and `Account` from `@sokosumi/utils` (`packages/utils/src/better-auth-types.ts`). Import them directly; do **not** add a web-only re-export barrel (e.g. `@/lib/auth/types.ts`).
+- **Protocol shapes, not entity DTOs** — These match Core Better Auth `/auth` JSON responses. They are **not** generated Core `/v1` entity DTOs (`Agent`, `Job`, `OrganizationRecord`, …).
+- **Not Prisma models** — Do not confuse with `@sokosumi/database` `Session` / `Account` tables or Prisma-inferred row types.
+- **Import rules** — Client/UI and shared components: `import type { Session, SessionUser, … } from "@sokosumi/utils"`. Server auth modules that are already server-coupled may import `Session` from `@/lib/auth/auth.server` when that module re-exports or wraps session fetch; otherwise import types from `@sokosumi/utils`.
+- **Helpers vs fetch** — Cookie names, public URLs, and client schema helpers stay in `@sokosumi/utils` unchanged. Session **fetch** stays in web auth modules (`auth.client.ts`, `auth.server.ts`, `core-auth-http.server.ts`) → Core `/auth` only. There is no session-shaped Core REST display endpoint in this phase.
+
 ### View models vs Core DTOs
 
 - **Services and actions return Core DTOs** (`Agent`, `JobSummary`, `Task`, `TaskListItem`, …). Do not invent a web-wide domain model layer that parallels Core shapes.
@@ -341,7 +351,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Additional Rules
 
-- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import pure helpers from `@sokosumi/utils` directly; no passthrough files
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other pure helpers from `@sokosumi/utils` directly; no passthrough files
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)
