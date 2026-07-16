@@ -1,6 +1,7 @@
+import { TaskStatus } from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 

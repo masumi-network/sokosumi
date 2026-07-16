@@ -1,48 +1,53 @@
-import {
-  TaskStatus,
-  type TaskStatus as TaskStatusType,
-} from "./task-status.js";
-
 /**
  * User-initiated task status transitions. Mirrors the user branch of
  * `getAllowedTransitions` in Core (`apps/core/src/helpers/task.ts`).
+ *
+ * Implemented as string literals so this package does not mirror Prisma
+ * `TaskStatus` enums — OpenAPI/codegen owns web runtime types.
  */
+
+/** Task statuses referenced by the user transition table. */
+export type UserTransitionTaskStatus =
+  | "DRAFT"
+  | "QUEUED"
+  | "READY"
+  | "GRANT_PENDING"
+  | "INPUT_REQUIRED"
+  | "APPROVAL_REQUIRED"
+  | "AUTHENTICATION_REQUIRED"
+  | "OUT_OF_CREDITS"
+  | "CREDITS_TOPPED_UP"
+  | "RUNNING"
+  | "AWAITING_EXTERNAL"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELED";
+
 const USER_TASK_STATUS_TRANSITIONS: Record<
-  TaskStatusType,
-  readonly TaskStatusType[]
+  UserTransitionTaskStatus,
+  readonly UserTransitionTaskStatus[]
 > = {
-  [TaskStatus.DRAFT]: [
-    TaskStatus.READY,
-    TaskStatus.CANCELED,
-    TaskStatus.QUEUED,
-  ],
-  [TaskStatus.QUEUED]: [TaskStatus.DRAFT, TaskStatus.READY],
-  [TaskStatus.READY]: [
-    TaskStatus.DRAFT,
-    TaskStatus.CANCELED,
-    TaskStatus.QUEUED,
-  ],
-  [TaskStatus.GRANT_PENDING]: [],
-  [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
-  [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
-  [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
-  [TaskStatus.OUT_OF_CREDITS]: [
-    TaskStatus.CREDITS_TOPPED_UP,
-    TaskStatus.CANCELED,
-  ],
-  [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
-  [TaskStatus.RUNNING]: [TaskStatus.CANCELED],
-  [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCELED],
+  DRAFT: ["READY", "CANCELED", "QUEUED"],
+  QUEUED: ["DRAFT", "READY"],
+  READY: ["DRAFT", "CANCELED", "QUEUED"],
+  GRANT_PENDING: [],
+  INPUT_REQUIRED: ["CANCELED"],
+  APPROVAL_REQUIRED: ["CANCELED"],
+  AUTHENTICATION_REQUIRED: ["CANCELED"],
+  OUT_OF_CREDITS: ["CREDITS_TOPPED_UP", "CANCELED"],
+  CREDITS_TOPPED_UP: ["CANCELED"],
+  RUNNING: ["CANCELED"],
+  AWAITING_EXTERNAL: ["CANCELED"],
   // Users may reopen COMPLETED → READY with a required comment (SOK-631).
-  [TaskStatus.COMPLETED]: [TaskStatus.READY],
-  [TaskStatus.FAILED]: [],
+  COMPLETED: ["READY"],
+  FAILED: [],
   // Users may reopen CANCELED → READY with a required comment (SOK-631).
-  [TaskStatus.CANCELED]: [TaskStatus.READY],
+  CANCELED: ["READY"],
 };
 
 export function canUserTransitionTaskStatus(
-  from: TaskStatusType,
-  to: TaskStatusType,
+  from: UserTransitionTaskStatus,
+  to: UserTransitionTaskStatus,
 ): boolean {
   if (from === to) {
     return false;
@@ -57,11 +62,8 @@ export function canUserTransitionTaskStatus(
  * create-task-event for non-agent actors.
  */
 export function userTaskStatusTransitionRequiresComment(
-  from: TaskStatusType,
-  to: TaskStatusType,
+  from: UserTransitionTaskStatus,
+  to: UserTransitionTaskStatus,
 ): boolean {
-  return (
-    to === TaskStatus.READY &&
-    (from === TaskStatus.CANCELED || from === TaskStatus.COMPLETED)
-  );
+  return to === "READY" && (from === "CANCELED" || from === "COMPLETED");
 }

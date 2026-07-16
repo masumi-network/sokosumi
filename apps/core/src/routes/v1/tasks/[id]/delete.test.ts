@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { getTaskCannotArchiveMessage, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
+import { getTaskCannotArchiveMessage } from "@sokosumi/utils";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

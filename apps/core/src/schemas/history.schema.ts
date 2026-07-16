@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import {

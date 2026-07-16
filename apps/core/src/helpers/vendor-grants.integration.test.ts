@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-
 import {
   GrantResumeStatus,
+  TaskStatus,
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
-import { TaskStatus } from "@sokosumi/utils";
 import { afterAll, describe, it } from "vitest";
 
 import {

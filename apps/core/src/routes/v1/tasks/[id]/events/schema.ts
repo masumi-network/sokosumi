@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import {

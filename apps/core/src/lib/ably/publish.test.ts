@@ -1,4 +1,5 @@
-import { NotificationKind, SokosumiJobStatus } from "@sokosumi/utils";
+import { NotificationKind } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
 import {

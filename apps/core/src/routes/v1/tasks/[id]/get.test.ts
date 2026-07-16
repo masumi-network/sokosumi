@@ -1,6 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskLinkType } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCoworkerAuthorizedTaskWhere,

@@ -3,9 +3,9 @@ import {
   MemberRole,
   type Prisma,
   type Task,
+  TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";

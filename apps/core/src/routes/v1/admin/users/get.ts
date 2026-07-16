@@ -1,9 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
 import {
   subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { TaskStatus } from "@sokosumi/utils";
 
 import {
   jsonErrorResponse,

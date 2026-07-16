@@ -1,8 +1,7 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 const baseLabels = {
   propertiesTitle: "Properties",

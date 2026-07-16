@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { NotificationKind, Prisma } from "@sokosumi/database";
+import { NotificationKind, Prisma, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   convertCreditsToCents,
-  TaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 

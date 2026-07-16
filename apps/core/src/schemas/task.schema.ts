@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { Channel, TaskStatus } from "@sokosumi/utils";
+import { Channel, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";

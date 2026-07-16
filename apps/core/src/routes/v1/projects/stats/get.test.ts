@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { AgentJobStatus, JobType } from "@sokosumi/database";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
