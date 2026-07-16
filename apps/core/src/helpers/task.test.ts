@@ -295,16 +295,6 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("CANCEL_REQUESTED → CANCELED", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.CANCEL_REQUESTED,
-          TaskStatus.CANCELED,
-        ),
-      ).not.toThrow();
-    });
-
     it.each([
       [TaskStatus.READY, TaskStatus.AWAITING_EXTERNAL],
       [TaskStatus.READY, TaskStatus.INPUT_REQUIRED],
@@ -421,20 +411,9 @@ describe("validateStatusTransition", () => {
       [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.OUT_OF_CREDITS],
       [TaskStatus.RUNNING, TaskStatus.OUT_OF_CREDITS],
       [TaskStatus.AWAITING_EXTERNAL, TaskStatus.OUT_OF_CREDITS],
-      [TaskStatus.CANCEL_REQUESTED, TaskStatus.OUT_OF_CREDITS],
     ])("rejects manual %s → OUT_OF_CREDITS", (from, to) => {
       expect(() =>
         validateStatusTransition(coworkerContext, from, to),
-      ).toThrow();
-    });
-
-    it("CANCEL_REQUESTED → RUNNING is invalid for coworkers", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.CANCEL_REQUESTED,
-          TaskStatus.RUNNING,
-        ),
       ).toThrow();
     });
 
@@ -613,26 +592,6 @@ describe("validateStatusTransition", () => {
           userContext,
           TaskStatus.CREDITS_TOPPED_UP,
           TaskStatus.RUNNING,
-        ),
-      ).toThrow();
-    });
-
-    it("rejects CANCEL_REQUESTED → CANCELED (legacy intermediate)", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.CANCEL_REQUESTED,
-          TaskStatus.CANCELED,
-        ),
-      ).toThrow();
-    });
-
-    it("rejects RUNNING → CANCEL_REQUESTED (legacy intermediate)", () => {
-      expect(() =>
-        validateStatusTransition(
-          userContext,
-          TaskStatus.RUNNING,
-          TaskStatus.CANCEL_REQUESTED,
         ),
       ).toThrow();
     });

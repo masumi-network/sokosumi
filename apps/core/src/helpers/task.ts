@@ -135,7 +135,6 @@ function getAllowedTransitions(
       // Agents may reopen COMPLETED → RUNNING (SOK-581).
       [TaskStatus.COMPLETED]: [TaskStatus.RUNNING],
       [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCEL_REQUESTED]: [TaskStatus.CANCELED],
       // Agents may reopen CANCELED → RUNNING (SOK-581).
       [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
     };
@@ -168,7 +167,6 @@ function getAllowedTransitions(
     [TaskStatus.FAILED]: [],
     // CANCELED is terminal for users; coworker agents may reopen (see agent table).
     [TaskStatus.CANCELED]: [],
-    [TaskStatus.CANCEL_REQUESTED]: [],
   };
 }
 

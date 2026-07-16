@@ -37,7 +37,6 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   [TaskStatus.FAILED]: [],
   // CANCELED is terminal for users; coworker agents may reopen via Core agent table.
   [TaskStatus.CANCELED]: [],
-  [TaskStatus.CANCEL_REQUESTED]: [],
 };
 
 export function canUserTransitionTaskStatus(

@@ -124,7 +124,6 @@ const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
   TaskStatus.CREDITS_TOPPED_UP,
   TaskStatus.RUNNING,
   TaskStatus.AWAITING_EXTERNAL,
-  TaskStatus.CANCEL_REQUESTED,
 ]);
 
 async function chargeTaskCreditsOrMarkOutOfCredits(params: {
