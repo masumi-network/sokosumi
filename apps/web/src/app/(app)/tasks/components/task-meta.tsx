@@ -1,7 +1,7 @@
 "use client";
 
 import { Calendar, MessageSquare, UserCog } from "lucide-react";
-
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -10,7 +10,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import type { TaskWithCoworker } from "@/lib/types/task";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {

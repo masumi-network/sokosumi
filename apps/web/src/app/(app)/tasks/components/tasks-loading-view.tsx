@@ -1,11 +1,10 @@
 import { Loader2, Plus, SlidersHorizontal } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import {
   COLUMN_STATUS_COLORS,
   KANBAN_COLUMNS,
   type KanbanColumnId,
-} from "@/lib/types/task";
+} from "@/app/tasks/types/task-board";
+import { Button } from "@/components/ui/button";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
 

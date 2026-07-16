@@ -3,6 +3,10 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
 import { TasksView } from "@/app/tasks/components/tasks-view";
+import {
+  KANBAN_COLUMNS,
+  type KanbanColumnId,
+} from "@/app/tasks/types/task-board";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   findCoworkerIdBySlug,
@@ -25,7 +29,6 @@ import { designMdService } from "@/lib/services/design-md.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
 import {
   parseTasksDensity,
   TASKS_DENSITY_COOKIE_NAME,

@@ -8,9 +8,11 @@ import {
   useDroppable,
 } from "@dnd-kit/core";
 import { type CSSProperties, type ReactNode, useRef } from "react";
+import type {
+  KanbanColumnId,
+  TaskWithCoworker,
+} from "@/app/tasks/types/task-board";
 import { TaskStatus } from "@/lib/clients/generated/core";
-
-import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { hasActiveSchedule } from "@/lib/utils/task-schedule";
 

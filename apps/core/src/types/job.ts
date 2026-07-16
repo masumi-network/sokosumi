@@ -8,6 +8,7 @@ import {
   getCredits,
   getResult,
   getResultHash,
+  isJobStatusSettled,
 } from "@sokosumi/database/helpers";
 
 import {
@@ -17,6 +18,7 @@ import {
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
 export function flattenJob(job: JobWithSummaryRelations) {
+  const completedAt = getCompletedAt(job);
   return {
     id: job.id,
     createdAt: job.createdAt,
@@ -28,7 +30,7 @@ export function flattenJob(job: JobWithSummaryRelations) {
     taskId: job.taskId,
     name: job.name,
     jobType: job.jobType,
-    completedAt: getCompletedAt(job),
+    completedAt,
     onChainStatus: job.purchase?.onChainStatus ?? null,
     onChainTransactionHash: job.purchase?.onChainTransactionHash ?? null,
     result: getResult(job),
@@ -41,6 +43,7 @@ export function flattenJob(job: JobWithSummaryRelations) {
     unlockTime: job.unlockTime ?? null,
     externalDisputeUnlockTime: job.externalDisputeUnlockTime ?? null,
     sellerVkey: job.sellerVkey ?? null,
+    jobStatusSettled: isJobStatusSettled(job, completedAt),
     workspace: mapWorkspaceSummary(job.workspace),
     user: userSummaryFromLoadedRelation(`Job ${job.id}`, job.userId, job.user),
     organization: organizationSummaryFromLoadedRelation(
@@ -76,6 +79,7 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     unlockTime: job.unlockTime ?? null,
     externalDisputeUnlockTime: job.externalDisputeUnlockTime ?? null,
     sellerVkey: job.sellerVkey ?? null,
+    jobStatusSettled: job.jobStatusSettled,
     input: job.input,
     inputHash: job.inputHash,
     inputSchema: job.inputSchema,

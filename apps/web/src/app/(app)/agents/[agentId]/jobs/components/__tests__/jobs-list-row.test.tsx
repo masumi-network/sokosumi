@@ -71,6 +71,7 @@ function createJob(
       image: userOverrides?.image ?? null,
     },
     ...rest,
+    jobStatusSettled: rest.jobStatusSettled ?? false,
   };
 }
 

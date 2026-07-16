@@ -69,6 +69,7 @@ describe("POST /tasks/{id}/jobs", () => {
       jobType: "FREE",
       status: "processing",
       credits: 0,
+      jobStatusSettled: false,
       onChainStatus: null,
       onChainTransactionHash: null,
       result: null,
