@@ -9,7 +9,10 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { canUserTransitionTaskStatus } from "@sokosumi/utils";
+import {
+  canUserTransitionTaskStatus,
+  userTaskStatusTransitionRequiresComment,
+} from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -91,10 +94,23 @@ import {
 import type { TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import {
+  TaskReopenToReadyDialog,
+  type TaskReopenToReadyDialogLabels,
+} from "./task-reopen-to-ready-dialog";
 import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
 import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
+
+interface PendingBoardReopen {
+  taskId: string;
+  fromColumn: KanbanColumnId;
+  toColumn: KanbanColumnId;
+  previousStatus: TaskStatus;
+  desiredStatus: TaskStatus;
+  moveVersion: number;
+}
 
 function HeaderAddButton({ label }: { label: string }) {
   const { handleOpen } = useCreateTaskModal();
@@ -271,6 +287,9 @@ interface TasksViewProps {
     loading: string;
     dragError: string;
     loadMoreError: string;
+    reopenToReady: TaskReopenToReadyDialogLabels & {
+      commentRequired: string;
+    };
     emptyState: {
       title: string;
       description: string;
@@ -363,6 +382,10 @@ export function TasksView({
     width: number;
     height: number;
   } | null>(null);
+  const [pendingBoardReopen, setPendingBoardReopen] =
+    useState<PendingBoardReopen | null>(null);
+  const [reopenComment, setReopenComment] = useState("");
+  const [isReopenPending, startReopenTransition] = useTransition();
   const isMounted = useSyncExternalStore(
     hydrationStore.subscribe,
     hydrationStore.getSnapshot,
@@ -643,6 +666,21 @@ export function TasksView({
       ),
     );
 
+    if (
+      userTaskStatusTransitionRequiresComment(previousStatus, desiredStatus)
+    ) {
+      setReopenComment("");
+      setPendingBoardReopen({
+        taskId: activeId,
+        fromColumn,
+        toColumn,
+        previousStatus,
+        desiredStatus,
+        moveVersion,
+      });
+      return;
+    }
+
     startTransition(async () => {
       try {
         await setTaskStatusFromDrag({
@@ -669,6 +707,71 @@ export function TasksView({
               : task,
           ),
         );
+        toast.error(labels.dragError);
+      }
+    });
+  };
+
+  const rollbackBoardReopen = (pending: PendingBoardReopen) => {
+    const pendingVersion = pendingMoveVersionByTaskIdRef.current.get(
+      pending.taskId,
+    );
+    if (pendingVersion !== pending.moveVersion) return;
+
+    pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
+    setItems((prev) =>
+      prev.map((task) =>
+        task.id === pending.taskId &&
+        task.columnId === pending.toColumn &&
+        task.status === pending.desiredStatus
+          ? {
+              ...task,
+              status: pending.previousStatus,
+              columnId: pending.fromColumn,
+            }
+          : task,
+      ),
+    );
+  };
+
+  const handleBoardReopenOpenChange = (open: boolean) => {
+    if (open) return;
+    if (pendingBoardReopen) {
+      rollbackBoardReopen(pendingBoardReopen);
+    }
+    setPendingBoardReopen(null);
+    setReopenComment("");
+  };
+
+  const handleBoardReopenConfirm = () => {
+    if (!pendingBoardReopen) return;
+
+    const trimmedComment = reopenComment.trim();
+    if (!trimmedComment) {
+      toast.error(labels.reopenToReady.commentRequired);
+      return;
+    }
+
+    const pending = pendingBoardReopen;
+    startReopenTransition(async () => {
+      try {
+        await setTaskStatusFromDrag({
+          taskId: pending.taskId,
+          desiredStatus: pending.desiredStatus,
+          comment: trimmedComment,
+        });
+        if (
+          pendingMoveVersionByTaskIdRef.current.get(pending.taskId) ===
+          pending.moveVersion
+        ) {
+          pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
+        }
+        setPendingBoardReopen(null);
+        setReopenComment("");
+      } catch {
+        rollbackBoardReopen(pending);
+        setPendingBoardReopen(null);
+        setReopenComment("");
         toast.error(labels.dragError);
       }
     });
@@ -1195,6 +1298,15 @@ export function TasksView({
         defaultProjectId={defaultProjectId}
         agentNameById={agentNameById}
         initialDesignMdAttachment={initialDesignMdAttachment}
+      />
+      <TaskReopenToReadyDialog
+        open={pendingBoardReopen != null}
+        onOpenChange={handleBoardReopenOpenChange}
+        labels={labels.reopenToReady}
+        comment={reopenComment}
+        onCommentChange={setReopenComment}
+        onConfirm={handleBoardReopenConfirm}
+        isPending={isReopenPending}
       />
     </CreateTaskModalProvider>
   );

@@ -44,14 +44,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -61,7 +53,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createTaskAndLink,
@@ -90,6 +81,7 @@ import {
   type TaskLinkActionOption,
   TaskLinkTaskPickerDialog,
 } from "./task-link-task-picker-dialog";
+import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskShareButton } from "./task-share-button";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
@@ -848,7 +840,7 @@ export function TaskDetailActions({
         </AlertDialog>
       ) : null}
 
-      <Dialog
+      <TaskReopenToReadyDialog
         open={isReopenDialogOpen}
         onOpenChange={(open) => {
           setIsReopenDialogOpen(open);
@@ -856,55 +848,19 @@ export function TaskDetailActions({
             setReopenComment("");
           }
         }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{labels.reopenToReadyTitle}</DialogTitle>
-            <DialogDescription>
-              {labels.reopenToReadyDescription}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2">
-            <label
-              htmlFor="task-reopen-comment"
-              className="text-sm font-medium"
-            >
-              {labels.reopenToReadyCommentLabel}
-            </label>
-            <Textarea
-              id="task-reopen-comment"
-              value={reopenComment}
-              onChange={(event) => setReopenComment(event.target.value)}
-              placeholder={labels.reopenToReadyCommentPlaceholder}
-              rows={4}
-              disabled={isStatusPending}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isStatusPending}
-              onClick={() => {
-                setIsReopenDialogOpen(false);
-                setReopenComment("");
-              }}
-            >
-              {tApp("cancel")}
-            </Button>
-            <Button
-              type="button"
-              disabled={isStatusPending || !reopenComment.trim()}
-              onClick={handleReopenConfirm}
-            >
-              {isStatusPending && pendingStatusTarget === TaskStatus.READY ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : null}
-              {labels.reopenToReadyConfirm}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        labels={{
+          title: labels.reopenToReadyTitle,
+          description: labels.reopenToReadyDescription,
+          commentLabel: labels.reopenToReadyCommentLabel,
+          commentPlaceholder: labels.reopenToReadyCommentPlaceholder,
+          confirm: labels.reopenToReadyConfirm,
+          cancel: tApp("cancel"),
+        }}
+        comment={reopenComment}
+        onCommentChange={setReopenComment}
+        onConfirm={handleReopenConfirm}
+        isPending={isStatusPending && pendingStatusTarget === TaskStatus.READY}
+      />
 
       {canMove ? (
         <MoveTaskToWorkspaceDialog
