@@ -243,6 +243,52 @@ describe("createTaskRequestSchema", () => {
       }
     });
   });
+
+  it("accepts deprecated origin as channel", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Origin task",
+      description: null,
+      coworkerId: null,
+      origin: Channel.EMAIL,
+    });
+
+    expect(result.channel).toBe(Channel.EMAIL);
+    expect(result.origin).toBe(Channel.EMAIL);
+  });
+
+  it("prefers channel when both channel and matching origin are set", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Both task",
+      description: null,
+      coworkerId: null,
+      channel: Channel.SLACK,
+      origin: Channel.SLACK,
+    });
+
+    expect(result.channel).toBe(Channel.SLACK);
+  });
+
+  it("rejects conflicting channel and origin", () => {
+    const result = createTaskRequestSchema.safeParse({
+      name: "Conflict task",
+      description: null,
+      coworkerId: null,
+      channel: Channel.SLACK,
+      origin: Channel.EMAIL,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("defaults channel to SOKOSUMI when neither channel nor origin is set", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Default channel task",
+      description: null,
+      coworkerId: null,
+    });
+
+    expect(result.channel).toBe(Channel.SOKOSUMI);
+  });
 });
 
 describe("POST /tasks", () => {
@@ -427,6 +473,55 @@ describe("POST /tasks", () => {
         data: expect.objectContaining({ name: "My task" }),
       }),
     );
+  });
+
+  it("accepts deprecated origin-only and persists resolved channel on create", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Origin task",
+        description: null,
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        origin: Channel.EMAIL,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          events: {
+            create: expect.objectContaining({
+              channel: Channel.EMAIL,
+            }),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("rejects conflicting channel and origin", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Conflict task",
+        description: null,
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SLACK,
+        origin: Channel.EMAIL,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 });
 
