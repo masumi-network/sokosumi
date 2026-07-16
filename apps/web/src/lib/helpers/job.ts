@@ -1,7 +1,6 @@
-import { JobType } from "@sokosumi/utils";
-
 import type { JobStatusData } from "@/lib/ably";
 import type { Job, JobSummary } from "@/lib/clients/generated/core";
+import { JobType } from "@/lib/clients/generated/core";
 
 export type CoreJobListItem = JobSummary & {
   jobStatusSettled?: boolean;

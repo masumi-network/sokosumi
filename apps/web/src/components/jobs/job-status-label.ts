@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 export function getJobStatusBadgeLabelKey(status: SokosumiJobStatus) {
   switch (status) {

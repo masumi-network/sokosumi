@@ -1,6 +1,7 @@
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 const filterDropdownMenuMock = vi.fn();
 

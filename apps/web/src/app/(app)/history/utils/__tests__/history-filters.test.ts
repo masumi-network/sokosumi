@@ -1,6 +1,5 @@
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
 import {
   applyHistoryProjectAllowlist,
   buildHistoryFiltersSearchParams,
@@ -18,6 +17,7 @@ import {
   sanitizeHistoryStatusInput,
   sanitizeHistoryTypeInput,
 } from "@/app/history/utils/history-filters";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;

@@ -1,6 +1,5 @@
 "use client";
 
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,6 +8,7 @@ import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { CoreJobListItem } from "@/lib/helpers/job";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
