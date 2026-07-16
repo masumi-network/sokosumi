@@ -41,9 +41,24 @@ export function TaskReopenToReadyDialog({
   onConfirm,
   isPending = false,
 }: TaskReopenToReadyDialogProps) {
+  function handleOpenChange(nextOpen: boolean) {
+    // Keep the dialog open while submit is in flight so Escape / outside-click
+    // cannot clear pending board state while Core may still succeed.
+    if (!nextOpen && isPending) return;
+    onOpenChange(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="sm:max-w-md"
+        onEscapeKeyDown={(event) => {
+          if (isPending) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (isPending) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{labels.title}</DialogTitle>
           <DialogDescription>{labels.description}</DialogDescription>
@@ -66,7 +81,7 @@ export function TaskReopenToReadyDialog({
             type="button"
             variant="outline"
             disabled={isPending}
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
           >
             {labels.cancel}
           </Button>

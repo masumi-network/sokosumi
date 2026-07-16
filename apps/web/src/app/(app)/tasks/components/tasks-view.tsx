@@ -84,6 +84,7 @@ import {
 import { JobsListView } from "./jobs-list-view";
 import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
+import { shouldRollbackBoardReopenOnDismiss } from "./task-board-reopen";
 import { TaskCard } from "./task-card";
 import {
   isDnDDragColumn,
@@ -736,6 +737,7 @@ export function TasksView({
 
   const handleBoardReopenOpenChange = (open: boolean) => {
     if (open) return;
+    if (!shouldRollbackBoardReopenOnDismiss(isReopenPending)) return;
     if (pendingBoardReopen) {
       rollbackBoardReopen(pendingBoardReopen);
     }

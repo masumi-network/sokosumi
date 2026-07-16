@@ -1001,8 +1001,8 @@ function getTaskStatusActions(
     ];
   }
 
-  // READY still requires a coworker assignment in Core; canceled drafts without
-  // a coworker cannot be patched while terminal, so hide reopen in that case.
+  // READY still requires a coworker assignment in Core; terminal tasks without
+  // a coworker cannot be patched while canceled/completed, so hide reopen.
   if (
     (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) &&
     options.hasCoworker
