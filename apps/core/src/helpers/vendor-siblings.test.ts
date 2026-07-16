@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 

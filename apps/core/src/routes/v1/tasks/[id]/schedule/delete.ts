@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";

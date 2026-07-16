@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";

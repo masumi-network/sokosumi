@@ -1,11 +1,12 @@
-import { type Agent, HistoryKind, type Prisma } from "@sokosumi/database";
+import {
+  type Agent,
+  HistoryKind,
+  type Prisma,
+  TaskStatus,
+} from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
-import {
-  convertCentsToCredits,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@sokosumi/utils";
+import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
 
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
 import { createPaginationMeta } from "@/helpers/pagination";

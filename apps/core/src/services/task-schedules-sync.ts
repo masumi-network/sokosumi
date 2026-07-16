@@ -1,7 +1,11 @@
 import * as Sentry from "@sentry/node";
-import { Channel, type Prisma, TaskLinkType } from "@sokosumi/database";
+import {
+  Channel,
+  type Prisma,
+  TaskLinkType,
+  TaskStatus,
+} from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/database/types/task-schedule-metadata";
-import { TaskStatus } from "@sokosumi/utils";
 
 import {
   computeScheduleNextRun,

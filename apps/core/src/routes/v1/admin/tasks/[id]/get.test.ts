@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 import { createMiddleware } from "hono/factory";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";

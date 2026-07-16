@@ -1,6 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import {
+  TaskStatus,
+  VendorGrantStatus,
+  VendorPermission,
+} from "@sokosumi/database";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";

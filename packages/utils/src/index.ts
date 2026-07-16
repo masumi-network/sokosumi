@@ -53,42 +53,6 @@ export {
   DESIGN_MD_ATTACHMENT_LABEL,
   removeDesignMdAttachmentLinks,
 } from "./design-md-attachment.js";
-export type {
-  AgentJobStatus as AgentJobStatusType,
-  AgentStatus as AgentStatusType,
-  BlobStatus as BlobStatusType,
-  Channel as ChannelType,
-  InvitationStatus as InvitationStatusType,
-  JobType as JobTypeType,
-  MemberRole as MemberRoleType,
-  NextJobAction as NextJobActionType,
-  NextJobActionErrorType as NextJobActionErrorTypeType,
-  NoticeKind as NoticeKindType,
-  OnChainJobStatus as OnChainJobStatusType,
-  OnChainTransactionStatus as OnChainTransactionStatusType,
-  PaymentType as PaymentTypeType,
-  PricingType as PricingTypeType,
-  RiskClassification as RiskClassificationType,
-  TaskLinkType as TaskLinkTypeType,
-} from "./domain/index.js";
-export {
-  AgentJobStatus,
-  AgentStatus,
-  BlobStatus,
-  Channel,
-  InvitationStatus,
-  JobType,
-  MemberRole,
-  NextJobAction,
-  NextJobActionErrorType,
-  NoticeKind,
-  OnChainJobStatus,
-  OnChainTransactionStatus,
-  PaymentType,
-  PricingType,
-  RiskClassification,
-  TaskLinkType,
-} from "./domain/index.js";
 export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,
@@ -130,10 +94,14 @@ export {
   extractLinks,
 } from "./markdown-links-extract.js";
 export {
+  NextJobAction,
+  NextJobActionErrorType,
+  OnChainTransactionStatus,
+} from "./masumi-protocol.js";
+export {
   serializeMetadataRecord,
   stringifyMetadataRecord,
 } from "./metadata-record.js";
-export { NotificationKind } from "./notification-kind.js";
 export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,
@@ -182,9 +150,9 @@ export {
   TASK_EDITABLE_STATUSES,
   type TaskEditableStatus,
 } from "./task-editable.js";
-export { TaskStatus } from "./task-status.js";
 export {
   canUserTransitionTaskStatus,
+  type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
 export {

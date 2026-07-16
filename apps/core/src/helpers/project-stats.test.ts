@@ -1,6 +1,6 @@
-import { AgentJobStatus, JobType } from "@sokosumi/database";
+import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getProjectStatsByProjectIds } from "./project-stats";

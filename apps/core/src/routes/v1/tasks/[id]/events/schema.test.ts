@@ -1,6 +1,5 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { Channel } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { Channel, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import { LIMITS } from "@/config/constants";

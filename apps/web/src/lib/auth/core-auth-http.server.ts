@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { MemberRole } from "@sokosumi/utils";
+import type { MemberRole } from "@/lib/clients/generated/core";
 
 import {
   fetchCoreAuth,

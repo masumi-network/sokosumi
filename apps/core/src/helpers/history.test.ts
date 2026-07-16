@@ -1,5 +1,5 @@
-import { HistoryKind, JobType } from "@sokosumi/database";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import { HistoryKind, JobType, TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
 import type prisma from "@/lib/db/prisma";
