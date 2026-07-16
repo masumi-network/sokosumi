@@ -1,6 +1,7 @@
-import { TaskStatus } from "@/lib/clients/generated/core";
-
-import type { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
+import {
+  type TaskLinkRelation,
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 
 import { TaskRelationRow } from "./task-relation-row";
 

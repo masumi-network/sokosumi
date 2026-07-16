@@ -1,6 +1,6 @@
 import {
   type TaskLink,
-  type TaskLinkRelation as TaskLinkRelationValue,
+  type TaskLinkRelation,
   type TaskListItem,
   TaskStatus,
 } from "@/lib/clients/generated/core";
@@ -17,7 +17,7 @@ export interface VisibleTaskLink {
   id: string;
   name: string;
   status: TaskStatus;
-  relation: TaskLinkRelationValue;
+  relation: TaskLinkRelation;
 }
 
 export function mapTaskListItemToTaskPickerTask(

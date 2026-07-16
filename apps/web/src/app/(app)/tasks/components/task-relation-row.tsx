@@ -1,6 +1,8 @@
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
+import {
+  type TaskLinkRelation,
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import { TaskDetailLink } from "./task-detail-link";
