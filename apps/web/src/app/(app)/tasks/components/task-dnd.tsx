@@ -7,8 +7,8 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
-import { TaskStatus } from "@sokosumi/utils";
 import { type CSSProperties, type ReactNode, useRef } from "react";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";

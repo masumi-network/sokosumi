@@ -1,7 +1,5 @@
-import { AgentJobStatus, TaskStatus } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
-
 import { Suspense } from "react";
 import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
 import { TasksView } from "@/app/tasks/components/tasks-view";
@@ -19,6 +17,7 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
+import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";

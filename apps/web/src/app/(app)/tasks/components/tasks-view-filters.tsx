@@ -1,6 +1,5 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/utils";
 import { Building2, CircleDashed, FolderKanban, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
@@ -15,6 +14,7 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 interface TasksViewFiltersProps {

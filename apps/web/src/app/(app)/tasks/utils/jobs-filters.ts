@@ -1,5 +1,3 @@
-import { AgentJobStatus, SokosumiJobStatus } from "@sokosumi/utils";
-
 import {
   firstQueryString,
   getDefaultTasksScope,
@@ -10,6 +8,10 @@ import {
   type TasksFilterQueryParam,
   type TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
+import {
+  AgentJobStatus,
+  SokosumiJobStatus,
+} from "@/lib/clients/generated/core";
 
 export interface JobsListFilters {
   scope: TasksScope;

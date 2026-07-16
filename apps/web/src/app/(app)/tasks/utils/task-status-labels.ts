@@ -1,4 +1,4 @@
-import { type TaskStatus } from "@sokosumi/utils";
+import { type TaskStatus } from "@/lib/clients/generated/core";
 
 import {
   TASK_STATUS_DISPLAY_ORDER,

@@ -1,5 +1,5 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { CircleAlert } from "lucide-react";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
 

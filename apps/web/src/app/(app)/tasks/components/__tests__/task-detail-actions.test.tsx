@@ -14,11 +14,6 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import {
-  getTaskLinkActionInput,
-  TASK_STATUS,
-  type TaskStatus,
-} from "@/app/tasks/components/task-detail-api-types";
-import {
   createTaskAndLink,
   createTaskLink,
   deleteTask,
@@ -26,7 +21,7 @@ import {
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
+import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const { pushMock, refreshMock, browserCoreClientMock, isMobileMock } =
@@ -392,7 +387,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
           const result = await onCreateTask({
             description: "Created related task",
             coworkerId: initialValues?.coworkerId ?? null,
-            status: TASK_STATUS.READY,
+            status: TaskStatus.READY,
           });
           onSuccess?.(result.taskId);
         }}
@@ -425,7 +420,7 @@ function buildTaskListItem(
     coworkerId: null,
     name: "Alpha task",
     description: null,
-    status: TASK_STATUS.READY,
+    status: TaskStatus.READY,
     credits: 0,
     events: [],
     jobs: [],
@@ -463,7 +458,7 @@ const defaultTaskLinks = [
     peerTask: {
       id: "task-parent",
       name: "Parent task",
-      status: TASK_STATUS.READY,
+      status: TaskStatus.READY,
       archivedAt: null,
     },
   },
@@ -479,7 +474,7 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-related",
       name: "Related task",
-      status: TASK_STATUS.READY,
+      status: TaskStatus.READY,
       archivedAt: null,
     },
   },
@@ -492,7 +487,7 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-blocked",
       name: "Blocked task",
-      status: TASK_STATUS.DRAFT,
+      status: TaskStatus.DRAFT,
       archivedAt: null,
     },
   },
@@ -505,7 +500,7 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-subtask",
       name: "Sub-task",
-      status: TASK_STATUS.READY,
+      status: TaskStatus.READY,
       archivedAt: null,
     },
   },
@@ -518,7 +513,7 @@ const removableTaskLinks = [
     peerTask: {
       id: "task-archived",
       name: "Archived duplicate",
-      status: TASK_STATUS.CANCELED,
+      status: TaskStatus.CANCELED,
       archivedAt: new Date("2024-01-02T00:00:00.000Z"),
     },
   },
@@ -539,7 +534,7 @@ function renderActions(
     <TaskDetailActions
       taskId="task-1"
       share={null}
-      status={TASK_STATUS.READY}
+      status={TaskStatus.READY}
       jobsCount={0}
       taskLinks={[]}
       coworkerOptions={coworkerOptions}
@@ -572,9 +567,9 @@ describe("TaskDetailActions", () => {
   });
 
   it.each([
-    TASK_STATUS.COMPLETED,
-    TASK_STATUS.FAILED,
-    TASK_STATUS.CANCELED,
+    TaskStatus.COMPLETED,
+    TaskStatus.FAILED,
+    TaskStatus.CANCELED,
   ] as const)(
     "shows archive in the overflow menu for finalized status %s without edit",
     async (status) => {
@@ -600,7 +595,7 @@ describe("TaskDetailActions", () => {
   it("shows edit for queued tasks", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.QUEUED,
+      status: TaskStatus.QUEUED,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
@@ -611,7 +606,7 @@ describe("TaskDetailActions", () => {
   it("hides archive while the coworker is running", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.RUNNING,
+      status: TaskStatus.RUNNING,
       organizations: undefined,
     });
 
@@ -627,7 +622,7 @@ describe("TaskDetailActions", () => {
   it("shows cancel request while approval is required", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.APPROVAL_REQUIRED,
+      status: TaskStatus.APPROVAL_REQUIRED,
       organizations: undefined,
     });
 
@@ -677,7 +672,7 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockReturnValueOnce(deferred.promise);
 
     renderActions({
-      status: TASK_STATUS.DRAFT,
+      status: TaskStatus.DRAFT,
       organizations: undefined,
     });
 
@@ -693,7 +688,7 @@ describe("TaskDetailActions", () => {
 
     expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
       taskId: "task-1",
-      desiredStatus: TASK_STATUS.READY,
+      desiredStatus: TaskStatus.READY,
     });
 
     deferred.resolve({ taskId: "task-1" });
@@ -709,7 +704,7 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
 
     renderActions({
-      status: TASK_STATUS.DRAFT,
+      status: TaskStatus.DRAFT,
       organizations: undefined,
     });
 
@@ -719,7 +714,7 @@ describe("TaskDetailActions", () => {
     await waitFor(() => {
       expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
         taskId: "task-1",
-        desiredStatus: TASK_STATUS.READY,
+        desiredStatus: TaskStatus.READY,
       });
     });
   });
@@ -727,7 +722,7 @@ describe("TaskDetailActions", () => {
   it("renders archive without status reopen actions for canceled tasks", async () => {
     const user = userEvent.setup();
     renderActions({
-      status: TASK_STATUS.CANCELED,
+      status: TaskStatus.CANCELED,
       organizations: undefined,
     });
 
@@ -907,7 +902,7 @@ describe("TaskDetailActions", () => {
       expect(createTaskLinkMock).toHaveBeenCalledWith({
         taskId: "task-1",
         relatedTaskId: "task-3",
-        ...getTaskLinkActionInput(TaskLinkRelation.RELATED),
+        relation: TaskLinkRelation.RELATED,
       });
     });
   });
@@ -925,7 +920,7 @@ describe("TaskDetailActions", () => {
         buildTaskListItem({
           id: "task-3",
           name: "Beta task",
-          status: TASK_STATUS.DRAFT,
+          status: TaskStatus.DRAFT,
         }),
       ],
       meta: {
@@ -957,7 +952,7 @@ describe("TaskDetailActions", () => {
       expect(createTaskLinkMock).toHaveBeenCalledWith({
         taskId: "task-1",
         relatedTaskId: "task-2",
-        ...getTaskLinkActionInput(TaskLinkRelation.RELATED),
+        relation: TaskLinkRelation.RELATED,
       });
       expect(alphaTaskButton).toBeDisabled();
       expect(betaTaskButton).toBeDisabled();
@@ -1073,8 +1068,8 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         coworkerId: "coworker-1",
-        status: TASK_STATUS.READY,
-        ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
+        status: TaskStatus.READY,
+        relation: TaskLinkRelation.PARENT,
       });
     });
 
@@ -1123,7 +1118,7 @@ describe("TaskDetailActions", () => {
       peerTask: {
         id: "task-parent-2",
         name: "Other parent",
-        status: TASK_STATUS.READY,
+        status: TaskStatus.READY,
         archivedAt: null,
       },
     } as const;
@@ -1365,8 +1360,8 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         coworkerId: "coworker-1",
-        status: TASK_STATUS.READY,
-        ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
+        status: TaskStatus.READY,
+        relation: TaskLinkRelation.PARENT,
       });
     });
 

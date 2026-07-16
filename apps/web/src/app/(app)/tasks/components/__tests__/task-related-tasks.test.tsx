@@ -1,8 +1,7 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
