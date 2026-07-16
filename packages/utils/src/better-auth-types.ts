@@ -8,7 +8,8 @@
  *   (`Agent`, `Job`, `OrganizationRecord`, … from `/v1`).
  * - **Not** Prisma `Session` / `Account` models from `@sokosumi/database`.
  * - Kept next to cookie, public-URL, and client-schema helpers; parity tests
- *   guard drift against Core auth responses.
+ *   guard `SessionUser` keys against `betterAuthUserAdditionalFields` (client
+ *   schema), not live Core `/auth` HTTP payloads.
  */
 
 export interface SessionUser {

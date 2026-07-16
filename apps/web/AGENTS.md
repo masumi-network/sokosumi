@@ -182,7 +182,7 @@ Better Auth session and account shapes are a **documented exception** (SOK-588):
 - **Canonical types** — `Session`, `SessionUser`, `SessionRecord`, and `Account` from `@sokosumi/utils` (`packages/utils/src/better-auth-types.ts`). Import them directly; do **not** add a web-only re-export barrel (e.g. `@/lib/auth/types.ts`).
 - **Protocol shapes, not entity DTOs** — These match Core Better Auth `/auth` JSON responses. They are **not** generated Core `/v1` entity DTOs (`Agent`, `Job`, `OrganizationRecord`, …).
 - **Not Prisma models** — Do not confuse with `@sokosumi/database` `Session` / `Account` tables or Prisma-inferred row types.
-- **Import rules** — Client/UI and shared components: `import type { Session, SessionUser, … } from "@sokosumi/utils"`. Server auth modules that are already server-coupled may import `Session` from `@/lib/auth/auth.server` when that module re-exports or wraps session fetch; otherwise import types from `@sokosumi/utils`.
+- **Import rules** — Prefer `import type { Session, SessionUser, … } from "@sokosumi/utils"` everywhere (client/UI, services, tests). Do **not** add a type-only passthrough under `@/lib/auth/`. Callers that already import runtime helpers from `@/lib/auth/auth.server` may also use that module’s existing `export type { Session }` — treat it as incidental to the fetch module, not a second ownership path.
 - **Helpers vs fetch** — Cookie names, public URLs, and client schema helpers stay in `@sokosumi/utils` unchanged. Session **fetch** stays in web auth modules (`auth.client.ts`, `auth.server.ts`, `core-auth-http.server.ts`) → Core `/auth` only. There is no session-shaped Core REST display endpoint in this phase.
 
 ### View models vs Core DTOs
