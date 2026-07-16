@@ -409,13 +409,30 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects masumiPayment when status is CANCELED", () => {
+  it("accepts masumiPayment when status is RUNNING", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      masumiPayment: validMasumiPayment,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts masumiPayment when status is CANCELED", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.CANCELED,
       masumiPayment: validMasumiPayment,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts charge-only masumiPayment without status, comment, or credits", () => {
+    const result = taskEventRequestSchema.safeParse({
+      masumiPayment: validMasumiPayment,
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("rejects PaymentSource.network mismatch", () => {

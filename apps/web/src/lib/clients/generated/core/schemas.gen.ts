@@ -9714,7 +9714,7 @@ export const MasumiPaymentSchema = {
         'inputHash',
         'Amounts'
     ],
-    description: 'On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.'
+    description: 'On-chain Masumi credit charge for a credit-bearing task event. Coworker-only; allowed on any credit-bearing event; omit credits when set.'
 } as const;
 
 export const MasumiTaskPaymentSourceSchema = {
