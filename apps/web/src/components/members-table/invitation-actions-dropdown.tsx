@@ -1,10 +1,8 @@
-import { MemberRole } from "@sokosumi/utils";
 import { Ellipsis, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth.client";
 import type { PendingInvitation } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 

@@ -1,9 +1,8 @@
 "use client";
 
-import { BlobStatus } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-
 import { Badge } from "@/components/ui/badge";
+import { BlobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 export interface BlobStatusBadgeProps {
