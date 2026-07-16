@@ -34,8 +34,17 @@ const ALLOWLIST_UTILS_NAME = "SokosumiJobStatus";
 const UTILS_MODULE_RE = /@sokosumi\/utils(?:\/[^"'`\s]+)?/;
 const UTILS_STAR_IMPORT_RE =
   /import\s+\*\s+as\s+[\w$]+\s+from\s+["'`]@sokosumi\/utils(?:\/[^"'`]*)?["'`]/g;
-const UTILS_NAMED_IMPORT_RE =
-  /import\s+(?:type\s+)?\{([^}]+)\}\s+from\s+["'`]@sokosumi\/utils(?:\/[^"'`]*)?["'`]/g;
+/** Named `import` / `export … from` of members from @sokosumi/utils. */
+const UTILS_NAMED_FROM_RE =
+  /(?:import|export)\s+(?:type\s+)?\{([^}]+)\}\s+from\s+["'`]@sokosumi\/utils(?:\/[^"'`]*)?["'`]/g;
+/**
+ * Runtime dynamic `import("@sokosumi/utils")` (bypass vector for named enums).
+ * Skips TypeScript `typeof import("…")` type queries used in tests/mocks.
+ */
+const UTILS_DYNAMIC_IMPORT_RE =
+  /(?<!typeof\s)import\s*\(\s*["'`](@sokosumi\/utils(?:\/[^"'`]*)?)["'`]\s*\)/g;
+const DATABASE_IMPORT_RE =
+  /(?:import|export)\s+[\s\S]*?from\s+["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]|import\s*\(\s*["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]\s*\)|require\s*\(\s*["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]\s*\)/;
 
 /** @type {Array<{ file: string; rule: string; detail: string }>} */
 const violations = [];
@@ -76,11 +85,21 @@ function parseNamedImports(specifiers) {
 }
 
 function scanFile(relPath, content) {
-  if (content.includes("@sokosumi/database")) {
+  // package.json: any dependency key mentioning the package is a violation.
+  // Source: require import/export/require/dynamic-import or a dependency string literal.
+  if (relPath.endsWith("package.json")) {
+    if (content.includes("@sokosumi/database")) {
+      violations.push({
+        file: relPath,
+        rule: "database-import",
+        detail: "Found forbidden `@sokosumi/database` in package.json",
+      });
+    }
+  } else if (DATABASE_IMPORT_RE.test(content)) {
     violations.push({
       file: relPath,
       rule: "database-import",
-      detail: "Found forbidden substring `@sokosumi/database`",
+      detail: "Found forbidden import/require of `@sokosumi/database`",
     });
   }
 
@@ -93,7 +112,7 @@ function scanFile(relPath, content) {
   }
   UTILS_STAR_IMPORT_RE.lastIndex = 0;
 
-  let match = UTILS_NAMED_IMPORT_RE.exec(content);
+  let match = UTILS_NAMED_FROM_RE.exec(content);
   while (match !== null) {
     const moduleMatch = match[0].match(UTILS_MODULE_RE);
     const moduleName = moduleMatch?.[0] ?? "@sokosumi/utils";
@@ -106,7 +125,17 @@ function scanFile(relPath, content) {
         });
       }
     }
-    match = UTILS_NAMED_IMPORT_RE.exec(content);
+    match = UTILS_NAMED_FROM_RE.exec(content);
+  }
+
+  let dynamicMatch = UTILS_DYNAMIC_IMPORT_RE.exec(content);
+  while (dynamicMatch !== null) {
+    violations.push({
+      file: relPath,
+      rule: "utils-dynamic-import",
+      detail: `Dynamic import of ${dynamicMatch[1]} is forbidden (use named imports from generated Core for domain enums)`,
+    });
+    dynamicMatch = UTILS_DYNAMIC_IMPORT_RE.exec(content);
   }
 }
 

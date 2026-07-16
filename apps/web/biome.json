@@ -34,7 +34,7 @@
                   "Channel",
                   "*"
                 ],
-                "message": "Import domain enum values from @/lib/clients/generated/core, not @sokosumi/utils. See apps/web/AGENTS.md (Core DTO boundary)."
+                "message": "Import domain enum values from @/lib/clients/generated/core, not @sokosumi/utils. (`*` blocks namespace imports only.) See apps/web/AGENTS.md (Core DTO boundary)."
               }
             },
             "patterns": [
