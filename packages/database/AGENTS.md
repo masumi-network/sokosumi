@@ -147,6 +147,7 @@ export const userRepository = {
 - Create migrations with `pnpm prisma:migrate:dev`
 - Migration files are in `prisma/migrations/`
 - Use descriptive migration names
+- **Vercel (Core):** After a successful Core app build, `pnpm vercel-build` runs `prisma migrate deploy` against that deployment’s database (Production and Preview). Prisma CLI prefers `DATABASE_URL_UNPOOLED` (injected by the Vercel Neon integration), then `DATABASE_URL`. Keep migrations backward-compatible with the previous Core release for the brief window before the new deployment activates.
 
 ## Package-Specific Commands
 
@@ -157,7 +158,7 @@ export const userRepository = {
 | `pnpm database:format`       | Format code with Biome        |
 | `pnpm prisma:generate`       | Generate Prisma client        |
 | `pnpm prisma:migrate:dev`    | Create new migration          |
-| `pnpm prisma:migrate:deploy` | Apply migrations (production) |
+| `pnpm prisma:migrate:deploy` | Apply migrations (production / Core Vercel build) |
 | `pnpm prisma:migrate:reset`  | Reset database (dev only)     |
 | `pnpm prisma:studio`         | Open Prisma Studio            |
 

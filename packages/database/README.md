@@ -213,7 +213,7 @@ pnpm run prisma:generate
 # Create a new migration
 pnpm run prisma:migrate:dev
 
-# Apply migrations (production)
+# Apply migrations (production / Core Vercel build)
 pnpm run prisma:migrate:deploy
 
 # Reset database (development only)

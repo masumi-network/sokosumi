@@ -44,7 +44,8 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 
 | Variable | Purpose |
 | -------- | ------- |
-| `DATABASE_URL` | Postgres connection string |
+| `DATABASE_URL` | Postgres connection string (Neon pooled URL at runtime on Vercel) |
+| `DATABASE_URL_UNPOOLED` | Injected by the Vercel Neon integration. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
 | `BETTER_AUTH_SECRET` | Shared secret with the web app’s Better Auth config |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
@@ -259,6 +260,16 @@ If you encounter build script warnings for `@sentry/profiling-node`:
 ```sh
 pnpm approve-builds @sentry/profiling-node
 ```
+
+## Deployment (Vercel)
+
+Core’s [`vercel.json`](./vercel.json) sets `buildCommand` to `pnpm vercel-build`, which:
+
+1. Runs `pnpm run build` (workspace deps + `tsup`)
+2. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`
+3. On migrate failure, the build exits non-zero and Vercel does not activate the new deployment
+
+No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch.
 
 ## Contributing
 

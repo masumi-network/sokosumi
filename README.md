@@ -65,6 +65,7 @@ Other available scripts:
 
 - **Staging:** All changes merged to `main` are auto-deployed to staging.
 - **Production:** Maintainers create a GitHub Release (semantic versioning, e.g., `v1.0.0`) to trigger production deployment.
+- **Database migrations:** The Core Vercel build (`pnpm vercel-build`) runs `prisma migrate deploy` **after** a successful app build and before the deployment activates (Production and Preview). Each Preview has its own database via the Vercel Neon integration. Migrate uses `DATABASE_URL_UNPOOLED` when present (injected by Neon), otherwise `DATABASE_URL`. Web does not run migrations.
 
 ## Contributing
 

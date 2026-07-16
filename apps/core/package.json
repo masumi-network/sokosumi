@@ -17,6 +17,7 @@
     "prepare": "pnpm run build:workspace-deps",
     "prebuild": "pnpm run build:workspace-deps",
     "build": "tsup",
+    "vercel-build": "pnpm run build && pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "start": "node dist/index.js",
     "format": "biome format --write .",
     "format:check": "biome format .",

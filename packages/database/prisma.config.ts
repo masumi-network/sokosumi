@@ -8,9 +8,12 @@ export default {
     path: "prisma/migrations",
   },
   datasource: {
-    // Use placeholder URL for generate if DATABASE_URL is not available
-    // Prisma generate doesn't connect to the database, it only validates the URL format
+    // Prefer non-pooler URL for migrate deploy (Neon DDL via PgBouncer fails).
+    // Vercel Neon integration injects DATABASE_URL_UNPOOLED automatically
+    // (Production + per-preview branches). Fall back to DATABASE_URL for
+    // local/dev. Placeholder only for prisma generate.
     url:
+      process.env.DATABASE_URL_UNPOOLED ||
       process.env.DATABASE_URL ||
       "postgresql://user:password@localhost:5432/sokosumi?schema=public",
   },
