@@ -1,4 +1,4 @@
-import { getOrganizationMetadata, MemberRole } from "@sokosumi/utils";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import {
   DesignMdLoadError,
@@ -6,6 +6,7 @@ import {
 } from "@/components/design-md/design-md-edit-page-shared";
 import { DesignMdEditor } from "@/components/design-md-editor/design-md-editor";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { MemberRole } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 
 interface OrganizationDesignMdEditPageProps {

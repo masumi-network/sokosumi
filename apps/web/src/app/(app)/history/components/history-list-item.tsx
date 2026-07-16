@@ -1,10 +1,5 @@
 "use client";
 
-import {
-  NotificationKind,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@sokosumi/utils";
 import Link from "next/link";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import {
@@ -18,7 +13,9 @@ import {
 } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { NotificationKind, TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/services/history.service";
+import type { SokosumiJobStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";

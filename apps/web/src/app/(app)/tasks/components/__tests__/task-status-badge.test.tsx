@@ -1,8 +1,7 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 describe("TaskStatusBadge", () => {
   it("applies status text color to warning icons", () => {

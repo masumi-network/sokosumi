@@ -6,18 +6,17 @@ import {
   isResultHashVerified,
   type ResultVerificationOptions,
 } from "@sokosumi/masumi/hash";
-import { JobType, OnChainJobStatus } from "@sokosumi/utils";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
+import { JobType, OnChainJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface VerificationState {

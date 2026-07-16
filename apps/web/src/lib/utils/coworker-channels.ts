@@ -1,6 +1,5 @@
-import { Channel } from "@sokosumi/utils";
-
 import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
+import { Channel } from "@/lib/clients/generated/core";
 import type { CoworkerChannel } from "@/lib/types/coworker";
 
 const COWORKER_CHANNEL_SPECS: ReadonlyArray<{

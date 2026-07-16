@@ -16,8 +16,8 @@ import {
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type {
   GetTasksResponse,
-  TaskLinkRelation as TaskLinkRelationValue,
-} from "@/lib/clients/generated/core/types.gen";
+  TaskLinkRelation,
+} from "@/lib/clients/generated/core";
 
 import {
   mapTaskListItemToTaskPickerTask,
@@ -29,7 +29,7 @@ const TASK_PICKER_PAGE_SIZE = 20;
 export interface TaskLinkActionOption {
   id: string;
   label: string;
-  relation: TaskLinkRelationValue;
+  relation: TaskLinkRelation;
   icon: LucideIcon;
 }
 

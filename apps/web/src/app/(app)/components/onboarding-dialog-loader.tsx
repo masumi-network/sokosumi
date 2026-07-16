@@ -2,11 +2,11 @@ import type {
   SelfServeSubscriptionPlanName,
   SubscriptionPlanName,
 } from "@sokosumi/utils";
-import { MemberRole } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { type PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
 import { coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 import {
   getOrganizationBillingPlanForOnboarding,
   organizationSeatService,

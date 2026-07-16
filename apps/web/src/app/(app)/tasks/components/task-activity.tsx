@@ -1,13 +1,10 @@
 "use client";
 
 import {
-  BlobStatus,
-  Channel,
   extractFileLikeLinks,
   extractHttpLinks,
   resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
-  TaskStatus,
 } from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +20,6 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
@@ -40,6 +36,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
+import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,

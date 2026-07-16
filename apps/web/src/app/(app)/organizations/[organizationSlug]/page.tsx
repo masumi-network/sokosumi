@@ -1,4 +1,3 @@
-import { MemberRole } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -12,6 +11,7 @@ import type {
   PendingInvitation,
   StripeCustomerBillingDetails,
 } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 import {
   organizationSeatService,
   organizationService,

@@ -1,8 +1,8 @@
 import "server-only";
 
-import { TaskStatus } from "@sokosumi/utils";
 import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
 import type { Coworker } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";

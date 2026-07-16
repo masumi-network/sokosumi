@@ -1,10 +1,9 @@
-import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { JobsListView } from "@/app/tasks/components/jobs-list-view";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { JobType, SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { KanbanColumnId } from "@/lib/types/task";
 
 vi.mock("next-intl", () => ({

@@ -1,11 +1,10 @@
-import { TaskStatus } from "@sokosumi/utils";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {

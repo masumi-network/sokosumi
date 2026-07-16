@@ -1,8 +1,7 @@
 "use client";
 
-import { AgentJobStatus } from "@sokosumi/utils";
-
 import type { Job } from "@/lib/clients/generated/core";
+import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 /** Event payload of the core `Job` detail DTO consumed by job details. */
 export type JobEvent = Job["events"][number];

@@ -1,9 +1,8 @@
-import { MemberRole } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { Organization } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 
 const getMyMemberInOrganizationMock = vi.fn();
 const getOrganizationBillingPlanForOnboardingMock = vi.fn();

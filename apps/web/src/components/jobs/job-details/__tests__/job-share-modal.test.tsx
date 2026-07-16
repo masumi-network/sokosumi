@@ -1,9 +1,8 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import JobShareModal from "@/components/jobs/job-details/job-share-modal";
 import type { Job } from "@/lib/clients/generated/core";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 const { MockCoreApiRequestError } = vi.hoisted(() => {
   class MockCoreApiRequestError extends Error {
