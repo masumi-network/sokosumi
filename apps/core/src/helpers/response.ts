@@ -7,6 +7,7 @@ import {
 } from "@/schemas/pagination.schema";
 
 import { dateTimeSchema } from "./datetime.js";
+import { getErrorName } from "./error.js";
 
 /**
  * Standardized API success response schema
@@ -84,3 +85,29 @@ export const conflictWithData = <T>(c: Context, data: T) => {
     409,
   );
 };
+
+/**
+ * 422 with committed side-effect payload (e.g. OUT_OF_CREDITS pause event).
+ * Does not throw — callers use this after the DB transaction has committed.
+ */
+export function unprocessableWithData<T>(
+  c: Context,
+  data: T,
+  options: { message: string; kind: string },
+) {
+  return c.json(
+    {
+      error: getErrorName(422),
+      message: options.message,
+      kind: options.kind,
+      data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: c.var.requestId,
+        path: c.req.path,
+        method: c.req.method,
+      },
+    },
+    422,
+  );
+}

@@ -2,7 +2,6 @@ import { z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { isTaskStatusSpendable } from "@/helpers/task";
 import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,
@@ -98,11 +97,15 @@ export function createTaskEventRequestSchema(
     .superRefine((data, ctx) => {
       refineChannelOriginConflict(data, ctx);
 
-      if (data.status === undefined && data.comment === undefined) {
+      if (
+        data.status === undefined &&
+        data.comment === undefined &&
+        data.credits == null
+      ) {
         ctx.addIssue({
           code: "custom",
-          message: "At least one of status or comment is required",
-          path: ["status", "comment"],
+          message: "At least one of status, comment, or credits is required",
+          path: ["status", "comment", "credits"],
         });
       }
 
@@ -134,17 +137,7 @@ export function createTaskEventRequestSchema(
         }
       }
 
-      if (!isTaskStatusSpendable(data.status) && data.credits != null) {
-        ctx.addIssue({
-          code: "custom",
-          message:
-            "Credits can only be set when completing or canceling a task",
-          path: ["credits"],
-        });
-      }
-
       if (
-        isTaskStatusSpendable(data.status) &&
         data.credits != null &&
         data.credits < LIMITS.MIN_CHARGEABLE_CREDITS
       ) {

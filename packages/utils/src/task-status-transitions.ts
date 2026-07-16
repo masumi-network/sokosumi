@@ -35,7 +35,7 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
   [TaskStatus.COMPLETED]: [],
   [TaskStatus.FAILED]: [],
-  // CANCELED is terminal: reopen would allow a second billing cycle.
+  // CANCELED is terminal for users; coworker agents may reopen via Core agent table.
   [TaskStatus.CANCELED]: [],
   [TaskStatus.CANCEL_REQUESTED]: [],
 };

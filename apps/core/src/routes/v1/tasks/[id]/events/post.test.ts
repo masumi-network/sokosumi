@@ -524,8 +524,9 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(422);
     const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
     expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -588,8 +589,10 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
-    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -639,8 +642,10 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
-    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -696,11 +701,25 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects a second billed COMPLETED when task already has a billed terminal event", async () => {
+  it("allows multiple sequential credit charges on the same task", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
-        findFirst: vi.fn().mockResolvedValue({ id: "evt_prior_billed" }),
+        create: vi
+          .fn()
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              status: null,
+              cents: convertCreditsToCents(2),
+              transactionId: "txn_first",
+            }),
+          )
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              status: null,
+              cents: convertCreditsToCents(3),
+              transactionId: "txn_second",
+            }),
+          ),
       },
       task: {
         updateMany: vi.fn(),
@@ -708,6 +727,12 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
+    createTaskEventTransactionMock
+      .mockResolvedValueOnce("txn_first")
+      .mockResolvedValueOnce("txn_second");
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
 
     const app = createApp({
       actor: "coworker",
@@ -715,44 +740,47 @@ describe("POST /{id}/events", () => {
       vendorId: TEST_VENDOR_ID,
     });
 
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+    const first = await app.request(`http://localhost/${TASK_ID}/events`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: TaskStatus.COMPLETED,
-        credits: 3,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 2 }),
+    });
+    const second = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 3 }),
     });
 
-    expect(response.status).toBe(422);
-    expect(tx.taskEvent.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          taskId: TASK_ID,
-          transactionId: { not: null },
-          status: { in: [TaskStatus.COMPLETED, TaskStatus.CANCELED] },
-        }),
-      }),
-    );
-    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalledTimes(2);
+    expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects a billed CANCELED when task already has a billed terminal event", async () => {
+  it("auto-sets OUT_OF_CREDITS on credit-only when balance is insufficient mid-run", async () => {
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.OUT_OF_CREDITS,
+    });
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
-        findFirst: vi.fn().mockResolvedValue({ id: "evt_prior_billed" }),
+        create: vi.fn().mockResolvedValue(createdEvent),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
     mockTransaction(tx);
+    createTaskEventTransactionMock.mockRejectedValue(
+      new HTTPException(422, {
+        message: "Insufficient balance",
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+      }),
+    );
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
 
     const app = createApp({
       actor: "coworker",
@@ -762,35 +790,253 @@ describe("POST /{id}/events", () => {
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: TaskStatus.CANCELED,
-        credits: 3,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 4 }),
     });
 
     expect(response.status).toBe(422);
-    expect(tx.taskEvent.findFirst).toHaveBeenCalledWith(
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          taskId: TASK_ID,
-          transactionId: { not: null },
-          status: { in: [TaskStatus.COMPLETED, TaskStatus.CANCELED] },
+        data: expect.objectContaining({
+          status: TaskStatus.OUT_OF_CREDITS,
+          cents: undefined,
+          transactionId: null,
         }),
       }),
     );
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: TaskStatus.OUT_OF_CREDITS },
+      }),
+    );
+  });
+
+  it.each([TaskStatus.FAILED, TaskStatus.COMPLETED, TaskStatus.CANCELED])(
+    "rejects insufficient credit-only charges on %s without changing status",
+    async (status) => {
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn(),
+        },
+        task: {
+          updateMany: vi.fn(),
+        },
+      };
+
+      mockTransaction(tx);
+      createTaskEventTransactionMock.mockRejectedValue(
+        new HTTPException(422, {
+          message: "Insufficient balance",
+          cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+        }),
+      );
+      requireTaskCollaborationMock.mockResolvedValue(createTask({ status }));
+
+      const app = createApp({
+        actor: "coworker",
+        coworkerId: COWORKER_ID,
+        vendorId: TEST_VENDOR_ID,
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credits: 4 }),
+      });
+
+      expect(response.status).toBe(422);
+      expect(tx.taskEvent.create).not.toHaveBeenCalled();
+      expect(tx.task.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reopens COMPLETED → RUNNING without credits", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.COMPLETED }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.RUNNING,
+      }),
+    });
+
+    expect(response.status).toBe(201);
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: TaskStatus.RUNNING },
+      }),
+    );
+  });
+
+  it("reopens CANCELED → RUNNING with credits", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+            cents: convertCreditsToCents(2),
+            transactionId: "txn_reopen",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_reopen");
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.CANCELED }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.RUNNING,
+        credits: 2,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.RUNNING,
+          cents: convertCreditsToCents(2),
+        }),
+      }),
+    );
+  });
+
+  it("charges credits on mid-run status change", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+            cents: convertCreditsToCents(2),
+            transactionId: "txn_midrun",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_midrun");
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.RUNNING,
+        credits: 2,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalled();
+  });
+
+  it("creates a credit-only event without changing task status", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: null,
+            cents: convertCreditsToCents(4),
+            transactionId: "txn_credit_only",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_credit_only");
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        credits: 4,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: null,
+          cents: convertCreditsToCents(4),
+          coworkerId: COWORKER_ID,
+          userId: null,
+        }),
+      }),
+    );
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects COMPLETED with masumiPayment when task already has a billed terminal event", async () => {
+  it("rejects FAILED → RUNNING reopen", async () => {
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn(),
-        findFirst: vi.fn().mockResolvedValue({ id: "evt_prior_billed" }),
       },
       task: {
         updateMany: vi.fn(),
@@ -798,6 +1044,9 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.FAILED }),
+    );
 
     const app = createApp({
       actor: "coworker",
@@ -807,31 +1056,49 @@ describe("POST /{id}/events", () => {
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: TaskStatus.COMPLETED,
-        masumiPayment: validMasumiPaymentBody,
+        status: TaskStatus.RUNNING,
       }),
     });
 
     expect(response.status).toBe(422);
-    expect(tx.taskEvent.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          taskId: TASK_ID,
-          transactionId: { not: null },
-          status: { in: [TaskStatus.COMPLETED, TaskStatus.CANCELED] },
-        }),
-      }),
-    );
-    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
-    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
-  it("allows zero-credit COMPLETED even when a prior billed terminal event exists", async () => {
+  it("rejects credit-only events from non-agent callers", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        credits: 5,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("allows zero-credit COMPLETED without charging", async () => {
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn().mockResolvedValue(
@@ -841,7 +1108,6 @@ describe("POST /{id}/events", () => {
             transactionId: null,
           }),
         ),
-        findFirst: vi.fn().mockResolvedValue({ id: "evt_prior_billed" }),
       },
       task: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -867,22 +1133,28 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(tx.taskEvent.findFirst).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalled();
   });
 
-  it("rejects RUNNING events with credits", async () => {
+  it("charges credits on RUNNING events", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+            cents: convertCreditsToCents(2),
+            transactionId: "txn_running",
+          }),
+        ),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
     mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_running");
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({
         status: TaskStatus.READY,
@@ -906,10 +1178,14 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
-    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
-    expect(tx.task.updateMany).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cents: convertCreditsToCents(2),
+      }),
+    );
+    expect(tx.taskEvent.create).toHaveBeenCalled();
+    expect(tx.task.updateMany).toHaveBeenCalled();
   });
 
   it("rejects COMPLETED with credits below minimum (rounds to zero)", async () => {
