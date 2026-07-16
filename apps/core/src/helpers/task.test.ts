@@ -511,11 +511,31 @@ describe("validateStatusTransition", () => {
       ).toThrow(/Invalid status transition/);
     });
 
-    it("rejects CANCELED → READY (terminal)", () => {
+    it("CANCELED → READY (user reopen)", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
           TaskStatus.CANCELED,
+          TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("COMPLETED → READY (user reopen)", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("rejects FAILED → READY", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.FAILED,
           TaskStatus.READY,
         ),
       ).toThrow(/Invalid status transition/);

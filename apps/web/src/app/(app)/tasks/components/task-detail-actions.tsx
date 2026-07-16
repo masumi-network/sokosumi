@@ -1,6 +1,10 @@
 "use client";
 
-import { isTaskArchivableStatus, isTaskEditableStatus } from "@sokosumi/utils";
+import {
+  isTaskArchivableStatus,
+  isTaskEditableStatus,
+  userTaskStatusTransitionRequiresComment,
+} from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
@@ -40,6 +44,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -49,6 +61,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createTaskAndLink,
@@ -87,9 +100,22 @@ interface TaskDetailActionsLabels {
   confirmArchiveDescription: string;
   archiveError: string;
   markAsReady: string;
+  reopenToReady: string;
+  reopenToReadyTitle: string;
+  reopenToReadyDescription: string;
+  reopenToReadyCommentLabel: string;
+  reopenToReadyCommentPlaceholder: string;
+  reopenToReadyCommentRequired: string;
+  reopenToReadyConfirm: string;
   revertToDraft: string;
   cancelRequest: string;
   share: string;
+}
+
+interface TaskStatusAction {
+  label: string;
+  target: TaskStatus;
+  requiresComment?: boolean;
 }
 
 interface TaskDetailActionsProps {
@@ -162,6 +188,8 @@ export function TaskDetailActions({
     useState(false);
   const [pendingStatusTarget, setPendingStatusTarget] =
     useState<TaskStatus | null>(null);
+  const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
+  const [reopenComment, setReopenComment] = useState("");
   const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(
     null,
   );
@@ -171,7 +199,9 @@ export function TaskDetailActions({
 
   const canMutateTask = !isReadOnly;
   const statusActions = canMutateTask
-    ? getTaskStatusActions(status, labels)
+    ? getTaskStatusActions(status, labels, {
+        hasCoworker: Boolean(defaultCoworkerId),
+      })
     : [];
 
   const canEdit = canMutateTask && isTaskEditableStatus(status);
@@ -261,19 +291,57 @@ export function TaskDetailActions({
     ctrl: tNewTask("ctrl"),
   };
 
-  const handleStatusToggle = (desiredStatus: TaskStatus) => {
-    setPendingStatusTarget(desiredStatus);
+  const handleStatusToggle = (action: TaskStatusAction) => {
+    if (
+      action.requiresComment ||
+      userTaskStatusTransitionRequiresComment(status, action.target)
+    ) {
+      setReopenComment("");
+      setIsReopenDialogOpen(true);
+      return;
+    }
+
+    setPendingStatusTarget(action.target);
 
     startStatusTransition(async () => {
       try {
         await setTaskStatusFromDrag({
           taskId,
-          desiredStatus,
+          desiredStatus: action.target,
         });
         router.refresh();
         toast.success(tDetailActions("updateStatusSuccess"));
       } catch (error) {
         console.error("Failed to update task status", error);
+        toast.error(tTasks("Errors.updateStatus"));
+      } finally {
+        setPendingStatusTarget(null);
+      }
+    });
+  };
+
+  const handleReopenConfirm = () => {
+    const trimmedComment = reopenComment.trim();
+    if (!trimmedComment) {
+      toast.error(labels.reopenToReadyCommentRequired);
+      return;
+    }
+
+    setPendingStatusTarget(TaskStatus.READY);
+
+    startStatusTransition(async () => {
+      try {
+        await setTaskStatusFromDrag({
+          taskId,
+          desiredStatus: TaskStatus.READY,
+          comment: trimmedComment,
+        });
+        setIsReopenDialogOpen(false);
+        setReopenComment("");
+        router.refresh();
+        toast.success(tDetailActions("updateStatusSuccess"));
+      } catch (error) {
+        console.error("Failed to reopen task", error);
         toast.error(tTasks("Errors.updateStatus"));
       } finally {
         setPendingStatusTarget(null);
@@ -421,14 +489,16 @@ export function TaskDetailActions({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {statusActions.map((action) => {
-              const StatusIcon = getStatusActionMenuIcon(action.target);
+              const StatusIcon = action.requiresComment
+                ? RotateCcw
+                : getStatusActionMenuIcon(action.target);
 
               return (
                 <DropdownMenuItem
                   className="cursor-pointer"
                   key={action.target}
                   disabled={actionsDisabled}
-                  onSelect={() => handleStatusToggle(action.target)}
+                  onSelect={() => handleStatusToggle(action)}
                 >
                   {isStatusPending && pendingStatusTarget === action.target ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -778,6 +848,64 @@ export function TaskDetailActions({
         </AlertDialog>
       ) : null}
 
+      <Dialog
+        open={isReopenDialogOpen}
+        onOpenChange={(open) => {
+          setIsReopenDialogOpen(open);
+          if (!open) {
+            setReopenComment("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{labels.reopenToReadyTitle}</DialogTitle>
+            <DialogDescription>
+              {labels.reopenToReadyDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <label
+              htmlFor="task-reopen-comment"
+              className="text-sm font-medium"
+            >
+              {labels.reopenToReadyCommentLabel}
+            </label>
+            <Textarea
+              id="task-reopen-comment"
+              value={reopenComment}
+              onChange={(event) => setReopenComment(event.target.value)}
+              placeholder={labels.reopenToReadyCommentPlaceholder}
+              rows={4}
+              disabled={isStatusPending}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isStatusPending}
+              onClick={() => {
+                setIsReopenDialogOpen(false);
+                setReopenComment("");
+              }}
+            >
+              {tApp("cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={isStatusPending || !reopenComment.trim()}
+              onClick={handleReopenConfirm}
+            >
+              {isStatusPending && pendingStatusTarget === TaskStatus.READY ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null}
+              {labels.reopenToReadyConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {canMove ? (
         <MoveTaskToWorkspaceDialog
           open={isMoveOpen}
@@ -890,7 +1018,8 @@ function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
 function getTaskStatusActions(
   status: TaskStatus,
   labels: TaskDetailActionsLabels,
-) {
+  options: { hasCoworker: boolean },
+): TaskStatusAction[] {
   if (status === TaskStatus.DRAFT) {
     return [{ label: labels.markAsReady, target: TaskStatus.READY }];
   }
@@ -911,6 +1040,21 @@ function getTaskStatusActions(
       {
         label: labels.cancelRequest,
         target: TaskStatus.CANCEL_REQUESTED,
+      },
+    ];
+  }
+
+  // READY still requires a coworker assignment in Core; canceled drafts without
+  // a coworker cannot be patched while terminal, so hide reopen in that case.
+  if (
+    (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) &&
+    options.hasCoworker
+  ) {
+    return [
+      {
+        label: labels.reopenToReady,
+        target: TaskStatus.READY,
+        requiresComment: true,
       },
     ];
   }

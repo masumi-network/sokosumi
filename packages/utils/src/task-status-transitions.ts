@@ -33,10 +33,11 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
   [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
   [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
-  [TaskStatus.COMPLETED]: [],
+  // Users may reopen COMPLETED → READY with a required comment (SOK-631).
+  [TaskStatus.COMPLETED]: [TaskStatus.READY],
   [TaskStatus.FAILED]: [],
-  // CANCELED is terminal for users; coworker agents may reopen via Core agent table.
-  [TaskStatus.CANCELED]: [],
+  // Users may reopen CANCELED → READY with a required comment (SOK-631).
+  [TaskStatus.CANCELED]: [TaskStatus.READY],
   [TaskStatus.CANCEL_REQUESTED]: [],
 };
 
@@ -49,4 +50,19 @@ export function canUserTransitionTaskStatus(
   }
 
   return USER_TASK_STATUS_TRANSITIONS[from].includes(to);
+}
+
+/**
+ * User reopen from terminal statuses to READY requires a non-empty comment
+ * so the coworker knows what to do next (SOK-631). Enforced in Core on
+ * create-task-event for non-agent actors.
+ */
+export function userTaskStatusTransitionRequiresComment(
+  from: TaskStatusType,
+  to: TaskStatusType,
+): boolean {
+  return (
+    to === TaskStatus.READY &&
+    (from === TaskStatus.CANCELED || from === TaskStatus.COMPLETED)
+  );
 }

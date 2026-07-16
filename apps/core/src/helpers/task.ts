@@ -164,10 +164,11 @@ function getAllowedTransitions(
     [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
-    [TaskStatus.COMPLETED]: [],
+    // Users may reopen COMPLETED → READY with a required comment (SOK-631).
+    [TaskStatus.COMPLETED]: [TaskStatus.READY],
     [TaskStatus.FAILED]: [],
-    // CANCELED is terminal for users; coworker agents may reopen (see agent table).
-    [TaskStatus.CANCELED]: [],
+    // Users may reopen CANCELED → READY with a required comment (SOK-631).
+    [TaskStatus.CANCELED]: [TaskStatus.READY],
     [TaskStatus.CANCEL_REQUESTED]: [],
   };
 }

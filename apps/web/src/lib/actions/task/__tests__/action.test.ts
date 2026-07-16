@@ -44,6 +44,15 @@ const toCoreApiActionErrorMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   toCoreApiActionError: toCoreApiActionErrorMock,
+  CoreApiRequestError: class CoreApiRequestError extends Error {
+    status: number;
+
+    constructor(message: string, status = 400) {
+      super(message);
+      this.name = "CoreApiRequestError";
+      this.status = status;
+    }
+  },
 }));
 
 vi.mock("@/lib/services/design-md.service", () => ({
@@ -578,6 +587,12 @@ describe("setTaskStatusFromDrag", () => {
     taskServiceMock.createTaskEvent.mockReset();
     taskScheduleServiceMock.clearSchedule.mockReset();
     taskServiceMock.createTaskEvent.mockResolvedValue({});
+    toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to communicate with Core API",
+    }));
   });
 
   it("creates a status event for a simple draft to ready move", async () => {
@@ -599,6 +614,47 @@ describe("setTaskStatusFromDrag", () => {
     expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
       status: TaskStatus.READY,
     });
+  });
+
+  it("includes a trimmed comment when reopening completed to ready", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
+        id: "task-1",
+        status: TaskStatus.COMPLETED,
+      }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("../action");
+
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+      comment: "  Please revise the deliverable  ",
+    });
+
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+      comment: "Please revise the deliverable",
+    });
+  });
+
+  it("rejects reopening completed to ready without a comment", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
+        id: "task-1",
+        status: TaskStatus.COMPLETED,
+      }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("../action");
+
+    await expect(
+      setTaskStatusFromDrag({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.READY,
+      }),
+    ).rejects.toThrow(/comment is required/i);
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
   it("clears the schedule before moving a scheduled queued task to ready", async () => {
