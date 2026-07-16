@@ -23,7 +23,6 @@ describe("task-archive", () => {
     "CREDITS_TOPPED_UP",
     "RUNNING",
     "AWAITING_EXTERNAL",
-    "CANCEL_REQUESTED",
     "APPROVAL_REQUIRED",
   ] as const)("isTaskArchivableStatus returns false for %s", (status) => {
     expect(isTaskArchivableStatus(status)).toBe(false);

@@ -21,8 +21,7 @@ export type UserTransitionTaskStatus =
   | "AWAITING_EXTERNAL"
   | "COMPLETED"
   | "FAILED"
-  | "CANCELED"
-  | "CANCEL_REQUESTED";
+  | "CANCELED";
 
 const USER_TASK_STATUS_TRANSITIONS: Record<
   UserTransitionTaskStatus,
@@ -44,7 +43,6 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   FAILED: [],
   // Users may reopen CANCELED → READY with a required comment (SOK-631).
   CANCELED: ["READY"],
-  CANCEL_REQUESTED: [],
 };
 
 export function canUserTransitionTaskStatus(

@@ -1219,7 +1219,6 @@
           "AWAITING_EXTERNAL": "等待外部",
           "COMPLETED": "已完成",
           "FAILED": "失败",
-          "CANCEL_REQUESTED": "已请求取消",
           "CANCELED": "已取消"
         }
       },
@@ -1494,7 +1493,6 @@
           "AWAITING_EXTERNAL": "等待外部",
           "COMPLETED": "已完成",
           "FAILED": "失败",
-          "CANCEL_REQUESTED": "已请求取消",
           "CANCELED": "已取消"
         }
       },
@@ -1578,8 +1576,7 @@
         "actionChargedCredits": "扣除 {credits, plural, =1 {# 积分} other {# 积分}}",
         "statusLabels": {
           "outOfCredits": "积分不足",
-          "creditsToppedUp": "已充值积分",
-          "cancelRequested": "已请求取消"
+          "creditsToppedUp": "已充值积分"
         },
         "billingCta": {
           "upgradePlan": "获取更多积分",
@@ -1872,7 +1869,6 @@
             "AWAITING_EXTERNAL": "等待中",
             "COMPLETED": "已完成",
             "FAILED": "失败",
-            "CANCEL_REQUESTED": "取消中",
             "CANCELED": "已取消"
           },
           "jobStatusAbbreviations": {

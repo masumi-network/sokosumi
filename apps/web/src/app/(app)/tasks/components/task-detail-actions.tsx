@@ -209,8 +209,7 @@ export function TaskDetailActions({
   const isFinalized =
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED ||
-    status === TaskStatus.CANCELED ||
-    status === TaskStatus.CANCEL_REQUESTED;
+    status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
   const canMove =
     canMutateTask &&
