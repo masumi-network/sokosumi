@@ -417,4 +417,57 @@ describe("MarkdownEditor", () => {
     expect(savedMarkdown).toBe("test\ntest\ntest\n");
     expect(savedMarkdown).not.toContain("testtest");
   });
+
+  it("preserves br-based line breaks when saving", async () => {
+    const onChange = vi.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "line1<br>line2<br>line3";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toBe("line1\nline2\nline3");
+  });
+
+  it("keeps a heading on a new line after bare preceding text", async () => {
+    const onChange = vi.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "text<h2>heading</h2>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toBe("text\n## heading\n");
+    expect(savedMarkdown).not.toContain("text##");
+  });
+
+  it("keeps a blockquote on a new line after bare preceding text", async () => {
+    const onChange = vi.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "text<blockquote>quote</blockquote>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toBe("text\nquote\n");
+    expect(savedMarkdown).not.toContain("textquote");
+  });
 });

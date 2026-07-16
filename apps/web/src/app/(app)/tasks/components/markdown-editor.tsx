@@ -51,6 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   getBacktickFence,
+  isBlockMarkdownElement,
   normalizeUrl,
 } from "@/lib/utils/markdown-editor-utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
@@ -380,28 +381,6 @@ export const MarkdownEditor = forwardRef<
       return `${fenceHeader}\n${codeContent}\n${fence}\n`;
     }
 
-    function isBlockMarkdownElement(
-      childTag: string,
-      childMarkdown: string,
-    ): boolean {
-      // Chrome contentEditable Enter wraps later lines in <div>/<p>. Those
-      // blocks already serialize with a trailing newline, but the preceding
-      // sibling (often a bare text node for the first line) does not — so we
-      // must insert a separator before the block or the first break is lost.
-      return (
-        childTag === "pre" ||
-        childTag === "div" ||
-        childTag === "p" ||
-        childTag === "h1" ||
-        childTag === "h2" ||
-        childTag === "h3" ||
-        childTag === "ul" ||
-        childTag === "ol" ||
-        childTag === "li" ||
-        (childTag === "code" && childMarkdown.startsWith("```"))
-      );
-    }
-
     function appendChildMarkdown(
       acc: string,
       child: Node,
@@ -519,6 +498,7 @@ export const MarkdownEditor = forwardRef<
             return "\n";
           case "div":
           case "p":
+          case "blockquote":
             return content.endsWith("\n") ? content : `${content}\n`;
           default:
             return content;

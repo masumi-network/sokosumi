@@ -2,6 +2,33 @@ const DEFAULT_CODE_TEXT = "code";
 const DEFAULT_LINK_TEXT = "link";
 const DEFAULT_HEADING_TEXT = "Heading";
 
+/**
+ * Tags whose html→markdown serializer emits a trailing newline (or a fenced
+ * code block). When these follow bare text — Chrome contentEditable's first
+ * line pattern — prepend `\n` so the first break is not glued away.
+ *
+ * Keep in sync with `processNode` cases in `markdown-editor.tsx` that append
+ * `\n` (`div`/`p`/`blockquote`/headings/lists/`pre`/fenced `code`).
+ */
+export function isBlockMarkdownElement(
+  childTag: string,
+  childMarkdown: string,
+): boolean {
+  return (
+    childTag === "pre" ||
+    childTag === "div" ||
+    childTag === "p" ||
+    childTag === "blockquote" ||
+    childTag === "h1" ||
+    childTag === "h2" ||
+    childTag === "h3" ||
+    childTag === "ul" ||
+    childTag === "ol" ||
+    childTag === "li" ||
+    (childTag === "code" && childMarkdown.startsWith("```"))
+  );
+}
+
 function getNormalizedSelection(
   selectionText: string,
   fallbackText: string,
