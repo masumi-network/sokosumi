@@ -41,7 +41,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAgentContext,
-  isCoworkerAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -94,10 +93,11 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
   };
 }
 
-function getCreditEventActorData(authContext: AuthenticationContext) {
-  if (!isCoworkerAuthContext(authContext)) {
-    throw unprocessableEntity(
-      "Only the assigned coworker can set credits on task events",
+/** Attribution only — credit auth is enforced at the route gate (`isAgent`). */
+function getCoworkerActorData(authContext: AuthenticationContext) {
+  if (isUserAuthContext(authContext)) {
+    throw new Error(
+      "getCoworkerActorData called without coworker auth context",
     );
   }
 
@@ -455,7 +455,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
             ? getStatusEventActorData(authContext)
             : credits != null
-              ? getCreditEventActorData(authContext)
+              ? getCoworkerActorData(authContext)
               : getCommentEventActorData(authContext);
 
         const createdEvent = await tx.taskEvent.create({
