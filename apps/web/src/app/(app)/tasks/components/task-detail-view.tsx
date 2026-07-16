@@ -374,6 +374,7 @@ async function TaskOverviewSection({
           user: task.user,
           organization: task.organization,
           coworker: task.coworker,
+          credits: task.credits,
           metadata: task.metadata,
           nextRunAt: task.nextRunAt,
         }}
@@ -389,6 +390,7 @@ async function TaskOverviewSection({
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
           coworker: t("coworker"),
+          credits: t("credits"),
           created: t("created"),
           updated: t("updated"),
           schedule: t("schedule"),

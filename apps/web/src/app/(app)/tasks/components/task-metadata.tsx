@@ -6,6 +6,7 @@ import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
@@ -18,6 +19,7 @@ interface TaskMetadataLabels {
   personalWorkspace: string;
   project: string;
   coworker: string;
+  credits: string;
   created: string;
   updated: string;
   schedule: string;
@@ -28,6 +30,7 @@ interface TaskMetadataTask {
   user: Task["user"];
   organization: Task["organization"];
   coworker: Task["coworker"];
+  credits: Task["credits"];
   metadata?: string | null;
   nextRunAt?: Date | null;
 }
@@ -122,6 +125,17 @@ export function TaskMetadata({
             </span>
           </div>
         </div>
+
+        {task.credits > 0 ? (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground text-sm">
+              {labels.credits}
+            </span>
+            <span className="text-right text-sm font-medium tabular-nums">
+              {formatCreditsForDisplay(task.credits)}
+            </span>
+          </div>
+        ) : null}
 
         {task.metadata || task.nextRunAt ? (
           <div className="flex items-start justify-between gap-4">
