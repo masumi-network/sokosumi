@@ -1595,7 +1595,7 @@
           "archiveError": "No se pudo archivar la tarea",
           "markAsReady": "Marcar como listo",
           "revertToDraft": "Revertir a borrador",
-          "cancelRequest": "Cancelar solicitud",
+          "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
           "moveToWorkspace": "Mover a otro espacio de trabajo",

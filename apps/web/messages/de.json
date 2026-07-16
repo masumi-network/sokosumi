@@ -1595,7 +1595,7 @@
           "archiveError": "Task konnte nicht archiviert werden",
           "markAsReady": "Als bereit markieren",
           "revertToDraft": "In Entwurf zurücksetzen",
-          "cancelRequest": "Anfrage abbrechen",
+          "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
           "moveToWorkspace": "In anderen Arbeitsbereich verschieben",
