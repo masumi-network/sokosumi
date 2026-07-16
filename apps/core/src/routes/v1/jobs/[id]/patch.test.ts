@@ -135,6 +135,7 @@ function createSerializedJob(overrides: Record<string, unknown> = {}) {
     jobType: JobType.PAID,
     status: SokosumiJobStatus.PROCESSING,
     credits: 5,
+    jobStatusSettled: false,
     onChainStatus: null,
     onChainTransactionHash: null,
     result: null,

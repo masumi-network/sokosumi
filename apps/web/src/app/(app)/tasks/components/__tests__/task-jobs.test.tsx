@@ -56,6 +56,7 @@ function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
     organization: null,
     projectId: null,
     ...overrides,
+    jobStatusSettled: overrides.jobStatusSettled ?? false,
   };
 }
 

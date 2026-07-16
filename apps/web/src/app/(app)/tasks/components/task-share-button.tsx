@@ -1,11 +1,10 @@
 "use client";
 
 import { Share } from "lucide-react";
-
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
 import type { TaskShare } from "@/lib/clients/generated/core";
-import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
 import { TaskShareModal } from "./task-share-modal";

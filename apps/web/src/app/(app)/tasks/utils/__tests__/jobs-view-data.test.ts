@@ -3,7 +3,7 @@ import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent
 
 vi.mock("server-only", () => ({}));
 
-import type { TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 
 import { mapJobsToTasksViewData } from "../jobs-view-data";
 

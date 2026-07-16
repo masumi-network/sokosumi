@@ -102,6 +102,7 @@ function createJob(overrides: Partial<Job>): Job {
       name: "Agent",
     },
     ...overrides,
+    jobStatusSettled: overrides?.jobStatusSettled ?? false,
   };
 }
 
