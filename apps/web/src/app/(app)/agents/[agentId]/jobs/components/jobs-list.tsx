@@ -20,7 +20,7 @@ const JOB_STATUS_EVENT_NAME = "job_status_data";
 interface JobStatusUpdateData {
   jobId: string;
   jobStatus: SokosumiJobStatus;
-  jobStatusSettled?: boolean;
+  jobStatusSettled: boolean;
 }
 
 interface JobsListProps {
@@ -141,7 +141,6 @@ export function JobsList({
 
         const statusUnchanged = job.status === update.jobStatus;
         const settledUnchanged =
-          typeof update.jobStatusSettled !== "boolean" ||
           job.jobStatusSettled === update.jobStatusSettled;
         if (statusUnchanged && settledUnchanged) {
           return job;
@@ -150,9 +149,7 @@ export function JobsList({
         return {
           ...job,
           status: update.jobStatus,
-          ...(typeof update.jobStatusSettled === "boolean" && {
-            jobStatusSettled: update.jobStatusSettled,
-          }),
+          jobStatusSettled: update.jobStatusSettled,
           ...(update.jobStatus === SokosumiJobStatus.COMPLETED &&
             job.completedAt === null && { completedAt: completedAtFallback }),
         };
