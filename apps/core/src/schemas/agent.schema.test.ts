@@ -1,4 +1,5 @@
-import { type Agent, RiskClassification } from "@sokosumi/database";
+import type { Agent } from "@sokosumi/database";
+import { RiskClassification } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {

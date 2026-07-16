@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { BlobStatus } from "@sokosumi/database";
+import { BlobStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { blobStatusSchema } from "@/schemas/domain-enums.schema";

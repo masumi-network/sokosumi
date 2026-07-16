@@ -9,8 +9,9 @@ import {
   NoticeKind,
   OnChainJobStatus,
   RiskClassification,
-} from "@sokosumi/database";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 /**
@@ -20,6 +21,10 @@ import type Stripe from "stripe";
  * with `enums: "javascript"` emits `export const Name = { … }` in the web Core
  * client. Keep domain enums here; feature-local enums (Hermes, Skills, …) may
  * stay next to their schemas when they are not shared.
+ *
+ * Value sources are `@sokosumi/utils` const maps (client-safe mirrors of Prisma /
+ * Postgres). Utils ↔ Prisma drift is guarded in `@sokosumi/database`
+ * (`status-enums-drift.test.ts`); do not import Prisma enums here.
  *
  * Decision (SOK-590): keep codegen output web-only under
  * `apps/web/src/lib/clients/generated/core` — same as `TaskLinkRelation`. A

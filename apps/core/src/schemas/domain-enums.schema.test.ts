@@ -7,10 +7,10 @@ import {
   MemberRole,
   NoticeKind,
   OnChainJobStatus,
-  TaskStatus as PrismaTaskStatus,
   RiskClassification,
-} from "@sokosumi/database";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -33,35 +33,36 @@ import {
   taskStatusSchema,
 } from "./domain-enums.schema";
 
+/**
+ * Schema options ↔ `@sokosumi/utils`. Utils ↔ Prisma is guarded in
+ * `@sokosumi/database` (`status-enums-drift.test.ts`).
+ */
 describe("domain enum schemas", () => {
-  it("named TaskStatus schema values match utils and Prisma", () => {
+  it("named TaskStatus schema values match utils", () => {
     expect([...taskStatusSchema.options].sort()).toEqual(
       Object.values(TaskStatus).sort(),
     );
-    expect(Object.values(TaskStatus).sort()).toEqual(
-      Object.values(PrismaTaskStatus).sort(),
-    );
   });
 
-  it("named AgentJobStatus schema values match Prisma", () => {
+  it("named AgentJobStatus schema values match utils", () => {
     expect([...agentJobStatusSchema.options].sort()).toEqual(
       Object.values(AgentJobStatus).sort(),
     );
   });
 
-  it("named JobType schema values match Prisma", () => {
+  it("named JobType schema values match utils", () => {
     expect([...jobTypeSchema.options].sort()).toEqual(
       Object.values(JobType).sort(),
     );
   });
 
-  it("named BlobStatus schema values match Prisma", () => {
+  it("named BlobStatus schema values match utils", () => {
     expect([...blobStatusSchema.options].sort()).toEqual(
       Object.values(BlobStatus).sort(),
     );
   });
 
-  it("named Channel schema values match Prisma", () => {
+  it("named Channel schema values match utils", () => {
     expect([...channelSchema.options].sort()).toEqual(
       Object.values(Channel).sort(),
     );
@@ -73,35 +74,35 @@ describe("domain enum schemas", () => {
     );
   });
 
-  it("named OnChainJobStatus schema values match Prisma", () => {
+  it("named OnChainJobStatus schema values match utils", () => {
     expect([...onChainJobStatusSchema.options].sort()).toEqual(
       Object.values(OnChainJobStatus).sort(),
     );
   });
 
-  it("named NoticeKind schema values match Prisma", () => {
+  it("named NoticeKind schema values match utils", () => {
     expect([...noticeKindSchema.options].sort()).toEqual(
       Object.values(NoticeKind).sort(),
     );
   });
 
-  it("named RiskClassification schema values match Prisma", () => {
+  it("named RiskClassification schema values match utils", () => {
     expect([...riskClassificationSchema.options].sort()).toEqual(
       Object.values(RiskClassification).sort(),
     );
   });
 
-  it("memberRoleSchema values match the database MemberRole enum", () => {
+  it("memberRoleSchema values match utils MemberRole", () => {
     expect([...MEMBER_ROLE_VALUES].sort()).toEqual(
       Object.values(MemberRole).sort(),
     );
   });
 
-  it("invitationStatusSchema values match database InvitationStatus (excluding frontend-only expired)", () => {
-    const { EXPIRED: _expired, ...databaseStatuses } = InvitationStatus;
+  it("invitationStatusSchema values match utils InvitationStatus (excluding frontend-only expired)", () => {
+    const { EXPIRED: _expired, ...persistedStatuses } = InvitationStatus;
 
     expect([...INVITATION_DB_STATUS_VALUES].sort()).toEqual(
-      Object.values(databaseStatuses).sort(),
+      Object.values(persistedStatuses).sort(),
     );
     expect(InvitationStatus.EXPIRED).toBe("expired");
   });

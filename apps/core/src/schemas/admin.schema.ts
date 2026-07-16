@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { MemberRole } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { MemberRole, TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
