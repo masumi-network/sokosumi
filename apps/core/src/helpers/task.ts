@@ -132,11 +132,11 @@ function getAllowedTransitions(
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
+      // Agents may reopen COMPLETED → RUNNING (SOK-581).
       [TaskStatus.COMPLETED]: [TaskStatus.RUNNING],
       [TaskStatus.FAILED]: [],
-      // OUT_OF_CREDITS is system-set on insufficient balance — not via
-      // CANCEL_REQUESTED. Agents may reopen CANCELED → RUNNING (SOK-581).
       [TaskStatus.CANCEL_REQUESTED]: [TaskStatus.CANCELED],
+      // Agents may reopen CANCELED → RUNNING (SOK-581).
       [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
     };
   }

@@ -699,13 +699,67 @@ describe("POST /{id}/events", () => {
   it("allows multiple sequential credit charges on the same task", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn().mockResolvedValue(
-          createTaskEvent({
-            status: TaskStatus.COMPLETED,
-            cents: convertCreditsToCents(3),
-            transactionId: "txn_second",
-          }),
-        ),
+        create: vi
+          .fn()
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              status: null,
+              cents: convertCreditsToCents(2),
+              transactionId: "txn_first",
+            }),
+          )
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              status: null,
+              cents: convertCreditsToCents(3),
+              transactionId: "txn_second",
+            }),
+          ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock
+      .mockResolvedValueOnce("txn_first")
+      .mockResolvedValueOnce("txn_second");
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const first = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 2 }),
+    });
+    const second = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 3 }),
+    });
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalledTimes(2);
+    expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("auto-sets OUT_OF_CREDITS on credit-only when balance is insufficient mid-run", async () => {
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.OUT_OF_CREDITS,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
       },
       task: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -713,7 +767,12 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    createTaskEventTransactionMock.mockResolvedValue("txn_second");
+    createTaskEventTransactionMock.mockRejectedValue(
+      new HTTPException(422, {
+        message: "Insufficient balance",
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+      }),
+    );
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({ status: TaskStatus.RUNNING }),
     );
@@ -726,24 +785,66 @@ describe("POST /{id}/events", () => {
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: TaskStatus.COMPLETED,
-        credits: 3,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 4 }),
     });
 
     expect(response.status).toBe(201);
-    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        cents: convertCreditsToCents(3),
+        data: expect.objectContaining({
+          status: TaskStatus.OUT_OF_CREDITS,
+          cents: undefined,
+          transactionId: null,
+        }),
       }),
     );
-    expect(tx.taskEvent.create).toHaveBeenCalled();
-    expect(tx.task.updateMany).toHaveBeenCalled();
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: TaskStatus.OUT_OF_CREDITS },
+      }),
+    );
   });
+
+  it.each([TaskStatus.FAILED, TaskStatus.COMPLETED, TaskStatus.CANCELED])(
+    "rejects insufficient credit-only charges on %s without changing status",
+    async (status) => {
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn(),
+        },
+        task: {
+          updateMany: vi.fn(),
+        },
+      };
+
+      mockTransaction(tx);
+      createTaskEventTransactionMock.mockRejectedValue(
+        new HTTPException(422, {
+          message: "Insufficient balance",
+          cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+        }),
+      );
+      requireTaskCollaborationMock.mockResolvedValue(createTask({ status }));
+
+      const app = createApp({
+        actor: "coworker",
+        coworkerId: COWORKER_ID,
+        vendorId: TEST_VENDOR_ID,
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credits: 4 }),
+      });
+
+      expect(response.status).toBe(422);
+      expect(tx.taskEvent.create).not.toHaveBeenCalled();
+      expect(tx.task.updateMany).not.toHaveBeenCalled();
+    },
+  );
 
   it("reopens COMPLETED → RUNNING without credits", async () => {
     const tx: TransactionMock = {

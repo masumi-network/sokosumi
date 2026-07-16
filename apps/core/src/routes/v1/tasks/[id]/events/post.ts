@@ -107,6 +107,21 @@ function getCoworkerActorData(authContext: AuthenticationContext) {
   };
 }
 
+/** Statuses that may be paused to OUT_OF_CREDITS on insufficient balance. */
+const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
+  TaskStatus.DRAFT,
+  TaskStatus.QUEUED,
+  TaskStatus.READY,
+  TaskStatus.GRANT_PENDING,
+  TaskStatus.INPUT_REQUIRED,
+  TaskStatus.APPROVAL_REQUIRED,
+  TaskStatus.AUTHENTICATION_REQUIRED,
+  TaskStatus.CREDITS_TOPPED_UP,
+  TaskStatus.RUNNING,
+  TaskStatus.AWAITING_EXTERNAL,
+  TaskStatus.CANCEL_REQUESTED,
+]);
+
 async function chargeTaskCreditsOrMarkOutOfCredits(params: {
   userId: string;
   organizationId: string | null;
@@ -127,9 +142,11 @@ async function chargeTaskCreditsOrMarkOutOfCredits(params: {
     });
     return { transactionId, eventStatus: null };
   } catch (error) {
+    // Terminal tasks (COMPLETED/FAILED/CANCELED) and already-OUT_OF_CREDITS keep
+    // their status — rethrow as 422. Only mid-run tasks pause to OUT_OF_CREDITS.
     if (
       !isInsufficientBalanceError(error) ||
-      params.currentStatus === TaskStatus.OUT_OF_CREDITS
+      !OUT_OF_CREDITS_PAUSE_STATUSES.has(params.currentStatus)
     ) {
       throw error;
     }
