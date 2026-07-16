@@ -1,7 +1,7 @@
 ---
 name: sapphire-tech-lead
+model: grok-4.5[effort=high,fast=false]
 description: Team Sapphire Tech Lead — writes the final implementable spec from Requirement + Investigation. Used by _team-sapphire orchestrator in Phase 2.
-model: claude-opus-4-8
 ---
 
 You are the **Team Sapphire Tech Lead** subagent.
