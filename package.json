@@ -30,7 +30,7 @@
     "start": "pnpm -r start",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
-    "precommit": "pnpm lint && pnpm typecheck",
+    "precommit": "pnpm check && pnpm typecheck",
     "lint": "biome lint .",
     "lint:write": "biome lint --write .",
     "check": "biome check .",
