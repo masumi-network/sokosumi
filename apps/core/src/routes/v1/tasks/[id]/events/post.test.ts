@@ -524,8 +524,9 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(422);
     const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
     expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -588,8 +589,10 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
-    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -639,8 +642,10 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
-    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -789,8 +794,10 @@ describe("POST /{id}/events", () => {
       body: JSON.stringify({ credits: 4 }),
     });
 
-    expect(response.status).toBe(201);
-    expect((await response.json()).data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

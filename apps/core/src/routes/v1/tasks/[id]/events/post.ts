@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { NotificationKind, Prisma } from "@sokosumi/database";
 import {
+  CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   convertCreditsToCents,
   TaskStatus,
@@ -20,10 +21,14 @@ import {
   calculateCentsFromMasumiAmountStrings,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
-import { conflict, unprocessableEntity } from "@/helpers/error";
+import {
+  conflict,
+  errorResponseWithExtensionsSchema,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { created } from "@/helpers/response";
+import { created, unprocessableWithData } from "@/helpers/response";
 import {
   mapTaskEvent,
   taskEventApiInclude,
@@ -150,8 +155,8 @@ async function chargeTaskCreditsOrMarkOutOfCredits(params: {
     ) {
       throw error;
     }
-    // Return 201 with OUT_OF_CREDITS in the event body (not 422). Callers must
-    // read `data.status` — HTTP success does not mean the billed status landed.
+    // Route persists OUT_OF_CREDITS then returns 422 with that event in `data`
+    // (not 201 — the requested billed status did not land).
     return { transactionId: null, eventStatus: TaskStatus.OUT_OF_CREDITS };
   }
 }
@@ -392,7 +397,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse("Conflict"),
-      422: jsonErrorResponse("Unprocessable Entity"),
+      422: {
+        description:
+          "Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.",
+        content: {
+          "application/json": {
+            schema: errorResponseWithExtensionsSchema({
+              data: taskEventSchema.optional(),
+            }),
+          },
+        },
+      },
       500: jsonErrorResponse("Internal Server Error"),
     },
   });
@@ -402,8 +417,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const { event, userId, masumiPayment } = await serializableTransaction(
-      async (tx) => {
+    const { event, userId, masumiPayment, pausedForInsufficientBalance } =
+      await serializableTransaction(async (tx) => {
         const {
           status,
           comment,
@@ -449,6 +464,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         let transactionId: string | null = null;
         let eventStatus: TaskStatus | null = status ?? null;
         let chargedMasumiPayment = false;
+        let pausedForInsufficientBalance = false;
 
         if (
           isAgent &&
@@ -465,6 +481,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           chargedMasumiPayment = settled.chargedMasumiPayment;
           if (settled.eventStatus != null) {
             eventStatus = settled.eventStatus;
+            pausedForInsufficientBalance =
+              settled.eventStatus === TaskStatus.OUT_OF_CREDITS;
           }
         }
 
@@ -510,10 +528,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
           userId: task.userId,
           masumiPayment: payment,
+          pausedForInsufficientBalance,
         };
-      },
-      "Task changed by a concurrent request. Please retry.",
-    );
+      }, "Task changed by a concurrent request. Please retry.");
 
     if (event.status) {
       const taskEventId = event.id;
@@ -687,6 +704,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    return created(c, taskEventSchema.parse(event));
+    const parsedEvent = taskEventSchema.parse(event);
+
+    // Charge failed but OUT_OF_CREDITS pause was committed — not what the
+    // requester asked to create, so 422 with the pause event in `data`.
+    if (pausedForInsufficientBalance) {
+      return unprocessableWithData(c, parsedEvent, {
+        message: "Insufficient balance",
+        kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+      });
+    }
+
+    return created(c, parsedEvent);
   });
 }
