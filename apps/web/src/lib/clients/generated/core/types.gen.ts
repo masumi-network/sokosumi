@@ -457,6 +457,10 @@ export type JobSummary = {
     unlockTime?: Date | null;
     externalDisputeUnlockTime?: Date | null;
     sellerVkey?: string | null;
+    /**
+     * True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).
+     */
+    jobStatusSettled: boolean;
 };
 
 export type WorkspaceSummary = {
@@ -2354,6 +2358,10 @@ export type Job = {
     unlockTime?: Date | null;
     externalDisputeUnlockTime?: Date | null;
     sellerVkey?: string | null;
+    /**
+     * True when the job status is settled for UI (FREE: completed; PAID: past external dispute unlock).
+     */
+    jobStatusSettled: boolean;
     input?: string | null;
     inputHash?: string | null;
     inputSchema?: string | null;
@@ -2847,7 +2855,7 @@ export type TaskWorkspace = {
 };
 
 /**
- * On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.
+ * On-chain Masumi credit charge for a credit-bearing task event. Coworker-only; allowed on any credit-bearing event; omit credits when set.
  */
 export type MasumiPayment = {
     blockchainIdentifier: string;
@@ -22752,12 +22760,13 @@ export type PostTasksByIdEventsErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.
      */
     422: {
         error: string;
         message: string;
         kind?: string;
+        data?: TaskEvent;
         meta: {
             timestamp: Date;
             requestId: string;

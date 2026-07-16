@@ -109,6 +109,7 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
     jobType: "PAID",
     status: "processing",
     credits: 5,
+    jobStatusSettled: false,
     onChainStatus: null,
     onChainTransactionHash: null,
     result: null,

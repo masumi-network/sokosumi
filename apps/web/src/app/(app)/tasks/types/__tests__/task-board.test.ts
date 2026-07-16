@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { KANBAN_COLUMNS } from "@/lib/types/task";
+import { KANBAN_COLUMNS } from "@/app/tasks/types/task-board";
 
 describe("KANBAN_COLUMNS", () => {
   it("orders backlog before todo so backlog↔todo drag columns are adjacent", () => {

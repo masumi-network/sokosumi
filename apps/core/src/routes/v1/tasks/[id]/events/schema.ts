@@ -91,7 +91,7 @@ export function createTaskEventRequestSchema(
       origin: taskEventDeprecatedOriginField.optional(),
       masumiPayment: masumiPaymentPayloadSchema.optional().openapi({
         description:
-          "On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.",
+          "On-chain Masumi credit charge for a credit-bearing task event. Coworker-only; allowed on any credit-bearing event; omit credits when set.",
       }),
     })
     .superRefine((data, ctx) => {
@@ -100,12 +100,14 @@ export function createTaskEventRequestSchema(
       if (
         data.status === undefined &&
         data.comment === undefined &&
-        data.credits == null
+        data.credits == null &&
+        data.masumiPayment === undefined
       ) {
         ctx.addIssue({
           code: "custom",
-          message: "At least one of status, comment, or credits is required",
-          path: ["status", "comment", "credits"],
+          message:
+            "At least one of status, comment, credits, or masumiPayment is required",
+          path: ["status", "comment", "credits", "masumiPayment"],
         });
       }
 
@@ -116,14 +118,6 @@ export function createTaskEventRequestSchema(
             message:
               "Do not send credits when masumiPayment is set; billing uses masumiPayment.Amounts instead.",
             path: ["credits"],
-          });
-        }
-
-        if (data.status !== TaskStatus.COMPLETED) {
-          ctx.addIssue({
-            code: "custom",
-            message: "masumiPayment is only allowed when status is COMPLETED",
-            path: ["masumiPayment"],
           });
         }
 

@@ -442,9 +442,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        if (status === undefined && comment === undefined && credits == null) {
+        if (!isAgent && masumiPayment != null) {
           throw unprocessableEntity(
-            "At least one of status, comment, or credits is required",
+            "Only the assigned coworker can set masumiPayment on task events",
+          );
+        }
+
+        if (
+          status === undefined &&
+          comment === undefined &&
+          credits == null &&
+          masumiPayment == null
+        ) {
+          throw unprocessableEntity(
+            "At least one of status, comment, credits, or masumiPayment is required",
           );
         }
 
@@ -498,7 +509,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const actorData =
           status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
             ? getStatusEventActorData(authContext)
-            : credits != null
+            : credits != null || masumiPayment != null
               ? getCoworkerActorData(authContext)
               : getCommentEventActorData(authContext);
 

@@ -175,6 +175,14 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Do not import `@sokosumi/database` from web. Do not add Prisma-shaped composites under `packages/utils/src/domain/`.
 - After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
 
+### View models vs Core DTOs
+
+- **Services and actions return Core DTOs** (`Agent`, `JobSummary`, `Task`, `TaskListItem`, …). Do not invent a web-wide domain model layer that parallels Core shapes.
+- **Thin view models are allowed only where UI needs computed or joined fields.** Keep them next to the consuming feature (e.g. `apps/web/src/app/(app)/tasks/types/task-board.ts` for `TaskWithCoworker`, `tasks/types/tasks-view-job.ts` for the jobs tab row). Document the type as a view model in a short comment.
+- **Mappers live next to the consuming UI** (e.g. `mapTaskToTaskWithCoworker` in `tasks/utils/task-view-model.ts`). Do not put feature view-model mappers under `src/lib/types/` or generic `src/lib/utils/`.
+- **Prefer pushing shared computed fields to Core** when more than one surface needs them. Example: `jobStatusSettled` is on Core `JobSummary` / `Job` — web must not recompute settlement from timestamps.
+- **`src/lib/types/core-dto.ts`** stays for cross-cutting Core helpers and field-derived type aliases — not for feature view models.
+
 ### Core API reads & caching (performance)
 
 Web data access for domain entities goes through the Core API

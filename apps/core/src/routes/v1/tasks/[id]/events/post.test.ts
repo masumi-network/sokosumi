@@ -604,6 +604,62 @@ describe("POST /{id}/events", () => {
     );
   });
 
+  it("auto-sets OUT_OF_CREDITS when masumiPayment charge is insufficient on RUNNING", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.OUT_OF_CREDITS,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockRejectedValue(
+      new HTTPException(422, {
+        message: "Insufficient balance",
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+      }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
+    expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.OUT_OF_CREDITS,
+          cents: undefined,
+          transactionId: null,
+        }),
+      }),
+    );
+  });
+
   it("auto-sets OUT_OF_CREDITS when masumiPayment charge is insufficient", async () => {
     const createdEvent = createTaskEvent({
       status: TaskStatus.OUT_OF_CREDITS,
@@ -1456,6 +1512,157 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
+  it("creates purchase when coworker charges masumiPayment on RUNNING", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_running_masumi",
+            status: null,
+            cents: convertCreditsToCents(5),
+            transactionId: "txn_masumi_running",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_masumi_running");
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
+    expect(createTaskEventTransactionMock).toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("accepts charge-only masumiPayment without status change", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_charge_only_masumi",
+            status: null,
+            cents: convertCreditsToCents(5),
+            transactionId: "txn_charge_only",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_charge_only");
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.status).toBeNull();
+    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("allows multiple sequential Masumi charges on the same task", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi
+          .fn()
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              status: null,
+              cents: convertCreditsToCents(5),
+              transactionId: "txn_masumi_first",
+            }),
+          )
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              status: null,
+              cents: convertCreditsToCents(5),
+              transactionId: "txn_masumi_second",
+            }),
+          ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock
+      .mockResolvedValueOnce("txn_masumi_first")
+      .mockResolvedValueOnce("txn_masumi_second");
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const first = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ masumiPayment: validMasumiPaymentBody }),
+    });
+    const second = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ masumiPayment: validMasumiPaymentBody }),
+    });
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalledTimes(2);
+    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(2);
+    expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
   it("creates purchase when coworker completes with masumiPayment", async () => {
     const tx: TransactionMock = {
       taskEvent: {
@@ -1642,7 +1849,7 @@ describe("POST /{id}/events", () => {
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
-  it("rejects user COMPLETED with masumiPayment (invalid status transition)", async () => {
+  it("rejects user COMPLETED with masumiPayment (non-agent gate)", async () => {
     const tx: TransactionMock = {
       taskEvent: { create: vi.fn() },
       task: { updateMany: vi.fn() },
@@ -1667,6 +1874,37 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(422);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects user masumiPayment on a credit-bearing event (non-agent gate)", async () => {
+    const tx: TransactionMock = {
+      taskEvent: { create: vi.fn() },
+      task: { updateMany: vi.fn() },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.RUNNING,
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
@@ -1958,7 +2196,7 @@ describe("POST /{id}/events", () => {
 
   it("rejects masumiPayment from a delegated coworker", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.READY, coworkerId: null }),
+      createTask({ status: TaskStatus.RUNNING, coworkerId: COWORKER_ID }),
     );
 
     const tx: TransactionMock = {
@@ -1986,14 +2224,12 @@ describe("POST /{id}/events", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: TaskStatus.CANCELED,
+        status: TaskStatus.RUNNING,
         masumiPayment: validMasumiPaymentBody,
       }),
     });
 
-    // masumiPayment is schema-restricted to COMPLETED, which a delegated
-    // coworker can never reach; the request is rejected before any charge.
-    expect(response.status).not.toBe(201);
+    expect(response.status).toBe(422);
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();

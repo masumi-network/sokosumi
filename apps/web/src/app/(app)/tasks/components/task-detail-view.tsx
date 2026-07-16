@@ -24,6 +24,7 @@ import {
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
+import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
@@ -32,7 +33,6 @@ import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { formatShortDateTime } from "@/lib/utils/datetime";
-import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 import {
   buildVendorGrantReviewHref,
   canApproveVendorGrants,

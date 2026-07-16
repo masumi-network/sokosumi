@@ -1,6 +1,7 @@
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobType } from "@/lib/types/core-dto";
 
+/** Tasks “Jobs” tab row view model — trimmed Core job fields plus coworker join. */
 export interface TasksViewJob {
   id: string;
   agentId: string;

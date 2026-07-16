@@ -2,9 +2,8 @@
 
 import { ArrowRight, Check, Clock } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-
+import { COLUMN_STATUS_COLORS } from "@/app/tasks/types/task-board";
 import { Button } from "@/components/ui/button";
-import { COLUMN_STATUS_COLORS } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
 type CelebrationTaskStatus = "DRAFT" | "QUEUED" | "READY";

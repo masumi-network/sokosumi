@@ -1,6 +1,5 @@
+import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import { TaskStatus } from "@/lib/clients/generated/core";
-
-import type { KanbanColumnId } from "@/lib/types/task";
 
 /** Single source of truth for task status → kanban column. Used by getTasksColumnPage and mapTaskToTaskWithCoworker. */
 export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {

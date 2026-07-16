@@ -1,4 +1,4 @@
-import type { TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { cn } from "@/lib/utils";
 
 import { ColumnHeader } from "./column-header";

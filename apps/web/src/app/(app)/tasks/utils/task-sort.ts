@@ -1,4 +1,4 @@
-import type { TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 
 /**
  * Compares tasks in descending order (newest first). Uses string comparison for

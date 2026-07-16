@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 
 import { compareTasksDesc } from "../task-sort";
 
