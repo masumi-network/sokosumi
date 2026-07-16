@@ -10,5 +10,43 @@
       "!public/**/*.svg",
       "!next-env.d.ts"
     ]
+  },
+  "linter": {
+    "rules": {
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "@sokosumi/database": "Web must not import @sokosumi/database. Use the Core API client instead.",
+              "@sokosumi/utils": {
+                "importNames": [
+                  "TaskStatus",
+                  "SokosumiJobStatus",
+                  "JobType",
+                  "AgentJobStatus",
+                  "OnChainJobStatus",
+                  "MemberRole",
+                  "InvitationStatus",
+                  "BlobStatus",
+                  "NoticeKind",
+                  "NotificationKind",
+                  "Channel",
+                  "*"
+                ],
+                "message": "Import domain enum values from @/lib/clients/generated/core, not @sokosumi/utils. See apps/web/AGENTS.md (Core DTO boundary)."
+              }
+            },
+            "patterns": [
+              {
+                "group": ["@sokosumi/utils/*"],
+                "importNamePattern": "(TaskStatus|SokosumiJobStatus|JobType|AgentJobStatus|OnChainJobStatus|MemberRole|InvitationStatus|BlobStatus|NoticeKind|NotificationKind|Channel)",
+                "message": "Import domain enum values from @/lib/clients/generated/core, not @sokosumi/utils. See apps/web/AGENTS.md (Core DTO boundary)."
+              }
+            ]
+          }
+        }
+      }
+    }
   }
 }

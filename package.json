@@ -38,6 +38,7 @@
     "web:lint": "pnpm --filter web lint",
     "web:lint:write": "pnpm --filter web lint:write",
     "web:check": "pnpm --filter web check",
+    "web:check:dto-boundary": "node scripts/check-web-dto-boundary.mjs",
     "web:check:write": "pnpm --filter web check:write",
     "core:lint": "pnpm --filter core lint",
     "core:lint:write": "pnpm --filter core lint:write",

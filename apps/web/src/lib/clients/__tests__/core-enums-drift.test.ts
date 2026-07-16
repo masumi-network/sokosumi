@@ -1,3 +1,4 @@
+// biome-ignore lint/style/noRestrictedImports: drift parity guard — only allowed utils domain enum import in web
 import { SokosumiJobStatus as UtilsSokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 

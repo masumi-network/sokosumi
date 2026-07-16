@@ -137,6 +137,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 | `pnpm web:start`  | Test production build     |
 | `pnpm web:lint`   | Run Biome lint rules for the web app |
 | `pnpm web:check`  | Run full Biome checks for the web app |
+| `pnpm web:check:dto-boundary` | Run DTO boundary import guard (also in CI `web-dto-boundary` job) |
 | `pnpm web:test`   | Run web app tests         |
 | `pnpm web:format` | Format code with Biome |
 
@@ -173,7 +174,21 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) come from the generated Core client barrel (`@/lib/clients/generated/core`). Do not import domain enum values from `@sokosumi/utils`. **Pure helpers** (URLs, credits, locale, auth cookies, task-status transitions) stay in `@sokosumi/utils` — not entity mirrors. The drift test (`core-enums-drift.test.ts`) locks generated const shapes (and `SokosumiJobStatus` against the shared utils map).
 - Codegen stays **web-only** under `src/lib/clients/generated/core` (no `packages/api-types`); same pattern as `TaskLinkRelation`.
 - Do not import `@sokosumi/database` from web. Do not add Prisma/Core enum mirrors or Prisma-shaped composites under `@sokosumi/utils`.
-- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
+- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`). Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
+
+#### CI enforcement (SOK-596)
+
+Automated guards keep web on the Core DTO boundary:
+
+| Check | Command | What it catches |
+| ----- | ------- | ---------------- |
+| Script | `pnpm web:check:dto-boundary` | `@sokosumi/database` anywhere under `apps/web` (source + `package.json`); forbidden domain enum **named** imports and namespace imports from `@sokosumi/utils` |
+| Biome | `pnpm web:check` | Same rules via `style/noRestrictedImports` in `apps/web/biome.json` (editor + CI) |
+| CI job | `web-dto-boundary` in `.github/workflows/lint.yml` | Runs the script on every PR |
+
+**Forbidden domain enum names from `@sokosumi/utils`:** `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`. Masumi protocol enums (`NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus`) and approved pure helpers remain allowed.
+
+**Allowlist:** `src/lib/clients/__tests__/core-enums-drift.test.ts` may import `SokosumiJobStatus` from `@sokosumi/utils` only (documented `biome-ignore` on that import). All other forbidden names in that file still fail.
 
 ### Core DTO boundary
 

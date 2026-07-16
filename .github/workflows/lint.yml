@@ -6,6 +6,21 @@ env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
 jobs:
+  web-dto-boundary:
+    name: Web DTO boundary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Check web DTO import boundary
+        run: pnpm web:check:dto-boundary
+
   biome:
     name: Biome
     runs-on: ubuntu-latest
