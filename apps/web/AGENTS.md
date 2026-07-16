@@ -173,7 +173,17 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) come from the generated Core client barrel (`@/lib/clients/generated/core`). Do not import domain enum values from `@sokosumi/utils`. **Pure helpers** (URLs, credits, locale, auth cookies, task-status transitions) stay in `@sokosumi/utils` — not entity mirrors. The drift test (`core-enums-drift.test.ts`) locks generated const shapes (and `SokosumiJobStatus` against the shared utils map).
 - Codegen stays **web-only** under `src/lib/clients/generated/core` (no `packages/api-types`); same pattern as `TaskLinkRelation`.
 - Do not import `@sokosumi/database` from web. Do not add Prisma/Core enum mirrors or Prisma-shaped composites under `@sokosumi/utils`.
-- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
+- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`). Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
+
+#### Boundary rules (SOK-596)
+
+Keep web on the Core DTO boundary (convention / review — not a separate CI grep job):
+
+- **Never** import `@sokosumi/database` from web (including `package.json` dependencies).
+- **Never** import domain enum **runtime const maps** from `@sokosumi/utils` — use `@/lib/clients/generated/core`. Forbidden names include: `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`.
+- **Allowed** from utils: Masumi protocol enums (`NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus`) and the approved pure helpers listed under [Core DTO boundary](#core-dto-boundary).
+- **Allowlist:** `src/lib/clients/__tests__/core-enums-drift.test.ts` may import `SokosumiJobStatus` from `@sokosumi/utils` only (parity guard against the shared Core/DB map).
+- After Core client regen, run `pnpm --filter web typecheck` (CI `typecheck` also covers this).
 
 ### Core DTO boundary
 
