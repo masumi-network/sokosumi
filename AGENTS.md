@@ -204,7 +204,6 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 | `pnpm format:check`    | Check formatting for entire repo (`biome format .`) |
 | `pnpm web:lint`        | Run Biome lint rules for the web app |
 | `pnpm web:check`       | Run full Biome checks for the web app |
-| `pnpm web:check:dto-boundary` | CI guard: no `@sokosumi/database` or forbidden domain enums from `@sokosumi/utils` in `apps/web` |
 | `pnpm test`            | Run tests locally             |
 | `pnpm core:test`       | Run core API tests            |
 | `pnpm web:test`        | Run web app tests             |
@@ -301,7 +300,7 @@ docs(readme): update setup instructions
 - **Forbidden in `apps/web`**: importing `@sokosumi/database` repositories/helpers, instantiating or calling the Prisma client, or issuing raw SQL. Web services (`src/lib/services/`) and actions (`src/lib/actions/`) coordinate domain flows but obtain their data by calling Core endpoints.
 - **Required in `apps/core`**: every new data-access need is implemented as a versioned route under `apps/core/src/routes/v1/`, backed by `@sokosumi/database` repositories, validated with the Core Zod/OpenAPI schemas (`apps/core/src/schemas/`).
 - **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`) to catch DTO drift. Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).
-- **CI enforcement**: the `web-dto-boundary` job in `.github/workflows/lint.yml` runs `pnpm web:check:dto-boundary`; `pnpm web:check` applies Biome `noRestrictedImports` in `apps/web/biome.json`. Both fail on `@sokosumi/database` imports and forbidden domain enum **named** imports from `@sokosumi/utils` in web (see `apps/web/AGENTS.md`).
+- **Web DTO boundary**: do not import `@sokosumi/database` or domain enum **values** from `@sokosumi/utils` in web — use the generated Core client. Details and approved utils exceptions live in `apps/web/AGENTS.md` (Core DTO boundary).
 - **Why**: a single owner for data access keeps authorization, validation, and schema invariants in one place, lets the web app stay a thin client, and removes Prisma/Postgres credentials from the web runtime.
 
 ### Code References
