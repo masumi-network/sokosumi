@@ -113,6 +113,9 @@ describe("history-filters", () => {
       expect(sanitizeHistoryStatusInput(" CANCEL_REQUESTED ")).toBe(
         TaskStatus.CANCELED,
       );
+      expect(
+        parseHistoryFilters({ status: "CANCEL_REQUESTED" }, "org-1").status,
+      ).toBe(TaskStatus.CANCELED);
     });
   });
 

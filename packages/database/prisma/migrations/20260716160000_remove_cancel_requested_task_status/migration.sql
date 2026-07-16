@@ -4,8 +4,8 @@
 --
 -- Prefer deleting those intermediate events so timelines stay
 -- … → CANCELED (not … → CANCELED → CANCELED). When a task has no CANCELED
--- event yet (status was force-updated on the task row only), rewrite that
--- sole CANCEL_REQUESTED event to CANCELED so cancel is still visible.
+-- event yet (status was force-updated on the task row only), keep one
+-- CANCEL_REQUESTED event rewritten to CANCELED so cancel is still visible.
 BEGIN;
 
 -- Idempotent: any leftover CANCEL_REQUESTED tasks → CANCELED.
@@ -13,18 +13,25 @@ UPDATE "task"
 SET "status" = 'CANCELED'
 WHERE "status" = 'CANCEL_REQUESTED';
 
--- Keep cancel visible when the only cancel signal is a CANCEL_REQUESTED event.
+-- Keep one cancel signal when the task has no CANCELED event yet.
+-- Pick the latest CANCEL_REQUESTED event per task so multiples do not
+-- become duplicate CANCELED timeline rows.
 UPDATE "taskEvent" AS te
 SET "status" = 'CANCELED'
-WHERE te."status" = 'CANCEL_REQUESTED'
-  AND NOT EXISTS (
-    SELECT 1
-    FROM "taskEvent" AS other
-    WHERE other."taskId" = te."taskId"
-      AND other."status" = 'CANCELED'
-  );
+WHERE te."id" IN (
+  SELECT DISTINCT ON ("taskId") "id"
+  FROM "taskEvent"
+  WHERE "status" = 'CANCEL_REQUESTED'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM "taskEvent" AS other
+      WHERE other."taskId" = "taskEvent"."taskId"
+        AND other."status" = 'CANCELED'
+    )
+  ORDER BY "taskId", "createdAt" DESC, "id" DESC
+);
 
--- Drop the dead intermediate cancel-request step from history.
+-- Drop remaining intermediate cancel-request events from history.
 DELETE FROM "taskEvent"
 WHERE "status" = 'CANCEL_REQUESTED';
 
