@@ -435,6 +435,14 @@ const labels = {
   confirmArchiveDescription: "Are you sure?",
   archiveError: "Archive error",
   markAsReady: "Mark as Ready",
+  reopenToReady: "Reopen to Ready",
+  reopenToReadyTitle: "Reopen task",
+  reopenToReadyDescription:
+    "Add a comment so your coworker knows what to do next.",
+  reopenToReadyCommentLabel: "Comment",
+  reopenToReadyCommentPlaceholder: "Describe what still needs to be done…",
+  reopenToReadyCommentRequired: "A comment is required to reopen this task",
+  reopenToReadyConfirm: "Reopen to Ready",
   revertToDraft: "Revert to Draft",
   cancel: "Cancel",
   share: "Share",
@@ -756,10 +764,14 @@ describe("TaskDetailActions", () => {
     });
   });
 
-  it("renders archive without status reopen actions for canceled tasks", async () => {
+  it("offers reopen-to-ready with a required comment for canceled tasks", async () => {
     const user = userEvent.setup();
+    const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
+    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+
     renderActions({
       status: TaskStatus.CANCELED,
+      defaultCoworkerId: "cow-1",
       organizations: undefined,
     });
 
@@ -774,6 +786,68 @@ describe("TaskDetailActions", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Mark as Ready" }),
     ).toBeNull();
+
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: labels.reopenToReadyTitle }),
+    ).toBeInTheDocument();
+
+    const confirmButton = screen.getByRole("button", {
+      name: labels.reopenToReadyConfirm,
+    });
+    expect(confirmButton).toBeDisabled();
+
+    await user.type(
+      screen.getByLabelText(labels.reopenToReadyCommentLabel),
+      "Please continue from the last draft",
+    );
+    expect(confirmButton).toBeEnabled();
+
+    await user.click(confirmButton);
+
+    await waitFor(() => {
+      expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.READY,
+        comment: "Please continue from the last draft",
+      });
+    });
+  });
+
+  it("offers reopen-to-ready for completed tasks", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.COMPLETED,
+      defaultCoworkerId: "cow-1",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides reopen when a canceled task has no coworker", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.CANCELED,
+      defaultCoworkerId: null,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
   });
 
   it("shows move to workspace when the task can be moved", async () => {

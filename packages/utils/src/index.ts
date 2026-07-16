@@ -183,7 +183,10 @@ export {
   type TaskEditableStatus,
 } from "./task-editable.js";
 export { TaskStatus } from "./task-status.js";
-export { canUserTransitionTaskStatus } from "./task-status-transitions.js";
+export {
+  canUserTransitionTaskStatus,
+  userTaskStatusTransitionRequiresComment,
+} from "./task-status-transitions.js";
 export {
   buildUserMetadataWithDesignMd,
   buildUserMetadataWithUrl,

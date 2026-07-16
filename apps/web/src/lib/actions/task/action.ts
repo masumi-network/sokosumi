@@ -1,5 +1,6 @@
 "use server";
 
+import { userTaskStatusTransitionRequiresComment } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -53,6 +54,8 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
 interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
   taskId: string;
   desiredStatus: TaskStatus;
+  /** Required by Core when reopening CANCELED/COMPLETED → READY (SOK-631). */
+  comment?: string;
 }
 
 interface DeleteTaskParameters extends AuthenticatedRequest {
@@ -495,7 +498,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
 export const setTaskStatusFromDrag = withSession<
   SetTaskStatusFromDragParameters,
   { taskId: string }
->(async ({ taskId, desiredStatus }) => {
+>(async ({ taskId, desiredStatus, comment }) => {
   try {
     const task = await taskService.getTaskById(taskId);
     if (!task) {
@@ -516,8 +519,22 @@ export const setTaskStatusFromDrag = withSession<
     }
 
     if (desiredStatus !== statusAfterSchedule) {
+      const trimmedComment = comment?.trim();
+      if (
+        userTaskStatusTransitionRequiresComment(
+          statusAfterSchedule,
+          desiredStatus,
+        ) &&
+        !trimmedComment
+      ) {
+        throw new Error(
+          "A comment is required when reopening a canceled or completed task to ready",
+        );
+      }
+
       await taskService.createTaskEvent(taskId, {
         status: desiredStatus,
+        ...(trimmedComment ? { comment: trimmedComment } : {}),
       });
     }
 

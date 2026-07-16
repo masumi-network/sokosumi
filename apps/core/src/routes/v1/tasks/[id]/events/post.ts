@@ -6,6 +6,7 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
   TaskStatus,
+  userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 
 import { waitUntil } from "@vercel/functions";
@@ -418,14 +419,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { event, userId, masumiPayment, pausedForInsufficientBalance } =
       await serializableTransaction(async (tx) => {
-        const {
-          status,
-          comment,
-          credits,
-          authenticationUrl,
-          channel,
-          masumiPayment,
-        } = body;
+        const { status, credits, authenticationUrl, channel, masumiPayment } =
+          body;
+        let comment = body.comment;
 
         const hasNonCommentWrite =
           status !== undefined ||
@@ -468,6 +464,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             status,
             coworkerId: task.coworkerId,
           });
+
+          if (
+            !isAgent &&
+            userTaskStatusTransitionRequiresComment(task.status, status)
+          ) {
+            const trimmedComment = comment?.trim();
+            if (!trimmedComment) {
+              throw unprocessableEntity(
+                "A comment is required when reopening a canceled or completed task to ready",
+              );
+            }
+            comment = trimmedComment;
+          }
         }
 
         let cents: bigint | undefined;

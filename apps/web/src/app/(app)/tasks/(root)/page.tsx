@@ -78,12 +78,15 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     agentId,
     jobStatus,
   } = await searchParams;
-  const [t, tColumns, cookieStore, session] = await Promise.all([
-    getTranslations("App.Tasks"),
-    getTranslations("App.Tasks.Columns"),
-    cookies(),
-    getSession(),
-  ]);
+  const [t, tColumns, tDetailActions, tApp, cookieStore, session] =
+    await Promise.all([
+      getTranslations("App.Tasks"),
+      getTranslations("App.Tasks.Columns"),
+      getTranslations("App.Tasks.Detail.actions"),
+      getTranslations("App"),
+      cookies(),
+      getSession(),
+    ]);
   const defaultViewMode =
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
@@ -319,6 +322,17 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
           loadMoreError: t("Errors.loadMore"),
+          reopenToReady: {
+            title: tDetailActions("reopenToReadyTitle"),
+            description: tDetailActions("reopenToReadyDescription"),
+            commentLabel: tDetailActions("reopenToReadyCommentLabel"),
+            commentPlaceholder: tDetailActions(
+              "reopenToReadyCommentPlaceholder",
+            ),
+            commentRequired: tDetailActions("reopenToReadyCommentRequired"),
+            confirm: tDetailActions("reopenToReadyConfirm"),
+            cancel: tApp("cancel"),
+          },
           display: {
             button: t("Display.button"),
             list: t("Display.list"),
