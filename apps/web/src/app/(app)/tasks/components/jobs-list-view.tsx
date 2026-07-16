@@ -1,9 +1,8 @@
 "use client";
 
-import { SokosumiJobStatus } from "@sokosumi/utils";
 import { useEffect, useMemo, useState } from "react";
-
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { COLUMN_STATUS_COLORS, type KanbanColumnId } from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";

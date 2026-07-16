@@ -9,12 +9,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  AgentJobStatus,
-  canUserTransitionTaskStatus,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@sokosumi/utils";
+import { canUserTransitionTaskStatus } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -30,7 +25,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
@@ -58,6 +52,11 @@ import {
   taskEventDataSchema,
 } from "@/lib/ably";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
+import {
+  AgentJobStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   KANBAN_COLUMNS,

@@ -1,7 +1,6 @@
-import { TaskLinkType, TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { Task } from "@/lib/clients/generated/core";
+import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -159,8 +158,7 @@ describe("task link actions", () => {
     const result = await createTaskLink({
       taskId: "task-1",
       relatedTaskId: "task-parent-new",
-      type: TaskLinkType.PARENT,
-      direction: "incoming",
+      relation: TaskLinkRelation.CHILD,
     });
 
     expect(taskServiceMock.createTaskLink).toHaveBeenCalledWith("task-1", {
@@ -244,8 +242,7 @@ describe("task link actions", () => {
       createTaskLink({
         taskId: "task-1",
         relatedTaskId: "task-parent-new",
-        type: TaskLinkType.PARENT,
-        direction: "incoming",
+        relation: TaskLinkRelation.CHILD,
       }),
     ).rejects.toThrow("link failed");
 
@@ -297,8 +294,7 @@ describe("task link actions", () => {
       createTaskLink({
         taskId: "task-1",
         relatedTaskId: "task-parent-new",
-        type: TaskLinkType.PARENT,
-        direction: "incoming",
+        relation: TaskLinkRelation.CHILD,
       }),
     ).rejects.toThrow("cleanup failed");
 
@@ -346,8 +342,7 @@ describe("task link actions", () => {
       createTaskLink({
         taskId: "task-1",
         relatedTaskId: "task-parent-new",
-        type: TaskLinkType.PARENT,
-        direction: "incoming",
+        relation: TaskLinkRelation.CHILD,
       }),
     ).rejects.toThrow(
       new RegExp(
@@ -369,8 +364,7 @@ describe("task link actions", () => {
         description: "Created related task",
         coworkerId: null,
         status: TaskStatus.READY,
-        type: TaskLinkType.PARENT,
-        direction: "incoming",
+        relation: TaskLinkRelation.CHILD,
       }),
     ).rejects.toThrow("link failed");
 
@@ -429,8 +423,7 @@ describe("task link actions", () => {
         description: "Created related task",
         coworkerId: null,
         status: TaskStatus.READY,
-        type: TaskLinkType.PARENT,
-        direction: "incoming",
+        relation: TaskLinkRelation.CHILD,
       }),
     ).rejects.toThrow("cleanup failed");
 

@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobType } from "@/lib/types/core-dto";
 
 export interface TasksViewJob {

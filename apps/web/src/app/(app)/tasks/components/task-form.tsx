@@ -1,6 +1,5 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
@@ -40,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";

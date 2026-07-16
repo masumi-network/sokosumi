@@ -1,6 +1,6 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
