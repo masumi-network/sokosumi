@@ -436,7 +436,7 @@ const labels = {
   archiveError: "Archive error",
   markAsReady: "Mark as Ready",
   revertToDraft: "Revert to Draft",
-  cancelRequest: "Cancel Request",
+  cancel: "Cancel",
   share: "Share",
 };
 
@@ -615,11 +615,11 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: labels.cancelRequest }),
+      screen.getByRole("menuitem", { name: labels.cancel }),
     ).toBeInTheDocument();
   });
 
-  it("shows cancel request while approval is required", async () => {
+  it("shows cancel while approval is required", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.APPROVAL_REQUIRED,
@@ -631,8 +631,45 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: labels.cancelRequest }),
+      screen.getByRole("menuitem", { name: labels.cancel }),
     ).toBeInTheDocument();
+  });
+
+  it("shows cancel while awaiting external", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.AWAITING_EXTERNAL,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+  });
+
+  it("sets task status to canceled when cancel is chosen", async () => {
+    const user = userEvent.setup();
+    const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
+    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+
+    renderActions({
+      status: TaskStatus.RUNNING,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: labels.cancel }));
+
+    await waitFor(() => {
+      expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.CANCELED,
+      });
+    });
   });
 
   it("shows archive for the task owner while vendor grant approval is pending", async () => {

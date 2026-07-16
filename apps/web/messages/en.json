@@ -1607,7 +1607,7 @@
           "archiveError": "Failed to archive task",
           "markAsReady": "Mark as Ready",
           "revertToDraft": "Revert to Draft",
-          "cancelRequest": "Cancel Request",
+          "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
           "moveToWorkspace": "Move to workspace",

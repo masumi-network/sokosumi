@@ -1595,7 +1595,7 @@
           "archiveError": "Impossibile archiviare il task",
           "markAsReady": "Segna come pronto",
           "revertToDraft": "Ripristina bozza",
-          "cancelRequest": "Annulla richiesta",
+          "cancel": "Annulla",
           "share": "Share",
           "updateStatusSuccess": "Stato del task aggiornato",
           "moveToWorkspace": "Sposta in un altro spazio di lavoro",
