@@ -51,6 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   getBacktickFence,
+  isBlockMarkdownElement,
   normalizeUrl,
 } from "@/lib/utils/markdown-editor-utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
@@ -392,15 +393,12 @@ export const MarkdownEditor = forwardRef<
 
       const childElement = child as HTMLElement;
       const childTag = childElement.tagName.toLowerCase();
-      const shouldTreatAsBlockCode =
-        childTag === "pre" ||
-        (childTag === "code" && childMarkdown.startsWith("```"));
+      const shouldSeparateAsBlock = isBlockMarkdownElement(
+        childTag,
+        childMarkdown,
+      );
 
-      if (!shouldTreatAsBlockCode) {
-        return acc + childMarkdown;
-      }
-
-      if (acc.length > 0 && !acc.endsWith("\n")) {
+      if (shouldSeparateAsBlock && acc.length > 0 && !acc.endsWith("\n")) {
         return `${acc}\n${childMarkdown}`;
       }
 
@@ -500,6 +498,7 @@ export const MarkdownEditor = forwardRef<
             return "\n";
           case "div":
           case "p":
+          case "blockquote":
             return content.endsWith("\n") ? content : `${content}\n`;
           default:
             return content;
