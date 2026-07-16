@@ -175,9 +175,55 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Do not import `@sokosumi/database` from web. Do not add Prisma-shaped composites under `packages/utils/src/domain/`.
 - After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
 
+### Core DTO boundary
+
+Generated Core `/v1` types are the source of truth for **entity** data web shows and mutates. Some shared symbols intentionally stay **outside** Core REST DTOs — do **not** promote them into OpenAPI entity schemas just to “finish” the Core DTO migration (SOK-588 phase 6).
+
+#### In Core REST DTOs (use generated client)
+
+- Entity shapes: `Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …
+- Domain enum **types and runtime const maps** that appear in OpenAPI (e.g. `TaskStatus`, `JobType`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `NotificationKind`, …) from `@/lib/clients/generated/core`
+- Cross-cutting helpers / field-derived aliases in `src/lib/types/core-dto.ts`
+
+#### Not Core REST DTOs (do not add to `/v1` OpenAPI entity schemas)
+
+| Category | Examples | Canonical home | Rule |
+| -------- | -------- | -------------- | ---- |
+| Masumi / payment protocol | `NextJobAction`, `NextJobActionErrorType`, `PaymentType`, `PricingType`, `OnChainTransactionStatus` | `@sokosumi/utils` (used when bridging Masumi purchaser / payment responses, e.g. `job-transformers.ts`) | Payment-protocol state machine values, not `/v1` display DTOs. When the UI needs on-chain outcome, use Core job fields (`OnChainJobStatus`, `jobStatusSettled`, …). Do not invent Core REST DTOs that mirror Masumi purchaser `NextAction` shapes. |
+| Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
+| UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Do not import utils `InvitationStatus.EXPIRED` for app UI — use `InvitationDisplayStatus`. |
+| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |
+| Localized view models | `TaskWithCoworker`, jobs-tab row types | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
+
+**Decision test:** If a value is (a) Masumi payment-protocol state, (b) a stable error `kind`, (c) UI-derived display state, (d) Better Auth `/auth` shape, or (e) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
+
+#### Approved `@sokosumi/utils` imports for web
+
+Import **pure helpers** and the **documented exceptions** above from `@sokosumi/utils` directly (no passthrough re-export files). Approved categories:
+
+1. **Auth session types** — `Session`, `SessionUser`, `SessionRecord`, `Account`
+2. **Auth helpers** — `resolveBetterAuthCookieName`, `resolveBetterAuthCookiePrefix`, Better Auth public URL helpers, `betterAuthUserAdditionalFields` / `betterAuthOrganizationAdditionalFields`
+3. **Error kinds** — `CORE_API_ERROR_KINDS`, `CoreApiErrorKind`
+4. **Credits & billing vocabulary** — `convertCentsToCredits`, `convertCreditsToCents`, `isPositiveIntegerCredits`, credit top-up pricing helpers, `SelfServeSubscriptionPlanName` / `PaidSubscriptionPlanName` / `SubscriptionPlanName` / `OrganizationBillingPlanName` and their parsers, `FREE_SUBSCRIPTION_MONTHLY_CREDITS`, `hasStripeBillingAddressWithCountry`
+5. **Locale** — `AppLocale`, `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `LOCALE_COOKIE_NAME`, `parseLocalePreference`, `resolveRequestLocale`, …
+6. **URL / file / markdown** — `file-url` helpers (`getExtensionFromUrl`, `isImageUrl`, `isUrlString`, …), IPFS helpers (`resolveIpfsOrHttpUrl`, …), markdown link extract/escape, `sanitizeFileName`
+7. **Metadata** — `getOrganizationMetadata`, `getUserMetadata`, `parseOrganizationMetadata` / `parseUserMetadata`, `buildOrganizationMetadataWith*` / `buildUserMetadataWith*`
+8. **Task pure helpers** (status **logic**, not enum maps) — `canUserTransitionTaskStatus`, `isTaskArchivableStatus`, `isTaskEditableStatus`, archive/editable status helpers
+9. **Uploads & org logo** — user-upload content-type/path helpers, `ORGANIZATION_LOGO_*` constants
+10. **Realtime / chat helpers** — Ably channel name builders, `isChatUiProviderReasoningPartType`, OpenRouter react-envelope helpers
+11. **Masumi payment-protocol bridges** — `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus`, and related `PaymentType` / `PricingType` **only** when transforming Masumi purchaser/payment responses (not as stand-ins for Core job DTOs)
+12. **Other pure helpers** — user-name helpers, design-md attachment helpers, webhook helpers when needed
+
+**Do not import from `@sokosumi/utils` in app code** (use generated Core instead):
+
+- Domain enum **runtime const maps** that exist on Core OpenAPI — e.g. `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`, `AgentStatus`, …
+- Prisma-shaped entity mirrors or database helpers (web never imports `@sokosumi/database`)
+
+The drift test (`core-enums-drift.test.ts`) may still import utils enum maps as a parity guard — that is the only intended exception for those maps in web.
+
 ### Better Auth session types vs Core DTOs
 
-Better Auth session and account shapes are a **documented exception** (SOK-588): they live in `@sokosumi/utils`, not in the generated Core REST client.
+Better Auth session and account shapes are a **documented exception** under [Core DTO boundary](#core-dto-boundary) (SOK-588): they live in `@sokosumi/utils`, not in the generated Core REST client.
 
 - **Canonical types** — `Session`, `SessionUser`, `SessionRecord`, and `Account` from `@sokosumi/utils` (`packages/utils/src/better-auth-types.ts`). Import them directly; do **not** add a Session-type passthrough (e.g. `@/lib/auth/session-types.ts`). Existing `@/lib/auth/types.ts` stays for `AccountProvider` only — do not turn it into a Session/Account re-export.
 - **Protocol shapes, not entity DTOs** — These match Core Better Auth `/auth` JSON responses. They are **not** generated Core `/v1` entity DTOs (`Agent`, `Job`, `OrganizationRecord`, …).
@@ -351,7 +397,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Additional Rules
 
-- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other pure helpers from `@sokosumi/utils` directly; no passthrough files
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)
