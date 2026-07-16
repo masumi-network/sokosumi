@@ -77,12 +77,12 @@ describe("assertPublicHttpUrl", () => {
     );
   });
 
-  it.each([
-    "ftp://example.com/x",
-    "file:///etc/passwd",
-  ])("rejects non-http(s) scheme %s", (raw) => {
-    expect(() => assertPublicHttpUrl(raw)).toThrow(SsrfError);
-  });
+  it.each(["ftp://example.com/x", "file:///etc/passwd"])(
+    "rejects non-http(s) scheme %s",
+    (raw) => {
+      expect(() => assertPublicHttpUrl(raw)).toThrow(SsrfError);
+    },
+  );
 
   it("rejects a malformed URL", () => {
     expect(() => assertPublicHttpUrl("not a url")).toThrow(SsrfError);

@@ -170,17 +170,17 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it.each([
-    TaskStatus.COMPLETED,
-    TaskStatus.CANCELED,
-  ])("accepts fractional credits for %s tasks", (status) => {
-    const result = taskEventRequestSchema.safeParse({
-      status,
-      credits: 0.25,
-    });
+  it.each([TaskStatus.COMPLETED, TaskStatus.CANCELED])(
+    "accepts fractional credits for %s tasks",
+    (status) => {
+      const result = taskEventRequestSchema.safeParse({
+        status,
+        credits: 0.25,
+      });
 
-    expect(result.success).toBe(true);
-  });
+      expect(result.success).toBe(true);
+    },
+  );
 
   it("accepts null credits for completed tasks", () => {
     const result = taskEventRequestSchema.safeParse({

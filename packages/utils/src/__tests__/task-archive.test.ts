@@ -9,11 +9,12 @@ import {
 } from "../task-archive.js";
 
 describe("task-archive", () => {
-  it.each(
-    TASK_ARCHIVABLE_STATUSES,
-  )("isTaskArchivableStatus returns true for %s", (status) => {
-    expect(isTaskArchivableStatus(status)).toBe(true);
-  });
+  it.each(TASK_ARCHIVABLE_STATUSES)(
+    "isTaskArchivableStatus returns true for %s",
+    (status) => {
+      expect(isTaskArchivableStatus(status)).toBe(true);
+    },
+  );
 
   it.each([
     "INPUT_REQUIRED",

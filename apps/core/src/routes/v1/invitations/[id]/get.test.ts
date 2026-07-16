@@ -32,18 +32,17 @@ describe("GET /invitations/{id} (public)", () => {
     vi.clearAllMocks();
   });
 
-  it.each([
-    "not_found",
-    "expired",
-    "inviter_not_found",
-  ] as const)("passes through the %s outcome with a 200", async (kind) => {
-    lookupPendingInvitationMock.mockResolvedValue({ kind });
-    const response = await createApp().request("http://localhost/inv_x");
-    const body = await response.json();
+  it.each(["not_found", "expired", "inviter_not_found"] as const)(
+    "passes through the %s outcome with a 200",
+    async (kind) => {
+      lookupPendingInvitationMock.mockResolvedValue({ kind });
+      const response = await createApp().request("http://localhost/inv_x");
+      const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({ kind });
-  });
+      expect(response.status).toBe(200);
+      expect(body.data).toEqual({ kind });
+    },
+  );
 
   it("returns the resolved invitation on the ok path", async () => {
     lookupPendingInvitationMock.mockResolvedValue({

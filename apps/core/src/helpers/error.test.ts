@@ -22,13 +22,16 @@ describe("error kind metadata", () => {
     [badRequest, 400],
     [forbidden, 403],
     [notFound, 404],
-  ] as const)("carries the kind in the exception cause (%#)", (helper, status) => {
-    const error = helper("Some message", { kind: "some_kind" });
+  ] as const)(
+    "carries the kind in the exception cause (%#)",
+    (helper, status) => {
+      const error = helper("Some message", { kind: "some_kind" });
 
-    expect(error.status).toBe(status);
-    expect(error.message).toBe("Some message");
-    expect(error.cause).toEqual({ kind: "some_kind" });
-  });
+      expect(error.status).toBe(status);
+      expect(error.message).toBe("Some message");
+      expect(error.cause).toEqual({ kind: "some_kind" });
+    },
+  );
 
   it("leaves the cause unset without metadata", () => {
     expect(notFound("Not Found").cause).toBeUndefined();
