@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  BlobStatus,
-  Channel,
   extractFileLikeLinks,
   extractHttpLinks,
   resolveIpfsOrHttpUrl,
@@ -38,7 +36,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
