@@ -1595,7 +1595,7 @@
           "archiveError": "タスクをアーカイブできませんでした",
           "markAsReady": "準備完了にする",
           "revertToDraft": "下書きに戻す",
-          "cancelRequest": "キャンセルを申請",
+          "cancel": "キャンセル",
           "share": "Share",
           "updateStatusSuccess": "タスクステータスを更新しました",
           "moveToWorkspace": "ワークスペースへ移動",

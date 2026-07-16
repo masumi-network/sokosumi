@@ -476,7 +476,7 @@ async function TaskDetailActionsSlot({
         archiveError: t("actions.archiveError"),
         markAsReady: t("actions.markAsReady"),
         revertToDraft: t("actions.revertToDraft"),
-        cancelRequest: t("actions.cancelRequest"),
+        cancel: t("actions.cancel"),
         share: t("actions.share"),
       }}
     />
