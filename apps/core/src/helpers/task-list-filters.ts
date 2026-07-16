@@ -1,5 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
 
 export interface TaskListStatusFilterParams {
   statuses?: TaskStatus[];

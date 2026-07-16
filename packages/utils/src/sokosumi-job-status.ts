@@ -1,11 +1,10 @@
 /**
  * Sōkosumi-facing job statuses derived from on-chain and agent state.
  *
- * Client-safe single source of truth, re-used by `@sokosumi/database`,
- * `apps/core`, and `apps/web`. Previously a TS enum in `@sokosumi/database`;
- * moved here as a const map (per the repo convention to avoid enums) so
- * consumers can reference these values without pulling in
- * `@sokosumi/database`.
+ * Used by `@sokosumi/database` helpers and Core OpenAPI seeding — not a
+ * Prisma enum. Web runtime types come from OpenAPI/codegen; this const map
+ * remains for Core + DB layers that need stable string values without
+ * importing generated Prisma client types at the package boundary.
  */
 export const SokosumiJobStatus = {
   STARTED: "started",

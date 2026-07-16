@@ -3,9 +3,9 @@ import * as Sentry from "@sentry/node";
 import {
   GrantResumeStatus,
   type Prisma,
+  TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";

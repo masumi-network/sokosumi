@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Agent } from "@sokosumi/database";
-import { RiskClassification, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { RiskClassification } from "@sokosumi/database";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";

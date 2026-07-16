@@ -9,9 +9,9 @@ import {
   NoticeKind,
   OnChainJobStatus,
   RiskClassification,
-  SokosumiJobStatus,
   TaskStatus,
-} from "@sokosumi/utils";
+} from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 /**
@@ -22,9 +22,9 @@ import type Stripe from "stripe";
  * client. Keep domain enums here; feature-local enums (Hermes, Skills, …) may
  * stay next to their schemas when they are not shared.
  *
- * Value sources are `@sokosumi/utils` const maps (client-safe mirrors of Prisma /
- * Postgres). Utils ↔ Prisma drift is guarded in `@sokosumi/database`
- * (`status-enums-drift.test.ts`); do not import Prisma enums here.
+ * Value sources are Prisma / `@sokosumi/database` enums (+ `@sokosumi/utils` for
+ * SokosumiJobStatus only — no Prisma enum). Drift: Core schema tests assert
+ * OpenAPI ↔ Prisma; web drift asserts generated client values.
  *
  * Decision (SOK-590): keep codegen output web-only under
  * `apps/web/src/lib/clients/generated/core` — same as `TaskLinkRelation`. A

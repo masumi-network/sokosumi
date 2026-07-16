@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { isTaskEditableStatus, TaskStatus } from "@sokosumi/utils";
+import { TaskStatus } from "@sokosumi/database";
+import { isTaskEditableStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import {

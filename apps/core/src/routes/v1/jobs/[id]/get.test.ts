@@ -1,5 +1,4 @@
-import { AgentJobStatus, JobType } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildCoworkerAuthorizedTaskWhere } from "@/helpers/vendor-siblings";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
