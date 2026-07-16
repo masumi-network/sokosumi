@@ -1,8 +1,10 @@
-import { TaskEventOrigin } from "@sokosumi/database";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { Channel } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import { LIMITS } from "@/config/constants";
+import { taskEventSchema } from "@/schemas/task.schema";
 
 import { createTaskEventRequestSchema } from "./schema";
 
@@ -27,69 +29,145 @@ const validMasumiPayment = {
 } as const;
 
 describe("createTaskEventRequestSchema", () => {
-  it("accepts a valid origin", () => {
+  it("accepts a valid channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
-      origin: TaskEventOrigin.SLACK,
+      channel: Channel.SLACK,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.SLACK);
+      expect(result.data.channel).toBe(Channel.SLACK);
     }
   });
 
-  it("accepts DISCORD origin", () => {
+  it("accepts deprecated origin as channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
-      origin: TaskEventOrigin.DISCORD,
+      origin: Channel.SLACK,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.DISCORD);
+      expect(result.data.channel).toBe(Channel.SLACK);
+      expect(result.data.origin).toBe(Channel.SLACK);
     }
   });
 
-  it("accepts MESSENGER origin", () => {
+  it("accepts DISCORD channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
-      origin: TaskEventOrigin.MESSENGER,
+      channel: Channel.DISCORD,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.MESSENGER);
+      expect(result.data.channel).toBe(Channel.DISCORD);
     }
   });
 
-  it("throws an error for unsupported origins", () => {
+  it("accepts MESSENGER channel", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      channel: Channel.MESSENGER,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.channel).toBe(Channel.MESSENGER);
+    }
+  });
+
+  it("accepts matching channel and origin", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      channel: Channel.TEAMS,
+      origin: Channel.TEAMS,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.channel).toBe(Channel.TEAMS);
+    }
+  });
+
+  it("rejects conflicting channel and origin", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      channel: Channel.SLACK,
+      origin: Channel.EMAIL,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("throws an error for unsupported channels", () => {
     expect(() => {
       taskEventRequestSchema.parse({
         status: TaskStatus.RUNNING,
-        origin: "Discord",
+        channel: "Discord",
       });
     }).toThrow();
   });
 
-  it("throws an error for null origin", () => {
+  it("throws an error for null channel", () => {
     expect(() => {
       taskEventRequestSchema.parse({
         status: TaskStatus.RUNNING,
-        origin: null,
+        channel: null,
       });
     }).toThrow();
   });
 
-  it("defaults missing origin to SOKOSUMI", () => {
+  it("defaults missing channel and origin to SOKOSUMI", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.SOKOSUMI);
+      expect(result.data.channel).toBe(Channel.SOKOSUMI);
     }
+  });
+
+  it("marks TaskEvent.origin as deprecated in OpenAPI", () => {
+    const app = new OpenAPIHono();
+    app.openapi(
+      createRoute({
+        method: "get",
+        path: "/probe",
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: taskEventSchema,
+              },
+            },
+            description: "probe",
+          },
+        },
+      }),
+      () => {
+        throw new Error("unreachable");
+      },
+    );
+
+    const doc = app.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "test", version: "1" },
+    });
+
+    expect(doc.components?.schemas?.TaskEvent).toMatchObject({
+      properties: {
+        origin: {
+          deprecated: true,
+          description: "Deprecated. Use channel instead.",
+        },
+        channel: expect.objectContaining({
+          type: "string",
+        }),
+      },
+    });
   });
 
   it("accepts authentication required with https url", () => {

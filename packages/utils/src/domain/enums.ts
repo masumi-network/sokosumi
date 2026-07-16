@@ -123,7 +123,7 @@ export const RiskClassification = {
 export type RiskClassification =
   (typeof RiskClassification)[keyof typeof RiskClassification];
 
-export const TaskEventOrigin = {
+export const Channel = {
   SLACK: "SLACK",
   TEAMS: "TEAMS",
   EMAIL: "EMAIL",
@@ -139,8 +139,7 @@ export const TaskEventOrigin = {
   UNKNOWN: "UNKNOWN",
 } as const;
 
-export type TaskEventOrigin =
-  (typeof TaskEventOrigin)[keyof typeof TaskEventOrigin];
+export type Channel = (typeof Channel)[keyof typeof Channel];
 
 export const TaskLinkType = {
   RELATES: "RELATES",

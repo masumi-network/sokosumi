@@ -2,11 +2,11 @@
 
 import {
   BlobStatus,
+  Channel,
   extractFileLikeLinks,
   extractHttpLinks,
   resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
-  TaskEventOrigin,
   TaskStatus,
 } from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
@@ -42,9 +42,9 @@ import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import {
-  ORIGIN_APP_NAME_KEY_MAP,
-  ORIGIN_ICON_MAP,
-} from "@/lib/constants/task-event-origin-icons";
+  CHANNEL_APP_NAME_KEY_MAP,
+  CHANNEL_ICON_MAP,
+} from "@/lib/constants/channel-icons";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
@@ -262,7 +262,8 @@ export function TaskActivitySection({
       status: null,
       comment: trimmedComment,
       authenticationUrl: null,
-      origin: TaskEventOrigin.SOKOSUMI,
+      channel: Channel.SOKOSUMI,
+      origin: Channel.SOKOSUMI,
       userId: currentUser?.id ?? null,
       user: currentUser
         ? {
@@ -455,12 +456,12 @@ export function TaskActivitySection({
             const action = event.comment
               ? actionCommentedLabel
               : actionUpdatedStatusLabel;
-            const OriginIcon = ORIGIN_ICON_MAP[event.origin];
-            const originAppName = t(
-              `originApp.${ORIGIN_APP_NAME_KEY_MAP[event.origin]}`,
+            const ChannelIcon = CHANNEL_ICON_MAP[event.channel];
+            const channelAppName = t(
+              `channelApp.${CHANNEL_APP_NAME_KEY_MAP[event.channel]}`,
             );
             const originFromLabel = t("originFromApp", {
-              appName: originAppName,
+              appName: channelAppName,
             });
             const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
             const formattedComment = event.comment
@@ -573,7 +574,7 @@ export function TaskActivitySection({
                           {!event.status ? (
                             <>
                               <span>{originFromLabel}</span>
-                              <OriginIcon
+                              <ChannelIcon
                                 className="text-muted-foreground/50 size-3.5 shrink-0"
                                 role="img"
                                 aria-label={originFromLabel}
@@ -593,7 +594,7 @@ export function TaskActivitySection({
                             />
                             <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                               <span>{originFromLabel}</span>
-                              <OriginIcon
+                              <ChannelIcon
                                 className="text-muted-foreground/50 size-3.5 shrink-0"
                                 role="img"
                                 aria-label={originFromLabel}

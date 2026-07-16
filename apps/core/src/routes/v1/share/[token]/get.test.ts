@@ -264,6 +264,7 @@ describe("GET /share/{token}", () => {
             id: "evt_123",
             createdAt: new Date("2026-03-30T10:00:00.000Z"),
             updatedAt: new Date("2026-03-30T10:05:00.000Z"),
+            channel: "SOKOSUMI",
             origin: "SOKOSUMI",
             status: "RUNNING",
             comment: null,

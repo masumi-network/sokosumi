@@ -57,6 +57,7 @@ export type {
   AgentJobStatus as AgentJobStatusType,
   AgentStatus as AgentStatusType,
   BlobStatus as BlobStatusType,
+  Channel as ChannelType,
   InvitationStatus as InvitationStatusType,
   JobType as JobTypeType,
   MemberRole as MemberRoleType,
@@ -68,13 +69,13 @@ export type {
   PaymentType as PaymentTypeType,
   PricingType as PricingTypeType,
   RiskClassification as RiskClassificationType,
-  TaskEventOrigin as TaskEventOriginType,
   TaskLinkType as TaskLinkTypeType,
 } from "./domain/index.js";
 export {
   AgentJobStatus,
   AgentStatus,
   BlobStatus,
+  Channel,
   InvitationStatus,
   JobType,
   MemberRole,
@@ -86,7 +87,6 @@ export {
   PaymentType,
   PricingType,
   RiskClassification,
-  TaskEventOrigin,
   TaskLinkType,
 } from "./domain/index.js";
 export {

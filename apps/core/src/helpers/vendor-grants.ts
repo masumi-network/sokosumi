@@ -1,10 +1,10 @@
 import {
+  Channel,
   GrantResumeStatus,
   MemberRole,
   NotificationKind,
   type Prisma,
   type Task,
-  TaskEventOrigin,
   type VendorGrant,
   VendorGrantStatus,
   VendorPermission,
@@ -535,7 +535,7 @@ export async function unparkTasksForGrant(
       data: {
         taskId: task.id,
         status: resumeStatus,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
         userId: resolvedById,
         comment: null,
         coworkerId: null,
@@ -588,7 +588,7 @@ export async function cancelParkedTasksForGrant(
       data: {
         taskId: task.id,
         status: TaskStatus.CANCELED,
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
         userId: params.resolvedById ?? null,
         comment: null,
         coworkerId: null,

@@ -584,9 +584,13 @@ describe("core.client", () => {
                 id: "event_1",
                 createdAt: "2026-03-26T10:20:00.000Z",
                 updatedAt: "2026-03-26T10:20:00.000Z",
+                channel: "SOKOSUMI",
                 origin: "SOKOSUMI",
                 status: "READY",
+                comment: null,
                 credits: null,
+                actorName: null,
+                actorImage: null,
               },
             ],
           },
@@ -625,6 +629,7 @@ describe("core.client", () => {
     expect(response.task.events[0]?.createdAt).toEqual(
       new Date("2026-03-26T10:20:00.000Z"),
     );
+    expect(response.task.events[0]?.channel).toBe("SOKOSUMI");
   });
 
   it("normalizes history updatedAt and archivedAt strings through the server transport", async () => {

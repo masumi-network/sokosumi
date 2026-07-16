@@ -1,4 +1,4 @@
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/utils";
+import { Channel, TaskStatus } from "@sokosumi/utils";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,18 +38,18 @@ vi.mock("next-intl", () => ({
       ctrl: "Ctrl",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
       fileLabel: "File",
-      "originApp.sokosumi": "Sokosumi",
-      "originApp.slack": "Slack",
-      "originApp.teams": "Teams",
-      "originApp.email": "Email",
-      "originApp.linear": "Linear",
-      "originApp.github": "GitHub",
-      "originApp.whatsapp": "WhatsApp",
-      "originApp.telegram": "Telegram",
-      "originApp.signal": "Signal",
-      "originApp.discord": "Discord",
-      "originApp.chat": "Chat",
-      "originApp.unknown": "Unknown",
+      "channelApp.sokosumi": "Sokosumi",
+      "channelApp.slack": "Slack",
+      "channelApp.teams": "Teams",
+      "channelApp.email": "Email",
+      "channelApp.linear": "Linear",
+      "channelApp.github": "GitHub",
+      "channelApp.whatsapp": "WhatsApp",
+      "channelApp.telegram": "Telegram",
+      "channelApp.signal": "Signal",
+      "channelApp.discord": "Discord",
+      "channelApp.chat": "Chat",
+      "channelApp.unknown": "Unknown",
     };
 
     const translator = (
@@ -123,7 +123,7 @@ function createEvent(
     status,
     comment = null,
     authenticationUrl = null,
-    origin = TaskEventOrigin.SOKOSUMI,
+    channel = Channel.SOKOSUMI,
     userId = "user-1",
     user,
     coworkerId = null,
@@ -133,7 +133,7 @@ function createEvent(
     status: TaskStatus | null;
     comment?: string | null;
     authenticationUrl?: string | null;
-    origin?: TaskEventOrigin;
+    channel?: Channel;
     userId?: string | null;
     user?: TaskEvent["user"];
     coworkerId?: string | null;
@@ -148,7 +148,8 @@ function createEvent(
     status,
     comment,
     authenticationUrl,
-    origin,
+    channel,
+    origin: channel,
     userId,
     user,
     coworkerId,
@@ -477,13 +478,13 @@ describe("TaskActivitySection", () => {
         createdAt: "2026-01-01T12:00:00.000Z",
         status: null,
         comment: "Posted in app",
-        origin: TaskEventOrigin.SOKOSUMI,
+        channel: Channel.SOKOSUMI,
       }),
       createEvent("older-email", {
         createdAt: "2026-01-01T11:00:00.000Z",
         status: null,
         comment: "Sent by email",
-        origin: TaskEventOrigin.EMAIL,
+        channel: Channel.EMAIL,
       }),
     ];
 

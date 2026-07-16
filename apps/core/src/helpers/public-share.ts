@@ -15,6 +15,7 @@ interface PublicSharedTaskMilestone {
   id: string;
   createdAt: Date;
   updatedAt: Date;
+  channel: string;
   origin: string;
   status: string | null;
   comment: string | null;
@@ -83,7 +84,8 @@ function mapPublicTaskMilestone(
     id: event.id,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
-    origin: event.origin,
+    channel: event.channel,
+    origin: event.channel,
     status: event.status,
     comment,
     credits:

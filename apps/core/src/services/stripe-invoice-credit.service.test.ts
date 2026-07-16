@@ -1490,7 +1490,7 @@ describe("handleInvoicePaidEvent", () => {
         events: {
           create: {
             coworkerId: null,
-            origin: "SOKOSUMI",
+            channel: "SOKOSUMI",
             status: "CREDITS_TOPPED_UP",
             userId: "user-1",
           },
@@ -1507,7 +1507,7 @@ describe("handleInvoicePaidEvent", () => {
         events: {
           create: {
             coworkerId: null,
-            origin: "SOKOSUMI",
+            channel: "SOKOSUMI",
             status: "CREDITS_TOPPED_UP",
             userId: "user-1",
           },

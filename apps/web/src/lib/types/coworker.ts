@@ -1,8 +1,8 @@
 import type { Coworker, Vendor } from "@/lib/clients/generated/core";
-import type { TaskEventOrigin } from "@/lib/types/core-dto";
+import type { Channel } from "@/lib/types/core-dto";
 
 export interface CoworkerChannel {
-  origin: TaskEventOrigin;
+  channel: Channel;
   value: string;
 }
 

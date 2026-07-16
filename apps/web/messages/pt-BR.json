@@ -1557,7 +1557,7 @@
         "actorUser": "Usuário",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
-        "originApp": {
+        "channelApp": {
           "sokosumi": "Sokosumi",
           "slack": "Slack",
           "teams": "Teams",

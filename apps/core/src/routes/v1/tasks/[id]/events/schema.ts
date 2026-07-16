@@ -1,9 +1,16 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { isTaskStatusSpendable } from "@/helpers/task";
+import {
+  refineChannelOriginConflict,
+  resolveTaskEventChannel,
+} from "@/helpers/task-event-channel";
+import {
+  taskEventChannelField,
+  taskEventDeprecatedOriginField,
+} from "@/schemas/task.schema";
 
 const masumiPaymentAmountSchema = z.object({
   amount: z.string().min(1).openapi({ example: "470000000000" }),
@@ -81,21 +88,16 @@ export function createTaskEventRequestSchema(
         description:
           "Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.",
       }),
-      origin: z
-        .enum(TaskEventOrigin)
-        .optional()
-        .default(TaskEventOrigin.SOKOSUMI)
-        .openapi({
-          example: TaskEventOrigin.SLACK,
-          description:
-            "The origin of the task event. Defaults to SOKOSUMI if undefined.",
-        }),
+      channel: taskEventChannelField.optional(),
+      origin: taskEventDeprecatedOriginField.optional(),
       masumiPayment: masumiPaymentPayloadSchema.optional().openapi({
         description:
           "On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.",
       }),
     })
     .superRefine((data, ctx) => {
+      refineChannelOriginConflict(data, ctx);
+
       if (data.status === undefined && data.comment === undefined) {
         ctx.addIssue({
           code: "custom",
@@ -176,5 +178,9 @@ export function createTaskEventRequestSchema(
           path: ["authenticationUrl"],
         });
       }
-    });
+    })
+    .transform((data) => ({
+      ...data,
+      channel: resolveTaskEventChannel(data),
+    }));
 }

@@ -1,4 +1,4 @@
-import { TaskEventOrigin } from "@sokosumi/utils";
+import { Channel } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -39,16 +39,16 @@ describe("CoworkerGalleryCard", () => {
         <CoworkerGalleryCard
           slug="soko"
           name="Soko"
-          channels={[{ origin: TaskEventOrigin.EMAIL, value }]}
+          channels={[{ channel: Channel.EMAIL, value }]}
           action={<button type="button">Select</button>}
         />,
       );
 
       expect(
-        screen.queryByRole("link", { name: "originApp.email" }),
+        screen.queryByRole("link", { name: "channelApp.email" }),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: "originApp.email" }),
+        screen.getByRole("button", { name: "channelApp.email" }),
       ).toHaveAttribute("aria-pressed", "false");
       unmount();
     }
@@ -60,16 +60,16 @@ describe("CoworkerGalleryCard", () => {
       <CoworkerGalleryCard
         slug="soko"
         name="Soko"
-        channels={[{ origin: TaskEventOrigin.EMAIL, value: "   " }]}
+        channels={[{ channel: Channel.EMAIL, value: "   " }]}
         action={<button type="button">Select</button>}
       />,
     );
 
     expect(
-      screen.queryByRole("link", { name: "originApp.email" }),
+      screen.queryByRole("link", { name: "channelApp.email" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "originApp.email" }));
+    await user.click(screen.getByRole("button", { name: "channelApp.email" }));
     const expanded = container.querySelector("p.break-all");
     expect(expanded?.textContent).toBe("   ");
   });
@@ -80,18 +80,18 @@ describe("CoworkerGalleryCard", () => {
         slug="soko"
         name="Soko"
         channels={[
-          { origin: TaskEventOrigin.EMAIL, value: "  soko@example.com  " },
-          { origin: TaskEventOrigin.WHATSAPP, value: "+49 151-123 45" },
+          { channel: Channel.EMAIL, value: "  soko@example.com  " },
+          { channel: Channel.WHATSAPP, value: "+49 151-123 45" },
         ]}
         action={<button type="button">Select</button>}
       />,
     );
 
-    const emailChannel = screen.getByRole("link", { name: "originApp.email" });
+    const emailChannel = screen.getByRole("link", { name: "channelApp.email" });
     expect(emailChannel).toHaveAttribute("href", "mailto:soko@example.com");
 
     const whatsAppChannel = screen.getByRole("link", {
-      name: "originApp.whatsapp",
+      name: "channelApp.whatsapp",
     });
     expect(whatsAppChannel).toHaveAttribute("href", "https://wa.me/4915112345");
   });
@@ -102,24 +102,24 @@ describe("CoworkerGalleryCard", () => {
         slug="soko"
         name="Soko"
         channels={[
-          { origin: TaskEventOrigin.EMAIL, value: "soko@example.com" },
-          { origin: TaskEventOrigin.WHATSAPP, value: "+49151" },
+          { channel: Channel.EMAIL, value: "soko@example.com" },
+          { channel: Channel.WHATSAPP, value: "+49151" },
         ]}
       />,
     );
 
     expect(
-      screen.queryByRole("link", { name: "originApp.email" }),
+      screen.queryByRole("link", { name: "channelApp.email" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "originApp.whatsapp" }),
+      screen.queryByRole("link", { name: "channelApp.whatsapp" }),
     ).not.toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: "originApp.email" }),
+      screen.getByRole("button", { name: "channelApp.email" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "originApp.whatsapp" }),
+      screen.getByRole("button", { name: "channelApp.whatsapp" }),
     ).toBeInTheDocument();
   });
 
@@ -130,19 +130,21 @@ describe("CoworkerGalleryCard", () => {
         slug="soko"
         name="Soko"
         channels={[
-          { origin: TaskEventOrigin.TELEGRAM, value: "@soko-agent" },
-          { origin: TaskEventOrigin.DISCORD, value: "soko#1337" },
+          { channel: Channel.TELEGRAM, value: "@soko-agent" },
+          { channel: Channel.DISCORD, value: "soko#1337" },
         ]}
         action={<button type="button">Select</button>}
       />,
     );
 
     await user.click(
-      screen.getByRole("button", { name: "originApp.telegram" }),
+      screen.getByRole("button", { name: "channelApp.telegram" }),
     );
     expect(screen.getByText("@soko-agent")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "originApp.discord" }));
+    await user.click(
+      screen.getByRole("button", { name: "channelApp.discord" }),
+    );
     expect(screen.queryByText("@soko-agent")).not.toBeInTheDocument();
     expect(screen.getByText("soko#1337")).toBeInTheDocument();
   });

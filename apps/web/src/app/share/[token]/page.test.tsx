@@ -60,8 +60,8 @@ vi.mock("next-intl/server", () => ({
           actionUpdatedStatus: "changed status to",
           sourcesFiles: "Files",
           sourcesLinks: "Links",
-          "originApp.email": "Email",
-          "originApp.sokosumi": "Sokosumi",
+          "channelApp.email": "Email",
+          "channelApp.sokosumi": "Sokosumi",
         };
 
         return detailLabels[key] ?? key;
@@ -209,6 +209,7 @@ describe("canonical share page", () => {
             id: "evt_status",
             createdAt: new Date("2026-03-30T10:05:00.000Z"),
             updatedAt: new Date("2026-03-30T10:05:00.000Z"),
+            channel: "SOKOSUMI",
             origin: "SOKOSUMI",
             status: "READY",
             comment: null,
@@ -220,6 +221,7 @@ describe("canonical share page", () => {
             id: "evt_comment",
             createdAt: new Date("2026-03-30T10:15:00.000Z"),
             updatedAt: new Date("2026-03-30T10:15:00.000Z"),
+            channel: "EMAIL",
             origin: "EMAIL",
             status: "COMPLETED",
             comment: "Detailed update from coworker",
@@ -231,6 +233,7 @@ describe("canonical share page", () => {
             id: "evt_auth",
             createdAt: new Date("2026-03-30T10:25:00.000Z"),
             updatedAt: new Date("2026-03-30T10:25:00.000Z"),
+            channel: "SOKOSUMI",
             origin: "SOKOSUMI",
             status: "AUTHENTICATION_REQUIRED",
             comment: null,

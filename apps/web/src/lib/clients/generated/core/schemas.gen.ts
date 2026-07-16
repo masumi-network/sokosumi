@@ -1511,6 +1511,26 @@ export const TaskEventSchema = {
             ],
             example: 'https://example.com/oauth/authorize'
         },
+        channel: {
+            type: 'string',
+            enum: [
+                'SLACK',
+                'TEAMS',
+                'EMAIL',
+                'LINEAR',
+                'GITHUB',
+                'WHATSAPP',
+                'TELEGRAM',
+                'SIGNAL',
+                'DISCORD',
+                'CHAT',
+                'MESSENGER',
+                'SOKOSUMI',
+                'UNKNOWN'
+            ],
+            example: 'SLACK',
+            description: 'Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.'
+        },
         origin: {
             type: 'string',
             enum: [
@@ -1528,7 +1548,9 @@ export const TaskEventSchema = {
                 'SOKOSUMI',
                 'UNKNOWN'
             ],
-            example: 'SLACK'
+            deprecated: true,
+            example: 'SLACK',
+            description: 'Deprecated. Use channel instead.'
         },
         status: {
             type: [
@@ -1561,6 +1583,7 @@ export const TaskEventSchema = {
         'taskId',
         'createdAt',
         'updatedAt',
+        'channel',
         'origin'
     ]
 } as const;
@@ -8972,6 +8995,26 @@ export const PublicSharedTaskMilestoneSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        channel: {
+            type: 'string',
+            enum: [
+                'SLACK',
+                'TEAMS',
+                'EMAIL',
+                'LINEAR',
+                'GITHUB',
+                'WHATSAPP',
+                'TELEGRAM',
+                'SIGNAL',
+                'DISCORD',
+                'CHAT',
+                'MESSENGER',
+                'SOKOSUMI',
+                'UNKNOWN'
+            ],
+            example: 'SLACK',
+            description: 'Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.'
+        },
         origin: {
             type: 'string',
             enum: [
@@ -8989,7 +9032,9 @@ export const PublicSharedTaskMilestoneSchema = {
                 'SOKOSUMI',
                 'UNKNOWN'
             ],
-            example: 'SOKOSUMI'
+            deprecated: true,
+            example: 'SLACK',
+            description: 'Deprecated. Use channel instead.'
         },
         status: {
             type: [
@@ -9049,6 +9094,7 @@ export const PublicSharedTaskMilestoneSchema = {
         'id',
         'createdAt',
         'updatedAt',
+        'channel',
         'origin',
         'status',
         'comment',
