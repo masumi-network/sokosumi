@@ -1219,7 +1219,6 @@
           "AWAITING_EXTERNAL": "外部待ち",
           "COMPLETED": "完了",
           "FAILED": "失敗",
-          "CANCEL_REQUESTED": "キャンセル要求済み",
           "CANCELED": "キャンセル済み"
         }
       },
@@ -1494,7 +1493,6 @@
           "AWAITING_EXTERNAL": "外部待ち",
           "COMPLETED": "完了",
           "FAILED": "失敗",
-          "CANCEL_REQUESTED": "キャンセル要求済み",
           "CANCELED": "キャンセル済み"
         }
       },
@@ -1865,7 +1863,6 @@
             "AWAITING_EXTERNAL": "待機中",
             "COMPLETED": "完了",
             "FAILED": "失敗",
-            "CANCEL_REQUESTED": "キャンセル中",
             "CANCELED": "キャンセル済み"
           },
           "jobStatusAbbreviations": {

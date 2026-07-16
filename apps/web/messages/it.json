@@ -1219,7 +1219,6 @@
           "AWAITING_EXTERNAL": "In attesa esterno",
           "COMPLETED": "Completato",
           "FAILED": "Non riuscito",
-          "CANCEL_REQUESTED": "Annullamento richiesto",
           "CANCELED": "Annullato"
         }
       },
@@ -1494,7 +1493,6 @@
           "AWAITING_EXTERNAL": "In attesa esterno",
           "COMPLETED": "Completato",
           "FAILED": "Non riuscito",
-          "CANCEL_REQUESTED": "Annullamento richiesto",
           "CANCELED": "Annullato"
         }
       },
@@ -1865,7 +1863,6 @@
             "AWAITING_EXTERNAL": "In attesa",
             "COMPLETED": "Completo",
             "FAILED": "Errore",
-            "CANCEL_REQUESTED": "Annullamento",
             "CANCELED": "Annullato"
           },
           "jobStatusAbbreviations": {

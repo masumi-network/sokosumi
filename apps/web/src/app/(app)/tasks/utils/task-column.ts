@@ -5,11 +5,7 @@ import { TaskStatus } from "@/lib/clients/generated/core";
 export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {
   backlog: [TaskStatus.DRAFT, TaskStatus.QUEUED],
   todo: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
-  "in-progress": [
-    TaskStatus.RUNNING,
-    TaskStatus.AWAITING_EXTERNAL,
-    TaskStatus.CANCEL_REQUESTED,
-  ],
+  "in-progress": [TaskStatus.RUNNING, TaskStatus.AWAITING_EXTERNAL],
   "input-required": [
     TaskStatus.GRANT_PENDING,
     TaskStatus.INPUT_REQUIRED,

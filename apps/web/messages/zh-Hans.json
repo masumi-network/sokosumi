@@ -1219,7 +1219,6 @@
           "AWAITING_EXTERNAL": "等待外部",
           "COMPLETED": "已完成",
           "FAILED": "失败",
-          "CANCEL_REQUESTED": "已请求取消",
           "CANCELED": "已取消"
         }
       },
@@ -1494,7 +1493,6 @@
           "AWAITING_EXTERNAL": "等待外部",
           "COMPLETED": "已完成",
           "FAILED": "失败",
-          "CANCEL_REQUESTED": "已请求取消",
           "CANCELED": "已取消"
         }
       },
@@ -1865,7 +1863,6 @@
             "AWAITING_EXTERNAL": "等待中",
             "COMPLETED": "已完成",
             "FAILED": "失败",
-            "CANCEL_REQUESTED": "取消中",
             "CANCELED": "已取消"
           },
           "jobStatusAbbreviations": {

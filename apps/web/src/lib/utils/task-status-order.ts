@@ -18,7 +18,6 @@ export const TASK_STATUS_DISPLAY_ORDER = [
   TaskStatus.AWAITING_EXTERNAL,
   TaskStatus.COMPLETED,
   TaskStatus.FAILED,
-  TaskStatus.CANCEL_REQUESTED,
   TaskStatus.CANCELED,
 ] as const satisfies readonly TaskStatusType[];
 

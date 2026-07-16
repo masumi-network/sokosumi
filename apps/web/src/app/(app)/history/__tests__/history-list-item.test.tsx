@@ -74,7 +74,6 @@ const labels: HistoryListItemLabels = {
     [TaskStatus.AWAITING_EXTERNAL]: "Wartet auf Externes",
     [TaskStatus.COMPLETED]: "Abgeschlossen",
     [TaskStatus.FAILED]: "Fehlgeschlagen",
-    [TaskStatus.CANCEL_REQUESTED]: "Abbruch angefordert",
     [TaskStatus.CANCELED]: "Abgebrochen",
   },
 };

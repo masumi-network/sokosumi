@@ -1219,7 +1219,6 @@
           "AWAITING_EXTERNAL": "Wartet auf Externes",
           "COMPLETED": "Abgeschlossen",
           "FAILED": "Fehlgeschlagen",
-          "CANCEL_REQUESTED": "Abbruch angefordert",
           "CANCELED": "Abgebrochen"
         }
       },
@@ -1494,7 +1493,6 @@
           "AWAITING_EXTERNAL": "Wartet auf Externes",
           "COMPLETED": "Abgeschlossen",
           "FAILED": "Fehlgeschlagen",
-          "CANCEL_REQUESTED": "Abbruch angefordert",
           "CANCELED": "Abgebrochen"
         }
       },
@@ -1865,7 +1863,6 @@
             "AWAITING_EXTERNAL": "Wartet",
             "COMPLETED": "Komplett",
             "FAILED": "Fehler",
-            "CANCEL_REQUESTED": "Abbruch",
             "CANCELED": "Abgebrochen"
           },
           "jobStatusAbbreviations": {

@@ -1952,7 +1952,6 @@ export function createCoreClient(getClient: GetClient) {
         | "AWAITING_EXTERNAL"
         | "COMPLETED"
         | "FAILED"
-        | "CANCEL_REQUESTED"
         | "CANCELED";
       comment?: string;
     },

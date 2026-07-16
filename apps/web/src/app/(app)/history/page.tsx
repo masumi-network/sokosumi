@@ -90,7 +90,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     ),
     [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
     [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
-    [TaskStatus.CANCEL_REQUESTED]: t("Filters.statusOptions.CANCEL_REQUESTED"),
     [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
   };
 
