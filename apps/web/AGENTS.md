@@ -179,7 +179,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 Better Auth session and account shapes are a **documented exception** (SOK-588): they live in `@sokosumi/utils`, not in the generated Core REST client.
 
-- **Canonical types** — `Session`, `SessionUser`, `SessionRecord`, and `Account` from `@sokosumi/utils` (`packages/utils/src/better-auth-types.ts`). Import them directly; do **not** add a web-only re-export barrel (e.g. `@/lib/auth/types.ts`).
+- **Canonical types** — `Session`, `SessionUser`, `SessionRecord`, and `Account` from `@sokosumi/utils` (`packages/utils/src/better-auth-types.ts`). Import them directly; do **not** add a Session-type passthrough (e.g. `@/lib/auth/session-types.ts`). Existing `@/lib/auth/types.ts` stays for `AccountProvider` only — do not turn it into a Session/Account re-export.
 - **Protocol shapes, not entity DTOs** — These match Core Better Auth `/auth` JSON responses. They are **not** generated Core `/v1` entity DTOs (`Agent`, `Job`, `OrganizationRecord`, …).
 - **Not Prisma models** — Do not confuse with `@sokosumi/database` `Session` / `Account` tables or Prisma-inferred row types.
 - **Import rules** — Prefer `import type { Session, SessionUser, … } from "@sokosumi/utils"` everywhere (client/UI, services, tests). Do **not** add a type-only passthrough under `@/lib/auth/`. Callers that already import runtime helpers from `@/lib/auth/auth.server` may also use that module’s existing `export type { Session }` — treat it as incidental to the fetch module, not a second ownership path.
