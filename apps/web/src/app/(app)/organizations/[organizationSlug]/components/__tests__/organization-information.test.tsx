@@ -1,4 +1,3 @@
-import { MemberRole } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -6,6 +5,7 @@ import type {
   MemberRecord,
   OrganizationRecord,
 } from "@/lib/clients/generated/core";
+import { MemberRole } from "@/lib/clients/generated/core";
 
 import OrganizationInformation from "../organization-information";
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { InvitationStatus, MemberRole } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-
 import { DataTable } from "@/components/data-table";
 import type { PendingInvitation } from "@/lib/clients/generated/core";
+import { InvitationStatus, MemberRole } from "@/lib/clients/generated/core";
+import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import InvitationActionsModal from "./invitation-actions-modal";
@@ -136,7 +136,7 @@ function convertInvitationToMemberRowData(
     role:
       invitation.expiresAt > new Date()
         ? InvitationStatus.PENDING
-        : InvitationStatus.EXPIRED,
+        : InvitationDisplayStatus.EXPIRED,
     invitation,
   };
 }

@@ -1,11 +1,11 @@
 "use server";
 
-import { CORE_API_ERROR_KINDS, MemberRole } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import * as z from "zod";
-
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { MemberRole } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
   type OrganizationInformationFormSchemaType,
