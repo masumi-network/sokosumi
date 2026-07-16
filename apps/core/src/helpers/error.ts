@@ -142,8 +142,9 @@ export const payloadTooLarge = (
  */
 export const unprocessableEntity = (
   message: string = "Unprocessable Entity",
+  metadata?: HTTPExceptionMetadata,
 ): HTTPException => {
-  return createHTTPException(422, message);
+  return createHTTPException(422, message, metadata);
 };
 
 /**

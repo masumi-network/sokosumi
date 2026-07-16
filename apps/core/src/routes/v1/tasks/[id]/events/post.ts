@@ -31,7 +31,10 @@ import {
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "@/helpers/task";
-import { createTaskEventTransaction } from "@/helpers/task-credits";
+import {
+  createTaskEventTransaction,
+  isInsufficientBalanceError,
+} from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -192,6 +195,38 @@ async function dispatchTaskNotification(
   }
 }
 
+async function chargeTaskCreditsOrMarkOutOfCredits(params: {
+  userId: string;
+  organizationId: string | null;
+  cents: bigint;
+  currentStatus: TaskStatus;
+  tx: Prisma.TransactionClient;
+}): Promise<{
+  transactionId: string | null;
+  /** When set, the billed status was rejected for balance and replaced. */
+  eventStatus: TaskStatus | null;
+}> {
+  try {
+    const transactionId = await createTaskEventTransaction({
+      userId: params.userId,
+      organizationId: params.organizationId,
+      cents: params.cents,
+      tx: params.tx,
+    });
+    return { transactionId, eventStatus: null };
+  } catch (error) {
+    if (
+      !isInsufficientBalanceError(error) ||
+      params.currentStatus === TaskStatus.OUT_OF_CREDITS
+    ) {
+      throw error;
+    }
+    // Return 201 with OUT_OF_CREDITS in the event body (not 422). Callers must
+    // read `data.status` — HTTP success does not mean the billed status landed.
+    return { transactionId: null, eventStatus: TaskStatus.OUT_OF_CREDITS };
+  }
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   const taskEventRequestBodySchema = createTaskEventRequestSchema({
     serverNetwork: getEnv().NETWORK,
@@ -276,6 +311,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           let cents: bigint | undefined;
           let transactionId: string | null = null;
+          let eventStatus = status;
+          let chargedMasumiPayment = false;
 
           if (isAgentSpend) {
             const wantsCharge =
@@ -321,12 +358,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
                 );
               }
-              transactionId = await createTaskEventTransaction({
+              const charge = await chargeTaskCreditsOrMarkOutOfCredits({
                 userId: task.userId,
                 organizationId: task.organizationId,
                 cents,
+                currentStatus: task.status,
                 tx,
               });
+              transactionId = charge.transactionId;
+              if (charge.eventStatus != null) {
+                eventStatus = charge.eventStatus;
+                cents = undefined;
+              } else {
+                chargedMasumiPayment = true;
+              }
             } else if (credits != null && credits > 0) {
               cents = convertCreditsToCents(credits);
               if (cents === 0n) {
@@ -334,19 +379,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
                 );
               }
-              transactionId = await createTaskEventTransaction({
+              const charge = await chargeTaskCreditsOrMarkOutOfCredits({
                 userId: task.userId,
                 organizationId: task.organizationId,
                 cents,
+                currentStatus: task.status,
                 tx,
               });
+              transactionId = charge.transactionId;
+              if (charge.eventStatus != null) {
+                eventStatus = charge.eventStatus;
+                cents = undefined;
+              }
             }
           }
 
           const createdEvent = await tx.taskEvent.create({
             data: {
               taskId,
-              status,
+              status: eventStatus,
               comment,
               authenticationUrl,
               channel,
@@ -358,14 +409,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
-            data: { status },
+            data: { status: eventStatus },
           });
           if (updateResult.count !== 1) {
             throw conflict("Task status was changed by another request");
           }
 
           const payment =
-            masumiPayment !== undefined && isAgentSpend ? masumiPayment : null;
+            chargedMasumiPayment && masumiPayment !== undefined
+              ? masumiPayment
+              : null;
 
           return {
             event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
