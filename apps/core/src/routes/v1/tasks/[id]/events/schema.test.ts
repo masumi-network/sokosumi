@@ -223,13 +223,36 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects credits for running tasks", () => {
+  it("accepts credits-only body", () => {
+    const result = taskEventRequestSchema.safeParse({
+      credits: 3,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty body", () => {
+    const result = taskEventRequestSchema.safeParse({});
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts credits for running tasks", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
       credits: 3,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts credits for comment-only requests", () => {
+    const result = taskEventRequestSchema.safeParse({
+      comment: "hello",
+      credits: 5,
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("accepts out-of-credits tasks", () => {
@@ -278,7 +301,7 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("accepts null credits for non-spendable statuses", () => {
+  it("accepts null credits for non-terminal statuses", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.INPUT_REQUIRED,
       credits: null,
@@ -287,28 +310,28 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects credits for non-spendable statuses", () => {
+  it("accepts credits for input-required tasks", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.INPUT_REQUIRED,
       credits: 2,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it("rejects credits for credits-topped-up tasks", () => {
+  it("accepts credits for credits-topped-up tasks", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.CREDITS_TOPPED_UP,
       credits: 2,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it("rejects credits when status is omitted (comment-only request)", () => {
+  it("rejects credits below minimum regardless of status", () => {
     const result = taskEventRequestSchema.safeParse({
-      comment: "hello",
-      credits: 5,
+      status: TaskStatus.RUNNING,
+      credits: LIMITS.MIN_CHARGEABLE_CREDITS / 10,
     });
 
     expect(result.success).toBe(false);

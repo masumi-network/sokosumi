@@ -137,13 +137,13 @@ function getAllowedTransitions(
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
-      [TaskStatus.COMPLETED]: [],
+      [TaskStatus.COMPLETED]: [TaskStatus.RUNNING],
       [TaskStatus.FAILED]: [],
       [TaskStatus.CANCEL_REQUESTED]: [
         TaskStatus.CANCELED,
         TaskStatus.OUT_OF_CREDITS,
       ],
-      [TaskStatus.CANCELED]: [],
+      [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
     };
   }
 
@@ -172,7 +172,7 @@ function getAllowedTransitions(
     [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.COMPLETED]: [],
     [TaskStatus.FAILED]: [],
-    // CANCELED is terminal: reopen would allow a second billing cycle.
+    // CANCELED is terminal for users; coworker agents may reopen (see agent table).
     [TaskStatus.CANCELED]: [],
     [TaskStatus.CANCEL_REQUESTED]: [],
   };
@@ -238,14 +238,6 @@ export function mapTaskEvent(event: TaskEventForMapping) {
         }
       : {}),
   };
-}
-
-export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
-  if (status === undefined) {
-    return false;
-  }
-
-  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {

@@ -25,7 +25,6 @@ import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
-  isTaskStatusSpendable,
   mapTaskEvent,
   taskEventApiInclude,
   validateStatusTransition,
@@ -39,6 +38,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAgentContext,
+  isCoworkerAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -89,6 +89,88 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
     userId: null,
     coworkerId: authContext.coworkerId,
   };
+}
+
+function getCreditEventActorData(authContext: AuthenticationContext) {
+  if (!isCoworkerAuthContext(authContext)) {
+    throw unprocessableEntity(
+      "Only the assigned coworker can set credits on task events",
+    );
+  }
+
+  return {
+    userId: null,
+    coworkerId: authContext.coworkerId,
+  };
+}
+
+interface SettleTaskEventChargeParams {
+  task: {
+    userId: string;
+    organizationId: string | null;
+  };
+  credits?: number | null;
+  masumiPayment?: z.infer<
+    ReturnType<typeof createTaskEventRequestSchema>
+  >["masumiPayment"];
+  tx: Prisma.TransactionClient;
+}
+
+async function settleTaskEventCharge({
+  task,
+  credits,
+  masumiPayment,
+  tx,
+}: SettleTaskEventChargeParams): Promise<{
+  cents: bigint | undefined;
+  transactionId: string | null;
+}> {
+  if (masumiPayment) {
+    console.info("[tasks] masumi task payment: using masumiPayment", {
+      masumiPayment,
+    });
+    const creditCosts = await getCreditCostsOrThrow(tx);
+    const cents = calculateCentsFromMasumiAmountStrings(
+      masumiPayment.Amounts,
+      creditCosts,
+    );
+    if (cents === 0n) {
+      throw unprocessableEntity(
+        `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
+      );
+    }
+    const creditsValue = convertCentsToCredits(cents);
+    if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
+      throw unprocessableEntity(
+        `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
+      );
+    }
+    const transactionId = await createTaskEventTransaction({
+      userId: task.userId,
+      organizationId: task.organizationId,
+      cents,
+      tx,
+    });
+    return { cents, transactionId };
+  }
+
+  if (credits != null && credits > 0) {
+    const cents = convertCreditsToCents(credits);
+    if (cents === 0n) {
+      throw unprocessableEntity(
+        `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
+      );
+    }
+    const transactionId = await createTaskEventTransaction({
+      userId: task.userId,
+      organizationId: task.organizationId,
+      cents,
+      tx,
+    });
+    return { cents, transactionId };
+  }
+
+  return { cents: undefined, transactionId: null };
 }
 
 async function mapCreatedTaskEventForResponse(
@@ -250,112 +332,66 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? await requireTaskCollaboration(authContext, taskId, tx)
           : await requireTaskCommentAccess(c.var, taskId, tx);
 
+        const isAgent = isCoworkerAgentContext(authContext);
+
+        if (!isAgent && credits != null) {
+          throw unprocessableEntity(
+            "Only the assigned coworker can set credits on task events",
+          );
+        }
+
+        if (status === undefined && comment === undefined && credits == null) {
+          throw unprocessableEntity(
+            "At least one of status, comment, or credits is required",
+          );
+        }
+
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
           validateTaskCoworkerAssignment({
             status,
             coworkerId: task.coworkerId,
           });
+        }
 
-          // Only the assigned coworker agent settles billing.
-          const isAgent = isCoworkerAgentContext(authContext);
-          const isAgentSpend = isAgent && isTaskStatusSpendable(status);
+        let cents: bigint | undefined;
+        let transactionId: string | null = null;
 
-          // User and delegated-coworker callers use the user transition table,
-          // and the charge branch below is gated on isAgent — so credits from
-          // them would be silently dropped. Reject it.
-          //
-          // masumiPayment needs no check here: the schema only allows it with
-          // status COMPLETED, which the user transition table can never reach,
-          // so a non-agent caller is already rejected upstream (400/422).
-          if (!isAgent && credits != null) {
-            throw unprocessableEntity(
-              "Only the assigned coworker can set credits when changing task status",
-            );
-          }
-
-          let cents: bigint | undefined;
-          let transactionId: string | null = null;
-
-          if (isAgentSpend) {
-            const wantsCharge =
-              masumiPayment != null || (credits != null && credits > 0);
-
-            if (wantsCharge) {
-              // One billed terminal outcome per task lifetime. Prevents
-              // duplicate completion/cancel charges from retries or reopen.
-              const priorBilledEvent = await tx.taskEvent.findFirst({
-                where: {
-                  taskId,
-                  transactionId: { not: null },
-                  status: {
-                    in: [TaskStatus.COMPLETED, TaskStatus.CANCELED],
-                  },
-                },
-                select: { id: true },
-              });
-              if (priorBilledEvent) {
-                throw unprocessableEntity(
-                  "Task already has a billed completion or cancellation; further credit usage is not allowed",
-                );
-              }
-            }
-
-            if (masumiPayment) {
-              console.info("[tasks] masumi task payment: using masumiPayment", {
-                masumiPayment,
-              });
-              const creditCosts = await getCreditCostsOrThrow(tx);
-              cents = calculateCentsFromMasumiAmountStrings(
-                masumiPayment.Amounts,
-                creditCosts,
-              );
-              if (cents === 0n) {
-                throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-                );
-              }
-              const creditsValue = convertCentsToCredits(cents);
-              if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
-                throw unprocessableEntity(
-                  `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
-                );
-              }
-              transactionId = await createTaskEventTransaction({
-                userId: task.userId,
-                organizationId: task.organizationId,
-                cents,
-                tx,
-              });
-            } else if (credits != null && credits > 0) {
-              cents = convertCreditsToCents(credits);
-              if (cents === 0n) {
-                throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-                );
-              }
-              transactionId = await createTaskEventTransaction({
-                userId: task.userId,
-                organizationId: task.organizationId,
-                cents,
-                tx,
-              });
-            }
-          }
-
-          const createdEvent = await tx.taskEvent.create({
-            data: {
-              taskId,
-              status,
-              comment,
-              authenticationUrl,
-              channel,
-              cents,
-              transactionId,
-              ...getStatusEventActorData(authContext),
-            },
+        if (
+          isAgent &&
+          (masumiPayment != null || (credits != null && credits > 0))
+        ) {
+          const settled = await settleTaskEventCharge({
+            task,
+            credits,
+            masumiPayment,
+            tx,
           });
+          cents = settled.cents;
+          transactionId = settled.transactionId;
+        }
 
+        const actorData =
+          status !== undefined
+            ? getStatusEventActorData(authContext)
+            : credits != null
+              ? getCreditEventActorData(authContext)
+              : getCommentEventActorData(authContext);
+
+        const createdEvent = await tx.taskEvent.create({
+          data: {
+            taskId,
+            status: status ?? null,
+            comment,
+            authenticationUrl,
+            channel,
+            cents,
+            transactionId,
+            ...actorData,
+          },
+        });
+
+        if (status !== undefined) {
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
             data: { status },
@@ -363,37 +399,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (updateResult.count !== 1) {
             throw conflict("Task status was changed by another request");
           }
-
-          const payment =
-            masumiPayment !== undefined && isAgentSpend ? masumiPayment : null;
-
-          return {
-            event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
-            userId: task.userId,
-            masumiPayment: payment,
-          };
         }
 
-        if (comment === undefined) {
-          throw unprocessableEntity(
-            "Either status or comment must be provided",
-          );
-        }
-
-        const createdEvent = await tx.taskEvent.create({
-          data: {
-            taskId,
-            status: null,
-            comment,
-            channel,
-            ...getCommentEventActorData(authContext),
-          },
-        });
+        const payment =
+          masumiPayment !== undefined &&
+          status === TaskStatus.COMPLETED &&
+          isAgent
+            ? masumiPayment
+            : null;
 
         return {
           event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
           userId: task.userId,
-          masumiPayment: null,
+          masumiPayment: payment,
         };
       },
       "Task changed by a concurrent request. Please retry.",

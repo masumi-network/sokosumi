@@ -377,14 +377,24 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
-    it("COMPLETED has no outgoing transitions", () => {
+    it("COMPLETED → RUNNING (agent reopen)", () => {
       expect(() =>
         validateStatusTransition(
           coworkerContext,
           TaskStatus.COMPLETED,
           TaskStatus.RUNNING,
         ),
-      ).toThrow();
+      ).not.toThrow();
+    });
+
+    it("CANCELED → RUNNING (agent reopen)", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CANCELED,
+          TaskStatus.RUNNING,
+        ),
+      ).not.toThrow();
     });
 
     it("FAILED has no outgoing transitions", () => {
@@ -397,14 +407,24 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
-    it("CANCELED has no outgoing transitions", () => {
+    it("CANCELED → RUNNING is invalid for users", () => {
       expect(() =>
         validateStatusTransition(
-          coworkerContext,
+          userContext,
           TaskStatus.CANCELED,
           TaskStatus.RUNNING,
         ),
-      ).toThrow();
+      ).toThrow(/Invalid status transition/);
+    });
+
+    it("COMPLETED → RUNNING is invalid for users", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.COMPLETED,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow(/Invalid status transition/);
     });
 
     it("OUT_OF_CREDITS → CREDITS_TOPPED_UP is invalid for coworkers", () => {
