@@ -32,8 +32,9 @@ const ALLOWLIST_FILE =
 const ALLOWLIST_UTILS_NAME = "SokosumiJobStatus";
 
 const UTILS_MODULE_RE = /@sokosumi\/utils(?:\/[^"'`\s]+)?/;
-const UTILS_STAR_IMPORT_RE =
-  /import\s+\*\s+as\s+[\w$]+\s+from\s+["'`]@sokosumi\/utils(?:\/[^"'`]*)?["'`]/g;
+/** `import * as X from` / `export * from` @sokosumi/utils. */
+const UTILS_STAR_FROM_RE =
+  /(?:import\s+\*\s+as\s+[\w$]+|export\s+\*)\s+from\s+["'`]@sokosumi\/utils(?:\/[^"'`]*)?["'`]/g;
 /** Named `import` / `export … from` of members from @sokosumi/utils. */
 const UTILS_NAMED_FROM_RE =
   /(?:import|export)\s+(?:type\s+)?\{([^}]+)\}\s+from\s+["'`]@sokosumi\/utils(?:\/[^"'`]*)?["'`]/g;
@@ -43,14 +44,30 @@ const UTILS_NAMED_FROM_RE =
  */
 const UTILS_DYNAMIC_IMPORT_RE =
   /(?<!typeof\s)import\s*\(\s*["'`](@sokosumi\/utils(?:\/[^"'`]*)?)["'`]\s*\)/g;
-const DATABASE_IMPORT_RE =
-  /(?:import|export)\s+[\s\S]*?from\s+["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]|import\s*\(\s*["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]\s*\)|require\s*\(\s*["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]\s*\)/;
+const UTILS_REQUIRE_RE =
+  /require\s*\(\s*["'`](@sokosumi\/utils(?:\/[^"'`]*)?)["'`]\s*\)/g;
+
+const DATABASE_FROM_RE =
+  /(?:import|export)\s+(?:type\s+)?(?:\*[\s\w$]*|{[^}]*}|[\w$]+)\s+from\s+["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]/g;
+const DATABASE_SIDE_EFFECT_RE =
+  /import\s+["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]/g;
+const DATABASE_DYNAMIC_IMPORT_RE =
+  /(?<!typeof\s)import\s*\(\s*["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]\s*\)/g;
+const DATABASE_REQUIRE_RE =
+  /require\s*\(\s*["'`]@sokosumi\/database(?:\/[^"'`]*)?["'`]\s*\)/g;
 
 /** @type {Array<{ file: string; rule: string; detail: string }>} */
 const violations = [];
 
 function isAllowlisted(fileRelPath, name) {
   return fileRelPath === ALLOWLIST_FILE && name === ALLOWLIST_UTILS_NAME;
+}
+
+/** Strip // and /* *\/ comments so doc examples do not false-positive. */
+function stripComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
 function walk(dir, files = []) {
@@ -84,33 +101,50 @@ function parseNamedImports(specifiers) {
     });
 }
 
-function scanFile(relPath, content) {
-  // package.json: any dependency key mentioning the package is a violation.
-  // Source: require import/export/require/dynamic-import or a dependency string literal.
+function hasDatabaseImport(content) {
+  return (
+    DATABASE_FROM_RE.test(content) ||
+    DATABASE_SIDE_EFFECT_RE.test(content) ||
+    DATABASE_DYNAMIC_IMPORT_RE.test(content) ||
+    DATABASE_REQUIRE_RE.test(content)
+  );
+}
+
+function scanFile(relPath, rawContent) {
   if (relPath.endsWith("package.json")) {
-    if (content.includes("@sokosumi/database")) {
+    if (rawContent.includes("@sokosumi/database")) {
       violations.push({
         file: relPath,
         rule: "database-import",
         detail: "Found forbidden `@sokosumi/database` in package.json",
       });
     }
-  } else if (DATABASE_IMPORT_RE.test(content)) {
+    return;
+  }
+
+  const content = stripComments(rawContent);
+
+  if (hasDatabaseImport(content)) {
     violations.push({
       file: relPath,
       rule: "database-import",
       detail: "Found forbidden import/require of `@sokosumi/database`",
     });
   }
+  DATABASE_FROM_RE.lastIndex = 0;
+  DATABASE_SIDE_EFFECT_RE.lastIndex = 0;
+  DATABASE_DYNAMIC_IMPORT_RE.lastIndex = 0;
+  DATABASE_REQUIRE_RE.lastIndex = 0;
 
-  if (UTILS_STAR_IMPORT_RE.test(content)) {
+  if (UTILS_STAR_FROM_RE.test(content)) {
     violations.push({
       file: relPath,
       rule: "utils-namespace-import",
-      detail: "Namespace import from @sokosumi/utils (or subpath) is forbidden",
+      detail:
+        "Namespace or star re-export from @sokosumi/utils (or subpath) is forbidden",
     });
   }
-  UTILS_STAR_IMPORT_RE.lastIndex = 0;
+  UTILS_STAR_FROM_RE.lastIndex = 0;
 
   let match = UTILS_NAMED_FROM_RE.exec(content);
   while (match !== null) {
@@ -136,6 +170,16 @@ function scanFile(relPath, content) {
       detail: `Dynamic import of ${dynamicMatch[1]} is forbidden (use named imports from generated Core for domain enums)`,
     });
     dynamicMatch = UTILS_DYNAMIC_IMPORT_RE.exec(content);
+  }
+
+  let requireMatch = UTILS_REQUIRE_RE.exec(content);
+  while (requireMatch !== null) {
+    violations.push({
+      file: relPath,
+      rule: "utils-require",
+      detail: `require() of ${requireMatch[1]} is forbidden in web`,
+    });
+    requireMatch = UTILS_REQUIRE_RE.exec(content);
   }
 }
 

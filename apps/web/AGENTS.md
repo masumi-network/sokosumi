@@ -182,7 +182,7 @@ Automated guards keep web on the Core DTO boundary:
 
 | Check | Command | What it catches |
 | ----- | ------- | ---------------- |
-| Script | `pnpm web:check:dto-boundary` | `@sokosumi/database` anywhere under `apps/web` (source + `package.json`); forbidden domain enum **named** imports and namespace imports from `@sokosumi/utils` |
+| Script | `pnpm web:check:dto-boundary` | `@sokosumi/database` in `apps/web/package.json` or via import/export/require/dynamic-import in web source; forbidden domain enum **named** imports/re-exports, star/namespace imports, `require()`, and runtime dynamic imports from `@sokosumi/utils` |
 | Biome | `pnpm web:check` (CI `biome` job runs root `pnpm check`) | Same rules via `style/noRestrictedImports` in `apps/web/biome.json` (editor + CI) |
 | CI job | `web-dto-boundary` in `.github/workflows/lint.yml` | Runs the script on every PR |
 
