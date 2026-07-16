@@ -823,31 +823,32 @@ describe("Hermes route contracts", () => {
     }
   });
 
-  it.each([
-    401, 403, 429,
-  ] as const)("returns 503 when ensureInstanceReady fails with orchestrator HTTP %i", async (httpStatus) => {
-    ensureInstanceReadyMock.mockRejectedValue(
-      new HermesOrchestratorError(httpStatus, {
-        title: "Orchestrator integration error",
-      }),
-    );
+  it.each([401, 403, 429] as const)(
+    "returns 503 when ensureInstanceReady fails with orchestrator HTTP %i",
+    async (httpStatus) => {
+      ensureInstanceReadyMock.mockRejectedValue(
+        new HermesOrchestratorError(httpStatus, {
+          title: "Orchestrator integration error",
+        }),
+      );
 
-    const response = await createApp().request("/chat", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer test_api_key",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ content: "Hello" }),
-    });
+      const response = await createApp().request("/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "Hello" }),
+      });
 
-    const body = await parseJson(response);
+      const body = await parseJson(response);
 
-    expect(response.status).toBe(503);
-    expect(body.error).toBe("ServiceUnavailable");
-    expect(body.message).toBe("Hermes is temporarily unavailable.");
-    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(503);
+      expect(body.error).toBe("ServiceUnavailable");
+      expect(body.message).toBe("Hermes is temporarily unavailable.");
+      expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns 200 for GET /me/instance and skips welcome persist when onboardedAt is null", async () => {
     vi.mocked(getInstance).mockResolvedValue({
@@ -1113,27 +1114,28 @@ describe("Hermes route contracts", () => {
     expect(hermesPendingConnectionDeleteMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    401, 403, 429,
-  ] as const)("returns 503 when GET /me/instance fails with orchestrator HTTP %i", async (httpStatus) => {
-    vi.mocked(getInstance).mockRejectedValue(
-      new HermesOrchestratorError(httpStatus, {
-        title: "Orchestrator integration error",
-      }),
-    );
+  it.each([401, 403, 429] as const)(
+    "returns 503 when GET /me/instance fails with orchestrator HTTP %i",
+    async (httpStatus) => {
+      vi.mocked(getInstance).mockRejectedValue(
+        new HermesOrchestratorError(httpStatus, {
+          title: "Orchestrator integration error",
+        }),
+      );
 
-    const response = await createApp().request("/me/instance", {
-      headers: {
-        Authorization: "Bearer test_api_key",
-      },
-    });
+      const response = await createApp().request("/me/instance", {
+        headers: {
+          Authorization: "Bearer test_api_key",
+        },
+      });
 
-    const body = await parseJson(response);
+      const body = await parseJson(response);
 
-    expect(response.status).toBe(503);
-    expect(body.error).toBe("ServiceUnavailable");
-    expect(body.message).toBe("Hermes is temporarily unavailable.");
-  });
+      expect(response.status).toBe(503);
+      expect(body.error).toBe("ServiceUnavailable");
+      expect(body.message).toBe("Hermes is temporarily unavailable.");
+    },
+  );
 
   it("returns 200 when DELETE /me/instance succeeds", async () => {
     vi.mocked(destroyInstance).mockResolvedValue(undefined);

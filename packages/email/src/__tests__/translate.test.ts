@@ -55,16 +55,15 @@ describe("email translator", () => {
     expect(locale).toBe("pt-BR");
   });
 
-  it.each([
-    "zh-CN",
-    "zh-SG",
-    "zh-Hans-CN",
-  ])("maps common Simplified Chinese tags to zh-Hans (%s)", (value) => {
-    const { locale, t } = createEmailTranslator(value);
+  it.each(["zh-CN", "zh-SG", "zh-Hans-CN"])(
+    "maps common Simplified Chinese tags to zh-Hans (%s)",
+    (value) => {
+      const { locale, t } = createEmailTranslator(value);
 
-    expect(locale).toBe("zh-Hans");
-    expect(t("auth.magicLink.subject")).toBe("Sokosumi - 登录您的账户");
-  });
+      expect(locale).toBe("zh-Hans");
+      expect(t("auth.magicLink.subject")).toBe("Sokosumi - 登录您的账户");
+    },
+  );
 
   it("keeps every raw locale catalog aligned with the English key shape", () => {
     const englishKeys = flattenKeys(

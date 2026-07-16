@@ -617,27 +617,28 @@ describe("updateJobName", () => {
     });
   });
 
-  it.each([
-    401, 403,
-  ])("returns unauthorized when core rejects with %i", async (status) => {
-    patchJobMock.mockRejectedValue(
-      new MockCoreApiRequestError("Unauthorized", { status }),
-    );
+  it.each([401, 403])(
+    "returns unauthorized when core rejects with %i",
+    async (status) => {
+      patchJobMock.mockRejectedValue(
+        new MockCoreApiRequestError("Unauthorized", { status }),
+      );
 
-    const { updateJobName } = await import("../action");
-    const result = await updateJobName({
-      jobId: "job-1",
-      data: { name: "Renamed Job" },
-    });
+      const { updateJobName } = await import("../action");
+      const result = await updateJobName({
+        jobId: "job-1",
+        data: { name: "Renamed Job" },
+      });
 
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      },
-    });
-  });
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        },
+      });
+    },
+  );
 
   it("returns job not found when core returns 404", async () => {
     patchJobMock.mockRejectedValue(

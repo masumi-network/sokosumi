@@ -575,24 +575,27 @@ describe("TaskDetailActions", () => {
     TASK_STATUS.COMPLETED,
     TASK_STATUS.FAILED,
     TASK_STATUS.CANCELED,
-  ] as const)("shows archive in the overflow menu for finalized status %s without edit", async (status) => {
-    const user = userEvent.setup();
-    renderActions({ status });
+  ] as const)(
+    "shows archive in the overflow menu for finalized status %s without edit",
+    async (status) => {
+      const user = userEvent.setup();
+      renderActions({ status });
 
-    expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
-    expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: "Revert to Draft" }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: "Mark as Ready" }),
-    ).toBeNull();
-  });
+      expect(
+        screen.getByRole("menuitem", { name: labels.archive }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+      expect(
+        screen.queryByRole("menuitem", { name: "Revert to Draft" }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("menuitem", { name: "Mark as Ready" }),
+      ).toBeNull();
+    },
+  );
 
   it("shows edit for queued tasks", async () => {
     const user = userEvent.setup();
