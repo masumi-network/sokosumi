@@ -1219,7 +1219,6 @@
           "AWAITING_EXTERNAL": "外部待ち",
           "COMPLETED": "完了",
           "FAILED": "失敗",
-          "CANCEL_REQUESTED": "キャンセル要求済み",
           "CANCELED": "キャンセル済み"
         }
       },
@@ -1494,7 +1493,6 @@
           "AWAITING_EXTERNAL": "外部待ち",
           "COMPLETED": "完了",
           "FAILED": "失敗",
-          "CANCEL_REQUESTED": "キャンセル要求済み",
           "CANCELED": "キャンセル済み"
         }
       },
@@ -1578,8 +1576,7 @@
         "actionChargedCredits": "{credits, plural, =1 {# クレジットを消費} other {# クレジットを消費}}",
         "statusLabels": {
           "outOfCredits": "クレジット不足",
-          "creditsToppedUp": "クレジットを追加しました",
-          "cancelRequested": "キャンセル申請済み"
+          "creditsToppedUp": "クレジットを追加しました"
         },
         "billingCta": {
           "upgradePlan": "クレジットをもっと入手",
@@ -1872,7 +1869,6 @@
             "AWAITING_EXTERNAL": "待機中",
             "COMPLETED": "完了",
             "FAILED": "失敗",
-            "CANCEL_REQUESTED": "キャンセル中",
             "CANCELED": "キャンセル済み"
           },
           "jobStatusAbbreviations": {

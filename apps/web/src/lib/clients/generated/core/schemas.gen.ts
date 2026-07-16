@@ -1043,7 +1043,6 @@ export const TaskStatusSchema = {
         'AWAITING_EXTERNAL',
         'COMPLETED',
         'FAILED',
-        'CANCEL_REQUESTED',
         'CANCELED'
     ],
     example: 'RUNNING'

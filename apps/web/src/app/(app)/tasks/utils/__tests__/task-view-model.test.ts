@@ -74,14 +74,6 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.columnId).toBe("in-progress");
   });
 
-  it("maps cancel requested tasks to in-progress column", () => {
-    const task = buildTask(TaskStatus.CANCEL_REQUESTED);
-
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
-
-    expect(mapped.columnId).toBe("in-progress");
-  });
-
   it("maps out of credits tasks to input-required column", () => {
     const task = buildTask(TaskStatus.OUT_OF_CREDITS);
 

@@ -55,7 +55,6 @@ const labels = {
     [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
     [TaskStatus.COMPLETED]: "Completed",
     [TaskStatus.FAILED]: "Failed",
-    [TaskStatus.CANCEL_REQUESTED]: "Cancel requested",
     [TaskStatus.CANCELED]: "Canceled",
     [SokosumiJobStatus.STARTED]: "Hiring",
     [SokosumiJobStatus.RESULT_PENDING]: "Result missing",
