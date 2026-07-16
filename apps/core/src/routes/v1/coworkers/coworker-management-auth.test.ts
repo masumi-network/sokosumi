@@ -128,55 +128,48 @@ describe("coworker management endpoints auth guard", () => {
     });
   });
 
-  it.each(
-    RESTRICTED_ENDPOINTS,
-  )("returns 403 for non-owner non-admin user on $method $path", async ({
-    method,
-    path,
-    body,
-    restriction,
-  }) => {
-    const app = createApp({
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
-
-    const response = await app.request(`http://localhost${path}`, {
-      method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    expect(response.status).toBe(403);
-    if (restriction === "creator-or-admin") {
-      expect(coworkerFindFirstMock).toHaveBeenCalledWith({
-        where: { id: "cow_123", archivedAt: null },
-        select: { id: true, userId: true },
+  it.each(RESTRICTED_ENDPOINTS)(
+    "returns 403 for non-owner non-admin user on $method $path",
+    async ({ method, path, body, restriction }) => {
+      const app = createApp({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
       });
-    }
-  });
 
-  it.each(
-    RESTRICTED_ENDPOINTS,
-  )("returns 403 for coworker actor on $method $path", async ({
-    method,
-    path,
-    body,
-  }) => {
-    const app = createApp({
-      actor: "coworker",
-      coworkerId: "cow_123",
-      vendorId: "01960001-0001-7001-8001-000000000001",
-    });
+      const response = await app.request(`http://localhost${path}`, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
 
-    const response = await app.request(`http://localhost${path}`, {
-      method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+      expect(response.status).toBe(403);
+      if (restriction === "creator-or-admin") {
+        expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+          where: { id: "cow_123", archivedAt: null },
+          select: { id: true, userId: true },
+        });
+      }
+    },
+  );
 
-    expect(response.status).toBe(403);
-  });
+  it.each(RESTRICTED_ENDPOINTS)(
+    "returns 403 for coworker actor on $method $path",
+    async ({ method, path, body }) => {
+      const app = createApp({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: "01960001-0001-7001-8001-000000000001",
+      });
+
+      const response = await app.request(`http://localhost${path}`, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      expect(response.status).toBe(403);
+    },
+  );
 });

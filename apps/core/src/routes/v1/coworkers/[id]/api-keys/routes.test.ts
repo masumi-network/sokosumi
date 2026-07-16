@@ -374,19 +374,18 @@ describe("coworker API key protected endpoints", () => {
       },
     },
     { method: "DELETE", path: "/cow_123/api-keys/cokey_123" },
-  ])("returns 403 when non-owner non-admin calls $method $path", async ({
-    method,
-    path,
-    body,
-  }) => {
-    const app = createApp("user_999");
+  ])(
+    "returns 403 when non-owner non-admin calls $method $path",
+    async ({ method, path, body }) => {
+      const app = createApp("user_999");
 
-    const response = await app.request(`http://localhost${path}`, {
-      method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+      const response = await app.request(`http://localhost${path}`, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
 
-    expect(response.status).toBe(403);
-  });
+      expect(response.status).toBe(403);
+    },
+  );
 });

@@ -159,100 +159,108 @@ const PAID_ORG_FREE_TIER_GRANT_MATRIX: PaidOrgFreeTierGrantMatrixCase[] = [
 ];
 
 describe("organization subscription credit routing matrix", () => {
-  describe.each(
-    LOCAL_FREE_PERIOD_GRANT_MATRIX,
-  )("local free period grants — $name", (testCase: LocalFreePeriodGrantMatrixCase) => {
-    const {
-      expectedGrantCount,
-      expectedGrantUserIds,
-      expectedReferenceIds,
-      params,
-    } = testCase;
-    it("creates the expected number of 250-credit buckets", async () => {
-      const { createTransactionMock, tx } = createLocalFreePeriodClient();
+  describe.each(LOCAL_FREE_PERIOD_GRANT_MATRIX)(
+    "local free period grants — $name",
+    (testCase: LocalFreePeriodGrantMatrixCase) => {
+      const {
+        expectedGrantCount,
+        expectedGrantUserIds,
+        expectedReferenceIds,
+        params,
+      } = testCase;
+      it("creates the expected number of 250-credit buckets", async () => {
+        const { createTransactionMock, tx } = createLocalFreePeriodClient();
 
-      const result = await ensureLocalFreeSubscriptionPeriod(params, tx);
+        const result = await ensureLocalFreeSubscriptionPeriod(params, tx);
 
-      assert.equal(result.grantsCreated, expectedGrantCount);
-      assert.equal(createTransactionMock.mock.calls.length, expectedGrantCount);
-
-      const grantUserIds = createTransactionMock.mock.calls.map(
-        (
-          call: [
-            {
-              data: {
-                sourceCreditBucket: {
-                  create: { userId: string; referenceId: string };
-                };
-              };
-            },
-          ],
-        ) => call[0].data.sourceCreditBucket.create.userId,
-      );
-      assert.deepEqual(grantUserIds, expectedGrantUserIds);
-
-      const grantReferenceIds = createTransactionMock.mock.calls.map(
-        (
-          call: [
-            {
-              data: {
-                sourceCreditBucket: {
-                  create: { referenceId: string };
-                };
-              };
-            },
-          ],
-        ) => call[0].data.sourceCreditBucket.create.referenceId,
-      );
-      assert.deepEqual(grantReferenceIds, expectedReferenceIds);
-
-      for (const call of createTransactionMock.mock.calls) {
-        const grantAmount = call[0].data.sourceCreditBucket.create
-          .amount as bigint;
+        assert.equal(result.grantsCreated, expectedGrantCount);
         assert.equal(
-          grantAmount,
-          BigInt(FREE_SUBSCRIPTION_MONTHLY_CREDITS * 10_000_000_000),
-        );
-      }
-    });
-  });
-
-  describe.each(
-    PAID_ORG_FREE_TIER_GRANT_MATRIX,
-  )("paid org free-tier helper — $name", (testCase: PaidOrgFreeTierGrantMatrixCase) => {
-    const { expectedGrantCount, expectedGrantUserIds, memberUserIds } =
-      testCase;
-    it("grants only to the supplied member user ids", async () => {
-      const { createTransactionMock, tx } = createPaidOrgFreeGrantClient();
-
-      const grantsCreated =
-        await grantFreeOrganizationMemberSubscriptionCredits(
-          {
-            memberUserIds,
-            now: PERIOD_START,
-            organizationId: "org-1",
-            periodEnd: PERIOD_END,
-          },
-          tx,
+          createTransactionMock.mock.calls.length,
+          expectedGrantCount,
         );
 
-      assert.equal(grantsCreated, expectedGrantCount);
-      assert.equal(createTransactionMock.mock.calls.length, expectedGrantCount);
-
-      const grantUserIds = createTransactionMock.mock.calls.map(
-        (
-          call: [
-            {
-              data: {
-                sourceCreditBucket: {
-                  create: { userId: string };
+        const grantUserIds = createTransactionMock.mock.calls.map(
+          (
+            call: [
+              {
+                data: {
+                  sourceCreditBucket: {
+                    create: { userId: string; referenceId: string };
+                  };
                 };
-              };
+              },
+            ],
+          ) => call[0].data.sourceCreditBucket.create.userId,
+        );
+        assert.deepEqual(grantUserIds, expectedGrantUserIds);
+
+        const grantReferenceIds = createTransactionMock.mock.calls.map(
+          (
+            call: [
+              {
+                data: {
+                  sourceCreditBucket: {
+                    create: { referenceId: string };
+                  };
+                };
+              },
+            ],
+          ) => call[0].data.sourceCreditBucket.create.referenceId,
+        );
+        assert.deepEqual(grantReferenceIds, expectedReferenceIds);
+
+        for (const call of createTransactionMock.mock.calls) {
+          const grantAmount = call[0].data.sourceCreditBucket.create
+            .amount as bigint;
+          assert.equal(
+            grantAmount,
+            BigInt(FREE_SUBSCRIPTION_MONTHLY_CREDITS * 10_000_000_000),
+          );
+        }
+      });
+    },
+  );
+
+  describe.each(PAID_ORG_FREE_TIER_GRANT_MATRIX)(
+    "paid org free-tier helper — $name",
+    (testCase: PaidOrgFreeTierGrantMatrixCase) => {
+      const { expectedGrantCount, expectedGrantUserIds, memberUserIds } =
+        testCase;
+      it("grants only to the supplied member user ids", async () => {
+        const { createTransactionMock, tx } = createPaidOrgFreeGrantClient();
+
+        const grantsCreated =
+          await grantFreeOrganizationMemberSubscriptionCredits(
+            {
+              memberUserIds,
+              now: PERIOD_START,
+              organizationId: "org-1",
+              periodEnd: PERIOD_END,
             },
-          ],
-        ) => call[0].data.sourceCreditBucket.create.userId,
-      );
-      assert.deepEqual(grantUserIds, expectedGrantUserIds);
-    });
-  });
+            tx,
+          );
+
+        assert.equal(grantsCreated, expectedGrantCount);
+        assert.equal(
+          createTransactionMock.mock.calls.length,
+          expectedGrantCount,
+        );
+
+        const grantUserIds = createTransactionMock.mock.calls.map(
+          (
+            call: [
+              {
+                data: {
+                  sourceCreditBucket: {
+                    create: { userId: string };
+                  };
+                };
+              },
+            ],
+          ) => call[0].data.sourceCreditBucket.create.userId,
+        );
+        assert.deepEqual(grantUserIds, expectedGrantUserIds);
+      });
+    },
+  );
 });

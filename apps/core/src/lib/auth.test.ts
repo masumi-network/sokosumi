@@ -651,64 +651,64 @@ describe("core auth config", () => {
     });
   });
 
-  it.each([
-    "onSubscriptionCreated",
-    "onSubscriptionUpdate",
-  ] as const)("reconciles local free rows from Better Auth subscription callback %s", async (callbackName) => {
-    await import("./auth");
+  it.each(["onSubscriptionCreated", "onSubscriptionUpdate"] as const)(
+    "reconciles local free rows from Better Auth subscription callback %s",
+    async (callbackName) => {
+      await import("./auth");
 
-    const [[config]] = stripePluginMock.mock.calls as Array<
-      [
-        {
-          subscription: {
-            onSubscriptionCreated: (params: {
-              event: {
-                id: string;
-                type: string;
-              };
-              subscription: {
-                id: string;
-                referenceId: string;
-                stripeSubscriptionId?: string | null;
-              };
-            }) => Promise<void>;
-            onSubscriptionUpdate: (params: {
-              event: {
-                id: string;
-                type: string;
-              };
-              subscription: {
-                id: string;
-                referenceId: string;
-                stripeSubscriptionId?: string | null;
-              };
-            }) => Promise<void>;
-          };
+      const [[config]] = stripePluginMock.mock.calls as Array<
+        [
+          {
+            subscription: {
+              onSubscriptionCreated: (params: {
+                event: {
+                  id: string;
+                  type: string;
+                };
+                subscription: {
+                  id: string;
+                  referenceId: string;
+                  stripeSubscriptionId?: string | null;
+                };
+              }) => Promise<void>;
+              onSubscriptionUpdate: (params: {
+                event: {
+                  id: string;
+                  type: string;
+                };
+                subscription: {
+                  id: string;
+                  referenceId: string;
+                  stripeSubscriptionId?: string | null;
+                };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      const subscription = {
+        id: "sub_local_enterprise",
+        referenceId: "org-enterprise",
+        stripeSubscriptionId: "sub_enterprise",
+      };
+
+      await config.subscription[callbackName]({
+        event: {
+          id: "evt_enterprise",
+          type:
+            callbackName === "onSubscriptionCreated"
+              ? "customer.subscription.created"
+              : "customer.subscription.updated",
         },
-      ]
-    >;
+        subscription,
+      });
 
-    const subscription = {
-      id: "sub_local_enterprise",
-      referenceId: "org-enterprise",
-      stripeSubscriptionId: "sub_enterprise",
-    };
-
-    await config.subscription[callbackName]({
-      event: {
-        id: "evt_enterprise",
-        type:
-          callbackName === "onSubscriptionCreated"
-            ? "customer.subscription.created"
-            : "customer.subscription.updated",
-      },
-      subscription,
-    });
-
-    expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
-      subscription,
-    );
-  });
+      expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
+        subscription,
+      );
+    },
+  );
 
   it("denies subscription management for non-members", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
@@ -756,32 +756,32 @@ describe("core auth config", () => {
     expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    MemberRole.OWNER,
-    MemberRole.ADMIN,
-  ] as const)("allows subscription management for %s without an enterprise contract", async (role) => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role });
-    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
+  it.each([MemberRole.OWNER, MemberRole.ADMIN] as const)(
+    "allows subscription management for %s without an enterprise contract",
+    async (role) => {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role });
+      hasConsumableEnterpriseContractMock.mockResolvedValue(false);
 
-    await import("./auth");
+      await import("./auth");
 
-    const [[config]] = stripePluginMock.mock.calls as Array<
-      [AuthorizeReferenceConfig]
-    >;
+      const [[config]] = stripePluginMock.mock.calls as Array<
+        [AuthorizeReferenceConfig]
+      >;
 
-    await expect(
-      config.subscription.authorizeReference({
-        referenceId: "org_123",
-        user: { id: "user_123" },
-        action: "upgrade-subscription",
-      }),
-    ).resolves.toBe(true);
+      await expect(
+        config.subscription.authorizeReference({
+          referenceId: "org_123",
+          user: { id: "user_123" },
+          action: "upgrade-subscription",
+        }),
+      ).resolves.toBe(true);
 
-    expect(hasConsumableEnterpriseContractMock).toHaveBeenCalledWith(
-      "org_123",
-      prismaMock,
-    );
-  });
+      expect(hasConsumableEnterpriseContractMock).toHaveBeenCalledWith(
+        "org_123",
+        prismaMock,
+      );
+    },
+  );
 
   it("throws enterprise exclusivity error when upgrading an org with a consumable enterprise contract", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
