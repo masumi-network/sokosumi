@@ -182,6 +182,10 @@ const config = {
 4. Bootstrap database: `pnpm prisma:migrate:dev`
 5. Generate Prisma clients: `pnpm prisma:generate`
 
+### Git hooks
+
+Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Skip with `git commit --no-verify` or `HUSKY=0`.
+
 ## Commands
 
 | Command                | Purpose                       |
