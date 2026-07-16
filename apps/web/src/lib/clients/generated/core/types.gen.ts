@@ -48,15 +48,32 @@ export type AdminUserOverviewItem = {
      * Active subscription plan, if any
      */
     subscriptionPlan: string | null;
-    /**
-     * Stripe subscription lifecycle status, or null when absent
-     */
-    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+    subscriptionStatus: StripeSubscriptionStatus;
     /**
      * Number of tasks the user has started (status beyond DRAFT)
      */
     startedTaskCount: number;
 };
+
+/**
+ * Stripe subscription lifecycle status, or null when absent
+ */
+export const StripeSubscriptionStatus = {
+    ACTIVE: 'active',
+    CANCELED: 'canceled',
+    INCOMPLETE: 'incomplete',
+    INCOMPLETE_EXPIRED: 'incomplete_expired',
+    PAST_DUE: 'past_due',
+    PAUSED: 'paused',
+    TRIALING: 'trialing',
+    UNPAID: 'unpaid',
+    NULL: null
+} as const;
+
+/**
+ * Stripe subscription lifecycle status, or null when absent
+ */
+export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
 export type AdminOrganizationOverviewItem = {
     id: string;
@@ -71,10 +88,7 @@ export type AdminOrganizationOverviewItem = {
      * Active organization subscription plan, if any
      */
     subscriptionPlan: string | null;
-    /**
-     * Stripe subscription lifecycle status, or null when absent
-     */
-    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+    subscriptionStatus: StripeSubscriptionStatus;
 };
 
 export type AdminOrganizationOverviewDetail = {
@@ -124,7 +138,7 @@ export type AdminOrganizationOverviewDetail = {
 export type AdminOrganizationMemberOverviewItem = {
     id: string;
     organizationId: string;
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
     user: {
@@ -141,22 +155,33 @@ export type AdminOrganizationMemberOverviewItem = {
      * Member subscription plan in organization context
      */
     subscriptionPlan: string | null;
-    /**
-     * Stripe subscription lifecycle status, or null when absent
-     */
-    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+    subscriptionStatus: StripeSubscriptionStatus;
 };
+
+/**
+ * Organization member role
+ */
+export const MemberRole = {
+    OWNER: 'owner',
+    ADMIN: 'admin',
+    MEMBER: 'member'
+} as const;
+
+/**
+ * Organization member role
+ */
+export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
 
 export type AdminAddOrganizationMemberBody = {
     /**
      * User ID to add as a member
      */
     userId: string;
-    role?: 'owner' | 'admin' | 'member';
+    role?: MemberRole;
 };
 
 export type AdminUpdateOrganizationMemberRoleBody = {
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole & unknown;
 };
 
 export type OrganizationSeatAssignment = {
@@ -235,7 +260,7 @@ export type CreateFreeCreditGrant = {
 export type AdminTaskListItem = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus;
     createdAt: Date;
     user: {
         id: string;
@@ -248,6 +273,26 @@ export type AdminTaskListItem = {
         slug: string;
     } | null;
 };
+
+export const TaskStatus = {
+    DRAFT: 'DRAFT',
+    QUEUED: 'QUEUED',
+    READY: 'READY',
+    GRANT_PENDING: 'GRANT_PENDING',
+    INPUT_REQUIRED: 'INPUT_REQUIRED',
+    APPROVAL_REQUIRED: 'APPROVAL_REQUIRED',
+    AUTHENTICATION_REQUIRED: 'AUTHENTICATION_REQUIRED',
+    OUT_OF_CREDITS: 'OUT_OF_CREDITS',
+    CREDITS_TOPPED_UP: 'CREDITS_TOPPED_UP',
+    RUNNING: 'RUNNING',
+    AWAITING_EXTERNAL: 'AWAITING_EXTERNAL',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    CANCEL_REQUESTED: 'CANCEL_REQUESTED',
+    CANCELED: 'CANCELED'
+} as const;
+
+export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 export type AdminTaskDetail = {
     task: Task;
@@ -276,10 +321,7 @@ export type Task = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    /**
-     * GRANT_PENDING: blocked until vendor workspace access is granted.
-     */
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -351,18 +393,34 @@ export type TaskEvent = {
     credits?: number | null;
     comment?: string | null;
     authenticationUrl?: string | null;
-    /**
-     * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
-     */
-    channel: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    /**
-     * Deprecated. Use channel instead.
-     *
-     * @deprecated
-     */
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
+    channel: Channel;
+    origin: Channel & unknown;
     status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
 };
+
+/**
+ * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
+ */
+export const Channel = {
+    SLACK: 'SLACK',
+    TEAMS: 'TEAMS',
+    EMAIL: 'EMAIL',
+    LINEAR: 'LINEAR',
+    GITHUB: 'GITHUB',
+    WHATSAPP: 'WHATSAPP',
+    TELEGRAM: 'TELEGRAM',
+    SIGNAL: 'SIGNAL',
+    DISCORD: 'DISCORD',
+    CHAT: 'CHAT',
+    MESSENGER: 'MESSENGER',
+    SOKOSUMI: 'SOKOSUMI',
+    UNKNOWN: 'UNKNOWN'
+} as const;
+
+/**
+ * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
+ */
+export type Channel = typeof Channel[keyof typeof Channel];
 
 export type JobSummary = {
     id: string;
@@ -378,10 +436,10 @@ export type JobSummary = {
     workspace: WorkspaceSummary;
     taskId?: string | null;
     name?: string | null;
-    jobType: 'FREE' | 'PAID';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    jobType: JobType;
+    status: SokosumiJobStatus;
     credits: number;
-    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainStatus?: OnChainJobStatus | null;
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
@@ -402,6 +460,40 @@ export type WorkspaceSummary = {
         slug: string;
     } | null;
 };
+
+export const JobType = { FREE: 'FREE', PAID: 'PAID' } as const;
+
+export type JobType = typeof JobType[keyof typeof JobType];
+
+export const SokosumiJobStatus = {
+    STARTED: 'started',
+    COMPLETED: 'completed',
+    PROCESSING: 'processing',
+    INPUT_REQUIRED: 'input_required',
+    RESULT_PENDING: 'result_pending',
+    FAILED: 'failed',
+    PAYMENT_PENDING: 'payment_pending',
+    PAYMENT_FAILED: 'payment_failed',
+    REFUND_PENDING: 'refund_pending',
+    REFUND_RESOLVED: 'refund_resolved',
+    DISPUTE_PENDING: 'dispute_pending',
+    DISPUTE_RESOLVED: 'dispute_resolved'
+} as const;
+
+export type SokosumiJobStatus = typeof SokosumiJobStatus[keyof typeof SokosumiJobStatus];
+
+export const OnChainJobStatus = {
+    FUNDS_LOCKED: 'FUNDS_LOCKED',
+    FUNDS_OR_DATUM_INVALID: 'FUNDS_OR_DATUM_INVALID',
+    FUNDS_WITHDRAWN: 'FUNDS_WITHDRAWN',
+    RESULT_SUBMITTED: 'RESULT_SUBMITTED',
+    REFUND_REQUESTED: 'REFUND_REQUESTED',
+    REFUND_WITHDRAWN: 'REFUND_WITHDRAWN',
+    DISPUTED: 'DISPUTED',
+    DISPUTED_WITHDRAWN: 'DISPUTED_WITHDRAWN'
+} as const;
+
+export type OnChainJobStatus = typeof OnChainJobStatus[keyof typeof OnChainJobStatus];
 
 export type TaskShare = {
     id: string;
@@ -435,7 +527,7 @@ export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRela
 export type TaskLinkPeerTask = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
     archivedAt: Date | null;
 };
 
@@ -653,10 +745,7 @@ export type AgentDetail = {
      * Categories this agent belongs to
      */
     categories: Array<Category>;
-    /**
-     * The agent's risk classification
-     */
-    riskClassification: 'MINIMAL' | 'LIMITED' | 'HIGH' | 'UNACCEPTABLE';
+    riskClassification: RiskClassification;
     /**
      * Resolved tags for the agent, using override tags when present
      */
@@ -666,6 +755,21 @@ export type AgentDetail = {
      */
     exampleOutputs: Array<AgentExampleOutput>;
 };
+
+/**
+ * The agent's risk classification
+ */
+export const RiskClassification = {
+    MINIMAL: 'MINIMAL',
+    LIMITED: 'LIMITED',
+    HIGH: 'HIGH',
+    UNACCEPTABLE: 'UNACCEPTABLE'
+} as const;
+
+/**
+ * The agent's risk classification
+ */
+export type RiskClassification = typeof RiskClassification[keyof typeof RiskClassification];
 
 export type AgentExampleOutput = {
     name: string;
@@ -1561,7 +1665,7 @@ export type HistoryTaskItem = {
      */
     owner: HistoryOwner | null;
     kind: 'task';
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus;
     /**
      * Project ID for the task, when assigned
      */
@@ -1617,7 +1721,7 @@ export type HistoryJobItem = {
      */
     owner: HistoryOwner | null;
     kind: 'job';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    status: SokosumiJobStatus & unknown;
     /**
      * Project ID for the job, when assigned
      */
@@ -1758,10 +1862,7 @@ export type MemberWithOrganization = {
     id: string;
     userId: string;
     organizationId: string;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
     organization: OrganizationRecord;
@@ -1787,20 +1888,14 @@ export type Organization = {
         url?: string | null;
         [key: string]: unknown;
     } | null;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
 };
 
 export type MemberRecord = {
     id: string;
     userId: string;
     organizationId: string;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
 };
@@ -1814,13 +1909,17 @@ export type PreferredOrganization = {
 
 export type Notice = {
     id: string;
-    kind: 'LEGAL_TERMS' | 'ANNOUNCEMENT';
+    kind: NoticeKind;
     bodyMarkdown: string;
     effectiveAt: Date;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
+
+export const NoticeKind = { LEGAL_TERMS: 'LEGAL_TERMS', ANNOUNCEMENT: 'ANNOUNCEMENT' } as const;
+
+export type NoticeKind = typeof NoticeKind[keyof typeof NoticeKind];
 
 export type BlobFile = {
     /**
@@ -2013,10 +2112,7 @@ export type StripeCustomerBillingTaxId = {
 export type ActiveSubscriptionResponse = {
     subscription: {
         plan: string;
-        /**
-         * Stripe subscription lifecycle status
-         */
-        status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+        status: StripeSubscriptionStatus & unknown;
         cancelAtPeriodEnd?: boolean | null;
         periodStart?: Date | null;
         periodEnd?: Date | null;
@@ -2038,10 +2134,7 @@ export type User = {
 export type Member = {
     id: string;
     organizationId: string;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member';
+    role: MemberRole;
     seatAssignedAt: Date | null;
     createdAt: Date;
     user: {
@@ -2060,18 +2153,27 @@ export type PendingInvitation = {
     id: string;
     organizationId: string;
     email: string;
-    /**
-     * Organization member role
-     */
-    role: 'owner' | 'admin' | 'member' | null;
-    /**
-     * Invitation lifecycle status stored in the database
-     */
-    status: 'pending' | 'accepted' | 'rejected' | 'canceled';
+    role: MemberRole & ('owner' | 'admin' | 'member' | null);
+    status: InvitationStatus;
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;
 };
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export const InvitationStatus = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    REJECTED: 'rejected',
+    CANCELED: 'canceled'
+} as const;
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
 
 export type OrganizationSeatSummary = {
     /**
@@ -2189,12 +2291,12 @@ export type ProjectStatsEntry = {
 
 export type ProjectTaskStatusCount = {
     count: number;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
 };
 
 export type ProjectJobStatusCount = {
     count: number;
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    status: SokosumiJobStatus;
 };
 
 export type AddProjectJobRequest = {
@@ -2228,8 +2330,8 @@ export type Job = {
     projectId: string | null;
     taskId?: string | null;
     name?: string | null;
-    jobType: 'FREE' | 'PAID';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    jobType: JobType;
+    status: SokosumiJobStatus & unknown;
     credits: number;
     onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
     onChainTransactionHash?: string | null;
@@ -2267,7 +2369,7 @@ export type Job = {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+        status: AgentJobStatus;
         inputSchema?: string | null;
         input?: {
             id: string;
@@ -2281,6 +2383,17 @@ export type Job = {
     }>;
     share: JobShare | null;
 };
+
+export const AgentJobStatus = {
+    INITIATED: 'INITIATED',
+    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+    AWAITING_INPUT: 'AWAITING_INPUT',
+    RUNNING: 'RUNNING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED'
+} as const;
+
+export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
 
 export type File = {
     id: string;
@@ -2298,10 +2411,7 @@ export type File = {
      * Name of the file
      */
     name?: string | null;
-    /**
-     * Status of the file
-     */
-    status: 'PENDING' | 'READY' | 'FAILED';
+    status: BlobStatus;
     /**
      * Size in bytes
      */
@@ -2315,6 +2425,20 @@ export type File = {
      */
     fileUrl?: string | null;
 };
+
+/**
+ * Status of the file
+ */
+export const BlobStatus = {
+    PENDING: 'PENDING',
+    READY: 'READY',
+    FAILED: 'FAILED'
+} as const;
+
+/**
+ * Status of the file
+ */
+export type BlobStatus = typeof BlobStatus[keyof typeof BlobStatus];
 
 export type Link = {
     id: string;
@@ -2345,7 +2469,7 @@ export type JobEvent = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+    status: AgentJobStatus & unknown;
     inputSchema?: string | null;
     input?: JobInput & ({
         [key: string]: unknown;
@@ -2480,7 +2604,7 @@ export type PublicSharedTask = {
     updatedAt: Date;
     name: string;
     description?: string | null;
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
     coworker?: PublicSharedTaskCoworker;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
@@ -2498,7 +2622,7 @@ export type PublicSharedTaskJob = {
     createdAt: Date;
     completedAt?: Date | null;
     name?: string | null;
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    status: SokosumiJobStatus;
     agentName: string;
     shareToken?: string | null;
 };
@@ -2507,17 +2631,9 @@ export type PublicSharedTaskMilestone = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    /**
-     * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
-     */
-    channel: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    /**
-     * Deprecated. Use channel instead.
-     *
-     * @deprecated
-     */
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    channel: Channel;
+    origin: Channel & unknown;
+    status: TaskStatus & (string | null);
     comment: string | null;
     credits: number | null;
     actorName: string | null;
@@ -2643,10 +2759,7 @@ export type TaskListItem = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    /**
-     * GRANT_PENDING: blocked until vendor workspace access is granted.
-     */
-    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: TaskStatus & unknown;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -12813,10 +12926,7 @@ export type GetUsersByIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                /**
-                 * Stripe subscription lifecycle status
-                 */
-                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                status: StripeSubscriptionStatus & unknown;
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -12844,10 +12954,7 @@ export type GetUsersByIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    /**
-                     * Stripe subscription lifecycle status
-                     */
-                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                    status: StripeSubscriptionStatus & unknown;
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -13358,10 +13465,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                /**
-                 * Stripe subscription lifecycle status
-                 */
-                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                status: StripeSubscriptionStatus & unknown;
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -13389,10 +13493,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    /**
-                     * Stripe subscription lifecycle status
-                     */
-                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
+                    status: StripeSubscriptionStatus & unknown;
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -21309,16 +21410,8 @@ export type PostTasksData = {
         projectId?: string | null;
         coworkerId?: string | null;
         status?: 'DRAFT' | 'READY';
-        /**
-         * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
-         */
-        channel?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-        /**
-         * Deprecated. Use channel instead.
-         *
-         * @deprecated
-         */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
+        channel?: Channel;
+        origin?: Channel & unknown;
     };
     headers?: {
         /**
@@ -22565,16 +22658,8 @@ export type PostTasksByIdEventsData = {
          * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
          */
         credits?: number | null;
-        /**
-         * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
-         */
-        channel?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-        /**
-         * Deprecated. Use channel instead.
-         *
-         * @deprecated
-         */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
+        channel?: Channel;
+        origin?: Channel & unknown;
         masumiPayment?: MasumiPayment;
     };
     path: {

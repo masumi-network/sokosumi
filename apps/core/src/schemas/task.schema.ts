@@ -4,6 +4,7 @@ import { TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
+import { channelSchema, taskStatusSchema } from "@/schemas/domain-enums.schema";
 import {
   createJobRequestSchema,
   jobSummariesSchema,
@@ -14,13 +15,13 @@ import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
 
-const deprecatedOriginField = z.enum(Channel).openapi({
+const deprecatedOriginField = channelSchema.openapi({
   deprecated: true,
   example: Channel.SLACK,
   description: "Deprecated. Use channel instead.",
 });
 
-export const taskEventChannelField = z.enum(Channel).openapi({
+export const taskEventChannelField = channelSchema.openapi({
   example: Channel.SLACK,
   description:
     "Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.",
@@ -53,10 +54,7 @@ export const taskEventSchema = z
       .openapi({ example: "https://example.com/oauth/authorize" }),
     channel: taskEventChannelField,
     origin: taskEventDeprecatedOriginField,
-    status: z
-      .enum(TaskStatus)
-      .nullish()
-      .openapi({ example: TaskStatus.RUNNING }),
+    status: taskStatusSchema.nullish().openapi({ example: TaskStatus.RUNNING }),
   })
   .openapi("TaskEvent");
 
@@ -86,7 +84,7 @@ const taskBaseSchema = z.object({
   coworker: coworkerSummarySchema.nullable(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
-  status: z.enum(TaskStatus).openapi({
+  status: taskStatusSchema.openapi({
     example: TaskStatus.READY,
     description:
       "GRANT_PENDING: blocked until vendor workspace access is granted.",

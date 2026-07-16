@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { BlobStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { blobStatusSchema } from "@/schemas/domain-enums.schema";
 
 export const fileSchema = z
   .object({
@@ -22,9 +23,8 @@ export const fileSchema = z
       .string()
       .nullish()
       .openapi({ example: "file.pdf", description: "Name of the file" }),
-    status: z.enum(BlobStatus).openapi({
+    status: blobStatusSchema.openapi({
       example: BlobStatus.READY,
-      enum: Object.values(BlobStatus),
       description: "Status of the file",
     }),
     size: z

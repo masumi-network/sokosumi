@@ -5,6 +5,7 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { categorySchema } from "@/schemas/category.schema";
+import { riskClassificationSchema } from "@/schemas/domain-enums.schema";
 
 export const executionMetricsSchema = z
   .object({
@@ -192,7 +193,7 @@ export const agentSummarySchema = agentBaseSchema.openapi("Agent");
 
 export const agentDetailSchema = agentBaseSchema
   .extend({
-    riskClassification: z.nativeEnum(RiskClassification).openapi({
+    riskClassification: riskClassificationSchema.openapi({
       example: RiskClassification.MINIMAL,
       description: "The agent's risk classification",
     }),
