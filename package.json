@@ -30,6 +30,7 @@
     "start": "pnpm -r start",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
+    "precommit": "pnpm lint && pnpm typecheck",
     "lint": "biome lint .",
     "lint:write": "biome lint --write .",
     "check": "biome check .",
@@ -82,11 +83,13 @@
     "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
     "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio",
     "perf:report": "lighthouse https://sokosumi-app-preprod.vercel.app/ --only-categories=performance --output=html --output=json --output-path=./.cursor/sokosumi-perf --chrome-flags='--headless --no-sandbox --disable-gpu'",
-    "perf:report:auth": "node scripts/perf-report-authenticated.mjs"
+    "perf:report:auth": "node scripts/perf-report-authenticated.mjs",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
     "chrome-launcher": "1.2.1",
+    "husky": "9.1.7",
     "lighthouse": "13.4.0",
     "tsx": "4.23.1"
   }
