@@ -3,7 +3,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
-  captureExceptionMock,
+  captureExternalServiceErrorMock,
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
@@ -13,7 +13,7 @@ const {
   userFindUniqueMock,
   memberFindUniqueMock,
 } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
+  captureExternalServiceErrorMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
@@ -24,12 +24,16 @@ const {
   memberFindUniqueMock: vi.fn(),
 }));
 
+vi.mock("@/lib/external-service-errors", () => ({
+  captureExternalServiceError: (...args: unknown[]) =>
+    captureExternalServiceErrorMock(...args),
+}));
+
 vi.mock("@sentry/node", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sentry/node")>();
 
   return {
     ...actual,
-    captureException: (...args: unknown[]) => captureExceptionMock(...args),
   };
 });
 
@@ -248,15 +252,21 @@ describe("workspaceMiddleware", () => {
       },
       workspaceContext: null,
     });
-    expect(captureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        activeOrganizationId: "org_existing",
-        userId: "user_123",
+    expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      {
+        label: "workspace_context_resolution",
+        sentry: {
+          extra: {
+            activeOrganizationId: "org_existing",
+            userId: "user_123",
+          },
+          tags: {
+            context: "workspace_context_resolution",
+          },
+        },
       },
-      tags: {
-        context: "workspace_context_resolution",
-      },
-    });
+    );
   });
 
   it("leaves workspaceContext null for coworker requests", async () => {

@@ -39,6 +39,7 @@ export function isTransientFetchError(error: unknown): boolean {
 
   return (
     /timeout of \d+ms exceeded/i.test(message) ||
+    /timed out after \d+ms/i.test(message) ||
     /aborted due to timeout/i.test(message) ||
     name === "TimeoutError" ||
     name === "AbortError" ||
