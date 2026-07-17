@@ -29,7 +29,7 @@ export default async function AdminTaskDetailPage({
     notFound();
   }
 
-  const { task, user, organization } = taskDetail;
+  const { task, owner, organization } = taskDetail;
 
   return (
     <div className="min-h-full w-full">
@@ -39,8 +39,8 @@ export default async function AdminTaskDetailPage({
       <div className="mx-auto max-w-4xl px-4 pt-2">
         <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="text-sm">
-            <span className="font-medium">{user.name}</span>
-            <span className="text-muted-foreground"> · {user.email}</span>
+            <span className="font-medium">{owner.name}</span>
+            <span className="text-muted-foreground"> · {owner.email}</span>
             <span className="text-muted-foreground">
               {" · "}
               {organization?.name ?? t("personalWorkspace")}

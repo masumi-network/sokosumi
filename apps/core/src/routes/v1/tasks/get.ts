@@ -18,6 +18,10 @@ import {
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import {
+  refineAssigneeIdAliasConflict,
+  resolveAssigneeIdFromRequest,
+} from "@/helpers/task-assignee-alias";
+import {
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
@@ -99,16 +103,34 @@ const query = z
     scope: taskScopeQuerySchema,
     projectId: projectIdQuerySchema,
     sort: taskSortQuerySchema,
+    assigneeId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "assigneeId", in: "query" },
+        description: "Filter tasks by assignee coworker ID",
+        example: "cow_123",
+      }),
+    /** @deprecated Use `assigneeId`. */
     coworkerId: z
       .string()
       .optional()
       .openapi({
         param: { name: "coworkerId", in: "query" },
-        description: "Filter tasks by coworker ID",
+        deprecated: true,
+        description: "Deprecated. Use assigneeId instead.",
         example: "cow_123",
       }),
   })
-  .extend(cursorPaginationQuerySchema.shape);
+  .extend(cursorPaginationQuerySchema.shape)
+  .superRefine(refineAssigneeIdAliasConflict)
+  .transform((data) => {
+    const { coworkerId: _coworkerId, ...rest } = data;
+    return {
+      ...rest,
+      assigneeId: resolveAssigneeIdFromRequest(data),
+    };
+  });
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -133,7 +155,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
     const {
-      coworkerId,
+      assigneeId,
       projectId,
       q,
       scope,
@@ -191,9 +213,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             workspaceId: workspaceContext.workspaceId,
             AND: [listAccessFilter],
             ...(scope === "owned"
-              ? { userId: authContext.context.userId }
+              ? { ownerId: authContext.context.userId }
               : {}),
-            ...(coworkerId ? { coworkerId } : {}),
+            ...(assigneeId ? { assigneeId } : {}),
             ...projectFilter,
             ...searchFilter,
           },
@@ -217,8 +239,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
-          ...(scope === "owned" ? { userId: userContext.userId } : {}),
-          ...(coworkerId ? { coworkerId } : {}),
+          ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
+          ...(assigneeId ? { assigneeId } : {}),
           ...projectFilter,
           ...searchFilter,
         },

@@ -68,7 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
-          userId: userContext.userId,
+          ownerId: userContext.userId,
           workspaceId: workspaceContext.workspaceId,
         },
         select: taskLinkPeerTaskSelect,

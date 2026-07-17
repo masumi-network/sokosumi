@@ -237,7 +237,7 @@ describe("getUserJobs", () => {
               userId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
-            { task: { coworkerId: "cow_123" } },
+            { task: { assigneeId: "cow_123" } },
           ],
         },
       }),

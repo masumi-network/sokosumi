@@ -51,9 +51,9 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
   } | null;
 };
 
-interface ValidateTaskCoworkerAssignmentParams {
+interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
-  coworkerId: string | null | undefined;
+  assigneeId: string | null | undefined;
 }
 
 function getAllowedTransitions(
@@ -219,17 +219,17 @@ export function validateStatusTransition(
   }
 }
 
-export function validateTaskCoworkerAssignment({
+export function validateTaskAssigneeAssignment({
   status,
-  coworkerId,
-}: ValidateTaskCoworkerAssignmentParams): void {
-  const hasCoworkerId = coworkerId !== null && coworkerId !== undefined;
-  const allowsMissingCoworker =
+  assigneeId,
+}: ValidateTaskAssigneeAssignmentParams): void {
+  const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
+  const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (!allowsMissingCoworker && !hasCoworkerId) {
+  if (!allowsMissingAssignee && !hasAssigneeId) {
     throw unprocessableEntity(
-      "coworkerId is required for statuses other than draft or canceled",
+      "assigneeId is required for statuses other than draft or canceled",
     );
   }
 }
@@ -273,6 +273,62 @@ export function mapTaskEvent(event: TaskEventForMapping) {
   };
 }
 
+function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
+  if (task.creatorUserId != null) {
+    return {
+      type: "user" as const,
+      id: task.creatorUserId,
+      user: userSummaryFromLoadedRelation(
+        `Task ${task.id} creator`,
+        task.creatorUserId,
+        task.creatorUser ?? null,
+      ),
+    };
+  }
+
+  if (task.creatorCoworkerId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task ${task.id} creator`,
+      task.creatorCoworkerId,
+      task.creatorCoworker ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task ${task.id}: creator coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: task.creatorCoworkerId,
+      coworker,
+    };
+  }
+
+  if (task.creatorOrchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task ${task.id} creator`,
+      task.creatorOrchestratorId,
+      task.creatorOrchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `Task ${task.id}: creator orchestrator summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "orchestrator" as const,
+      id: task.creatorOrchestratorId,
+      orchestrator,
+    };
+  }
+
+  throw new Error(
+    `Task ${task.id}: exactly one creator FK must be set for API mapping`,
+  );
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -280,37 +336,40 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.organization ?? null,
   );
 
-  const taskUserSummary = userSummaryFromLoadedRelation(
+  const taskOwnerSummary = userSummaryFromLoadedRelation(
     `Task ${task.id}`,
-    task.userId,
-    task.user,
+    task.ownerId,
+    task.owner,
   );
 
-  const taskCoworkerSummary = coworkerSummaryFromLoadedRelation(
+  const taskAssigneeSummary = coworkerSummaryFromLoadedRelation(
     `Task ${task.id}`,
-    task.coworkerId,
-    task.coworker ?? null,
+    task.assigneeId,
+    task.assignee ?? null,
   );
 
-  const taskOrchestratorSummary = orchestratorSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.orchestratorId,
-    task.orchestrator ?? null,
-  );
+  const creator = mapTaskCreator(task);
 
   return {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
-    userId: task.userId,
+    ownerId: task.ownerId,
+    owner: taskOwnerSummary,
+    // Deprecated aliases — keep until clients migrate.
+    userId: task.ownerId,
+    user: taskOwnerSummary,
     organizationId: task.organizationId,
     projectId: task.projectId,
-    user: taskUserSummary,
     organization: taskOrganizationSummary,
-    coworkerId: task.coworkerId,
-    coworker: taskCoworkerSummary,
-    orchestratorId: task.orchestratorId ?? null,
-    orchestrator: taskOrchestratorSummary,
+    assigneeId: task.assigneeId,
+    assignee: taskAssigneeSummary,
+    coworkerId: task.assigneeId,
+    coworker: taskAssigneeSummary,
+    creator,
+    // Deprecated aliases for legacy orchestrator-created tasks.
+    orchestratorId: creator.type === "orchestrator" ? creator.id : null,
+    orchestrator: creator.type === "orchestrator" ? creator.orchestrator : null,
     name: task.name,
     description: task.description,
     status: task.status,

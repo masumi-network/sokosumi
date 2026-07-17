@@ -62,18 +62,18 @@ describe("mapJobsToTasksViewData", () => {
 
   it("uses seedTasksById and skips getTaskById for seeded tasks", async () => {
     const jobs = [buildJob("task-seeded")];
-    const coworkersById = new Map<string, TaskWithCoworker["coworker"]>([
+    const coworkersById = new Map<string, TaskWithCoworker["assignee"]>([
       [
         "coworker-1",
         {
           id: "coworker-1",
           name: "Seeded Coworker",
           image: null,
-        } as TaskWithCoworker["coworker"],
+        } as TaskWithCoworker["assignee"],
       ],
     ]);
     const seedTasksById = new Map([
-      ["task-seeded", { id: "task-seeded", coworkerId: "coworker-1" }],
+      ["task-seeded", { id: "task-seeded", assigneeId: "coworker-1" }],
     ]);
 
     const result = await mapJobsToTasksViewData({
@@ -104,18 +104,18 @@ describe("mapJobsToTasksViewData", () => {
 
   it("uses knownAgentsById and skips getAgentById for catalog agents", async () => {
     const jobs = [buildJob("task-seeded")];
-    const coworkersById = new Map<string, TaskWithCoworker["coworker"]>([
+    const coworkersById = new Map<string, TaskWithCoworker["assignee"]>([
       [
         "coworker-1",
         {
           id: "coworker-1",
           name: "Seeded Coworker",
           image: null,
-        } as TaskWithCoworker["coworker"],
+        } as TaskWithCoworker["assignee"],
       ],
     ]);
     const seedTasksById = new Map([
-      ["task-seeded", { id: "task-seeded", coworkerId: "coworker-1" }],
+      ["task-seeded", { id: "task-seeded", assigneeId: "coworker-1" }],
     ]);
     const preloaded = createMockCoreAgent({
       id: "agent-1",

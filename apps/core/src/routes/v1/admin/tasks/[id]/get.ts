@@ -41,7 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { id },
       include: {
         ...taskInclude,
-        user: { select: { id: true, name: true, email: true, image: true } },
+        owner: { select: { id: true, name: true, email: true, image: true } },
       },
     });
 
@@ -53,10 +53,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       adminTaskDetailSchema.parse({
         task: mapTask(task),
+        owner: {
+          id: task.owner.id,
+          name: task.owner.name,
+          email: task.owner.email,
+        },
         user: {
-          id: task.user.id,
-          name: task.user.name,
-          email: task.user.email,
+          id: task.owner.id,
+          name: task.owner.name,
+          email: task.owner.email,
         },
         organization: task.organization,
       }),

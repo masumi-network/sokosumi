@@ -8,7 +8,7 @@ import type { TaskWithIncludes } from "@/types/task";
 import {
   mapTask,
   validateStatusTransition,
-  validateTaskCoworkerAssignment,
+  validateTaskAssigneeAssignment,
 } from "./task";
 
 const coworkerContext: AuthenticationContext = {
@@ -710,66 +710,66 @@ describe("validateStatusTransition", () => {
   });
 });
 
-describe("validateTaskCoworkerAssignment", () => {
+describe("validateTaskAssigneeAssignment", () => {
   it("allows DRAFT tasks without a coworker", () => {
     expect(() =>
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.DRAFT,
-        coworkerId: null,
+        assigneeId: null,
       }),
     ).not.toThrow();
   });
 
   it("allows CANCELED tasks without a coworker", () => {
     expect(() =>
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.CANCELED,
-        coworkerId: null,
+        assigneeId: null,
       }),
     ).not.toThrow();
   });
 
   it("allows non-DRAFT tasks with a coworker", () => {
     expect(() =>
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.READY,
-        coworkerId: "cow_123",
+        assigneeId: "cow_123",
       }),
     ).not.toThrow();
   });
 
   it("allows QUEUED tasks with a coworker", () => {
     expect(() =>
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.QUEUED,
-        coworkerId: "cow_123",
+        assigneeId: "cow_123",
       }),
     ).not.toThrow();
   });
 
   it("rejects non-DRAFT tasks without a coworker", () => {
     expect(() =>
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.READY,
-        coworkerId: null,
+        assigneeId: null,
       }),
     ).toThrow();
   });
 
   it("rejects QUEUED tasks without a coworker", () => {
     expect(() =>
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.QUEUED,
-        coworkerId: null,
+        assigneeId: null,
       }),
     ).toThrow();
   });
 
-  it("allows non-DRAFT tasks with empty coworkerId at invariant layer", () => {
+  it("allows non-DRAFT tasks with empty assigneeId at invariant layer", () => {
     expect(() =>
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.READY,
-        coworkerId: "   ",
+        assigneeId: "   ",
       }),
     ).not.toThrow();
   });
@@ -790,12 +790,18 @@ describe("mapTask", () => {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: null,
-      user: defaultTaskUser,
+      owner: defaultTaskUser,
       organization: null,
-      coworkerId: "cow_123",
-      coworker: defaultTaskCoworker,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
       name: "Task with share",
       description: null,
       status: TaskStatus.READY,
@@ -822,12 +828,18 @@ describe("mapTask", () => {
       id: "tsk_parked",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: null,
-      user: defaultTaskUser,
+      owner: defaultTaskUser,
       organization: null,
-      coworkerId: "cow_123",
-      coworker: defaultTaskCoworker,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
       name: "Parked task",
       description: null,
       status: TaskStatus.GRANT_PENDING,
@@ -865,17 +877,77 @@ describe("mapTask", () => {
     });
   });
 
+  it("maps nested creator and deprecated owner/assignee/orchestrator aliases", () => {
+    const creatorOrchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Hermes",
+      slug: "hermes",
+    };
+    const task = {
+      id: "tsk_alias",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: null,
+      creatorUser: null,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: creatorOrchestrator.id,
+      creatorOrchestrator,
+      name: "Alias task",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task)).toMatchObject({
+      ownerId: "user_123",
+      userId: "user_123",
+      user: defaultTaskUser,
+      assigneeId: "cow_123",
+      coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
+      creator: {
+        type: "orchestrator",
+        id: creatorOrchestrator.id,
+        orchestrator: creatorOrchestrator,
+      },
+      orchestratorId: creatorOrchestrator.id,
+      orchestrator: creatorOrchestrator,
+    });
+  });
+
   it("serializes nested job workspaces", () => {
     const task = {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: null,
-      user: defaultTaskUser,
+      owner: defaultTaskUser,
       organization: null,
-      coworkerId: "cow_123",
-      coworker: defaultTaskCoworker,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
       name: "Task with job",
       description: null,
       status: TaskStatus.READY,
@@ -937,12 +1009,18 @@ describe("mapTask", () => {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: null,
-      user: defaultTaskUser,
+      owner: defaultTaskUser,
       organization: null,
-      coworkerId: "cow_123",
-      coworker: defaultTaskCoworker,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
       name: "Task with retries",
       description: null,
       status: TaskStatus.COMPLETED,
@@ -1027,12 +1105,18 @@ describe("mapTask", () => {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: null,
-      user: defaultTaskUser,
+      owner: defaultTaskUser,
       organization: null,
-      coworkerId: "cow_123",
-      coworker: defaultTaskCoworker,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
       name: "Task with top-up",
       description: null,
       status: TaskStatus.COMPLETED,
@@ -1095,12 +1179,18 @@ describe("mapTask", () => {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: null,
-      user: defaultTaskUser,
+      owner: defaultTaskUser,
       organization: null,
-      coworkerId: "cow_123",
-      coworker: defaultTaskCoworker,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
       name: "Task with partial charge",
       description: null,
       status: TaskStatus.OUT_OF_CREDITS,

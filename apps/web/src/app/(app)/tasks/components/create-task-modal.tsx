@@ -15,21 +15,21 @@ import { TaskFormModal } from "./task-form-modal";
 
 interface CreateTaskModalContextType {
   open: boolean;
-  coworkerOverrideId: string | null;
+  assigneeOverrideId: string | null;
   projectOverrideId: string | null;
   promptOverride: string | null;
   formInstanceKey: number;
   handleOpen: () => void;
-  /** Open the modal with a coworker preselected (and optionally a prefilled
+  /** Open the modal with an assignee preselected (and optionally a prefilled
    *  prompt), so the picker step is skipped. */
-  handleOpenWith: (coworkerId: string, prompt?: string) => void;
+  handleOpenWith: (assigneeId: string, prompt?: string) => void;
   handleClose: () => void;
   clearPromptOverride: () => void;
 }
 
 const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   open: false,
-  coworkerOverrideId: null,
+  assigneeOverrideId: null,
   projectOverrideId: null,
   promptOverride: null,
   formInstanceKey: 0,
@@ -46,7 +46,7 @@ export function useCreateTaskModal() {
 interface CreateTaskModalProviderProps {
   children: React.ReactNode;
   initialOpen?: boolean;
-  initialCoworkerId?: string | null;
+  initialAssigneeId?: string | null;
   initialProjectId?: string | null;
   initialPrompt?: string | null;
 }
@@ -54,15 +54,15 @@ interface CreateTaskModalProviderProps {
 export function CreateTaskModalProvider({
   children,
   initialOpen = false,
-  initialCoworkerId = null,
+  initialAssigneeId = null,
   initialProjectId = null,
   initialPrompt = null,
 }: CreateTaskModalProviderProps) {
   const [open, setOpen] = useState(initialOpen);
-  const [coworkerOverrideId, setCoworkerOverrideId] = useState<string | null>(
+  const [assigneeOverrideId, setAssigneeOverrideId] = useState<string | null>(
     () =>
-      initialOpen && initialCoworkerId != null && initialCoworkerId !== ""
-        ? initialCoworkerId
+      initialOpen && initialAssigneeId != null && initialAssigneeId !== ""
+        ? initialAssigneeId
         : null,
   );
   const [projectOverrideId, setProjectOverrideId] = useState<string | null>(
@@ -77,7 +77,7 @@ export function CreateTaskModalProvider({
   const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const handleOpen = useCallback(() => {
-    setCoworkerOverrideId(null);
+    setAssigneeOverrideId(null);
     setProjectOverrideId(initialProjectId || null);
     setPromptOverride(null);
     setFormInstanceKey((key) => key + 1);
@@ -85,8 +85,8 @@ export function CreateTaskModalProvider({
   }, [initialProjectId]);
 
   const handleOpenWith = useCallback(
-    (coworkerId: string, prompt?: string) => {
-      setCoworkerOverrideId(coworkerId || null);
+    (assigneeId: string, prompt?: string) => {
+      setAssigneeOverrideId(assigneeId || null);
       setProjectOverrideId(initialProjectId || null);
       setPromptOverride(prompt ?? null);
       setFormInstanceKey((key) => key + 1);
@@ -107,7 +107,7 @@ export function CreateTaskModalProvider({
     <CreateTaskModalContext.Provider
       value={{
         open,
-        coworkerOverrideId,
+        assigneeOverrideId,
         projectOverrideId,
         promptOverride,
         formInstanceKey,
@@ -143,7 +143,7 @@ export function CreateTaskModal({
   const {
     open,
     handleClose,
-    coworkerOverrideId,
+    assigneeOverrideId,
     projectOverrideId,
     promptOverride,
     formInstanceKey,
@@ -165,10 +165,12 @@ export function CreateTaskModal({
     const params = new URLSearchParams(window.location.search);
     if (
       params.has("create") ||
+      params.has("assignee") ||
       params.has("coworker") ||
       params.has("prompt")
     ) {
       params.delete("create");
+      params.delete("assignee");
       params.delete("coworker");
       params.delete("prompt");
       const nextQuery = params.toString();
@@ -278,7 +280,7 @@ export function CreateTaskModal({
         agentNameById={agentNameById}
         initialDesignMdAttachment={initialDesignMdAttachment}
         initialValues={{
-          ...(coworkerOverrideId ? { coworkerId: coworkerOverrideId } : {}),
+          ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
           ...(promptOverride ? { description: promptOverride } : {}),
           projectId: selectedProjectId,
         }}

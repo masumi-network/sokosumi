@@ -78,13 +78,13 @@ export async function generateMetadata({
       description: tTasks("description"),
       type: "article",
       url: `${siteConfig.url}/share/${token}`,
-      images: resource.task.coworker?.image
+      images: resource.task.assignee?.image
         ? [
             {
-              url: resource.task.coworker.image,
+              url: resource.task.assignee.image,
               width: 400,
               height: 250,
-              alt: resource.task.coworker.name,
+              alt: resource.task.assignee.name,
             },
           ]
         : [],

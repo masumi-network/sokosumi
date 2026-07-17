@@ -66,7 +66,8 @@ model User {
   coworkers Coworker[]
   workspace Workspace?
 
-  tasks          Task[]
+  ownedTasks     Task[] @relation("TaskOwner")
+  createdTasks   Task[] @relation("TaskCreatorUser")
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
   orchestratorUsages OrchestratorUsage[]
@@ -1221,7 +1222,8 @@ model Coworker {
 
   coworkerApiKeys CoworkerApiKey[]
 
-  tasks          Task[]
+  assignedTasks  Task[] @relation("TaskAssignee")
+  createdTasks   Task[] @relation("TaskCreatorCoworker")
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
@@ -1244,7 +1246,7 @@ model Orchestrator {
   description String?
 
   orchestratorApiKeys OrchestratorApiKey[]
-  tasks               Task[]
+  createdTasks        Task[] @relation("TaskCreatorOrchestrator")
   taskEvents          TaskEvent[]
   orchestratorUsages  OrchestratorUsage[]
 
@@ -1298,8 +1300,9 @@ model Task {
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Workspace/billing owner. Always a user.
+  ownerId String
+  owner   User   @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -1309,12 +1312,20 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
-  coworkerId String?
-  coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
+  /// Marketplace coworker assignee. Never an orchestrator.
+  assigneeId String?
+  assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  /// Creator attribution when an orchestrator created the task (not assignee).
-  orchestratorId String?       @db.Uuid
-  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+  /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
+  /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
+  creatorUserId String?
+  creatorUser   User?   @relation("TaskCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("TaskCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorOrchestratorId String?       @db.Uuid
+  creatorOrchestrator   Orchestrator? @relation("TaskCreatorOrchestrator", fields: [creatorOrchestratorId], references: [id], onDelete: Restrict)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -1343,12 +1354,15 @@ model Task {
   @@index([organizationId])
   @@index([workspaceId])
   @@index([archivedAt])
-  @@index([userId])
-  @@index([userId, organizationId])
+  @@index([ownerId])
+  @@index([ownerId, organizationId])
+  @@index([assigneeId])
   @@index([projectId])
   @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])
-  @@index([orchestratorId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorOrchestratorId])
   @@map("task")
 }
 

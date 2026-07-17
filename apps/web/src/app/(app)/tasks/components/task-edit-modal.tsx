@@ -16,7 +16,7 @@ interface TaskEditModalProps {
   initialValues: {
     name: string;
     description: string;
-    coworkerId: string;
+    assigneeId: string;
     projectId?: string | null;
     status: TaskStatus;
     metadata?: string | null;

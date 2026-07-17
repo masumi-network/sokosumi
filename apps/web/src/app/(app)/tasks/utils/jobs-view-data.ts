@@ -13,7 +13,7 @@ type AgentForPreview = Parameters<typeof getAgentName>[0] &
   Parameters<typeof getAgentResolvedIcon>[0];
 
 /** Minimal task shape used to resolve job coworker; full Task from getTaskById also accepted. */
-type TaskSeedForJob = { id: string; coworkerId: string | null };
+type TaskSeedForJob = { id: string; assigneeId: string | null };
 
 interface MapJobsToTasksViewDataParams {
   jobs: JobSummary[];
@@ -124,12 +124,12 @@ export async function mapJobsToTasksViewData({
         return null;
       }
 
-      const coworker = task.coworkerId
-        ? (coworkersById.get(task.coworkerId) ?? null)
+      const assignee = task.assigneeId
+        ? (coworkersById.get(task.assigneeId) ?? null)
         : null;
       return {
-        name: coworker?.name?.trim() || null,
-        image: getCoworkerImage(coworker),
+        name: assignee?.name?.trim() || null,
+        image: getCoworkerImage(assignee),
       };
     })(),
   }));

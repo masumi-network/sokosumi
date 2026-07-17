@@ -20,7 +20,7 @@ export const putJobShareRequestSchema = z.object({
 
 export const putTaskShareRequestSchema = putJobShareRequestSchema;
 
-export const publicSharedTaskCoworkerSchema = z
+export const publicSharedTaskAssigneeSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
     name: z.string().openapi({ example: "Ops Agent" }),
@@ -29,7 +29,7 @@ export const publicSharedTaskCoworkerSchema = z
       example: "https://example.com/coworker.png",
     }),
   })
-  .openapi("PublicSharedTaskCoworker");
+  .openapi("PublicSharedTaskAssignee");
 
 export const publicSharedTaskJobSchema = z
   .object({
@@ -75,7 +75,12 @@ export const publicSharedTaskSchema = z
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.READY }),
-    coworker: publicSharedTaskCoworkerSchema.nullish(),
+    assignee: publicSharedTaskAssigneeSchema.nullish(),
+    /** @deprecated Use `assignee`. */
+    coworker: publicSharedTaskAssigneeSchema.nullish().openapi({
+      deprecated: true,
+      description: "Deprecated. Use assignee instead.",
+    }),
     jobs: z.array(publicSharedTaskJobSchema).openapi({ example: [] }),
     events: z.array(publicSharedTaskMilestoneSchema).openapi({ example: [] }),
   })

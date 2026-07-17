@@ -7,7 +7,7 @@ export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
 
 export interface TasksFilters {
   scope: TasksScope;
-  coworkerId: string | null;
+  assigneeId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
 }
@@ -22,6 +22,8 @@ export type TasksFilterQueryParam = string | string[] | undefined;
 
 export interface TasksFiltersSearchParams {
   scope?: TasksFilterQueryParam;
+  assigneeId?: TasksFilterQueryParam;
+  /** @deprecated Use `assigneeId`. Kept for bookmarked URLs. */
   coworkerId?: TasksFilterQueryParam;
   status?: TasksFilterQueryParam;
   projectId?: TasksFilterQueryParam;
@@ -29,6 +31,8 @@ export interface TasksFiltersSearchParams {
 
 export const TASKS_FILTER_PARAM_KEYS = {
   scope: "scope",
+  assigneeId: "assigneeId",
+  /** Legacy query key; read-only fallback for bookmarks. */
   coworkerId: "coworkerId",
   status: "status",
   projectId: "projectId",
@@ -125,12 +129,14 @@ export function sanitizeTasksScopeInput(
 export function getTasksFiltersFromSearchParams(
   searchParams: URLSearchParams,
   activeOrganizationId: string | null,
-  coworkerOptions: ReadonlyArray<{ id: string }>,
+  assigneeOptions: ReadonlyArray<{ id: string }>,
   projectOptions?: ReadonlyArray<ProjectFilterOption>,
 ): TasksFilters {
   const parsed = parseTasksFilters(
     {
       scope: searchParams.get(TASKS_FILTER_PARAM_KEYS.scope) ?? undefined,
+      assigneeId:
+        searchParams.get(TASKS_FILTER_PARAM_KEYS.assigneeId) ?? undefined,
       coworkerId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.coworkerId) ?? undefined,
       status: searchParams.get(TASKS_FILTER_PARAM_KEYS.status) ?? undefined,
@@ -139,12 +145,12 @@ export function getTasksFiltersFromSearchParams(
     },
     activeOrganizationId,
   );
-  const validCoworkerIds = new Set(
-    coworkerOptions.map((coworker) => coworker.id),
+  const validAssigneeIds = new Set(
+    assigneeOptions.map((assignee) => assignee.id),
   );
-  const coworkerId =
-    parsed.coworkerId && validCoworkerIds.has(parsed.coworkerId)
-      ? parsed.coworkerId
+  const assigneeId =
+    parsed.assigneeId && validAssigneeIds.has(parsed.assigneeId)
+      ? parsed.assigneeId
       : null;
   const projectId =
     projectOptions === undefined ||
@@ -155,7 +161,7 @@ export function getTasksFiltersFromSearchParams(
 
   return {
     ...parsed,
-    coworkerId,
+    assigneeId,
     projectId,
   };
 }
@@ -168,7 +174,10 @@ export function parseTasksFilters(
     firstQueryString(searchParams.scope),
     activeOrganizationId,
   );
-  const coworkerId = normalizeOptionalString(searchParams.coworkerId);
+  // Prefer assigneeId; fall back to deprecated coworkerId for bookmarked URLs.
+  const assigneeId =
+    normalizeOptionalString(searchParams.assigneeId) ??
+    normalizeOptionalString(searchParams.coworkerId);
   const rawStatus = normalizeOptionalString(searchParams.status);
   const status = sanitizeTasksStatusInput(rawStatus);
   const projectId = sanitizeProjectIdFilterInput(
@@ -177,7 +186,7 @@ export function parseTasksFilters(
 
   return {
     scope,
-    coworkerId,
+    assigneeId,
     status,
     projectId,
   };
@@ -197,13 +206,16 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.scope, filters.scope);
   }
 
-  if (filters.coworkerId) {
+  // Always drop the legacy key when writing so URLs migrate forward.
+  nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.coworkerId);
+
+  if (filters.assigneeId) {
     nextSearchParams.set(
-      TASKS_FILTER_PARAM_KEYS.coworkerId,
-      filters.coworkerId,
+      TASKS_FILTER_PARAM_KEYS.assigneeId,
+      filters.assigneeId,
     );
   } else {
-    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.coworkerId);
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.assigneeId);
   }
 
   if (filters.status) {
@@ -225,7 +237,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.coworkerId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
 }
 
 /**
@@ -235,9 +247,9 @@ export function getTasksFiltersResetKey(
  * - Organization boards: Show the dot when `scope` is "owned" or "workspace",
  *   even though "owned" is the default. This signals the board is filtered
  *   (either "My Tasks" or "All workspace tasks") as opposed to a hypothetical
- *   unfiltered view. Also show when coworkerId, status, or projectId is set.
+ *   unfiltered view. Also show when assigneeId, status, or projectId is set.
  * - Personal boards: Show the dot only when a non-default filter is applied
- *   (coworkerId, status, or projectId). The default "owned" scope alone does
+ *   (assigneeId, status, or projectId). The default "owned" scope alone does
  *   not show the dot, as there's no workspace context to distinguish from.
  */
 export function hasActiveTasksFilters(
@@ -245,7 +257,7 @@ export function hasActiveTasksFilters(
   activeOrganizationId: string | null,
 ): boolean {
   const hasNonScopeFilter = Boolean(
-    filters.coworkerId || filters.status || filters.projectId,
+    filters.assigneeId || filters.status || filters.projectId,
   );
 
   if (activeOrganizationId !== null) {
@@ -260,7 +272,7 @@ export function hasActiveTasksFilters(
 }
 
 export function isTaskOwnerEditable(
-  task: Pick<TaskWithCoworker, "userId">,
+  task: Pick<TaskWithCoworker, "ownerId">,
   userId: string | null | undefined,
   filters: TasksFilters,
   activeOrganizationId: string | null,
@@ -272,7 +284,7 @@ export function isTaskOwnerEditable(
     return true;
   }
 
-  return userId != null && task.userId === userId;
+  return userId != null && task.ownerId === userId;
 }
 
 /**
@@ -282,7 +294,7 @@ export function isTaskOwnerEditable(
  * while the URL already says owned). Require both to allow drag.
  */
 export function isTaskDraggableForViewFilters(
-  task: Pick<TaskWithCoworker, "userId">,
+  task: Pick<TaskWithCoworker, "ownerId">,
   userId: string | null | undefined,
   routeFilters: TasksFilters,
   initialFilters: TasksFilters,

@@ -37,7 +37,7 @@ describe("applyTaskListStatusWhere", () => {
     const where = {
       archivedAt: null,
       workspaceId: "ws-1",
-      AND: [{ coworkerId: "cow-1" }],
+      AND: [{ assigneeId: "cow-1" }],
     };
 
     expect(
@@ -51,7 +51,7 @@ describe("applyTaskListStatusWhere", () => {
       archivedAt: null,
       workspaceId: "ws-1",
       status: { in: [TaskStatus.READY] },
-      AND: [{ coworkerId: "cow-1" }],
+      AND: [{ assigneeId: "cow-1" }],
     });
   });
 });

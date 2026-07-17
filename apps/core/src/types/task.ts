@@ -23,16 +23,18 @@ export const taskEventApiInclude = {
   transaction: { select: { amount: true } },
 } as const;
 
-const taskUserOrganizationInclude = {
-  user: taskEventApiInclude.user,
+const taskOwnerAssigneeCreatorInclude = {
+  owner: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
-  coworker: taskEventApiInclude.coworker,
-  orchestrator: taskEventApiInclude.orchestrator,
+  assignee: taskEventApiInclude.coworker,
+  creatorUser: taskEventApiInclude.user,
+  creatorCoworker: taskEventApiInclude.coworker,
+  creatorOrchestrator: taskEventApiInclude.orchestrator,
 } as const;
 
 const taskBaseInclude = {
   ...workspaceRelationInclude,
-  ...taskUserOrganizationInclude,
+  ...taskOwnerAssigneeCreatorInclude,
   events: {
     include: taskEventApiInclude,
     orderBy: {
@@ -55,7 +57,7 @@ const taskBaseInclude = {
 
 export const taskListInclude = {
   ...workspaceRelationInclude,
-  ...taskUserOrganizationInclude,
+  ...taskOwnerAssigneeCreatorInclude,
   _count: {
     select: {
       events: {

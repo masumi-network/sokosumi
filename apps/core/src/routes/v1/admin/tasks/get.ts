@@ -49,7 +49,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             { id: term },
             { name: { contains: term, mode: "insensitive" } },
             {
-              user: {
+              owner: {
                 OR: [
                   { name: { contains: term, mode: "insensitive" } },
                   { email: { contains: term, mode: "insensitive" } },
@@ -77,7 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          owner: { select: { id: true, name: true, email: true } },
           organization: { select: { id: true, name: true, slug: true } },
         },
       }),
@@ -90,7 +90,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       name: task.name,
       status: task.status,
       createdAt: task.createdAt,
-      user: task.user,
+      owner: task.owner,
+      // Deprecated alias — keep until admin clients migrate.
+      user: task.owner,
       organization: task.organization,
     }));
 

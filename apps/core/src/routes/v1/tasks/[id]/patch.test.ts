@@ -53,9 +53,15 @@ function createTaskApi(projectId: string | null = null) {
     id: "tsk_123",
     createdAt: "2026-04-02T08:00:00.000Z",
     updatedAt: "2026-04-02T08:00:00.000Z",
-    userId: "user_123",
+    ownerId: "user_123",
     organizationId: "org_123",
     projectId,
+    owner: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
+    userId: "user_123",
     user: {
       id: "user_123",
       name: "Ada Lovelace",
@@ -66,8 +72,19 @@ function createTaskApi(projectId: string | null = null) {
       name: "Acme Labs",
       slug: "acme-labs",
     },
+    assigneeId: null,
+    assignee: null,
     coworkerId: null,
     coworker: null,
+    creator: {
+      type: "user" as const,
+      id: "user_123",
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
+    },
     orchestratorId: null,
     orchestrator: null,
     name: "Updated Task",
@@ -129,6 +146,24 @@ describe("patchTaskRequestSchema", () => {
 
     expect(result.projectId).toBe(PROJECT_ID);
   });
+
+  it("accepts deprecated coworkerId as assigneeId", () => {
+    const result = patchTaskRequestSchema.parse({
+      coworkerId: "cow_legacy",
+    });
+
+    expect(result.assigneeId).toBe("cow_legacy");
+    expect(result).not.toHaveProperty("coworkerId");
+  });
+
+  it("rejects conflicting assigneeId and coworkerId", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({
+        assigneeId: "cow_a",
+        coworkerId: "cow_b",
+      });
+    }).toThrow();
+  });
 });
 
 describe("PATCH /tasks/{id}", () => {
@@ -137,7 +172,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
-      coworkerId: null,
+      assigneeId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
@@ -191,7 +226,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
-      coworkerId: null,
+      assigneeId: null,
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
     });
@@ -241,7 +276,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
-      coworkerId: null,
+      assigneeId: null,
       projectId: OTHER_PROJECT_ID,
       workspaceId: WORKSPACE_ID,
     });
@@ -271,7 +306,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.QUEUED,
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });

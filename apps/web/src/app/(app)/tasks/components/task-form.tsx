@@ -134,7 +134,7 @@ export interface TaskFormLabels {
 interface TaskFormInitialValues {
   name?: string;
   description?: string;
-  coworkerId?: string | null;
+  assigneeId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -161,7 +161,7 @@ interface TaskFormProps {
   onCreateAnother?: () => void;
   onCreateTask?: (input: {
     description: string;
-    coworkerId: string | null;
+    assigneeId: string | null;
     projectId?: string | null;
     skipDesignMdAttachment?: boolean;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -227,7 +227,7 @@ export function TaskForm({
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
     useState(false);
   const [createProjectQuery, setCreateProjectQuery] = useState("");
-  const defaultCoworkerId = useMemo(() => {
+  const defaultAssigneeId = useMemo(() => {
     // Default to Elena on first open. Match by slug or name (case-insensitive)
     // so it works across environments (dev seed + mainnet) where the slug may
     // differ; fall back to the highest-priority coworker.
@@ -238,20 +238,20 @@ export function TaskForm({
     );
 
     return (
-      initialValues?.coworkerId ??
+      initialValues?.assigneeId ??
       elenaCoworker?.id ??
       coworkerOptions[0]?.id ??
       ""
     );
-  }, [coworkerOptions, initialValues?.coworkerId]);
+  }, [coworkerOptions, initialValues?.assigneeId]);
 
   const coworkerTouchedRef = useRef(false);
-  const [coworkerId, setCoworkerId] = useState(defaultCoworkerId);
+  const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
 
   useLayoutEffect(() => {
     if (coworkerTouchedRef.current) return;
-    setCoworkerId(defaultCoworkerId);
-  }, [defaultCoworkerId]);
+    setAssigneeId(defaultAssigneeId);
+  }, [defaultAssigneeId]);
 
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [scheduleSelection, setScheduleSelection] =
@@ -303,7 +303,7 @@ export function TaskForm({
 
   const handleCoworkerSelect = useCallback((id: string) => {
     coworkerTouchedRef.current = true;
-    setCoworkerId(id);
+    setAssigneeId(id);
   }, []);
 
   const handleCreateProject = useCallback((searchQuery: string) => {
@@ -379,9 +379,9 @@ export function TaskForm({
   // is prefilled (gallery offer, agents-page deep link). A prompt alone does not
   // skip step 1 — otherwise a bad coworker slug would land on compose with the
   // default assignee.
-  const hasPrefilledCoworker = Boolean(initialValues?.coworkerId);
-  const useWizard = isModal && mode === "create" && !hasPrefilledCoworker;
-  const [step, setStep] = useState<1 | 2>(hasPrefilledCoworker ? 2 : 1);
+  const hasPrefilledAssignee = Boolean(initialValues?.assigneeId);
+  const useWizard = isModal && mode === "create" && !hasPrefilledAssignee;
+  const [step, setStep] = useState<1 | 2>(hasPrefilledAssignee ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
   const showCoworkerGrid = mode === "create" && !isModal;
   const useComposeLayout = isModal && mode === "create" && showTaskStep;
@@ -424,7 +424,7 @@ export function TaskForm({
           const createTaskHandler = onCreateTask ?? createTask;
           const result = await createTaskHandler({
             description: trimmedDescription,
-            coworkerId,
+            assigneeId,
             skipDesignMdAttachment: isDesignMdAttachmentSkipped(
               designMdStateRef.current,
             ),
@@ -478,7 +478,7 @@ export function TaskForm({
           taskId,
           name: trimmedName,
           description: trimmedDescription,
-          coworkerId,
+          assigneeId,
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
@@ -507,7 +507,7 @@ export function TaskForm({
       step,
       useWizard,
       name,
-      coworkerId,
+      assigneeId,
       projectId,
       shouldShowProjectSelect,
       originalStatus,
@@ -612,8 +612,8 @@ export function TaskForm({
   );
 
   const selectedOption = useMemo(
-    () => coworkerOptions.find((option) => option.id === coworkerId),
-    [coworkerOptions, coworkerId],
+    () => coworkerOptions.find((option) => option.id === assigneeId),
+    [coworkerOptions, assigneeId],
   );
   const showModalCoworkerHeader =
     selectedOption !== undefined &&
@@ -733,7 +733,7 @@ export function TaskForm({
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
               <AgentSpotlight
                 options={coworkerOptions}
-                selectedId={coworkerId}
+                selectedId={assigneeId}
                 onSelect={handleCoworkerSelect}
                 onPickOffer={(offer) => {
                   setDescription(
@@ -957,7 +957,7 @@ export function TaskForm({
                   <CoworkerCard
                     key={option.id}
                     option={option}
-                    isSelected={coworkerId === option.id}
+                    isSelected={assigneeId === option.id}
                     isDefault={option.slug === "elena"}
                     onSelect={() => handleCoworkerSelect(option.id)}
                     labels={cardLabels}
