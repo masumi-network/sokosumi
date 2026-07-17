@@ -17,6 +17,9 @@ export const taskEventApiInclude = {
   coworker: {
     select: { id: true, name: true, image: true, slug: true, vendorId: true },
   },
+  orchestrator: {
+    select: { id: true, name: true, slug: true },
+  },
   transaction: { select: { amount: true } },
 } as const;
 
@@ -24,6 +27,7 @@ const taskUserOrganizationInclude = {
   user: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
   coworker: taskEventApiInclude.coworker,
+  orchestrator: taskEventApiInclude.orchestrator,
 } as const;
 
 const taskBaseInclude = {

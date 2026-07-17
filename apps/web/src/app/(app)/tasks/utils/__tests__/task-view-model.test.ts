@@ -21,6 +21,8 @@ function buildTask(
     organization: null,
     coworkerId: null,
     coworker: null,
+    orchestratorId: null,
+    orchestrator: null,
     name: "Test task",
     description: null,
     status,

@@ -89,7 +89,7 @@ import { conflictWithData, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { isTransientFetchError } from "@/lib/external-service-errors";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import {
   hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
@@ -1431,7 +1431,7 @@ const app = new OpenAPIHonoWithAuth();
 // Temporary beta posture: web navigation/page access is domain-gated, while the
 // Core API remains available to authenticated users during early Hermes rollout.
 app.openapi(postChatRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const body = c.req.valid("json");
   const userContent = typeof body.content === "string" ? body.content : "";
   const trimmed = userContent.trim();
@@ -1687,7 +1687,7 @@ export async function captureFromStream(
  * Not an OpenAPI route — the response is an event stream, not a JSON envelope.
  */
 app.post("/chat/stream", async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
 
   const rawJson = await c.req.json().catch(() => null);
   const parsed = hermesChatRequestSchema.safeParse(rawJson);
@@ -1854,7 +1854,7 @@ app.post("/chat/stream", async (c) => {
 });
 
 app.openapi(getInstanceRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
 
   try {
     const instance = await getInstance(userContext.userId);
@@ -1919,7 +1919,7 @@ app.openapi(getInstanceRoute, async (c) => {
 });
 
 app.openapi(provisionInstanceRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const user = await prisma.user.findUnique({
     where: { id: userContext.userId },
     select: { name: true, email: true },
@@ -1956,7 +1956,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
 });
 
 app.openapi(updateInstanceRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const body = c.req.valid("json");
 
   try {
@@ -1991,7 +1991,7 @@ app.openapi(updateInstanceRoute, async (c) => {
 });
 
 app.openapi(destroyInstanceRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
 
   try {
     await destroyInstance(userContext.userId);
@@ -2022,7 +2022,7 @@ app.openapi(destroyInstanceRoute, async (c) => {
 });
 
 app.openapi(listMessagesRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const queryParams = c.req.valid("query");
   const { cursor, take, skip } = parseCursorPagination(queryParams);
   const takePlusOne = take + 1;
@@ -2065,7 +2065,7 @@ app.openapi(listMessagesRoute, async (c) => {
 });
 
 app.openapi(getUnreadCountRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   // Read the orb seed + name resiliently (tolerates the pending migrations).
   const { avatarSeed, assistantName } = await readHermesInstanceMeta(
     userContext.userId,
@@ -2099,7 +2099,7 @@ app.openapi(getUnreadCountRoute, async (c) => {
 });
 
 app.openapi(markInboxSeenRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const body = c.req.valid("json");
   const target = body.asOfIso ? new Date(body.asOfIso) : new Date();
 
@@ -2128,7 +2128,7 @@ app.openapi(markInboxSeenRoute, async (c) => {
 });
 
 app.openapi(setSecretRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const body = c.req.valid("json");
 
   if (!isValidSecretKey(body.key)) {
@@ -2158,7 +2158,7 @@ app.openapi(setSecretRoute, async (c) => {
 // ─── Onboarding v2 handlers ───────────────────────────────────────────────
 
 app.openapi(startOnboardingRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const body = c.req.valid("json");
 
   // Pull name/email from the DB if the client didn't provide them, so the
@@ -2208,7 +2208,7 @@ app.openapi(startOnboardingRoute, async (c) => {
 });
 
 app.openapi(getOnboardingProgressRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
 
   try {
     const progress = await getInstanceOnboardingProgress(userContext.userId);
@@ -2219,7 +2219,7 @@ app.openapi(getOnboardingProgressRoute, async (c) => {
 });
 
 app.openapi(listIntegrationsRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
 
   try {
     const integrations = await listInstanceIntegrations(userContext.userId);
@@ -2230,7 +2230,7 @@ app.openapi(listIntegrationsRoute, async (c) => {
 });
 
 app.openapi(listSchedulesRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
 
   try {
     const schedules = await listInstanceSchedules(userContext.userId);
@@ -2241,7 +2241,7 @@ app.openapi(listSchedulesRoute, async (c) => {
 });
 
 app.openapi(patchScheduleRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { scheduleId } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -2266,7 +2266,7 @@ app.openapi(patchScheduleRoute, async (c) => {
 });
 
 app.openapi(approveConfirmationRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { confirmationId } = c.req.valid("param");
   // Body is optional on this route — when the client posts no payload Hono
   // returns `undefined` and we treat it as the no-overrides case (Hermes'
@@ -2314,7 +2314,7 @@ app.openapi(approveConfirmationRoute, async (c) => {
 });
 
 app.openapi(rejectConfirmationRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { confirmationId } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -2341,7 +2341,7 @@ app.openapi(rejectConfirmationRoute, async (c) => {
 // URL to their account bypassing the OAuth interstitial entirely.
 
 app.openapi(disconnectIntegrationRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { provider } = c.req.valid("param");
 
   // Mirror the dual-provider behaviour of finalize: Outlook's mail + calendar
@@ -2392,7 +2392,7 @@ function pairedOrchestratorProviders(
 }
 
 app.openapi(initiateIntegrationRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { provider, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
   const callbackUrl = `${getWebAppBaseUrl()}/composio/callback`;
@@ -2547,7 +2547,7 @@ async function clearPendingConnection(connectionId: string): Promise<void> {
 }
 
 app.openapi(finalizeIntegrationRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
 
@@ -2928,7 +2928,7 @@ const removeSkillRoute = withGlobalHeaderParameters(
 );
 
 app.openapi(browseSkillsRoute, async (c) => {
-  requireUserContext(c.var.authContext);
+  requireUserAuthContext(c.var.authContext);
   const { view, page, perPage } = c.req.valid("query");
   try {
     const skills = await browseSkills({ view, page, perPage });
@@ -2945,7 +2945,7 @@ app.openapi(browseSkillsRoute, async (c) => {
 });
 
 app.openapi(searchSkillsRoute, async (c) => {
-  requireUserContext(c.var.authContext);
+  requireUserAuthContext(c.var.authContext);
   const { q, limit } = c.req.valid("query");
   try {
     const skills = await searchSkills({ q, limit });
@@ -2962,7 +2962,7 @@ app.openapi(searchSkillsRoute, async (c) => {
 });
 
 app.openapi(curatedSkillsRoute, async (c) => {
-  requireUserContext(c.var.authContext);
+  requireUserAuthContext(c.var.authContext);
   try {
     const skills = await getCuratedSkills();
     return ok(c, skillCatalogListSchema.parse({ skills }));
@@ -2978,7 +2978,7 @@ app.openapi(curatedSkillsRoute, async (c) => {
 });
 
 app.openapi(skillDetailRoute, async (c) => {
-  requireUserContext(c.var.authContext);
+  requireUserAuthContext(c.var.authContext);
   const { source, slug } = c.req.valid("query");
   try {
     const [detail, audit] = await Promise.all([
@@ -3008,7 +3008,7 @@ app.openapi(skillDetailRoute, async (c) => {
 });
 
 app.openapi(listInstalledSkillsRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   try {
     const skills = await listInstalledSkills(userContext.userId);
     return ok(c, installedSkillsListSchema.parse({ skills }));
@@ -3018,7 +3018,7 @@ app.openapi(listInstalledSkillsRoute, async (c) => {
 });
 
 app.openapi(preinstalledSkillsRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   try {
     const skills = await listPreinstalledSkills(userContext.userId);
     return ok(c, preinstalledSkillsListSchema.parse({ skills }));
@@ -3028,7 +3028,7 @@ app.openapi(preinstalledSkillsRoute, async (c) => {
 });
 
 app.openapi(installSkillRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { source, slug } = c.req.valid("json");
 
   let input: HermesInstallSkillInput;
@@ -3073,7 +3073,7 @@ app.openapi(installSkillRoute, async (c) => {
 });
 
 app.openapi(removeSkillRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
+  const userContext = requireUserAuthContext(c.var.authContext);
   const { slug } = c.req.valid("param");
   try {
     await removeInstalledSkill(userContext.userId, slug);

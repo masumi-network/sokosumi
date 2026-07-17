@@ -4,6 +4,7 @@ import { isExpectedChatStreamSurfaceError } from "@/lib/sentry/chat-stream-surfa
 import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
 import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
 import {
+  isBrowserHistoryRateLimitError,
   isInAppBrowserEnvironmentError,
   isTransientStreamClosureError,
 } from "@/lib/sentry/third-party-browser-environment-errors";
@@ -69,9 +70,10 @@ const bareNetworkErrorPattern = /^(?:TypeError: )?network error$/i;
 
 export const bareNetworkErrorIgnoreErrors: RegExp[] = [bareNetworkErrorPattern];
 
-/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13). */
+/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13, SOKOSUMI-JB). */
 export const thirdPartyScriptDenyUrls: RegExp[] = [
   /hook\.js/i,
+  /injected\.js/i,
   /cardano\.bundle\.js/i,
 ];
 
@@ -160,6 +162,7 @@ export function beforeSendClientEvent(
     isExpectedClientNoiseErrorMessage(message) ||
     isThirdPartyDomMutationError(message) ||
     isInAppBrowserEnvironmentError(message) ||
+    isBrowserHistoryRateLimitError(message) ||
     isTransientStreamClosureError(message) ||
     isExpectedChatStreamSurfaceError(event) ||
     isThirdPartyWalletError(message, event)

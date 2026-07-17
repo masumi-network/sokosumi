@@ -69,6 +69,7 @@ model User {
   tasks          Task[]
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
+  orchestratorUsages OrchestratorUsage[]
 
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
   vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
@@ -203,6 +204,7 @@ model Organization {
   tasks          Task[]
   transactions   Transaction[]
   coworkerUsages CoworkerUsage[]
+  orchestratorUsages OrchestratorUsage[]
 
   stripeCustomerId String?
 
@@ -707,10 +709,11 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job           Job?           @relation("TransactionJob")
-  refundedJob   Job?           @relation("RefundedTransactionJob")
-  taskEvents    TaskEvent[]    @relation("TransactionTaskEvent")
-  coworkerUsage CoworkerUsage? @relation("TransactionCoworkerUsage")
+  job               Job?               @relation("TransactionJob")
+  refundedJob       Job?               @relation("RefundedTransactionJob")
+  taskEvents        TaskEvent[]        @relation("TransactionTaskEvent")
+  coworkerUsage     CoworkerUsage?     @relation("TransactionCoworkerUsage")
+  orchestratorUsage OrchestratorUsage? @relation("TransactionOrchestratorUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -1227,6 +1230,48 @@ model Coworker {
   @@map("coworker")
 }
 
+/// First-party Sokosumi orchestrator (e.g. Hermes). Not a marketplace coworker:
+/// no vendor/owner/whitelist; authenticates with `orch_` API keys.
+model Orchestrator {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+
+  slug        String  @unique
+  name        String
+  caption     String?
+  description String?
+
+  orchestratorApiKeys OrchestratorApiKey[]
+  tasks               Task[]
+  taskEvents          TaskEvent[]
+  orchestratorUsages  OrchestratorUsage[]
+
+  @@index([archivedAt])
+  @@map("orchestrator")
+}
+
+model OrchestratorApiKey {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String?
+  keyHash  String  @unique
+  keyStart String
+
+  expiresAt DateTime?
+  revokedAt DateTime?
+
+  orchestratorId String       @db.Uuid
+  orchestrator   Orchestrator @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+
+  @@index([orchestratorId])
+  @@index([revokedAt, expiresAt])
+  @@map("orchestrator_api_key")
+}
+
 model CoworkerApiKey {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1267,6 +1312,10 @@ model Task {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
+  /// Creator attribution when an orchestrator created the task (not assignee).
+  orchestratorId String?       @db.Uuid
+  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
@@ -1299,6 +1348,7 @@ model Task {
   @@index([projectId])
   @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])
+  @@index([orchestratorId])
   @@map("task")
 }
 
@@ -1389,10 +1439,14 @@ model TaskEvent {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
+  orchestratorId String?       @db.Uuid
+  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([transactionId])
+  @@index([orchestratorId])
   @@map("taskEvent")
 }
 
@@ -1421,6 +1475,33 @@ model CoworkerUsage {
   @@unique([coworkerId, idempotencyKey])
   @@index([userId, organizationId, createdAt])
   @@map("coworker_usage")
+}
+
+model OrchestratorUsage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  idempotencyKey String
+  referenceId    String?
+
+  orchestratorId String       @db.Uuid
+  orchestrator   Orchestrator @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  cents BigInt
+
+  transactionId String      @unique
+  transaction   Transaction @relation("TransactionOrchestratorUsage", fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([orchestratorId, idempotencyKey])
+  @@index([userId, organizationId, createdAt])
+  @@map("orchestrator_usage")
 }
 
 model Conversation {

@@ -19,6 +19,7 @@ import historyRouter from "./history/index.js";
 import invitationsRouter from "./invitations/index.js";
 import jobsRouter from "./jobs/index.js";
 import notificationsRouter from "./notifications/index.js";
+import orchestratorsRouter from "./orchestrators/index.js";
 import organizationsRouter from "./organizations/index.js";
 import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
@@ -35,7 +36,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   scheme: "bearer",
   bearerFormat: "JWT",
   description:
-    "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated coworker bearer API keys.",
+    "Authentication required for all endpoints. Supports Better Auth user credentials, dedicated coworker bearer API keys (`coworker_`), and orchestrator bearer API keys (`orch_`).",
 });
 
 app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
@@ -53,7 +54,7 @@ app.openAPIRegistry.registerComponent("parameters", "ContextUserId", {
   name: "X-Context-User-Id",
   in: "header",
   description:
-    "Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.",
+    "Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.",
   required: false,
   schema: {
     type: "string",
@@ -65,7 +66,7 @@ app.openAPIRegistry.registerComponent("parameters", "ContextOrganizationId", {
   name: "X-Context-Organization-Id",
   in: "header",
   description:
-    "Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.",
+    "Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.",
   required: false,
   schema: {
     type: "string",
@@ -128,6 +129,7 @@ app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);
 app.route("/share", shareRouter);
 app.route("/coworkers", coworkersRouter);
+app.route("/orchestrators", orchestratorsRouter);
 app.route("/tasks", tasksRouter);
 app.route("/products", productsRouter);
 app.route("/vendors", vendorsRouter);

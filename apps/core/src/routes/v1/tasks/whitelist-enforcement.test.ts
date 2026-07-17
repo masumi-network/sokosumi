@@ -57,6 +57,8 @@ const {
               slug: "coworker",
             }
           : null),
+      orchestratorId: (t.orchestratorId as string | null | undefined) ?? null,
+      orchestrator: (t.orchestrator as object | null | undefined) ?? null,
     };
   }),
   validateTaskCoworkerAssignmentMock: vi.fn(),

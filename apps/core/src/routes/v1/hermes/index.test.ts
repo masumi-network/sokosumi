@@ -32,6 +32,7 @@ const {
   isValidSecretKeyMock,
   memberFindFirstMock,
   organizationFindManyMock,
+  orchestratorApiKeyFindUniqueMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
   syncHermesInboxForUserMock,
@@ -83,6 +84,7 @@ const {
     isValidSecretKeyMock: vi.fn(),
     memberFindFirstMock: vi.fn(),
     organizationFindManyMock: vi.fn(),
+    orchestratorApiKeyFindUniqueMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
@@ -140,6 +142,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     organization: {
       findMany: organizationFindManyMock,
+    },
+    orchestratorApiKey: {
+      findUnique: orchestratorApiKeyFindUniqueMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -242,6 +247,7 @@ describe("Hermes route contracts", () => {
       valid: true,
       key: { referenceId: "user_123" },
     });
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue(null);
     userFindUniqueMock.mockResolvedValue({ role: "user" });
     hermesMessageFindManyMock.mockResolvedValue([]);
     hermesMessageCreateMock.mockResolvedValue(undefined);
@@ -333,6 +339,42 @@ describe("Hermes route contracts", () => {
     expect(body.error).toBe("Unauthorized");
     expect(body.message).toBe("Invalid, expired or missing session");
   });
+
+  it.each([
+    {
+      label: "bare orchestrator key",
+      contextHeaders: undefined,
+    },
+    {
+      label: "orchestrator key with workspace context",
+      contextHeaders: { "X-Context-User-Id": "user_123" },
+    },
+  ] as const)(
+    "returns 403 for $label on Hermes product routes",
+    async ({ contextHeaders }) => {
+      orchestratorApiKeyFindUniqueMock.mockResolvedValue({
+        orchestratorId: "orch_123",
+        revokedAt: null,
+        expiresAt: null,
+        orchestrator: { archivedAt: null },
+      });
+      userFindUniqueMock.mockResolvedValue({ id: "user_123", role: "user" });
+
+      const response = await createApp().request("/me/instance", {
+        headers: {
+          Authorization: "Bearer orch_test_secret",
+          ...contextHeaders,
+        },
+      });
+
+      const body = await parseJson(response);
+
+      expect(response.status).toBe(403);
+      expect(body.error).toBe("Forbidden");
+      expect(body.message).toBe("User authentication required");
+      expect(getInstance).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns a useful validation message for an empty chat request", async () => {
     const response = await createApp().request("/chat", {

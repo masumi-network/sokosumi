@@ -325,6 +325,8 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds.
 
+**Orchestrator (Hermes):** [`docs/orchestrator/hermes-orchestrator-actor.md`](./docs/orchestrator/hermes-orchestrator-actor.md) — first-party `orch_` actor, DRAFT access, DRAFT↔READY status, usage/keys.
+
 ## Additional Rules
 
 - [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
