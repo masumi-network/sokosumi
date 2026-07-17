@@ -17,7 +17,7 @@ import { creditBucketRepository } from "./credit-bucket.repository.js";
 interface CreateJobBase {
   agentJobId: string;
   agentId: string;
-  userId: string;
+  ownerId: string;
   organizationId: string | null | undefined;
   workspaceId: string;
   inputSchema: InputSchemaSchemaType;
@@ -81,9 +81,9 @@ export const jobRepository = {
           id: data.agentId,
         },
       },
-      user: {
+      owner: {
         connect: {
-          id: data.userId,
+          id: data.ownerId,
         },
       },
       ...(data.organizationId && {
@@ -134,7 +134,7 @@ export const jobRepository = {
       }
       case JobType.PAID: {
         const consumptions = await creditBucketRepository.prepareConsumption(
-          data.userId,
+          data.ownerId,
           data.organizationId ?? null,
           data.creditsPrice.cents,
           tx,
@@ -148,7 +148,7 @@ export const jobRepository = {
                 amount: -data.creditsPrice.cents,
                 user: {
                   connect: {
-                    id: data.userId,
+                    id: data.ownerId,
                   },
                 },
                 ...(data.organizationId && {
@@ -200,7 +200,7 @@ export const jobRepository = {
   ): Promise<boolean> {
     const jobCount = await tx.job.count({
       where: {
-        userId,
+        ownerId: userId,
         agentId,
         ...jobsFinishedWhereQuery(),
       },
