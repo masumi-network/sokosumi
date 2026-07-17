@@ -129,7 +129,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     txJobCreateMock.mockResolvedValue({
       id: "job_1",
       agentId: "agent_1",
-      userId: "user_1",
+      ownerId: "user_1",
     });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {

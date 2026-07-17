@@ -75,7 +75,7 @@ async function validateCreditBalance(
 async function createPaidJob(
   input: {
     agentId: string;
-    userId: string;
+    ownerId: string;
     organizationId: string | null;
     workspaceId: string;
     inputData: InputSchemaType;
@@ -91,7 +91,7 @@ async function createPaidJob(
 ): Promise<JobWithSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
-    input.userId,
+    input.ownerId,
     input.organizationId,
     cost.cents,
     tx,
@@ -102,7 +102,7 @@ async function createPaidJob(
       agentJobId: agentJobResponse.id,
       jobType: JobType.PAID,
       agent: { connect: { id: input.agentId } },
-      user: { connect: { id: input.userId } },
+      owner: { connect: { id: input.ownerId } },
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -129,7 +129,7 @@ async function createPaidJob(
       transaction: {
         create: {
           amount: -cost.cents,
-          user: { connect: { id: input.userId } },
+          user: { connect: { id: input.ownerId } },
           ...(input.organizationId && {
             organization: { connect: { id: input.organizationId } },
           }),
@@ -167,7 +167,7 @@ async function createPaidJob(
 async function createFreeJob(
   input: {
     agentId: string;
-    userId: string;
+    ownerId: string;
     organizationId: string | null;
     workspaceId: string;
     inputData: InputSchemaType;
@@ -185,7 +185,7 @@ async function createFreeJob(
       agentJobId: agentJobResponse.id,
       jobType: JobType.FREE,
       agent: { connect: { id: input.agentId } },
-      user: { connect: { id: input.userId } },
+      owner: { connect: { id: input.ownerId } },
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -313,7 +313,7 @@ export async function createAgentJobForUser(
 
   const jobInput = {
     agentId: agentInput.agentId,
-    userId: owner.userId,
+    ownerId: owner.userId,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
     inputData: agentInput.inputData,
@@ -515,7 +515,7 @@ export async function getUserJobs(
     AND: [
       {
         workspaceId: workspaceContext.workspaceId,
-        ...(scope === "owned" ? { userId: userContext.userId } : {}),
+        ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
       },
       ...(agentId ? [{ agentId }] : []),
       ...(projectId !== undefined ? [{ projectId }] : []),
