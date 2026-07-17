@@ -2,7 +2,10 @@ import { TaskStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
-import { isCoworkerAgentContext } from "@/middleware/auth";
+import {
+  isCoworkerAgentContext,
+  isOrchestratorAuthContext,
+} from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
   type TaskDetailPayload,
@@ -14,6 +17,7 @@ import {
 import { unprocessableEntity } from "./error";
 import {
   coworkerSummaryFromLoadedRelation,
+  orchestratorSummaryFromLoadedRelation,
   organizationSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
@@ -39,6 +43,12 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
     image: string | null;
     slug: string;
   } | null;
+  orchestratorId?: string | null;
+  orchestrator?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
 };
 
 interface ValidateTaskCoworkerAssignmentParams {
@@ -49,6 +59,26 @@ interface ValidateTaskCoworkerAssignmentParams {
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
+  // Orchestrator may only toggle DRAFT ↔ READY; other status moves are coworker.
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      [TaskStatus.DRAFT]: [TaskStatus.READY],
+      [TaskStatus.QUEUED]: [],
+      [TaskStatus.READY]: [TaskStatus.DRAFT],
+      [TaskStatus.GRANT_PENDING]: [],
+      [TaskStatus.INPUT_REQUIRED]: [],
+      [TaskStatus.APPROVAL_REQUIRED]: [],
+      [TaskStatus.AUTHENTICATION_REQUIRED]: [],
+      [TaskStatus.OUT_OF_CREDITS]: [],
+      [TaskStatus.CREDITS_TOPPED_UP]: [],
+      [TaskStatus.RUNNING]: [],
+      [TaskStatus.AWAITING_EXTERNAL]: [],
+      [TaskStatus.COMPLETED]: [],
+      [TaskStatus.FAILED]: [],
+      [TaskStatus.CANCELED]: [],
+    };
+  }
+
   // A coworker acting as itself (the agent) uses the agent transition table.
   // A delegated coworker acts as the user, so it falls through to the user table.
   if (isCoworkerAgentContext(authContext)) {
@@ -205,7 +235,7 @@ export function validateTaskCoworkerAssignment({
 }
 
 export function mapTaskEvent(event: TaskEventForMapping) {
-  const { cents, user, coworker, channel, ...rest } = event;
+  const { cents, user, coworker, orchestrator, channel, ...rest } = event;
 
   return {
     ...rest,
@@ -231,6 +261,15 @@ export function mapTaskEvent(event: TaskEventForMapping) {
           },
         }
       : {}),
+    ...(event.orchestratorId != null && orchestrator != null
+      ? {
+          orchestrator: {
+            id: orchestrator.id,
+            name: orchestrator.name,
+            slug: orchestrator.slug,
+          },
+        }
+      : {}),
   };
 }
 
@@ -253,6 +292,12 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.coworker ?? null,
   );
 
+  const taskOrchestratorSummary = orchestratorSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.orchestratorId,
+    task.orchestrator ?? null,
+  );
+
   return {
     id: task.id,
     createdAt: task.createdAt,
@@ -264,6 +309,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     organization: taskOrganizationSummary,
     coworkerId: task.coworkerId,
     coworker: taskCoworkerSummary,
+    orchestratorId: task.orchestratorId,
+    orchestrator: taskOrchestratorSummary,
     name: task.name,
     description: task.description,
     status: task.status,

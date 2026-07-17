@@ -12,6 +12,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
@@ -414,12 +415,12 @@ export async function requireTaskCollaboration(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (isUserAuthContext(authContext)) {
-    const task = await requireTaskOwnership(
-      { source: "session", ...authContext },
-      taskId,
-      tx,
-    );
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
+    const userContext = requireUserContext(authContext);
+    const task = await requireTaskOwnership(userContext, taskId, tx);
     requireTaskNotParked(task);
     return task;
   }
@@ -456,7 +457,10 @@ export async function requireTaskCommentAccess(
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
-  if (isUserAuthContext(authContext)) {
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
     requireUserContext(authContext);
     const task = await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
@@ -545,7 +549,10 @@ export async function requireTaskReadForRouteVars(
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
-  if (isUserAuthContext(authContext)) {
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
     requireUserContext(authContext);
     const workspace = requireWorkspaceContext(workspaceContext);
     if (include) {
@@ -657,7 +664,10 @@ export async function requireConversationCoworkerAccess(
   metadata: Prisma.JsonValue | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  if (isUserAuthContext(authContext)) {
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
     return;
   }
 
@@ -695,7 +705,10 @@ export function pinCoworkerConversationBinding(
   authContext: AuthenticationContext,
   metadata: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (isUserAuthContext(authContext)) {
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
     return metadata;
   }
 
@@ -760,7 +773,11 @@ export async function requireJobReadForRouteVars(
 ): Promise<Job> {
   const { authContext, workspaceContext } = vars;
 
-  if (isUserAuthContext(authContext)) {
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
+    requireUserContext(authContext);
     return await requireJobRead(
       requireWorkspaceContext(workspaceContext),
       jobId,
@@ -823,12 +840,12 @@ export async function requireJobCollaboration(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
-  if (isUserAuthContext(authContext)) {
-    const job = await requireJobOwnership(
-      { source: "session", ...authContext },
-      jobId,
-      tx,
-    );
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
+    const userContext = requireUserContext(authContext);
+    const job = await requireJobOwnership(userContext, jobId, tx);
     await requireParentTaskNotParked(job, tx);
     return job;
   }

@@ -46,6 +46,8 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAgentContext,
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -64,6 +66,15 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
     return {
       userId: authContext.userId,
       coworkerId: null,
+      orchestratorId: null,
+    };
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: authContext.context?.userId ?? null,
+      coworkerId: null,
+      orchestratorId: authContext.orchestratorId,
     };
   }
 
@@ -74,12 +85,14 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
     return {
       userId: authContext.context.userId,
       coworkerId: authContext.coworkerId,
+      orchestratorId: null,
     };
   }
 
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
+    orchestratorId: null,
   };
 }
 
@@ -88,6 +101,15 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
     return {
       userId: authContext.userId,
       coworkerId: null,
+      orchestratorId: null,
+    };
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.orchestratorId,
     };
   }
 
@@ -95,12 +117,13 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
+    orchestratorId: null,
   };
 }
 
 /** Attribution only — credit auth is enforced at the route gate (`isAgent`). */
 function getCoworkerActorData(authContext: AuthenticationContext) {
-  if (isUserAuthContext(authContext)) {
+  if (!isCoworkerAuthContext(authContext)) {
     throw new Error(
       "getCoworkerActorData called without coworker auth context",
     );
@@ -109,6 +132,7 @@ function getCoworkerActorData(authContext: AuthenticationContext) {
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
+    orchestratorId: null,
   };
 }
 
