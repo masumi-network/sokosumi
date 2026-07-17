@@ -269,7 +269,18 @@ Core’s [`vercel.json`](./vercel.json) sets `buildCommand` to `pnpm vercel-buil
 2. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`
 3. On migrate failure, the build exits non-zero and Vercel does not activate the new deployment
 
-No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch.
+**Order is intentional:** migrate runs only after a successful app build so a compile failure never touches the database. Schema still applies before Vercel activates the new deployment once migrate succeeds (unlike some Neon samples that migrate first).
+
+No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch. Preview builds **require** `DATABASE_URL_UNPOOLED` (preflight fails closed) so a misconfigured Preview cannot fall back to a shared/production `DATABASE_URL`.
+
+### Neon / migrate checklist
+
+Before relying on migrate-on-deploy (and after changing the Neon integration):
+
+- [ ] Core Vercel project has the Neon integration enabled for **Production** and **Preview**
+- [ ] Preview env shows a branch-specific Neon host (not the production host)
+- [ ] Production and Preview expose `DATABASE_URL_UNPOOLED` at **build** time
+- [ ] A Preview deploy log shows migrate against a preview-branch database, not production
 
 ## Contributing
 

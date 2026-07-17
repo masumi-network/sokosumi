@@ -1,0 +1,61 @@
+/**
+ * Guardrails before `prisma migrate deploy` on Vercel.
+ *
+ * - Preview without DATABASE_URL_UNPOOLED: fail closed (avoids migrating a
+ *   shared / production DB when Neon preview branching is misconfigured).
+ * - Other Vercel envs without DATABASE_URL_UNPOOLED: warn (Neon DDL via the
+ *   pooler often fails; fallback to DATABASE_URL is allowed for non-Neon).
+ * - Local / non-Vercel: no-op (use DATABASE_URL as usual).
+ *
+ * Used by `scripts/preflight-migrate-deploy.ts` from `prisma:migrate:deploy`.
+ */
+
+export interface MigrateDeployPreflightEnv {
+  VERCEL?: string;
+  VERCEL_ENV?: string;
+  DATABASE_URL_UNPOOLED?: string;
+}
+
+export type PreflightMessageLevel = "error" | "warn";
+
+export interface PreflightMessage {
+  level: PreflightMessageLevel;
+  text: string;
+}
+
+export interface MigrateDeployPreflightResult {
+  ok: boolean;
+  messages: PreflightMessage[];
+}
+
+const PREVIEW_MISSING_UNPOOLED =
+  "Preview migrate requires DATABASE_URL_UNPOOLED (injected by the Vercel Neon integration at build time). Refusing to fall back to DATABASE_URL so a misconfigured Preview cannot run prisma migrate deploy against a shared or production database.";
+
+const VERCEL_MISSING_UNPOOLED_WARN =
+  "DATABASE_URL_UNPOOLED is unset on Vercel; prisma migrate deploy will use DATABASE_URL. On Neon, DDL via the pooler often fails — ensure the Neon integration injects DATABASE_URL_UNPOOLED for this environment at build time.";
+
+export function checkMigrateDeployEnv(
+  env: MigrateDeployPreflightEnv,
+): MigrateDeployPreflightResult {
+  const isVercel = env.VERCEL === "1";
+  if (!isVercel) {
+    return { ok: true, messages: [] };
+  }
+
+  const unpooled = env.DATABASE_URL_UNPOOLED?.trim();
+  if (unpooled) {
+    return { ok: true, messages: [] };
+  }
+
+  if (env.VERCEL_ENV === "preview") {
+    return {
+      ok: false,
+      messages: [{ level: "error", text: PREVIEW_MISSING_UNPOOLED }],
+    };
+  }
+
+  return {
+    ok: true,
+    messages: [{ level: "warn", text: VERCEL_MISSING_UNPOOLED_WARN }],
+  };
+}
