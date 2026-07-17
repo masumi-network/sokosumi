@@ -1,11 +1,13 @@
 import type { ErrorEvent } from "@sentry/nextjs";
 
 /**
- * Cardano browser wallets inject `cardano.bundle.js` and throw when their
- * messaging bridge is unavailable (SOKOSUMI-13 on `/chat`).
+ * Cardano browser wallets inject `cardano.bundle.js` or `injected.js` and throw
+ * when their messaging bridge is unavailable (SOKOSUMI-13, SOKOSUMI-JB on
+ * `/chat`).
  */
 export const thirdPartyWalletIgnoreErrors: RegExp[] = [
   /Cannot read properties of undefined \(reading 'REQUEST_ID'\)/,
+  /Cannot assign to read only property 'cardano'/,
   /Failed to connect to MetaMask/i,
 ];
 
@@ -29,7 +31,8 @@ export function isThirdPartyWalletError(
     return false;
   }
 
-  return getStackFrameFilenames(event).some((filename) =>
-    /cardano\.bundle\.js/i.test(filename),
+  return getStackFrameFilenames(event).some(
+    (filename) =>
+      /cardano\.bundle\.js/i.test(filename) || /injected\.js/i.test(filename),
   );
 }
