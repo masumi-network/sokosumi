@@ -1000,6 +1000,27 @@ describe("Hermes route contracts", () => {
     ]);
   });
 
+  it("clears stale local instance metadata when the orchestrator reports no instance", async () => {
+    // Regression coverage: an instance destroyed directly on the
+    // orchestrator (bypassing DELETE /me/instance) used to leave our own
+    // hermesInstance/hermesMessage rows behind — e.g. the sidebar nav kept
+    // showing the old assistant name/orb even though GET /me/instance
+    // correctly reported hasInstance: false.
+    vi.mocked(getInstance).mockResolvedValue(null);
+
+    const response = await createApp().request("/me/instance", {
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.hasInstance", false);
+    expect(prismaTransactionMock).toHaveBeenCalledWith([
+      expect.any(Promise),
+      expect.any(Promise),
+    ]);
+  });
+
   it("persists the pending connection claim when initiating integration OAuth", async () => {
     const response = await createApp().request(
       "/me/instance/integrations/initiate",

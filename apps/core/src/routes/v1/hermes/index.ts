@@ -1912,6 +1912,31 @@ app.openapi(getInstanceRoute, async (c) => {
       );
     }
 
+    // The orchestrator has no instance for this user (a genuine 404, not a
+    // transient failure — getInstance throws for anything else). If our own
+    // display metadata (assistant name, avatar seed, message history)
+    // survived from an instance destroyed outside our own destroy flow
+    // (e.g. directly on the orchestrator, as happens during orchestrator-side
+    // testing), it's now orphaned and would otherwise keep showing a name/orb
+    // for an assistant that no longer exists — e.g. in the sidebar nav, which
+    // reads this table independently via getHermesUnreadCountAction. Clear it
+    // opportunistically; a cheap no-op when there's nothing to clean up.
+    await prisma
+      .$transaction([
+        prisma.hermesMessage.deleteMany({
+          where: { userId: userContext.userId },
+        }),
+        prisma.hermesInstance.deleteMany({
+          where: { userId: userContext.userId },
+        }),
+      ])
+      .catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_stale_instance_cleanup" },
+          extra: { userId: userContext.userId },
+        });
+      });
+
     return ok(c, hermesGetInstanceEnvelopeSchema.parse({ hasInstance: false }));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to fetch assistant instance");
