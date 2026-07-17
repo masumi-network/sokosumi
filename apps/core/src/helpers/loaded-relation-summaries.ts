@@ -91,3 +91,35 @@ export function coworkerSummaryFromLoadedRelation(
     slug: coworker.slug,
   };
 }
+
+interface OrchestratorSummaryFields {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/**
+ * When `orchestratorId` is null, there is no creator orchestrator summary.
+ * When it is set, the orchestrator relation must be loaded.
+ */
+export function orchestratorSummaryFromLoadedRelation(
+  context: string,
+  orchestratorId: string | null,
+  orchestrator: OrchestratorSummaryFields | null,
+): OrchestratorSummaryFields | null {
+  if (orchestratorId == null) {
+    return null;
+  }
+
+  if (orchestrator == null) {
+    throw new Error(
+      `${context}: orchestrator relation must be loaded for API mapping (orchestratorId=${orchestratorId}).`,
+    );
+  }
+
+  return {
+    id: orchestrator.id,
+    name: orchestrator.name,
+    slug: orchestrator.slug,
+  };
+}

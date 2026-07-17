@@ -23,6 +23,26 @@ describe("isBrowserExtensionOnlyStackError", () => {
     ).toBe(true);
   });
 
+  it("matches wallet injected.js-only stacks", () => {
+    expect(
+      isBrowserExtensionOnlyStackError(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                value:
+                  "Cannot assign to read only property 'cardano' of object '#<Window>'",
+                stacktrace: {
+                  frames: [{ filename: "app:///static/js/injected.js" }],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("matches chrome-extension-only stacks", () => {
     expect(
       isBrowserExtensionOnlyStackError(

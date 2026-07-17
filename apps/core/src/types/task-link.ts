@@ -78,6 +78,26 @@ function buildVisiblePeerTaskWhere(
         userId: authContext.userId,
       };
     }
+    case "orchestrator": {
+      // Orchestrator with context acts in the resolved workspace (user-like).
+      if (workspaceId) {
+        return {
+          workspaceId,
+          archivedAt: null,
+        };
+      }
+
+      if (authContext.context) {
+        return {
+          userId: authContext.context.userId,
+          archivedAt: null,
+        };
+      }
+
+      return {
+        id: { in: [] },
+      };
+    }
     default: {
       const exhaustive: never = authContext;
       return exhaustive;

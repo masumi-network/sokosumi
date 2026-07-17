@@ -30,7 +30,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext } from "@/middleware/auth";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
@@ -211,12 +211,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
     } else {
+      const userContext = requireUserContext(authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       where = applyTaskListStatusWhere(
         {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
-          ...(scope === "owned" ? { userId: authContext.userId } : {}),
+          ...(scope === "owned" ? { userId: userContext.userId } : {}),
           ...(coworkerId ? { coworkerId } : {}),
           ...projectFilter,
           ...searchFilter,

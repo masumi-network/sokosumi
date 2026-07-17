@@ -28,7 +28,6 @@ import {
 import { coreClient } from "@/lib/clients/core.browser.client";
 import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
-import { filterCoworkersForUiListing } from "@/lib/coworkers/ui-restricted-slugs";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 const HISTORY_SEARCH_PAGE_SIZE = 50;
@@ -80,7 +79,7 @@ export function HistorySearchDialog({
   const loadCoworkers = useEffectEvent(async () => {
     try {
       const response = await coreClient.getCoworkers();
-      setCoworkers(filterCoworkersForUiListing(response.data ?? []));
+      setCoworkers(response.data ?? []);
     } catch {
       setCoworkers([]);
     }

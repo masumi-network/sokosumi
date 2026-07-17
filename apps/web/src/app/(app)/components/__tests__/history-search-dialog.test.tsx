@@ -227,15 +227,9 @@ describe("HistorySearchDialog", () => {
     });
   });
 
-  it("excludes UI-restricted coworkers from bucket icon resolution", async () => {
+  it("falls back to model icon when bucketSlug has no matching coworker", async () => {
     getCoworkersMock.mockResolvedValue({
       data: [
-        {
-          id: "coworker-hermes",
-          slug: "hermes",
-          name: "Hermes",
-          image: "https://example.com/hermes.webp",
-        },
         {
           id: "coworker-elena",
           slug: "elena",
@@ -247,15 +241,15 @@ describe("HistorySearchDialog", () => {
     getHistoryMock.mockResolvedValue({
       data: [
         {
-          id: "conversation-hermes",
+          id: "conversation-unknown",
           kind: "conversation",
-          title: "Hermes chat",
+          title: "Unknown chat",
           status: "active",
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
           archivedAt: null,
           description: null,
           credits: null,
-          bucketSlug: "hermes",
+          bucketSlug: "missing-coworker",
           owner: null,
         },
         {
@@ -286,21 +280,21 @@ describe("HistorySearchDialog", () => {
       expect(screen.getByText("Elena chat")).toBeInTheDocument();
     });
 
-    const hermesItem = screen
-      .getByText("Hermes chat")
+    const unknownItem = screen
+      .getByText("Unknown chat")
       .closest('[data-slot="command-item"]');
     const elenaItem = screen
       .getByText("Elena chat")
       .closest('[data-slot="command-item"]');
 
-    expect(hermesItem).not.toBeNull();
+    expect(unknownItem).not.toBeNull();
     expect(elenaItem).not.toBeNull();
 
     expect(
-      within(hermesItem as HTMLElement).getByTestId("chat-model-icon"),
+      within(unknownItem as HTMLElement).getByTestId("chat-model-icon"),
     ).toHaveTextContent(":Conversation");
     expect(
-      (hermesItem as HTMLElement).querySelector('[data-slot="avatar"]'),
+      (unknownItem as HTMLElement).querySelector('[data-slot="avatar"]'),
     ).toBeNull();
 
     expect(

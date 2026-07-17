@@ -23,6 +23,14 @@ describe("thirdPartyWalletIgnoreErrors", () => {
   it("matches MetaMask connect failures", () => {
     expect(matchesIgnoreErrors("Failed to connect to MetaMask")).toBe(true);
   });
+
+  it("matches Cardano wallet read-only window.cardano failures", () => {
+    expect(
+      matchesIgnoreErrors(
+        "Cannot assign to read only property 'cardano' of object '#<Window>'",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("isThirdPartyWalletError", () => {
@@ -41,6 +49,28 @@ describe("isThirdPartyWalletError", () => {
           ],
         },
       }),
+    ).toBe(true);
+  });
+
+  it("matches injected.js wallet extension stack frames", () => {
+    expect(
+      isThirdPartyWalletError(
+        "Cannot assign to read only property 'cardano' of object '#<Window>'",
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                value:
+                  "Cannot assign to read only property 'cardano' of object '#<Window>'",
+                stacktrace: {
+                  frames: [{ filename: "app:///static/js/injected.js" }],
+                },
+              },
+            ],
+          },
+        },
+      ),
     ).toBe(true);
   });
 

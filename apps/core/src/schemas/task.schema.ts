@@ -8,6 +8,7 @@ import {
   createJobRequestSchema,
   jobSummariesSchema,
 } from "@/schemas/job.schema";
+import { orchestratorSummarySchema } from "@/schemas/orchestrator.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
@@ -43,6 +44,13 @@ export const taskEventSchema = z
     coworker: coworkerSummarySchema.nullish().openapi({
       description:
         "Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.",
+    }),
+    orchestratorId: z.string().uuid().nullish().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
+    orchestrator: orchestratorSummarySchema.nullish().openapi({
+      description:
+        "Mirrors orchestratorId: omitted, null, or set when the orchestrator relation was loaded.",
     }),
     transactionId: z.string().nullish().openapi({ example: "txn_123" }),
     credits: z.number().nullish().openapi({ example: 2.5 }),
@@ -84,6 +92,10 @@ const taskBaseSchema = z.object({
   }),
   coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
   coworker: coworkerSummarySchema.nullable(),
+  orchestratorId: z.string().uuid().nullable().openapi({
+    example: "01960001-0001-7001-8001-000000000099",
+  }),
+  orchestrator: orchestratorSummarySchema.nullable(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({

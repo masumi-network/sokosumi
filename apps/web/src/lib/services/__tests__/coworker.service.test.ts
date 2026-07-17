@@ -53,7 +53,7 @@ describe("coworker.service", () => {
     expect(result).toEqual([]);
   });
 
-  it("excludes UI-restricted coworkers", async () => {
+  it("returns all coworkers without UI slug filtering", async () => {
     coreClientMock.getCoworkers.mockResolvedValue({
       data: [
         {
@@ -77,6 +77,11 @@ describe("coworker.service", () => {
         id: "cow-1",
         slug: "hannah",
         name: "Hannah",
+      },
+      {
+        id: "cow-2",
+        slug: "Hermes",
+        name: "Hermes",
       },
     ]);
   });
