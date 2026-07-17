@@ -51,9 +51,9 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
   } | null;
 };
 
-interface ValidateTaskCoworkerAssignmentParams {
+interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
-  coworkerId: string | null | undefined;
+  assigneeId: string | null | undefined;
 }
 
 function getAllowedTransitions(
@@ -219,17 +219,17 @@ export function validateStatusTransition(
   }
 }
 
-export function validateTaskCoworkerAssignment({
+export function validateTaskAssigneeAssignment({
   status,
-  coworkerId,
-}: ValidateTaskCoworkerAssignmentParams): void {
-  const hasCoworkerId = coworkerId !== null && coworkerId !== undefined;
-  const allowsMissingCoworker =
+  assigneeId,
+}: ValidateTaskAssigneeAssignmentParams): void {
+  const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
+  const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (!allowsMissingCoworker && !hasCoworkerId) {
+  if (!allowsMissingAssignee && !hasAssigneeId) {
     throw unprocessableEntity(
-      "coworkerId is required for statuses other than draft or canceled",
+      "assigneeId is required for statuses other than draft or canceled",
     );
   }
 }
@@ -280,37 +280,62 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.organization ?? null,
   );
 
-  const taskUserSummary = userSummaryFromLoadedRelation(
+  const taskOwnerSummary = userSummaryFromLoadedRelation(
     `Task ${task.id}`,
-    task.userId,
-    task.user,
+    task.ownerId,
+    task.owner,
   );
 
-  const taskCoworkerSummary = coworkerSummaryFromLoadedRelation(
+  const taskAssigneeSummary = coworkerSummaryFromLoadedRelation(
     `Task ${task.id}`,
-    task.coworkerId,
-    task.coworker ?? null,
+    task.assigneeId,
+    task.assignee ?? null,
   );
 
-  const taskOrchestratorSummary = orchestratorSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.orchestratorId,
-    task.orchestrator ?? null,
-  );
+  const creatorUserSummary =
+    task.creatorUserId != null
+      ? userSummaryFromLoadedRelation(
+          `Task ${task.id} creator`,
+          task.creatorUserId,
+          task.creatorUser ?? null,
+        )
+      : null;
+
+  const creatorCoworkerSummary =
+    task.creatorCoworkerId != null
+      ? coworkerSummaryFromLoadedRelation(
+          `Task ${task.id} creator`,
+          task.creatorCoworkerId,
+          task.creatorCoworker ?? null,
+        )
+      : null;
+
+  const creatorOrchestratorSummary =
+    task.creatorOrchestratorId != null
+      ? orchestratorSummaryFromLoadedRelation(
+          `Task ${task.id} creator`,
+          task.creatorOrchestratorId,
+          task.creatorOrchestrator ?? null,
+        )
+      : null;
 
   return {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
-    userId: task.userId,
+    ownerId: task.ownerId,
     organizationId: task.organizationId,
     projectId: task.projectId,
-    user: taskUserSummary,
+    owner: taskOwnerSummary,
     organization: taskOrganizationSummary,
-    coworkerId: task.coworkerId,
-    coworker: taskCoworkerSummary,
-    orchestratorId: task.orchestratorId ?? null,
-    orchestrator: taskOrchestratorSummary,
+    assigneeId: task.assigneeId,
+    assignee: taskAssigneeSummary,
+    creatorUserId: task.creatorUserId ?? null,
+    creatorUser: creatorUserSummary,
+    creatorCoworkerId: task.creatorCoworkerId ?? null,
+    creatorCoworker: creatorCoworkerSummary,
+    creatorOrchestratorId: task.creatorOrchestratorId ?? null,
+    creatorOrchestrator: creatorOrchestratorSummary,
     name: task.name,
     description: task.description,
     status: task.status,

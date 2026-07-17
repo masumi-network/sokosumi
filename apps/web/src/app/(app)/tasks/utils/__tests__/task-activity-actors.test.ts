@@ -9,17 +9,25 @@ describe("buildTaskActivityActors", () => {
   it("builds actor maps from task and embedded event summaries", () => {
     const adaAvatar = "ipfs://bafyada";
     const task = {
-      user: {
+      owner: {
         id: "user-1",
         name: "Ada Lovelace",
         image: adaAvatar,
       },
-      coworker: {
+      assignee: {
         id: "cow-1",
         name: "Ops Agent",
         image: "https://example.com/ops.png",
         slug: "ops-agent",
       },
+      creatorUserId: "user-1",
+      creatorUser: {
+        id: "user-1",
+        name: "Ada Lovelace",
+        image: adaAvatar,
+      },
+      creatorCoworkerId: null,
+      creatorCoworker: null,
       events: [
         {
           id: "evt-1",
@@ -65,7 +73,16 @@ describe("buildTaskActivityActors", () => {
           status: null,
         },
       ],
-    } satisfies Pick<Task, "user" | "coworker" | "events">;
+    } satisfies Pick<
+      Task,
+      | "owner"
+      | "assignee"
+      | "creatorUserId"
+      | "creatorUser"
+      | "creatorCoworkerId"
+      | "creatorCoworker"
+      | "events"
+    >;
 
     const result = buildTaskActivityActors(task);
 

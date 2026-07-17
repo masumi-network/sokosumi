@@ -16,7 +16,7 @@ import {
   jsonSuccessResponse,
 } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
+import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,
@@ -35,6 +35,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import {
+  type AuthenticationContext,
   isCoworkerAuthContext,
   isOrchestratorAuthContext,
   requireUserContext,
@@ -63,7 +64,7 @@ export const createTaskRequestSchema = z
       .nullable()
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
-    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
+    assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
     status: z
       .enum([TaskStatus.DRAFT, TaskStatus.READY])
       .optional()
@@ -75,14 +76,14 @@ export const createTaskRequestSchema = z
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
 
-    const hasCoworkerId =
-      data.coworkerId !== null && data.coworkerId !== undefined;
+    const hasAssigneeId =
+      data.assigneeId !== null && data.assigneeId !== undefined;
 
-    if (data.status !== TaskStatus.DRAFT && !hasCoworkerId) {
+    if (data.status !== TaskStatus.DRAFT && !hasAssigneeId) {
       ctx.addIssue({
         code: "custom",
-        message: "coworkerId is required when creating a non-draft task",
-        path: ["coworkerId"],
+        message: "assigneeId is required when creating a non-draft task",
+        path: ["assigneeId"],
       });
     }
   })
@@ -142,28 +143,82 @@ async function assertTaskProjectInWorkspace(
   }
 }
 
+function resolveTaskCreatorFields(
+  authContext: AuthenticationContext,
+  ownerId: string,
+) {
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      creatorOrchestratorId: authContext.orchestratorId,
+      creatorUserId: null,
+      creatorCoworkerId: null,
+    };
+  }
+
+  if (isCoworkerAuthContext(authContext)) {
+    return {
+      creatorCoworkerId: authContext.coworkerId,
+      creatorUserId: null,
+      creatorOrchestratorId: null,
+    };
+  }
+
+  return {
+    creatorUserId: ownerId,
+    creatorCoworkerId: null,
+    creatorOrchestratorId: null,
+  };
+}
+
+function resolveInitialTaskEventActor(
+  authContext: AuthenticationContext,
+  ownerId: string,
+) {
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.orchestratorId,
+    };
+  }
+
+  if (isCoworkerAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: authContext.coworkerId,
+      orchestratorId: null,
+    };
+  }
+
+  return {
+    userId: ownerId,
+    coworkerId: null,
+    orchestratorId: null,
+  };
+}
+
 async function createTaskRecord(
   params: {
-    userId: string;
+    ownerId: string;
     organizationId: string | null;
     workspaceId: string;
     body: z.infer<typeof createTaskRequestSchema>;
     resolvedName: string;
+    authContext: AuthenticationContext;
     pendingVendorGrantId?: string | null;
     grantResumeStatus?: GrantResumeStatus | null;
-    orchestratorId?: string | null;
   },
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
 ) {
   const {
+    authContext,
     body,
-    organizationId,
     grantResumeStatus,
+    organizationId,
+    ownerId,
     pendingVendorGrantId,
     resolvedName,
-    userId,
     workspaceId,
-    orchestratorId = null,
   } = params;
 
   await assertTaskProjectInWorkspace(body.projectId, workspaceId, tx);
@@ -174,14 +229,14 @@ async function createTaskRecord(
 
   return tx.task.create({
     data: {
-      userId,
+      ownerId,
       organizationId,
       workspaceId,
       projectId: body.projectId ?? null,
       name: resolvedName,
       description: body.description ?? null,
-      coworkerId: body.coworkerId ?? null,
-      orchestratorId,
+      assigneeId: body.assigneeId ?? null,
+      ...resolveTaskCreatorFields(authContext, ownerId),
       status,
       grantResumeStatus: isGrantPending ? grantResumeStatus : null,
       metadata: null,
@@ -192,9 +247,7 @@ async function createTaskRecord(
           status: initialEventStatus,
           comment: null,
           channel: body.channel,
-          userId,
-          coworkerId: null,
-          orchestratorId,
+          ...resolveInitialTaskEventActor(authContext, ownerId),
         },
       },
     },
@@ -214,18 +267,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       description: body.description,
     });
 
-    validateTaskCoworkerAssignment({
+    validateTaskAssigneeAssignment({
       status: body.status,
-      coworkerId: body.coworkerId,
+      assigneeId: body.assigneeId,
     });
 
-    if (body.coworkerId !== null && body.coworkerId !== undefined) {
-      await requireTaskAssignableCoworker(body.coworkerId);
+    if (body.assigneeId !== null && body.assigneeId !== undefined) {
+      await requireTaskAssignableCoworker(body.assigneeId);
     }
-
-    const orchestratorId = isOrchestratorAuthContext(authContext)
-      ? authContext.orchestratorId
-      : null;
 
     const shouldEnforceCreateGrant =
       isCoworkerAuthContext(authContext) && Boolean(authContext.context);
@@ -234,12 +283,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const task = await prisma.$transaction(async (tx) =>
         createTaskRecord(
           {
-            userId: userContext.userId,
+            ownerId: userContext.userId,
             organizationId: userContext.organizationId,
             workspaceId: workspaceContext.workspaceId,
             body,
             resolvedName,
-            orchestratorId,
+            authContext,
           },
           tx,
         ),
@@ -272,11 +321,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (grant.status === VendorGrantStatus.GRANTED) {
         return createTaskRecord(
           {
-            userId: userContext.userId,
+            ownerId: userContext.userId,
             organizationId: userContext.organizationId,
             workspaceId: workspaceContext.workspaceId,
             body,
             resolvedName,
+            authContext,
           },
           tx,
         );
@@ -284,11 +334,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return createTaskRecord(
         {
-          userId: userContext.userId,
+          ownerId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
           body,
           resolvedName,
+          authContext,
           pendingVendorGrantId: grant.id,
           grantResumeStatus: parseGrantResumeStatus(body.status),
         },

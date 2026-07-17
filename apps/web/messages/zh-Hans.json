@@ -1521,6 +1521,7 @@
         "properties": "属性",
         "status": "状态",
         "owner": "所有者",
+        "creator": "创建者",
         "organization": "组织",
         "project": "项目",
         "personalWorkspace": "个人",

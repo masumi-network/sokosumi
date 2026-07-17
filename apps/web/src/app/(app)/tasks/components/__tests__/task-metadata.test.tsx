@@ -10,6 +10,7 @@ const baseLabels = {
     [TaskStatus.RUNNING]: "Running",
   } as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>,
   owner: "Owner",
+  creator: "Creator",
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
@@ -21,22 +22,28 @@ const baseLabels = {
 };
 
 function createTask(
-  overrides: { credits?: number; coworkerName?: string | null } = {},
+  overrides: { credits?: number; assigneeName?: string | null } = {},
 ) {
   return {
     status: TaskStatus.RUNNING,
-    user: {
+    owner: {
+      id: "user_1",
+      name: "Andreas Osberghaus",
+      image: null,
+    },
+    creatorUserId: "user_1",
+    creatorUser: {
       id: "user_1",
       name: "Andreas Osberghaus",
       image: null,
     },
     organization: null,
-    coworker:
-      overrides.coworkerName === null
+    assignee:
+      overrides.assigneeName === null
         ? null
         : {
             id: "cw_1",
-            name: overrides.coworkerName ?? "Hepha",
+            name: overrides.assigneeName ?? "Hepha",
             image: null,
             slug: "hepha",
           },

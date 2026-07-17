@@ -18,7 +18,7 @@ export type CoworkerSummaryFields = {
 };
 
 /**
- * Task and job rows always have `userId` with a required FK; if `user` is missing
+ * Required user FK summaries (e.g. Task.owner, Job.user). If `user` is missing
  * here, the query omitted `include` and mapping must not fabricate data.
  */
 export function userSummaryFromLoadedRelation(
@@ -66,8 +66,8 @@ export function organizationSummaryFromLoadedRelation(
 }
 
 /**
- * When `coworkerId` is null, the task has no assigned coworker summary.
- * When it is set, the coworker relation must be loaded.
+ * When the coworker id is null, no coworker summary is exposed.
+ * When it is set (e.g. Task.assigneeId), the coworker relation must be loaded.
  */
 export function coworkerSummaryFromLoadedRelation(
   context: string,

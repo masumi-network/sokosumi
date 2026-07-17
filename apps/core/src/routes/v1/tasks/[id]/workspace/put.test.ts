@@ -63,14 +63,14 @@ vi.mock("@/lib/db/prisma", () => ({
 
 interface TaskRecord {
   id: string;
-  userId: string;
+  ownerId: string;
   organizationId: string | null;
   projectId: string | null;
   workspaceId: string;
   workspace: {
     organizationId: string | null;
   };
-  coworkerId: string | null;
+  assigneeId: string | null;
   name: string;
   description: string | null;
   status: TaskStatus;
@@ -99,14 +99,14 @@ interface TransactionMock {
 function createTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
   return {
     id: "tsk_123",
-    userId: "user_123",
+    ownerId: "user_123",
     organizationId: "org_current",
     projectId: null,
     workspaceId: "11111111-1111-7111-8111-111111111111",
     workspace: {
       organizationId: "org_current",
     },
-    coworkerId: "cow_123",
+    assigneeId: "cow_123",
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,
@@ -127,10 +127,10 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     id: "tsk_123",
     createdAt: "2026-03-25T10:00:00.000Z",
     updatedAt: "2026-03-25T10:00:00.000Z",
-    userId: "user_123",
+    ownerId: "user_123",
     organizationId,
     projectId: null,
-    user: { id: "user_123", name: "Task owner", image: null },
+    owner: { id: "user_123", name: "Task owner", image: null },
     organization:
       organizationId === null
         ? null
@@ -139,15 +139,19 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
             name: "Current Org",
             slug: "current-org",
           },
-    coworkerId: "cow_123",
-    coworker: {
+    assigneeId: "cow_123",
+    assignee: {
       id: "cow_123",
       name: "Current Coworker",
       image: null,
       slug: "current-coworker",
     },
-    orchestratorId: null,
-    orchestrator: null,
+    creatorOrchestratorId: null,
+    creatorOrchestrator: null,
+    creatorUserId: "user_123",
+    creatorUser: { id: "user_123", name: "Task owner", image: null },
+    creatorCoworkerId: null,
+    creatorCoworker: null,
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,
@@ -264,7 +268,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
     upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
-      userId: null,
+      ownerId: null,
       organizationId: "org_target",
     });
     jobFindFirstMock.mockResolvedValue(null);
@@ -275,7 +279,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     mapTaskMock.mockImplementation((task: TaskRecord) =>
       createTaskApi({
         organizationId: task.organizationId,
-        coworkerId: task.coworkerId,
+        assigneeId: task.assigneeId,
         name: task.name,
         description: task.description,
         status: task.status,

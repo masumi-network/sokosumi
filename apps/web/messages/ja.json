@@ -1521,6 +1521,7 @@
         "properties": "プロパティ",
         "status": "ステータス",
         "owner": "所有者",
+        "creator": "作成者",
         "organization": "組織",
         "project": "プロジェクト",
         "personalWorkspace": "個人",

@@ -126,7 +126,7 @@ export default async function TaskEditModalPage({
       initialValues={{
         name: taskResult.name,
         description: taskResult.description ?? "",
-        coworkerId: taskResult.coworkerId ?? "",
+        coworkerId: taskResult.assigneeId ?? "",
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         metadata: taskResult.metadata,

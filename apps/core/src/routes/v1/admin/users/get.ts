@@ -68,9 +68,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ),
       userIds.length > 0
         ? prisma.task.groupBy({
-            by: ["userId"],
+            by: ["ownerId"],
             where: {
-              userId: { in: userIds },
+              ownerId: { in: userIds },
               status: { not: TaskStatus.DRAFT },
             },
             _count: { _all: true },
@@ -79,7 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const taskCountByUserId = new Map(
-      taskCounts.map((row) => [row.userId, row._count._all]),
+      taskCounts.map((row) => [row.ownerId, row._count._all]),
     );
 
     const items = pageUsers.map((user, index) => ({

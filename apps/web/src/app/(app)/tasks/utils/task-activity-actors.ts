@@ -14,16 +14,54 @@ export interface TaskActivityActors {
   coworkerById?: Record<string, TaskActivityActorInfo>;
 }
 
+type TaskActivityActorSource = Pick<
+  Task,
+  | "owner"
+  | "assignee"
+  | "creatorUserId"
+  | "creatorUser"
+  | "creatorCoworkerId"
+  | "creatorCoworker"
+  | "events"
+>;
+
 export function buildTaskActivityActors(
-  task: Pick<Task, "user" | "coworker" | "events">,
+  task: TaskActivityActorSource,
 ): TaskActivityActors {
   const userById: Record<string, TaskActivityActorInfo> = {};
   const coworkerById: Record<string, TaskActivityActorInfo> = {};
 
-  addUserActor(userById, task.user);
+  addUserActor(userById, task.owner);
 
-  if (task.coworker) {
-    addCoworkerActor(coworkerById, task.coworker);
+  if (task.assignee) {
+    addCoworkerActor(coworkerById, task.assignee);
+  }
+
+  if (
+    task.creatorUserId &&
+    task.creatorUserId !== task.owner.id &&
+    task.creatorUser &&
+    typeof task.creatorUser === "object" &&
+    "id" in task.creatorUser &&
+    typeof task.creatorUser.id === "string"
+  ) {
+    addUserActor(userById, {
+      id: task.creatorUser.id,
+      name:
+        typeof task.creatorUser.name === "string"
+          ? task.creatorUser.name
+          : "User",
+      image:
+        "image" in task.creatorUser &&
+        (typeof task.creatorUser.image === "string" ||
+          task.creatorUser.image === null)
+          ? task.creatorUser.image
+          : null,
+    });
+  }
+
+  if (task.creatorCoworker) {
+    addCoworkerActor(coworkerById, task.creatorCoworker);
   }
 
   for (const event of task.events) {

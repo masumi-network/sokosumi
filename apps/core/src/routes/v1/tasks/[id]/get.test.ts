@@ -71,7 +71,7 @@ function createApp(options: CreateAppOptions = {}) {
       actor === "user" || context
         ? {
             workspaceId: testWorkspaceId,
-            userId: context?.userId ?? null,
+            userId: context?.userId ?? userId,
             organizationId: context?.organizationId ?? "org_123",
           }
         : null,
@@ -84,7 +84,7 @@ function createApp(options: CreateAppOptions = {}) {
 
 function createTask(
   overrides?: Partial<{
-    userId: string;
+    ownerId: string;
     share: {
       id: string;
       token: string;
@@ -97,13 +97,13 @@ function createTask(
     linksTo: unknown[];
   }>,
 ) {
-  const userId = overrides?.userId ?? "user_123";
+  const ownerId = overrides?.ownerId ?? "user_123";
   return {
     id: "tsk_a",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-    userId,
-    user: { id: userId, name: "Task Owner", image: null },
+    ownerId,
+    owner: { id: ownerId, name: "Task Owner", image: null },
     organizationId: "org_123",
     projectId: null,
     organization: {
@@ -111,15 +111,15 @@ function createTask(
       name: "Acme Labs",
       slug: "acme-labs",
     },
-    coworkerId: "cow_123",
-    coworker: {
+    assigneeId: "cow_123",
+    assignee: {
       id: "cow_123",
       name: "Coworker",
       image: null,
       slug: "cow-worker",
     },
-    orchestratorId: null,
-    orchestrator: null,
+    creatorOrchestratorId: null,
+    creatorOrchestrator: null,
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
@@ -181,10 +181,10 @@ describe("GET /tasks/{id}", () => {
         }
         return {
           id: "tsk_a",
-          userId: "user_123",
+          ownerId: "user_123",
           coworkerId: "cow_123",
           status: TaskStatus.READY,
-          coworker: { vendorId: defaultVendorId },
+          assignee: { vendorId: defaultVendorId },
         };
       },
     );
@@ -269,7 +269,7 @@ describe("GET /tasks/{id}", () => {
 
   it("keeps same-workspace peer links visible for a workspace collaborator", async () => {
     viewerTaskIncludeResult = createTask({
-      userId: "user_123",
+      ownerId: "user_123",
       linksFrom: [
         {
           id: "tl_1",
@@ -518,10 +518,10 @@ describe("GET /tasks/{id}", () => {
         }
         return {
           id: "tsk_a",
-          userId: "user_123",
-          coworkerId: "cow_sibling",
+          ownerId: "user_123",
+          assigneeId: "cow_sibling",
           status: TaskStatus.READY,
-          coworker: { vendorId: defaultVendorId },
+          assignee: { vendorId: defaultVendorId },
         };
       },
     );
@@ -567,10 +567,10 @@ describe("GET /tasks/{id}", () => {
         }
         return {
           id: "tsk_a",
-          userId: "user_123",
-          coworkerId: "cow_sibling",
+          ownerId: "user_123",
+          assigneeId: "cow_sibling",
           status: TaskStatus.READY,
-          coworker: { vendorId: defaultVendorId },
+          assignee: { vendorId: defaultVendorId },
         };
       },
     );
@@ -595,7 +595,7 @@ describe("GET /tasks/{id}", () => {
 
   it("returns an existing share token to a workspace collaborator", async () => {
     viewerTaskIncludeResult = createTask({
-      userId: "user_123",
+      ownerId: "user_123",
       share: {
         id: "share_123",
         token: "public-share-token",
@@ -614,7 +614,7 @@ describe("GET /tasks/{id}", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
       data: {
-        userId: string;
+        ownerId: string;
         share: {
           id: string;
           token: string;
@@ -624,7 +624,7 @@ describe("GET /tasks/{id}", () => {
       };
     };
     expect(body.data).toMatchObject({
-      userId: "user_123",
+      ownerId: "user_123",
       share: {
         id: "share_123",
         token: "public-share-token",

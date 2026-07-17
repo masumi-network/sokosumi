@@ -53,10 +53,10 @@ function createTaskApi(projectId: string | null = null) {
     id: "tsk_123",
     createdAt: "2026-04-02T08:00:00.000Z",
     updatedAt: "2026-04-02T08:00:00.000Z",
-    userId: "user_123",
+    ownerId: "user_123",
     organizationId: "org_123",
     projectId,
-    user: {
+    owner: {
       id: "user_123",
       name: "Ada Lovelace",
       image: null,
@@ -66,10 +66,18 @@ function createTaskApi(projectId: string | null = null) {
       name: "Acme Labs",
       slug: "acme-labs",
     },
-    coworkerId: null,
-    coworker: null,
-    orchestratorId: null,
-    orchestrator: null,
+    assigneeId: null,
+    assignee: null,
+    creatorUserId: "user_123",
+    creatorUser: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
+    creatorCoworkerId: null,
+    creatorCoworker: null,
+    creatorOrchestratorId: null,
+    creatorOrchestrator: null,
     name: "Updated Task",
     description: null,
     status: TaskStatus.DRAFT,
@@ -137,7 +145,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
-      coworkerId: null,
+      assigneeId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
@@ -191,7 +199,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
-      coworkerId: null,
+      assigneeId: null,
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
     });
@@ -241,7 +249,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
-      coworkerId: null,
+      assigneeId: null,
       projectId: OTHER_PROJECT_ID,
       workspaceId: WORKSPACE_ID,
     });
@@ -271,7 +279,7 @@ describe("PATCH /tasks/{id}", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.QUEUED,
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });

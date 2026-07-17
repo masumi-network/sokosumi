@@ -77,10 +77,10 @@ const DELEGATED_VENDOR_ID = "01960001-0001-7001-8001-000000000001";
 const COWORKER_SIBLING_LIST_FILTER = {
   status: { not: TaskStatus.DRAFT },
   OR: [
-    { coworkerId: "cow_123" },
+    { assigneeId: "cow_123" },
     {
-      coworkerId: { not: "cow_123" },
-      coworker: {
+      assigneeId: { not: "cow_123" },
+      assignee: {
         vendorId: DELEGATED_VENDOR_ID,
       },
     },
@@ -123,8 +123,8 @@ function createTask() {
     id: "tsk_a",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-    userId: "user_123",
-    user: { id: "user_123", name: "Task Owner", image: null },
+    ownerId: "user_123",
+    owner: { id: "user_123", name: "Task Owner", image: null },
     organizationId: "org_123",
     projectId: null,
     organization: {
@@ -132,15 +132,15 @@ function createTask() {
       name: "Workspace Org",
       slug: "workspace-org",
     },
-    coworkerId: "cow_123",
-    coworker: {
+    assigneeId: "cow_123",
+    assignee: {
       id: "cow_123",
       name: "Coworker",
       image: null,
       slug: "cow-worker",
     },
-    orchestratorId: null,
-    orchestrator: null,
+    creatorOrchestratorId: null,
+    creatorOrchestrator: null,
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
@@ -180,7 +180,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           status: {
             in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
@@ -199,7 +199,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           name: {
             contains: "review",
@@ -219,7 +219,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
         },
       }),
@@ -253,7 +253,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           projectId,
         },
@@ -270,7 +270,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           projectId: null,
         },
@@ -384,7 +384,7 @@ describe("GET /tasks", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: delegatedCoworkerListWhere({
-          userId: "user_delegate",
+          ownerId: "user_delegate",
         }),
       }),
     );
@@ -396,14 +396,14 @@ describe("GET /tasks", () => {
       DELEGATED_WORKSPACE_CONTEXT,
     );
     const response = await app.request(
-      "http://localhost/?scope=workspace&coworkerId=cow_999",
+      "http://localhost/?scope=workspace&assigneeId=cow_999",
     );
 
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: delegatedCoworkerListWhere({
-          coworkerId: "cow_999",
+          assigneeId: "cow_999",
         }),
       }),
     );

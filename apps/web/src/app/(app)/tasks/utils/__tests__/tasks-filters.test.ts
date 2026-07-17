@@ -243,7 +243,7 @@ describe("tasks-filters", () => {
   });
 
   it("allows only owners to edit tasks in workspace scope", () => {
-    const task = { userId: "user-1" };
+    const task = { ownerId: "user-1" };
 
     expect(
       isTaskOwnerEditable(
@@ -354,7 +354,7 @@ describe("tasks-filters", () => {
     };
 
     it("disallows drag when the URL implies owned but the server list was still workspace (coworker task)", () => {
-      const coworkerTask = { userId: "user-2" };
+      const coworkerTask = { ownerId: "user-2" };
 
       expect(
         isTaskDraggableForViewFilters(
@@ -368,7 +368,7 @@ describe("tasks-filters", () => {
     });
 
     it("allows drag when route and initial filters agree for the viewer's task", () => {
-      const myTask = { userId: "user-1" };
+      const myTask = { ownerId: "user-1" };
 
       expect(
         isTaskDraggableForViewFilters(

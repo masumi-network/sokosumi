@@ -319,15 +319,36 @@ export type Task = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    userId: string;
-    user: UserSummary;
+    /**
+     * Task owner. Always a user.
+     */
+    ownerId: string;
+    owner: UserSummary;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
-    coworkerId: string | null;
-    coworker: CoworkerSummary;
-    orchestratorId: string | null;
-    orchestrator: OrchestratorSummary;
+    /**
+     * Marketplace coworker assignee. Never an orchestrator.
+     */
+    assigneeId: string | null;
+    assignee: CoworkerSummary;
+    /**
+     * Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.
+     */
+    creatorUserId: string | null;
+    creatorUser: UserSummary & ({
+        [key: string]: unknown;
+    } | null);
+    /**
+     * Set when a coworker created the task.
+     */
+    creatorCoworkerId: string | null;
+    creatorCoworker: CoworkerSummary;
+    /**
+     * Set when an orchestrator created the task.
+     */
+    creatorOrchestratorId: string | null;
+    creatorOrchestrator: OrchestratorSummary;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -2827,15 +2848,36 @@ export type TaskListItem = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    userId: string;
-    user: UserSummary;
+    /**
+     * Task owner. Always a user.
+     */
+    ownerId: string;
+    owner: UserSummary;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
-    coworkerId: string | null;
-    coworker: CoworkerSummary;
-    orchestratorId: string | null;
-    orchestrator: OrchestratorSummary;
+    /**
+     * Marketplace coworker assignee. Never an orchestrator.
+     */
+    assigneeId: string | null;
+    assignee: CoworkerSummary;
+    /**
+     * Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.
+     */
+    creatorUserId: string | null;
+    creatorUser: UserSummary & ({
+        [key: string]: unknown;
+    } | null);
+    /**
+     * Set when a coworker created the task.
+     */
+    creatorCoworkerId: string | null;
+    creatorCoworker: CoworkerSummary;
+    /**
+     * Set when an orchestrator created the task.
+     */
+    creatorOrchestratorId: string | null;
+    creatorOrchestrator: OrchestratorSummary;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -22546,9 +22588,9 @@ export type GetTasksData = {
          */
         sort?: 'nextRunAt';
         /**
-         * Filter tasks by coworker ID
+         * Filter tasks by assignee coworker ID
          */
-        coworkerId?: string;
+        assigneeId?: string;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -22629,7 +22671,7 @@ export type PostTasksData = {
         name?: string;
         description?: string | null;
         projectId?: string | null;
-        coworkerId?: string | null;
+        assigneeId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
         origin?: Channel & unknown;
@@ -23218,7 +23260,7 @@ export type PatchTasksByIdData = {
         name?: string;
         description?: string | null;
         projectId?: string | null;
-        coworkerId?: string | null;
+        assigneeId?: string | null;
     };
     path: {
         id: string;

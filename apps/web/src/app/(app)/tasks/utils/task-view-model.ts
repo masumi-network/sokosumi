@@ -76,8 +76,8 @@ export function mapTaskToTaskWithCoworker(
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, CoreAgentDto>,
 ): TaskWithCoworker {
-  const coworker = task.coworkerId
-    ? (coworkersById.get(task.coworkerId) ?? null)
+  const assignee = task.assigneeId
+    ? (coworkersById.get(task.assigneeId) ?? null)
     : null;
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
@@ -94,14 +94,14 @@ export function mapTaskToTaskWithCoworker(
     id: task.id,
     name: task.name,
     status: task.status,
-    userId: task.userId,
-    user: task.user,
+    ownerId: task.ownerId,
+    owner: task.owner,
     createdAt,
     updatedAt,
     nextRunAt,
     metadata: task.metadata ?? null,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
-    coworker,
+    assignee,
     share: "share" in task ? (task.share ?? null) : null,
     agents,
     commentsCount:

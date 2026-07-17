@@ -2465,7 +2465,10 @@ function extractTaskFromConfirmation(
   const name = typeof data.name === "string" ? data.name : null;
   if (!id || !name) return null;
 
-  const coworker = data.coworker as Record<string, unknown> | null | undefined;
+  const coworker = (data.assignee ?? data.coworker) as
+    | Record<string, unknown>
+    | null
+    | undefined;
   const organization = data.organization as
     | Record<string, unknown>
     | null

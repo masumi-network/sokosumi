@@ -94,9 +94,9 @@ describe("vendor-grants helpers", () => {
         actorCoworkerId: "c1",
         actorVendorId: "v1",
         task: {
-          coworkerId: "c2",
+          assigneeId: "c2",
           status: TaskStatus.READY,
-          coworker: { vendorId: "v1" },
+          assignee: { vendorId: "v1" },
         },
       }),
     ).toBe(true);
@@ -106,9 +106,9 @@ describe("vendor-grants helpers", () => {
         actorCoworkerId: "c1",
         actorVendorId: "v1",
         task: {
-          coworkerId: "c2",
+          assigneeId: "c2",
           status: TaskStatus.READY,
-          coworker: { vendorId: "v2" },
+          assignee: { vendorId: "v2" },
         },
       }),
     ).toBe(false);
@@ -228,7 +228,7 @@ describe("vendor-grants helpers", () => {
       data: expect.objectContaining({
         taskId: "t1",
         status: TaskStatus.READY,
-        userId: "u1",
+        ownerId: "u1",
       }),
     });
 
@@ -263,7 +263,7 @@ describe("vendor-grants helpers", () => {
       data: expect.objectContaining({
         taskId: "t1",
         status: TaskStatus.CANCELED,
-        userId: "u1",
+        ownerId: "u1",
       }),
     });
   });
@@ -292,7 +292,7 @@ describe("vendor-grants helpers", () => {
       data: expect.objectContaining({
         taskId: "t1",
         status: TaskStatus.READY,
-        userId: "u1",
+        ownerId: "u1",
       }),
     });
   });
@@ -402,7 +402,7 @@ describe("vendor-grants helpers", () => {
     });
     memberFindMany.mockResolvedValue([{ userId: "owner_1" }]);
     workspaceFindUnique.mockResolvedValue({
-      userId: null,
+      ownerId: null,
       organizationId: "org_1",
     });
     createNotificationMock.mockResolvedValue({ created: true });
@@ -452,7 +452,7 @@ describe("vendor-grants helpers", () => {
       permission: VendorPermission.workspace,
     });
     workspaceFindUnique.mockResolvedValue({
-      userId: "personal_owner",
+      ownerId: "personal_owner",
       organizationId: null,
     });
     createNotificationMock.mockResolvedValue({ created: true });
@@ -466,7 +466,7 @@ describe("vendor-grants helpers", () => {
     expect(memberFindMany).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        userId: "personal_owner",
+        ownerId: "personal_owner",
         messageKey: "notifications.vendorGrant.pending",
       }),
       expect.anything(),
@@ -601,7 +601,7 @@ describe("vendor-grants helpers", () => {
   it("notifies approvers via notifyWorkspaceApproversOfPendingGrant", async () => {
     memberFindMany.mockResolvedValue([{ userId: "admin_1" }]);
     workspaceFindUnique.mockResolvedValue({
-      userId: null,
+      ownerId: null,
       organizationId: "org_1",
     });
     createNotificationMock.mockResolvedValue({ created: true });
@@ -614,7 +614,7 @@ describe("vendor-grants helpers", () => {
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        userId: "admin_1",
+        ownerId: "admin_1",
         referenceId: "grant_1",
         messageKey: "notifications.vendorGrant.pending",
         metadata: expect.objectContaining({
@@ -631,9 +631,9 @@ describe("vendor-grants helpers", () => {
         actorCoworkerId: "c1",
         actorVendorId: "v1",
         task: {
-          coworkerId: "c1",
+          assigneeId: "c1",
           status: TaskStatus.DRAFT,
-          coworker: { vendorId: "v1" },
+          assignee: { vendorId: "v1" },
         },
       }),
     ).toBe(false);

@@ -24,7 +24,7 @@ export async function markOutOfCreditsTasksAsToppedUp(params: {
     where: {
       ...(params.organizationId
         ? { organizationId: params.organizationId }
-        : { userId: params.userId }),
+        : { ownerId: params.userId }),
       status: TaskStatus.OUT_OF_CREDITS,
     },
     select: {

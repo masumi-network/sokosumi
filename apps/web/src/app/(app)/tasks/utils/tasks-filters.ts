@@ -260,7 +260,7 @@ export function hasActiveTasksFilters(
 }
 
 export function isTaskOwnerEditable(
-  task: Pick<TaskWithCoworker, "userId">,
+  task: Pick<TaskWithCoworker, "ownerId">,
   userId: string | null | undefined,
   filters: TasksFilters,
   activeOrganizationId: string | null,
@@ -272,7 +272,7 @@ export function isTaskOwnerEditable(
     return true;
   }
 
-  return userId != null && task.userId === userId;
+  return userId != null && task.ownerId === userId;
 }
 
 /**
@@ -282,7 +282,7 @@ export function isTaskOwnerEditable(
  * while the URL already says owned). Require both to allow drag.
  */
 export function isTaskDraggableForViewFilters(
-  task: Pick<TaskWithCoworker, "userId">,
+  task: Pick<TaskWithCoworker, "ownerId">,
   userId: string | null | undefined,
   routeFilters: TasksFilters,
   initialFilters: TasksFilters,

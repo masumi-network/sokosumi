@@ -5,7 +5,7 @@ import { requireTaskCollaboration } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
+import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
   buildTaskScheduleMetadata,
   computeScheduleNextRun,
@@ -86,9 +86,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : existingTask.status;
 
     if (nextStatus === TaskStatus.QUEUED) {
-      validateTaskCoworkerAssignment({
+      validateTaskAssigneeAssignment({
         status: TaskStatus.QUEUED,
-        coworkerId: existingTask.coworkerId,
+        assigneeId: existingTask.assigneeId,
       });
     }
 

@@ -192,7 +192,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         ? taskService.listTasks({
             status: TaskStatus.GRANT_PENDING,
             scope: activeFilters.scope,
-            coworkerId: activeFilters.coworkerId ?? undefined,
+            assigneeId: activeFilters.coworkerId ?? undefined,
             projectId: activeFilters.projectId ?? undefined,
             limit: 1,
           })
@@ -207,7 +207,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       task.id,
       {
         id: task.id,
-        coworkerId: task.coworker?.id ?? null,
+        assigneeId: task.assignee?.id ?? null,
       },
     ]),
   );

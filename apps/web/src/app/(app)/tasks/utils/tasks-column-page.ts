@@ -54,7 +54,7 @@ export async function getTasksColumnPage({
   const result = await taskService.listTasks({
     status: statuses,
     scope,
-    coworkerId: coworkerId ?? undefined,
+    assigneeId: coworkerId ?? undefined,
     projectId: projectId ?? undefined,
     cursor,
     limit,

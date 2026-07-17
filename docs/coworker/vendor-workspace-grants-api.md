@@ -78,7 +78,7 @@ propagate to the generated web client via `pnpm --filter web generate:core:snaps
 
 A coworker has baseline access when:
 
-- They are the **assignee** (`task.coworkerId`), or
+- They are the **assignee** (`task.assigneeId`), or
 - The assignee is another coworker from the **same vendor** (vendor sibling),
 
 and the task is **not DRAFT**.

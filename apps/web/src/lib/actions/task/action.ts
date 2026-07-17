@@ -219,7 +219,7 @@ async function createTaskFromDescription(input: {
 
   const task = await taskService.createTask({
     description: descriptionWithDesignMd,
-    coworkerId: input.coworkerId ? input.coworkerId : null,
+    assigneeId: input.coworkerId ? input.coworkerId : null,
     projectId: normalizedProjectId ?? null,
     status: resolveCreateStatus(input.status, input.schedule),
   });
@@ -415,7 +415,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        coworkerId: coworkerId?.trim() ? coworkerId : null,
+        assigneeId: coworkerId?.trim() ? coworkerId : null,
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),

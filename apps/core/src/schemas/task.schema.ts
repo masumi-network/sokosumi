@@ -83,19 +83,37 @@ const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
-  userId: z.string().openapi({ example: "user_123" }),
-  user: userSummarySchema,
+  ownerId: z.string().openapi({
+    example: "user_123",
+    description: "Task owner. Always a user.",
+  }),
+  owner: userSummarySchema,
   organizationId: z.string().nullable().openapi({ example: "org_123" }),
   organization: organizationSummarySchema.nullable(),
   projectId: z.string().uuid().nullable().openapi({
     example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   }),
-  coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
-  coworker: coworkerSummarySchema.nullable(),
-  orchestratorId: z.string().uuid().nullable().openapi({
-    example: "01960001-0001-7001-8001-000000000099",
+  assigneeId: z.string().nullable().openapi({
+    example: "cow_123",
+    description: "Marketplace coworker assignee. Never an orchestrator.",
   }),
-  orchestrator: orchestratorSummarySchema.nullable(),
+  assignee: coworkerSummarySchema.nullable(),
+  creatorUserId: z.string().nullable().openapi({
+    example: "user_123",
+    description:
+      "Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.",
+  }),
+  creatorUser: userSummarySchema.nullable(),
+  creatorCoworkerId: z.string().nullable().openapi({
+    example: "cow_123",
+    description: "Set when a coworker created the task.",
+  }),
+  creatorCoworker: coworkerSummarySchema.nullable(),
+  creatorOrchestratorId: z.string().uuid().nullable().openapi({
+    example: "01960001-0001-7001-8001-000000000099",
+    description: "Set when an orchestrator created the task.",
+  }),
+  creatorOrchestrator: orchestratorSummarySchema.nullable(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({

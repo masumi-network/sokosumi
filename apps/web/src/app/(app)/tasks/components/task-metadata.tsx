@@ -15,6 +15,7 @@ interface TaskMetadataLabels {
   status: string;
   statusLabels: Record<TaskStatus, string>;
   owner: string;
+  creator: string;
   organization: string;
   personalWorkspace: string;
   project: string;
@@ -27,9 +28,11 @@ interface TaskMetadataLabels {
 
 interface TaskMetadataTask {
   status: Task["status"];
-  user: Task["user"];
+  owner: Task["owner"];
   organization: Task["organization"];
-  coworker: Task["coworker"];
+  assignee: Task["assignee"];
+  creatorUserId: Task["creatorUserId"];
+  creatorUser: Task["creatorUser"];
   credits: Task["credits"];
   metadata?: string | null;
   nextRunAt?: Date | null;
@@ -50,10 +53,23 @@ export function TaskMetadata({
   createdAtLabel,
   updatedAtLabel,
 }: TaskMetadataProps) {
-  const ownerImage = task.user.image
-    ? resolveIpfsOrHttpUrl(task.user.image)
+  const ownerImage = task.owner.image
+    ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
-  const coworkerImage = getCoworkerImage(task.coworker);
+  const assigneeImage = getCoworkerImage(task.assignee);
+  const showCreator =
+    task.creatorUserId != null &&
+    task.creatorUserId !== task.owner.id &&
+    task.creatorUser &&
+    typeof task.creatorUser === "object" &&
+    "name" in task.creatorUser &&
+    typeof task.creatorUser.name === "string";
+  const creatorImage =
+    showCreator &&
+    "image" in task.creatorUser &&
+    typeof task.creatorUser.image === "string"
+      ? resolveIpfsOrHttpUrl(task.creatorUser.image)
+      : null;
 
   return (
     <div className="space-y-4">
@@ -73,10 +89,19 @@ export function TaskMetadata({
 
         <MetadataAvatarValue
           label={labels.owner}
-          name={task.user.name}
+          name={task.owner.name}
           image={ownerImage}
-          fallback={task.user.name}
+          fallback={task.owner.name}
         />
+
+        {showCreator ? (
+          <MetadataAvatarValue
+            label={labels.creator}
+            name={task.creatorUser.name}
+            image={creatorImage}
+            fallback={task.creatorUser.name}
+          />
+        ) : null}
 
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground text-sm">
@@ -109,19 +134,19 @@ export function TaskMetadata({
           </span>
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="size-5">
-              {coworkerImage ? (
+              {assigneeImage ? (
                 <AvatarImage
-                  src={coworkerImage}
-                  alt={task.coworker?.name ?? "Coworker"}
+                  src={assigneeImage}
+                  alt={task.assignee?.name ?? "Coworker"}
                   className="object-cover"
                 />
               ) : null}
               <AvatarFallback className="bg-muted text-[10px]">
-                {task.coworker?.name?.slice(0, 1).toUpperCase() ?? "?"}
+                {task.assignee?.name?.slice(0, 1).toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
             <span className="truncate text-right text-sm font-medium">
-              {task.coworker?.name ?? "—"}
+              {task.assignee?.name ?? "—"}
             </span>
           </div>
         </div>

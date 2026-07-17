@@ -35,7 +35,7 @@ describe("getPublicSharedResourceByToken", () => {
         updatedAt: new Date("2026-03-30T10:05:00.000Z"),
         completedAt: null,
         agentId: "agent_123",
-        userId: "user_123",
+        ownerId: "user_123",
         organizationId: null,
         taskId: null,
         name: "Shared job",
@@ -123,7 +123,7 @@ describe("getPublicSharedResourceByToken", () => {
           legalOther: null,
           overrideLegalOther: null,
         },
-        user: {
+        owner: {
           id: "user_123",
           name: "Ada Lovelace",
           image: null,
@@ -176,7 +176,7 @@ describe("getPublicSharedResourceByToken", () => {
         name: "Shared Task",
         description: "Task description",
         status: "READY",
-        coworker: {
+        assignee: {
           id: "cow_123",
           name: "Ops Agent",
           slug: "ops-agent",
@@ -189,7 +189,7 @@ describe("getPublicSharedResourceByToken", () => {
             updatedAt: new Date("2026-03-30T10:05:00.000Z"),
             completedAt: null,
             agentId: "agent_123",
-            userId: "user_123",
+            ownerId: "user_123",
             organizationId: null,
             taskId: "tsk_123",
             name: "Nested job",
@@ -247,7 +247,7 @@ describe("getPublicSharedResourceByToken", () => {
             updatedAt: new Date("2026-03-30T10:08:00.000Z"),
             completedAt: new Date("2026-03-30T10:08:00.000Z"),
             agentId: "agent_456",
-            userId: "user_123",
+            ownerId: "user_123",
             organizationId: null,
             taskId: "tsk_123",
             name: null,
@@ -300,8 +300,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "RUNNING",
             comment: null,
-            user: null,
-            coworker: {
+            owner: null,
+            assignee: {
               name: "Ops Agent",
               image: "https://example.com/coworker.png",
             },
@@ -316,11 +316,11 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "EMAIL",
             status: null,
             comment: "Customer added context",
-            user: {
+            owner: {
               name: "Ada Lovelace",
               image: "https://example.com/user.png",
             },
-            coworker: null,
+            assignee: null,
             transaction: null,
           },
           {
@@ -330,8 +330,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "AUTHENTICATION_REQUIRED",
             comment: null,
-            user: null,
-            coworker: null,
+            owner: null,
+            assignee: null,
             transaction: null,
           },
           {
@@ -341,8 +341,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: null,
             comment: "   ",
-            user: null,
-            coworker: null,
+            owner: null,
+            assignee: null,
             transaction: null,
           },
         ],
@@ -442,7 +442,7 @@ describe("getPublicSharedResourceByToken", () => {
         name: "Archived shared task",
         description: null,
         status: "READY",
-        coworker: null,
+        assignee: null,
         jobs: [],
         events: [],
       },

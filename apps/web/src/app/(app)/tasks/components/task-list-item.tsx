@@ -70,8 +70,8 @@ export function TaskListItem({
             className="w-fit shrink-0 rounded-sm"
           />
           <TaskMetaDetails
-            owner={task.user}
-            coworker={task.coworker}
+            owner={task.owner}
+            assignee={task.assignee}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
             variant="list"

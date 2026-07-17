@@ -144,7 +144,7 @@ describe("requireTaskOwnership", () => {
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
-        userId: "user_123",
+        ownerId: "user_123",
         archivedAt: null,
       },
     });
@@ -204,7 +204,7 @@ describe("requireTaskArchiveAccess", () => {
       .mockResolvedValueOnce({
         id: "tsk_parked",
         status: TaskStatus.GRANT_PENDING,
-        userId: "user_other",
+        ownerId: "user_other",
         workspace: { organizationId: "org_123" },
       } as never);
 
@@ -247,7 +247,7 @@ describe("requireTaskCollaboration", () => {
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
-        userId: "user_123",
+        ownerId: "user_123",
         archivedAt: null,
       },
     });
@@ -264,7 +264,7 @@ describe("requireTaskCollaboration", () => {
     } as never);
     vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: TaskStatus.READY,
     } as never);
 
@@ -402,9 +402,9 @@ describe("requireTaskReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -439,9 +439,9 @@ describe("requireTaskReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -570,9 +570,9 @@ describe("requireTaskReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -597,9 +597,9 @@ describe("requireTaskCommentAccess", () => {
     const coworkerContext = createCoworkerContext("cow_123");
     const siblingTask = {
       id: "tsk_123",
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
       pendingVendorGrantId: null,
       workspaceId,
       workspace: { organizationId: "org_123" },
@@ -661,9 +661,9 @@ describe("requireTaskCommentAccess", () => {
     });
     const siblingTask = {
       id: "tsk_123",
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
       pendingVendorGrantId: null,
       workspaceId,
       workspace: { organizationId: "org_123" },
@@ -701,7 +701,7 @@ describe("requireTaskCommentAccess", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "tsk_123",
-        coworkerId: "cow_foreign",
+        assigneeId: "cow_foreign",
         status: TaskStatus.READY,
         pendingVendorGrantId: null,
       } as never);
@@ -750,11 +750,11 @@ describe("requireTaskCommentAccess", () => {
     const foreignVendorId = "01960001-0002-7001-8001-000000000002";
     const foreignTask = {
       id: "tsk_123",
-      coworkerId: "cow_foreign",
+      assigneeId: "cow_foreign",
       status: TaskStatus.READY,
       pendingVendorGrantId: null,
       workspaceId,
-      coworker: { vendorId: foreignVendorId },
+      assignee: { vendorId: foreignVendorId },
       workspace: { organizationId: "org_123" },
     };
 
@@ -794,9 +794,9 @@ describe("requireTaskCommentAccess", () => {
     });
     const siblingTask = {
       id: "tsk_123",
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
       pendingVendorGrantId: null,
       workspaceId,
       workspace: { organizationId: "org_123" },
@@ -845,7 +845,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "tsk_foreign",
-        coworkerId: "cow_foreign",
+        assigneeId: "cow_foreign",
         status: TaskStatus.READY,
       } as never);
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
@@ -900,7 +900,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "tsk_foreign",
-        coworkerId: "cow_foreign",
+        assigneeId: "cow_foreign",
         status: TaskStatus.READY,
       } as never);
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
@@ -942,7 +942,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "tsk_foreign",
-        coworkerId: "cow_foreign",
+        assigneeId: "cow_foreign",
         status: TaskStatus.READY,
       } as never);
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
@@ -982,7 +982,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "tsk_foreign",
-        coworkerId: "cow_foreign",
+        assigneeId: "cow_foreign",
         status: TaskStatus.READY,
       } as never);
     vi.mocked(tx.workspace.findUnique).mockResolvedValue({
@@ -1028,7 +1028,7 @@ describe("requireTaskCollaboration sibling writes", () => {
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       userId: "user_delegate",
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
       status: TaskStatus.READY,
     } as never);
 
@@ -1050,7 +1050,7 @@ describe("requireCoworkerTaskCollaboration", () => {
     } as never);
     vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: TaskStatus.READY,
     } as never);
 
@@ -1436,9 +1436,9 @@ describe("requireJobReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -1477,9 +1477,9 @@ describe("requireJobReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -1581,9 +1581,9 @@ describe("requireJobReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
       status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
+      assignee: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -1633,7 +1633,7 @@ describe("requireJobCollaboration", () => {
     } as never);
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce({
-        coworkerId: "cow_123",
+        assigneeId: "cow_123",
       } as never)
       .mockResolvedValueOnce({
         pendingVendorGrantId: null,
@@ -1646,7 +1646,7 @@ describe("requireJobCollaboration", () => {
     });
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
-      select: { coworkerId: true },
+      select: { assigneeId: true },
     });
   });
 
@@ -1684,7 +1684,7 @@ describe("requireJobCollaboration", () => {
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      coworkerId: "cow_other",
+      assigneeId: "cow_other",
     } as never);
 
     await expect(

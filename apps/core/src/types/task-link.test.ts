@@ -12,10 +12,10 @@ describe("buildVisibleTaskLinksInclude", () => {
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [
-        { coworkerId: "cow_agent" },
+        { assigneeId: "cow_agent" },
         {
-          coworkerId: { not: "cow_agent" },
-          coworker: { vendorId: VENDOR_ID },
+          assigneeId: { not: "cow_agent" },
+          assignee: { vendorId: VENDOR_ID },
         },
       ],
     };
@@ -47,10 +47,10 @@ describe("buildVisibleTaskLinksInclude", () => {
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [
-        { coworkerId: "cow_agent" },
+        { assigneeId: "cow_agent" },
         {
-          coworkerId: { not: "cow_agent" },
-          coworker: { vendorId: VENDOR_ID },
+          assigneeId: { not: "cow_agent" },
+          assignee: { vendorId: VENDOR_ID },
         },
       ],
     };
@@ -78,10 +78,10 @@ describe("buildVisibleTaskLinksInclude", () => {
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [
-        { coworkerId: "cow_agent" },
+        { assigneeId: "cow_agent" },
         {
-          coworkerId: { not: "cow_agent" },
-          coworker: { vendorId: VENDOR_ID },
+          assigneeId: { not: "cow_agent" },
+          assignee: { vendorId: VENDOR_ID },
         },
       ],
     };

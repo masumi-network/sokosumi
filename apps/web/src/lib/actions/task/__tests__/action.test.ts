@@ -99,7 +99,7 @@ function buildTaskLink(
 
 function buildTask(
   overrides?: Partial<
-    Pick<Task, "id" | "name" | "description" | "coworkerId" | "status"> & {
+    Pick<Task, "id" | "name" | "description" | "assigneeId" | "status"> & {
       metadata: string | null;
       nextRunAt: Date | null;
     }
@@ -109,7 +109,7 @@ function buildTask(
     id: "task-created",
     name: "Generated task name",
     description: "Created related task",
-    coworkerId: null,
+    assigneeId: null,
     status: TaskStatus.READY,
     ...overrides,
   } as Task;

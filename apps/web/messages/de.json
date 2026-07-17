@@ -1521,6 +1521,7 @@
         "properties": "Eigenschaften",
         "status": "Status",
         "owner": "Eigentümer",
+        "creator": "Ersteller",
         "organization": "Organisation",
         "project": "Projekt",
         "personalWorkspace": "Persönlich",

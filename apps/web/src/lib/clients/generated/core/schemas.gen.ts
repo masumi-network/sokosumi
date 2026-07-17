@@ -1126,11 +1126,12 @@ export const TaskSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        userId: {
+        ownerId: {
             type: 'string',
-            example: 'user_123'
+            example: 'user_123',
+            description: 'Task owner. Always a user.'
         },
-        user: {
+        owner: {
             $ref: '#/components/schemas/UserSummary'
         },
         organizationId: {
@@ -1151,25 +1152,59 @@ export const TaskSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
-        coworkerId: {
+        assigneeId: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'cow_123'
+            example: 'cow_123',
+            description: 'Marketplace coworker assignee. Never an orchestrator.'
         },
-        coworker: {
+        assignee: {
             $ref: '#/components/schemas/CoworkerSummary'
         },
-        orchestratorId: {
+        creatorUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123',
+            description: 'Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.'
+        },
+        creatorUser: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: [
+                        'object',
+                        'null'
+                    ]
+                }
+            ]
+        },
+        creatorCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cow_123',
+            description: 'Set when a coworker created the task.'
+        },
+        creatorCoworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        },
+        creatorOrchestratorId: {
             type: [
                 'string',
                 'null'
             ],
             format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
+            example: '01960001-0001-7001-8001-000000000099',
+            description: 'Set when an orchestrator created the task.'
         },
-        orchestrator: {
+        creatorOrchestrator: {
             $ref: '#/components/schemas/OrchestratorSummary'
         },
         name: {
@@ -1277,15 +1312,19 @@ export const TaskSchema = {
         'id',
         'createdAt',
         'updatedAt',
-        'userId',
-        'user',
+        'ownerId',
+        'owner',
         'organizationId',
         'organization',
         'projectId',
-        'coworkerId',
-        'coworker',
-        'orchestratorId',
-        'orchestrator',
+        'assigneeId',
+        'assignee',
+        'creatorUserId',
+        'creatorUser',
+        'creatorCoworkerId',
+        'creatorCoworker',
+        'creatorOrchestratorId',
+        'creatorOrchestrator',
         'name',
         'description',
         'status',
@@ -9662,11 +9701,12 @@ export const TaskListItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        userId: {
+        ownerId: {
             type: 'string',
-            example: 'user_123'
+            example: 'user_123',
+            description: 'Task owner. Always a user.'
         },
-        user: {
+        owner: {
             $ref: '#/components/schemas/UserSummary'
         },
         organizationId: {
@@ -9687,25 +9727,59 @@ export const TaskListItemSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
-        coworkerId: {
+        assigneeId: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'cow_123'
+            example: 'cow_123',
+            description: 'Marketplace coworker assignee. Never an orchestrator.'
         },
-        coworker: {
+        assignee: {
             $ref: '#/components/schemas/CoworkerSummary'
         },
-        orchestratorId: {
+        creatorUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123',
+            description: 'Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.'
+        },
+        creatorUser: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: [
+                        'object',
+                        'null'
+                    ]
+                }
+            ]
+        },
+        creatorCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cow_123',
+            description: 'Set when a coworker created the task.'
+        },
+        creatorCoworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        },
+        creatorOrchestratorId: {
             type: [
                 'string',
                 'null'
             ],
             format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
+            example: '01960001-0001-7001-8001-000000000099',
+            description: 'Set when an orchestrator created the task.'
         },
-        orchestrator: {
+        creatorOrchestrator: {
             $ref: '#/components/schemas/OrchestratorSummary'
         },
         name: {
@@ -9787,15 +9861,19 @@ export const TaskListItemSchema = {
         'id',
         'createdAt',
         'updatedAt',
-        'userId',
-        'user',
+        'ownerId',
+        'owner',
         'organizationId',
         'organization',
         'projectId',
-        'coworkerId',
-        'coworker',
-        'orchestratorId',
-        'orchestrator',
+        'assigneeId',
+        'assignee',
+        'creatorUserId',
+        'creatorUser',
+        'creatorCoworkerId',
+        'creatorCoworker',
+        'creatorOrchestratorId',
+        'creatorOrchestrator',
         'name',
         'description',
         'status',

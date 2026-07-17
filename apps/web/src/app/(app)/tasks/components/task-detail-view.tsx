@@ -301,14 +301,14 @@ async function TaskVendorGrantApprovalBannerSlot({
     organizationId: orgId,
     isAuthenticated: true,
     viewerMembership,
-    taskOwnerUserId: task.userId,
+    taskOwnerUserId: task.ownerId,
     sessionUserId: session.user.id,
   });
 
   if (!canApprove) {
     return (
       <TaskVendorGrantPendingInfoBanner
-        coworkerName={task.coworker?.name ?? null}
+        coworkerName={task.assignee?.name ?? null}
       />
     );
   }
@@ -325,7 +325,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   return (
     <TaskVendorGrantApprovalBanner
       grantId={grantId}
-      coworkerName={task.coworker?.name ?? null}
+      coworkerName={task.assignee?.name ?? null}
       organizationId={orgId}
       reviewHref={reviewHref}
     />
@@ -371,9 +371,11 @@ async function TaskOverviewSection({
       <TaskMetadata
         task={{
           status: task.status,
-          user: task.user,
+          owner: task.owner,
           organization: task.organization,
-          coworker: task.coworker,
+          assignee: task.assignee,
+          creatorUserId: task.creatorUserId,
+          creatorUser: task.creatorUser,
           credits: task.credits,
           metadata: task.metadata,
           nextRunAt: task.nextRunAt,
@@ -386,6 +388,7 @@ async function TaskOverviewSection({
           status: t("status"),
           statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
           owner: t("owner"),
+          creator: t("creator"),
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
@@ -433,7 +436,7 @@ async function TaskDetailActionsSlot({
   } = buildTaskDetailContext(task, coworkers, agents);
   const isReadOnlyWorkspaceView = isReadOnlyForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskUserId: task.userId,
+    taskUserId: task.ownerId,
     sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
@@ -459,13 +462,13 @@ async function TaskDetailActionsSlot({
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
-      defaultCoworkerId={task.coworkerId}
+      defaultCoworkerId={task.assigneeId}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
       forceReadOnly={forceReadOnly}
-      isTaskOwner={session?.user.id === task.userId}
+      isTaskOwner={session?.user.id === task.ownerId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
@@ -589,7 +592,7 @@ async function TaskActivitySectionContent({
       viewerPlan={viewerPlan}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-        taskUserId: task.userId,
+        taskUserId: task.ownerId,
         sessionUserId: session?.user.id,
         forceReadOnly,
         taskStatus: task.status,
