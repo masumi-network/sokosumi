@@ -38,7 +38,7 @@ describe("checkMigrateDeployEnv", () => {
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0]?.level).toBe("error");
     expect(result.messages[0]?.text).toMatch(
-      /Preview migrate requires DATABASE_URL_UNPOOLED/,
+      /Preview requires DATABASE_URL_UNPOOLED/,
     );
   });
 

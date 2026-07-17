@@ -147,7 +147,7 @@ export const userRepository = {
 - Create migrations with `pnpm prisma:migrate:dev`
 - Migration files are in `prisma/migrations/`
 - Use descriptive migration names
-- **Vercel (Core):** After a successful Core app build, `pnpm vercel-build` runs `prisma migrate deploy` against that deployment’s database (Production and Preview). Order is build-then-migrate (do not migrate if the app fails to compile). Prisma CLI prefers `DATABASE_URL_UNPOOLED` (injected by the Vercel Neon integration), then `DATABASE_URL`. `prisma:migrate:deploy` runs `scripts/preflight-migrate-deploy.ts` first (`checkMigrateDeployEnv`): Preview without `DATABASE_URL_UNPOOLED` fails closed; other Vercel envs warn if unpooled is missing. Keep migrations backward-compatible with the previous Core release for the brief window before the new deployment activates.
+- **Vercel (Core):** After a successful Core app build, `pnpm vercel-build` runs `prisma migrate deploy` against that deployment’s database (Production and Preview). Order is build-then-migrate (do not migrate if the app fails to compile). Prisma CLI prefers `DATABASE_URL_UNPOOLED` (injected by the Vercel Neon integration), then `DATABASE_URL`. `prisma.config.ts` runs `checkMigrateDeployEnv` on every CLI load: Preview without `DATABASE_URL_UNPOOLED` fails closed (including raw `prisma migrate deploy`); other Vercel envs warn if unpooled is missing. Keep migrations backward-compatible with the previous Core release for the brief window before the new deployment activates.
 
 ## Package-Specific Commands
 
