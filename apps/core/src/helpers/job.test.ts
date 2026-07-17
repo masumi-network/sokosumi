@@ -52,7 +52,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
           ],
@@ -114,7 +114,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
+              ownerId: "user_123",
               workspaceId: personalWorkspaceContext.workspaceId,
             },
           ],
@@ -137,7 +137,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             {
@@ -166,7 +166,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             { projectId },
@@ -190,7 +190,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             { projectId: null },
@@ -234,7 +234,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             { task: { assigneeId: "cow_123" } },

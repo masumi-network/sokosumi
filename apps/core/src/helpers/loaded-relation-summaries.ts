@@ -18,7 +18,7 @@ export type CoworkerSummaryFields = {
 };
 
 /**
- * Required user FK summaries (e.g. Task.owner, Job.user). If `user` is missing
+ * Required user FK summaries (e.g. Task.owner, Job.owner). If `user` is missing
  * here, the query omitted `include` and mapping must not fabricate data.
  */
 export function userSummaryFromLoadedRelation(

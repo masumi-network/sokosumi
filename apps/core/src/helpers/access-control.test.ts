@@ -1223,7 +1223,7 @@ describe("requireJobOwnership", () => {
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
         id: "job_123",
-        userId: "user_123",
+        ownerId: "user_123",
       },
     });
   });
@@ -1606,7 +1606,7 @@ describe("requireJobCollaboration", () => {
     await requireJobCollaboration(userAuthContext, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", userId: "user_123" },
+      where: { id: "job_123", ownerId: "user_123" },
     });
   });
 
@@ -1642,7 +1642,7 @@ describe("requireJobCollaboration", () => {
     await requireJobCollaboration(delegatedCoworkerContext, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", userId: "user_delegate" },
+      where: { id: "job_123", ownerId: "user_delegate" },
     });
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: { id: "tsk_123" },

@@ -59,6 +59,12 @@ describe("POST /agents/{id}/jobs", () => {
       updatedAt: "2026-04-02T08:00:00.000Z",
       completedAt: null,
       agentId: "agent_123",
+      ownerId: "user_123",
+      owner: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
       userId: "user_123",
       organizationId: "org_123",
       taskId: null,
@@ -122,7 +128,7 @@ describe("POST /agents/{id}/jobs", () => {
     expect(createAgentJobForUserMock).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: {
-          userId: "user_123",
+          ownerId: "user_123",
           organizationId: "org_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
         },

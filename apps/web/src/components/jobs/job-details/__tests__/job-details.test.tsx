@@ -61,13 +61,21 @@ vi.mock("@/components/jobs/job-details/job-details-view", () => ({
 }));
 
 function createJob(overrides?: Partial<Job>): Job {
+  const owner = {
+    id: "user-1",
+    name: "Ada Lovelace",
+    image: null as string | null,
+  };
+
   return {
     id: "job-1",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: null,
     agentId: "agent-1",
-    userId: "user-1",
+    ownerId: owner.id,
+    owner,
+    userId: owner.id,
     organizationId: null,
     organization: null,
     projectId: null,
@@ -87,11 +95,7 @@ function createJob(overrides?: Partial<Job>): Job {
     identifierFromPurchaser: null,
     share: null,
     events: [],
-    user: {
-      id: "user-1",
-      name: "Ada Lovelace",
-      image: null,
-    },
+    user: owner,
     workspace: {
       id: "workspace-1",
       organizationId: null,
