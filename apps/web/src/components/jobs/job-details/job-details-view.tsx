@@ -527,11 +527,11 @@ function getJobEventActor({ job, event }: { job: Job; event: JobEvent }):
 
   if (event.input) {
     // Show the user for input-provided events (fallback to agent).
-    return job.user
+    return job.owner
       ? {
           type: "user",
-          name: job.user.name,
-          imageUrl: job.user.image ?? null,
+          name: job.owner.name,
+          imageUrl: job.owner.image ?? null,
         }
       : agentActor;
   }

@@ -52,7 +52,7 @@ export const linkRepository = {
       where: {
         event: {
           job: {
-            userId,
+            ownerId: userId,
           },
         },
       },

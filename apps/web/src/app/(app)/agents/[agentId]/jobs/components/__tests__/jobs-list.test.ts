@@ -5,6 +5,12 @@ import { JobType, SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { buildJobDayGroups } from "../jobs-list.utils";
 
 function createJob(overrides: Partial<JobSummary>): JobSummary {
+  const owner = {
+    id: "user-1",
+    name: "User",
+    image: null as string | null,
+  };
+
   return {
     id: "job-id",
     name: "Job name",
@@ -14,7 +20,9 @@ function createJob(overrides: Partial<JobSummary>): JobSummary {
     status: SokosumiJobStatus.PROCESSING,
     jobType: JobType.FREE,
     agentId: "agent-1",
-    userId: "user-1",
+    ownerId: owner.id,
+    owner,
+    userId: owner.id,
     organizationId: null,
     agentJobId: "agent-job-1",
     blockchainIdentifier: null,
@@ -41,11 +49,7 @@ function createJob(overrides: Partial<JobSummary>): JobSummary {
     result: null,
     resultHash: null,
     jobStatusSettled: false,
-    user: {
-      id: "user-1",
-      name: "User",
-      image: null,
-    },
+    user: owner,
     organization: null,
     agent: {
       id: "agent-1",

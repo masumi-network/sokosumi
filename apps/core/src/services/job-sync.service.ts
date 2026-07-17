@@ -228,7 +228,7 @@ async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
 ): Promise<void> {
-  if (!job.user.notificationsOptIn) {
+  if (!job.owner.notificationsOptIn) {
     return;
   }
 
@@ -237,7 +237,7 @@ async function dispatchFinalStatusNotification(
   try {
     const agentName = getAgentName(job.agent);
     const email = await renderJobFinalStatusEmail({
-      recipientName: job.user.name,
+      recipientName: job.owner.name,
       agentName,
       jobName: job.name ?? undefined,
       jobStatus,
@@ -248,7 +248,7 @@ async function dispatchFinalStatusNotification(
     await postmarkClient
       .sendEmail({
         From: getEnv().POSTMARK_FROM_EMAIL,
-        To: job.user.email,
+        To: job.owner.email,
         Tag: "job-final-status",
         Subject: email.subject,
         HtmlBody: email.html,
@@ -260,13 +260,13 @@ async function dispatchFinalStatusNotification(
           sentry: {
             extra: {
               jobId: job.id,
-              userId: job.userId,
+              userId: job.ownerId,
               notificationType: "job-final-status",
             },
           },
           extra: {
             jobId: job.id,
-            userId: job.userId,
+            userId: job.ownerId,
             notificationType: "job-final-status",
           },
         });
@@ -275,7 +275,7 @@ async function dispatchFinalStatusNotification(
     Sentry.captureException(error, {
       extra: {
         jobId: job.id,
-        userId: job.userId,
+        userId: job.ownerId,
         notificationType: "job-final-status",
       },
     });
@@ -285,7 +285,7 @@ async function dispatchFinalStatusNotification(
 async function dispatchInputRequiredNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
-  if (!job.user.notificationsOptIn) {
+  if (!job.owner.notificationsOptIn) {
     return;
   }
 
@@ -294,7 +294,7 @@ async function dispatchInputRequiredNotification(
   try {
     const agentName = getAgentName(job.agent);
     const email = await renderJobInputRequiredEmail({
-      recipientName: job.user.name,
+      recipientName: job.owner.name,
       agentName,
       jobName: job.name ?? undefined,
       jobLink: buildJobLink(job),
@@ -304,7 +304,7 @@ async function dispatchInputRequiredNotification(
     await postmarkClient
       .sendEmail({
         From: getEnv().POSTMARK_FROM_EMAIL,
-        To: job.user.email,
+        To: job.owner.email,
         Tag: "job-input-required",
         Subject: email.subject,
         HtmlBody: email.html,
@@ -316,13 +316,13 @@ async function dispatchInputRequiredNotification(
           sentry: {
             extra: {
               jobId: job.id,
-              userId: job.userId,
+              userId: job.ownerId,
               notificationType: "job-input-required",
             },
           },
           extra: {
             jobId: job.id,
-            userId: job.userId,
+            userId: job.ownerId,
             notificationType: "job-input-required",
           },
         });
@@ -331,7 +331,7 @@ async function dispatchInputRequiredNotification(
     Sentry.captureException(error, {
       extra: {
         jobId: job.id,
-        userId: job.userId,
+        userId: job.ownerId,
         notificationType: "job-input-required",
       },
     });
@@ -359,7 +359,7 @@ async function dispatchJobFailureNotification(
               level: "warning",
               extra: buildWebhookFailureContext(result, {
                 jobId: job.id,
-                userId: job.userId,
+                userId: job.ownerId,
                 notificationType: "job-failure-webhook",
                 webhookUrl,
               }),
@@ -413,13 +413,13 @@ async function dispatchJobFailureNotification(
           sentry: {
             extra: {
               jobId: job.id,
-              userId: job.userId,
+              userId: job.ownerId,
               notificationType: "job-failure-email",
             },
           },
           extra: {
             jobId: job.id,
-            userId: job.userId,
+            userId: job.ownerId,
             notificationType: "job-failure-email",
           },
         });
@@ -428,7 +428,7 @@ async function dispatchJobFailureNotification(
     Sentry.captureException(error, {
       extra: {
         jobId: job.id,
-        userId: job.userId,
+        userId: job.ownerId,
         notificationType: "job-failure",
       },
     });
@@ -440,7 +440,7 @@ async function dispatchJobNotification(
   jobStatus: SokosumiJobStatus,
   eventId: string,
 ): Promise<void> {
-  if (!job.user.notificationsOptIn) {
+  if (!job.owner.notificationsOptIn) {
     return;
   }
 
@@ -473,7 +473,7 @@ async function dispatchJobNotification(
     }
 
     await createNotification({
-      userId: job.userId,
+      userId: job.ownerId,
       kind: NotificationKind.JOB,
       referenceId: job.id,
       eventId,
@@ -491,7 +491,7 @@ async function dispatchJobNotification(
     Sentry.captureException(error, {
       extra: {
         jobId: job.id,
-        userId: job.userId,
+        userId: job.ownerId,
         notificationType: "job-notification",
       },
     });
@@ -542,7 +542,7 @@ async function finalizeJobSyncResult(
   try {
     await publishJobStatusData({
       agentId: updatedJob.agentId,
-      userId: updatedJob.userId,
+      userId: updatedJob.ownerId,
       jobId: updatedJob.id,
       jobStatus: updatedJob.status,
       jobStatusSettled: updatedJob.jobStatusSettled,
@@ -791,7 +791,7 @@ async function syncAgentStatus(
           extractionContext = {
             eventId: newJobEvent.id,
             result: outputResult,
-            userId: currentJob.userId,
+            userId: currentJob.ownerId,
           };
         }
       }

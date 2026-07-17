@@ -17,7 +17,7 @@ import { creditBucketRepository } from "./credit-bucket.repository.js";
 interface CreateJobBase {
   agentJobId: string;
   agentId: string;
-  userId: string;
+  ownerId: string;
   organizationId: string | null | undefined;
   workspaceId: string;
   inputSchema: InputSchemaSchemaType;
@@ -81,9 +81,9 @@ export const jobRepository = {
           id: data.agentId,
         },
       },
-      user: {
+      owner: {
         connect: {
-          id: data.userId,
+          id: data.ownerId,
         },
       },
       ...(data.organizationId && {
@@ -134,7 +134,7 @@ export const jobRepository = {
       }
       case JobType.PAID: {
         const consumptions = await creditBucketRepository.prepareConsumption(
-          data.userId,
+          data.ownerId,
           data.organizationId ?? null,
           data.creditsPrice.cents,
           tx,
@@ -148,7 +148,7 @@ export const jobRepository = {
                 amount: -data.creditsPrice.cents,
                 user: {
                   connect: {
-                    id: data.userId,
+                    id: data.ownerId,
                   },
                 },
                 ...(data.organizationId && {
@@ -189,18 +189,18 @@ export const jobRepository = {
 
   /**
    * Check if user has finished job with the agent
-   * @param userId - The unique identifier of the user
+   * @param ownerId - The unique identifier of the job owner
    * @param agentId - The unique identifier of the agent
    * @returns Promise containing true if user has finished job with the agent, false otherwise
    */
   async doesUserHaveFinishedJobWithAgent(
-    userId: string,
+    ownerId: string,
     agentId: string,
     tx: Prisma.TransactionClient,
   ): Promise<boolean> {
     const jobCount = await tx.job.count({
       where: {
-        userId,
+        ownerId,
         agentId,
         ...jobsFinishedWhereQuery(),
       },

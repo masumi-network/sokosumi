@@ -1862,12 +1862,30 @@ export const JobSummarySchema = {
             type: 'string',
             example: 'agent_123'
         },
+        ownerId: {
+            type: 'string',
+            example: 'user_123',
+            description: 'Job owner. Always a user.'
+        },
+        owner: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         userId: {
             type: 'string',
-            example: 'user_123'
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            $ref: '#/components/schemas/UserSummary'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use owner instead.'
+                }
+            ]
         },
         organizationId: {
             type: [
@@ -2002,6 +2020,8 @@ export const JobSummarySchema = {
         'createdAt',
         'updatedAt',
         'agentId',
+        'ownerId',
+        'owner',
         'userId',
         'user',
         'workspace',
@@ -7956,12 +7976,30 @@ export const JobSchema = {
             type: 'string',
             example: 'agent_123'
         },
+        ownerId: {
+            type: 'string',
+            example: 'user_123',
+            description: 'Job owner. Always a user.'
+        },
+        owner: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         userId: {
             type: 'string',
-            example: 'user_123'
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            $ref: '#/components/schemas/UserSummary'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use owner instead.'
+                }
+            ]
         },
         organizationId: {
             type: [
@@ -8343,6 +8381,8 @@ export const JobSchema = {
         'createdAt',
         'updatedAt',
         'agentId',
+        'ownerId',
+        'owner',
         'userId',
         'user',
         'projectId',

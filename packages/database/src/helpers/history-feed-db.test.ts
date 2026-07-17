@@ -228,7 +228,7 @@ describeDatabase("history feed database triggers", () => {
             "id",
             "createdAt",
             "updatedAt",
-            "userId",
+            "ownerId",
             "agentId",
             "agentJobId",
             "jobType",

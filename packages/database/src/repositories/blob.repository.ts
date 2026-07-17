@@ -64,7 +64,7 @@ export const blobRepository = {
       where: {
         event: {
           job: {
-            userId,
+            ownerId: userId,
           },
         },
       },

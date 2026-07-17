@@ -68,7 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const currentJob = await tx.job.findFirst({
         where: {
           id,
-          userId: userContext.userId,
+          ownerId: userContext.userId,
         },
         select: {
           taskId: true,
