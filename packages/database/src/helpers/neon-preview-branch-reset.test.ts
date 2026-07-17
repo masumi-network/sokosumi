@@ -181,7 +181,7 @@ describe("resetNeonPreviewBranchFromParent", () => {
         projectId: "proj",
         branchName: "preview/feat/x",
       },
-      { fetch: fetchMock, sleep, pollIntervalMs: 1 },
+      { fetch: fetchMock, sleep, pollIntervalMs: 1, maxAttempts: 1 },
     );
 
     expect(result).toEqual({
@@ -249,10 +249,168 @@ describe("resetNeonPreviewBranchFromParent", () => {
         branchName: "preview/feat/x",
         endpointHost: "ep-host.us-east-2.aws.neon.tech",
       },
-      { fetch: fetchMock, sleep: async () => undefined },
+      {
+        fetch: fetchMock,
+        sleep: async () => undefined,
+        maxAttempts: 1,
+      },
     );
 
     expect(result?.branchId).toBe("br-from-host");
     expect(result?.parentBranchId).toBe("br-parent");
+  });
+
+  it("prefers endpoint-host branch when name and host disagree", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const fetchMock = vi.fn(async (input: string) => {
+      const url = String(input);
+      if (url.includes("/branches?search=")) {
+        return new Response(
+          JSON.stringify({
+            branches: [
+              {
+                id: "br-by-name",
+                name: "preview/feat/x",
+                parent_id: "br-parent",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/endpoints")) {
+        return new Response(
+          JSON.stringify({
+            endpoints: [
+              {
+                id: "ep-1",
+                host: "ep-host.us-east-2.aws.neon.tech",
+                branch_id: "br-by-host",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/branches/br-by-host")) {
+        return new Response(
+          JSON.stringify({
+            branch: {
+              id: "br-by-host",
+              name: "preview/actual",
+              parent_id: "br-parent",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/restore")) {
+        return new Response(
+          JSON.stringify({
+            operations: [],
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const result = await resetNeonPreviewBranchFromParent(
+      {
+        action: "reset",
+        apiKey: "key",
+        projectId: "proj",
+        branchName: "preview/feat/x",
+        endpointHost: "ep-host.us-east-2.aws.neon.tech",
+      },
+      {
+        fetch: fetchMock,
+        sleep: async () => undefined,
+        maxAttempts: 1,
+      },
+    );
+
+    expect(result?.branchId).toBe("br-by-host");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("refuses to reset a root branch with no parent_id", async () => {
+    const fetchMock = vi.fn(async (input: string) => {
+      const url = String(input);
+      if (url.includes("/branches?search=")) {
+        return new Response(
+          JSON.stringify({
+            branches: [
+              { id: "br-main", name: "preview/feat/x", parent_id: null },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    await expect(
+      resetNeonPreviewBranchFromParent(
+        {
+          action: "reset",
+          apiKey: "key",
+          projectId: "proj",
+          branchName: "preview/feat/x",
+        },
+        {
+          fetch: fetchMock,
+          sleep: async () => undefined,
+          maxAttempts: 1,
+        },
+      ),
+    ).rejects.toThrow(/no parent_id/);
+  });
+
+  it("retries retryable Neon API failures", async () => {
+    let searchCalls = 0;
+    const sleep = vi.fn(async () => undefined);
+    const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/branches?search=")) {
+        searchCalls += 1;
+        if (searchCalls < 2) {
+          return new Response("busy", { status: 503 });
+        }
+        return new Response(
+          JSON.stringify({
+            branches: [
+              {
+                id: "br-child",
+                name: "preview/feat/x",
+                parent_id: "br-parent",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/restore") && init?.method === "POST") {
+        return new Response(JSON.stringify({ operations: [] }), {
+          status: 200,
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const result = await resetNeonPreviewBranchFromParent(
+      {
+        action: "reset",
+        apiKey: "key",
+        projectId: "proj",
+        branchName: "preview/feat/x",
+      },
+      { fetch: fetchMock, sleep, maxAttempts: 3 },
+    );
+
+    expect(result?.branchId).toBe("br-child");
+    expect(searchCalls).toBe(2);
+    expect(sleep).toHaveBeenCalled();
   });
 });

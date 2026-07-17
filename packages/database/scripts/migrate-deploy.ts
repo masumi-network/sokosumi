@@ -9,12 +9,27 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { checkMigrateDeployEnv } from "../src/helpers/migrate-deploy-preflight.js";
 import {
   planNeonPreviewBranchReset,
   resetNeonPreviewBranchFromParent,
 } from "../src/helpers/neon-preview-branch-reset.js";
 
 async function main(): Promise<void> {
+  // Fail closed before any destructive Neon reset when Preview is misconfigured.
+  const preflight = checkMigrateDeployEnv({
+    VERCEL: process.env.VERCEL,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
+  });
+  for (const message of preflight.messages) {
+    const write = message.level === "error" ? console.error : console.warn;
+    write(`[migrate-deploy] ${message.level}: ${message.text}`);
+  }
+  if (!preflight.ok) {
+    process.exit(1);
+  }
+
   const plan = planNeonPreviewBranchReset({
     VERCEL: process.env.VERCEL,
     VERCEL_ENV: process.env.VERCEL_ENV,
@@ -36,8 +51,12 @@ async function main(): Promise<void> {
     );
     const result = await resetNeonPreviewBranchFromParent(plan);
     if (result) {
+      const ops =
+        result.operationIds.length > 0
+          ? `; operations=${result.operationIds.join(",")}`
+          : "";
       console.log(
-        `[migrate-deploy] Reset branch ${result.branchName} (${result.branchId}) from parent ${result.parentBranchId}`,
+        `[migrate-deploy] Reset branch ${result.branchName} (${result.branchId}) from parent ${result.parentBranchId}${ops}`,
       );
     }
   } else {
@@ -53,6 +72,13 @@ async function main(): Promise<void> {
 
   if (result.error) {
     console.error("[migrate-deploy] failed to spawn prisma:", result.error);
+    process.exit(1);
+  }
+
+  if (result.signal) {
+    console.error(
+      `[migrate-deploy] prisma migrate deploy terminated by signal ${result.signal}`,
+    );
     process.exit(1);
   }
 
