@@ -309,7 +309,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     organization: taskOrganizationSummary,
     coworkerId: task.coworkerId,
     coworker: taskCoworkerSummary,
-    orchestratorId: task.orchestratorId,
+    orchestratorId: task.orchestratorId ?? null,
     orchestrator: taskOrchestratorSummary,
     name: task.name,
     description: task.description,

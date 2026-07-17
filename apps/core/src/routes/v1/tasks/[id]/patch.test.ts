@@ -68,6 +68,8 @@ function createTaskApi(projectId: string | null = null) {
     },
     coworkerId: null,
     coworker: null,
+    orchestratorId: null,
+    orchestrator: null,
     name: "Updated Task",
     description: null,
     status: TaskStatus.DRAFT,

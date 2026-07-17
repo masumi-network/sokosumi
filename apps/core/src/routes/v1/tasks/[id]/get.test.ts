@@ -113,6 +113,8 @@ function createTask(
       image: null,
       slug: "cow-worker",
     },
+    orchestratorId: null,
+    orchestrator: null,
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
