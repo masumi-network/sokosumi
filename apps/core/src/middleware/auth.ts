@@ -19,8 +19,11 @@ export interface UserAuthenticationContext {
   role: string;
 }
 
-/** Optional user/org workspace scope supplied by coworker/orchestrator API keys via context headers. */
-export interface CoworkerRequestContext {
+/**
+ * Optional user/org workspace scope for coworker/orchestrator API keys via
+ * `X-Context-*` headers. Shared by both actors — not coworker-specific.
+ */
+export interface WorkspaceActorRequestContext {
   userId: string;
   organizationId: string | null;
 }
@@ -29,13 +32,13 @@ export interface CoworkerAuthenticationContext {
   actor: "coworker";
   coworkerId: string;
   vendorId: string;
-  context?: CoworkerRequestContext;
+  context?: WorkspaceActorRequestContext;
 }
 
 export interface OrchestratorAuthenticationContext {
   actor: "orchestrator";
   orchestratorId: string;
-  context?: CoworkerRequestContext;
+  context?: WorkspaceActorRequestContext;
 }
 
 export type AuthenticationContext =
