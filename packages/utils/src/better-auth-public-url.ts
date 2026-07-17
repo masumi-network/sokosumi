@@ -12,7 +12,7 @@ function stripTrailingSlashes(value: string): string {
  * use these hosts — browsers reject Domain=sokosumi.com cookies set from
  * *.vercel.app.
  */
-export function isSokosumiAuthHost(url: string): boolean {
+function isSokosumiAuthHost(url: string): boolean {
   try {
     const { hostname } = new URL(url);
     return hostname === "sokosumi.com" || hostname.endsWith(".sokosumi.com");
