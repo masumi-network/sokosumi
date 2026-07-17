@@ -243,6 +243,20 @@ describe("PUT /jobs/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(jobFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        ownerId: "user_123",
+      },
+      select: {
+        taskId: true,
+        workspace: {
+          select: {
+            organizationId: true,
+          },
+        },
+      },
+    });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
       id: "org_target",
       userId: "user_123",

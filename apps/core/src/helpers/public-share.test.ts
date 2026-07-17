@@ -37,6 +37,7 @@ describe("getPublicSharedResourceByToken", () => {
         updatedAt: new Date("2026-03-30T10:05:00.000Z"),
         completedAt: null,
         agentId: "agent_123",
+        ownerId: "user_123",
         userId: "user_123",
         organizationId: null,
         taskId: null,
@@ -124,6 +125,11 @@ describe("getPublicSharedResourceByToken", () => {
           overrideLegalDpa: null,
           legalOther: null,
           overrideLegalOther: null,
+        },
+        owner: {
+          id: "user_123",
+          name: "Ada Lovelace",
+          image: null,
         },
         user: {
           id: "user_123",

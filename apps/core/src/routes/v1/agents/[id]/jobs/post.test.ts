@@ -59,6 +59,12 @@ describe("POST /agents/{id}/jobs", () => {
       updatedAt: "2026-04-02T08:00:00.000Z",
       completedAt: null,
       agentId: "agent_123",
+      ownerId: "user_123",
+      owner: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
       userId: "user_123",
       organizationId: "org_123",
       taskId: null,

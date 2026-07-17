@@ -39,6 +39,7 @@ const route = withGlobalHeaderParameters(
           createdAt: "2025-01-15T10:30:00.000Z",
           updatedAt: "2025-01-15T10:35:00.000Z",
           agentId: "agent_123",
+          ownerId: "user_123",
           userId: "user_123",
           organizationId: "organization_123",
           projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
