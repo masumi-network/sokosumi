@@ -529,8 +529,18 @@ export type JobSummary = {
     updatedAt: Date;
     completedAt?: Date | null;
     agentId: string;
+    /**
+     * Job owner. Always a user.
+     */
+    ownerId: string;
+    owner: UserSummary;
+    /**
+     * Deprecated. Use ownerId instead.
+     *
+     * @deprecated
+     */
     userId: string;
-    user: UserSummary;
+    user: UserSummary & unknown;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId?: string | null;
@@ -2431,8 +2441,18 @@ export type Job = {
     updatedAt: Date;
     completedAt?: Date | null;
     agentId: string;
+    /**
+     * Job owner. Always a user.
+     */
+    ownerId: string;
+    owner: UserSummary;
+    /**
+     * Deprecated. Use ownerId instead.
+     *
+     * @deprecated
+     */
     userId: string;
-    user: UserSummary;
+    user: UserSummary & unknown;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId: string | null;
