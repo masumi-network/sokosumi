@@ -1,4 +1,8 @@
 -- Rename task owner / assignee columns and introduce polymorphic creator FKs.
+-- History sync must be paused during renames: the old upsert_history_task still
+-- reads userId/coworkerId, and RENAME fires AFTER UPDATE triggers.
+
+DROP TRIGGER IF EXISTS history_task_sync ON "task";
 
 -- Drop FKs and indexes that reference columns being renamed or removed.
 ALTER TABLE "task" DROP CONSTRAINT "task_userId_fkey";
@@ -126,3 +130,8 @@ BEGIN
     "archivedAt" = EXCLUDED."archivedAt";
 END;
 $$;
+
+CREATE TRIGGER history_task_sync
+  AFTER INSERT OR UPDATE OR DELETE ON "task"
+  FOR EACH ROW
+  EXECUTE FUNCTION sync_history_from_task();
