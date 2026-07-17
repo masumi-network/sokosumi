@@ -2,11 +2,15 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import FlowBackground from "@/app/personal-assistant/components/flow-background";
 import ProgressPips from "@/app/personal-assistant/components/progress-pips";
 import RotatingMessages from "@/app/personal-assistant/components/rotating-messages";
+import {
+  formatElapsed,
+  useElapsedSeconds,
+} from "@/app/personal-assistant/components/use-elapsed-seconds";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
@@ -29,12 +33,6 @@ const PROVISIONING_STAGES = [
   },
 ] as const;
 
-function formatElapsed(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = String(seconds % 60).padStart(2, "0");
-  return `${minutes}:${remainder}`;
-}
-
 interface ProvisioningStateProps {
   seed: string | null;
   /** Wall-clock ms when provisioning actually started, persisted across a
@@ -54,19 +52,7 @@ export default function ProvisioningState({
 }: ProvisioningStateProps) {
   const t = useTranslations("App.Hermes.Provisioning");
   const facts = orderedMessageList(t.raw("facts") as Record<string, string>);
-  const [elapsedSeconds, setElapsedSeconds] = useState(() =>
-    startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0,
-  );
-
-  useEffect(() => {
-    const anchor = startedAt ?? Date.now();
-    setElapsedSeconds(Math.floor((Date.now() - anchor) / 1000));
-    const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - anchor) / 1000));
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [startedAt]);
+  const elapsedSeconds = useElapsedSeconds(startedAt);
 
   const activeStageIndex = useMemo(() => {
     let active = 0;

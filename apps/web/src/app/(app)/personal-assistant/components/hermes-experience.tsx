@@ -24,6 +24,7 @@ import {
   startHermesOnboardingAction,
 } from "@/lib/actions/hermes";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { requestHermesNavRefresh } from "@/lib/hermes/nav-refresh";
 import type {
   HermesAutonomyLevel,
   HermesInstancePublic,
@@ -133,32 +134,38 @@ function isForwardTransition(from: UiState, to: UiState): boolean {
   return STATE_RANK[to] >= STATE_RANK[from];
 }
 
-const PROVISIONING_STARTED_AT_STORAGE_PREFIX =
-  "hermes:provisioning-started-at:";
+const PHASE_STARTED_AT_STORAGE_PREFIX = "hermes:phase-started-at:";
+
+type TimedSetupPhase = "provisioning" | "onboarding";
 
 /**
- * Reads the persisted provisioning start time for this user, initializing it
- * on first read. Both the elapsed-time display and the 15-minute timeout
- * deadline need a start time that survives a tab close/reopen — without
- * this, they'd anchor to `Date.now()` at every remount, making a slow
- * provision look like it "restarted" and never actually time out.
+ * Reads the persisted start time of a setup phase for this user,
+ * initializing it on first read. The elapsed-time displays (and, for
+ * provisioning, the 15-minute timeout deadline) need a start time that
+ * survives a tab close/reopen — without this they'd anchor to `Date.now()`
+ * at every remount, making a slow setup look like it "restarted" and never
+ * actually time out.
  */
-function getOrInitProvisioningStartedAt(
+function getOrInitPhaseStartedAt(
+  phase: TimedSetupPhase,
   userId: string | null | undefined,
 ): number {
   const now = Date.now();
   if (!userId || typeof window === "undefined") return now;
-  const key = `${PROVISIONING_STARTED_AT_STORAGE_PREFIX}${userId}`;
+  const key = `${PHASE_STARTED_AT_STORAGE_PREFIX}${phase}:${userId}`;
   const stored = Number(window.localStorage.getItem(key));
   if (Number.isFinite(stored) && stored > 0) return stored;
   window.localStorage.setItem(key, String(now));
   return now;
 }
 
-function clearProvisioningStartedAt(userId: string | null | undefined): void {
+function clearPhaseStartedAt(
+  phase: TimedSetupPhase,
+  userId: string | null | undefined,
+): void {
   if (!userId || typeof window === "undefined") return;
   window.localStorage.removeItem(
-    `${PROVISIONING_STARTED_AT_STORAGE_PREFIX}${userId}`,
+    `${PHASE_STARTED_AT_STORAGE_PREFIX}${phase}:${userId}`,
   );
 }
 
@@ -225,26 +232,34 @@ export default function HermesExperience({
    * user hits the CTA. Viewing EmptyState itself is never gated. */
   const [subscriptionWallOpen, setSubscriptionWallOpen] = useState(false);
 
-  // Anchors the elapsed-time display and the 15-minute timeout deadline to a
-  // persisted start time — recomputed only when we (re-)enter `provisioning`,
-  // so a tab close/reopen resumes the real clock instead of restarting it.
+  // Anchors the elapsed-time displays (and, for provisioning, the 15-minute
+  // timeout deadline) to persisted start times — recomputed only when we
+  // (re-)enter the phase, so a tab close/reopen resumes the real clock
+  // instead of restarting it.
   const provisioningStartedAt = useMemo(
     () =>
       uiState === "provisioning"
-        ? getOrInitProvisioningStartedAt(userId)
+        ? getOrInitPhaseStartedAt("provisioning", userId)
+        : null,
+    [uiState, userId],
+  );
+  const onboardingStartedAt = useMemo(
+    () =>
+      uiState === "onboarding"
+        ? getOrInitPhaseStartedAt("onboarding", userId)
         : null,
     [uiState, userId],
   );
 
-  // Clears the persisted start time once we leave `provisioning` (success or
-  // error) so a future, genuinely new provision attempt doesn't inherit it.
+  // Clears each persisted start time once we leave its phase (success or
+  // error) so a future, genuinely new setup attempt doesn't inherit it.
   // `loading` is exempt: it's the transient mount state BEFORE the instance
-  // fetch discovers we're mid-provision — clearing there would wipe the key
-  // on every reload and defeat the cross-reload persistence entirely.
+  // fetch discovers which phase we're in — clearing there would wipe the
+  // keys on every reload and defeat the cross-reload persistence entirely.
   useEffect(() => {
-    if (uiState !== "provisioning" && uiState !== "loading") {
-      clearProvisioningStartedAt(userId);
-    }
+    if (uiState === "loading") return;
+    if (uiState !== "provisioning") clearPhaseStartedAt("provisioning", userId);
+    if (uiState !== "onboarding") clearPhaseStartedAt("onboarding", userId);
   }, [uiState, userId]);
 
   /**
@@ -401,6 +416,13 @@ export default function HermesExperience({
     };
   }, [uiState, previewMode, t, provisioningStartedAt]);
 
+  // Nudge the sidebar nav to refetch its identity (name + orb) the moment it
+  // changes here — onboarding completing, a rename, or a destroy — instead of
+  // waiting out its 30s poll.
+  useEffect(() => {
+    requestHermesNavRefresh();
+  }, [instance?.assistantName, instance?.avatarSeed]);
+
   // Low-frequency instance refresh once we're running. The settings panel
   // mutates integration state via local overlay; without a parent refresh the
   // integrations chip and pendingConfirmations on the chat header drift until
@@ -417,6 +439,13 @@ export default function HermesExperience({
       clearInterval(interval);
     };
   }, [uiState, previewMode, refetchHermes]);
+
+  /** Recovery path out of the onboarding screen — see OnboardingProgress's
+   * onTerminalStatus. Background mode: never regresses state, safe to call
+   * repeatedly. */
+  const handleOnboardingTerminalStatus = useCallback(() => {
+    void refetchHermes({ background: true });
+  }, [refetchHermes]);
 
   const handleActivate = useCallback(async () => {
     if (!hasActiveSubscription) {
@@ -589,7 +618,12 @@ export default function HermesExperience({
   }
   if (uiState === "onboarding") {
     return (
-      <OnboardingProgress previewMode={previewMode} seed={committedOrbSeed} />
+      <OnboardingProgress
+        previewMode={previewMode}
+        seed={committedOrbSeed}
+        startedAt={onboardingStartedAt}
+        onTerminalStatus={handleOnboardingTerminalStatus}
+      />
     );
   }
   if (uiState === "error") {

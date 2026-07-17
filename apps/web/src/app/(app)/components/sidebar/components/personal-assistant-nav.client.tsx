@@ -15,6 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
+import { HERMES_NAV_REFRESH_EVENT } from "@/lib/hermes/nav-refresh";
 import { cn } from "@/lib/utils";
 
 interface PersonalAssistantNavProps {
@@ -67,11 +68,17 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
       if (document.visibilityState === "visible") void tick();
     };
     document.addEventListener("visibilitychange", onVisibility);
+    // The experience page fires this when the assistant's identity changes
+    // (onboarding completes, rename, destroy) so the nav updates immediately
+    // instead of waiting out the 30s poll.
+    const onNavRefresh = () => void tick();
+    window.addEventListener(HERMES_NAV_REFRESH_EVENT, onNavRefresh);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener(HERMES_NAV_REFRESH_EVENT, onNavRefresh);
     };
   }, [enabled]);
 

@@ -6,6 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 import FlowBackground from "@/app/personal-assistant/components/flow-background";
 import ProgressPips from "@/app/personal-assistant/components/progress-pips";
 import RotatingMessages from "@/app/personal-assistant/components/rotating-messages";
+import {
+  formatElapsed,
+  useElapsedSeconds,
+} from "@/app/personal-assistant/components/use-elapsed-seconds";
 import { AssistantOrb } from "@/components/aurora-orb";
 
 import { getHermesOnboardingProgressAction } from "@/lib/actions/hermes";
@@ -20,6 +24,17 @@ interface OnboardingProgressProps {
   previewMode: boolean;
   /** Committed orb seed, or null for the white placeholder. */
   seed: string | null;
+  /** Wall-clock ms when onboarding started, persisted across a tab
+   * close/reopen — same anchor pattern as the provisioning screen. */
+  startedAt: number | null;
+  /**
+   * Fired once when this screen's own 1s progress poll sees a terminal
+   * status (ready/running/error). The parent's instance-polling loop is a
+   * self-rescheduling timeout chain, so a single hung request kills it and
+   * the user gets stuck on this screen until a manual reload; this poll
+   * runs on a hang-proof interval and gives the transition a second path.
+   */
+  onTerminalStatus?: () => void;
 }
 
 const POLL_INTERVAL_MS = 1_000;
@@ -182,6 +197,8 @@ function useOnboardingProgress(
 export default function OnboardingProgress({
   previewMode,
   seed,
+  startedAt,
+  onTerminalStatus,
 }: OnboardingProgressProps) {
   const t = useTranslations("App.Hermes.OnboardingProgress");
   const previewSteps = useMemo(
@@ -206,6 +223,23 @@ export default function OnboardingProgress({
   );
   const displaySteps =
     progress.steps.length > 0 ? progress.steps : skeletonSteps;
+  const elapsedSeconds = useElapsedSeconds(startedAt);
+  const tProvisioning = useTranslations("App.Hermes.Provisioning");
+
+  // Keep nudging (not fire-once): if the parent's recovery refetch itself
+  // fails on a transient blip, the next nudge retries until the parent
+  // transitions away and unmounts this screen.
+  useEffect(() => {
+    if (previewMode) return;
+    const isTerminal =
+      progress.status === "ready" ||
+      progress.status === "running" ||
+      progress.status === "error";
+    if (!isTerminal) return;
+    onTerminalStatus?.();
+    const interval = window.setInterval(() => onTerminalStatus?.(), 2_000);
+    return () => window.clearInterval(interval);
+  }, [progress.status, previewMode, onTerminalStatus]);
 
   return (
     <FlowBackground>
@@ -229,6 +263,15 @@ export default function OnboardingProgress({
         </div>
 
         {/* ── Steps ───────────────────────────────────────────────── */}
+        {/* Elapsed clock, matching the provisioning screen so the two setup
+            phases read as one continuous process. */}
+        <div className="mb-2 flex items-center justify-end">
+          <span className="text-muted-foreground font-mono text-xs tabular-nums">
+            {tProvisioning("elapsedLabel", {
+              elapsed: formatElapsed(elapsedSeconds),
+            })}
+          </span>
+        </div>
         <ol className="border-border/60 bg-card/40 flex flex-col overflow-hidden rounded-xl border">
           {displaySteps.map((step, index) => (
             <StepRow
