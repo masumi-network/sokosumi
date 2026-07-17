@@ -1079,7 +1079,7 @@ export const AdminTaskDetailSchema = {
         task: {
             $ref: '#/components/schemas/Task'
         },
-        user: {
+        owner: {
             type: 'object',
             properties: {
                 id: {
@@ -1100,6 +1100,30 @@ export const AdminTaskDetailSchema = {
                 'name',
                 'email'
             ]
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                email: {
+                    type: 'string',
+                    example: 'ada@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organization: {
             type: [
@@ -1129,6 +1153,7 @@ export const AdminTaskDetailSchema = {
     },
     required: [
         'task',
+        'owner',
         'user',
         'organization'
     ]

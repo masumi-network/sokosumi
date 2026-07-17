@@ -374,10 +374,11 @@ export const adminTaskIdParamSchema = z.object({
 export const adminTaskDetailSchema = z
   .object({
     task: taskSchema,
-    user: z.object({
-      id: z.string().openapi({ example: "user_123" }),
-      name: z.string().openapi({ example: "Ada Lovelace" }),
-      email: z.string().openapi({ example: "ada@example.com" }),
+    owner: adminTaskOwnerSchema,
+    /** @deprecated Use `owner`. */
+    user: adminTaskOwnerSchema.openapi({
+      deprecated: true,
+      description: "Deprecated. Use owner instead.",
     }),
     organization: z
       .object({

@@ -149,9 +149,9 @@ export function TaskList({ initialPage }: TaskListProps) {
                   </TableCell>
                   <TableCell>
                     <span className="flex flex-col">
-                      <span>{task.user.name}</span>
+                      <span>{task.owner.name}</span>
                       <span className="text-muted-foreground text-xs">
-                        {task.user.email}
+                        {task.owner.email}
                       </span>
                     </span>
                   </TableCell>

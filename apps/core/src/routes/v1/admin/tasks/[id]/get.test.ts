@@ -151,6 +151,11 @@ describe("GET /admin/tasks/{id}", () => {
       organizationId: "org_123",
       links: [],
     });
+    expect(body.data.owner).toEqual({
+      id: "user_123",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
     expect(body.data.user).toEqual({
       id: "user_123",
       name: "Ada Lovelace",
