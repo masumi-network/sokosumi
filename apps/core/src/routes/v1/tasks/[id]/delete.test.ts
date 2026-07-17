@@ -73,6 +73,36 @@ const { prismaTransactionMock, requireTaskArchiveAccessMock, mapTaskMock } =
           (t.creatorCoworkerId as string | null | undefined) ?? null,
         creatorCoworker:
           (t.creatorCoworker as object | null | undefined) ?? null,
+        userId: (t.userId as string | undefined) ?? (t.ownerId as string),
+        user: (t.user as object | undefined) ??
+          (t.owner as object | undefined) ?? {
+            id: t.ownerId,
+            name: "Task owner",
+            image: null,
+          },
+        coworkerId:
+          (t.coworkerId as string | null | undefined) ??
+          (t.assigneeId as string | null | undefined) ??
+          null,
+        coworker:
+          (t.coworker as object | null | undefined) ??
+          (t.assignee as object | null | undefined) ??
+          (t.assigneeId
+            ? {
+                id: t.assigneeId,
+                name: "Coworker",
+                image: null,
+                slug: "coworker",
+              }
+            : null),
+        orchestratorId:
+          (t.orchestratorId as string | null | undefined) ??
+          (t.creatorOrchestratorId as string | null | undefined) ??
+          null,
+        orchestrator:
+          (t.orchestrator as object | null | undefined) ??
+          (t.creatorOrchestrator as object | null | undefined) ??
+          null,
       };
     }),
   }));

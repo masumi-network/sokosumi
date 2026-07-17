@@ -61,6 +61,12 @@ function createTaskApi(projectId: string | null = null) {
       name: "Ada Lovelace",
       image: null,
     },
+    userId: "user_123",
+    user: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
     organization: {
       id: "org_123",
       name: "Acme Labs",
@@ -68,6 +74,8 @@ function createTaskApi(projectId: string | null = null) {
     },
     assigneeId: null,
     assignee: null,
+    coworkerId: null,
+    coworker: null,
     creatorUserId: "user_123",
     creatorUser: {
       id: "user_123",
@@ -78,6 +86,8 @@ function createTaskApi(projectId: string | null = null) {
     creatorCoworker: null,
     creatorOrchestratorId: null,
     creatorOrchestrator: null,
+    orchestratorId: null,
+    orchestrator: null,
     name: "Updated Task",
     description: null,
     status: TaskStatus.DRAFT,
@@ -136,6 +146,24 @@ describe("patchTaskRequestSchema", () => {
     });
 
     expect(result.projectId).toBe(PROJECT_ID);
+  });
+
+  it("accepts deprecated coworkerId as assigneeId", () => {
+    const result = patchTaskRequestSchema.parse({
+      coworkerId: "cow_legacy",
+    });
+
+    expect(result.assigneeId).toBe("cow_legacy");
+    expect(result).not.toHaveProperty("coworkerId");
+  });
+
+  it("rejects conflicting assigneeId and coworkerId", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({
+        assigneeId: "cow_a",
+        coworkerId: "cow_b",
+      });
+    }).toThrow();
   });
 });
 

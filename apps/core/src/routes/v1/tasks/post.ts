@@ -18,6 +18,10 @@ import {
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
+  refineAssigneeIdAliasConflict,
+  resolveAssigneeIdFromRequest,
+} from "@/helpers/task-assignee-alias";
+import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
@@ -65,6 +69,12 @@ export const createTaskRequestSchema = z
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
+    /** @deprecated Use `assigneeId`. */
+    coworkerId: z.string().nullish().openapi({
+      example: "cow_123",
+      deprecated: true,
+      description: "Deprecated. Use assigneeId instead.",
+    }),
     status: z
       .enum([TaskStatus.DRAFT, TaskStatus.READY])
       .optional()
@@ -75,9 +85,10 @@ export const createTaskRequestSchema = z
   })
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
+    refineAssigneeIdAliasConflict(data, ctx);
 
-    const hasAssigneeId =
-      data.assigneeId !== null && data.assigneeId !== undefined;
+    const assigneeId = resolveAssigneeIdFromRequest(data);
+    const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
 
     if (data.status !== TaskStatus.DRAFT && !hasAssigneeId) {
       ctx.addIssue({
@@ -87,10 +98,14 @@ export const createTaskRequestSchema = z
       });
     }
   })
-  .transform((data) => ({
-    ...data,
-    channel: resolveTaskEventChannel(data),
-  }));
+  .transform((data) => {
+    const { coworkerId: _coworkerId, ...rest } = data;
+    return {
+      ...rest,
+      assigneeId: resolveAssigneeIdFromRequest(data),
+      channel: resolveTaskEventChannel(data),
+    };
+  });
 
 const route = withGlobalHeaderParameters(
   createRoute({

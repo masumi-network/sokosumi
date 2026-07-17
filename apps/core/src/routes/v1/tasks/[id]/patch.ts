@@ -11,6 +11,10 @@ import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
+import {
+  refineAssigneeIdAliasConflict,
+  resolveAssigneeIdFromRequest,
+} from "@/helpers/task-assignee-alias";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -39,19 +43,43 @@ export const patchTaskRequestSchema = z
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
+    /** @deprecated Use `assigneeId`. */
+    coworkerId: z.string().nullish().openapi({
+      example: "cow_123",
+      deprecated: true,
+      description: "Deprecated. Use assigneeId instead.",
+    }),
   })
-  .refine(
-    (data) =>
-      data.name !== undefined ||
-      data.description !== undefined ||
-      data.projectId !== undefined ||
-      data.assigneeId !== undefined,
-    {
-      message:
-        "At least one of name, description, projectId or assigneeId is required",
-      path: ["name", "description", "projectId", "assigneeId"],
-    },
-  );
+  .superRefine((data, ctx) => {
+    refineAssigneeIdAliasConflict(data, ctx);
+
+    if (
+      data.name === undefined &&
+      data.description === undefined &&
+      data.projectId === undefined &&
+      data.assigneeId === undefined &&
+      data.coworkerId === undefined
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "At least one of name, description, projectId or assigneeId is required",
+        path: ["name"],
+      });
+    }
+  })
+  .transform((data) => {
+    const { coworkerId: _coworkerId, ...rest } = data;
+    const assigneeId = resolveAssigneeIdFromRequest(data);
+    return {
+      ...rest,
+      // Only set when either alias was provided so omitted patches keep the
+      // existing assignee (handler treats `undefined` as "not provided").
+      ...(data.assigneeId !== undefined || data.coworkerId !== undefined
+        ? { assigneeId }
+        : {}),
+    };
+  });
 
 const route = createRoute({
   method: "patch",

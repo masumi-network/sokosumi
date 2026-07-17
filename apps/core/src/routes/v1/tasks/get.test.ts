@@ -409,6 +409,25 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("accepts deprecated coworkerId query as assigneeId filter", async () => {
+    const app = createApp(
+      DELEGATED_COWORKER_AUTH_CONTEXT,
+      DELEGATED_WORKSPACE_CONTEXT,
+    );
+    const response = await app.request(
+      "http://localhost/?scope=workspace&coworkerId=cow_legacy",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: delegatedCoworkerListWhere({
+          assigneeId: "cow_legacy",
+        }),
+      }),
+    );
+  });
+
   it("filters tasks by status list only", async () => {
     const app = createApp();
     const response = await app.request(

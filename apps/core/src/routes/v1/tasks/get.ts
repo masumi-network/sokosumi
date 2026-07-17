@@ -18,6 +18,10 @@ import {
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import {
+  refineAssigneeIdAliasConflict,
+  resolveAssigneeIdFromRequest,
+} from "@/helpers/task-assignee-alias";
+import {
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
@@ -107,8 +111,26 @@ const query = z
         description: "Filter tasks by assignee coworker ID",
         example: "cow_123",
       }),
+    /** @deprecated Use `assigneeId`. */
+    coworkerId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "coworkerId", in: "query" },
+        deprecated: true,
+        description: "Deprecated. Use assigneeId instead.",
+        example: "cow_123",
+      }),
   })
-  .extend(cursorPaginationQuerySchema.shape);
+  .extend(cursorPaginationQuerySchema.shape)
+  .superRefine(refineAssigneeIdAliasConflict)
+  .transform((data) => {
+    const { coworkerId: _coworkerId, ...rest } = data;
+    return {
+      ...rest,
+      assigneeId: resolveAssigneeIdFromRequest(data),
+    };
+  });
 
 const route = withGlobalHeaderParameters(
   createRoute({

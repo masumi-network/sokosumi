@@ -131,6 +131,8 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     organizationId,
     projectId: null,
     owner: { id: "user_123", name: "Task owner", image: null },
+    userId: "user_123",
+    user: { id: "user_123", name: "Task owner", image: null },
     organization:
       organizationId === null
         ? null
@@ -146,8 +148,17 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
       image: null,
       slug: "current-coworker",
     },
+    coworkerId: "cow_123",
+    coworker: {
+      id: "cow_123",
+      name: "Current Coworker",
+      image: null,
+      slug: "current-coworker",
+    },
     creatorOrchestratorId: null,
     creatorOrchestrator: null,
+    orchestratorId: null,
+    orchestrator: null,
     creatorUserId: "user_123",
     creatorUser: { id: "user_123", name: "Task owner", image: null },
     creatorCoworkerId: null,

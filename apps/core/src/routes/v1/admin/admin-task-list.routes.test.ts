@@ -110,6 +110,7 @@ describe("GET /v1/admin/tasks", () => {
         status: "RUNNING",
         createdAt: "2025-01-01T00:00:00.000Z",
         owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+        user: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     ]);

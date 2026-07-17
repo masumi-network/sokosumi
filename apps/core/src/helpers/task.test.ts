@@ -877,6 +877,54 @@ describe("mapTask", () => {
     });
   });
 
+  it("includes deprecated owner/assignee/orchestrator aliases", () => {
+    const task = {
+      id: "tsk_alias",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: null,
+      creatorUser: null,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: "01960001-0001-7001-8001-000000000099",
+      creatorOrchestrator: {
+        id: "01960001-0001-7001-8001-000000000099",
+        name: "Hermes",
+        slug: "hermes",
+      },
+      name: "Alias task",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task)).toMatchObject({
+      ownerId: "user_123",
+      userId: "user_123",
+      user: defaultTaskUser,
+      assigneeId: "cow_123",
+      coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
+      creatorOrchestratorId: "01960001-0001-7001-8001-000000000099",
+      orchestratorId: "01960001-0001-7001-8001-000000000099",
+    });
+  });
+
   it("serializes nested job workspaces", () => {
     const task = {
       id: "tsk_123",

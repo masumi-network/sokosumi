@@ -330,16 +330,23 @@ export const adminTaskListQuerySchema = z
       }),
   });
 
+const adminTaskOwnerSchema = z.object({
+  id: z.string().openapi({ example: "user_123" }),
+  name: z.string().openapi({ example: "Ada Lovelace" }),
+  email: z.string().openapi({ example: "ada@example.com" }),
+});
+
 export const adminTaskListItemSchema = z
   .object({
     id: z.string().openapi({ example: "0195b9f4-7d35-7a4e-b14e-111111111111" }),
     name: z.string().openapi({ example: "Quarterly report" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
-    owner: z.object({
-      id: z.string().openapi({ example: "user_123" }),
-      name: z.string().openapi({ example: "Ada Lovelace" }),
-      email: z.string().openapi({ example: "ada@example.com" }),
+    owner: adminTaskOwnerSchema,
+    /** @deprecated Use `owner`. */
+    user: adminTaskOwnerSchema.openapi({
+      deprecated: true,
+      description: "Deprecated. Use owner instead.",
     }),
     organization: z
       .object({

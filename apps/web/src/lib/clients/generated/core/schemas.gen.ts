@@ -969,7 +969,7 @@ export const AdminTaskListItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        user: {
+        owner: {
             type: 'object',
             properties: {
                 id: {
@@ -990,6 +990,30 @@ export const AdminTaskListItemSchema = {
                 'name',
                 'email'
             ]
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                email: {
+                    type: 'string',
+                    example: 'ada@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organization: {
             type: [
@@ -1022,6 +1046,7 @@ export const AdminTaskListItemSchema = {
         'name',
         'status',
         'createdAt',
+        'owner',
         'user',
         'organization'
     ]
@@ -1134,6 +1159,23 @@ export const TaskSchema = {
         owner: {
             $ref: '#/components/schemas/UserSummary'
         },
+        userId: {
+            type: 'string',
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use ownerId instead.'
+        },
+        user: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use owner instead.'
+                }
+            ]
+        },
         organizationId: {
             type: [
                 'string',
@@ -1162,6 +1204,26 @@ export const TaskSchema = {
         },
         assignee: {
             $ref: '#/components/schemas/CoworkerSummary'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cow_123',
+            deprecated: true,
+            description: 'Deprecated. Use assigneeId instead.'
+        },
+        coworker: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/CoworkerSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use assignee instead.'
+                }
+            ]
         },
         creatorUserId: {
             type: [
@@ -1206,6 +1268,27 @@ export const TaskSchema = {
         },
         creatorOrchestrator: {
             $ref: '#/components/schemas/OrchestratorSummary'
+        },
+        orchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099',
+            deprecated: true,
+            description: 'Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.'
+        },
+        orchestrator: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/OrchestratorSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use creatorOrchestrator instead.'
+                }
+            ]
         },
         name: {
             type: 'string',
@@ -1314,17 +1397,23 @@ export const TaskSchema = {
         'updatedAt',
         'ownerId',
         'owner',
+        'userId',
+        'user',
         'organizationId',
         'organization',
         'projectId',
         'assigneeId',
         'assignee',
+        'coworkerId',
+        'coworker',
         'creatorUserId',
         'creatorUser',
         'creatorCoworkerId',
         'creatorCoworker',
         'creatorOrchestratorId',
         'creatorOrchestrator',
+        'orchestratorId',
+        'orchestrator',
         'name',
         'description',
         'status',
@@ -9709,6 +9798,23 @@ export const TaskListItemSchema = {
         owner: {
             $ref: '#/components/schemas/UserSummary'
         },
+        userId: {
+            type: 'string',
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use ownerId instead.'
+        },
+        user: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use owner instead.'
+                }
+            ]
+        },
         organizationId: {
             type: [
                 'string',
@@ -9737,6 +9843,26 @@ export const TaskListItemSchema = {
         },
         assignee: {
             $ref: '#/components/schemas/CoworkerSummary'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cow_123',
+            deprecated: true,
+            description: 'Deprecated. Use assigneeId instead.'
+        },
+        coworker: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/CoworkerSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use assignee instead.'
+                }
+            ]
         },
         creatorUserId: {
             type: [
@@ -9781,6 +9907,27 @@ export const TaskListItemSchema = {
         },
         creatorOrchestrator: {
             $ref: '#/components/schemas/OrchestratorSummary'
+        },
+        orchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099',
+            deprecated: true,
+            description: 'Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.'
+        },
+        orchestrator: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/OrchestratorSummary'
+                },
+                {
+                    deprecated: true,
+                    description: 'Deprecated. Use creatorOrchestrator instead.'
+                }
+            ]
         },
         name: {
             type: 'string',
@@ -9863,17 +10010,23 @@ export const TaskListItemSchema = {
         'updatedAt',
         'ownerId',
         'owner',
+        'userId',
+        'user',
         'organizationId',
         'organization',
         'projectId',
         'assigneeId',
         'assignee',
+        'coworkerId',
+        'coworker',
         'creatorUserId',
         'creatorUser',
         'creatorCoworkerId',
         'creatorCoworker',
         'creatorOrchestratorId',
         'creatorOrchestrator',
+        'orchestratorId',
+        'orchestrator',
         'name',
         'description',
         'status',

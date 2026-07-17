@@ -91,6 +91,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       status: task.status,
       createdAt: task.createdAt,
       owner: task.owner,
+      // Deprecated alias — keep until admin clients migrate.
+      user: task.owner,
       organization: task.organization,
     }));
 

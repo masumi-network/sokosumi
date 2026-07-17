@@ -52,6 +52,12 @@ function buildMapTaskResponse(task: {
       name: "Ada Lovelace",
       image: null,
     },
+    userId: "user_123",
+    user: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
     organization: organizationId
       ? {
           id: organizationId,
@@ -61,6 +67,8 @@ function buildMapTaskResponse(task: {
       : null,
     assigneeId: null,
     assignee: null,
+    coworkerId: null,
+    coworker: null,
     creatorUserId: "user_123",
     creatorUser: {
       id: "user_123",
@@ -71,6 +79,8 @@ function buildMapTaskResponse(task: {
     creatorCoworker: null,
     creatorOrchestratorId: null,
     creatorOrchestrator: null,
+    orchestratorId: null,
+    orchestrator: null,
     name: task.name ?? "New Task",
     description: null,
     status: task.status ?? TaskStatus.DRAFT,
@@ -181,9 +191,34 @@ describe("createTaskRequestSchema", () => {
     });
 
     expect(result.status).toBe(TaskStatus.READY);
+    expect(result.assigneeId).toBe("cow_123");
   });
 
-  it("rejects READY status without coworkerId", () => {
+  it("accepts deprecated coworkerId as assigneeId", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Ready task",
+      description: null,
+      coworkerId: "cow_legacy",
+      status: TaskStatus.READY,
+    });
+
+    expect(result.assigneeId).toBe("cow_legacy");
+    expect(result).not.toHaveProperty("coworkerId");
+  });
+
+  it("rejects conflicting assigneeId and coworkerId", () => {
+    expect(() => {
+      createTaskRequestSchema.parse({
+        name: "Ready task",
+        description: null,
+        assigneeId: "cow_a",
+        coworkerId: "cow_b",
+        status: TaskStatus.READY,
+      });
+    }).toThrow();
+  });
+
+  it("rejects READY status without assigneeId", () => {
     expect(() => {
       createTaskRequestSchema.parse({
         name: "Ready task",

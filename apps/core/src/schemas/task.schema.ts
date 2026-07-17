@@ -88,6 +88,17 @@ const taskBaseSchema = z.object({
     description: "Task owner. Always a user.",
   }),
   owner: userSummarySchema,
+  /** @deprecated Use `ownerId`. */
+  userId: z.string().openapi({
+    example: "user_123",
+    deprecated: true,
+    description: "Deprecated. Use ownerId instead.",
+  }),
+  /** @deprecated Use `owner`. */
+  user: userSummarySchema.openapi({
+    deprecated: true,
+    description: "Deprecated. Use owner instead.",
+  }),
   organizationId: z.string().nullable().openapi({ example: "org_123" }),
   organization: organizationSummarySchema.nullable(),
   projectId: z.string().uuid().nullable().openapi({
@@ -98,6 +109,17 @@ const taskBaseSchema = z.object({
     description: "Marketplace coworker assignee. Never an orchestrator.",
   }),
   assignee: coworkerSummarySchema.nullable(),
+  /** @deprecated Use `assigneeId`. */
+  coworkerId: z.string().nullable().openapi({
+    example: "cow_123",
+    deprecated: true,
+    description: "Deprecated. Use assigneeId instead.",
+  }),
+  /** @deprecated Use `assignee`. */
+  coworker: coworkerSummarySchema.nullable().openapi({
+    deprecated: true,
+    description: "Deprecated. Use assignee instead.",
+  }),
   creatorUserId: z.string().nullable().openapi({
     example: "user_123",
     description:
@@ -114,6 +136,18 @@ const taskBaseSchema = z.object({
     description: "Set when an orchestrator created the task.",
   }),
   creatorOrchestrator: orchestratorSummarySchema.nullable(),
+  /** @deprecated Use `creatorOrchestratorId`. */
+  orchestratorId: z.string().uuid().nullable().openapi({
+    example: "01960001-0001-7001-8001-000000000099",
+    deprecated: true,
+    description:
+      "Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.",
+  }),
+  /** @deprecated Use `creatorOrchestrator`. */
+  orchestrator: orchestratorSummarySchema.nullable().openapi({
+    deprecated: true,
+    description: "Deprecated. Use creatorOrchestrator instead.",
+  }),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({

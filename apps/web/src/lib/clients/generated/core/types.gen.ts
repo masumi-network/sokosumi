@@ -270,6 +270,16 @@ export type AdminTaskListItem = {
     name: string;
     status: TaskStatus;
     createdAt: Date;
+    owner: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
     user: {
         id: string;
         name: string;
@@ -324,6 +334,13 @@ export type Task = {
      */
     ownerId: string;
     owner: UserSummary;
+    /**
+     * Deprecated. Use ownerId instead.
+     *
+     * @deprecated
+     */
+    userId: string;
+    user: UserSummary & unknown;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -332,6 +349,13 @@ export type Task = {
      */
     assigneeId: string | null;
     assignee: CoworkerSummary;
+    /**
+     * Deprecated. Use assigneeId instead.
+     *
+     * @deprecated
+     */
+    coworkerId: string | null;
+    coworker: CoworkerSummary & unknown;
     /**
      * Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.
      */
@@ -349,6 +373,13 @@ export type Task = {
      */
     creatorOrchestratorId: string | null;
     creatorOrchestrator: OrchestratorSummary;
+    /**
+     * Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
+    orchestratorId: string | null;
+    orchestrator: OrchestratorSummary & unknown;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -2853,6 +2884,13 @@ export type TaskListItem = {
      */
     ownerId: string;
     owner: UserSummary;
+    /**
+     * Deprecated. Use ownerId instead.
+     *
+     * @deprecated
+     */
+    userId: string;
+    user: UserSummary & unknown;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -2861,6 +2899,13 @@ export type TaskListItem = {
      */
     assigneeId: string | null;
     assignee: CoworkerSummary;
+    /**
+     * Deprecated. Use assigneeId instead.
+     *
+     * @deprecated
+     */
+    coworkerId: string | null;
+    coworker: CoworkerSummary & unknown;
     /**
      * Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.
      */
@@ -2878,6 +2923,13 @@ export type TaskListItem = {
      */
     creatorOrchestratorId: string | null;
     creatorOrchestrator: OrchestratorSummary;
+    /**
+     * Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
+    orchestratorId: string | null;
+    orchestrator: OrchestratorSummary & unknown;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -22592,6 +22644,12 @@ export type GetTasksData = {
          */
         assigneeId?: string;
         /**
+         * Deprecated. Use assigneeId instead.
+         *
+         * @deprecated
+         */
+        coworkerId?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -22672,6 +22730,12 @@ export type PostTasksData = {
         description?: string | null;
         projectId?: string | null;
         assigneeId?: string | null;
+        /**
+         * Deprecated. Use assigneeId instead.
+         *
+         * @deprecated
+         */
+        coworkerId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
         origin?: Channel & unknown;
@@ -23261,6 +23325,12 @@ export type PatchTasksByIdData = {
         description?: string | null;
         projectId?: string | null;
         assigneeId?: string | null;
+        /**
+         * Deprecated. Use assigneeId instead.
+         *
+         * @deprecated
+         */
+        coworkerId?: string | null;
     };
     path: {
         id: string;
