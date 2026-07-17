@@ -66,7 +66,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `VERCEL_BRANCH_URL` | Optional. Stable branch URL on Vercel Preview |
 | `VERCEL_PROJECT_PRODUCTION_URL` | Optional. Vercel [system variable](https://vercel.com/docs/projects/environment-variables/system-environment-variables): production hostname for the project |
 
-**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`: when `VERCEL_ENV=preview`, Core prefers the branch alias on `*.preview.sokosumi.com` (from `VERCEL_GIT_COMMIT_REF`), then any other sokosumi-hosted `VERCEL_*` URL, then `VERCEL_BRANCH_URL` / `VERCEL_URL`, then `BETTER_AUTH_URL`. Preferring `*.preview.sokosumi.com` over the per-deployment `*.vercel.app` URL is required so magic-link verify responses can set session cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`.
+**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`: when `VERCEL_ENV=preview`, Core prefers `VERCEL_BRANCH_URL` (stable branch alias) over `VERCEL_URL` (per-deployment), then `BETTER_AUTH_URL`. With [Preview Deployment Suffix](https://vercel.com/docs/deployments/preview-deployment-suffix) set to `preview.sokosumi.com`, those system vars already use a sokosumi host — required so magic-link verify can set session cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`.
 
 **Web app → Core API:** configure the web app’s `CORE_APP_BASE_URL` to point at this service (e.g. `http://localhost:8787` locally).
 
@@ -246,7 +246,7 @@ All other endpoints require authentication.
 
 ### Authentication Issues
 
-1. Verify `BETTER_AUTH_SECRET` matches the web app and `BETTER_AUTH_URL` reflects the **Core** public URL (on Vercel Preview, confirm `VERCEL_ENV` / `VERCEL_GIT_COMMIT_REF` so `getBetterAuthPublicBaseUrl()` resolves to the `*.preview.sokosumi.com` branch host — not `*.vercel.app`)
+1. Verify `BETTER_AUTH_SECRET` matches the web app and `BETTER_AUTH_URL` reflects the **Core** public URL (on Vercel Preview, confirm `VERCEL_BRANCH_URL` is the sokosumi preview host — via Preview Deployment Suffix — so magic-link cookies work)
 2. Verify the web app’s `CORE_APP_BASE_URL` points at this Core deployment
 3. For browser calls from the web app, confirm the page origin is allowlisted for CORS and Better Auth `trustedOrigins` (see **CORS Configuration** above)
 4. Verify coworker callers use dedicated `coworker_*` API keys where applicable

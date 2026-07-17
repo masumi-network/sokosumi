@@ -57,11 +57,6 @@ export interface ResolveBetterAuthPublicBaseUrlParams {
   vercelUrl: string | undefined;
   vercelBranchUrl: string | undefined;
   vercelProductionUrl: string | undefined;
-  /**
-   * Optional constructed preview host (e.g. branch alias on
-   * *.preview.sokosumi.com). Preferred over Vercel system URLs when set.
-   */
-  preferredPreviewUrl?: string | undefined;
   fallbackUrl: string;
 }
 
@@ -73,10 +68,10 @@ export interface ResolveBetterAuthProductionUrlParams {
 /**
  * Resolves the public Better Auth base URL for Vercel Preview vs production/local.
  *
- * On Vercel Preview, prefers a sokosumi-hosted URL (custom preview domain /
- * branch alias) over the per-deployment `VERCEL_URL` (usually *.vercel.app).
- * Magic-link verify URLs and session cookies with `BETTER_AUTH_COOKIE_DOMAIN`
- * require a *.sokosumi.com host.
+ * On Vercel Preview, prefers `VERCEL_BRANCH_URL` (stable branch alias) over
+ * `VERCEL_URL` (per-deployment hash). When Preview Deployment Suffix is
+ * `preview.sokosumi.com`, those system vars already carry the sokosumi host
+ * needed for magic-link cookies with `BETTER_AUTH_COOKIE_DOMAIN`.
  *
  * On Vercel Production, prefers `vercelProductionUrl`, then the fallback.
  */
@@ -88,19 +83,16 @@ export function resolveBetterAuthPublicBaseUrl(
     vercelUrl,
     vercelBranchUrl,
     vercelProductionUrl,
-    preferredPreviewUrl,
     fallbackUrl,
   } = params;
 
   let raw: string;
   switch (vercelEnv) {
     case "preview":
+      // Branch URL first (stable alias). Prefer a sokosumi host if either
+      // Vercel system URL already uses the preview deployment suffix.
       raw =
-        pickPreferredPreviewUrl([
-          preferredPreviewUrl,
-          vercelBranchUrl,
-          vercelUrl,
-        ]) || fallbackUrl;
+        pickPreferredPreviewUrl([vercelBranchUrl, vercelUrl]) || fallbackUrl;
       break;
     case "production":
       raw = firstNonEmpty(vercelProductionUrl, fallbackUrl) ?? fallbackUrl;

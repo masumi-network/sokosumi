@@ -8,18 +8,16 @@ import {
   resolveBetterAuthPublicBaseUrl,
 } from "../better-auth-public-url.js";
 
-test("preview prefers preferredPreviewUrl when set", () => {
+test("preview prefers VERCEL_BRANCH_URL over VERCEL_URL", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "preview",
-      preferredPreviewUrl:
-        "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
       vercelUrl: "https://my-app-abc123.vercel.app",
       vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
       vercelProductionUrl: undefined,
       fallbackUrl: "https://app.example.com",
     }),
-    "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
+    "https://my-app-git-feature-team.vercel.app",
   );
 });
 
@@ -37,16 +35,16 @@ test("preview prefers sokosumi branch URL over vercel.app deployment URL", () =>
   );
 });
 
-test("preview falls back to VERCEL_BRANCH_URL when preferred host missing", () => {
+test("preview prefers sokosumi deployment URL when branch URL is vercel.app", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "preview",
-      vercelUrl: undefined,
-      vercelBranchUrl: "https://my-app-git-main-team.vercel.app",
+      vercelUrl: "https://sokosumi-core-preprod-abc123.preview.sokosumi.com",
+      vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
       vercelProductionUrl: undefined,
       fallbackUrl: "https://app.example.com",
     }),
-    "https://my-app-git-main-team.vercel.app",
+    "https://sokosumi-core-preprod-abc123.preview.sokosumi.com",
   );
 });
 
@@ -158,10 +156,9 @@ test("strips trailing slashes from result", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "preview",
-      preferredPreviewUrl:
-        "https://sokosumi-core-preprod-git-x.preview.sokosumi.com///",
       vercelUrl: "https://x.vercel.app///",
-      vercelBranchUrl: undefined,
+      vercelBranchUrl:
+        "https://sokosumi-core-preprod-git-x.preview.sokosumi.com///",
       vercelProductionUrl: undefined,
       fallbackUrl: "https://app.example.com/",
     }),
