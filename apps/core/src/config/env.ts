@@ -177,6 +177,12 @@ function getWebRelatedProjectName(network: EnvConfig["NETWORK"]): string {
     : "sokosumi-app-mainnet";
 }
 
+function getCoreRelatedProjectName(network: EnvConfig["NETWORK"]): string {
+  return network === "Preprod"
+    ? "sokosumi-core-preprod"
+    : "sokosumi-core-mainnet";
+}
+
 function sanitizePreviewBranchSegment(value: string): string | undefined {
   let normalized = "";
   let previousWasSeparator = false;
@@ -232,6 +238,36 @@ export function resolveWebRelatedProjectFallbackHost(
   return params.configuredWebAppBaseUrl;
 }
 
+export interface ResolveCorePreviewPublicBaseUrlParams {
+  network: EnvConfig["NETWORK"];
+  vercelEnv?: string;
+  vercelGitCommitRef?: string;
+}
+
+/**
+ * Stable Core public host on Vercel Preview (`*.preview.sokosumi.com`).
+ * Used for Better Auth baseURL so magic-link emails and session cookies land
+ * on a sokosumi.com host (not the per-deployment `*.vercel.app` URL).
+ */
+export function resolveCorePreviewPublicBaseUrl(
+  params: ResolveCorePreviewPublicBaseUrlParams,
+): string | undefined {
+  if (params.vercelEnv !== "preview") {
+    return undefined;
+  }
+
+  const branchSegment = sanitizePreviewBranchSegment(
+    params.vercelGitCommitRef ?? "",
+  );
+  if (!branchSegment) {
+    return undefined;
+  }
+
+  return `https://${getCoreRelatedProjectName(
+    params.network,
+  )}-git-${branchSegment}.${PREVIEW_DOMAIN}`;
+}
+
 export function validateEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
@@ -272,15 +308,22 @@ export function getWebAppBaseUrl(): string {
 }
 
 /**
- * Public Better Auth base URL (Core deployment). On Vercel Preview, uses the
- * deployment or branch URL when `VERCEL_ENV=preview`. On Vercel Production,
- * prefers `VERCEL_PROJECT_PRODUCTION_URL` when set, then `BETTER_AUTH_URL`.
+ * Public Better Auth base URL (Core deployment). On Vercel Preview, prefers
+ * the branch alias on `*.preview.sokosumi.com` (required for magic-link
+ * cookies with `BETTER_AUTH_COOKIE_DOMAIN`), then other sokosumi-hosted Vercel
+ * URLs, then `VERCEL_*` / `BETTER_AUTH_URL`. On Vercel Production, prefers
+ * `VERCEL_PROJECT_PRODUCTION_URL` when set, then `BETTER_AUTH_URL`.
  */
 export function getBetterAuthPublicBaseUrl(): string {
   const env = getEnv();
 
   return resolveBetterAuthPublicBaseUrl({
     vercelEnv: env.VERCEL_ENV,
+    preferredPreviewUrl: resolveCorePreviewPublicBaseUrl({
+      network: env.NETWORK,
+      vercelEnv: env.VERCEL_ENV,
+      vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
+    }),
     vercelUrl: env.VERCEL_URL,
     vercelBranchUrl: env.VERCEL_BRANCH_URL,
     vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,

@@ -3,33 +3,63 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import {
+  isSokosumiAuthHost,
   resolveBetterAuthProductionUrl,
   resolveBetterAuthPublicBaseUrl,
 } from "../better-auth-public-url.js";
 
-test("preview uses VERCEL_URL when set", () => {
+test("preview prefers preferredPreviewUrl when set", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "preview",
+      preferredPreviewUrl:
+        "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
       vercelUrl: "https://my-app-abc123.vercel.app",
-      vercelBranchUrl: "https://my-app-git-main-team.vercel.app",
-      vercelProductionUrl: undefined,
-      fallbackUrl: "https://app.example.com",
-    }),
-    "https://my-app-abc123.vercel.app",
-  );
-});
-
-test("preview falls back to VERCEL_BRANCH_URL when deployment URL missing", () => {
-  assert.equal(
-    resolveBetterAuthPublicBaseUrl({
-      vercelEnv: "preview",
-      vercelUrl: undefined,
       vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
       vercelProductionUrl: undefined,
       fallbackUrl: "https://app.example.com",
     }),
-    "https://my-app-git-feature-team.vercel.app",
+    "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
+  );
+});
+
+test("preview prefers sokosumi branch URL over vercel.app deployment URL", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "https://my-app-abc123.vercel.app",
+      vercelBranchUrl:
+        "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
+      vercelProductionUrl: undefined,
+      fallbackUrl: "https://app.example.com",
+    }),
+    "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
+  );
+});
+
+test("preview falls back to VERCEL_BRANCH_URL when preferred host missing", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: undefined,
+      vercelBranchUrl: "https://my-app-git-main-team.vercel.app",
+      vercelProductionUrl: undefined,
+      fallbackUrl: "https://app.example.com",
+    }),
+    "https://my-app-git-main-team.vercel.app",
+  );
+});
+
+test("preview falls back to VERCEL_URL when branch URL missing", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "https://my-app-abc123.vercel.app",
+      vercelBranchUrl: undefined,
+      vercelProductionUrl: undefined,
+      fallbackUrl: "https://app.example.com",
+    }),
+    "https://my-app-abc123.vercel.app",
   );
 });
 
@@ -105,9 +135,9 @@ test("undefined vercelEnv uses fallback URL", () => {
       vercelUrl: "https://preview.vercel.app",
       vercelBranchUrl: undefined,
       vercelProductionUrl: undefined,
-      fallbackUrl: "http://localhost:3000",
+      fallbackUrl: "[REDACTED]",
     }),
-    "http://localhost:3000",
+    "[REDACTED]",
   );
 });
 
@@ -118,9 +148,9 @@ test("development vercelEnv uses fallback URL", () => {
       vercelUrl: "https://dev.vercel.app",
       vercelBranchUrl: undefined,
       vercelProductionUrl: undefined,
-      fallbackUrl: "http://localhost:3000",
+      fallbackUrl: "[REDACTED]",
     }),
-    "http://localhost:3000",
+    "[REDACTED]",
   );
 });
 
@@ -128,12 +158,14 @@ test("strips trailing slashes from result", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "preview",
+      preferredPreviewUrl:
+        "https://sokosumi-core-preprod-git-x.preview.sokosumi.com///",
       vercelUrl: "https://x.vercel.app///",
       vercelBranchUrl: undefined,
       vercelProductionUrl: undefined,
       fallbackUrl: "https://app.example.com/",
     }),
-    "https://x.vercel.app",
+    "https://sokosumi-core-preprod-git-x.preview.sokosumi.com",
   );
 });
 
@@ -155,4 +187,15 @@ test("production URL falls back to fallback URL when Vercel URL missing", () => 
     }),
     "https://app.example.com/auth",
   );
+});
+
+test("isSokosumiAuthHost accepts preview and apex hosts", () => {
+  assert.equal(
+    isSokosumiAuthHost(
+      "https://sokosumi-core-preprod-git-x.preview.sokosumi.com",
+    ),
+    true,
+  );
+  assert.equal(isSokosumiAuthHost("api.preprod.sokosumi.com"), true);
+  assert.equal(isSokosumiAuthHost("https://my-app.vercel.app"), false);
 });

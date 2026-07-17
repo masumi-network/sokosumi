@@ -13,6 +13,7 @@ export {
   resolveBetterAuthCookiePrefix,
 } from "./better-auth-cookie-prefix.js";
 export {
+  isSokosumiAuthHost,
   type ResolveBetterAuthProductionUrlParams,
   type ResolveBetterAuthPublicBaseUrlParams,
   resolveBetterAuthProductionUrl,
