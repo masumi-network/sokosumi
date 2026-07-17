@@ -13,7 +13,7 @@ import { checkMigrateDeployEnv } from "../src/helpers/migrate-deploy-preflight.j
 import {
   planNeonPreviewBranchReset,
   resetNeonPreviewBranchFromParent,
-} from "../src/helpers/neon-preview-branch-reset.js";
+} from "./neon-preview-branch-reset.js";
 
 async function main(): Promise<void> {
   // Fail closed before any destructive Neon reset when Preview is misconfigured.

@@ -16,6 +16,6 @@
     "incremental": false,
     "preserveSymlinks": true
   },
-  "include": ["src/**/*", "**/*.test.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }

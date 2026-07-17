@@ -269,10 +269,12 @@ pnpm approve-builds @sentry/profiling-node
 Core’s [`vercel.json`](./vercel.json) sets `buildCommand` to `pnpm vercel-build`, which:
 
 1. Runs `pnpm run build` (workspace deps + `tsup`)
-2. On success, runs `@sokosumi/database`’s `prisma:migrate:deploy` script:
+2. On success, runs `@sokosumi/database`’s `prisma:migrate:deploy` script (`tsx scripts/migrate-deploy.ts`):
    - **Preview:** reset the Neon DB branch from its parent (Neon API), then `prisma migrate deploy`
    - **Production / other:** `prisma migrate deploy` only
 3. On migrate (or reset) failure, the build exits non-zero and Vercel does not activate the new deployment
+
+The migrate script runs via `tsx` from `@sokosumi/database` **devDependencies**. Keep Vercel installing devDependencies at build time (do not set `NPM_CONFIG_PRODUCTION=true` / omit-dev installs for Core builds).
 
 **Order is intentional:** migrate runs only after a successful app build so a compile failure never touches the database. Schema still applies before Vercel activates the new deployment once migrate succeeds (unlike some Neon samples that migrate first).
 
