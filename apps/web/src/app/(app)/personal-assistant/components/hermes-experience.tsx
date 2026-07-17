@@ -238,8 +238,13 @@ export default function HermesExperience({
 
   // Clears the persisted start time once we leave `provisioning` (success or
   // error) so a future, genuinely new provision attempt doesn't inherit it.
+  // `loading` is exempt: it's the transient mount state BEFORE the instance
+  // fetch discovers we're mid-provision — clearing there would wipe the key
+  // on every reload and defeat the cross-reload persistence entirely.
   useEffect(() => {
-    if (uiState !== "provisioning") clearProvisioningStartedAt(userId);
+    if (uiState !== "provisioning" && uiState !== "loading") {
+      clearProvisioningStartedAt(userId);
+    }
   }, [uiState, userId]);
 
   /**
@@ -462,6 +467,10 @@ export default function HermesExperience({
     }
     setInstance(null);
     setInitialMessages([]);
+    // Forget the destroyed assistant's orb choice — the next activation is a
+    // fresh identity and must start from the white placeholder, not the old
+    // assistant's colour.
+    setCommittedSeed(undefined);
     setUiState("idle");
   }, [previewMode, t]);
 

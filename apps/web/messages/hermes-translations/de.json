@@ -1,5 +1,4 @@
 {
-  "BetaTag": "Beta",
   "Common": {
     "cancel": "Abbrechen",
     "hermesAvatarAlt": "Persönlicher Assistent",
@@ -163,7 +162,17 @@
       "persistent": "dauerhaft",
       "secrets": "Geheimnisse",
       "sharedWithOthers": "Mit anderen geteilt"
-    }
+    },
+    "feature2Title": "Stellt Spezialisten-Agenten ein",
+    "feature2Body": "Zieht bei Bedarf jeden Sokosumi-Agenten hinzu.",
+    "feature4Title": "Läuft in deiner eigenen Micro-VM",
+    "feature4Body": "Standardmäßig isoliert. Deine Daten bleiben deine.",
+    "feature5Title": "Geplante Aufgaben",
+    "feature5Body": "Tägliche Briefings, Follow-ups, Erinnerungen. Einmal einrichten.",
+    "feature7Title": "Souverän per Design",
+    "feature7Body": "Open-Source-Modelle, gehostet in der Schweiz.",
+    "feature6Title": "Arbeitet mit deinem ganzen Stack",
+    "feature6Body": "Mail, Kalender, CRM, Code, Dokumente. Alles in einem Chat."
   },
   "Experience": {
     "destroyFailed": "Dein Assistent konnte nicht gelöscht werden.",

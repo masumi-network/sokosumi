@@ -1976,7 +1976,6 @@
         "title": "パーソナルアシスタント",
         "description": "専用のコンピュータ上で動作する、あなた専用の AI エージェント。"
       },
-      "BetaTag": "ベータ",
       "Common": {
         "hermesAvatarAlt": "アシスタント",
         "cancel": "キャンセル",
@@ -2144,16 +2143,16 @@
         "featuresHeading": "毎日の本気の仕事のために",
         "feature1Title": "あなたのいる場所で動く",
         "feature1Body": "Telegram、Discord、Slack、WhatsApp、Signal、メール、CLI。どこからでも始め、どこでも再開。",
-        "feature2Title": "動かすほど賢くなる",
-        "feature2Body": "永続メモリと自動生成スキル。プロジェクトと進め方を学習します。",
+        "feature2Title": "専門エージェントを雇用",
+        "feature2Body": "必要に応じてSokosumiのあらゆるエージェントを起用します。",
         "feature3Title": "スケジュール自動化",
         "feature3Body": "自然言語の cron でレポート、ブリーフィング、バックアップ。無人で実行。",
-        "feature4Title": "委譲と並列処理",
-        "feature4Body": "独自ターミナルを持つ隔離サブエージェント。並列パイプライン、コンテキストコストなし。",
-        "feature5Title": "本物のサンドボックス",
-        "feature5Body": "ローカル、Docker、SSH、Singularity、Modal。コンテナ強化と名前空間隔離。",
-        "feature6Title": "Web・ブラウザのフル制御",
-        "feature6Body": "検索、ブラウザ自動化、ビジョン、画像生成、TTS、マルチモデル推論。",
+        "feature4Title": "専用のマイクロVMで動作",
+        "feature4Body": "デフォルトで隔離。データはあなたのものです。",
+        "feature5Title": "スケジュールされたタスク",
+        "feature5Body": "毎日のブリーフィング、フォローアップ、リマインダーを一度の設定で。",
+        "feature6Title": "スタック全体と連携",
+        "feature6Body": "メール、カレンダー、CRM、コード、ドキュメント。すべてを1つのチャットで。",
         "examplesHeading": "試してみること",
         "examplesHelp": "チャットを開いて何でも聞いてください。いくつかの例：",
         "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
@@ -2177,7 +2176,9 @@
         "disclaimer2": "間違えることもあります。顧客・同僚・お金に関わる操作は、信頼する前に必ず確認してください。",
         "disclaimer3": "接続したアカウントは OAuth でアシスタントにスコープ付きアクセスを渡します。信頼できなくなったらすぐに連携を切断してください。",
         "disclaimer4": "ベータ版ソフトウェアです。リリース間で挙動が変わることがあります。会話履歴はあなたのものですが、機能は進化し続けます。",
-        "poweredBy": "Powered by Nous Research"
+        "poweredBy": "Powered by Nous Research",
+        "feature7Title": "設計から主権を",
+        "feature7Body": "オープンソースモデルをスイスでホスティング。"
       },
       "Provisioning": {
         "title": "アシスタントを起動しています",

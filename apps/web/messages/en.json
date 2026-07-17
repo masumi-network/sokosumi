@@ -1987,7 +1987,6 @@
         "title": "Personal Assistant",
         "description": "Your private AI agent on its own computer."
       },
-      "BetaTag": "Beta",
       "Common": {
         "hermesAvatarAlt": "Personal Assistant",
         "cancel": "Cancel",
@@ -2639,6 +2638,7 @@
           "taskManager": "Tasks",
           "projects": "Projects",
           "hermes": "Personal Assistant",
+          "hermesUnread": "{count} unread",
           "history": "History",
           "admin": "Admin",
           "settings": "Settings",

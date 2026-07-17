@@ -15,7 +15,7 @@ end-user copy and screenshots, see the in-app empty state.
 ```
                      ┌──────────────────────┐
    browser  ──────►  │  apps/web (Next.js)  │
-                     │  /hermes route       │
+                     │ /personal-assistant  │
                      └──────────┬───────────┘
                                 │ server actions / SDK calls
                                 ▼
@@ -278,13 +278,13 @@ hard local-only reset, drop those rows directly.
 ## Web-side files
 
 ```
-apps/web/src/app/(app)/hermes/
+apps/web/src/app/(app)/personal-assistant/
 ├── README.md                            ← you are here
 ├── layout.tsx                           ← beta-flag gate + FullscreenEffect
 ├── page.tsx                             ← session pass-through, renders HermesExperience
 └── components/
     ├── hermes-experience.tsx            ← state machine + polling
-    ├── empty-state.tsx                  ← /hermes when no instance — hero + journey + features + examples + disclaimer
+    ├── empty-state.tsx                  ← /personal-assistant when no instance — hero + journey + features + examples + disclaimer
     ├── provisioning-state.tsx           ← honest "Setting up your agent…" view
     ├── onboarding-screen.tsx            ← 5-step wizard: Name → Look/personality → Autonomy → Integrations → Review
     ├── onboarding-progress.tsx          ← orchestrator step poll UI

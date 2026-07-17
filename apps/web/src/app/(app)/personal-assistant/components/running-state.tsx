@@ -837,6 +837,17 @@ export default function RunningState({
   }, []);
 
   const firstName = userName?.split(" ")[0] ?? null;
+  // Confirmations already resolved somewhere durable — e.g. approved in
+  // another tab or device. Their persisted audit cards are in `messages`,
+  // while a lagging instance snapshot may still list the same id as
+  // pending; without this set the user would see an interactive pending
+  // card AND the resolved card for the same confirmation at once.
+  const persistedResolvedIds = new Set(
+    messages
+      .filter((m) => m.kind === HERMES_CONFIRMATION_CARD_KIND)
+      .map((m) => parseConfirmationCardMessage(m.content)?.confirmation.id)
+      .filter((id): id is string => Boolean(id)),
+  );
   // Active (still-pending) cards — interactive. We exclude anything the
   // user has already resolved this session so the optimistic transition
   // to "resolved" doesn't briefly render the same id twice while the
@@ -844,7 +855,9 @@ export default function RunningState({
   const pendingCards = [
     ...(instance?.pendingConfirmations ?? []),
     ...mockConfirmations,
-  ].filter((c) => !resolvedConfirmations.has(c.id));
+  ].filter(
+    (c) => !resolvedConfirmations.has(c.id) && !persistedResolvedIds.has(c.id),
+  );
   const resolvedCards = Array.from(resolvedConfirmations.values());
   // Interleave resolved confirmation cards into the message timeline by when
   // they were resolved, so they sit in chronological order (and move up as the

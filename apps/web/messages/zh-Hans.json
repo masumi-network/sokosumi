@@ -1976,7 +1976,6 @@
         "title": "个人助手",
         "description": "在你专属计算机上运行的私人 AI 助手。"
       },
-      "BetaTag": "测试版",
       "Common": {
         "hermesAvatarAlt": "个人助手",
         "cancel": "取消",
@@ -2144,16 +2143,16 @@
         "featuresHeading": "为日常严肃工作而打造",
         "feature1Title": "在你所在之处工作",
         "feature1Body": "Telegram、Discord、Slack、WhatsApp、Signal、邮件、CLI。随处开始、随处继续。",
-        "feature2Title": "运行越久越智能",
-        "feature2Body": "持久记忆与自动生成技能，学习你的项目与执行方式。",
+        "feature2Title": "雇用专家代理",
+        "feature2Body": "按需调用任何 Sokosumi 代理。",
         "feature3Title": "定时自动化",
         "feature3Body": "用自然语言配置 cron：报告、简报与备份，无人值守运行。",
-        "feature4Title": "委派与并行",
-        "feature4Body": "隔离子代理与独立终端，并行流水线，零额外上下文成本。",
-        "feature5Title": "真正的沙箱",
-        "feature5Body": "本地、Docker、SSH、Singularity、Modal。容器加固与命名空间隔离。",
-        "feature6Title": "完整的网页与浏览器控制",
-        "feature6Body": "搜索、浏览器自动化、视觉、图像生成、TTS、多模型推理。",
+        "feature4Title": "运行在你专属的微型虚拟机中",
+        "feature4Body": "默认隔离，数据始终归你所有。",
+        "feature5Title": "定时任务",
+        "feature5Body": "每日简报、跟进、提醒，一次设置即可。",
+        "feature6Title": "贯通你的整个工作栈",
+        "feature6Body": "邮件、日历、CRM、代码、文档，尽在一个聊天中。",
         "examplesHeading": "可以尝试的事",
         "examplesHelp": "打开聊天随便问。几个起点：",
         "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
@@ -2177,7 +2176,9 @@
         "disclaimer2": "它可能出错。在信任之前，请审阅任何涉及客户、同事或金钱的内容。",
         "disclaimer3": "已连接账户通过 OAuth 授予你的助手限定访问权限。一旦不再信任，请立即断开任何集成。",
         "disclaimer4": "测试版软件。行为可能在版本之间变化。对话历史属于你，但能力会不断演进。",
-        "poweredBy": "由 Nous Research 提供支持"
+        "poweredBy": "由 Nous Research 提供支持",
+        "feature7Title": "主权设计",
+        "feature7Body": "开源模型，托管于瑞士。"
       },
       "Provisioning": {
         "title": "正在启动你的个人助手",

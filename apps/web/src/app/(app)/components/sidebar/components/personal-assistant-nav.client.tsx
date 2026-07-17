@@ -144,7 +144,7 @@ export default function PersonalAssistantNav({
                   </span>
                   {showUnread ? (
                     <span
-                      aria-label={`${unreadDisplay} unread`}
+                      aria-label={t("hermesUnread", { count: unread })}
                       className={cn(
                         "inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-xs font-semibold leading-4 tabular-nums",
                         "group-data-[collapsible=icon]:hidden",

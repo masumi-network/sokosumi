@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
+import { subscriptionRepository } from "@sokosumi/database/repositories";
 import {
   isUserUploadAllowedContentType,
   normalizeUserUploadContentType,
@@ -89,7 +90,7 @@ import { conflictWithData, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { isTransientFetchError } from "@/lib/external-service-errors";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import {
   hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
@@ -1541,7 +1542,16 @@ app.openapi(postChatRoute, async (c) => {
   await awaitPriorHermesStreamPersistence(userContext.userId);
 
   const historyNewestFirst = await prisma.hermesMessage.findMany({
-    where: { userId: userContext.userId },
+    // Resolved-confirmation audit cards are UI artifacts (JSON snapshots for
+    // the read-only card render), not conversation — excluding them keeps
+    // machine-format JSON out of the model's context and stops each card
+    // from consuming a history slot. The OR shape is deliberate: a plain
+    // `kind: { not: ... }` would also drop the kind-null rows (regular chat
+    // turns) under SQL null semantics.
+    where: {
+      userId: userContext.userId,
+      OR: [{ kind: null }, { kind: { not: HERMES_CONFIRMATION_CARD_KIND } }],
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: MAX_CHAT_CONTEXT_MESSAGES,
     select: { role: true, content: true },
@@ -1803,7 +1813,16 @@ app.post("/chat/stream", async (c) => {
   await awaitPriorHermesStreamPersistence(userContext.userId);
 
   const historyNewestFirst = await prisma.hermesMessage.findMany({
-    where: { userId: userContext.userId },
+    // Resolved-confirmation audit cards are UI artifacts (JSON snapshots for
+    // the read-only card render), not conversation — excluding them keeps
+    // machine-format JSON out of the model's context and stops each card
+    // from consuming a history slot. The OR shape is deliberate: a plain
+    // `kind: { not: ... }` would also drop the kind-null rows (regular chat
+    // turns) under SQL null semantics.
+    where: {
+      userId: userContext.userId,
+      OR: [{ kind: null }, { kind: { not: HERMES_CONFIRMATION_CARD_KIND } }],
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: MAX_CHAT_CONTEXT_MESSAGES,
     select: { role: true, content: true },
@@ -2036,8 +2055,44 @@ app.openapi(getInstanceRoute, async (c) => {
   }
 });
 
+/**
+ * True when the user has paid-plan coverage: an active non-free subscription
+ * on their personal reference or on any organization they belong to. The
+ * web app's subscription wall gates on the session's active workspace; this
+ * is the API-level floor beneath it — Better Auth API keys and OAuth access
+ * tokens mint plain user auth contexts, so the Core route must enforce the
+ * plan itself rather than trusting the web action's check.
+ */
+async function userHasPaidPlanCoverage(userId: string): Promise<boolean> {
+  const memberships = await prisma.member.findMany({
+    where: { userId },
+    select: { organizationId: true },
+  });
+  const referenceIds = [userId, ...memberships.map((m) => m.organizationId)];
+  for (const referenceId of referenceIds) {
+    const subscription =
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+        referenceId,
+        prisma,
+      );
+    if (subscription && subscription.plan !== "free") return true;
+  }
+  return false;
+}
+
 app.openapi(provisionInstanceRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  // Paid-plan gate, mirroring the web action's check (which alone is
+  // bypassable by calling this route directly with an API key). Admins are
+  // exempt so the team can operate test instances without billing.
+  if (
+    !hasAdminRole(userContext.role) &&
+    !(await userHasPaidPlanCoverage(userContext.userId))
+  ) {
+    throw forbidden(
+      "A paid subscription is required to activate the personal assistant.",
+    );
+  }
   const user = await prisma.user.findUnique({
     where: { id: userContext.userId },
     select: { name: true, email: true },
@@ -2289,11 +2344,18 @@ app.openapi(startOnboardingRoute, async (c) => {
   try {
     // Persist the user's chosen assistant name + orb avatar seed (Sokosumi-side
     // only) so they're available the moment the chat opens. Not forwarded to
-    // the orchestrator.
+    // the orchestrator. Best-effort, matching persistHermesPersonality below:
+    // a local metadata write failure must not fail the whole onboard — the
+    // agent still starts, the UI just falls back to the generic name/orb.
     if (body.assistantName || body.avatarSeed) {
       await upsertHermesInstanceForUser(userContext.userId, {
         assistantName: body.assistantName,
         avatarSeed: body.avatarSeed,
+      }).catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_onboard_meta_persist" },
+          extra: { userId: userContext.userId },
+        });
       });
     }
 

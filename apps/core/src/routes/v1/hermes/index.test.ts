@@ -31,7 +31,9 @@ const {
   isReservedSecretKeyMock,
   isValidSecretKeyMock,
   memberFindFirstMock,
+  memberFindManyMock,
   organizationFindManyMock,
+  resolveActiveSubscriptionMock,
   orchestratorApiKeyFindUniqueMock,
   patchInstanceMock,
   prismaTransactionMock,
@@ -86,7 +88,9 @@ const {
     isReservedSecretKeyMock: vi.fn(),
     isValidSecretKeyMock: vi.fn(),
     memberFindFirstMock: vi.fn(),
+    memberFindManyMock: vi.fn(),
     organizationFindManyMock: vi.fn(),
+    resolveActiveSubscriptionMock: vi.fn(),
     orchestratorApiKeyFindUniqueMock: vi.fn(),
     patchInstanceMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
@@ -145,6 +149,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findFirst: memberFindFirstMock,
+      findMany: memberFindManyMock,
     },
     organization: {
       findMany: organizationFindManyMock,
@@ -157,6 +162,18 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    subscriptionRepository: {
+      ...actual.subscriptionRepository,
+      resolveActiveSubscriptionByReferenceId: resolveActiveSubscriptionMock,
+    },
+  };
+});
 
 vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
   const actual =
@@ -226,6 +243,7 @@ import {
   destroyInstance,
   getInstance,
   HermesOrchestratorError,
+  provisionInstance,
 } from "@/clients/hermes-orchestrator.client";
 
 import hermesRouter from "./index";
@@ -268,6 +286,8 @@ describe("Hermes route contracts", () => {
     });
     coworkerFindManyMock.mockResolvedValue([]);
     memberFindFirstMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([]);
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
     organizationFindManyMock.mockResolvedValue([]);
     hermesPendingConnectionUpsertMock.mockResolvedValue(undefined);
     hermesPendingConnectionFindUniqueMock.mockResolvedValue(null);
@@ -456,7 +476,12 @@ describe("Hermes route contracts", () => {
 
     expect(hermesMessageFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: "user_123" },
+        // Resolved-confirmation audit cards (kind confirmation_card) are UI
+        // artifacts and must stay out of the model's context window.
+        where: {
+          userId: "user_123",
+          OR: [{ kind: null }, { kind: { not: "confirmation_card" } }],
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 100,
         select: { role: true, content: true },
@@ -1610,6 +1635,67 @@ describe("Hermes route contracts", () => {
       undefined,
     );
     expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks provisioning without paid coverage and never calls the orchestrator", async () => {
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to activate the personal assistant.",
+    );
+    expect(provisionInstance).not.toHaveBeenCalled();
+  });
+
+  it("provisions when the user has an active paid personal subscription", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalledWith(
+      "user_123",
+      expect.any(Object),
+    );
+  });
+
+  it("provisions when a member organization carries the paid plan", async () => {
+    memberFindManyMock.mockResolvedValue([{ organizationId: "org_paid" }]);
+    resolveActiveSubscriptionMock.mockImplementation(
+      async (referenceId: string) =>
+        referenceId === "org_paid" ? { plan: "pro" } : null,
+    );
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+  });
+
+  it("lets an admin provision without any subscription", async () => {
+    userFindUniqueMock.mockResolvedValue({ role: "admin" });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(resolveActiveSubscriptionMock).not.toHaveBeenCalled();
+    expect(provisionInstance).toHaveBeenCalled();
   });
 
   it("persists a rejected confirmation card on reject", async () => {

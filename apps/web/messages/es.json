@@ -1976,7 +1976,6 @@
         "title": "Asistente personal",
         "description": "Tu agente de IA privado en su propio ordenador."
       },
-      "BetaTag": "Beta",
       "Common": {
         "hermesAvatarAlt": "Asistente personal",
         "cancel": "Cancelar",
@@ -2144,16 +2143,16 @@
         "featuresHeading": "Hecho para el trabajo diario y serio",
         "feature1Title": "Vive donde tú estés",
         "feature1Body": "Telegram, Discord, Slack, WhatsApp, Signal, email, CLI. Empieza en cualquier sitio y continúa en otro.",
-        "feature2Title": "Mejor cuanto más corre",
-        "feature2Body": "Memoria persistente y habilidades autogeneradas. Aprende tus proyectos y cómo los haces.",
+        "feature2Title": "Contrata agentes especialistas",
+        "feature2Body": "Incorpora cualquier agente de Sokosumi bajo demanda.",
         "feature3Title": "Automatizaciones programadas",
         "feature3Body": "Cron en lenguaje natural para informes, resúmenes y copias de seguridad. Funciona solo.",
-        "feature4Title": "Delega y paraleliza",
-        "feature4Body": "Subagentes aislados con su propia terminal: pipelines en paralelo, sin coste de contexto.",
-        "feature5Title": "Sandbox de verdad",
-        "feature5Body": "Local, Docker, SSH, Singularity, Modal. Endurecimiento de contenedores y aislamiento por espacio de nombres.",
-        "feature6Title": "Control web y de navegador completo",
-        "feature6Body": "Búsqueda, automatización del navegador, visión, generación de imagen, TTS, razonamiento multimodelo.",
+        "feature4Title": "Se ejecuta en tu propia micro-VM",
+        "feature4Body": "Aislado por defecto. Tus datos siguen siendo tuyos.",
+        "feature5Title": "Tareas programadas",
+        "feature5Body": "Resúmenes diarios, seguimientos, recordatorios. Configúralo una vez.",
+        "feature6Title": "Funciona con todo tu stack",
+        "feature6Body": "Correo, calendario, CRM, código, documentos. Todo en un chat.",
         "examplesHeading": "Cosas para probar",
         "examplesHelp": "Abre el chat y pregunta lo que quieras. Algunos puntos de partida:",
         "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
@@ -2177,7 +2176,9 @@
         "disclaimer2": "Puede equivocarse. Revisa todo lo que afecte a un cliente, un compañero o dinero antes de confiar.",
         "disclaimer3": "Las cuentas conectadas dan a tu asistente acceso acotado vía OAuth. Desconecta cualquier integración en cuanto dejes de confiar.",
         "disclaimer4": "Software beta. El comportamiento puede cambiar entre versiones. Tu historial de conversación es tuyo, pero las capacidades evolucionarán.",
-        "poweredBy": "Con tecnología de Nous Research"
+        "poweredBy": "Con tecnología de Nous Research",
+        "feature7Title": "Soberano por diseño",
+        "feature7Body": "Modelos de código abierto, alojados en Suiza."
       },
       "Provisioning": {
         "title": "Iniciando tu asistente",

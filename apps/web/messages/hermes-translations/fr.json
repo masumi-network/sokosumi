@@ -161,7 +161,17 @@
       "persistent": "persistant",
       "secrets": "Secrets",
       "sharedWithOthers": "Partagé avec d'autres"
-    }
+    },
+    "feature2Title": "Recrute des agents spécialistes",
+    "feature2Body": "Mobilise n'importe quel agent Sokosumi à la demande.",
+    "feature4Title": "Tourne dans votre propre micro-VM",
+    "feature4Body": "Isolé par défaut. Vos données restent les vôtres.",
+    "feature5Title": "Tâches planifiées",
+    "feature5Body": "Briefs quotidiens, relances, rappels. À configurer une seule fois.",
+    "feature6Title": "Fonctionne avec toute votre stack",
+    "feature6Body": "Mail, calendrier, CRM, code, docs. Tout dans un seul chat.",
+    "feature7Title": "Souverain par conception",
+    "feature7Body": "Modèles open source, hébergés en Suisse."
   },
   "Experience": {
     "destroyFailed": "Échec de la suppression de votre assistant.",

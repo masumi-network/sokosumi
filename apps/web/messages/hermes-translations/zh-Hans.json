@@ -161,7 +161,17 @@
       "persistent": "持久",
       "secrets": "密钥",
       "sharedWithOthers": "与他人共享"
-    }
+    },
+    "feature2Title": "雇用专家代理",
+    "feature2Body": "按需调用任何 Sokosumi 代理。",
+    "feature4Title": "运行在你专属的微型虚拟机中",
+    "feature4Body": "默认隔离，数据始终归你所有。",
+    "feature5Title": "定时任务",
+    "feature5Body": "每日简报、跟进、提醒，一次设置即可。",
+    "feature6Title": "贯通你的整个工作栈",
+    "feature6Body": "邮件、日历、CRM、代码、文档，尽在一个聊天中。",
+    "feature7Title": "主权设计",
+    "feature7Body": "开源模型，托管于瑞士。"
   },
   "Experience": {
     "destroyFailed": "无法销毁你的助手。",

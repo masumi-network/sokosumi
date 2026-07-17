@@ -196,6 +196,45 @@ describe("hermes-orchestrator.client", () => {
     expect(() => hermesScheduleSchema.parse(schedules[0])).not.toThrow();
   });
 
+  it("returns null only for a structured instance_not_found 404", async () => {
+    fetchMock.mockResolvedValue({
+      status: 404,
+      ok: false,
+      json: async () => ({
+        status: 404,
+        code: "instance_not_found",
+        title: "No Hermes instance exists for this user",
+      }),
+    });
+
+    const { getInstance } = await import("./hermes-orchestrator.client");
+
+    await expect(getInstance("user_gone")).resolves.toBeNull();
+  });
+
+  it("throws on a bare 404 (edge misroute) instead of reading it as no-instance", async () => {
+    // Regression coverage: GET /me/instance clears local chat history when
+    // getInstance returns null — a proxy/edge 404 without the structured
+    // instance_not_found code must never masquerade as "instance destroyed".
+    fetchMock.mockResolvedValue({
+      status: 404,
+      ok: false,
+      json: async () => ({
+        status: 404,
+        code: "not_found",
+        title: "Not found",
+      }),
+    });
+
+    const { getInstance, HermesOrchestratorError } = await import(
+      "./hermes-orchestrator.client"
+    );
+
+    await expect(getInstance("user_misrouted")).rejects.toBeInstanceOf(
+      HermesOrchestratorError,
+    );
+  });
+
   it("wraps a raw fetch failure as a HermesOrchestratorError instead of letting it propagate opaque", async () => {
     vi.useFakeTimers();
     try {

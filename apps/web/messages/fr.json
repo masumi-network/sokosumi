@@ -1976,7 +1976,6 @@
         "title": "Assistant personnel",
         "description": "Votre agent IA privé sur son propre ordinateur."
       },
-      "BetaTag": "Bêta",
       "Common": {
         "hermesAvatarAlt": "Assistant personnel",
         "cancel": "Annuler",
@@ -2144,16 +2143,16 @@
         "featuresHeading": "Conçu pour un travail quotidien sérieux",
         "feature1Title": "Vit où vous êtes",
         "feature1Body": "Telegram, Discord, Slack, WhatsApp, Signal, e-mail, CLI. Commencez n’importe où, reprenez ailleurs.",
-        "feature2Title": "S’améliore avec le temps",
-        "feature2Body": "Mémoire persistante et compétences auto-générées. Apprend vos projets et comment les mener à bien.",
+        "feature2Title": "Recrute des agents spécialistes",
+        "feature2Body": "Mobilise n'importe quel agent Sokosumi à la demande.",
         "feature3Title": "Automatisations planifiées",
         "feature3Body": "Cron en langage naturel pour rapports, briefings et sauvegardes. Fonctionne sans surveillance.",
-        "feature4Title": "Délègue et parallélise",
-        "feature4Body": "Sous-agents isolés avec leurs propres terminaux — pipelines parallèles, sans coût de contexte.",
-        "feature5Title": "Vrai environnement isolé",
-        "feature5Body": "Local, Docker, SSH, Singularity, Modal. Durcissement des conteneurs et isolation par espaces de noms.",
-        "feature6Title": "Contrôle web et navigateur complet",
-        "feature6Body": "Recherche, automatisation du navigateur, vision, génération d’images, TTS, raisonnement multi-modèles.",
+        "feature4Title": "Tourne dans votre propre micro-VM",
+        "feature4Body": "Isolé par défaut. Vos données restent les vôtres.",
+        "feature5Title": "Tâches planifiées",
+        "feature5Body": "Briefs quotidiens, relances, rappels. À configurer une seule fois.",
+        "feature6Title": "Fonctionne avec toute votre stack",
+        "feature6Body": "Mail, calendrier, CRM, code, docs. Tout dans un seul chat.",
         "examplesHeading": "Idées à essayer",
         "examplesHelp": "Ouvrez le chat et posez n'importe quelle question. Quelques points de départ :",
         "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
@@ -2177,7 +2176,9 @@
         "disclaimer2": "Il peut se tromper. Relisez tout ce qui touche un client, un collègue ou de l'argent avant de lui faire confiance.",
         "disclaimer3": "Les comptes connectés donnent à votre assistant un accès limité via OAuth. Déconnectez toute intégration dès que vous ne lui faites plus confiance.",
         "disclaimer4": "Logiciel bêta. Le comportement peut changer entre les versions. Votre historique de conversation vous appartient, mais les capacités évolueront.",
-        "poweredBy": "Propulsé par Nous Research"
+        "poweredBy": "Propulsé par Nous Research",
+        "feature7Title": "Souverain par conception",
+        "feature7Body": "Modèles open source, hébergés en Suisse."
       },
       "Provisioning": {
         "title": "Démarrage de votre assistant",
