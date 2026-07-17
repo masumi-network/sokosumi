@@ -82,6 +82,10 @@ import {
 } from "@/lib/actions/hermes";
 import type { OrbExpression } from "@/lib/aurora-orb";
 import {
+  HERMES_CONFIRMATION_CARD_KIND,
+  parseConfirmationCardMessage,
+} from "@/lib/hermes/confirmation-card-message";
+import {
   type HermesUiMessage,
   mergeHermesMessageLists,
 } from "@/lib/hermes/merge-persisted-messages";
@@ -851,21 +855,35 @@ export default function RunningState({
   // a `confirmation_resolved` message (rendered by `MessageRow`). The resolved
   // confirmation card itself shows a "creating in the background" note so the
   // user knows what to expect.
-  const timeline: Array<
-    | { kind: "message"; ts: number; key: string; message: Message }
-    | {
-        kind: "resolved";
-        ts: number;
-        key: string;
-        entry: ResolvedConfirmationEntry;
+  const timeline: TimelineEntry[] = [
+    ...messages.flatMap((message): TimelineEntry[] => {
+      const ts = new Date(message.createdAt).getTime() || 0;
+      // Persisted resolved-confirmation cards (written by Core at
+      // approve/reject time) render as read-only ConfirmationCards, not
+      // prose. While this tab's own resolved card is still in memory it
+      // owns the slot — skip the persisted copy to avoid a duplicate;
+      // after a reload only the persisted card exists. Unparseable rows
+      // are dropped rather than surfacing raw JSON in the chat.
+      if (message.kind === HERMES_CONFIRMATION_CARD_KIND) {
+        const parsed = parseConfirmationCardMessage(message.content);
+        if (!parsed || resolvedConfirmations.has(parsed.confirmation.id)) {
+          return [];
+        }
+        return [
+          {
+            kind: "resolved" as const,
+            ts,
+            key: message.id,
+            entry: {
+              confirmation: parsed.confirmation,
+              resolution: parsed.resolution,
+              timelineTs: ts,
+            },
+          },
+        ];
       }
-  > = [
-    ...messages.map((message) => ({
-      kind: "message" as const,
-      ts: new Date(message.createdAt).getTime() || 0,
-      key: message.id,
-      message,
-    })),
+      return [{ kind: "message" as const, ts, key: message.id, message }];
+    }),
     ...resolvedCards.map((entry) => ({
       kind: "resolved" as const,
       // `timelineTs` was snapshotted at approval as "just past everything
@@ -2067,6 +2085,15 @@ interface ConfirmationResolution {
   status: "approved" | "rejected" | "already_resolved";
   organizationId?: string | null;
 }
+
+type TimelineEntry =
+  | { kind: "message"; ts: number; key: string; message: Message }
+  | {
+      kind: "resolved";
+      ts: number;
+      key: string;
+      entry: ResolvedConfirmationEntry;
+    };
 
 interface ResolvedConfirmationEntry {
   confirmation: HermesPendingConfirmation;

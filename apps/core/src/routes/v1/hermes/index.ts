@@ -744,6 +744,99 @@ async function readHermesInstanceDisplay(
 const HERMES_WELCOME_UUID_NAMESPACE = "f4e5b2cd-1c1a-4d8a-9a2e-7c1ad1b8d5a9";
 
 /**
+ * Stable namespace UUID for deriving HermesMessage ids from resolved
+ * confirmation cards. Same do-not-change contract as the welcome namespace.
+ */
+const HERMES_CONFIRMATION_CARD_UUID_NAMESPACE =
+  "0b6f3a41-8d2e-4f7c-9b5a-2e4c8d1f6a73";
+
+/** `HermesMessage.kind` for a persisted resolved-confirmation audit card. */
+const HERMES_CONFIRMATION_CARD_KIND = "confirmation_card";
+
+/**
+ * Persists a resolved confirmation as a `confirmation_card` message so the
+ * approve/reject audit trail survives a reload. Without this the resolved
+ * card only lives in tab-local React state — closing the tab silently
+ * erases the record of what the user approved and into which workspace.
+ *
+ * Idempotent via a deterministic UUIDv5 id derived from
+ * `(userId, confirmationId)` — a double-click or a retried request lands on
+ * the same row (`update: {}` no-op). Best-effort by design: a persistence
+ * failure must never fail the resolve that already happened.
+ */
+async function persistHermesConfirmationCard(args: {
+  userId: string;
+  confirmation: HermesPendingConfirmation;
+  status: "approved" | "rejected";
+  /** Final workspace the tool call ran in (override, else Hermes' proposal).
+   * `null` = personal scope. */
+  organizationId: string | null;
+  organizationName: string | null;
+}): Promise<void> {
+  try {
+    // Resolve referenced coworker/org UUIDs now so the persisted card can
+    // render name chips after a reload, when the live enriched confirmation
+    // is long gone from the orchestrator's pendingConfirmations.
+    const [enriched] = await enrichPendingConfirmations(
+      [args.confirmation],
+      args.userId,
+    );
+    const confirmation = enriched ?? args.confirmation;
+    const id = uuidv5(
+      `${args.userId}:confirmation-card:${confirmation.id}`,
+      HERMES_CONFIRMATION_CARD_UUID_NAMESPACE,
+    );
+    await prisma.hermesMessage.upsert({
+      where: { id },
+      create: {
+        id,
+        userId: args.userId,
+        role: "assistant",
+        kind: HERMES_CONFIRMATION_CARD_KIND,
+        content: JSON.stringify({
+          confirmationId: confirmation.id,
+          toolName: confirmation.toolName,
+          summary: confirmation.summary,
+          status: args.status,
+          organizationId: args.organizationId,
+          organizationName: args.organizationName,
+          referencedCoworkers: confirmation.referencedCoworkers,
+          referencedOrganizations: confirmation.referencedOrganizations,
+          confirmationCreatedAt: confirmation.createdAt,
+        }),
+      },
+      update: {},
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_confirmation_card_persist" },
+      extra: { userId: args.userId, confirmationId: args.confirmation.id },
+    });
+  }
+}
+
+/**
+ * Best-effort snapshot of a pending confirmation just before it is resolved
+ * — the orchestrator drops it from `pendingConfirmations` on resolve, and
+ * this is the only source for the persisted audit card. Returns null (and
+ * skips persistence) on any failure rather than blocking the resolve.
+ */
+async function snapshotPendingConfirmation(
+  userId: string,
+  confirmationId: string,
+): Promise<HermesPendingConfirmation | null> {
+  try {
+    const instance = await getInstance(userId);
+    return (
+      instance?.pendingConfirmations.find((p) => p.id === confirmationId) ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Per-process memo of welcome ids we've already persisted this lifetime.
  * GET /me/instance is on the hot polling path; without this every poll
  * would issue a (no-op but real) upsert round-trip to Postgres for users
@@ -2299,6 +2392,10 @@ app.openapi(approveConfirmationRoute, async (c) => {
   const body = c.req.valid("json") ?? {};
 
   let overrides: { organizationId?: string | null } | undefined;
+  // The workspace the tool call will actually run in when an override is
+  // applied — captured during the membership check so the persisted audit
+  // card can name it without a second lookup.
+  let overrideOrganizationName: string | null = null;
   if (body.overrides) {
     overrides = {};
     if ("organizationId" in body.overrides) {
@@ -2311,17 +2408,23 @@ app.openapi(approveConfirmationRoute, async (c) => {
         // to land here.
         const membership = await prisma.member.findFirst({
           where: { userId: userContext.userId, organizationId: requestedOrgId },
-          select: { id: true },
+          select: { id: true, organization: { select: { name: true } } },
         });
         if (!membership) {
           throw badRequest(
             "You are not a member of the organization you tried to approve into.",
           );
         }
+        overrideOrganizationName = membership.organization?.name ?? null;
       }
       overrides.organizationId = requestedOrgId;
     }
   }
+
+  const pendingSnapshot = await snapshotPendingConfirmation(
+    userContext.userId,
+    confirmationId,
+  );
 
   try {
     const result = await approveConfirmation(
@@ -2329,6 +2432,24 @@ app.openapi(approveConfirmationRoute, async (c) => {
       confirmationId,
       overrides,
     );
+    // Persist the audit card only for a resolve this request actually
+    // performed — "already_resolved" means an earlier request (which
+    // persisted its own card) got there first.
+    if (result.status === "approved" && pendingSnapshot) {
+      const overrodeOrganization =
+        overrides !== undefined && "organizationId" in overrides;
+      await persistHermesConfirmationCard({
+        userId: userContext.userId,
+        confirmation: pendingSnapshot,
+        status: "approved",
+        organizationId: overrodeOrganization
+          ? (overrides?.organizationId ?? null)
+          : pendingSnapshot.organizationId,
+        organizationName: overrodeOrganization
+          ? overrideOrganizationName
+          : pendingSnapshot.organizationName,
+      });
+    }
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {
     return mapOrchestratorError(
@@ -2343,12 +2464,26 @@ app.openapi(rejectConfirmationRoute, async (c) => {
   const { confirmationId } = c.req.valid("param");
   const body = c.req.valid("json");
 
+  const pendingSnapshot = await snapshotPendingConfirmation(
+    userContext.userId,
+    confirmationId,
+  );
+
   try {
     const result = await rejectConfirmation(
       userContext.userId,
       confirmationId,
       body.reason,
     );
+    if (result.status === "rejected" && pendingSnapshot) {
+      await persistHermesConfirmationCard({
+        userId: userContext.userId,
+        confirmation: pendingSnapshot,
+        status: "rejected",
+        organizationId: pendingSnapshot.organizationId,
+        organizationName: pendingSnapshot.organizationName,
+      });
+    }
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {
     return mapOrchestratorError(

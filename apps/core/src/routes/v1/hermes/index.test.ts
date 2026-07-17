@@ -36,6 +36,7 @@ const {
   patchInstanceMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
+  rejectConfirmationMock,
   startInstanceOnboardingMock,
   syncHermesInboxForUserMock,
   userFindUniqueMock,
@@ -90,6 +91,7 @@ const {
     patchInstanceMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
+    rejectConfirmationMock: vi.fn(),
     startInstanceOnboardingMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
@@ -186,6 +188,7 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
     patchInstance: patchInstanceMock,
     provisionInstance: vi.fn(),
     proxyChatCompletions: proxyChatCompletionsMock,
+    rejectConfirmation: rejectConfirmationMock,
     setInstanceSecret: vi.fn(),
     startInstanceOnboarding: startInstanceOnboardingMock,
   };
@@ -288,6 +291,14 @@ describe("Hermes route contracts", () => {
     disconnectInstanceIntegrationMock.mockResolvedValue(undefined);
     patchInstanceMock.mockResolvedValue(undefined);
     startInstanceOnboardingMock.mockResolvedValue(undefined);
+    // Deterministic default: earlier tests' getInstance implementations must
+    // not leak into the approve/reject snapshot path.
+    vi.mocked(getInstance).mockResolvedValue(null);
+    rejectConfirmationMock.mockResolvedValue({
+      status: "rejected",
+      result: null,
+      error: null,
+    });
     approveConfirmationMock.mockResolvedValue({
       status: "approved",
       result: null,
@@ -1458,5 +1469,185 @@ describe("Hermes route contracts", () => {
       "conf_1",
       undefined,
     );
+  });
+
+  function instanceWithPendingConfirmation(overrides?: {
+    organizationId?: string | null;
+    organizationName?: string | null;
+  }) {
+    return {
+      status: "ready" as const,
+      endpointUrl: null,
+      lastActivityAt: null,
+      onboardedAt: null,
+      autonomyLevel: "medium" as const,
+      integrations: [],
+      transitioning: false,
+      welcomeMessage: null,
+      welcomeKind: null,
+      lastSokosumiSyncAt: null,
+      lastInboxRefreshAt: null,
+      timezone: null,
+      pendingConfirmations: [
+        {
+          id: "conf_1",
+          toolName: "sokosumi_create_task",
+          summary: "Create task 'Weekly report' and assign it to Alex.",
+          createdAt: "2026-07-17T12:00:00.000Z",
+          referencedCoworkers: [],
+          referencedOrganizations: [],
+          organizationId:
+            overrides?.organizationId === undefined
+              ? "org_nmkr"
+              : overrides.organizationId,
+          organizationName:
+            overrides?.organizationName === undefined
+              ? "NMKR"
+              : overrides.organizationName,
+        },
+      ],
+    };
+  }
+
+  it("persists a confirmation_card message with Hermes' proposed workspace on approve", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { userId: string; role: string; kind: string; content: string };
+    };
+    expect(upsertArgs.create.userId).toBe("user_123");
+    expect(upsertArgs.create.role).toBe("assistant");
+    expect(upsertArgs.create.kind).toBe("confirmation_card");
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      toolName: "sokosumi_create_task",
+      summary: "Create task 'Weekly report' and assign it to Alex.",
+      status: "approved",
+      organizationId: "org_nmkr",
+      organizationName: "NMKR",
+    });
+  });
+
+  it("persists the override workspace on the confirmation card when the user rerouted it", async () => {
+    const orgId = "11111111-2222-3333-4444-555555555555";
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    memberFindFirstMock.mockResolvedValue({
+      id: "mem_1",
+      organization: { name: "Org One" },
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ overrides: { organizationId: orgId } }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      status: "approved",
+      organizationId: orgId,
+      organizationName: "Org One",
+    });
+  });
+
+  it("does not persist a confirmation card when the orchestrator reports already_resolved", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    approveConfirmationMock.mockResolvedValue({
+      status: "already_resolved",
+      result: null,
+      error: null,
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("still approves (without persisting a card) when the pre-resolve snapshot fetch fails", async () => {
+    vi.mocked(getInstance).mockRejectedValue(
+      new HermesOrchestratorError(503, { title: "edge restart" }),
+    );
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(approveConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      undefined,
+    );
+    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("persists a rejected confirmation card on reject", async () => {
+    vi.mocked(getInstance).mockResolvedValue(
+      instanceWithPendingConfirmation({
+        organizationId: null,
+        organizationName: null,
+      }),
+    );
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/reject",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(rejectConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      undefined,
+    );
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { kind: string; content: string };
+    };
+    expect(upsertArgs.create.kind).toBe("confirmation_card");
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      status: "rejected",
+      organizationId: null,
+      organizationName: null,
+    });
   });
 });
