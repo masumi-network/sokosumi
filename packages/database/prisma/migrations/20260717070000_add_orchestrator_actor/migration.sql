@@ -92,7 +92,7 @@ ALTER TABLE "orchestrator_usage" ADD CONSTRAINT "orchestrator_usage_userId_fkey"
 ALTER TABLE "orchestrator_usage" ADD CONSTRAINT "orchestrator_usage_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orchestrator_usage" ADD CONSTRAINT "orchestrator_usage_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "transaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "orchestrator_usage" ADD CONSTRAINT "orchestrator_usage_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "task" ADD CONSTRAINT "task_orchestratorId_fkey" FOREIGN KEY ("orchestratorId") REFERENCES "orchestrator"("id") ON DELETE SET NULL ON UPDATE CASCADE;
