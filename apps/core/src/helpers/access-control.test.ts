@@ -189,7 +189,7 @@ describe("requireTaskArchiveAccess", () => {
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       pendingVendorGrantId: "grant_1",
-      userId: "user_123",
+      ownerId: "user_123",
     } as never);
 
     await expect(
@@ -355,7 +355,7 @@ describe("requireTaskReadForRouteVars", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      userId: "user_123",
+      ownerId: "user_123",
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -632,7 +632,7 @@ describe("requireTaskCommentAccess", () => {
 
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      userId: "user_owner",
+      ownerId: "user_owner",
       pendingVendorGrantId: null,
     } as never);
 
@@ -1027,7 +1027,7 @@ describe("requireTaskCollaboration sibling writes", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      userId: "user_delegate",
+      ownerId: "user_delegate",
       assigneeId: "cow_other",
       status: TaskStatus.READY,
     } as never);

@@ -53,7 +53,7 @@ describe("vendor-grant-approval utils", () => {
       canApproveVendorGrants({
         organizationId: null,
         isAuthenticated: true,
-        taskOwnerUserId: "user_owner",
+        taskOwnerId: "user_owner",
         sessionUserId: "user_owner",
       }),
     ).toBe(true);
@@ -62,7 +62,7 @@ describe("vendor-grant-approval utils", () => {
       canApproveVendorGrants({
         organizationId: null,
         isAuthenticated: true,
-        taskOwnerUserId: "user_owner",
+        taskOwnerId: "user_owner",
         sessionUserId: "user_other",
       }),
     ).toBe(false);
