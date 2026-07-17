@@ -118,7 +118,7 @@ describe("EditTaskPage", () => {
       id: "task_1",
       name: "Task",
       description: "Desc",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: "READY",
       workspace: {
         organizationId: "org-workspace",
@@ -162,7 +162,7 @@ describe("EditTaskPage", () => {
       id: "task_1",
       name: "Task",
       description: "Desc",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: "READY",
       workspace: {
         organizationId: "org-current",

@@ -87,7 +87,7 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
       scope: "workspace",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       projectId: PROJECT_ID,
       cursor: null,
       limit: 2,
@@ -123,7 +123,7 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.DRAFT, TaskStatus.QUEUED],
       scope: "owned",
-      coworkerId: undefined,
+      assigneeId: undefined,
       projectId: undefined,
       cursor: "cursor-1",
       limit: 1,
@@ -166,7 +166,7 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.DRAFT, TaskStatus.QUEUED],
       scope: "owned",
-      coworkerId: undefined,
+      assigneeId: undefined,
       projectId: undefined,
       cursor: null,
       limit: 10,
@@ -248,7 +248,7 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
       scope: "owned",
-      coworkerId: undefined,
+      assigneeId: undefined,
       projectId: undefined,
       cursor: null,
       limit: 10,
@@ -289,7 +289,7 @@ describe("getTasksColumnPage", () => {
         TaskStatus.OUT_OF_CREDITS,
       ],
       scope: "owned",
-      coworkerId: undefined,
+      assigneeId: undefined,
       projectId: undefined,
       cursor: null,
       limit: 10,

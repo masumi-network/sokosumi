@@ -380,7 +380,7 @@ describe("task link actions", () => {
     expect(taskServiceMock.createTask).toHaveBeenCalledWith(
       expect.objectContaining({
         description: "Created related task",
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.READY,
       }),
     );
