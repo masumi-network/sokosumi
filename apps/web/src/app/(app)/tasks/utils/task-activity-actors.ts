@@ -17,15 +17,7 @@ export interface TaskActivityActors {
 
 type TaskActivityActorSource = Pick<
   Task,
-  | "owner"
-  | "assignee"
-  | "creatorUserId"
-  | "creatorUser"
-  | "creatorCoworkerId"
-  | "creatorCoworker"
-  | "creatorOrchestratorId"
-  | "creatorOrchestrator"
-  | "events"
+  "owner" | "assignee" | "creator" | "events"
 >;
 
 export function buildTaskActivityActors(
@@ -41,47 +33,26 @@ export function buildTaskActivityActors(
     addCoworkerActor(coworkerById, task.assignee);
   }
 
-  if (
-    task.creatorUserId &&
-    task.creatorUserId !== task.owner.id &&
-    task.creatorUser &&
-    typeof task.creatorUser === "object" &&
-    "id" in task.creatorUser &&
-    typeof task.creatorUser.id === "string"
-  ) {
-    addUserActor(userById, {
-      id: task.creatorUser.id,
-      name:
-        typeof task.creatorUser.name === "string"
-          ? task.creatorUser.name
-          : "User",
-      image:
-        "image" in task.creatorUser &&
-        (typeof task.creatorUser.image === "string" ||
-          task.creatorUser.image === null)
-          ? task.creatorUser.image
-          : null,
-    });
-  }
-
-  if (task.creatorCoworker) {
-    addCoworkerActor(coworkerById, task.creatorCoworker);
-  }
-
-  if (
-    task.creatorOrchestratorId &&
-    task.creatorOrchestrator &&
-    typeof task.creatorOrchestrator === "object" &&
-    "id" in task.creatorOrchestrator &&
-    typeof task.creatorOrchestrator.id === "string"
-  ) {
-    addOrchestratorActor(orchestratorById, {
-      id: task.creatorOrchestrator.id,
-      name:
-        typeof task.creatorOrchestrator.name === "string"
-          ? task.creatorOrchestrator.name
-          : "Orchestrator",
-    });
+  switch (task.creator.type) {
+    case "user":
+      if (task.creator.id !== task.owner.id) {
+        addUserActor(userById, task.creator.user);
+      }
+      break;
+    case "coworker":
+      if (task.creator.coworker) {
+        addCoworkerActor(coworkerById, task.creator.coworker);
+      }
+      break;
+    case "orchestrator":
+      if (task.creator.orchestrator) {
+        addOrchestratorActor(orchestratorById, task.creator.orchestrator);
+      }
+      break;
+    default: {
+      const _exhaustive: never = task.creator;
+      void _exhaustive;
+    }
   }
 
   for (const event of task.events) {

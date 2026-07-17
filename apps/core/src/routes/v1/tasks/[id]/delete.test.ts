@@ -52,27 +52,52 @@ const { prismaTransactionMock, requireTaskArchiveAccessMock, mapTaskMock } =
                 slug: "coworker",
               }
             : null),
-        creatorOrchestratorId:
-          (t.creatorOrchestratorId as string | null | undefined) ?? null,
-        creatorOrchestrator:
-          (t.creatorOrchestrator as object | null | undefined) ?? null,
-        creatorUserId:
-          (t.creatorUserId as string | null | undefined) ??
-          (t.ownerId as string | null | undefined) ??
-          null,
-        creatorUser:
-          (t.creatorUser as object | null | undefined) ??
-          (t.ownerId
-            ? {
-                id: t.ownerId,
-                name: "Task owner",
+        creator: (() => {
+          const creatorOrchestratorId =
+            (t.creatorOrchestratorId as string | null | undefined) ?? null;
+          if (creatorOrchestratorId != null) {
+            return {
+              type: "orchestrator" as const,
+              id: creatorOrchestratorId,
+              orchestrator: (t.creatorOrchestrator as
+                | object
+                | null
+                | undefined) ?? {
+                id: creatorOrchestratorId,
+                name: "Orchestrator",
+                slug: "orchestrator",
+              },
+            };
+          }
+
+          const creatorCoworkerId =
+            (t.creatorCoworkerId as string | null | undefined) ?? null;
+          if (creatorCoworkerId != null) {
+            return {
+              type: "coworker" as const,
+              id: creatorCoworkerId,
+              coworker: (t.creatorCoworker as object | null | undefined) ?? {
+                id: creatorCoworkerId,
+                name: "Coworker",
                 image: null,
-              }
-            : null),
-        creatorCoworkerId:
-          (t.creatorCoworkerId as string | null | undefined) ?? null,
-        creatorCoworker:
-          (t.creatorCoworker as object | null | undefined) ?? null,
+                slug: "coworker",
+              },
+            };
+          }
+
+          const creatorUserId =
+            (t.creatorUserId as string | null | undefined) ??
+            (t.ownerId as string);
+          return {
+            type: "user" as const,
+            id: creatorUserId,
+            user: (t.creatorUser as object | null | undefined) ?? {
+              id: creatorUserId,
+              name: "Task owner",
+              image: null,
+            },
+          };
+        })(),
         userId: (t.userId as string | undefined) ?? (t.ownerId as string),
         user: (t.user as object | undefined) ??
           (t.owner as object | undefined) ?? {

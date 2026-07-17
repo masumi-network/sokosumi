@@ -20,19 +20,14 @@ describe("buildTaskActivityActors", () => {
         image: "https://example.com/ops.png",
         slug: "ops-agent",
       },
-      creatorUserId: "user-1",
-      creatorUser: {
-        id: "user-1",
-        name: "Ada Lovelace",
-        image: adaAvatar,
-      },
-      creatorCoworkerId: null,
-      creatorCoworker: null,
-      creatorOrchestratorId: "orch-1",
-      creatorOrchestrator: {
+      creator: {
+        type: "orchestrator" as const,
         id: "orch-1",
-        name: "Hermes",
-        slug: "hermes",
+        orchestrator: {
+          id: "orch-1",
+          name: "Hermes",
+          slug: "hermes",
+        },
       },
       events: [
         {
@@ -106,18 +101,7 @@ describe("buildTaskActivityActors", () => {
           status: "READY",
         },
       ],
-    } satisfies Pick<
-      Task,
-      | "owner"
-      | "assignee"
-      | "creatorUserId"
-      | "creatorUser"
-      | "creatorCoworkerId"
-      | "creatorCoworker"
-      | "creatorOrchestratorId"
-      | "creatorOrchestrator"
-      | "events"
-    >;
+    } satisfies Pick<Task, "owner" | "assignee" | "creator" | "events">;
 
     const result = buildTaskActivityActors(task);
 

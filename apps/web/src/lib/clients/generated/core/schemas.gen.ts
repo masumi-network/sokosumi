@@ -1225,49 +1225,8 @@ export const TaskSchema = {
                 }
             ]
         },
-        creatorUserId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'user_123',
-            description: 'Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.'
-        },
-        creatorUser: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
-                },
-                {
-                    type: [
-                        'object',
-                        'null'
-                    ]
-                }
-            ]
-        },
-        creatorCoworkerId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'cow_123',
-            description: 'Set when a coworker created the task.'
-        },
-        creatorCoworker: {
-            $ref: '#/components/schemas/CoworkerSummary'
-        },
-        creatorOrchestratorId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099',
-            description: 'Set when an orchestrator created the task.'
-        },
-        creatorOrchestrator: {
-            $ref: '#/components/schemas/OrchestratorSummary'
+        creator: {
+            $ref: '#/components/schemas/TaskCreator'
         },
         orchestratorId: {
             type: [
@@ -1277,7 +1236,7 @@ export const TaskSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
             deprecated: true,
-            description: 'Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.'
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
             allOf: [
@@ -1285,8 +1244,12 @@ export const TaskSchema = {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
+                    type: [
+                        'object',
+                        'null'
+                    ],
                     deprecated: true,
-                    description: 'Deprecated. Use creatorOrchestrator instead.'
+                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
                 }
             ]
         },
@@ -1406,12 +1369,7 @@ export const TaskSchema = {
         'assignee',
         'coworkerId',
         'coworker',
-        'creatorUserId',
-        'creatorUser',
-        'creatorCoworkerId',
-        'creatorCoworker',
-        'creatorOrchestratorId',
-        'creatorOrchestrator',
+        'creator',
         'orchestratorId',
         'orchestrator',
         'name',
@@ -1514,11 +1472,104 @@ export const CoworkerSummarySchema = {
     ]
 } as const;
 
-export const OrchestratorSummarySchema = {
-    type: [
-        'object',
-        'null'
+export const TaskCreatorSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/TaskCreatorUser'
+        },
+        {
+            $ref: '#/components/schemas/TaskCreatorCoworker'
+        },
+        {
+            $ref: '#/components/schemas/TaskCreatorOrchestrator'
+        }
     ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            user: '#/components/schemas/TaskCreatorUser',
+            coworker: '#/components/schemas/TaskCreatorCoworker',
+            orchestrator: '#/components/schemas/TaskCreatorOrchestrator'
+        }
+    },
+    description: 'Actor that created the task. Exactly one of user, coworker, or orchestrator.'
+} as const;
+
+export const TaskCreatorUserSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'user'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'user'
+    ]
+} as const;
+
+export const TaskCreatorCoworkerSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'coworker'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'coworker'
+    ]
+} as const;
+
+export const TaskCreatorOrchestratorSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'orchestrator'
+            ]
+        },
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        orchestrator: {
+            $ref: '#/components/schemas/OrchestratorSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'orchestrator'
+    ]
+} as const;
+
+export const OrchestratorSummarySchema = {
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -9864,49 +9915,8 @@ export const TaskListItemSchema = {
                 }
             ]
         },
-        creatorUserId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'user_123',
-            description: 'Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.'
-        },
-        creatorUser: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
-                },
-                {
-                    type: [
-                        'object',
-                        'null'
-                    ]
-                }
-            ]
-        },
-        creatorCoworkerId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'cow_123',
-            description: 'Set when a coworker created the task.'
-        },
-        creatorCoworker: {
-            $ref: '#/components/schemas/CoworkerSummary'
-        },
-        creatorOrchestratorId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099',
-            description: 'Set when an orchestrator created the task.'
-        },
-        creatorOrchestrator: {
-            $ref: '#/components/schemas/OrchestratorSummary'
+        creator: {
+            $ref: '#/components/schemas/TaskCreator'
         },
         orchestratorId: {
             type: [
@@ -9916,7 +9926,7 @@ export const TaskListItemSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
             deprecated: true,
-            description: 'Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.'
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
             allOf: [
@@ -9924,8 +9934,12 @@ export const TaskListItemSchema = {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
+                    type: [
+                        'object',
+                        'null'
+                    ],
                     deprecated: true,
-                    description: 'Deprecated. Use creatorOrchestrator instead.'
+                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
                 }
             ]
         },
@@ -10019,12 +10033,7 @@ export const TaskListItemSchema = {
         'assignee',
         'coworkerId',
         'coworker',
-        'creatorUserId',
-        'creatorUser',
-        'creatorCoworkerId',
-        'creatorCoworker',
-        'creatorOrchestratorId',
-        'creatorOrchestrator',
+        'creator',
         'orchestratorId',
         'orchestrator',
         'name',

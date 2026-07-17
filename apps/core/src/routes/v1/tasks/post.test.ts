@@ -69,16 +69,15 @@ function buildMapTaskResponse(task: {
     assignee: null,
     coworkerId: null,
     coworker: null,
-    creatorUserId: "user_123",
-    creatorUser: {
+    creator: {
+      type: "user" as const,
       id: "user_123",
-      name: "Ada Lovelace",
-      image: null,
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
     },
-    creatorCoworkerId: null,
-    creatorCoworker: null,
-    creatorOrchestratorId: null,
-    creatorOrchestrator: null,
     orchestratorId: null,
     orchestrator: null,
     name: task.name ?? "New Task",

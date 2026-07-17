@@ -273,6 +273,62 @@ export function mapTaskEvent(event: TaskEventForMapping) {
   };
 }
 
+function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
+  if (task.creatorUserId != null) {
+    return {
+      type: "user" as const,
+      id: task.creatorUserId,
+      user: userSummaryFromLoadedRelation(
+        `Task ${task.id} creator`,
+        task.creatorUserId,
+        task.creatorUser ?? null,
+      ),
+    };
+  }
+
+  if (task.creatorCoworkerId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task ${task.id} creator`,
+      task.creatorCoworkerId,
+      task.creatorCoworker ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task ${task.id}: creator coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: task.creatorCoworkerId,
+      coworker,
+    };
+  }
+
+  if (task.creatorOrchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task ${task.id} creator`,
+      task.creatorOrchestratorId,
+      task.creatorOrchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `Task ${task.id}: creator orchestrator summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "orchestrator" as const,
+      id: task.creatorOrchestratorId,
+      orchestrator,
+    };
+  }
+
+  throw new Error(
+    `Task ${task.id}: exactly one creator FK must be set for API mapping`,
+  );
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -292,32 +348,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.assignee ?? null,
   );
 
-  const creatorUserSummary =
-    task.creatorUserId != null
-      ? userSummaryFromLoadedRelation(
-          `Task ${task.id} creator`,
-          task.creatorUserId,
-          task.creatorUser ?? null,
-        )
-      : null;
-
-  const creatorCoworkerSummary =
-    task.creatorCoworkerId != null
-      ? coworkerSummaryFromLoadedRelation(
-          `Task ${task.id} creator`,
-          task.creatorCoworkerId,
-          task.creatorCoworker ?? null,
-        )
-      : null;
-
-  const creatorOrchestratorSummary =
-    task.creatorOrchestratorId != null
-      ? orchestratorSummaryFromLoadedRelation(
-          `Task ${task.id} creator`,
-          task.creatorOrchestratorId,
-          task.creatorOrchestrator ?? null,
-        )
-      : null;
+  const creator = mapTaskCreator(task);
 
   return {
     id: task.id,
@@ -335,14 +366,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     assignee: taskAssigneeSummary,
     coworkerId: task.assigneeId,
     coworker: taskAssigneeSummary,
-    creatorUserId: task.creatorUserId ?? null,
-    creatorUser: creatorUserSummary,
-    creatorCoworkerId: task.creatorCoworkerId ?? null,
-    creatorCoworker: creatorCoworkerSummary,
-    creatorOrchestratorId: task.creatorOrchestratorId ?? null,
-    creatorOrchestrator: creatorOrchestratorSummary,
-    orchestratorId: task.creatorOrchestratorId ?? null,
-    orchestrator: creatorOrchestratorSummary,
+    creator,
+    // Deprecated aliases for legacy orchestrator-created tasks.
+    orchestratorId: creator.type === "orchestrator" ? creator.id : null,
+    orchestrator: creator.type === "orchestrator" ? creator.orchestrator : null,
     name: task.name,
     description: task.description,
     status: task.status,

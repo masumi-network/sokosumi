@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import type { Task } from "@/lib/clients/generated/core/types.gen";
 
 const baseLabels = {
   propertiesTitle: "Properties",
@@ -25,28 +26,17 @@ function createTask(
   overrides: {
     credits?: number;
     assigneeName?: string | null;
-    creator?:
-      | {
-          kind: "user";
-          id: string;
-          name: string;
-        }
-      | {
-          kind: "coworker";
-          id: string;
-          name: string;
-        }
-      | {
-          kind: "orchestrator";
-          id: string;
-          name: string;
-        };
+    creator?: Task["creator"];
   } = {},
 ) {
-  const creator = overrides.creator ?? {
-    kind: "user" as const,
+  const creator: Task["creator"] = overrides.creator ?? {
+    type: "user",
     id: "user_1",
-    name: "Andreas Osberghaus",
+    user: {
+      id: "user_1",
+      name: "Andreas Osberghaus",
+      image: null,
+    },
   };
 
   return {
@@ -56,34 +46,7 @@ function createTask(
       name: "Andreas Osberghaus",
       image: null,
     },
-    creatorUserId: creator.kind === "user" ? creator.id : null,
-    creatorUser:
-      creator.kind === "user"
-        ? {
-            id: creator.id,
-            name: creator.name,
-            image: null,
-          }
-        : null,
-    creatorCoworkerId: creator.kind === "coworker" ? creator.id : null,
-    creatorCoworker:
-      creator.kind === "coworker"
-        ? {
-            id: creator.id,
-            name: creator.name,
-            image: null,
-            slug: "creator-coworker",
-          }
-        : null,
-    creatorOrchestratorId: creator.kind === "orchestrator" ? creator.id : null,
-    creatorOrchestrator:
-      creator.kind === "orchestrator"
-        ? {
-            id: creator.id,
-            name: creator.name,
-            slug: "creator-orchestrator",
-          }
-        : null,
+    creator,
     organization: null,
     assignee:
       overrides.assigneeName === null
@@ -136,9 +99,14 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            kind: "coworker",
+            type: "coworker",
             id: "cow_creator",
-            name: "Creator Coworker",
+            coworker: {
+              id: "cow_creator",
+              name: "Creator Coworker",
+              image: null,
+              slug: "creator-coworker",
+            },
           },
         })}
         project={null}
@@ -157,9 +125,13 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            kind: "orchestrator",
+            type: "orchestrator",
             id: "01960001-0001-7001-8001-000000000099",
-            name: "Hermes",
+            orchestrator: {
+              id: "01960001-0001-7001-8001-000000000099",
+              name: "Hermes",
+              slug: "hermes",
+            },
           },
         })}
         project={null}

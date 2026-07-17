@@ -79,6 +79,40 @@ export const taskCommentSchema = z
   })
   .openapi("TaskComment");
 
+const taskCreatorUserSchema = z
+  .object({
+    type: z.literal("user"),
+    id: z.string().openapi({ example: "user_123" }),
+    user: userSummarySchema,
+  })
+  .openapi("TaskCreatorUser");
+
+const taskCreatorCoworkerSchema = z
+  .object({
+    type: z.literal("coworker"),
+    id: z.string().openapi({ example: "cow_123" }),
+    coworker: coworkerSummarySchema,
+  })
+  .openapi("TaskCreatorCoworker");
+
+const taskCreatorOrchestratorSchema = z
+  .object({
+    type: z.literal("orchestrator"),
+    id: z.string().uuid().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
+    orchestrator: orchestratorSummarySchema,
+  })
+  .openapi("TaskCreatorOrchestrator");
+
+export const taskCreatorSchema = z
+  .discriminatedUnion("type", [
+    taskCreatorUserSchema,
+    taskCreatorCoworkerSchema,
+    taskCreatorOrchestratorSchema,
+  ])
+  .openapi("TaskCreator");
+
 const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
@@ -120,33 +154,22 @@ const taskBaseSchema = z.object({
     deprecated: true,
     description: "Deprecated. Use assignee instead.",
   }),
-  creatorUserId: z.string().nullable().openapi({
-    example: "user_123",
+  creator: taskCreatorSchema.openapi({
     description:
-      "Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.",
+      "Actor that created the task. Exactly one of user, coworker, or orchestrator.",
   }),
-  creatorUser: userSummarySchema.nullable(),
-  creatorCoworkerId: z.string().nullable().openapi({
-    example: "cow_123",
-    description: "Set when a coworker created the task.",
-  }),
-  creatorCoworker: coworkerSummarySchema.nullable(),
-  creatorOrchestratorId: z.string().uuid().nullable().openapi({
-    example: "01960001-0001-7001-8001-000000000099",
-    description: "Set when an orchestrator created the task.",
-  }),
-  creatorOrchestrator: orchestratorSummarySchema.nullable(),
-  /** @deprecated Use `creatorOrchestratorId`. */
+  /** @deprecated Use `creator` when `creator.type === "orchestrator"`. */
   orchestratorId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",
     deprecated: true,
     description:
-      "Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.",
+      "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",
   }),
-  /** @deprecated Use `creatorOrchestrator`. */
+  /** @deprecated Use `creator` when `creator.type === "orchestrator"`. */
   orchestrator: orchestratorSummarySchema.nullable().openapi({
     deprecated: true,
-    description: "Deprecated. Use creatorOrchestrator instead.",
+    description:
+      "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",
   }),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),

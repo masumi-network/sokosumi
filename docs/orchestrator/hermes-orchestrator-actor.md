@@ -22,7 +22,7 @@ role.
 | `POST /v1/tasks/{id}/jobs` | Assigned coworker | **403** (coworker only) |
 | Marketplace chat / conversations | User or assigned coworker | **403** (use `/v1/hermes/*`) |
 | Task assignee (`assigneeId`) | Marketplace coworker | Never the orchestrator |
-| Task creator | `creatorCoworkerId` when coworker creates | `creatorOrchestratorId` when orchestrator creates |
+| Task creator | `creator.type = "coworker"` when coworker creates | `creator.type = "orchestrator"` when orchestrator creates |
 | Event attribution | `coworkerId` on events | `orchestratorId` on events |
 
 ## Admin vs self

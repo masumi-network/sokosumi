@@ -877,7 +877,12 @@ describe("mapTask", () => {
     });
   });
 
-  it("includes deprecated owner/assignee/orchestrator aliases", () => {
+  it("maps nested creator and deprecated owner/assignee/orchestrator aliases", () => {
+    const creatorOrchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Hermes",
+      slug: "hermes",
+    };
     const task = {
       id: "tsk_alias",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -892,12 +897,8 @@ describe("mapTask", () => {
       creatorUser: null,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: "01960001-0001-7001-8001-000000000099",
-      creatorOrchestrator: {
-        id: "01960001-0001-7001-8001-000000000099",
-        name: "Hermes",
-        slug: "hermes",
-      },
+      creatorOrchestratorId: creatorOrchestrator.id,
+      creatorOrchestrator,
       name: "Alias task",
       description: null,
       status: TaskStatus.READY,
@@ -920,8 +921,13 @@ describe("mapTask", () => {
       assigneeId: "cow_123",
       coworkerId: "cow_123",
       coworker: defaultTaskCoworker,
-      creatorOrchestratorId: "01960001-0001-7001-8001-000000000099",
-      orchestratorId: "01960001-0001-7001-8001-000000000099",
+      creator: {
+        type: "orchestrator",
+        id: creatorOrchestrator.id,
+        orchestrator: creatorOrchestrator,
+      },
+      orchestratorId: creatorOrchestrator.id,
+      orchestrator: creatorOrchestrator,
     });
   });
 

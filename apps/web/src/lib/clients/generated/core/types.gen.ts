@@ -356,30 +356,16 @@ export type Task = {
      */
     coworkerId: string | null;
     coworker: CoworkerSummary & unknown;
+    creator: TaskCreator;
     /**
-     * Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.
-     */
-    creatorUserId: string | null;
-    creatorUser: UserSummary & ({
-        [key: string]: unknown;
-    } | null);
-    /**
-     * Set when a coworker created the task.
-     */
-    creatorCoworkerId: string | null;
-    creatorCoworker: CoworkerSummary;
-    /**
-     * Set when an orchestrator created the task.
-     */
-    creatorOrchestratorId: string | null;
-    creatorOrchestrator: OrchestratorSummary;
-    /**
-     * Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
      *
      * @deprecated
      */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary & unknown;
+    orchestrator: OrchestratorSummary & ({
+        [key: string]: unknown;
+    } | null);
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -426,11 +412,40 @@ export type CoworkerSummary = {
     slug: string;
 } | null;
 
+/**
+ * Actor that created the task. Exactly one of user, coworker, or orchestrator.
+ */
+export type TaskCreator = ({
+    type: 'user';
+} & TaskCreatorUser) | ({
+    type: 'coworker';
+} & TaskCreatorCoworker) | ({
+    type: 'orchestrator';
+} & TaskCreatorOrchestrator);
+
+export type TaskCreatorUser = {
+    type: 'user';
+    id: string;
+    user: UserSummary;
+};
+
+export type TaskCreatorCoworker = {
+    type: 'coworker';
+    id: string;
+    coworker: CoworkerSummary;
+};
+
+export type TaskCreatorOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
+};
+
 export type OrchestratorSummary = {
     id: string;
     name: string;
     slug: string;
-} | null;
+};
 
 export type TaskEvent = {
     id: string;
@@ -2906,30 +2921,16 @@ export type TaskListItem = {
      */
     coworkerId: string | null;
     coworker: CoworkerSummary & unknown;
+    creator: TaskCreator;
     /**
-     * Set when a user created the task. Exactly one of creatorUserId, creatorCoworkerId, creatorOrchestratorId is non-null.
-     */
-    creatorUserId: string | null;
-    creatorUser: UserSummary & ({
-        [key: string]: unknown;
-    } | null);
-    /**
-     * Set when a coworker created the task.
-     */
-    creatorCoworkerId: string | null;
-    creatorCoworker: CoworkerSummary;
-    /**
-     * Set when an orchestrator created the task.
-     */
-    creatorOrchestratorId: string | null;
-    creatorOrchestrator: OrchestratorSummary;
-    /**
-     * Deprecated. Use creatorOrchestratorId instead. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
      *
      * @deprecated
      */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary & unknown;
+    orchestrator: OrchestratorSummary & ({
+        [key: string]: unknown;
+    } | null);
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
