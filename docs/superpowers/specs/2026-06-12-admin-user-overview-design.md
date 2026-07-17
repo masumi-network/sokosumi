@@ -51,7 +51,7 @@ recipient combobox) is left untouched.
    `subscriptionRepository.resolveActiveSubscriptionByReferenceId(userId, tx)`
    per row via `Promise.all` — reuses the canonical resolution (current
    in-period row, else latest started active row).
-4. Started tasks: one `prisma.task.groupBy({ by: ["userId"], where: { userId:
+4. Started tasks: one `prisma.task.groupBy({ by: ["ownerId"], where: { ownerId:
    { in: pageUserIds }, status: { not: "DRAFT" } }, _count })`.
 
 Per-row queries are acceptable here: this is an internal admin tool with a

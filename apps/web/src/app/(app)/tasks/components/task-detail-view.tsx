@@ -301,7 +301,7 @@ async function TaskVendorGrantApprovalBannerSlot({
     organizationId: orgId,
     isAuthenticated: true,
     viewerMembership,
-    taskOwnerUserId: task.ownerId,
+    taskOwnerId: task.ownerId,
     sessionUserId: session.user.id,
   });
 
@@ -435,7 +435,7 @@ async function TaskDetailActionsSlot({
   } = buildTaskDetailContext(task, coworkers, agents);
   const isReadOnlyWorkspaceView = isReadOnlyForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskUserId: task.ownerId,
+    taskOwnerId: task.ownerId,
     sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
@@ -596,7 +596,7 @@ async function TaskActivitySectionContent({
       viewerPlan={viewerPlan}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-        taskUserId: task.ownerId,
+        taskOwnerId: task.ownerId,
         sessionUserId: session?.user.id,
         forceReadOnly,
         taskStatus: task.status,
