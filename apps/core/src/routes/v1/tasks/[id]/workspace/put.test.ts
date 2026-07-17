@@ -146,6 +146,8 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
       image: null,
       slug: "current-coworker",
     },
+    orchestratorId: null,
+    orchestrator: null,
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,

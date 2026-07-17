@@ -711,6 +711,8 @@ describe("core.client", () => {
               projectId: null,
               coworkerId: null,
               coworker: null,
+              orchestratorId: null,
+              orchestrator: null,
               name: "Review onboarding",
               description: null,
               status: "READY",

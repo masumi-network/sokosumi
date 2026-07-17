@@ -6,6 +6,8 @@ import {
   type AuthEnv,
   type CoworkerAuthenticationContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+  type OrchestratorAuthenticationContext,
   setAuthContext,
 } from "@/middleware/auth";
 
@@ -42,8 +44,8 @@ function readContextHeaders(c: {
 }
 
 /**
- * For coworker bearer authentication only: reads optional workspace context headers
- * and attaches `context` to the auth context without changing `actor` from `"coworker"`.
+ * For coworker/orchestrator bearer authentication: reads optional workspace
+ * context headers and attaches `context` without changing `actor`.
  *
  * Canonical headers: `X-Context-User-Id`, `X-Context-Organization-Id`.
  * Legacy `X-Delegation-*` headers are still accepted; when both are sent, context wins.
@@ -59,7 +61,11 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
   async (c, next) => {
     const { isAuthenticated, authContext } = c.var;
 
-    if (!isAuthenticated || !isCoworkerAuthContext(authContext)) {
+    if (
+      !isAuthenticated ||
+      (!isCoworkerAuthContext(authContext) &&
+        !isOrchestratorAuthContext(authContext))
+    ) {
       return await next();
     }
 
@@ -101,19 +107,29 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
       }
     }
 
-    const nextContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: authContext.coworkerId,
-      vendorId: authContext.vendorId,
-      context: {
-        userId,
-        organizationId: organizationIdTrimmed ? organizationIdTrimmed : null,
-      },
+    const context = {
+      userId,
+      organizationId: organizationIdTrimmed ? organizationIdTrimmed : null,
     };
+
+    const nextAuthContext:
+      | CoworkerAuthenticationContext
+      | OrchestratorAuthenticationContext = isCoworkerAuthContext(authContext)
+      ? {
+          actor: "coworker",
+          coworkerId: authContext.coworkerId,
+          vendorId: authContext.vendorId,
+          context,
+        }
+      : {
+          actor: "orchestrator",
+          orchestratorId: authContext.orchestratorId,
+          context,
+        };
 
     setAuthContext(c, {
       isAuthenticated,
-      authContext: nextContext,
+      authContext: nextAuthContext,
     });
 
     return await next();

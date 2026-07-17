@@ -326,6 +326,8 @@ export type Task = {
     projectId: string | null;
     coworkerId: string | null;
     coworker: CoworkerSummary;
+    orchestratorId: string | null;
+    orchestrator: OrchestratorSummary;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -372,6 +374,12 @@ export type CoworkerSummary = {
     slug: string;
 } | null;
 
+export type OrchestratorSummary = {
+    id: string;
+    name: string;
+    slug: string;
+} | null;
+
 export type TaskEvent = {
     id: string;
     taskId: string;
@@ -394,6 +402,15 @@ export type TaskEvent = {
         id: string;
         name: string;
         image?: string | null;
+        slug: string;
+    } | null;
+    orchestratorId?: string | null;
+    /**
+     * Mirrors orchestratorId: omitted, null, or set when the orchestrator relation was loaded.
+     */
+    orchestrator?: {
+        id: string;
+        name: string;
         slug: string;
     } | null;
     transactionId?: string | null;
@@ -2764,6 +2781,48 @@ export type CreateCoworkerApiKeyResponse = {
     expiresAt: Date | null;
 };
 
+export type Orchestrator = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    archivedAt: Date | null;
+    slug: string;
+    name: string;
+    caption: string | null;
+    description: string | null;
+};
+
+export type OrchestratorApiKey = {
+    id: string;
+    orchestratorId: string;
+    name: string | null;
+    keyStart: string;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CreateOrchestratorApiKeyResponse = {
+    id: string;
+    token: string;
+    name: string | null;
+    expiresAt: Date | null;
+};
+
+export type OrchestratorUsage = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    idempotencyKey: string;
+    referenceId: string | null;
+    orchestratorId: string;
+    userId: string;
+    organizationId: string | null;
+    credits: number;
+    transactionId: string;
+};
+
 export type TaskListItem = {
     id: string;
     createdAt: Date;
@@ -2775,6 +2834,8 @@ export type TaskListItem = {
     projectId: string | null;
     coworkerId: string | null;
     coworker: CoworkerSummary;
+    orchestratorId: string | null;
+    orchestrator: OrchestratorSummary;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -2944,12 +3005,12 @@ export type WorkspaceOrganization = {
 export type OrganizationSlug = string;
 
 /**
- * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+ * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
  */
 export type ContextUserId = string;
 
 /**
- * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+ * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
  */
 export type ContextOrganizationId = string;
 
@@ -4829,11 +4890,11 @@ export type GetAgentsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -4912,11 +4973,11 @@ export type GetAgentsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -4984,11 +5045,11 @@ export type GetAgentsByIdReviewsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -5065,11 +5126,11 @@ export type GetAgentsByIdReviewsMeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -5137,11 +5198,11 @@ export type GetAgentsByIdRatingsEligibilityData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -5209,11 +5270,11 @@ export type PostAgentsByIdRatingsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -5309,11 +5370,11 @@ export type GetAgentsByIdInputSchemaData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -6330,11 +6391,11 @@ export type GetAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -7389,11 +7450,11 @@ export type PostAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -7531,11 +7592,11 @@ export type GetCategoriesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -7587,11 +7648,11 @@ export type GetChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -7808,11 +7869,11 @@ export type PostChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -7955,11 +8016,11 @@ export type GetChatStreamByConversationIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8228,11 +8289,11 @@ export type GetConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8312,11 +8373,11 @@ export type PostConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8410,11 +8471,11 @@ export type GetConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8513,11 +8574,11 @@ export type PatchConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8616,11 +8677,11 @@ export type GetConversationsByIdWarmupData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8719,11 +8780,11 @@ export type PatchConversationsByIdArchiveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8822,11 +8883,11 @@ export type GetConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8934,11 +8995,11 @@ export type PostConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10181,11 +10242,11 @@ export type PostHermesChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10304,11 +10365,11 @@ export type DeleteHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10388,11 +10449,11 @@ export type GetHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10472,11 +10533,11 @@ export type PatchHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10584,11 +10645,11 @@ export type PostHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10682,11 +10743,11 @@ export type GetHermesMeMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10761,11 +10822,11 @@ export type GetHermesMeUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10831,11 +10892,11 @@ export type PostHermesMeInboxSeenData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10915,11 +10976,11 @@ export type PostHermesMeSecretsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11027,11 +11088,11 @@ export type PostHermesMeInstanceOnboardData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11125,11 +11186,11 @@ export type GetHermesMeInstanceOnboardingProgressData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11209,11 +11270,11 @@ export type GetHermesMeInstanceIntegrationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11293,11 +11354,11 @@ export type GetHermesMeInstanceSchedulesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11377,11 +11438,11 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11491,11 +11552,11 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11591,11 +11652,11 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11691,11 +11752,11 @@ export type DeleteHermesMeInstanceIntegrationsByProviderData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11777,11 +11838,11 @@ export type PostHermesMeInstanceIntegrationsInitiateData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11875,11 +11936,11 @@ export type PostHermesMeInstanceIntegrationsFinalizeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -11973,11 +12034,11 @@ export type GetHermesMeInstanceSkillsCatalogData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12047,11 +12108,11 @@ export type GetHermesMeInstanceSkillsCatalogSearchData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12120,11 +12181,11 @@ export type GetHermesMeInstanceSkillsCatalogCuratedData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12190,11 +12251,11 @@ export type GetHermesMeInstanceSkillsCatalogDetailData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12277,11 +12338,11 @@ export type GetHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12347,11 +12408,11 @@ export type PostHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12473,11 +12534,11 @@ export type GetHermesMeInstanceSkillsPreinstalledData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12543,11 +12604,11 @@ export type DeleteHermesMeInstanceSkillsBySlugData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12643,11 +12704,11 @@ export type GetHistoryData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -12854,11 +12915,11 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -15247,11 +15308,11 @@ export type GetUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -15350,11 +15411,11 @@ export type PostUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -15453,11 +15514,11 @@ export type GetUsersByIdBillingDetailsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -15556,11 +15617,11 @@ export type GetUsersByIdSubscriptionData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -17678,11 +17739,11 @@ export type GetProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -17771,11 +17832,11 @@ export type PostProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -17841,11 +17902,11 @@ export type GetProjectsStatsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -17930,11 +17991,11 @@ export type PostProjectsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18030,11 +18091,11 @@ export type DeleteProjectsByIdJobsByJobIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18117,11 +18178,11 @@ export type PostProjectsByIdTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18217,11 +18278,11 @@ export type DeleteProjectsByIdTasksByTaskIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18304,11 +18365,11 @@ export type DeleteProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18390,11 +18451,11 @@ export type GetProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18476,11 +18537,11 @@ export type PatchProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18576,11 +18637,11 @@ export type GetJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18685,11 +18746,11 @@ export type GetJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18787,11 +18848,11 @@ export type PatchJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -18901,11 +18962,11 @@ export type PostJobsByIdRefundData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19015,11 +19076,11 @@ export type GetJobsByIdFilesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19115,11 +19176,11 @@ export type GetJobsByIdLinksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19215,11 +19276,11 @@ export type GetJobsByIdInputRequestData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19330,11 +19391,11 @@ export type PostJobsByIdInputsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19472,11 +19533,11 @@ export type GetJobsByIdEventsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19572,11 +19633,11 @@ export type DeleteJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19662,11 +19723,11 @@ export type PutJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19750,11 +19811,11 @@ export type PutJobsByIdWorkspaceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19864,11 +19925,11 @@ export type GetNotificationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -19965,11 +20026,11 @@ export type GetNotificationsUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -20035,11 +20096,11 @@ export type PatchNotificationsByIdReadData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -20138,11 +20199,11 @@ export type PatchNotificationsReadAllData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -21304,6 +21365,1148 @@ export type PatchCoworkersByIdWhitelistResponses = {
 
 export type PatchCoworkersByIdWhitelistResponse = PatchCoworkersByIdWhitelistResponses[keyof PatchCoworkersByIdWhitelistResponses];
 
+export type GetOrchestratorsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Orchestrator visibility scope. Defaults to 'all' active orchestrators. Use 'archived' for archived rows.
+         */
+        scope?: 'all' | 'archived';
+    };
+    url: '/orchestrators';
+};
+
+export type GetOrchestratorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrchestratorsError = GetOrchestratorsErrors[keyof GetOrchestratorsErrors];
+
+export type GetOrchestratorsResponses = {
+    /**
+     * Retrieve orchestrators
+     */
+    200: {
+        data: Array<Orchestrator>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrchestratorsResponse = GetOrchestratorsResponses[keyof GetOrchestratorsResponses];
+
+export type PostOrchestratorsData = {
+    body?: {
+        name: string;
+        slug: string;
+        caption?: string | null;
+        description?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/orchestrators';
+};
+
+export type PostOrchestratorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrchestratorsError = PostOrchestratorsErrors[keyof PostOrchestratorsErrors];
+
+export type PostOrchestratorsResponses = {
+    /**
+     * Create orchestrator
+     */
+    201: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrchestratorsResponse = PostOrchestratorsResponses[keyof PostOrchestratorsResponses];
+
+export type GetOrchestratorsMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/orchestrators/me';
+};
+
+export type GetOrchestratorsMeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrchestratorsMeError = GetOrchestratorsMeErrors[keyof GetOrchestratorsMeErrors];
+
+export type GetOrchestratorsMeResponses = {
+    /**
+     * Retrieve the current orchestrator
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrchestratorsMeResponse = GetOrchestratorsMeResponses[keyof GetOrchestratorsMeResponses];
+
+export type GetOrchestratorsMeApiKeysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/orchestrators/me/api-keys';
+};
+
+export type GetOrchestratorsMeApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrchestratorsMeApiKeysError = GetOrchestratorsMeApiKeysErrors[keyof GetOrchestratorsMeApiKeysErrors];
+
+export type GetOrchestratorsMeApiKeysResponses = {
+    /**
+     * Retrieve orchestrator API keys
+     */
+    200: {
+        data: Array<OrchestratorApiKey>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrchestratorsMeApiKeysResponse = GetOrchestratorsMeApiKeysResponses[keyof GetOrchestratorsMeApiKeysResponses];
+
+export type PostOrchestratorsMeApiKeysData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/orchestrators/me/api-keys';
+};
+
+export type PostOrchestratorsMeApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrchestratorsMeApiKeysError = PostOrchestratorsMeApiKeysErrors[keyof PostOrchestratorsMeApiKeysErrors];
+
+export type PostOrchestratorsMeApiKeysResponses = {
+    /**
+     * Create orchestrator API key
+     */
+    201: {
+        data: CreateOrchestratorApiKeyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrchestratorsMeApiKeysResponse = PostOrchestratorsMeApiKeysResponses[keyof PostOrchestratorsMeApiKeysResponses];
+
+export type DeleteOrchestratorsMeApiKeysByKeyIdData = {
+    body?: never;
+    path: {
+        keyId: string;
+    };
+    query?: never;
+    url: '/orchestrators/me/api-keys/{keyId}';
+};
+
+export type DeleteOrchestratorsMeApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrchestratorsMeApiKeysByKeyIdError = DeleteOrchestratorsMeApiKeysByKeyIdErrors[keyof DeleteOrchestratorsMeApiKeysByKeyIdErrors];
+
+export type DeleteOrchestratorsMeApiKeysByKeyIdResponses = {
+    /**
+     * Revoke orchestrator API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrchestratorsMeApiKeysByKeyIdResponse = DeleteOrchestratorsMeApiKeysByKeyIdResponses[keyof DeleteOrchestratorsMeApiKeysByKeyIdResponses];
+
+export type PatchOrchestratorsMeApiKeysByKeyIdData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        keyId: string;
+    };
+    query?: never;
+    url: '/orchestrators/me/api-keys/{keyId}';
+};
+
+export type PatchOrchestratorsMeApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchOrchestratorsMeApiKeysByKeyIdError = PatchOrchestratorsMeApiKeysByKeyIdErrors[keyof PatchOrchestratorsMeApiKeysByKeyIdErrors];
+
+export type PatchOrchestratorsMeApiKeysByKeyIdResponses = {
+    /**
+     * Update orchestrator API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchOrchestratorsMeApiKeysByKeyIdResponse = PatchOrchestratorsMeApiKeysByKeyIdResponses[keyof PatchOrchestratorsMeApiKeysByKeyIdResponses];
+
+export type PostOrchestratorsMeUsageData = {
+    body?: {
+        userId: string;
+        organizationId: string | null;
+        idempotencyKey: string;
+        credits: number;
+        referenceId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/orchestrators/me/usage';
+};
+
+export type PostOrchestratorsMeUsageErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrchestratorsMeUsageError = PostOrchestratorsMeUsageErrors[keyof PostOrchestratorsMeUsageErrors];
+
+export type PostOrchestratorsMeUsageResponses = {
+    /**
+     * Retrieve usage
+     */
+    200: {
+        data: OrchestratorUsage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Create usage
+     */
+    201: {
+        data: OrchestratorUsage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrchestratorsMeUsageResponse = PostOrchestratorsMeUsageResponses[keyof PostOrchestratorsMeUsageResponses];
+
+export type GetOrchestratorsByIdApiKeysData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/api-keys';
+};
+
+export type GetOrchestratorsByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrchestratorsByIdApiKeysError = GetOrchestratorsByIdApiKeysErrors[keyof GetOrchestratorsByIdApiKeysErrors];
+
+export type GetOrchestratorsByIdApiKeysResponses = {
+    /**
+     * Retrieve orchestrator API keys
+     */
+    200: {
+        data: Array<OrchestratorApiKey>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrchestratorsByIdApiKeysResponse = GetOrchestratorsByIdApiKeysResponses[keyof GetOrchestratorsByIdApiKeysResponses];
+
+export type PostOrchestratorsByIdApiKeysData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/api-keys';
+};
+
+export type PostOrchestratorsByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrchestratorsByIdApiKeysError = PostOrchestratorsByIdApiKeysErrors[keyof PostOrchestratorsByIdApiKeysErrors];
+
+export type PostOrchestratorsByIdApiKeysResponses = {
+    /**
+     * Create orchestrator API key
+     */
+    201: {
+        data: CreateOrchestratorApiKeyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrchestratorsByIdApiKeysResponse = PostOrchestratorsByIdApiKeysResponses[keyof PostOrchestratorsByIdApiKeysResponses];
+
+export type DeleteOrchestratorsByIdApiKeysByKeyIdData = {
+    body?: never;
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/api-keys/{keyId}';
+};
+
+export type DeleteOrchestratorsByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdApiKeysByKeyIdError = DeleteOrchestratorsByIdApiKeysByKeyIdErrors[keyof DeleteOrchestratorsByIdApiKeysByKeyIdErrors];
+
+export type DeleteOrchestratorsByIdApiKeysByKeyIdResponses = {
+    /**
+     * Revoke orchestrator API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdApiKeysByKeyIdResponse = DeleteOrchestratorsByIdApiKeysByKeyIdResponses[keyof DeleteOrchestratorsByIdApiKeysByKeyIdResponses];
+
+export type PatchOrchestratorsByIdApiKeysByKeyIdData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/api-keys/{keyId}';
+};
+
+export type PatchOrchestratorsByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchOrchestratorsByIdApiKeysByKeyIdError = PatchOrchestratorsByIdApiKeysByKeyIdErrors[keyof PatchOrchestratorsByIdApiKeysByKeyIdErrors];
+
+export type PatchOrchestratorsByIdApiKeysByKeyIdResponses = {
+    /**
+     * Update orchestrator API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchOrchestratorsByIdApiKeysByKeyIdResponse = PatchOrchestratorsByIdApiKeysByKeyIdResponses[keyof PatchOrchestratorsByIdApiKeysByKeyIdResponses];
+
+export type DeleteOrchestratorsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}';
+};
+
+export type DeleteOrchestratorsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdError = DeleteOrchestratorsByIdErrors[keyof DeleteOrchestratorsByIdErrors];
+
+export type DeleteOrchestratorsByIdResponses = {
+    /**
+     * Archive orchestrator
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdResponse = DeleteOrchestratorsByIdResponses[keyof DeleteOrchestratorsByIdResponses];
+
+export type GetOrchestratorsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}';
+};
+
+export type GetOrchestratorsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrchestratorsByIdError = GetOrchestratorsByIdErrors[keyof GetOrchestratorsByIdErrors];
+
+export type GetOrchestratorsByIdResponses = {
+    /**
+     * Retrieve orchestrator
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrchestratorsByIdResponse = GetOrchestratorsByIdResponses[keyof GetOrchestratorsByIdResponses];
+
+export type PatchOrchestratorsByIdData = {
+    body?: {
+        name?: string;
+        slug?: string;
+        caption?: string | null;
+        description?: string | null;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}';
+};
+
+export type PatchOrchestratorsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchOrchestratorsByIdError = PatchOrchestratorsByIdErrors[keyof PatchOrchestratorsByIdErrors];
+
+export type PatchOrchestratorsByIdResponses = {
+    /**
+     * Update orchestrator
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchOrchestratorsByIdResponse = PatchOrchestratorsByIdResponses[keyof PatchOrchestratorsByIdResponses];
+
 export type GetTasksData = {
     body?: never;
     headers?: {
@@ -21312,11 +22515,11 @@ export type GetTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -21437,11 +22640,11 @@ export type PostTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
         'X-Context-Organization-Id'?: string;
     };

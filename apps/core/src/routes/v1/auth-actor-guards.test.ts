@@ -34,6 +34,27 @@ function createCoworkerContextApp(
   return app;
 }
 
+function createOrchestratorContextApp(
+  mount: (app: OpenAPIHonoWithAuth) => void,
+): OpenAPIHono<{ Variables: AuthVariables }> {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables;
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+      context: { userId: "user_123", organizationId: null },
+    });
+    return await next();
+  });
+
+  mount(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
+
 function createCoworkerUserRouteContextApp(
   mount: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void,
 ): OpenAPIHono<{ Variables: AuthVariables }> {
@@ -85,6 +106,13 @@ describe("route actor guards", () => {
   it("returns 403 for coworker auth on agent jobs routes", async () => {
     const app = createCoworkerContextApp(mountGetAgentJobs);
     const response = await app.request("http://localhost/agent_123/jobs");
+
+    expect(response.status).toBe(403);
+  });
+
+  it("returns 403 for contextual orchestrator on conversation routes", async () => {
+    const app = createOrchestratorContextApp(mountGetConversations);
+    const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(403);
   });

@@ -80,7 +80,11 @@ import {
   getOpenRouterChatApiKeyForProvider,
   getSokosumiProvider,
 } from "@/lib/sokosumi-ai-provider";
-import { isUserAuthContext, requireUserContext } from "@/middleware/auth";
+import {
+  forbidOrchestratorActor,
+  isUserAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import {
   AI_SDK_CHAT_MESSAGES_REQUIREMENT,
   aiSdkChatRequestSchema,
@@ -538,6 +542,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(release());
     };
     try {
+      forbidOrchestratorActor(
+        c.var.authContext,
+        "Orchestrator cannot access marketplace conversations",
+      );
       const userContext = requireUserContext(c.var.authContext);
 
       const {

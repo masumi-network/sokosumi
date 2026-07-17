@@ -34,7 +34,11 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   taskEventChannelField,
@@ -147,6 +151,7 @@ async function createTaskRecord(
     resolvedName: string;
     pendingVendorGrantId?: string | null;
     grantResumeStatus?: GrantResumeStatus | null;
+    orchestratorId?: string | null;
   },
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
 ) {
@@ -158,6 +163,7 @@ async function createTaskRecord(
     resolvedName,
     userId,
     workspaceId,
+    orchestratorId = null,
   } = params;
 
   await assertTaskProjectInWorkspace(body.projectId, workspaceId, tx);
@@ -175,6 +181,7 @@ async function createTaskRecord(
       name: resolvedName,
       description: body.description ?? null,
       coworkerId: body.coworkerId ?? null,
+      orchestratorId,
       status,
       grantResumeStatus: isGrantPending ? grantResumeStatus : null,
       metadata: null,
@@ -187,6 +194,7 @@ async function createTaskRecord(
           channel: body.channel,
           userId,
           coworkerId: null,
+          orchestratorId,
         },
       },
     },
@@ -215,6 +223,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireTaskAssignableCoworker(body.coworkerId);
     }
 
+    const orchestratorId = isOrchestratorAuthContext(authContext)
+      ? authContext.orchestratorId
+      : null;
+
     const shouldEnforceCreateGrant =
       isCoworkerAuthContext(authContext) && Boolean(authContext.context);
 
@@ -227,6 +239,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             workspaceId: workspaceContext.workspaceId,
             body,
             resolvedName,
+            orchestratorId,
           },
           tx,
         ),

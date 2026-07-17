@@ -4,6 +4,10 @@ Guide for **coworker integrators** calling the Sokosumi Core API (`apps/core`). 
 manage grants via org/user vendor-grant routes; coworkers interact with grants
 implicitly through task and job endpoints.
 
+> **Hermes / first-party orchestrators** do **not** use this grant model. They
+> authenticate as `actor: orchestrator` (`orch_` keys) and skip vendor grants /
+> whitelist. See [`docs/orchestrator/hermes-orchestrator-actor.md`](../orchestrator/hermes-orchestrator-actor.md).
+
 - **Source of truth (behavior):** `apps/core/src/helpers/access-control.ts`,
   `apps/core/src/helpers/vendor-grants.ts`, `apps/core/src/routes/v1/tasks/*`
 - **Source of truth (OpenAPI shape):** `apps/core/src/schemas/task.schema.ts`

@@ -94,6 +94,8 @@ function createTask() {
     organization: { id: "org_123", name: "Acme Corp", slug: "acme-corp" },
     coworkerId: null,
     coworker: null,
+    orchestratorId: null,
+    orchestrator: null,
     name: "Quarterly report",
     description: null,
     status: TaskStatus.RUNNING,

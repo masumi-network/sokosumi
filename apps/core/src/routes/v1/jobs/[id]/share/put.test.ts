@@ -92,6 +92,8 @@ vi.mock("@/middleware/auth", () => ({
     authContext.actor === "user",
   isCoworkerAuthContext: (authContext: { actor: string }) =>
     authContext.actor === "coworker",
+  isOrchestratorAuthContext: (authContext: { actor: string }) =>
+    authContext.actor === "orchestrator",
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({

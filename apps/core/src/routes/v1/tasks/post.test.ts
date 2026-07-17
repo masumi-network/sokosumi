@@ -61,6 +61,8 @@ function buildMapTaskResponse(task: {
       : null,
     coworkerId: null,
     coworker: null,
+    orchestratorId: null,
+    orchestrator: null,
     name: task.name ?? "New Task",
     description: null,
     status: task.status ?? TaskStatus.DRAFT,
