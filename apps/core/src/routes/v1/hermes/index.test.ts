@@ -33,8 +33,10 @@ const {
   memberFindFirstMock,
   organizationFindManyMock,
   orchestratorApiKeyFindUniqueMock,
+  patchInstanceMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
+  startInstanceOnboardingMock,
   syncHermesInboxForUserMock,
   userFindUniqueMock,
   waitUntilMock,
@@ -85,8 +87,10 @@ const {
     memberFindFirstMock: vi.fn(),
     organizationFindManyMock: vi.fn(),
     orchestratorApiKeyFindUniqueMock: vi.fn(),
+    patchInstanceMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
+    startInstanceOnboardingMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
     waitUntilMock: vi.fn(),
@@ -179,9 +183,11 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
     },
     isReservedSecretKey: isReservedSecretKeyMock,
     isValidSecretKey: isValidSecretKeyMock,
+    patchInstance: patchInstanceMock,
     provisionInstance: vi.fn(),
     proxyChatCompletions: proxyChatCompletionsMock,
     setInstanceSecret: vi.fn(),
+    startInstanceOnboarding: startInstanceOnboardingMock,
   };
 });
 
@@ -280,6 +286,8 @@ describe("Hermes route contracts", () => {
       mode: "read",
     });
     disconnectInstanceIntegrationMock.mockResolvedValue(undefined);
+    patchInstanceMock.mockResolvedValue(undefined);
+    startInstanceOnboardingMock.mockResolvedValue(undefined);
     approveConfirmationMock.mockResolvedValue({
       status: "approved",
       result: null,
@@ -1237,6 +1245,91 @@ describe("Hermes route contracts", () => {
         extra: { userId: "user_123" },
       }),
     );
+  });
+
+  it("returns 200 for POST /me/instance/onboard and forwards fields to the orchestrator", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assistantName: "Ada",
+        avatarSeed: "seed_1",
+        researchDepth: "deep",
+        autonomyLevel: "medium",
+        personality: { tone: 50, detail: 50, style: 50 },
+      }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.ok", true);
+    expect(patchInstanceMock).toHaveBeenCalledWith("user_123", {
+      autonomyLevel: "medium",
+    });
+    expect(startInstanceOnboardingMock).toHaveBeenCalledWith("user_123", {
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      role: undefined,
+      company: undefined,
+      researchDepth: "deep",
+      personality: { tone: 50, detail: 50, style: 50 },
+    });
+  });
+
+  it("returns 503 with orchestrator detail when starting onboarding fails with a 5xx", async () => {
+    startInstanceOnboardingMock.mockRejectedValue(
+      new HermesOrchestratorError(500, { title: "orchestrator db down" }),
+    );
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ researchDepth: "deep" }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(body.message).toBe(
+      "Failed to start assistant onboarding: orchestrator db down",
+    );
+  });
+
+  it("returns 503 with only the generic fallback when an unexpected (non-orchestrator) error is thrown", async () => {
+    // Regression coverage: any throw that ISN'T a HermesOrchestratorError
+    // (e.g. an unwrapped network exception, or a bug in a step before the
+    // orchestrator call) falls into mapOrchestratorError's catch-all and
+    // loses all detail — this is exactly the opaque "Failed to start
+    // assistant onboarding" toast users see with no diagnostic info.
+    startInstanceOnboardingMock.mockRejectedValue(
+      new Error("something unrelated to the orchestrator threw"),
+    );
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ researchDepth: "deep" }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Failed to start assistant onboarding");
   });
 
   it("documents the chat and instance-not-ready envelopes in OpenAPI", () => {

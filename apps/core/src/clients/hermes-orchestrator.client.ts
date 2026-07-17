@@ -338,12 +338,75 @@ async function orchFetch(
 
   const body = jsonBody !== undefined ? JSON.stringify(jsonBody) : initBody;
 
-  return fetch(`${env.HERMES_ORCH_BASE_URL}${path}`, {
-    ...fetchInit,
-    headers,
-    body,
-    cache: "no-store",
-  });
+  try {
+    return await fetch(`${env.HERMES_ORCH_BASE_URL}${path}`, {
+      ...fetchInit,
+      headers,
+      body,
+      cache: "no-store",
+    });
+  } catch (error) {
+    // A raw fetch failure (DNS, connection reset, timeout, abort) isn't a
+    // HermesOrchestratorError, so it would otherwise fall through
+    // mapOrchestratorError's catch-all and surface as an opaque generic
+    // message with no diagnostic value. Wrap it so callers see the real cause.
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new HermesOrchestratorError(503, {
+      code: "HERMES_ORCH_UNREACHABLE",
+      title: `Could not reach the assistant orchestrator: ${cause}`,
+    });
+  }
+}
+
+/** 502/504 are edge/gateway errors too — same "the app never saw this
+ * request" shape as Railway's deploy-restart 503, so all three are worth
+ * retrying rather than surfacing as a hard failure. */
+function isTransientOrchestratorStatus(status: number): boolean {
+  return status === 502 || status === 503 || status === 504;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const ORCH_RETRY_ATTEMPTS = 5;
+const ORCH_RETRY_BASE_DELAY_MS = 2000;
+
+/**
+ * Like `orchFetch`, but retries transient failures with exponential backoff
+ * (2s/4s/8s/16s — ~30s total) before giving up. The orchestrator runs as a
+ * single Railway replica, so every deploy has a brief window where its edge
+ * returns 502/503/504 for in-flight requests — without a retry, a
+ * synchronous user-initiated action (provision, patch, onboard) that lands
+ * in that window surfaces as a hard failure even though the orchestrator is
+ * healthy moments later.
+ *
+ * Scoped to those synchronous setup calls only — NOT used for polling reads
+ * (which just retry on the next poll tick) or chat completions (retrying a
+ * POST with side effects on a transient status is unsafe).
+ */
+async function orchFetchWithRetry(
+  path: string,
+  init: HermesOrchestratorFetchInit = {},
+): Promise<Response> {
+  for (let attempt = 1; attempt <= ORCH_RETRY_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      await delay(ORCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 2));
+    }
+
+    const isLastAttempt = attempt === ORCH_RETRY_ATTEMPTS;
+
+    try {
+      const res = await orchFetch(path, init);
+      if (isLastAttempt || !isTransientOrchestratorStatus(res.status)) {
+        return res;
+      }
+    } catch (error) {
+      if (isLastAttempt) throw error;
+    }
+  }
+
+  throw new Error("orchFetchWithRetry: exhausted attempts without resolving");
 }
 
 async function readErrorBody(res: Response): Promise<OrchestratorErrorBody> {
@@ -519,7 +582,7 @@ export async function provisionInstance(
     body.autonomyLevel = hints.autonomyLevel;
   }
 
-  const res = await orchFetch("/v1/instances", {
+  const res = await orchFetchWithRetry("/v1/instances", {
     method: "POST",
     jsonBody: body,
   });
@@ -557,10 +620,13 @@ export async function patchInstance(
 
   if (Object.keys(body).length === 0) return;
 
-  const res = await orchFetch(`/v1/instances/${encodeURIComponent(userId)}`, {
-    method: "PATCH",
-    jsonBody: body,
-  });
+  const res = await orchFetchWithRetry(
+    `/v1/instances/${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      jsonBody: body,
+    },
+  );
 
   if (
     !res.ok &&
@@ -1136,7 +1202,7 @@ export async function startInstanceOnboarding(
   if (input.researchDepth) body.researchDepth = input.researchDepth;
   if (input.personality) body.personality = input.personality;
 
-  const res = await orchFetch(
+  const res = await orchFetchWithRetry(
     `/v1/instances/${encodeURIComponent(userId)}/onboard`,
     {
       method: "POST",

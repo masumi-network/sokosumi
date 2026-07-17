@@ -195,4 +195,90 @@ describe("hermes-orchestrator.client", () => {
     expect(schedules[0]?.nextRunAt).toBe(nextRunAt);
     expect(() => hermesScheduleSchema.parse(schedules[0])).not.toThrow();
   });
+
+  it("wraps a raw fetch failure as a HermesOrchestratorError instead of letting it propagate opaque", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+
+      const { startInstanceOnboarding, HermesOrchestratorError } = await import(
+        "./hermes-orchestrator.client"
+      );
+
+      const resultPromise = startInstanceOnboarding("user_network_blip", {
+        researchDepth: "deep",
+      });
+      // Attach the rejection assertion before advancing timers, so the
+      // eventual rejection is never briefly "unhandled" mid-await.
+      const expectation = expect(resultPromise).rejects.toSatisfy(
+        (error: unknown) => {
+          expect(error).toBeInstanceOf(HermesOrchestratorError);
+          expect(
+            (error as InstanceType<typeof HermesOrchestratorError>).httpStatus,
+          ).toBe(503);
+          expect((error as Error).message).toContain("fetch failed");
+          return true;
+        },
+      );
+      // Every attempt fails, so this exhausts the full retry budget before
+      // rejecting — advance through all of it rather than the real ~30s.
+      await vi.runAllTimersAsync();
+      await expectation;
+      // 1 initial attempt + 4 retries.
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries provisionInstance on a transient 503 from the orchestrator edge, then succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock
+        .mockResolvedValueOnce({
+          status: 503,
+          ok: false,
+          json: async () => ({ code: "SERVICE_UNAVAILABLE" }),
+        })
+        .mockResolvedValueOnce({
+          status: 503,
+          ok: false,
+          json: async () => ({ code: "SERVICE_UNAVAILABLE" }),
+        })
+        .mockResolvedValueOnce({
+          status: 202,
+          ok: true,
+          json: async () => ({}),
+        });
+
+      const { provisionInstance } = await import(
+        "./hermes-orchestrator.client"
+      );
+
+      const resultPromise = provisionInstance("user_deploy_window", {});
+      await vi.runAllTimersAsync();
+
+      await expect(resultPromise).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry a non-transient 4xx (e.g. a genuine bad request)", async () => {
+    fetchMock.mockResolvedValue({
+      status: 400,
+      ok: false,
+      json: async () => ({ code: "BAD_REQUEST", title: "invalid userId" }),
+    });
+
+    const { provisionInstance, HermesOrchestratorError } = await import(
+      "./hermes-orchestrator.client"
+    );
+
+    await expect(
+      provisionInstance("user_bad_request", {}),
+    ).rejects.toBeInstanceOf(HermesOrchestratorError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
