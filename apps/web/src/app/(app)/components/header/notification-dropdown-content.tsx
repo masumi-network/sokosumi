@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
@@ -31,8 +33,16 @@ export function NotificationDropdownContent({
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notice } = useAccountNotice();
-  const { notifications, markRead, isLoading, hasFetchError, refetch } =
-    useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    isLoading,
+    hasFetchError,
+    refetch,
+  } = useNotifications();
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
   const handleNotificationClick = async (notificationId: string) => {
     const notification = notifications.find((n) => n.id === notificationId);
@@ -54,6 +64,19 @@ export function NotificationDropdownContent({
       tDetail,
     );
     onClose();
+  };
+
+  const handleMarkAllRead = async () => {
+    if (isMarkingAllRead || unreadCount === 0) return;
+
+    setIsMarkingAllRead(true);
+    try {
+      await markAllRead();
+    } catch {
+      toast.error(t("markAllReadError"));
+    } finally {
+      setIsMarkingAllRead(false);
+    }
   };
 
   const handleSeeMoreClick = () => {
@@ -118,7 +141,24 @@ export function NotificationDropdownContent({
   return (
     <>
       {accountNoticeSection}
-      <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
+      <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+        <DropdownMenuLabel className="p-0">{t("title")}</DropdownMenuLabel>
+        {unreadCount > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground h-auto px-2 py-1 text-xs font-normal"
+            onPointerDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={() => void handleMarkAllRead()}
+            disabled={isMarkingAllRead}
+          >
+            {isMarkingAllRead ? t("loading") : t("markAllRead")}
+          </Button>
+        ) : null}
+      </div>
       <DropdownMenuSeparator />
       <div className="max-h-96 overflow-y-auto">
         {notifications.map((notification) => (
