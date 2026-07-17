@@ -18,8 +18,9 @@ role.
 | --- | --- | --- |
 | Vendor workspace grants | Required for full workspace | Skipped |
 | DRAFT tasks | Hidden | Visible (user-like in workspace) |
-| Status transitions | Agent table (assignee) or user table (delegated) | **DRAFT ↔ READY only** |
+| Status transitions | Agent table (assignee) or user table (delegated) | **DRAFT ↔ READY only** (task events); schedule put/delete may still move `QUEUED` |
 | `POST /v1/tasks/{id}/jobs` | Assigned coworker | **403** (coworker only) |
+| Marketplace chat / conversations | User or assigned coworker | **403** (use `/v1/hermes/*`) |
 | Task assignee (`coworkerId`) | Marketplace coworker | Never the orchestrator |
 | Attribution | `coworkerId` on events | `orchestratorId` on task + events |
 

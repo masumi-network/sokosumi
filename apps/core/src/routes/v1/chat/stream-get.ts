@@ -17,7 +17,7 @@ import {
   getResumableUiStreamContext,
   isUiStreamResumptionConfigured,
 } from "@/lib/resumable-ui-stream-context";
-import { requireUserContext } from "@/middleware/auth";
+import { forbidOrchestratorActor, requireUserContext } from "@/middleware/auth";
 
 /** `resumable-stream` rejects with this after a fixed ~1s Redis pub/sub handshake timeout. */
 function isResumableStreamAckTimeoutError(error: unknown): boolean {
@@ -61,6 +61,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(withGlobalHeaderParameters(route), async (c) => {
+    forbidOrchestratorActor(
+      c.var.authContext,
+      "Orchestrator cannot access marketplace conversations",
+    );
     const userContext = requireUserContext(c.var.authContext);
     const { conversationId } = c.req.valid("param");
 

@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
+  OrchestratorAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -1297,6 +1298,19 @@ describe("requireConversationCoworkerAccess", () => {
     await requireConversationCoworkerAccess(userAuthContext, null, tx);
 
     expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects orchestrator actors (marketplace chat is out of scope)", async () => {
+    const tx = createTransactionClient();
+    const orchestratorContext: OrchestratorAuthenticationContext = {
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+      context: { userId: "user_123", organizationId: null },
+    };
+
+    await expect(
+      requireConversationCoworkerAccess(orchestratorContext, null, tx),
+    ).rejects.toThrow("Orchestrator cannot access marketplace conversations");
   });
 
   it("allows a delegated coworker on its own conversation (coworker_id)", async () => {

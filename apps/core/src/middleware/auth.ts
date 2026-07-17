@@ -207,6 +207,20 @@ export function requireUserAuthContext(
   return authContext;
 }
 
+/**
+ * Rejects orchestrator actors (bare or contextual). Use on surfaces that are
+ * user/coworker-only (marketplace chat, task scheduling) even when
+ * {@link requireUserContext} would accept an orchestrator with workspace context.
+ */
+export function forbidOrchestratorActor(
+  authContext: AuthenticationContext,
+  message: string,
+): void {
+  if (isOrchestratorAuthContext(authContext)) {
+    throw forbidden(message);
+  }
+}
+
 export function requireCoworkerAuthContext(
   authContext: AuthenticationContext,
 ): CoworkerAuthenticationContext {

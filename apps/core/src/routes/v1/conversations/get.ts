@@ -9,6 +9,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import {
+  forbidOrchestratorActor,
   isUserAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
@@ -52,6 +53,10 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
+      forbidOrchestratorActor(
+        c.var.authContext,
+        "Orchestrator cannot access marketplace conversations",
+      );
       const userContext = requireUserContext(c.var.authContext);
 
       // Database is the source of truth - fetch conversations

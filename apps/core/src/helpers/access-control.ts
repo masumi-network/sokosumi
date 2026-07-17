@@ -649,6 +649,7 @@ export async function resolveConversationCoworkerId(
  *
  * - User actors: no-op — ownership is already enforced by the `userId`-scoped
  *   query that loaded the conversation.
+ * - Orchestrator actors: always forbidden (marketplace chat is out of scope).
  * - Delegated coworker actors: the conversation's bound coworker
  *   (`metadata.coworker_id` / `coworker_slug`) must equal the authenticated
  *   `coworkerId`. Delegation alone (user-exists + org-membership) is not enough;
@@ -657,17 +658,19 @@ export async function resolveConversationCoworkerId(
  * Non-delegated coworkers never reach this on user-scoped routes
  * (`requireUserContext` throws first); the delegation branch guards defensively.
  *
- * @throws {forbidden} When a delegated coworker is not the conversation's coworker.
+ * @throws {forbidden} When the actor is an orchestrator, or a delegated coworker
+ *   is not the conversation's coworker.
  */
 export async function requireConversationCoworkerAccess(
   authContext: AuthenticationContext,
   metadata: Prisma.JsonValue | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isOrchestratorAuthContext(authContext)) {
+    throw forbidden("Orchestrator cannot access marketplace conversations");
+  }
+
+  if (isUserAuthContext(authContext)) {
     return;
   }
 
@@ -705,10 +708,11 @@ export function pinCoworkerConversationBinding(
   authContext: AuthenticationContext,
   metadata: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isOrchestratorAuthContext(authContext)) {
+    throw forbidden("Orchestrator cannot access marketplace conversations");
+  }
+
+  if (isUserAuthContext(authContext)) {
     return metadata;
   }
 
