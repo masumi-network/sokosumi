@@ -8,6 +8,7 @@ import type { ErrorEvent } from "@sentry/nextjs";
  */
 const extensionOnlyStackFilenamePatterns: RegExp[] = [
   /hook\.js/i,
+  /injected\.js/i,
   /^chrome-extension:/i,
   /^moz-extension:/i,
   /^safari-extension:/i,

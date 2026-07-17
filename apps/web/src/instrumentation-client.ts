@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
 import {
+  browserHistoryRateLimitIgnoreErrors,
   inAppBrowserIgnoreErrors,
   transientStreamIgnoreErrors,
 } from "@/lib/sentry/third-party-browser-environment-errors";
@@ -30,6 +31,7 @@ Sentry.init({
     ...thirdPartyAnalyticsIgnoreErrors,
     ...thirdPartyWalletIgnoreErrors,
     ...inAppBrowserIgnoreErrors,
+    ...browserHistoryRateLimitIgnoreErrors,
     ...transientStreamIgnoreErrors,
     ...bareNetworkErrorIgnoreErrors,
     ...expectedClientNoiseIgnoreErrors,

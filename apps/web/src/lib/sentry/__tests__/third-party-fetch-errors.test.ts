@@ -125,6 +125,11 @@ describe("thirdPartyScriptDenyUrls", () => {
     ).toBe(true);
     expect(
       thirdPartyScriptDenyUrls.some((pattern) =>
+        pattern.test("app:///static/js/injected.js"),
+      ),
+    ).toBe(true);
+    expect(
+      thirdPartyScriptDenyUrls.some((pattern) =>
         pattern.test("app:///js/cardano.bundle.js"),
       ),
     ).toBe(true);
@@ -318,6 +323,51 @@ describe("beforeSendClientEvent", () => {
                 stacktrace: {
                   frames: [{ filename: "app:///js/cardano.bundle.js" }],
                 },
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Cardano injected.js read-only window failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat",
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value:
+                  "Cannot assign to read only property 'cardano' of object '#<Window>'",
+                stacktrace: {
+                  frames: [{ filename: "app:///static/js/injected.js" }],
+                },
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Safari history.replaceState rate-limit noise", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat",
+          exception: {
+            values: [
+              {
+                type: "SecurityError",
+                value:
+                  "Attempt to use history.replaceState() more than 100 times per 10 seconds",
               },
             ],
           },
