@@ -9,6 +9,8 @@ role.
   coworkers for workspace-scoped routes
 - **Routes:** `/v1/orchestrators/*` (admin CRUD + keys; self `/me`, `/me/api-keys`,
   `/me/usage`)
+- **Hermes product chat:** `/v1/hermes/*` stays **user session only** — not `orch_`
+  (even with context headers)
 
 ## Access vs coworker
 
@@ -39,3 +41,9 @@ usage onto a new orchestrator row (copying `name` / `slug` / `caption` /
 `description`), then hard-deletes the Hermes coworker. It **fails** if any
 `task.coworkerId` or `history.coworkerId` still points at Hermes. Empty DBs
 without that coworker skip the data step.
+
+After a successful migrate, **mint new `orch_` keys** via admin
+`POST /v1/orchestrators/{id}/api-keys` (or orchestrator
+`POST /v1/orchestrators/me/api-keys`). Old coworker keys are deleted, not
+converted. If migrate fails on history attribution, clear or remap
+`history.coworkerId` for that Hermes coworker row, then re-run.
