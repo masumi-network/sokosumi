@@ -43,7 +43,7 @@ describe("buildVisibleTaskLinksInclude", () => {
 
   it("scopes delegated coworker peers by delegated userId when workspaceId is absent", () => {
     const peerWhere = {
-      userId: "user_delegated",
+      ownerId: "user_delegated",
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [

@@ -81,7 +81,7 @@ function makeTask(overrides: Record<string, unknown> = {}) {
     name: "Quarterly report",
     status: "RUNNING",
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
-    user: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+    owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
     organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
     ...overrides,
   };
@@ -109,7 +109,7 @@ describe("GET /v1/admin/tasks", () => {
         name: "Quarterly report",
         status: "RUNNING",
         createdAt: "2025-01-01T00:00:00.000Z",
-        user: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+        owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     ]);
@@ -146,7 +146,7 @@ describe("GET /v1/admin/tasks", () => {
             { id: "acme" },
             { name: { contains: "acme", mode: "insensitive" } },
             {
-              user: {
+              owner: {
                 OR: [
                   { name: { contains: "acme", mode: "insensitive" } },
                   { email: { contains: "acme", mode: "insensitive" } },

@@ -228,7 +228,7 @@ describe("vendor-grants helpers", () => {
       data: expect.objectContaining({
         taskId: "t1",
         status: TaskStatus.READY,
-        ownerId: "u1",
+        userId: "u1",
       }),
     });
 
@@ -263,7 +263,7 @@ describe("vendor-grants helpers", () => {
       data: expect.objectContaining({
         taskId: "t1",
         status: TaskStatus.CANCELED,
-        ownerId: "u1",
+        userId: "u1",
       }),
     });
   });
@@ -292,7 +292,7 @@ describe("vendor-grants helpers", () => {
       data: expect.objectContaining({
         taskId: "t1",
         status: TaskStatus.READY,
-        ownerId: "u1",
+        userId: "u1",
       }),
     });
   });
@@ -402,7 +402,7 @@ describe("vendor-grants helpers", () => {
     });
     memberFindMany.mockResolvedValue([{ userId: "owner_1" }]);
     workspaceFindUnique.mockResolvedValue({
-      ownerId: null,
+      userId: null,
       organizationId: "org_1",
     });
     createNotificationMock.mockResolvedValue({ created: true });
@@ -452,7 +452,7 @@ describe("vendor-grants helpers", () => {
       permission: VendorPermission.workspace,
     });
     workspaceFindUnique.mockResolvedValue({
-      ownerId: "personal_owner",
+      userId: "personal_owner",
       organizationId: null,
     });
     createNotificationMock.mockResolvedValue({ created: true });
@@ -466,7 +466,7 @@ describe("vendor-grants helpers", () => {
     expect(memberFindMany).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        ownerId: "personal_owner",
+        userId: "personal_owner",
         messageKey: "notifications.vendorGrant.pending",
       }),
       expect.anything(),
@@ -601,7 +601,7 @@ describe("vendor-grants helpers", () => {
   it("notifies approvers via notifyWorkspaceApproversOfPendingGrant", async () => {
     memberFindMany.mockResolvedValue([{ userId: "admin_1" }]);
     workspaceFindUnique.mockResolvedValue({
-      ownerId: null,
+      userId: null,
       organizationId: "org_1",
     });
     createNotificationMock.mockResolvedValue({ created: true });
@@ -614,7 +614,7 @@ describe("vendor-grants helpers", () => {
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        ownerId: "admin_1",
+        userId: "admin_1",
         referenceId: "grant_1",
         messageKey: "notifications.vendorGrant.pending",
         metadata: expect.objectContaining({

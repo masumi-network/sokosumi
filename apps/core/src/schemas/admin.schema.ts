@@ -336,7 +336,7 @@ export const adminTaskListItemSchema = z
     name: z.string().openapi({ example: "Quarterly report" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
-    user: z.object({
+    owner: z.object({
       id: z.string().openapi({ example: "user_123" }),
       name: z.string().openapi({ example: "Ada Lovelace" }),
       email: z.string().openapi({ example: "ada@example.com" }),

@@ -105,7 +105,7 @@ describe("taskSchedulesSyncService", () => {
     expect(mockTaskCreate).toHaveBeenCalledTimes(3);
     expect(publishTaskEventDataMock).toHaveBeenCalledTimes(3);
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({
-      ownerId: "user-1",
+      userId: "user-1",
       taskId: "clone-1",
       eventType: "task_event",
     });
@@ -245,7 +245,7 @@ describe("taskSchedulesSyncService", () => {
     expect(mockTaskCreate).toHaveBeenCalledTimes(1);
     expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({
-      ownerId: "user-1",
+      userId: "user-1",
       taskId: "clone-1",
       eventType: "task_event",
     });
