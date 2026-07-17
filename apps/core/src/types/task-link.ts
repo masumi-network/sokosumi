@@ -44,7 +44,7 @@ function buildVisiblePeerTaskWhere(
         const base: Prisma.TaskWhereInput = workspaceId
           ? { workspaceId, archivedAt: null }
           : {
-              userId: authContext.context.userId,
+              ownerId: authContext.context.userId,
               archivedAt: null,
             };
 
@@ -75,7 +75,7 @@ function buildVisiblePeerTaskWhere(
       }
 
       return {
-        userId: authContext.userId,
+        ownerId: authContext.userId,
       };
     }
     case "orchestrator": {
@@ -89,7 +89,7 @@ function buildVisiblePeerTaskWhere(
 
       if (authContext.context) {
         return {
-          userId: authContext.context.userId,
+          ownerId: authContext.context.userId,
           archivedAt: null,
         };
       }

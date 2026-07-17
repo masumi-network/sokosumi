@@ -21,8 +21,9 @@ role.
 | Status transitions | Agent table (assignee) or user table (delegated) | **DRAFT ↔ READY only** (task events); schedule put/delete may still move `QUEUED` |
 | `POST /v1/tasks/{id}/jobs` | Assigned coworker | **403** (coworker only) |
 | Marketplace chat / conversations | User or assigned coworker | **403** (use `/v1/hermes/*`) |
-| Task assignee (`coworkerId`) | Marketplace coworker | Never the orchestrator |
-| Attribution | `coworkerId` on events | `orchestratorId` on task + events |
+| Task assignee (`assigneeId`) | Marketplace coworker | Never the orchestrator |
+| Task creator | `creator.type = "coworker"` when coworker creates | `creator.type = "orchestrator"` when orchestrator creates |
+| Event attribution | `coworkerId` on events | `orchestratorId` on events |
 
 ## Admin vs self
 
@@ -40,8 +41,12 @@ Migration `20260717070000_add_orchestrator_actor` creates orchestrator tables
 and, when a coworker with `slug = hermes` exists, moves its task events and
 usage onto a new orchestrator row (copying `name` / `slug` / `caption` /
 `description`), then hard-deletes the Hermes coworker. It **fails** if any
-`task.coworkerId` or `history.coworkerId` still points at Hermes. Empty DBs
+`task.assigneeId` or `history.coworkerId` still points at Hermes. Empty DBs
 without that coworker skip the data step.
+
+Task role columns were later renamed in
+`20260717093000_task_owner_creator_assignee` (`userId`→`ownerId`,
+`coworkerId`→`assigneeId`, polymorphic creator FKs).
 
 After a successful migrate, **mint new `orch_` keys** via admin
 `POST /v1/orchestrators/{id}/api-keys` (or orchestrator

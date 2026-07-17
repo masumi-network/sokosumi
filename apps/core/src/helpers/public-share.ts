@@ -25,7 +25,7 @@ interface PublicSharedTaskMilestone {
 }
 
 const publicTaskInclude = {
-  coworker: {
+  assignee: {
     select: {
       id: true,
       name: true,
@@ -112,6 +112,15 @@ function mapPublicTaskJob(taskJob: PublicTaskWithRelations["jobs"][number]) {
 }
 
 function mapPublicTask(task: PublicTaskWithRelations) {
+  const assignee = task.assignee
+    ? {
+        id: task.assignee.id,
+        name: task.assignee.name,
+        slug: task.assignee.slug,
+        image: task.assignee.image,
+      }
+    : null;
+
   return {
     id: task.id,
     createdAt: task.createdAt,
@@ -119,14 +128,9 @@ function mapPublicTask(task: PublicTaskWithRelations) {
     name: task.name,
     description: task.description,
     status: task.status,
-    coworker: task.coworker
-      ? {
-          id: task.coworker.id,
-          name: task.coworker.name,
-          slug: task.coworker.slug,
-          image: task.coworker.image,
-        }
-      : null,
+    assignee,
+    /** @deprecated Use `assignee`. */
+    coworker: assignee,
     jobs: task.jobs.map((job) => mapPublicTaskJob(job)),
     events: task.events
       .map((event) => mapPublicTaskMilestone(event))

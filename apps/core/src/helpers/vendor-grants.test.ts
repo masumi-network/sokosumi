@@ -94,9 +94,9 @@ describe("vendor-grants helpers", () => {
         actorCoworkerId: "c1",
         actorVendorId: "v1",
         task: {
-          coworkerId: "c2",
+          assigneeId: "c2",
           status: TaskStatus.READY,
-          coworker: { vendorId: "v1" },
+          assignee: { vendorId: "v1" },
         },
       }),
     ).toBe(true);
@@ -106,9 +106,9 @@ describe("vendor-grants helpers", () => {
         actorCoworkerId: "c1",
         actorVendorId: "v1",
         task: {
-          coworkerId: "c2",
+          assigneeId: "c2",
           status: TaskStatus.READY,
-          coworker: { vendorId: "v2" },
+          assignee: { vendorId: "v2" },
         },
       }),
     ).toBe(false);
@@ -631,9 +631,9 @@ describe("vendor-grants helpers", () => {
         actorCoworkerId: "c1",
         actorVendorId: "v1",
         task: {
-          coworkerId: "c1",
+          assigneeId: "c1",
           status: TaskStatus.DRAFT,
-          coworker: { vendorId: "v1" },
+          assignee: { vendorId: "v1" },
         },
       }),
     ).toBe(false);

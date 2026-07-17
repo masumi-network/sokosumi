@@ -238,7 +238,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -295,7 +295,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -322,7 +322,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -347,7 +347,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -372,7 +372,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -416,7 +416,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -443,7 +443,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -491,7 +491,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onCreated={onCreated}
         onSuccess={onSuccess}
         onCreateAnother={onCreateAnother}
@@ -525,7 +525,7 @@ describe("TaskForm", () => {
         initialValues={{
           name: "Task name",
           description: "Initial description",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           status: TaskStatus.DRAFT,
           metadata: JSON.stringify({
             version: 1,
@@ -563,7 +563,7 @@ describe("TaskForm", () => {
         initialValues={{
           name: "Task name",
           description: "Initial description",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           status: TaskStatus.DRAFT,
         }}
         onSuccess={vi.fn()}
@@ -604,7 +604,7 @@ describe("TaskForm", () => {
         initialValues={{
           name: "Task name",
           description: "Initial description",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           status: TaskStatus.DRAFT,
         }}
         onSuccess={vi.fn()}
@@ -643,7 +643,7 @@ describe("TaskForm", () => {
         initialValues={{
           name: "Task name",
           description: "Initial description",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           status: TaskStatus.DRAFT,
         }}
         onSuccess={vi.fn()}
@@ -653,7 +653,7 @@ describe("TaskForm", () => {
     expect(screen.getByLabelText("Task name")).not.toHaveAttribute("maxlength");
   });
 
-  it("selects initialValues.coworkerId when provided", () => {
+  it("selects initialValues.assigneeId when provided", () => {
     render(
       <TaskForm
         variant="page"
@@ -661,7 +661,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -681,7 +681,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ projectId: "project-2", coworkerId: "coworker-2" }}
+        initialValues={{ projectId: "project-2", assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -699,7 +699,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -724,7 +724,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ description: "Write docs", coworkerId: "coworker-2" }}
+        initialValues={{ description: "Write docs", assigneeId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -748,7 +748,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -766,7 +766,7 @@ describe("TaskForm", () => {
 
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
-      coworkerId: "coworker-2",
+      assigneeId: "coworker-2",
       status: TaskStatus.READY,
       skipDesignMdAttachment: true,
       schedule: {
@@ -789,7 +789,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ projectId: "project-1", coworkerId: "coworker-2" }}
+        initialValues={{ projectId: "project-1", assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -821,7 +821,7 @@ describe("TaskForm", () => {
         initialValues={{
           name: "Task name",
           description: "Initial description",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           projectId: "project-2",
           status: TaskStatus.DRAFT,
         }}
@@ -856,7 +856,7 @@ describe("TaskForm", () => {
         initialValues={{
           name: "Task name",
           description: "Initial description",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           projectId: "project-2",
           status: TaskStatus.DRAFT,
         }}
@@ -907,7 +907,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         agentNameById={new Map([["agent-1", "Writer Agent"]])}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -965,7 +965,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -1072,7 +1072,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -1133,7 +1133,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -1194,7 +1194,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -1232,7 +1232,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onCreateTask={onCreateTask}
         onSuccess={vi.fn()}
       />,
@@ -1243,7 +1243,7 @@ describe("TaskForm", () => {
 
     expect(onCreateTask).toHaveBeenCalledWith({
       description: "Write docs",
-      coworkerId: "coworker-2",
+      assigneeId: "coworker-2",
       status: TaskStatus.READY,
       skipDesignMdAttachment: false,
       schedule: {
@@ -1267,7 +1267,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ coworkerId: "coworker-2" }}
+        initialValues={{ assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );

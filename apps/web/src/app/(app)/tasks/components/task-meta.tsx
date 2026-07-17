@@ -13,21 +13,21 @@ import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {
-  owner: TaskWithCoworker["user"];
-  coworker: TaskWithCoworker["coworker"];
+  owner: TaskWithCoworker["owner"];
+  assignee: TaskWithCoworker["assignee"];
   commentsCount: TaskWithCoworker["commentsCount"];
   createdAt: TaskWithCoworker["createdAt"];
   variant?: "card" | "list";
 }
 
-function CoworkerAvatar({
-  coworker,
+function AssigneeAvatar({
+  assignee,
   size = "sm",
 }: {
-  coworker: TaskWithCoworker["coworker"];
+  assignee: TaskWithCoworker["assignee"];
   size?: "sm" | "md";
 }) {
-  const image = getCoworkerImage(coworker);
+  const image = getCoworkerImage(assignee);
   const sizeClass = size === "sm" ? "size-5" : "size-6";
 
   return (
@@ -35,7 +35,7 @@ function CoworkerAvatar({
       {image ? (
         <AvatarImage
           src={image}
-          alt={coworker?.name ?? "Coworker"}
+          alt={assignee?.name ?? "Coworker"}
           className="object-cover"
           onError={(event) => {
             event.currentTarget.style.display = "none";
@@ -43,7 +43,7 @@ function CoworkerAvatar({
         />
       ) : null}
       <AvatarFallback className="bg-muted text-[10px] font-medium">
-        {coworker?.name?.slice(0, 1).toUpperCase() ?? (
+        {assignee?.name?.slice(0, 1).toUpperCase() ?? (
           <UserCog className="size-3" aria-hidden />
         )}
       </AvatarFallback>
@@ -53,24 +53,24 @@ function CoworkerAvatar({
 
 export function TaskMetaDetails({
   owner,
-  coworker,
+  assignee,
   commentsCount,
   createdAt,
   variant = "card",
 }: TaskMetaDetailsProps) {
   const { formatShortDate } = useLocalizedDateTime();
   const ownerName = owner.name.trim() || "—";
-  const coworkerName = coworker?.name?.trim() || "—";
-  const participantNames = coworker?.name?.trim()
-    ? `${coworkerName}, ${ownerName}`
+  const assigneeName = assignee?.name?.trim() || "—";
+  const participantNames = assignee?.name?.trim()
+    ? `${assigneeName}, ${ownerName}`
     : ownerName;
 
   if (variant === "list") {
     return (
       <>
         <div className="text-muted-foreground xs:w-auto flex w-24 items-center gap-1.5 truncate text-xs">
-          <CoworkerAvatar coworker={coworker} />
-          <span className="truncate">{coworker?.name ?? "—"}</span>
+          <AssigneeAvatar assignee={assignee} />
+          <span className="truncate">{assignee?.name ?? "—"}</span>
         </div>
         <div className="text-muted-foreground flex items-center gap-1 text-xs">
           <MessageSquare className="size-3.5" aria-hidden />
@@ -93,15 +93,15 @@ export function TaskMetaDetails({
         aria-label={participantNames}
         role="img"
       >
-        {coworker ? (
+        {assignee ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="z-10 inline-flex">
-                <CoworkerAvatar coworker={coworker} />
+                <AssigneeAvatar assignee={assignee} />
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={6}>
-              {coworkerName}
+              {assigneeName}
             </TooltipContent>
           </Tooltip>
         ) : null}

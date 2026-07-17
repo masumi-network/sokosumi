@@ -95,18 +95,18 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             </span>
             <div className="flex min-w-0 items-center gap-2">
               <Avatar className="size-6">
-                {task.coworker?.image ? (
+                {task.assignee?.image ? (
                   <AvatarImage
-                    src={task.coworker.image}
-                    alt={task.coworker.name}
+                    src={task.assignee.image}
+                    alt={task.assignee.name}
                   />
                 ) : null}
                 <AvatarFallback className="text-[10px]">
-                  {getInitials(task.coworker?.name ?? "C")}
+                  {getInitials(task.assignee?.name ?? "C")}
                 </AvatarFallback>
               </Avatar>
               <span className="truncate text-sm">
-                {task.coworker?.name ?? "—"}
+                {task.assignee?.name ?? "—"}
               </span>
             </div>
           </div>

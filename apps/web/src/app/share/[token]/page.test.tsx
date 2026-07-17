@@ -178,6 +178,12 @@ describe("canonical share page", () => {
         name: "Shared Task",
         description: "Shared task description",
         status: "READY",
+        assignee: {
+          id: "cow_1",
+          name: "Ops Agent",
+          slug: "ops-agent",
+          image: null,
+        },
         coworker: {
           id: "cow_1",
           name: "Ops Agent",

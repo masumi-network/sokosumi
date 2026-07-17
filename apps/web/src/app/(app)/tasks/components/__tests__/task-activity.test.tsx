@@ -127,6 +127,8 @@ function createEvent(
     user,
     coworkerId = null,
     coworker,
+    orchestratorId = null,
+    orchestrator,
   }: {
     createdAt: string;
     status: TaskStatus | null;
@@ -137,6 +139,8 @@ function createEvent(
     user?: TaskEvent["user"];
     coworkerId?: string | null;
     coworker?: TaskEvent["coworker"];
+    orchestratorId?: string | null;
+    orchestrator?: TaskEvent["orchestrator"];
   },
 ): TaskEvent {
   return {
@@ -153,6 +157,8 @@ function createEvent(
     user,
     coworkerId,
     coworker,
+    orchestratorId,
+    orchestrator,
     transactionId: null,
   } as unknown as TaskEvent;
 }
@@ -165,6 +171,7 @@ const baseProps = {
   submitLabel: "Submit",
   actorCoworkerLabel: "Coworker",
   actorUserLabel: "User",
+  actorOrchestratorLabel: "Orchestrator",
   actorSystemLabel: "System",
   actionCommentedLabel: "commented",
   actionUpdatedStatusLabel: "updated status",
@@ -493,6 +500,28 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("from Email")).toBeInTheDocument();
     expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
+  });
+
+  it("shows orchestrator actor name for orchestrator-authored events", () => {
+    const events: TaskEvent[] = [
+      createEvent("orch-event", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.READY,
+        userId: null,
+        coworkerId: null,
+        orchestratorId: "orch-1",
+        orchestrator: {
+          id: "orch-1",
+          name: "Hermes",
+          slug: "hermes",
+        },
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(screen.queryByText("System")).not.toBeInTheDocument();
   });
 
   it("shows upgrade plan billing CTA for latest out-of-credits event on free plan", () => {

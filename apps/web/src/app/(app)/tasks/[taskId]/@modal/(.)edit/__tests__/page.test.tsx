@@ -104,7 +104,7 @@ describe("TaskEditModalPage", () => {
       id: "task_1",
       name: "Task",
       description: "Desc",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: "DRAFT",
       workspace: {
         organizationId: "org-workspace",

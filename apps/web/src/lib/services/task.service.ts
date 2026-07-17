@@ -15,7 +15,7 @@ import type { AgentJobStatus } from "@/lib/types/core-dto";
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
-  coworkerId?: string;
+  assigneeId?: string;
   projectId?: string;
   q?: string;
   scope?: "workspace" | "owned";
@@ -36,7 +36,7 @@ interface ListJobsParams {
 interface CreateTaskInput {
   name?: string;
   description: string | null;
-  coworkerId: string | null;
+  assigneeId: string | null;
   projectId?: string | null;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
 }
@@ -44,7 +44,7 @@ interface CreateTaskInput {
 interface PatchTaskInput {
   name?: string;
   description?: string | null;
-  coworkerId?: string | null;
+  assigneeId?: string | null;
   projectId?: string | null;
 }
 
@@ -67,7 +67,7 @@ export const taskService = (() => {
         : params.status
           ? [params.status]
           : undefined,
-      coworkerId: params.coworkerId,
+      assigneeId: params.assigneeId,
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,

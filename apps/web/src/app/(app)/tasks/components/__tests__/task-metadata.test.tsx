@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import type { Task } from "@/lib/clients/generated/core/types.gen";
 
 const baseLabels = {
   propertiesTitle: "Properties",
@@ -10,6 +11,7 @@ const baseLabels = {
     [TaskStatus.RUNNING]: "Running",
   } as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>,
   owner: "Owner",
+  creator: "Creator",
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
@@ -21,22 +23,37 @@ const baseLabels = {
 };
 
 function createTask(
-  overrides: { credits?: number; coworkerName?: string | null } = {},
+  overrides: {
+    credits?: number;
+    assigneeName?: string | null;
+    creator?: Task["creator"];
+  } = {},
 ) {
-  return {
-    status: TaskStatus.RUNNING,
+  const creator: Task["creator"] = overrides.creator ?? {
+    type: "user",
+    id: "user_1",
     user: {
       id: "user_1",
       name: "Andreas Osberghaus",
       image: null,
     },
+  };
+
+  return {
+    status: TaskStatus.RUNNING,
+    owner: {
+      id: "user_1",
+      name: "Andreas Osberghaus",
+      image: null,
+    },
+    creator,
     organization: null,
-    coworker:
-      overrides.coworkerName === null
+    assignee:
+      overrides.assigneeName === null
         ? null
         : {
             id: "cw_1",
-            name: overrides.coworkerName ?? "Hepha",
+            name: overrides.assigneeName ?? "Hepha",
             image: null,
             slug: "hepha",
           },
@@ -75,5 +92,56 @@ describe("TaskMetadata", () => {
     );
 
     expect(screen.queryByText("Credits")).not.toBeInTheDocument();
+  });
+
+  it("shows coworker creator when different from owner", () => {
+    render(
+      <TaskMetadata
+        task={createTask({
+          creator: {
+            type: "coworker",
+            id: "cow_creator",
+            coworker: {
+              id: "cow_creator",
+              name: "Creator Coworker",
+              image: null,
+              slug: "creator-coworker",
+            },
+          },
+        })}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Creator")).toBeInTheDocument();
+    expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
+  });
+
+  it("shows orchestrator creator", () => {
+    render(
+      <TaskMetadata
+        task={createTask({
+          creator: {
+            type: "orchestrator",
+            id: "01960001-0001-7001-8001-000000000099",
+            orchestrator: {
+              id: "01960001-0001-7001-8001-000000000099",
+              name: "Hermes",
+              slug: "hermes",
+            },
+          },
+        })}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Creator")).toBeInTheDocument();
+    expect(screen.getByText("Hermes")).toBeInTheDocument();
   });
 });

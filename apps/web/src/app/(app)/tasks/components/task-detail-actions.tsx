@@ -118,7 +118,7 @@ interface TaskDetailActionsProps {
   taskLinks: TaskLink[];
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
-  defaultCoworkerId?: string | null;
+  defaultAssigneeId?: string | null;
   actionsMenuLabel: string;
   labels: TaskDetailActionsLabels;
   currentOrganizationId?: string | null;
@@ -138,7 +138,7 @@ export function TaskDetailActions({
   taskLinks,
   coworkerOptions,
   agentNameById,
-  defaultCoworkerId,
+  defaultAssigneeId,
   actionsMenuLabel,
   labels,
   currentOrganizationId,
@@ -192,7 +192,7 @@ export function TaskDetailActions({
   const canMutateTask = !isReadOnly;
   const statusActions = canMutateTask
     ? getTaskStatusActions(status, labels, {
-        hasCoworker: Boolean(defaultCoworkerId),
+        hasCoworker: Boolean(defaultAssigneeId),
       })
     : [];
 
@@ -911,11 +911,11 @@ export function TaskDetailActions({
             coworkerOptions={coworkerOptions}
             agentNameById={agentNameById}
             initialValues={
-              defaultCoworkerId ? { coworkerId: defaultCoworkerId } : undefined
+              defaultAssigneeId ? { assigneeId: defaultAssigneeId } : undefined
             }
             onCreateTask={async ({
               description,
-              coworkerId,
+              assigneeId,
               projectId,
               status,
               schedule,
@@ -923,7 +923,7 @@ export function TaskDetailActions({
               const result = await createTaskAndLink({
                 taskId,
                 description,
-                coworkerId,
+                assigneeId,
                 projectId,
                 status,
                 schedule,

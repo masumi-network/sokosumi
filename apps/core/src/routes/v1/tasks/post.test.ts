@@ -44,9 +44,15 @@ function buildMapTaskResponse(task: {
     id: task.id,
     createdAt: "2026-04-02T08:00:00.000Z",
     updatedAt: "2026-04-02T08:00:00.000Z",
-    userId: "user_123",
+    ownerId: "user_123",
     organizationId,
     projectId: null,
+    owner: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
+    userId: "user_123",
     user: {
       id: "user_123",
       name: "Ada Lovelace",
@@ -59,8 +65,19 @@ function buildMapTaskResponse(task: {
           slug: "acme-labs",
         }
       : null,
+    assigneeId: null,
+    assignee: null,
     coworkerId: null,
     coworker: null,
+    creator: {
+      type: "user" as const,
+      id: "user_123",
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
+    },
     orchestratorId: null,
     orchestrator: null,
     name: task.name ?? "New Task",
@@ -158,7 +175,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "New Task",
       description: "Task description",
-      coworkerId: null,
+      assigneeId: null,
     });
 
     expect(result.status).toBe(TaskStatus.DRAFT);
@@ -168,19 +185,44 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "Ready task",
       description: null,
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: TaskStatus.READY,
     });
 
     expect(result.status).toBe(TaskStatus.READY);
+    expect(result.assigneeId).toBe("cow_123");
   });
 
-  it("rejects READY status without coworkerId", () => {
+  it("accepts deprecated coworkerId as assigneeId", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Ready task",
+      description: null,
+      coworkerId: "cow_legacy",
+      status: TaskStatus.READY,
+    });
+
+    expect(result.assigneeId).toBe("cow_legacy");
+    expect(result).not.toHaveProperty("coworkerId");
+  });
+
+  it("rejects conflicting assigneeId and coworkerId", () => {
     expect(() => {
       createTaskRequestSchema.parse({
         name: "Ready task",
         description: null,
-        coworkerId: null,
+        assigneeId: "cow_a",
+        coworkerId: "cow_b",
+        status: TaskStatus.READY,
+      });
+    }).toThrow();
+  });
+
+  it("rejects READY status without assigneeId", () => {
+    expect(() => {
+      createTaskRequestSchema.parse({
+        name: "Ready task",
+        description: null,
+        assigneeId: null,
         status: TaskStatus.READY,
       });
     }).toThrow();
@@ -190,7 +232,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "Ready task",
       description: null,
-      coworkerId: "  ",
+      assigneeId: "  ",
       status: TaskStatus.READY,
     });
 
@@ -201,7 +243,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "  Hello  ",
       description: null,
-      coworkerId: null,
+      assigneeId: null,
     });
 
     expect(result.name).toBe("Hello");
@@ -212,7 +254,7 @@ describe("createTaskRequestSchema", () => {
       createTaskRequestSchema.parse({
         name: "   ",
         description: null,
-        coworkerId: null,
+        assigneeId: null,
       });
     }).toThrow();
   });
@@ -224,7 +266,7 @@ describe("createTaskRequestSchema", () => {
       name: "Project task",
       description: null,
       projectId,
-      coworkerId: null,
+      assigneeId: null,
     });
 
     expect(result.projectId).toBe(projectId);
@@ -237,7 +279,7 @@ describe("createTaskRequestSchema", () => {
           createTaskRequestSchema.parse({
             name: "Invalid task",
             description: null,
-            coworkerId: null,
+            assigneeId: null,
             status,
           });
         }).toThrow();
@@ -249,7 +291,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "Origin task",
       description: null,
-      coworkerId: null,
+      assigneeId: null,
       origin: Channel.EMAIL,
     });
 
@@ -261,7 +303,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "Both task",
       description: null,
-      coworkerId: null,
+      assigneeId: null,
       channel: Channel.SLACK,
       origin: Channel.SLACK,
     });
@@ -273,7 +315,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.safeParse({
       name: "Conflict task",
       description: null,
-      coworkerId: null,
+      assigneeId: null,
       channel: Channel.SLACK,
       origin: Channel.EMAIL,
     });
@@ -285,7 +327,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "Default channel task",
       description: null,
-      coworkerId: null,
+      assigneeId: null,
     });
 
     expect(result.channel).toBe(Channel.SOKOSUMI);
@@ -350,7 +392,7 @@ describe("POST /tasks", () => {
       body: JSON.stringify({
         name: "New Task",
         description: null,
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.DRAFT,
         channel: Channel.SOKOSUMI,
       }),
@@ -360,7 +402,7 @@ describe("POST /tasks", () => {
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          userId: "user_123",
+          ownerId: "user_123",
           organizationId: "org_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           projectId: null,
@@ -383,7 +425,7 @@ describe("POST /tasks", () => {
         name: "Project Task",
         description: null,
         projectId,
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.DRAFT,
         channel: Channel.SOKOSUMI,
       }),
@@ -420,7 +462,7 @@ describe("POST /tasks", () => {
         name: "Project Task",
         description: null,
         projectId,
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.DRAFT,
       }),
     });
@@ -437,7 +479,7 @@ describe("POST /tasks", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         description: "Build landing page",
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.DRAFT,
         channel: Channel.SOKOSUMI,
       }),
@@ -461,7 +503,7 @@ describe("POST /tasks", () => {
       body: JSON.stringify({
         name: "My task",
         description: "Build landing page",
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.DRAFT,
         channel: Channel.SOKOSUMI,
       }),
@@ -485,7 +527,7 @@ describe("POST /tasks", () => {
       body: JSON.stringify({
         name: "Origin task",
         description: null,
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.DRAFT,
         origin: Channel.EMAIL,
       }),
@@ -514,7 +556,7 @@ describe("POST /tasks", () => {
       body: JSON.stringify({
         name: "Conflict task",
         description: null,
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.DRAFT,
         channel: Channel.SLACK,
         origin: Channel.EMAIL,
@@ -610,7 +652,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         body: JSON.stringify({
           name: "Parked Task",
           description: null,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),
@@ -648,7 +690,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         body: JSON.stringify({
           name: "Parked Task",
           description: null,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),
@@ -671,7 +713,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         body: JSON.stringify({
           name: "Second Parked Task",
           description: null,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),
@@ -695,7 +737,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         body: JSON.stringify({
           name: "Race Task",
           description: null,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),
@@ -725,7 +767,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         body: JSON.stringify({
           name: "Allowed Task",
           description: null,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),
@@ -755,7 +797,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         body: JSON.stringify({
           name: "Denied Task",
           description: null,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),
@@ -780,7 +822,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           name: "Bad Project Task",
           description: null,
           projectId,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),
@@ -812,7 +854,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         body: JSON.stringify({
           name: "Personal Task",
           description: null,
-          coworkerId: null,
+          assigneeId: null,
           status: TaskStatus.DRAFT,
           channel: Channel.SOKOSUMI,
         }),

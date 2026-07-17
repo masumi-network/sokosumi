@@ -66,14 +66,14 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
  */
 export function isTaskDnDDraggable(
   task: Pick<TaskWithCoworker, "status" | "metadata" | "nextRunAt"> & {
-    coworker?: { id: string } | null;
+    assignee?: { id: string } | null;
   },
 ): boolean {
   if (
     task.status === TaskStatus.COMPLETED ||
     task.status === TaskStatus.CANCELED
   ) {
-    return Boolean(task.coworker?.id);
+    return Boolean(task.assignee?.id);
   }
 
   if (task.status === TaskStatus.FAILED) {

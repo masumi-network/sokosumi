@@ -15,6 +15,7 @@ interface TaskMetadataLabels {
   status: string;
   statusLabels: Record<TaskStatus, string>;
   owner: string;
+  creator: string;
   organization: string;
   personalWorkspace: string;
   project: string;
@@ -27,12 +28,65 @@ interface TaskMetadataLabels {
 
 interface TaskMetadataTask {
   status: Task["status"];
-  user: Task["user"];
+  owner: Task["owner"];
   organization: Task["organization"];
-  coworker: Task["coworker"];
+  assignee: Task["assignee"];
+  creator: Task["creator"];
   credits: Task["credits"];
   metadata?: string | null;
   nextRunAt?: Date | null;
+}
+
+interface TaskCreatorDisplay {
+  name: string;
+  image: string | null;
+}
+
+function resolveTaskCreatorDisplay(
+  task: TaskMetadataTask,
+): TaskCreatorDisplay | null {
+  switch (task.creator.type) {
+    case "user": {
+      if (task.creator.id === task.owner.id) {
+        return null;
+      }
+
+      return {
+        name: task.creator.user.name,
+        image: task.creator.user.image
+          ? resolveIpfsOrHttpUrl(task.creator.user.image)
+          : null,
+      };
+    }
+    case "coworker": {
+      // Generated CoworkerSummary is `| null` because assignee uses the same
+      // named schema as nullable; creator.coworker is always present at runtime.
+      const coworker = task.creator.coworker;
+      if (!coworker) {
+        return null;
+      }
+
+      return {
+        name: coworker.name,
+        image: getCoworkerImage(coworker),
+      };
+    }
+    case "orchestrator": {
+      const orchestrator = task.creator.orchestrator;
+      if (!orchestrator) {
+        return null;
+      }
+
+      return {
+        name: orchestrator.name,
+        image: null,
+      };
+    }
+    default: {
+      const _exhaustive: never = task.creator;
+      return _exhaustive;
+    }
+  }
 }
 
 interface TaskMetadataProps {
@@ -50,10 +104,11 @@ export function TaskMetadata({
   createdAtLabel,
   updatedAtLabel,
 }: TaskMetadataProps) {
-  const ownerImage = task.user.image
-    ? resolveIpfsOrHttpUrl(task.user.image)
+  const ownerImage = task.owner.image
+    ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
-  const coworkerImage = getCoworkerImage(task.coworker);
+  const assigneeImage = getCoworkerImage(task.assignee);
+  const creator = resolveTaskCreatorDisplay(task);
 
   return (
     <div className="space-y-4">
@@ -73,10 +128,19 @@ export function TaskMetadata({
 
         <MetadataAvatarValue
           label={labels.owner}
-          name={task.user.name}
+          name={task.owner.name}
           image={ownerImage}
-          fallback={task.user.name}
+          fallback={task.owner.name}
         />
+
+        {creator ? (
+          <MetadataAvatarValue
+            label={labels.creator}
+            name={creator.name}
+            image={creator.image}
+            fallback={creator.name}
+          />
+        ) : null}
 
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground text-sm">
@@ -109,19 +173,19 @@ export function TaskMetadata({
           </span>
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="size-5">
-              {coworkerImage ? (
+              {assigneeImage ? (
                 <AvatarImage
-                  src={coworkerImage}
-                  alt={task.coworker?.name ?? "Coworker"}
+                  src={assigneeImage}
+                  alt={task.assignee?.name ?? "Coworker"}
                   className="object-cover"
                 />
               ) : null}
               <AvatarFallback className="bg-muted text-[10px]">
-                {task.coworker?.name?.slice(0, 1).toUpperCase() ?? "?"}
+                {task.assignee?.name?.slice(0, 1).toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
             <span className="truncate text-right text-sm font-medium">
-              {task.coworker?.name ?? "—"}
+              {task.assignee?.name ?? "—"}
             </span>
           </div>
         </div>
@@ -196,7 +260,7 @@ function MetadataAvatarValue({
             <AvatarImage src={image} alt={name} className="object-cover" />
           ) : null}
           <AvatarFallback className="bg-muted text-[10px]">
-            {fallback.slice(0, 1).toUpperCase() || "?"}
+            {fallback.slice(0, 1).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <span className="truncate text-right text-sm font-medium">{name}</span>

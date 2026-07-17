@@ -31,9 +31,9 @@ const {
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn().mockResolvedValue({
     id: "tsk_123",
-    userId: "user_123",
+    ownerId: "user_123",
     name: "Test task",
-    coworker: { name: "Test coworker" },
+    assignee: { name: "Test coworker" },
     project: { name: "Test project" },
     projectId: "proj_123",
     workspaceId: "ws_123",
@@ -134,6 +134,7 @@ interface TaskEventRecord {
   channel: Channel;
   userId: string | null;
   coworkerId: string | null;
+  orchestratorId: string | null;
   transactionId: string | null;
   cents: bigint | null;
 }
@@ -152,16 +153,16 @@ interface TransactionMock {
 function createTask(
   overrides: Partial<{
     organizationId: string | null;
-    coworkerId: string | null;
+    assigneeId: string | null;
     status: TaskStatus;
-    userId: string;
+    ownerId: string;
   }> = {},
 ) {
   return {
     id: TASK_ID,
     status: TaskStatus.RUNNING,
-    coworkerId: COWORKER_ID,
-    userId: USER_ID,
+    assigneeId: COWORKER_ID,
+    ownerId: USER_ID,
     organizationId: null,
     ...overrides,
   };
@@ -181,6 +182,7 @@ function createTaskEvent(
     channel: Channel.SOKOSUMI,
     userId: null,
     coworkerId: COWORKER_ID,
+    orchestratorId: null,
     transactionId: null,
     cents: null,
     ...overrides,
@@ -205,7 +207,7 @@ function createApp(authContext: AuthenticationContext) {
 function enrichTaskEventRowForResponse(record: TaskEventRecord) {
   return {
     ...record,
-    user: record.userId
+    owner: record.userId
       ? { id: record.userId, name: "Task user", image: null }
       : null,
     coworker: record.coworkerId
@@ -271,13 +273,13 @@ describe("POST /{id}/events", () => {
     );
     prismaTaskFindUniqueMock.mockResolvedValue({
       id: "tsk_123",
-      userId: "user_123",
+      ownerId: "user_123",
       name: "Test task",
-      coworker: { name: "Test coworker" },
+      assignee: { name: "Test coworker" },
       project: { name: "Test project" },
       projectId: "proj_123",
       workspaceId: "ws_123",
-      user: { notificationsOptIn: true },
+      owner: { notificationsOptIn: true },
     });
     requireTaskCollaborationMock.mockResolvedValue(createTask());
     requireTaskCommentAccessMock.mockResolvedValue(createTask());
@@ -1086,7 +1088,7 @@ describe("POST /{id}/events", () => {
 
     mockTransaction(tx);
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.CANCELED, coworkerId: null }),
+      createTask({ status: TaskStatus.CANCELED, assigneeId: null }),
     );
 
     const app = createApp({
@@ -2099,8 +2101,8 @@ describe("POST /{id}/events", () => {
 
   it("uses sibling-friendly comment access for delegated coworker comments", async () => {
     const siblingTask = createTask({
-      coworkerId: "cow_sibling",
-      userId: BOB_USER_ID,
+      assigneeId: "cow_sibling",
+      ownerId: BOB_USER_ID,
     });
     requireTaskCommentAccessMock.mockResolvedValueOnce(siblingTask);
 
@@ -2203,7 +2205,7 @@ describe("POST /{id}/events", () => {
 
   it("rejects credits from a delegated coworker canceling a task", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.READY, coworkerId: COWORKER_ID }),
+      createTask({ status: TaskStatus.READY, assigneeId: COWORKER_ID }),
     );
 
     const tx: TransactionMock = {
@@ -2244,7 +2246,7 @@ describe("POST /{id}/events", () => {
 
   it("lets a delegated coworker cancel a task without charging", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.READY, coworkerId: COWORKER_ID }),
+      createTask({ status: TaskStatus.READY, assigneeId: COWORKER_ID }),
     );
 
     const tx: TransactionMock = {
@@ -2297,7 +2299,7 @@ describe("POST /{id}/events", () => {
 
   it("rejects credits from a user session canceling a task", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.READY, coworkerId: null }),
+      createTask({ status: TaskStatus.READY, assigneeId: null }),
     );
 
     const tx: TransactionMock = {
@@ -2335,7 +2337,7 @@ describe("POST /{id}/events", () => {
 
   it("rejects masumiPayment from a delegated coworker", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.RUNNING, coworkerId: COWORKER_ID }),
+      createTask({ status: TaskStatus.RUNNING, assigneeId: COWORKER_ID }),
     );
 
     const tx: TransactionMock = {

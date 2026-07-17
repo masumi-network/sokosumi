@@ -1533,6 +1533,7 @@
         "status": "Status",
         "pendingApproval": "Pending approval",
         "owner": "Owner",
+        "creator": "Creator",
         "organization": "Organization",
         "project": "Project",
         "personalWorkspace": "Personal",
@@ -1566,6 +1567,7 @@
         "collapse": "Show less",
         "actorCoworker": "Coworker",
         "actorUser": "User",
+        "actorOrchestrator": "Orchestrator",
         "actorSystem": "System",
         "originFromApp": "from {appName}",
         "channelApp": {

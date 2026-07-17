@@ -55,7 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
       select: {
         name: true,
-        userId: true,
+        ownerId: true,
         workspaceId: true,
         workspace: {
           select: {
@@ -75,7 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: userAuthContext.userId,
         tx: prisma,
       });
-    } else if (task.userId !== userAuthContext.userId) {
+    } else if (task.ownerId !== userAuthContext.userId) {
       throw forbidden("You do not have access to this task");
     }
 

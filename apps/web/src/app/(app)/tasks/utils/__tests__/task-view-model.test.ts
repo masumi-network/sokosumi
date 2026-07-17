@@ -14,15 +14,25 @@ function buildTask(
     id: "task-1",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    userId: "user-1",
+    ownerId: "user-1",
     organizationId: null,
     projectId: null,
+    owner: { id: "user-1", name: "Test User", image: null },
+    userId: "user-1",
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
+    assigneeId: null,
+    assignee: null,
     coworkerId: null,
     coworker: null,
+    creator: {
+      type: "user",
+      id: "user-1",
+      user: { id: "user-1", name: "Test User", image: null },
+    },
+    // Generated deprecated `orchestrator` intersection omits `| null`.
     orchestratorId: null,
-    orchestrator: null,
+    orchestrator: null as unknown as TaskListItem["orchestrator"],
     name: "Test task",
     description: null,
     status,
@@ -149,13 +159,13 @@ describe("mapTaskToTaskWithCoworker", () => {
 
   it("preserves owner information from the API task", () => {
     const task = buildTask(TaskStatus.READY, {
-      user: { id: "user-2", name: "Owner Name", image: "ipfs://owner" },
-      userId: "user-2",
+      owner: { id: "user-2", name: "Owner Name", image: "ipfs://owner" },
+      ownerId: "user-2",
     });
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
-    expect(mapped.user).toEqual(task.user);
-    expect(mapped.userId).toBe("user-2");
+    expect(mapped.owner).toEqual(task.owner);
+    expect(mapped.ownerId).toBe("user-2");
   });
 });

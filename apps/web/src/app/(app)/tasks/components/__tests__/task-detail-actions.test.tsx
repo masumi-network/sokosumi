@@ -370,23 +370,23 @@ vi.mock("@/app/tasks/components/task-form", () => ({
     onCreateTask,
     onSuccess,
   }: {
-    initialValues?: { coworkerId?: string | null };
+    initialValues?: { assigneeId?: string | null };
     onCreateTask?: (input: {
       description: string;
-      coworkerId: string | null;
+      assigneeId: string | null;
       status: TaskStatus;
     }) => Promise<{ taskId: string }>;
     onSuccess?: (taskId: string) => void;
   }) => (
     <div>
-      <span>{initialValues?.coworkerId ?? "no-coworker"}</span>
+      <span>{initialValues?.assigneeId ?? "no-coworker"}</span>
       <button
         type="button"
         onClick={async () => {
           if (!onCreateTask) return;
           const result = await onCreateTask({
             description: "Created related task",
-            coworkerId: initialValues?.coworkerId ?? null,
+            assigneeId: initialValues?.assigneeId ?? null,
             status: TaskStatus.READY,
           });
           onSuccess?.(result.taskId);
@@ -417,7 +417,7 @@ function buildTaskListItem(
     updatedAt: new Date("2026-03-31T10:00:00.000Z"),
     userId: "user-1",
     organizationId: null,
-    coworkerId: null,
+    assigneeId: null,
     name: "Alpha task",
     description: null,
     status: TaskStatus.READY,
@@ -547,7 +547,7 @@ function renderActions(
       taskLinks={[]}
       coworkerOptions={coworkerOptions}
       agentNameById={new Map()}
-      defaultCoworkerId="coworker-1"
+      defaultAssigneeId="coworker-1"
       actionsMenuLabel={actionsMenuLabel}
       labels={labels}
       organizations={sampleOrganizations}
@@ -771,7 +771,7 @@ describe("TaskDetailActions", () => {
 
     renderActions({
       status: TaskStatus.CANCELED,
-      defaultCoworkerId: "cow-1",
+      defaultAssigneeId: "cow-1",
       organizations: undefined,
     });
 
@@ -821,7 +821,7 @@ describe("TaskDetailActions", () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.COMPLETED,
-      defaultCoworkerId: "cow-1",
+      defaultAssigneeId: "cow-1",
       organizations: undefined,
     });
 
@@ -836,7 +836,7 @@ describe("TaskDetailActions", () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.CANCELED,
-      defaultCoworkerId: null,
+      defaultAssigneeId: null,
       organizations: undefined,
     });
 
@@ -1178,7 +1178,7 @@ describe("TaskDetailActions", () => {
       expect(createTaskAndLinkMock).toHaveBeenCalledWith({
         taskId: "task-1",
         description: "Created related task",
-        coworkerId: "coworker-1",
+        assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
       });
@@ -1470,7 +1470,7 @@ describe("TaskDetailActions", () => {
       expect(createTaskAndLinkMock).toHaveBeenCalledWith({
         taskId: "task-1",
         description: "Created related task",
-        coworkerId: "coworker-1",
+        assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
       });

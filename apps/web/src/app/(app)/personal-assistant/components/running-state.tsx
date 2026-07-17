@@ -1940,7 +1940,8 @@ const SUMMARY_UUID_PATTERN =
  * coworker so the ConfirmationCard renders with avatar + name chips
  * locally, without waiting on the orchestrator. Activated by
  * `?state=running&mock=confirmation`. Optional overrides via
- * `&toolName=sokosumi_create_job&coworkerId=<uuid>&coworkerName=<name>&coworkerImage=<url>`.
+ * `&toolName=sokosumi_create_job&assigneeId=<uuid>&coworkerName=<name>&coworkerImage=<url>`.
+ * Legacy `coworkerId` is still accepted for bookmarked demo URLs.
  */
 function buildMockPendingConfirmations(
   params: Pick<URLSearchParams, "get">,
@@ -1951,14 +1952,16 @@ function buildMockPendingConfirmations(
     requestedToolName && isConfirmationOrgAwareTool(requestedToolName)
       ? requestedToolName
       : "sokosumi_create_task";
-  const coworkerId =
-    params.get("coworkerId") ?? "0e8c93b0-5332-4734-b603-ea18d17b50c5";
+  const assigneeId =
+    params.get("assigneeId") ??
+    params.get("coworkerId") ??
+    "0e8c93b0-5332-4734-b603-ea18d17b50c5";
   const coworkerName = params.get("coworkerName") ?? "Hannah";
   const coworkerImage = params.get("coworkerImage");
   const summary =
     toolName === "sokosumi_create_job"
-      ? `Create a new job "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${coworkerId}.`
-      : `Create a new task "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${coworkerId}.`;
+      ? `Create a new job "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${assigneeId}.`
+      : `Create a new task "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${assigneeId}.`;
   return [
     {
       id: "mock-confirmation-1",
@@ -1967,7 +1970,7 @@ function buildMockPendingConfirmations(
       createdAt: new Date().toISOString(),
       referencedCoworkers: [
         {
-          id: coworkerId,
+          id: assigneeId,
           name: coworkerName,
           image: coworkerImage,
         },
@@ -2560,7 +2563,10 @@ function extractTaskFromConfirmation(
   const name = typeof data.name === "string" ? data.name : null;
   if (!id || !name) return null;
 
-  const coworker = data.coworker as Record<string, unknown> | null | undefined;
+  const coworker = (data.assignee ?? data.coworker) as
+    | Record<string, unknown>
+    | null
+    | undefined;
   const organization = data.organization as
     | Record<string, unknown>
     | null

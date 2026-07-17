@@ -25,7 +25,7 @@ interface LoadMoreTasksColumnParams {
   columnId: KanbanColumnId;
   cursor: string | null;
   scope: TasksScope | null;
-  coworkerId: string | null;
+  assigneeId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
 }
@@ -34,7 +34,7 @@ export async function loadMoreTasksColumn({
   columnId,
   cursor,
   scope,
-  coworkerId,
+  assigneeId,
   status,
   projectId,
 }: LoadMoreTasksColumnParams) {
@@ -51,8 +51,8 @@ export async function loadMoreTasksColumn({
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
-  const sanitizedCoworkerId =
-    coworkerId && coworkersById.has(coworkerId) ? coworkerId : null;
+  const sanitizedAssigneeId =
+    assigneeId && coworkersById.has(assigneeId) ? assigneeId : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const page = await getTasksColumnPage({
@@ -60,7 +60,7 @@ export async function loadMoreTasksColumn({
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
-    coworkerId: sanitizedCoworkerId,
+    assigneeId: sanitizedAssigneeId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,

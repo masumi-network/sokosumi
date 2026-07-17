@@ -206,7 +206,7 @@ function VendorDashboard({
   labels: DashboardLabels;
   typeLabel: (type: OutputKind) => string;
   onOpenOffer: (item: OfferItem) => void;
-  onStartTask: (coworkerId: string, prompt?: string) => void;
+  onStartTask: (assigneeId: string, prompt?: string) => void;
   isFirst: boolean;
 }) {
   const [activeId, setActiveId] = useState(members[0]?.id);

@@ -8,19 +8,19 @@ import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
 
 /**
  * Tasks board view model — Core `Task` / `TaskListItem` plus UI joins
- * (coworker, agents, kanban column, plain description). Built next to the
+ * (assignee, agents, kanban column, plain description). Built next to the
  * tasks UI via `mapTaskToTaskWithCoworker`; services must return Core DTOs.
  */
 export interface TaskWithCoworker {
   id: string;
   name: string;
   status: TaskStatus;
-  userId: string;
-  user: UserSummary;
+  ownerId: string;
+  owner: UserSummary;
   createdAt: string;
   updatedAt: string;
   jobsCount: number;
-  coworker?: Coworker | null;
+  assignee?: Coworker | null;
   share?: TaskShare | null;
   commentsCount: number;
   columnId: KanbanColumnId;

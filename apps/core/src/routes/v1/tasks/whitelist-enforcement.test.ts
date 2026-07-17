@@ -15,7 +15,7 @@ const {
   requireTaskAssignableCoworkerMock,
   requireTaskOwnershipMock,
   mapTaskMock,
-  validateTaskCoworkerAssignmentMock,
+  validateTaskAssigneeAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
@@ -33,8 +33,8 @@ const {
         status === TaskStatus.GRANT_PENDING
           ? ((t.pendingVendorGrantId as string | null) ?? null)
           : null,
-      user: t.user ?? {
-        id: t.userId,
+      owner: t.owner ?? {
+        id: t.ownerId,
         name: "Task owner",
         image: null,
       },
@@ -47,21 +47,95 @@ const {
               slug: "organization",
             }
           : null),
-      coworker:
-        t.coworker ??
-        (t.coworkerId
+      assignee:
+        t.assignee ??
+        (t.assigneeId
           ? {
-              id: t.coworkerId,
+              id: t.assigneeId,
               name: "Coworker",
               image: null,
               slug: "coworker",
             }
           : null),
-      orchestratorId: (t.orchestratorId as string | null | undefined) ?? null,
-      orchestrator: (t.orchestrator as object | null | undefined) ?? null,
+      creator: (() => {
+        const creatorOrchestratorId =
+          (t.creatorOrchestratorId as string | null | undefined) ?? null;
+        if (creatorOrchestratorId != null) {
+          return {
+            type: "orchestrator" as const,
+            id: creatorOrchestratorId,
+            orchestrator: (t.creatorOrchestrator as
+              | object
+              | null
+              | undefined) ?? {
+              id: creatorOrchestratorId,
+              name: "Orchestrator",
+              slug: "orchestrator",
+            },
+          };
+        }
+
+        const creatorCoworkerId =
+          (t.creatorCoworkerId as string | null | undefined) ?? null;
+        if (creatorCoworkerId != null) {
+          return {
+            type: "coworker" as const,
+            id: creatorCoworkerId,
+            coworker: (t.creatorCoworker as object | null | undefined) ?? {
+              id: creatorCoworkerId,
+              name: "Coworker",
+              image: null,
+              slug: "coworker",
+            },
+          };
+        }
+
+        const creatorUserId =
+          (t.creatorUserId as string | null | undefined) ??
+          (t.ownerId as string);
+        return {
+          type: "user" as const,
+          id: creatorUserId,
+          user: (t.creatorUser as object | null | undefined) ?? {
+            id: creatorUserId,
+            name: "Task owner",
+            image: null,
+          },
+        };
+      })(),
+      userId: (t.userId as string | undefined) ?? (t.ownerId as string),
+      user: (t.user as object | undefined) ??
+        (t.owner as object | undefined) ?? {
+          id: t.ownerId,
+          name: "Task owner",
+          image: null,
+        },
+      coworkerId:
+        (t.coworkerId as string | null | undefined) ??
+        (t.assigneeId as string | null | undefined) ??
+        null,
+      coworker:
+        (t.coworker as object | null | undefined) ??
+        (t.assignee as object | null | undefined) ??
+        (t.assigneeId
+          ? {
+              id: t.assigneeId,
+              name: "Coworker",
+              image: null,
+              slug: "coworker",
+            }
+          : null),
+      orchestratorId:
+        (t.orchestratorId as string | null | undefined) ??
+        (t.creatorOrchestratorId as string | null | undefined) ??
+        null,
+      orchestrator:
+        (t.orchestrator as object | null | undefined) ??
+        (t.creatorOrchestrator as object | null | undefined) ??
+        null,
     };
   }),
-  validateTaskCoworkerAssignmentMock: vi.fn(),
+  validateTaskAssigneeAssignmentMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -78,7 +152,7 @@ vi.mock("@/helpers/access-control", () => ({
 
 vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
-  validateTaskCoworkerAssignment: validateTaskCoworkerAssignmentMock,
+  validateTaskAssigneeAssignment: validateTaskAssigneeAssignmentMock,
 }));
 
 function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
@@ -137,7 +211,7 @@ describe("task coworker whitelist enforcement", () => {
       },
       body: JSON.stringify({
         name: "Whitelist check",
-        coworkerId: "cow_123",
+        assigneeId: "cow_123",
         status: TaskStatus.READY,
       }),
     });
@@ -161,7 +235,7 @@ describe("task coworker whitelist enforcement", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.READY,
-      coworkerId: null,
+      assigneeId: null,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
     requireTaskAssignableCoworkerMock.mockRejectedValue(
@@ -175,7 +249,7 @@ describe("task coworker whitelist enforcement", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        coworkerId: "cow_123",
+        assigneeId: "cow_123",
       }),
     });
 
@@ -188,11 +262,11 @@ describe("task coworker whitelist enforcement", () => {
       id: "tsk_123",
       createdAt: "2026-03-25T10:00:00.000Z",
       updatedAt: "2026-03-25T10:00:00.000Z",
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: null,
       projectId: null,
       status: TaskStatus.READY,
-      coworkerId: null,
+      assigneeId: null,
       name: "Updated title",
       description: null,
       metadata: null,
@@ -223,7 +297,7 @@ describe("task coworker whitelist enforcement", () => {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.READY,
-      coworkerId: null,
+      assigneeId: null,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
 
@@ -290,7 +364,7 @@ describe("task coworker whitelist enforcement", () => {
       },
       body: JSON.stringify({
         name: "Capability check",
-        coworkerId: "cow_123",
+        assigneeId: "cow_123",
         status: TaskStatus.READY,
       }),
     });

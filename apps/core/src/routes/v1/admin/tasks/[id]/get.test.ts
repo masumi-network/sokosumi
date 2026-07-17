@@ -82,8 +82,8 @@ function createTask() {
     id: "0195b9f4-7d35-7a4e-b14e-111111111111",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-    userId: "user_123",
-    user: {
+    ownerId: "user_123",
+    owner: {
       id: "user_123",
       name: "Ada Lovelace",
       email: "ada@example.com",
@@ -92,10 +92,18 @@ function createTask() {
     organizationId: "org_123",
     projectId: null,
     organization: { id: "org_123", name: "Acme Corp", slug: "acme-corp" },
-    coworkerId: null,
-    coworker: null,
-    orchestratorId: null,
-    orchestrator: null,
+    assigneeId: null,
+    assignee: null,
+    creatorUserId: "user_123",
+    creatorUser: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
+    creatorCoworkerId: null,
+    creatorCoworker: null,
+    creatorOrchestratorId: null,
+    creatorOrchestrator: null,
     name: "Quarterly report",
     description: null,
     status: TaskStatus.RUNNING,
@@ -130,7 +138,7 @@ describe("GET /admin/tasks/{id}", () => {
       where: { id: "0195b9f4-7d35-7a4e-b14e-111111111111" },
       include: expect.objectContaining({
         share: true,
-        user: { select: { id: true, name: true, email: true, image: true } },
+        owner: { select: { id: true, name: true, email: true, image: true } },
         organization: { select: { id: true, name: true, slug: true } },
       }),
     });
@@ -139,9 +147,14 @@ describe("GET /admin/tasks/{id}", () => {
       id: "0195b9f4-7d35-7a4e-b14e-111111111111",
       name: "Quarterly report",
       status: TaskStatus.RUNNING,
-      userId: "user_123",
+      ownerId: "user_123",
       organizationId: "org_123",
       links: [],
+    });
+    expect(body.data.owner).toEqual({
+      id: "user_123",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
     });
     expect(body.data.user).toEqual({
       id: "user_123",

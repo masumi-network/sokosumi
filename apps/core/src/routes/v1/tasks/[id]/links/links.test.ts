@@ -637,11 +637,11 @@ describe("POST /tasks/{id}/links", () => {
     requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
-        userId: "user_123",
+        ownerId: "user_123",
         organizationId: "org_123",
         archivedAt: null,
         status: TaskStatus.READY,
-        coworkerId: null,
+        assigneeId: null,
         name: "Task A",
         description: null,
       }),
@@ -692,7 +692,7 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        userId: "user_123",
+        ownerId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
@@ -888,11 +888,11 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
-        userId: "user_123",
+        ownerId: "user_123",
         organizationId: "org_123",
         archivedAt: null,
         status: TaskStatus.READY,
-        coworkerId: null,
+        assigneeId: null,
         name: "T",
         description: null,
       }),
@@ -935,11 +935,11 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 
         return {
           id: taskId,
-          userId: "user_123",
+          ownerId: "user_123",
           organizationId: "org_123",
           archivedAt: null,
           status: TaskStatus.READY,
-          coworkerId: null,
+          assigneeId: null,
           name: "T",
           description: null,
         };
@@ -970,11 +970,11 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 
         return {
           id: taskId,
-          userId: "user_123",
+          ownerId: "user_123",
           organizationId: "org_123",
           archivedAt: null,
           status: TaskStatus.READY,
-          coworkerId: null,
+          assigneeId: null,
           name: "T",
           description: null,
         };
@@ -1035,11 +1035,11 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
-        userId: "user_123",
+        ownerId: "user_123",
         organizationId: "org_123",
         archivedAt: null,
         status: TaskStatus.READY,
-        coworkerId: null,
+        assigneeId: null,
         name: "T",
         description: null,
       }),
@@ -1096,7 +1096,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        userId: "user_123",
+        ownerId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {

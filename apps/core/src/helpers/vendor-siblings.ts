@@ -41,10 +41,10 @@ export function buildCoworkerSiblingTaskListFilter(
   return {
     status: { not: TaskStatus.DRAFT },
     OR: [
-      { coworkerId: params.coworkerId },
+      { assigneeId: params.coworkerId },
       {
-        coworkerId: { not: params.coworkerId },
-        coworker: {
+        assigneeId: { not: params.coworkerId },
+        assignee: {
           vendorId: params.vendorId,
         },
       },

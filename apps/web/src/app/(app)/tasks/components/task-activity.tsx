@@ -74,6 +74,7 @@ function getEventActorInfo(
   event: TaskEvent,
   userById?: Record<string, ActorInfo>,
   coworkerById?: Record<string, ActorInfo>,
+  orchestratorById?: Record<string, ActorInfo>,
 ): ActorInfo | undefined {
   if (event.coworkerId) {
     if (event.coworker) {
@@ -97,6 +98,17 @@ function getEventActorInfo(
     return userById?.[event.userId];
   }
 
+  if (event.orchestratorId) {
+    if (event.orchestrator) {
+      return {
+        name: event.orchestrator.name,
+        image: null,
+      };
+    }
+
+    return orchestratorById?.[event.orchestratorId];
+  }
+
   return undefined;
 }
 
@@ -108,6 +120,7 @@ interface TaskActivityProps {
   submitLabel: string;
   actorCoworkerLabel: string;
   actorUserLabel: string;
+  actorOrchestratorLabel: string;
   actorSystemLabel: string;
   actionCommentedLabel: string;
   actionUpdatedStatusLabel: string;
@@ -115,6 +128,7 @@ interface TaskActivityProps {
   agentNameById?: Map<string, string>;
   userById?: Record<string, ActorInfo>;
   coworkerById?: Record<string, ActorInfo>;
+  orchestratorById?: Record<string, ActorInfo>;
   currentUser?: ({ id: string } & ActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
@@ -172,6 +186,7 @@ export function TaskActivitySection({
   submitLabel,
   actorCoworkerLabel,
   actorUserLabel,
+  actorOrchestratorLabel,
   actorSystemLabel,
   actionCommentedLabel,
   actionUpdatedStatusLabel,
@@ -179,6 +194,7 @@ export function TaskActivitySection({
   agentNameById,
   userById,
   coworkerById,
+  orchestratorById,
   currentUser,
   expandLabel = "Expand",
   collapseLabel = "Show less",
@@ -446,8 +462,15 @@ export function TaskActivitySection({
               ? actorCoworkerLabel
               : event.userId
                 ? actorUserLabel
-                : actorSystemLabel;
-            const actorInfo = getEventActorInfo(event, userById, coworkerById);
+                : event.orchestratorId
+                  ? actorOrchestratorLabel
+                  : actorSystemLabel;
+            const actorInfo = getEventActorInfo(
+              event,
+              userById,
+              coworkerById,
+              orchestratorById,
+            );
             const actorName = actorInfo?.name ?? actorLabel;
             const actorImage = actorInfo?.image ?? null;
             const action = event.comment
