@@ -253,7 +253,7 @@ describe("PATCH /jobs/{id}", () => {
     );
     requireJobCollaborationMock.mockResolvedValue({
       id: "job_123",
-      userId: "user_123",
+      ownerId: "user_123",
       taskId: null,
     });
     jobUpdateMock.mockResolvedValue({ id: "job_123" });

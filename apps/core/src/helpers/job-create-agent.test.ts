@@ -101,7 +101,7 @@ function createInput(overrides: Record<string, unknown> = {}) {
 
   return {
     owner: {
-      userId: "user_1",
+      ownerId: "user_1",
       organizationId: "org_1",
       workspaceId: "11111111-1111-7111-8111-111111111111",
     },

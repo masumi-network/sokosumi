@@ -241,7 +241,7 @@ interface CreateAgentJobInput {
 }
 
 export interface JobOwnerContext {
-  userId: string;
+  ownerId: string;
   organizationId: string | null;
   workspaceId: string;
 }
@@ -313,7 +313,7 @@ export async function createAgentJobForUser(
 
   const jobInput = {
     agentId: agentInput.agentId,
-    ownerId: owner.userId,
+    ownerId: owner.ownerId,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
     inputData: agentInput.inputData,
@@ -375,7 +375,7 @@ export async function createAgentJobForUser(
 
   const job = await serializableTransaction(async (tx) => {
     await validateCreditBalance(
-      owner.userId,
+      owner.ownerId,
       owner.organizationId,
       cost.cents,
       tx,

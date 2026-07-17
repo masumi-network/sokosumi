@@ -189,18 +189,18 @@ export const jobRepository = {
 
   /**
    * Check if user has finished job with the agent
-   * @param userId - The unique identifier of the user
+   * @param ownerId - The unique identifier of the job owner
    * @param agentId - The unique identifier of the agent
    * @returns Promise containing true if user has finished job with the agent, false otherwise
    */
   async doesUserHaveFinishedJobWithAgent(
-    userId: string,
+    ownerId: string,
     agentId: string,
     tx: Prisma.TransactionClient,
   ): Promise<boolean> {
     const jobCount = await tx.job.count({
       where: {
-        ownerId: userId,
+        ownerId,
         agentId,
         ...jobsFinishedWhereQuery(),
       },

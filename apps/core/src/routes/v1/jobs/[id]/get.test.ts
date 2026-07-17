@@ -316,8 +316,8 @@ describe("GET /jobs/{id}", () => {
     };
     jobFindFirstMock.mockResolvedValue(
       createJob({
-        userId: "user_123",
-        user: {
+        ownerId: "user_123",
+        owner: {
           id: "user_123",
           name: "Ada Lovelace",
           image: null,
@@ -340,6 +340,12 @@ describe("GET /jobs/{id}", () => {
       }),
     );
     expect(body.data).toMatchObject({
+      ownerId: "user_123",
+      owner: {
+        id: "user_123",
+        name: "Ada Lovelace",
+      },
+      // Deprecated aliases — keep until clients migrate.
       userId: "user_123",
       result: "# Result",
       input: '{"prompt":"hello"}',
