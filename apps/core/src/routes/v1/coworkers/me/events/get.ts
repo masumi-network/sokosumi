@@ -75,7 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const where = {
       task: {
-        coworkerId: authContext.coworkerId,
+        assigneeId: authContext.coworkerId,
         status: { not: TaskStatus.DRAFT },
       },
     };
