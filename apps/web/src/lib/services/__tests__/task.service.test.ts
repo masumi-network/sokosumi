@@ -26,9 +26,9 @@ function buildTask() {
     id: "task-1",
     createdAt: "2026-02-19T10:00:00.000Z",
     updatedAt: "2026-02-19T10:00:00.000Z",
-    userId: "user-1",
+    ownerId: "user-1",
     organizationId: null,
-    coworkerId: null,
+    assigneeId: null,
     name: "Test task",
     description: null,
     status: TaskStatus.READY,
@@ -74,7 +74,7 @@ describe("task.service", () => {
     const { taskService } = await import("../task.service");
     const result = await taskService.listTasks({
       status: TaskStatus.READY,
-      coworkerId: "cow-1",
+      assigneeId: "cow-1",
       q: "alpha",
       cursor: "task-1",
       limit: 20,
@@ -82,7 +82,7 @@ describe("task.service", () => {
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY],
-      coworkerId: "cow-1",
+      assigneeId: "cow-1",
       q: "alpha",
       cursor: "task-1",
       limit: 20,
@@ -149,7 +149,7 @@ describe("task.service", () => {
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY, TaskStatus.COMPLETED],
-      coworkerId: undefined,
+      assigneeId: undefined,
       q: undefined,
       cursor: undefined,
       limit: 20,
@@ -180,7 +180,7 @@ describe("task.service", () => {
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.GRANT_PENDING, TaskStatus.INPUT_REQUIRED],
-      coworkerId: undefined,
+      assigneeId: undefined,
       q: undefined,
       scope: undefined,
       cursor: undefined,
@@ -274,7 +274,7 @@ describe("task.service", () => {
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: undefined,
-      coworkerId: undefined,
+      assigneeId: undefined,
       q: undefined,
       scope: "owned",
       cursor: undefined,
@@ -307,7 +307,7 @@ describe("task.service", () => {
     const created = await taskService.createTask({
       name: "Test task",
       description: null,
-      coworkerId: null,
+      assigneeId: null,
       status: TaskStatus.READY,
     });
     const updated = await taskService.patchTask("task-1", {
@@ -318,7 +318,7 @@ describe("task.service", () => {
     expect(coreClientMock.createTask).toHaveBeenCalledWith({
       name: "Test task",
       description: null,
-      coworkerId: null,
+      assigneeId: null,
       status: TaskStatus.READY,
     });
     expect(coreClientMock.patchTask).toHaveBeenCalledWith("task-1", {

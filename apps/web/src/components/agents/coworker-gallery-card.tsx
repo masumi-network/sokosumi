@@ -88,7 +88,7 @@ function CoworkerGalleryCard({
     "/images/logos/sokosumi-logo-white.svg";
   const canUseNextImage = canUseNextImageSrc(imageSrc);
   const displayDescription = description || galleryCardT("defaultDescription");
-  const coworkerNewTaskHref = `/tasks?create=true&coworker=${encodeURIComponent(slug)}`;
+  const assigneeNewTaskHref = `/tasks?create=true&assignee=${encodeURIComponent(slug)}`;
   /** Nested <a> inside Next.js <Link> is invalid HTML; use buttons when the card is link-wrapped. */
   const useAnchorForExternalChannels = Boolean(action);
   const cardClassName = cn(
@@ -218,7 +218,7 @@ function CoworkerGalleryCard({
   if (action) return <div className={cardClassName}>{cardContent}</div>;
 
   return (
-    <Link href={coworkerNewTaskHref} className={cardClassName}>
+    <Link href={assigneeNewTaskHref} className={cardClassName}>
       {cardContent}
     </Link>
   );

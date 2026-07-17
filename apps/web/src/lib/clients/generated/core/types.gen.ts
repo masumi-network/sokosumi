@@ -270,6 +270,16 @@ export type AdminTaskListItem = {
     name: string;
     status: TaskStatus;
     createdAt: Date;
+    owner: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
     user: {
         id: string;
         name: string;
@@ -303,6 +313,16 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 export type AdminTaskDetail = {
     task: Task;
+    owner: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
     user: {
         id: string;
         name: string;
@@ -319,15 +339,43 @@ export type Task = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Task owner. Always a user.
+     */
+    ownerId: string;
+    owner: UserSummary;
+    /**
+     * Deprecated. Use ownerId instead.
+     *
+     * @deprecated
+     */
     userId: string;
-    user: UserSummary;
+    user: UserSummary & unknown;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
+    /**
+     * Marketplace coworker assignee. Never an orchestrator.
+     */
+    assigneeId: string | null;
+    assignee: CoworkerSummary;
+    /**
+     * Deprecated. Use assigneeId instead.
+     *
+     * @deprecated
+     */
     coworkerId: string | null;
-    coworker: CoworkerSummary;
+    coworker: CoworkerSummary & unknown;
+    creator: TaskCreator;
+    /**
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary;
+    orchestrator: OrchestratorSummary & ({
+        [key: string]: unknown;
+    } | null);
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -374,11 +422,40 @@ export type CoworkerSummary = {
     slug: string;
 } | null;
 
+/**
+ * Actor that created the task. Exactly one of user, coworker, or orchestrator.
+ */
+export type TaskCreator = ({
+    type: 'user';
+} & TaskCreatorUser) | ({
+    type: 'coworker';
+} & TaskCreatorCoworker) | ({
+    type: 'orchestrator';
+} & TaskCreatorOrchestrator);
+
+export type TaskCreatorUser = {
+    type: 'user';
+    id: string;
+    user: UserSummary;
+};
+
+export type TaskCreatorCoworker = {
+    type: 'coworker';
+    id: string;
+    coworker: CoworkerSummary;
+};
+
+export type TaskCreatorOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
+};
+
 export type OrchestratorSummary = {
     id: string;
     name: string;
     slug: string;
-} | null;
+};
 
 export type TaskEvent = {
     id: string;
@@ -2640,12 +2717,23 @@ export type PublicSharedTask = {
     name: string;
     description?: string | null;
     status: TaskStatus & unknown;
-    coworker?: PublicSharedTaskCoworker;
+    assignee?: PublicSharedTaskAssignee;
+    /**
+     * Deprecated. Use assignee instead.
+     *
+     * @deprecated
+     */
+    coworker?: {
+        id: string;
+        name: string;
+        slug: string;
+        image?: string | null;
+    } | null;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
 };
 
-export type PublicSharedTaskCoworker = {
+export type PublicSharedTaskAssignee = {
     id: string;
     name: string;
     slug: string;
@@ -2827,15 +2915,43 @@ export type TaskListItem = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Task owner. Always a user.
+     */
+    ownerId: string;
+    owner: UserSummary;
+    /**
+     * Deprecated. Use ownerId instead.
+     *
+     * @deprecated
+     */
     userId: string;
-    user: UserSummary;
+    user: UserSummary & unknown;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
+    /**
+     * Marketplace coworker assignee. Never an orchestrator.
+     */
+    assigneeId: string | null;
+    assignee: CoworkerSummary;
+    /**
+     * Deprecated. Use assigneeId instead.
+     *
+     * @deprecated
+     */
     coworkerId: string | null;
-    coworker: CoworkerSummary;
+    coworker: CoworkerSummary & unknown;
+    creator: TaskCreator;
+    /**
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary;
+    orchestrator: OrchestratorSummary & ({
+        [key: string]: unknown;
+    } | null);
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -22546,7 +22662,13 @@ export type GetTasksData = {
          */
         sort?: 'nextRunAt';
         /**
-         * Filter tasks by coworker ID
+         * Filter tasks by assignee coworker ID
+         */
+        assigneeId?: string;
+        /**
+         * Deprecated. Use assigneeId instead.
+         *
+         * @deprecated
          */
         coworkerId?: string;
         /**
@@ -22629,6 +22751,12 @@ export type PostTasksData = {
         name?: string;
         description?: string | null;
         projectId?: string | null;
+        assigneeId?: string | null;
+        /**
+         * Deprecated. Use assigneeId instead.
+         *
+         * @deprecated
+         */
         coworkerId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
@@ -23218,6 +23346,12 @@ export type PatchTasksByIdData = {
         name?: string;
         description?: string | null;
         projectId?: string | null;
+        assigneeId?: string | null;
+        /**
+         * Deprecated. Use assigneeId instead.
+         *
+         * @deprecated
+         */
         coworkerId?: string | null;
     };
     path: {

@@ -41,9 +41,13 @@ import {
 interface TasksPageProps {
   searchParams: Promise<{
     create?: string;
+    assignee?: string;
+    /** @deprecated Use `assignee`. Kept for bookmarked URLs. */
     coworker?: string;
     prompt?: string;
     scope?: string | string[];
+    assigneeId?: string | string[];
+    /** @deprecated Use `assigneeId`. Kept for bookmarked URLs. */
     coworkerId?: string | string[];
     status?: string | string[];
     projectId?: string | string[];
@@ -69,10 +73,12 @@ async function loadTasksPageData() {
 export default async function TasksPage({ searchParams }: TasksPageProps) {
   const {
     create,
-    coworker: coworkerSlugParam,
+    assignee: assigneeSlugParam,
+    coworker: legacyCoworkerSlugParam,
     prompt: promptParam,
     scope,
-    coworkerId,
+    assigneeId,
+    coworkerId: legacyCoworkerId,
     status,
     projectId,
     agentId,
@@ -96,7 +102,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const [taskCoworkers, agents, projectsPage] = await loadTasksPageData();
   const filters = parseTasksFilters(
-    { scope, coworkerId, status, projectId },
+    { scope, assigneeId, coworkerId: legacyCoworkerId, status, projectId },
     activeOrganizationId,
   );
   const agentNameById = buildAgentNameById(agents);
@@ -140,9 +146,9 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const validProjectIds = new Set(projectOptions.map((project) => project.id));
   const activeFilters = {
     ...filters,
-    coworkerId:
-      filters.coworkerId && validCoworkerIds.has(filters.coworkerId)
-        ? filters.coworkerId
+    assigneeId:
+      filters.assigneeId && validCoworkerIds.has(filters.assigneeId)
+        ? filters.assigneeId
         : null,
     projectId:
       filters.projectId && validProjectIds.has(filters.projectId)
@@ -177,7 +183,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
             cursor: null,
             limit: TASKS_COLUMN_PAGE_LIMIT,
             scope: activeFilters.scope,
-            coworkerId: activeFilters.coworkerId,
+            assigneeId: activeFilters.assigneeId,
             status: activeFilters.status,
             projectId: activeFilters.projectId,
             coworkersById,
@@ -192,7 +198,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         ? taskService.listTasks({
             status: TaskStatus.GRANT_PENDING,
             scope: activeFilters.scope,
-            coworkerId: activeFilters.coworkerId ?? undefined,
+            assigneeId: activeFilters.assigneeId ?? undefined,
             projectId: activeFilters.projectId ?? undefined,
             limit: 1,
           })
@@ -207,7 +213,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       task.id,
       {
         id: task.id,
-        coworkerId: task.coworker?.id ?? null,
+        assigneeId: task.assignee?.id ?? null,
       },
     ]),
   );
@@ -221,9 +227,10 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
   const initialCreateTaskOpen = create === "true";
-  const initialCoworkerId =
-    initialCreateTaskOpen && coworkerSlugParam
-      ? findCoworkerIdBySlug(coworkerOptions, coworkerSlugParam)
+  const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;
+  const initialAssigneeId =
+    initialCreateTaskOpen && resolvedAssigneeSlug
+      ? findCoworkerIdBySlug(coworkerOptions, resolvedAssigneeSlug)
       : null;
   const initialProjectId =
     activeFilters.projectId ?? activeJobsListFilters.projectId;
@@ -264,12 +271,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         defaultViewMode={defaultViewMode}
         defaultDensity={defaultDensity}
         initialCreateTaskOpen={initialCreateTaskOpen}
-        initialCoworkerId={initialCoworkerId}
+        initialAssigneeId={initialAssigneeId}
         initialCreateTaskPrompt={
           initialCreateTaskOpen ? (promptParam ?? null) : null
         }
         initialDesignMdAttachment={initialDesignMdAttachment}
-        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
+        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialAssigneeId ?? resolvedAssigneeSlug ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),

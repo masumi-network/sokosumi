@@ -223,9 +223,10 @@ describeDatabase("vendor grants database integration", () => {
       await prisma.task.create({
         data: {
           id: taskId,
-          userId: context.userId,
+          ownerId: context.userId,
           workspaceId: context.workspaceId,
-          coworkerId: context.coworkerId,
+          assigneeId: context.coworkerId,
+          creatorUserId: context.userId,
           name: "Parked integration task",
           description: "Awaiting vendor grant",
           status: TaskStatus.GRANT_PENDING,
@@ -280,9 +281,10 @@ describeDatabase("vendor grants database integration", () => {
       await prisma.task.create({
         data: {
           id: taskId,
-          userId: context.userId,
+          ownerId: context.userId,
           workspaceId: context.workspaceId,
-          coworkerId: context.coworkerId,
+          assigneeId: context.coworkerId,
+          creatorUserId: context.userId,
           name: "Race integration task",
           description: "Awaiting vendor grant",
           status: TaskStatus.GRANT_PENDING,

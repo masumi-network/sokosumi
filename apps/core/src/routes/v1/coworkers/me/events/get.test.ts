@@ -72,7 +72,7 @@ describe("GET /coworkers/me/events", () => {
       expect.objectContaining({
         where: {
           task: {
-            coworkerId: "cow_123",
+            assigneeId: "cow_123",
             status: { not: "DRAFT" },
           },
         },

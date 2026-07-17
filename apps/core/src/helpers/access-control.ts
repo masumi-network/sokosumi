@@ -75,7 +75,7 @@ export async function requireTaskOwnership(
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
-      userId: userContext.userId,
+      ownerId: userContext.userId,
       archivedAt: null,
     },
   });
@@ -114,7 +114,7 @@ export async function requireTaskArchiveAccess(
   const owned = await tx.task.findFirst({
     where: {
       id: taskId,
-      userId: userContext.userId,
+      ownerId: userContext.userId,
       archivedAt: null,
     },
   });
@@ -371,7 +371,7 @@ async function requireCoworkerAssignedTaskRead(
   if (!task) {
     throw notFound("Task not found");
   }
-  if (task.coworkerId !== authContext.coworkerId) {
+  if (task.assigneeId !== authContext.coworkerId) {
     throw forbidden("You can only access tasks assigned to your coworker");
   }
 
@@ -439,7 +439,7 @@ export async function requireTaskCollaboration(
       tx,
     );
 
-    if (task.coworkerId !== coworker.coworkerId) {
+    if (task.assigneeId !== coworker.coworkerId) {
       throw forbidden("You can only act on tasks assigned to your coworker");
     }
 
@@ -728,7 +728,7 @@ export function pinCoworkerConversationBinding(
 /**
  * A delegated coworker may only act on a job whose task is assigned to that
  * coworker. Jobs have no direct coworker; the relationship is
- * `Job.taskId -> Task.coworkerId`. Jobs without a task, or whose task is
+ * `Job.taskId -> Task.assigneeId`. Jobs without a task, or whose task is
  * assigned to a different coworker, are denied.
  *
  * Used for job **writes** only. Job reads also allow same-vendor siblings via
@@ -747,10 +747,10 @@ async function assertJobAssignedToCoworker(
 
   const task = await tx.task.findFirst({
     where: { id: job.taskId },
-    select: { coworkerId: true },
+    select: { assigneeId: true },
   });
 
-  if (task?.coworkerId !== coworkerId) {
+  if (task?.assigneeId !== coworkerId) {
     throw forbidden("You can only access jobs assigned to your coworker");
   }
 }

@@ -604,22 +604,22 @@ export function isBaselineCoworkerTaskAccess(params: {
   actorCoworkerId: string;
   actorVendorId: string;
   task: {
-    coworkerId: string | null;
+    assigneeId: string | null;
     status: string;
-    coworker?: { vendorId: string } | null;
+    assignee?: { vendorId: string } | null;
   };
 }): boolean {
   if (params.task.status === TaskStatus.DRAFT) {
     return false;
   }
 
-  if (params.task.coworkerId === params.actorCoworkerId) {
+  if (params.task.assigneeId === params.actorCoworkerId) {
     return true;
   }
 
   if (
-    params.task.coworkerId &&
-    params.task.coworker?.vendorId === params.actorVendorId
+    params.task.assigneeId &&
+    params.task.assignee?.vendorId === params.actorVendorId
   ) {
     return true;
   }
@@ -641,10 +641,10 @@ export function buildCoworkerTaskListAccessFilter(params: {
   return {
     status: { not: TaskStatus.DRAFT },
     OR: [
-      { coworkerId: params.coworkerId },
+      { assigneeId: params.coworkerId },
       {
-        coworkerId: { not: params.coworkerId },
-        coworker: { vendorId: params.vendorId },
+        assigneeId: { not: params.coworkerId },
+        assignee: { vendorId: params.vendorId },
       },
     ],
   };

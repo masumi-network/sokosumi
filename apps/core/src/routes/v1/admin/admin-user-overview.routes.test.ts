@@ -107,7 +107,7 @@ describe("GET /v1/admin/users", () => {
       status: "active",
     });
     taskGroupByMock.mockResolvedValue([
-      { userId: "user_1", _count: { _all: 7 } },
+      { ownerId: "user_1", _count: { _all: 7 } },
     ]);
   });
 
@@ -148,9 +148,9 @@ describe("GET /v1/admin/users", () => {
     );
     expect(taskGroupByMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        by: ["userId"],
+        by: ["ownerId"],
         where: expect.objectContaining({
-          userId: { in: ["user_1"] },
+          ownerId: { in: ["user_1"] },
           status: { not: "DRAFT" },
         }),
       }),

@@ -125,11 +125,11 @@ export function TasksViewFilters({
       id: "coworker",
       label: labels.coworkerLabel,
       icon: Sparkles,
-      value: filters.coworkerId,
+      value: filters.assigneeId,
       allLabel: labels.all,
-      onChange: (coworkerId) =>
+      onChange: (assigneeId) =>
         handleFilterChange({
-          coworkerId,
+          assigneeId,
         }),
       options: coworkerOptions.map((coworker) => ({
         value: coworker.id,

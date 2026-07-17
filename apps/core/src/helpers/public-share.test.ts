@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { publicSharedTaskSchema } from "@/schemas/public-share.schema";
+
 import { getPublicSharedResourceByToken } from "./public-share";
 
 const { publicShareFindUniqueMock } = vi.hoisted(() => ({
@@ -176,7 +178,7 @@ describe("getPublicSharedResourceByToken", () => {
         name: "Shared Task",
         description: "Task description",
         status: "READY",
-        coworker: {
+        assignee: {
           id: "cow_123",
           name: "Ops Agent",
           slug: "ops-agent",
@@ -363,6 +365,18 @@ describe("getPublicSharedResourceByToken", () => {
       },
       task: {
         id: "tsk_123",
+        assignee: {
+          id: "cow_123",
+          name: "Ops Agent",
+          slug: "ops-agent",
+          image: null,
+        },
+        coworker: {
+          id: "cow_123",
+          name: "Ops Agent",
+          slug: "ops-agent",
+          image: null,
+        },
         jobs: [
           {
             id: "job_123",
@@ -412,6 +426,14 @@ describe("getPublicSharedResourceByToken", () => {
       throw new Error("Expected a shared task response");
     }
 
+    expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
+    expect(publicSharedTaskSchema.parse(resource.task).assignee).toEqual({
+      id: "cow_123",
+      name: "Ops Agent",
+      slug: "ops-agent",
+      image: null,
+    });
+
     expect(resource.task.jobs[0]).not.toHaveProperty("result");
     expect(resource.task.jobs[0]).not.toHaveProperty("agent");
     expect(resource.task.jobs[0]?.createdAt).toEqual(
@@ -442,7 +464,7 @@ describe("getPublicSharedResourceByToken", () => {
         name: "Archived shared task",
         description: null,
         status: "READY",
-        coworker: null,
+        assignee: null,
         jobs: [],
         events: [],
       },

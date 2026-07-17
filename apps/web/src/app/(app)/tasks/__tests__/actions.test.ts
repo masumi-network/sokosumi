@@ -74,7 +74,7 @@ describe("loadMoreTasksColumn", () => {
       columnId: "todo",
       cursor: "current-column-cursor",
       scope: "workspace",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       status: null,
       projectId: PROJECT_ID,
     });
@@ -86,7 +86,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: "current-column-cursor",
       limit: 20,
       scope: "workspace",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       status: null,
       projectId: PROJECT_ID,
     });
@@ -100,7 +100,7 @@ describe("loadMoreTasksColumn", () => {
     });
   });
 
-  it("ignores coworkerId that is not in the current tasks coworker list", async () => {
+  it("ignores assigneeId that is not in the current tasks coworker list", async () => {
     const coworker = { id: "coworker-1", name: "Coworker" };
     listCoworkersMock.mockResolvedValue([coworker]);
     getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
@@ -113,14 +113,14 @@ describe("loadMoreTasksColumn", () => {
       columnId: "todo",
       cursor: null,
       scope: "owned",
-      coworkerId: "removed-coworker",
+      assigneeId: "removed-coworker",
       status: null,
       projectId: null,
     });
 
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
-      coworkerId: null,
+      assigneeId: null,
     });
   });
 
@@ -136,7 +136,7 @@ describe("loadMoreTasksColumn", () => {
       columnId: "todo",
       cursor: null,
       scope: "malicious" as never,
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     });
@@ -161,7 +161,7 @@ describe("loadMoreTasksColumn", () => {
       columnId: "todo",
       cursor: null,
       scope: "workspace",
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     });
@@ -183,7 +183,7 @@ describe("loadMoreTasksColumn", () => {
       columnId: "todo",
       cursor: null,
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: "malicious" as never,
       projectId: null,
     });
@@ -205,7 +205,7 @@ describe("loadMoreTasksColumn", () => {
       columnId: "todo",
       cursor: null,
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: TaskStatus.READY,
       projectId: null,
     });

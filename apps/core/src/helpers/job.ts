@@ -522,7 +522,7 @@ export async function getUserJobs(
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
       // `task` is an optional to-one relation, so this filter requires the job
       // to HAVE a task assigned to this coworker — null-task jobs are excluded.
-      ...(coworkerId ? [{ task: { coworkerId } }] : []),
+      ...(coworkerId ? [{ task: { assigneeId: coworkerId } }] : []),
     ],
   };
 

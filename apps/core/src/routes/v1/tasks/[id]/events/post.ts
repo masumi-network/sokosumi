@@ -33,7 +33,7 @@ import {
   mapTaskEvent,
   taskEventApiInclude,
   validateStatusTransition,
-  validateTaskCoworkerAssignment,
+  validateTaskAssigneeAssignment,
 } from "@/helpers/task";
 import {
   createTaskEventTransaction,
@@ -186,7 +186,7 @@ async function chargeTaskCreditsOrMarkOutOfCredits(params: {
 
 interface SettleTaskEventChargeParams {
   task: {
-    userId: string;
+    ownerId: string;
     organizationId: string | null;
     status: TaskStatus;
   };
@@ -232,7 +232,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.userId,
+      userId: task.ownerId,
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -262,7 +262,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.userId,
+      userId: task.ownerId,
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -309,18 +309,18 @@ async function mapCreatedTaskEventForResponse(
 async function dispatchTaskNotification(
   task: {
     id: string;
-    userId: string;
+    ownerId: string;
     name: string | null;
-    coworker: { name: string } | null;
+    assignee: { name: string } | null;
     project: { name: string } | null;
     projectId: string | null;
     workspaceId: string | null;
-    user: { notificationsOptIn: boolean };
+    owner: { notificationsOptIn: boolean };
   },
   eventId: string,
   status: string,
 ): Promise<void> {
-  if (!task.user.notificationsOptIn) {
+  if (!task.owner.notificationsOptIn) {
     return;
   }
 
@@ -353,7 +353,7 @@ async function dispatchTaskNotification(
     }
 
     const taskName = task.name ?? "Untitled task";
-    const coworkerName = task.coworker?.name ?? "Assistant";
+    const coworkerName = task.assignee?.name ?? "Assistant";
     const projectName = task.project?.name;
 
     const messageParams: Record<string, unknown> = {
@@ -374,7 +374,7 @@ async function dispatchTaskNotification(
     }
 
     await createNotification({
-      userId: task.userId,
+      userId: task.ownerId,
       kind: NotificationKind.TASK,
       referenceId: task.id,
       eventId,
@@ -386,7 +386,7 @@ async function dispatchTaskNotification(
     Sentry.captureException(error, {
       extra: {
         taskId: task.id,
-        userId: task.userId,
+        userId: task.ownerId,
         notificationType: "task-notification",
       },
     });
@@ -483,9 +483,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
-          validateTaskCoworkerAssignment({
+          validateTaskAssigneeAssignment({
             status,
-            coworkerId: task.coworkerId,
+            assigneeId: task.assigneeId,
           });
 
           if (
@@ -568,7 +568,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return {
           event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
-          userId: task.userId,
+          userId: task.ownerId,
           masumiPayment: payment,
           pausedForInsufficientBalance,
         };
@@ -585,11 +585,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               where: { id: taskId },
               select: {
                 id: true,
-                userId: true,
+                ownerId: true,
                 name: true,
                 projectId: true,
                 workspaceId: true,
-                coworker: {
+                assignee: {
                   select: {
                     name: true,
                   },
@@ -599,7 +599,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     name: true,
                   },
                 },
-                user: {
+                owner: {
                   select: {
                     notificationsOptIn: true,
                   },

@@ -69,32 +69,35 @@ async function publishTaskStatusUpdates(
 function getCloneTaskData(
   template: Prisma.TaskGetPayload<{
     select: {
-      userId: true;
+      ownerId: true;
       organizationId: true;
       workspaceId: true;
       projectId: true;
-      coworkerId: true;
+      assigneeId: true;
       name: true;
       description: true;
     };
   }>,
 ) {
   return {
-    userId: template.userId,
+    ownerId: template.ownerId,
     organizationId: template.organizationId,
     workspaceId: template.workspaceId,
     projectId: template.projectId,
-    coworkerId: template.coworkerId,
+    assigneeId: template.assigneeId,
     name: template.name,
     description: template.description,
     status: TaskStatus.READY,
     metadata: null,
     nextRunAt: null,
+    creatorUserId: template.ownerId,
+    creatorCoworkerId: null,
+    creatorOrchestratorId: null,
     events: {
       create: {
         status: TaskStatus.READY,
         channel: Channel.SOKOSUMI,
-        userId: template.userId,
+        userId: template.ownerId,
       },
     },
   };
@@ -180,11 +183,11 @@ async function cloneRecurringOccurrence(
   template: Prisma.TaskGetPayload<{
     select: {
       id: true;
-      userId: true;
+      ownerId: true;
       organizationId: true;
       workspaceId: true;
       projectId: true;
-      coworkerId: true;
+      assigneeId: true;
       name: true;
       description: true;
     };
@@ -221,11 +224,11 @@ async function processDueTask(
       },
       select: {
         id: true,
-        userId: true,
+        ownerId: true,
         organizationId: true,
         workspaceId: true,
         projectId: true,
-        coworkerId: true,
+        assigneeId: true,
         name: true,
         description: true,
         metadata: true,
@@ -242,15 +245,15 @@ async function processDueTask(
       await clearTemplateSchedule(tx, template.id);
       return {
         outcome: "skipped",
-        publishEvents: [{ userId: template.userId, taskId: template.id }],
+        publishEvents: [{ userId: template.ownerId, taskId: template.id }],
       };
     }
 
     if (scheduleMetadata.mode === "once") {
-      await promoteOneTimeTask(tx, template.id, template.userId);
+      await promoteOneTimeTask(tx, template.id, template.ownerId);
       return {
         outcome: "promoted",
-        publishEvents: [{ userId: template.userId, taskId: template.id }],
+        publishEvents: [{ userId: template.ownerId, taskId: template.id }],
       };
     }
 
@@ -285,7 +288,7 @@ async function processDueTask(
         return {
           outcome: clonesCreated > 0 ? "cloned" : "skipped",
           publishEvents: buildRecurringPublishEvents(
-            template.userId,
+            template.ownerId,
             template.id,
             clonedTaskIds,
             true,
@@ -298,7 +301,7 @@ async function processDueTask(
         return {
           outcome: clonesCreated > 0 ? "cloned" : "skipped",
           publishEvents: buildRecurringPublishEvents(
-            template.userId,
+            template.ownerId,
             template.id,
             clonedTaskIds,
             true,
@@ -314,7 +317,7 @@ async function processDueTask(
         await clearTemplateSchedule(tx, template.id);
         return {
           outcome: "skipped",
-          publishEvents: [{ userId: template.userId, taskId: template.id }],
+          publishEvents: [{ userId: template.ownerId, taskId: template.id }],
         };
       }
       return { outcome: "skipped", publishEvents: [] };
@@ -331,7 +334,7 @@ async function processDueTask(
     return {
       outcome: "cloned",
       publishEvents: buildRecurringPublishEvents(
-        template.userId,
+        template.ownerId,
         template.id,
         clonedTaskIds,
         false,

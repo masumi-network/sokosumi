@@ -1521,6 +1521,7 @@
         "properties": "Propriedades",
         "status": "Status",
         "owner": "Proprietário",
+        "creator": "Criador",
         "organization": "Organização",
         "project": "Projeto",
         "personalWorkspace": "Pessoal",
@@ -1554,6 +1555,7 @@
         "collapse": "Mostrar menos",
         "actorCoworker": "Coworker",
         "actorUser": "Usuário",
+        "actorOrchestrator": "Orquestrador",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
         "channelApp": {

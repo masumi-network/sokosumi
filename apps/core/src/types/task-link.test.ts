@@ -12,10 +12,10 @@ describe("buildVisibleTaskLinksInclude", () => {
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [
-        { coworkerId: "cow_agent" },
+        { assigneeId: "cow_agent" },
         {
-          coworkerId: { not: "cow_agent" },
-          coworker: { vendorId: VENDOR_ID },
+          assigneeId: { not: "cow_agent" },
+          assignee: { vendorId: VENDOR_ID },
         },
       ],
     };
@@ -43,14 +43,14 @@ describe("buildVisibleTaskLinksInclude", () => {
 
   it("scopes delegated coworker peers by delegated userId when workspaceId is absent", () => {
     const peerWhere = {
-      userId: "user_delegated",
+      ownerId: "user_delegated",
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [
-        { coworkerId: "cow_agent" },
+        { assigneeId: "cow_agent" },
         {
-          coworkerId: { not: "cow_agent" },
-          coworker: { vendorId: VENDOR_ID },
+          assigneeId: { not: "cow_agent" },
+          assignee: { vendorId: VENDOR_ID },
         },
       ],
     };
@@ -78,10 +78,10 @@ describe("buildVisibleTaskLinksInclude", () => {
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [
-        { coworkerId: "cow_agent" },
+        { assigneeId: "cow_agent" },
         {
-          coworkerId: { not: "cow_agent" },
-          coworker: { vendorId: VENDOR_ID },
+          assigneeId: { not: "cow_agent" },
+          assignee: { vendorId: VENDOR_ID },
         },
       ],
     };

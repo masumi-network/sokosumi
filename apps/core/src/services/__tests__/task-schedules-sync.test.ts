@@ -76,11 +76,11 @@ describe("taskSchedulesSyncService", () => {
 
     mockFindFirst.mockResolvedValue({
       id: "template-1",
-      userId: "user-1",
+      ownerId: "user-1",
       organizationId: null,
       workspaceId: "workspace-1",
       projectId: null,
-      coworkerId: null,
+      assigneeId: null,
       name: "Template",
       description: "Run me",
       metadata,
@@ -146,11 +146,11 @@ describe("taskSchedulesSyncService", () => {
 
     mockFindFirst.mockResolvedValue({
       id: "template-1",
-      userId: "user-1",
+      ownerId: "user-1",
       organizationId: null,
       workspaceId: "workspace-1",
       projectId: null,
-      coworkerId: null,
+      assigneeId: null,
       name: "Template",
       description: "Run me",
       metadata: JSON.stringify({
@@ -213,11 +213,11 @@ describe("taskSchedulesSyncService", () => {
 
     mockFindFirst.mockResolvedValue({
       id: "template-1",
-      userId: "user-1",
+      ownerId: "user-1",
       organizationId: null,
       workspaceId: "workspace-1",
       projectId: null,
-      coworkerId: null,
+      assigneeId: null,
       name: "Template",
       description: "Run me",
       metadata,

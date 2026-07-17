@@ -18,10 +18,10 @@ describe("vendor-siblings", () => {
       ).toEqual({
         status: { not: TaskStatus.DRAFT },
         OR: [
-          { coworkerId: "cow_a" },
+          { assigneeId: "cow_a" },
           {
-            coworkerId: { not: "cow_a" },
-            coworker: {
+            assigneeId: { not: "cow_a" },
+            assignee: {
               vendorId: TEST_VENDOR_ID,
             },
           },
@@ -45,10 +45,10 @@ describe("vendor-siblings", () => {
         workspaceId: "ws_1",
         status: { not: TaskStatus.DRAFT },
         OR: [
-          { coworkerId: "cow_a" },
+          { assigneeId: "cow_a" },
           {
-            coworkerId: { not: "cow_a" },
-            coworker: {
+            assigneeId: { not: "cow_a" },
+            assignee: {
               vendorId: TEST_VENDOR_ID,
             },
           },

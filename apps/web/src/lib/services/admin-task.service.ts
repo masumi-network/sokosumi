@@ -4,17 +4,19 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
+interface AdminTaskOwner {
+  id: string;
+  name: string;
+  email: string;
+}
+
 /** A task row in the admin task list. */
 export interface AdminTaskListItem {
   id: string;
   name: string;
   status: TaskStatus;
   createdAt: Date;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
+  owner: AdminTaskOwner;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -26,11 +28,7 @@ export interface AdminTaskListItem {
 /** Full task payload plus owner/organization context for admin views. */
 export interface AdminTaskDetail {
   task: Task;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
+  owner: AdminTaskOwner;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -63,7 +61,7 @@ export const adminTaskService = {
         name: task.name,
         status: task.status,
         createdAt: task.createdAt,
-        user: task.user,
+        owner: task.owner,
         organization: task.organization,
       })),
       total: result.meta.pagination.total,
@@ -77,7 +75,7 @@ export const adminTaskService = {
 
       return {
         task: result.data.task,
-        user: result.data.user,
+        owner: result.data.owner,
         organization: result.data.organization,
       };
     } catch (error) {

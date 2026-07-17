@@ -53,7 +53,7 @@ describe("task-dnd", () => {
     const scheduledMetadata = JSON.stringify({
       schedule: { mode: "daily", timezone: "UTC" },
     });
-    const coworker = {
+    const assignee = {
       id: "cow-1",
       name: "Elena",
       slug: "elena",
@@ -66,7 +66,7 @@ describe("task-dnd", () => {
           status: TaskStatus.DRAFT,
           metadata: null,
           nextRunAt: null,
-          coworker: null,
+          assignee: null,
         }),
       ).toBe(true);
     });
@@ -77,7 +77,7 @@ describe("task-dnd", () => {
           status: TaskStatus.QUEUED,
           metadata: scheduledMetadata,
           nextRunAt: "2026-06-25T09:00:00.000Z",
-          coworker,
+          assignee,
         }),
       ).toBe(false);
     });
@@ -88,7 +88,7 @@ describe("task-dnd", () => {
           status: TaskStatus.QUEUED,
           metadata: null,
           nextRunAt: null,
-          coworker,
+          assignee,
         }),
       ).toBe(true);
     });
@@ -99,7 +99,7 @@ describe("task-dnd", () => {
           status: TaskStatus.COMPLETED,
           metadata: null,
           nextRunAt: null,
-          coworker,
+          assignee,
         }),
       ).toBe(true);
       expect(
@@ -107,7 +107,7 @@ describe("task-dnd", () => {
           status: TaskStatus.CANCELED,
           metadata: null,
           nextRunAt: null,
-          coworker,
+          assignee,
         }),
       ).toBe(true);
     });
@@ -118,7 +118,7 @@ describe("task-dnd", () => {
           status: TaskStatus.COMPLETED,
           metadata: null,
           nextRunAt: null,
-          coworker: null,
+          assignee: null,
         }),
       ).toBe(false);
     });
@@ -129,7 +129,7 @@ describe("task-dnd", () => {
           status: TaskStatus.FAILED,
           metadata: null,
           nextRunAt: null,
-          coworker,
+          assignee,
         }),
       ).toBe(false);
     });
