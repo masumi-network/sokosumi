@@ -22,7 +22,7 @@ describe("tasks-filters", () => {
     expect(getDefaultTasksScope("org-1")).toBe("owned");
     expect(parseTasksFilters({}, "org-1")).toEqual({
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     });
@@ -32,7 +32,7 @@ describe("tasks-filters", () => {
     expect(getDefaultTasksScope(null)).toBe("owned");
     expect(parseTasksFilters({}, null)).toEqual({
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     });
@@ -41,7 +41,7 @@ describe("tasks-filters", () => {
   it("coerces invalid workspace scope back to owned in personal context", () => {
     expect(parseTasksFilters({ scope: "workspace" }, null)).toEqual({
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     });
@@ -92,7 +92,7 @@ describe("tasks-filters", () => {
   it("maps URL search params to filters with coworker allowlist", () => {
     const params = new URLSearchParams({
       scope: "owned",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -101,7 +101,7 @@ describe("tasks-filters", () => {
       getTasksFiltersFromSearchParams(params, "org-1", [{ id: "coworker-1" }]),
     ).toEqual({
       scope: "owned",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -110,7 +110,7 @@ describe("tasks-filters", () => {
       getTasksFiltersFromSearchParams(params, "org-1", [{ id: "other" }]),
     ).toEqual({
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -125,7 +125,7 @@ describe("tasks-filters", () => {
       getTasksFiltersFromSearchParams(params, "org-1", [], projectOptions),
     ).toEqual({
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -139,7 +139,7 @@ describe("tasks-filters", () => {
       ),
     ).toEqual({
       scope: "owned",
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     });
@@ -150,7 +150,7 @@ describe("tasks-filters", () => {
       parseTasksFilters(
         {
           scope: "owned",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           status: TaskStatus.READY,
           projectId: PROJECT_ID,
         },
@@ -158,7 +158,7 @@ describe("tasks-filters", () => {
       ),
     ).toEqual({
       scope: "owned",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -169,7 +169,7 @@ describe("tasks-filters", () => {
       parseTasksFilters(
         {
           scope: ["workspace", "owned"],
-          coworkerId: ["coworker-1", "coworker-2"],
+          assigneeId: ["coworker-1", "coworker-2"],
           status: [TaskStatus.READY, TaskStatus.FAILED],
           projectId: [PROJECT_ID, "44444444-4444-4444-8444-444444444444"],
         },
@@ -177,7 +177,7 @@ describe("tasks-filters", () => {
       ),
     ).toEqual({
       scope: "workspace",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -193,7 +193,7 @@ describe("tasks-filters", () => {
       currentSearchParams,
       {
         scope: "owned",
-        coworkerId: "coworker-1",
+        assigneeId: "coworker-1",
         status: TaskStatus.READY,
         projectId: PROJECT_ID,
       },
@@ -201,13 +201,29 @@ describe("tasks-filters", () => {
     );
 
     expect(nextSearchParams.toString()).toBe(
-      "create=true&coworker=elena&coworkerId=coworker-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
+      "create=true&coworker=elena&assigneeId=coworker-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
     );
+  });
+
+  it("parses legacy coworkerId query param when assigneeId is absent", () => {
+    expect(
+      parseTasksFilters(
+        {
+          coworkerId: "coworker-1",
+        },
+        "org-1",
+      ),
+    ).toEqual({
+      scope: "owned",
+      assigneeId: "coworker-1",
+      status: null,
+      projectId: null,
+    });
   });
 
   it("removes default filters from the query string", () => {
     const currentSearchParams = new URLSearchParams({
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -216,7 +232,7 @@ describe("tasks-filters", () => {
       currentSearchParams,
       {
         scope: "workspace",
-        coworkerId: null,
+        assigneeId: null,
         status: null,
         projectId: null,
       },
@@ -231,7 +247,7 @@ describe("tasks-filters", () => {
       getTasksFiltersResetKey(
         {
           scope: "workspace",
-          coworkerId: "coworker-1",
+          assigneeId: "coworker-1",
           status: TaskStatus.READY,
           projectId: PROJECT_ID,
         },
@@ -251,7 +267,7 @@ describe("tasks-filters", () => {
         "user-1",
         {
           scope: "workspace",
-          coworkerId: null,
+          assigneeId: null,
           status: null,
           projectId: null,
         },
@@ -264,7 +280,7 @@ describe("tasks-filters", () => {
         "user-2",
         {
           scope: "workspace",
-          coworkerId: null,
+          assigneeId: null,
           status: null,
           projectId: null,
         },
@@ -277,7 +293,7 @@ describe("tasks-filters", () => {
         "user-2",
         {
           scope: "owned",
-          coworkerId: null,
+          assigneeId: null,
           status: null,
           projectId: null,
         },
@@ -289,7 +305,7 @@ describe("tasks-filters", () => {
   describe("hasActiveTasksFilters", () => {
     const defaultFilters = {
       scope: "owned" as const,
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     };
@@ -323,7 +339,7 @@ describe("tasks-filters", () => {
     it("shows the indicator for personal boards with coworker filter", () => {
       expect(
         hasActiveTasksFilters(
-          { ...defaultFilters, coworkerId: "coworker-1" },
+          { ...defaultFilters, assigneeId: "coworker-1" },
           null,
         ),
       ).toBe(true);
@@ -342,13 +358,13 @@ describe("tasks-filters", () => {
   describe("isTaskDraggableForViewFilters", () => {
     const workspaceFilters = {
       scope: "workspace" as const,
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     };
     const ownedFilters = {
       scope: "owned" as const,
-      coworkerId: null,
+      assigneeId: null,
       status: null,
       projectId: null,
     };

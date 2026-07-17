@@ -200,7 +200,7 @@ describe("task link actions", () => {
 
     await createTask({
       description: "Created related task",
-      coworkerId: null,
+      assigneeId: null,
       status: TaskStatus.READY,
     });
 
@@ -225,7 +225,7 @@ describe("task link actions", () => {
 
     await createTask({
       description: "Created related task",
-      coworkerId: null,
+      assigneeId: null,
       skipDesignMdAttachment: true,
       status: TaskStatus.READY,
     });
@@ -371,7 +371,7 @@ describe("task link actions", () => {
       createTaskAndLink({
         taskId: "task-1",
         description: "Created related task",
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.CHILD,
       }),
@@ -430,7 +430,7 @@ describe("task link actions", () => {
       createTaskAndLink({
         taskId: "task-1",
         description: "Created related task",
-        coworkerId: null,
+        assigneeId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.CHILD,
       }),
@@ -492,7 +492,7 @@ describe("updateTask schedule status", () => {
       taskId: "task-1",
       name: "Task",
       description: "Do work",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       currentStatus: TaskStatus.QUEUED,
       desiredStatus: TaskStatus.QUEUED,
       hadSchedule: true,
@@ -518,7 +518,7 @@ describe("updateTask schedule status", () => {
       taskId: "task-1",
       name: "Task",
       description: "Do work",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       currentStatus: TaskStatus.DRAFT,
       desiredStatus: TaskStatus.DRAFT,
       hadSchedule: false,
@@ -537,7 +537,7 @@ describe("updateTask schedule status", () => {
       taskId: "task-1",
       name: "Task",
       description: "Do work",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       currentStatus: TaskStatus.DRAFT,
       desiredStatus: TaskStatus.READY,
       hadSchedule: false,
@@ -561,7 +561,7 @@ describe("updateTask schedule status", () => {
       taskId: "task-1",
       name: "Task",
       description: "Do work",
-      coworkerId: "coworker-1",
+      assigneeId: "coworker-1",
       currentStatus: TaskStatus.QUEUED,
       desiredStatus: TaskStatus.DRAFT,
       hadSchedule: true,
@@ -741,7 +741,7 @@ describe("createTask schedule", () => {
 
     await createTask({
       description: "Draft task",
-      coworkerId: null,
+      assigneeId: null,
       status: TaskStatus.DRAFT,
       schedule: recurringSchedule,
     });
@@ -763,7 +763,7 @@ describe("createTask schedule", () => {
 
     await createTask({
       description: "Scheduled task",
-      coworkerId: null,
+      assigneeId: null,
       status: TaskStatus.READY,
       schedule: recurringSchedule,
     });

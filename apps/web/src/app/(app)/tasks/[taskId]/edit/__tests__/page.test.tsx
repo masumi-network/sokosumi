@@ -207,7 +207,7 @@ describe("EditTaskPage", () => {
         initialValues: {
           name: "Task",
           description: "Desc",
-          coworkerId: "cow_123",
+          assigneeId: "cow_123",
           projectId: null,
           status: "READY",
           metadata: undefined,

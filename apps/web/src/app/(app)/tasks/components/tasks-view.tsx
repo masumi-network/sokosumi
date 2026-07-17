@@ -238,7 +238,7 @@ interface TasksViewProps {
   defaultViewMode?: TasksViewMode;
   defaultDensity?: TasksDensity;
   initialCreateTaskOpen?: boolean;
-  initialCoworkerId?: string | null;
+  initialAssigneeId?: string | null;
   initialCreateTaskPrompt?: string | null;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   createTaskModalResetKey?: string;
@@ -329,7 +329,7 @@ export function TasksView({
   defaultViewMode,
   defaultDensity,
   initialCreateTaskOpen = false,
-  initialCoworkerId = null,
+  initialAssigneeId = null,
   initialCreateTaskPrompt = null,
   initialDesignMdAttachment = null,
   createTaskModalResetKey = "default",
@@ -796,7 +796,7 @@ export function TasksView({
           columnId,
           cursor,
           scope: routeFilters.scope,
-          coworkerId: routeFilters.coworkerId,
+          assigneeId: routeFilters.assigneeId,
           status: routeFilters.status,
           projectId: routeFilters.projectId,
         });
@@ -830,7 +830,7 @@ export function TasksView({
     [
       isTaskPaginationInSync,
       labels.loadMoreError,
-      routeFilters.coworkerId,
+      routeFilters.assigneeId,
       routeFilters.projectId,
       routeFilters.scope,
       routeFilters.status,
@@ -1249,7 +1249,7 @@ export function TasksView({
     <CreateTaskModalProvider
       key={createTaskModalResetKey}
       initialOpen={initialCreateTaskOpen}
-      initialCoworkerId={initialCoworkerId}
+      initialAssigneeId={initialAssigneeId}
       initialPrompt={initialCreateTaskPrompt}
       initialProjectId={defaultProjectId}
     >

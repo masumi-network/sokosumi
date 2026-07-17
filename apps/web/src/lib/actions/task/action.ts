@@ -31,7 +31,7 @@ import {
 
 interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
-  coworkerId: string | null;
+  assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -42,7 +42,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   taskId: string;
   name: string;
   description: string;
-  coworkerId: string | null;
+  assigneeId: string | null;
   projectId?: string | null;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
@@ -88,7 +88,7 @@ interface DeleteTaskLinkParameters extends AuthenticatedRequest {
 interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   taskId: string;
   description: string;
-  coworkerId: string | null;
+  assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -201,7 +201,7 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
 
 async function createTaskFromDescription(input: {
   description: string;
-  coworkerId: string | null;
+  assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -219,7 +219,7 @@ async function createTaskFromDescription(input: {
 
   const task = await taskService.createTask({
     description: descriptionWithDesignMd,
-    assigneeId: input.coworkerId ? input.coworkerId : null,
+    assigneeId: input.assigneeId ? input.assigneeId : null,
     projectId: normalizedProjectId ?? null,
     status: resolveCreateStatus(input.status, input.schedule),
   });
@@ -360,7 +360,7 @@ export const createTask = withSession<
 >(
   async ({
     description,
-    coworkerId,
+    assigneeId,
     projectId,
     session,
     skipDesignMdAttachment,
@@ -370,7 +370,7 @@ export const createTask = withSession<
     try {
       const task = await createTaskFromDescription({
         description,
-        coworkerId,
+        assigneeId,
         projectId,
         skipDesignMdAttachment,
         status,
@@ -392,7 +392,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     taskId,
     name,
     description,
-    coworkerId,
+    assigneeId,
     projectId,
     currentStatus,
     desiredStatus,
@@ -415,7 +415,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        assigneeId: coworkerId?.trim() ? coworkerId : null,
+        assigneeId: assigneeId?.trim() ? assigneeId : null,
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
@@ -689,7 +689,7 @@ export const createTaskAndLink = withSession<
   async ({
     taskId,
     description,
-    coworkerId,
+    assigneeId,
     projectId,
     session,
     status,
@@ -709,7 +709,7 @@ export const createTaskAndLink = withSession<
     try {
       createdTask = await createTaskFromDescription({
         description,
-        coworkerId,
+        assigneeId,
         projectId,
         skipDesignMdAttachment,
         status,

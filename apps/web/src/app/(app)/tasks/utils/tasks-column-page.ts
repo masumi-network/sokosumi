@@ -19,7 +19,7 @@ interface GetTasksColumnPageParams {
   cursor: ColumnCursor;
   limit: number;
   scope: TasksScope;
-  coworkerId: string | null;
+  assigneeId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
   coworkersById: Map<string, Coworker>;
@@ -36,7 +36,7 @@ export async function getTasksColumnPage({
   cursor,
   limit,
   scope,
-  coworkerId,
+  assigneeId,
   status,
   projectId,
   coworkersById,
@@ -54,7 +54,7 @@ export async function getTasksColumnPage({
   const result = await taskService.listTasks({
     status: statuses,
     scope,
-    assigneeId: coworkerId ?? undefined,
+    assigneeId: assigneeId ?? undefined,
     projectId: projectId ?? undefined,
     cursor,
     limit,

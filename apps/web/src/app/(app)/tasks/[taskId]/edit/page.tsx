@@ -131,7 +131,7 @@ export default async function EditTaskPage({
       initialValues={{
         name: taskResult.name,
         description: taskResult.description ?? "",
-        coworkerId: taskResult.assigneeId ?? "",
+        assigneeId: taskResult.assigneeId ?? "",
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         metadata: taskResult.metadata,

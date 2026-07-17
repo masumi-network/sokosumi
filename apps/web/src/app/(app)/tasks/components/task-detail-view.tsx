@@ -461,7 +461,7 @@ async function TaskDetailActionsSlot({
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
-      defaultCoworkerId={task.assigneeId}
+      defaultAssigneeId={task.assigneeId}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
