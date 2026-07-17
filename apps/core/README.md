@@ -46,6 +46,9 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | -------- | ------- |
 | `DATABASE_URL` | Postgres connection string (Neon pooled URL at runtime on Vercel) |
 | `DATABASE_URL_UNPOOLED` | Injected by the Vercel Neon integration. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
+| `NEON_API_KEY` | Required on Vercel **Preview** (build). Neon API key used to reset the preview DB branch from its parent before migrate |
+| `NEON_PROJECT_ID` | Required on Vercel **Preview** (build). Neon project id for the branch reset API |
+| `NEON_BRANCH_ID` | Optional. Explicit Neon branch id (`br-…`) if name/host lookup should be skipped |
 | `BETTER_AUTH_SECRET` | Shared secret with the web app’s Better Auth config |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
@@ -266,12 +269,16 @@ pnpm approve-builds @sentry/profiling-node
 Core’s [`vercel.json`](./vercel.json) sets `buildCommand` to `pnpm vercel-build`, which:
 
 1. Runs `pnpm run build` (workspace deps + `tsup`)
-2. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`
-3. On migrate failure, the build exits non-zero and Vercel does not activate the new deployment
+2. On success, runs `@sokosumi/database`’s `prisma:migrate:deploy` script:
+   - **Preview:** reset the Neon DB branch from its parent (Neon API), then `prisma migrate deploy`
+   - **Production / other:** `prisma migrate deploy` only
+3. On migrate (or reset) failure, the build exits non-zero and Vercel does not activate the new deployment
 
 **Order is intentional:** migrate runs only after a successful app build so a compile failure never touches the database. Schema still applies before Vercel activates the new deployment once migrate succeeds (unlike some Neon samples that migrate first).
 
-No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch. Preview builds **require** `DATABASE_URL_UNPOOLED` (`prisma.config.ts` fails closed for any Prisma CLI command) so a misconfigured Preview cannot fall back to a shared/production `DATABASE_URL`.
+**Preview reset-from-parent:** each Preview redeploy overwrites the Neon child branch with the parent’s latest schema/data, then applies this deployment’s migrations. That avoids drifted preview DBs from earlier commits. Preview data written during QA is wiped on the next Core Preview build — expected for this flow.
+
+No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch. Preview builds **require** `DATABASE_URL_UNPOOLED` (`prisma.config.ts` fails closed for any Prisma CLI command) so a misconfigured Preview cannot fall back to a shared/production `DATABASE_URL`. Preview builds also **require** `NEON_API_KEY` and `NEON_PROJECT_ID` for the reset step.
 
 ### Neon / migrate checklist
 
@@ -280,7 +287,8 @@ Before relying on migrate-on-deploy (and after changing the Neon integration):
 - [ ] Core Vercel project has the Neon integration enabled for **Production** and **Preview**
 - [ ] Preview env shows a branch-specific Neon host (not the production host)
 - [ ] Production and Preview expose `DATABASE_URL_UNPOOLED` at **build** time
-- [ ] A Preview deploy log shows migrate against a preview-branch database, not production
+- [ ] Preview exposes `NEON_API_KEY` and `NEON_PROJECT_ID` at **build** time (Production does not need them for migrate)
+- [ ] A Preview deploy log shows reset-from-parent, then migrate against a preview-branch database, not production
 
 ## Contributing
 
