@@ -7,29 +7,56 @@ import {
   resolveBetterAuthPublicBaseUrl,
 } from "../better-auth-public-url.js";
 
-test("preview uses VERCEL_URL when set", () => {
+test("preview prefers VERCEL_BRANCH_URL over VERCEL_URL", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "preview",
       vercelUrl: "https://my-app-abc123.vercel.app",
-      vercelBranchUrl: "https://my-app-git-main-team.vercel.app",
-      vercelProductionUrl: undefined,
-      fallbackUrl: "https://app.example.com",
-    }),
-    "https://my-app-abc123.vercel.app",
-  );
-});
-
-test("preview falls back to VERCEL_BRANCH_URL when deployment URL missing", () => {
-  assert.equal(
-    resolveBetterAuthPublicBaseUrl({
-      vercelEnv: "preview",
-      vercelUrl: undefined,
       vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
       vercelProductionUrl: undefined,
       fallbackUrl: "https://app.example.com",
     }),
     "https://my-app-git-feature-team.vercel.app",
+  );
+});
+
+test("preview prefers sokosumi branch URL over vercel.app deployment URL", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "https://my-app-abc123.vercel.app",
+      vercelBranchUrl:
+        "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
+      vercelProductionUrl: undefined,
+      fallbackUrl: "https://app.example.com",
+    }),
+    "https://sokosumi-core-preprod-git-feature.preview.sokosumi.com",
+  );
+});
+
+test("preview prefers sokosumi deployment URL when branch URL is vercel.app", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "https://sokosumi-core-preprod-abc123.preview.sokosumi.com",
+      vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
+      vercelProductionUrl: undefined,
+      fallbackUrl: "https://app.example.com",
+    }),
+    "https://sokosumi-core-preprod-abc123.preview.sokosumi.com",
+  );
+});
+
+test("preview falls back to VERCEL_URL when branch URL missing", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "https://my-app-abc123.vercel.app",
+      vercelBranchUrl: undefined,
+      vercelProductionUrl: undefined,
+      fallbackUrl: "https://app.example.com",
+    }),
+    "https://my-app-abc123.vercel.app",
   );
 });
 
@@ -105,9 +132,9 @@ test("undefined vercelEnv uses fallback URL", () => {
       vercelUrl: "https://preview.vercel.app",
       vercelBranchUrl: undefined,
       vercelProductionUrl: undefined,
-      fallbackUrl: "http://localhost:3000",
+      fallbackUrl: "[REDACTED]",
     }),
-    "http://localhost:3000",
+    "[REDACTED]",
   );
 });
 
@@ -118,9 +145,9 @@ test("development vercelEnv uses fallback URL", () => {
       vercelUrl: "https://dev.vercel.app",
       vercelBranchUrl: undefined,
       vercelProductionUrl: undefined,
-      fallbackUrl: "http://localhost:3000",
+      fallbackUrl: "[REDACTED]",
     }),
-    "http://localhost:3000",
+    "[REDACTED]",
   );
 });
 
@@ -129,11 +156,12 @@ test("strips trailing slashes from result", () => {
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "preview",
       vercelUrl: "https://x.vercel.app///",
-      vercelBranchUrl: undefined,
+      vercelBranchUrl:
+        "https://sokosumi-core-preprod-git-x.preview.sokosumi.com///",
       vercelProductionUrl: undefined,
       fallbackUrl: "https://app.example.com/",
     }),
-    "https://x.vercel.app",
+    "https://sokosumi-core-preprod-git-x.preview.sokosumi.com",
   );
 });
 

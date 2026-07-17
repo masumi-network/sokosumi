@@ -19,9 +19,9 @@ describe("resolveWebRelatedProjectFallbackHost", () => {
   it("falls back to the configured web app URL outside branch previews", () => {
     expect(
       resolveWebRelatedProjectFallbackHost({
-        configuredWebAppBaseUrl: "http://localhost:3000",
+        configuredWebAppBaseUrl: "[REDACTED]",
         network: "Preprod",
       }),
-    ).toBe("http://localhost:3000");
+    ).toBe("[REDACTED]");
   });
 });
