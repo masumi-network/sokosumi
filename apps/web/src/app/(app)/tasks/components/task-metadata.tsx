@@ -32,10 +32,71 @@ interface TaskMetadataTask {
   organization: Task["organization"];
   assignee: Task["assignee"];
   creatorUserId: Task["creatorUserId"];
-  creatorUser: Task["creatorUser"];
+  // Generated creator* relation types omit `| null` in some intersections;
+  // runtime payloads are nullable when that creator kind is unset.
+  creatorUser: Task["creatorUser"] | null;
+  creatorCoworkerId: Task["creatorCoworkerId"];
+  creatorCoworker: Task["creatorCoworker"] | null;
+  creatorOrchestratorId: Task["creatorOrchestratorId"];
+  creatorOrchestrator: Task["creatorOrchestrator"] | null;
   credits: Task["credits"];
   metadata?: string | null;
   nextRunAt?: Date | null;
+}
+
+interface TaskCreatorDisplay {
+  name: string;
+  image: string | null;
+}
+
+function resolveTaskCreatorDisplay(
+  task: TaskMetadataTask,
+): TaskCreatorDisplay | null {
+  if (
+    task.creatorUserId != null &&
+    task.creatorUserId !== task.owner.id &&
+    task.creatorUser &&
+    typeof task.creatorUser === "object" &&
+    "name" in task.creatorUser &&
+    typeof task.creatorUser.name === "string"
+  ) {
+    return {
+      name: task.creatorUser.name,
+      image:
+        "image" in task.creatorUser &&
+        typeof task.creatorUser.image === "string"
+          ? resolveIpfsOrHttpUrl(task.creatorUser.image)
+          : null,
+    };
+  }
+
+  if (
+    task.creatorCoworkerId != null &&
+    task.creatorCoworker &&
+    typeof task.creatorCoworker === "object" &&
+    "name" in task.creatorCoworker &&
+    typeof task.creatorCoworker.name === "string"
+  ) {
+    return {
+      name: task.creatorCoworker.name,
+      image: getCoworkerImage(task.creatorCoworker),
+    };
+  }
+
+  if (
+    task.creatorOrchestratorId != null &&
+    task.creatorOrchestrator &&
+    typeof task.creatorOrchestrator === "object" &&
+    "name" in task.creatorOrchestrator &&
+    typeof task.creatorOrchestrator.name === "string"
+  ) {
+    return {
+      name: task.creatorOrchestrator.name,
+      image: null,
+    };
+  }
+
+  return null;
 }
 
 interface TaskMetadataProps {
@@ -57,19 +118,7 @@ export function TaskMetadata({
     ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
   const assigneeImage = getCoworkerImage(task.assignee);
-  const showCreator =
-    task.creatorUserId != null &&
-    task.creatorUserId !== task.owner.id &&
-    task.creatorUser &&
-    typeof task.creatorUser === "object" &&
-    "name" in task.creatorUser &&
-    typeof task.creatorUser.name === "string";
-  const creatorImage =
-    showCreator &&
-    "image" in task.creatorUser &&
-    typeof task.creatorUser.image === "string"
-      ? resolveIpfsOrHttpUrl(task.creatorUser.image)
-      : null;
+  const creator = resolveTaskCreatorDisplay(task);
 
   return (
     <div className="space-y-4">
@@ -94,12 +143,12 @@ export function TaskMetadata({
           fallback={task.owner.name}
         />
 
-        {showCreator ? (
+        {creator ? (
           <MetadataAvatarValue
             label={labels.creator}
-            name={task.creatorUser.name}
-            image={creatorImage}
-            fallback={task.creatorUser.name}
+            name={creator.name}
+            image={creator.image}
+            fallback={creator.name}
           />
         ) : null}
 

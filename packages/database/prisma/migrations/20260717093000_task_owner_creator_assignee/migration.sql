@@ -40,9 +40,10 @@ ALTER TABLE "task" ADD CONSTRAINT "task_creator_exactly_one_check" CHECK (
 -- Recreate FKs.
 ALTER TABLE "task" ADD CONSTRAINT "task_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "task" ADD CONSTRAINT "task_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "coworker"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "task" ADD CONSTRAINT "task_creatorUserId_fkey" FOREIGN KEY ("creatorUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "task" ADD CONSTRAINT "task_creatorCoworkerId_fkey" FOREIGN KEY ("creatorCoworkerId") REFERENCES "coworker"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "task" ADD CONSTRAINT "task_creatorOrchestratorId_fkey" FOREIGN KEY ("creatorOrchestratorId") REFERENCES "orchestrator"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- Restrict (not SET NULL): nulling a creator FK would violate task_creator_exactly_one_check.
+ALTER TABLE "task" ADD CONSTRAINT "task_creatorUserId_fkey" FOREIGN KEY ("creatorUserId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "task" ADD CONSTRAINT "task_creatorCoworkerId_fkey" FOREIGN KEY ("creatorCoworkerId") REFERENCES "coworker"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "task" ADD CONSTRAINT "task_creatorOrchestratorId_fkey" FOREIGN KEY ("creatorOrchestratorId") REFERENCES "orchestrator"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- Indexes.
 CREATE INDEX "task_ownerId_idx" ON "task"("ownerId");

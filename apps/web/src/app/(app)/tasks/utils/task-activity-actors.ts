@@ -12,6 +12,7 @@ export interface TaskActivityActorInfo {
 export interface TaskActivityActors {
   userById: Record<string, TaskActivityActorInfo>;
   coworkerById?: Record<string, TaskActivityActorInfo>;
+  orchestratorById?: Record<string, TaskActivityActorInfo>;
 }
 
 type TaskActivityActorSource = Pick<
@@ -22,6 +23,8 @@ type TaskActivityActorSource = Pick<
   | "creatorUser"
   | "creatorCoworkerId"
   | "creatorCoworker"
+  | "creatorOrchestratorId"
+  | "creatorOrchestrator"
   | "events"
 >;
 
@@ -30,6 +33,7 @@ export function buildTaskActivityActors(
 ): TaskActivityActors {
   const userById: Record<string, TaskActivityActorInfo> = {};
   const coworkerById: Record<string, TaskActivityActorInfo> = {};
+  const orchestratorById: Record<string, TaskActivityActorInfo> = {};
 
   addUserActor(userById, task.owner);
 
@@ -64,6 +68,22 @@ export function buildTaskActivityActors(
     addCoworkerActor(coworkerById, task.creatorCoworker);
   }
 
+  if (
+    task.creatorOrchestratorId &&
+    task.creatorOrchestrator &&
+    typeof task.creatorOrchestrator === "object" &&
+    "id" in task.creatorOrchestrator &&
+    typeof task.creatorOrchestrator.id === "string"
+  ) {
+    addOrchestratorActor(orchestratorById, {
+      id: task.creatorOrchestrator.id,
+      name:
+        typeof task.creatorOrchestrator.name === "string"
+          ? task.creatorOrchestrator.name
+          : "Orchestrator",
+    });
+  }
+
   for (const event of task.events) {
     if (event.user) {
       addUserActor(userById, event.user);
@@ -72,12 +92,18 @@ export function buildTaskActivityActors(
     if (event.coworker) {
       addCoworkerActor(coworkerById, event.coworker);
     }
+
+    if (event.orchestrator) {
+      addOrchestratorActor(orchestratorById, event.orchestrator);
+    }
   }
 
   return {
     userById,
     coworkerById:
       Object.keys(coworkerById).length > 0 ? coworkerById : undefined,
+    orchestratorById:
+      Object.keys(orchestratorById).length > 0 ? orchestratorById : undefined,
   };
 }
 
@@ -107,5 +133,18 @@ function addCoworkerActor(
   coworkerById[coworker.id] = {
     name: coworker.name,
     image: getCoworkerImage(coworker),
+  };
+}
+
+function addOrchestratorActor(
+  orchestratorById: Record<string, TaskActivityActorInfo>,
+  orchestrator: {
+    id: string;
+    name: string;
+  },
+) {
+  orchestratorById[orchestrator.id] = {
+    name: orchestrator.name,
+    image: null,
   };
 }

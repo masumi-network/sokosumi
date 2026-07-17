@@ -1555,6 +1555,7 @@
         "collapse": "折りたたむ",
         "actorCoworker": "同僚",
         "actorUser": "ユーザー",
+        "actorOrchestrator": "オーケストレーター",
         "actorSystem": "システム",
         "originFromApp": "{appName}から",
         "channelApp": {

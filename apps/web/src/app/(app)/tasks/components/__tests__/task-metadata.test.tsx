@@ -22,8 +22,33 @@ const baseLabels = {
 };
 
 function createTask(
-  overrides: { credits?: number; assigneeName?: string | null } = {},
+  overrides: {
+    credits?: number;
+    assigneeName?: string | null;
+    creator?:
+      | {
+          kind: "user";
+          id: string;
+          name: string;
+        }
+      | {
+          kind: "coworker";
+          id: string;
+          name: string;
+        }
+      | {
+          kind: "orchestrator";
+          id: string;
+          name: string;
+        };
+  } = {},
 ) {
+  const creator = overrides.creator ?? {
+    kind: "user" as const,
+    id: "user_1",
+    name: "Andreas Osberghaus",
+  };
+
   return {
     status: TaskStatus.RUNNING,
     owner: {
@@ -31,12 +56,34 @@ function createTask(
       name: "Andreas Osberghaus",
       image: null,
     },
-    creatorUserId: "user_1",
-    creatorUser: {
-      id: "user_1",
-      name: "Andreas Osberghaus",
-      image: null,
-    },
+    creatorUserId: creator.kind === "user" ? creator.id : null,
+    creatorUser:
+      creator.kind === "user"
+        ? {
+            id: creator.id,
+            name: creator.name,
+            image: null,
+          }
+        : null,
+    creatorCoworkerId: creator.kind === "coworker" ? creator.id : null,
+    creatorCoworker:
+      creator.kind === "coworker"
+        ? {
+            id: creator.id,
+            name: creator.name,
+            image: null,
+            slug: "creator-coworker",
+          }
+        : null,
+    creatorOrchestratorId: creator.kind === "orchestrator" ? creator.id : null,
+    creatorOrchestrator:
+      creator.kind === "orchestrator"
+        ? {
+            id: creator.id,
+            name: creator.name,
+            slug: "creator-orchestrator",
+          }
+        : null,
     organization: null,
     assignee:
       overrides.assigneeName === null
@@ -82,5 +129,47 @@ describe("TaskMetadata", () => {
     );
 
     expect(screen.queryByText("Credits")).not.toBeInTheDocument();
+  });
+
+  it("shows coworker creator when different from owner", () => {
+    render(
+      <TaskMetadata
+        task={createTask({
+          creator: {
+            kind: "coworker",
+            id: "cow_creator",
+            name: "Creator Coworker",
+          },
+        })}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Creator")).toBeInTheDocument();
+    expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
+  });
+
+  it("shows orchestrator creator", () => {
+    render(
+      <TaskMetadata
+        task={createTask({
+          creator: {
+            kind: "orchestrator",
+            id: "01960001-0001-7001-8001-000000000099",
+            name: "Hermes",
+          },
+        })}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Creator")).toBeInTheDocument();
+    expect(screen.getByText("Hermes")).toBeInTheDocument();
   });
 });

@@ -28,6 +28,12 @@ describe("buildTaskActivityActors", () => {
       },
       creatorCoworkerId: null,
       creatorCoworker: null,
+      creatorOrchestratorId: "orch-1",
+      creatorOrchestrator: {
+        id: "orch-1",
+        name: "Hermes",
+        slug: "hermes",
+      },
       events: [
         {
           id: "evt-1",
@@ -42,6 +48,8 @@ describe("buildTaskActivityActors", () => {
           },
           coworkerId: null,
           coworker: null,
+          orchestratorId: null,
+          orchestrator: null,
           transactionId: null,
           credits: null,
           comment: "Looks good",
@@ -64,6 +72,8 @@ describe("buildTaskActivityActors", () => {
             image: null,
             slug: "research-agent",
           },
+          orchestratorId: null,
+          orchestrator: null,
           transactionId: null,
           credits: null,
           comment: "Investigating",
@@ -71,6 +81,29 @@ describe("buildTaskActivityActors", () => {
           channel: "SOKOSUMI",
           origin: "SOKOSUMI",
           status: null,
+        },
+        {
+          id: "evt-3",
+          taskId: "task-1",
+          createdAt: new Date("2026-01-01T14:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T14:00:00.000Z"),
+          userId: null,
+          user: null,
+          coworkerId: null,
+          coworker: null,
+          orchestratorId: "orch-2",
+          orchestrator: {
+            id: "orch-2",
+            name: "Athena",
+            slug: "athena",
+          },
+          transactionId: null,
+          credits: null,
+          comment: null,
+          authenticationUrl: null,
+          channel: "SOKOSUMI",
+          origin: "SOKOSUMI",
+          status: "READY",
         },
       ],
     } satisfies Pick<
@@ -81,6 +114,8 @@ describe("buildTaskActivityActors", () => {
       | "creatorUser"
       | "creatorCoworkerId"
       | "creatorCoworker"
+      | "creatorOrchestratorId"
+      | "creatorOrchestrator"
       | "events"
     >;
 
@@ -103,6 +138,16 @@ describe("buildTaskActivityActors", () => {
       },
       "cow-2": {
         name: "Research Agent",
+        image: null,
+      },
+    });
+    expect(result.orchestratorById).toMatchObject({
+      "orch-1": {
+        name: "Hermes",
+        image: null,
+      },
+      "orch-2": {
+        name: "Athena",
         image: null,
       },
     });

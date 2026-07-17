@@ -1555,6 +1555,7 @@
         "collapse": "收起",
         "actorCoworker": "协作伙伴",
         "actorUser": "用户",
+        "actorOrchestrator": "编排器",
         "actorSystem": "系统",
         "originFromApp": "来自 {appName}",
         "channelApp": {

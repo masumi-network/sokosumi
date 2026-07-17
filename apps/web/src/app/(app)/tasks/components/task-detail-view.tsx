@@ -376,6 +376,10 @@ async function TaskOverviewSection({
           assignee: task.assignee,
           creatorUserId: task.creatorUserId,
           creatorUser: task.creatorUser,
+          creatorCoworkerId: task.creatorCoworkerId,
+          creatorCoworker: task.creatorCoworker,
+          creatorOrchestratorId: task.creatorOrchestratorId,
+          creatorOrchestrator: task.creatorOrchestrator,
           credits: task.credits,
           metadata: task.metadata,
           nextRunAt: task.nextRunAt,
@@ -548,8 +552,11 @@ async function TaskActivitySectionContent({
     currentPlanPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
-  const { userById: actorsUserById, coworkerById } =
-    buildTaskActivityActors(task);
+  const {
+    userById: actorsUserById,
+    coworkerById,
+    orchestratorById,
+  } = buildTaskActivityActors(task);
   const currentUser = session?.user
     ? {
         id: session.user.id,
@@ -579,6 +586,7 @@ async function TaskActivitySectionContent({
       submitLabel={t("submit")}
       actorCoworkerLabel={t("actorCoworker")}
       actorUserLabel={t("actorUser")}
+      actorOrchestratorLabel={t("actorOrchestrator")}
       actorSystemLabel={t("actorSystem")}
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
@@ -586,6 +594,7 @@ async function TaskActivitySectionContent({
       agentNameById={agentNameById}
       userById={userById}
       coworkerById={coworkerById}
+      orchestratorById={orchestratorById}
       currentUser={currentUser}
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}

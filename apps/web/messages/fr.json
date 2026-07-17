@@ -1555,6 +1555,7 @@
         "collapse": "Réduire",
         "actorCoworker": "Collègue",
         "actorUser": "Utilisateur",
+        "actorOrchestrator": "Orchestrateur",
         "actorSystem": "Système",
         "originFromApp": "depuis {appName}",
         "channelApp": {

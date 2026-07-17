@@ -1555,6 +1555,7 @@
         "collapse": "Contraer",
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
+        "actorOrchestrator": "Orquestador",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
         "channelApp": {

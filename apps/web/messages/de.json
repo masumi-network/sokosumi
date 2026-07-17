@@ -1555,6 +1555,7 @@
         "collapse": "Weniger anzeigen",
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
+        "actorOrchestrator": "Orchestrator",
         "actorSystem": "System",
         "originFromApp": "von {appName}",
         "channelApp": {
