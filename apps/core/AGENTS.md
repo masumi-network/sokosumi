@@ -181,7 +181,9 @@ Environment variables are accessed via `process.env`, validated at startup with 
 - `WEB_APP_BASE_URL` — Default `http://localhost:3000`; used with `getWebAppBaseUrl()` and Vercel related projects
 - `BETTER_AUTH_SECRET` — Shared with the web Better Auth instance
 - `BETTER_AUTH_URL` — Public base URL of this Core service; used as Better Auth `baseURL` except on Vercel Preview
-- `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` — Optional; on Preview and Production, `getBetterAuthPublicBaseUrl()` resolves the issuer URL from Vercel (see `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`)
+- `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` — Optional; on Preview, `getBetterAuthPublicBaseUrl()` prefers `VERCEL_BRANCH_URL` over `VERCEL_URL`, and prefers a `*.sokosumi.com` candidate when only one of those is on the preview suffix (see `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`)
+
+**New Core Vercel project checklist (preview auth):** set team [Preview Deployment Suffix](https://vercel.com/docs/deployments/preview-deployment-suffix) to `preview.sokosumi.com` so `VERCEL_BRANCH_URL` / `VERCEL_URL` are sokosumi hosts. Without that, magic-link cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` fail on `*.vercel.app`.
 
 **Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
 
