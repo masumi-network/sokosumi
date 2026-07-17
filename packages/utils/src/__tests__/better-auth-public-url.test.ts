@@ -186,13 +186,14 @@ test("production URL falls back to fallback URL when Vercel URL missing", () => 
   );
 });
 
-test("isSokosumiAuthHost accepts preview and apex hosts", () => {
+test("isSokosumiAuthHost accepts preview and apex absolute URLs", () => {
   assert.equal(
     isSokosumiAuthHost(
       "https://sokosumi-core-preprod-git-x.preview.sokosumi.com",
     ),
     true,
   );
-  assert.equal(isSokosumiAuthHost("api.preprod.sokosumi.com"), true);
+  assert.equal(isSokosumiAuthHost("https://api.preprod.sokosumi.com"), true);
   assert.equal(isSokosumiAuthHost("https://my-app.vercel.app"), false);
+  assert.equal(isSokosumiAuthHost("api.preprod.sokosumi.com"), false);
 });

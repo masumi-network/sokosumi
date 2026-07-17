@@ -274,12 +274,23 @@ export function getWebAppBaseUrl(): string {
 /**
  * Public Better Auth base URL (Core deployment). On Vercel Preview, prefers
  * `VERCEL_BRANCH_URL` (stable branch alias; with Preview Deployment Suffix
- * this is already on `*.preview.sokosumi.com`) over `VERCEL_URL`, then
- * `BETTER_AUTH_URL`. On Vercel Production, prefers
+ * this is already on `*.preview.sokosumi.com`) over `VERCEL_URL`. When only
+ * one of those is on a `*.sokosumi.com` host, that one wins regardless of
+ * order. Falls back to `BETTER_AUTH_URL`. On Vercel Production, prefers
  * `VERCEL_PROJECT_PRODUCTION_URL` when set, then `BETTER_AUTH_URL`.
  */
 export function getBetterAuthPublicBaseUrl(): string {
   const env = getEnv();
+
+  if (
+    env.VERCEL_ENV === "preview" &&
+    !env.VERCEL_BRANCH_URL &&
+    !env.VERCEL_URL
+  ) {
+    console.warn(
+      "Better Auth preview base URL falling back to BETTER_AUTH_URL; VERCEL_BRANCH_URL and VERCEL_URL are unset (magic-link emails may point at the wrong host)",
+    );
+  }
 
   return resolveBetterAuthPublicBaseUrl({
     vercelEnv: env.VERCEL_ENV,

@@ -6,37 +6,19 @@ function stripTrailingSlashes(value: string): string {
   return out;
 }
 
-function ensureAbsoluteUrl(value: string): string {
-  if (value.startsWith("https://") || value.startsWith("http://")) {
-    return value;
-  }
-  return `https://${value}`;
-}
-
 /**
- * True when the URL host is sokosumi.com or a subdomain.
+ * True when the absolute URL host is sokosumi.com or a subdomain.
  * Preview auth (magic links, session cookies with Domain=sokosumi.com) must
  * use these hosts — browsers reject Domain=sokosumi.com cookies set from
  * *.vercel.app.
  */
 export function isSokosumiAuthHost(url: string): boolean {
   try {
-    const { hostname } = new URL(ensureAbsoluteUrl(url));
+    const { hostname } = new URL(url);
     return hostname === "sokosumi.com" || hostname.endsWith(".sokosumi.com");
   } catch {
     return false;
   }
-}
-
-function firstNonEmpty(
-  ...candidates: Array<string | undefined>
-): string | undefined {
-  for (const candidate of candidates) {
-    if (candidate) {
-      return candidate;
-    }
-  }
-  return undefined;
 }
 
 function pickPreferredPreviewUrl(
@@ -69,9 +51,9 @@ export interface ResolveBetterAuthProductionUrlParams {
  * Resolves the public Better Auth base URL for Vercel Preview vs production/local.
  *
  * On Vercel Preview, prefers `VERCEL_BRANCH_URL` (stable branch alias) over
- * `VERCEL_URL` (per-deployment hash). When Preview Deployment Suffix is
- * `preview.sokosumi.com`, those system vars already carry the sokosumi host
- * needed for magic-link cookies with `BETTER_AUTH_COOKIE_DOMAIN`.
+ * `VERCEL_URL` (per-deployment hash). When only one of those is on a
+ * `*.sokosumi.com` host (Preview Deployment Suffix), that one wins regardless
+ * of order — needed for magic-link cookies with `BETTER_AUTH_COOKIE_DOMAIN`.
  *
  * On Vercel Production, prefers `vercelProductionUrl`, then the fallback.
  */
@@ -95,7 +77,7 @@ export function resolveBetterAuthPublicBaseUrl(
         pickPreferredPreviewUrl([vercelBranchUrl, vercelUrl]) || fallbackUrl;
       break;
     case "production":
-      raw = firstNonEmpty(vercelProductionUrl, fallbackUrl) ?? fallbackUrl;
+      raw = vercelProductionUrl || fallbackUrl;
       break;
     default:
       raw = fallbackUrl;
