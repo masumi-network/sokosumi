@@ -415,7 +415,11 @@ function buildTaskListItem(
     id: "task-2",
     createdAt: new Date("2026-03-31T10:00:00.000Z"),
     updatedAt: new Date("2026-03-31T10:00:00.000Z"),
+    ownerId: "user-1",
+    owner: { id: "user-1", name: "Test User", image: null },
+    // Deprecated aliases — keep until clients migrate.
     userId: "user-1",
+    user: { id: "user-1", name: "Test User", image: null },
     organizationId: null,
     assigneeId: null,
     name: "Alpha task",

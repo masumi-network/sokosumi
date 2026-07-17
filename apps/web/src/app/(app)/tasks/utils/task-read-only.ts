@@ -4,7 +4,7 @@ interface ReadOnlyForViewerParams {
   /** Organization of the task's workspace; `null` for a personal workspace. */
   taskWorkspaceOrganizationId: string | null;
   /** Owner of the task. */
-  taskUserId: string;
+  taskOwnerId: string;
   /** Viewer's user id, or null/undefined when unauthenticated. */
   sessionUserId: string | null | undefined;
   /**
@@ -30,7 +30,7 @@ function isGrantPendingStatus(status: string): boolean {
  */
 export function isReadOnlyForViewer({
   taskWorkspaceOrganizationId,
-  taskUserId,
+  taskOwnerId,
   sessionUserId,
   forceReadOnly,
   taskStatus,
@@ -38,7 +38,7 @@ export function isReadOnlyForViewer({
   if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
     return true;
   }
-  return taskWorkspaceOrganizationId !== null && sessionUserId !== taskUserId;
+  return taskWorkspaceOrganizationId !== null && sessionUserId !== taskOwnerId;
 }
 
 export function canArchiveParkedTaskForViewer({
@@ -67,7 +67,7 @@ type CanCommentOnTaskForViewerParams = ReadOnlyForViewerParams;
  */
 export function canCommentOnTaskForViewer({
   taskWorkspaceOrganizationId,
-  taskUserId,
+  taskOwnerId,
   sessionUserId,
   forceReadOnly,
   taskStatus,
@@ -76,7 +76,7 @@ export function canCommentOnTaskForViewer({
     return false;
   }
 
-  if (sessionUserId === taskUserId) {
+  if (sessionUserId === taskOwnerId) {
     return true;
   }
 

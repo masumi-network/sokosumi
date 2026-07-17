@@ -129,22 +129,39 @@ function createApp() {
 
 function createJob(
   overrides: Partial<{
-    userId: string;
+    ownerId: string;
     organizationId: string | null;
-    user: {
+    owner: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+    /** @deprecated Use ownerId in overrides. */
+    userId?: string;
+    /** @deprecated Use owner in overrides. */
+    user?: {
       id: string;
       name: string;
       image: string | null;
     };
   }> = {},
 ) {
+  const ownerId = overrides.ownerId ?? overrides.userId ?? "user_123";
+  const owner = overrides.owner ??
+    overrides.user ?? {
+      id: ownerId,
+      name: "Ada Lovelace",
+      image: null,
+    };
+
   return {
     id: "job_123",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: new Date("2026-03-26T10:10:00.000Z"),
     agentId: "agent_123",
-    userId: overrides.userId ?? "user_123",
+    ownerId,
+    owner,
     organizationId: overrides.organizationId ?? "org_123",
     taskId: null,
     name: "Shared Job",
@@ -160,11 +177,6 @@ function createJob(
     refundedTransaction: null,
     refundedTransactionId: null,
     share: null,
-    user: overrides.user ?? {
-      id: overrides.userId ?? "user_123",
-      name: "Ada Lovelace",
-      image: null,
-    },
     agent: {
       id: "agent_123",
       name: "Research Agent",
@@ -279,8 +291,10 @@ describe("GET /jobs/{id}", () => {
     expect(body.data.credits).toBe(0.0005);
     expect(body.data.onChainTransactionHash).toBe("0x123abc");
     expect(body.data.onChainStatus).toBeNull();
+    expect(body.data.ownerId).toBe("user_123");
     expect(body.data.userId).toBe("user_123");
     expect(body.data.organizationId).toBe("org_123");
+    expect(body.data.owner.name).toBe("Ada Lovelace");
     expect(body.data.user.name).toBe("Ada Lovelace");
     expect(body.data.organization).toEqual({
       id: "org_123",
@@ -302,8 +316,8 @@ describe("GET /jobs/{id}", () => {
     };
     jobFindFirstMock.mockResolvedValue(
       createJob({
-        userId: "user_123",
-        user: {
+        ownerId: "user_123",
+        owner: {
           id: "user_123",
           name: "Ada Lovelace",
           image: null,
@@ -326,6 +340,12 @@ describe("GET /jobs/{id}", () => {
       }),
     );
     expect(body.data).toMatchObject({
+      ownerId: "user_123",
+      owner: {
+        id: "user_123",
+        name: "Ada Lovelace",
+      },
+      // Deprecated aliases — keep until clients migrate.
       userId: "user_123",
       result: "# Result",
       input: '{"prompt":"hello"}',

@@ -103,13 +103,12 @@ const {
           },
         };
       })(),
-      userId: (t.userId as string | undefined) ?? (t.ownerId as string),
-      user: (t.user as object | undefined) ??
-        (t.owner as object | undefined) ?? {
-          id: t.ownerId,
-          name: "Task owner",
-          image: null,
-        },
+      userId: t.ownerId as string,
+      user: (t.owner as object | undefined) ?? {
+        id: t.ownerId,
+        name: "Task owner",
+        image: null,
+      },
       coworkerId:
         (t.coworkerId as string | null | undefined) ??
         (t.assigneeId as string | null | undefined) ??

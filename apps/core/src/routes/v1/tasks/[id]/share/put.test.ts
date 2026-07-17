@@ -128,7 +128,7 @@ describe("PUT /tasks/{id}/share", () => {
     );
     requireMutableTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
-      userId: "user_123",
+      ownerId: "user_123",
       pendingVendorGrantId: null,
     });
     upsertForTaskMock.mockResolvedValue({

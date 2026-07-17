@@ -75,8 +75,8 @@ export type JobWithTransaction = Prisma.JobGetPayload<{
   include: typeof jobWithTransaction;
 }>;
 
-export const jobSummaryUserOrganizationInclude = {
-  user: { select: { id: true, name: true, image: true } },
+export const jobSummaryOwnerOrganizationInclude = {
+  owner: { select: { id: true, name: true, image: true } },
   organization: { select: { id: true, name: true, slug: true } },
 } as const;
 
@@ -85,7 +85,7 @@ export const jobSummaryInclude = {
   ...jobWithEvents,
   ...jobWithTransaction,
   ...jobWithPurchase,
-  ...jobSummaryUserOrganizationInclude,
+  ...jobSummaryOwnerOrganizationInclude,
 } as const;
 
 export type JobWithSummaryRelations = Prisma.JobGetPayload<{
@@ -108,12 +108,12 @@ export type JobWithAgent = Prisma.JobGetPayload<{
   include: typeof jobWithAgent;
 }>;
 
-export const jobWithUser = {
-  user: true,
+export const jobWithOwner = {
+  owner: true,
 } as const;
 
-export type JobWithUser = Prisma.JobGetPayload<{
-  include: typeof jobWithUser;
+export type JobWithOwner = Prisma.JobGetPayload<{
+  include: typeof jobWithOwner;
 }>;
 
 export const jobWithOrganization = {
@@ -135,7 +135,7 @@ export type JobWithShare = Prisma.JobGetPayload<{
 export const jobInclude = {
   ...jobSummaryInclude,
   ...jobWithAgent,
-  ...jobWithUser,
+  ...jobWithOwner,
   ...jobWithOrganization,
   ...jobWithRefundedTransaction,
   ...jobWithShare,

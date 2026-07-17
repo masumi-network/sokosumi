@@ -36,11 +36,16 @@ vi.mock("../jobs-list.utils", () => ({
 }));
 
 function createJob(
-  overrides: Partial<Omit<JobSummary, "user">> & {
-    user?: Partial<NonNullable<JobSummary["user"]>>;
+  overrides: Partial<Omit<JobSummary, "owner">> & {
+    owner?: Partial<NonNullable<JobSummary["owner"]>>;
   } = {},
 ): JobSummary {
-  const { user: userOverrides, ...rest } = overrides;
+  const { owner: ownerOverrides, ...rest } = overrides;
+  const owner = {
+    id: ownerOverrides?.id ?? "user-1",
+    name: ownerOverrides?.name ?? "User",
+    image: ownerOverrides?.image ?? null,
+  };
 
   return {
     id: "job-id",
@@ -51,7 +56,9 @@ function createJob(
     status: SokosumiJobStatus.PROCESSING,
     jobType: JobType.FREE,
     agentId: "agent-1",
-    userId: "user-1",
+    ownerId: owner.id,
+    owner,
+    userId: owner.id,
     organizationId: null,
     projectId: null,
     workspace: {
@@ -65,11 +72,7 @@ function createJob(
     onChainTransactionHash: null,
     result: null,
     resultHash: null,
-    user: {
-      id: userOverrides?.id ?? "user-1",
-      name: userOverrides?.name ?? "User",
-      image: userOverrides?.image ?? null,
-    },
+    user: owner,
     ...rest,
     jobStatusSettled: rest.jobStatusSettled ?? false,
   };
@@ -78,8 +81,8 @@ function createJob(
 describe("JobRow", () => {
   it("does not render sharing badges for non-owned jobs", () => {
     const job = createJob({
-      userId: "another-user",
-      user: {
+      ownerId: "another-user",
+      owner: {
         id: "another-user",
         name: "Jane",
         image: "https://example.com/avatar.png",
@@ -93,7 +96,7 @@ describe("JobRow", () => {
 
   it("does not render shared avatar for owned jobs", () => {
     const job = createJob({
-      userId: "current-user",
+      ownerId: "current-user",
     });
 
     render(<JobRow job={job} selected={false} onClick={vi.fn()} />);

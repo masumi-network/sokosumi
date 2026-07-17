@@ -52,13 +52,21 @@ vi.mock("@/components/jobs/job-details/refund-request", () => ({
 }));
 
 function createJob(): Job {
+  const owner = {
+    id: "user-1",
+    name: "Ada Lovelace",
+    image: null as string | null,
+  };
+
   return {
     id: "job-1",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: new Date("2026-03-26T10:06:00.000Z"),
     agentId: "agent-1",
-    userId: "user-1",
+    ownerId: owner.id,
+    owner,
+    userId: owner.id,
     organizationId: null,
     organization: null,
     projectId: null,
@@ -79,11 +87,7 @@ function createJob(): Job {
     identifierFromPurchaser: "purchase-id",
     share: null,
     events: [],
-    user: {
-      id: "user-1",
-      name: "Ada Lovelace",
-      image: null,
-    },
+    user: owner,
     workspace: {
       id: "workspace-1",
       organizationId: null,

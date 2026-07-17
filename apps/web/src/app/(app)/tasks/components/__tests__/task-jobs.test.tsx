@@ -37,10 +37,18 @@ vi.mock("@/components/time-ago", () => ({
 }));
 
 function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
+  const owner = {
+    id: "user-1",
+    name: "Test User",
+    image: null as string | null,
+    ...("owner" in overrides && overrides.owner ? overrides.owner : {}),
+  };
+
   return {
     id: "job-1",
     agentId: "agent-1",
-    userId: "user-1",
+    ownerId: overrides.ownerId ?? owner.id,
+    owner,
     name: "Job name",
     createdAt: new Date("2026-02-09T10:00:00.000Z"),
     updatedAt: new Date("2026-02-09T10:00:00.000Z"),
@@ -52,7 +60,8 @@ function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
       organizationId: null,
       organization: null,
     },
-    user: { id: "user-1", name: "Test User", image: null },
+    userId: overrides.ownerId ?? owner.id,
+    user: owner,
     organization: null,
     projectId: null,
     ...overrides,

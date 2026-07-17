@@ -22,7 +22,7 @@ describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace", () =
       where: {
         jobs: {
           some: {
-            userId: "user-1",
+            ownerId: "user-1",
             workspaceId: "workspace-1",
           },
         },
@@ -30,7 +30,7 @@ describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace", () =
       include: {
         jobs: {
           where: {
-            userId: "user-1",
+            ownerId: "user-1",
             workspaceId: "workspace-1",
           },
           orderBy: { createdAt: "desc" },

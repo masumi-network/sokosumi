@@ -43,7 +43,7 @@ export async function generateMetadata({
 
   if (resource.kind === "job") {
     const agentImage = getAgentResolvedImage(resource.job.agent);
-    const userName = resource.job.user.name;
+    const userName = resource.job.owner.name;
     const jobName = resource.job.name ?? tJobs("defaultName");
 
     return {

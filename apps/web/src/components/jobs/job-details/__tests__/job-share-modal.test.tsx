@@ -63,6 +63,12 @@ vi.mock("@/queries", () => ({
 }));
 
 function createJob(overrides: Partial<Job>): Job {
+  const owner = {
+    id: "user-1",
+    name: "User",
+    image: null as string | null,
+  };
+
   return {
     id: "job-1",
     name: "Job name",
@@ -72,7 +78,9 @@ function createJob(overrides: Partial<Job>): Job {
     status: SokosumiJobStatus.PROCESSING,
     jobType: "FREE",
     agentId: "agent-1",
-    userId: "user-1",
+    ownerId: owner.id,
+    owner,
+    userId: owner.id,
     organizationId: null,
     organization: null,
     projectId: null,
@@ -87,11 +95,7 @@ function createJob(overrides: Partial<Job>): Job {
     inputSchema: null,
     result: null,
     resultHash: null,
-    user: {
-      id: "user-1",
-      name: "User",
-      image: null,
-    },
+    user: owner,
     workspace: {
       id: "workspace-1",
       organizationId: null,

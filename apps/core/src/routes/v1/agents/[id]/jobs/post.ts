@@ -58,7 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const job = await createAgentJobForUser({
       owner: {
-        userId: userContext.userId,
+        ownerId: userContext.userId,
         organizationId: userContext.organizationId,
         workspaceId: workspaceContext.workspaceId,
       },
