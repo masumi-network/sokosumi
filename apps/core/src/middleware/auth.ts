@@ -186,11 +186,13 @@ export function requireUserContext(
 }
 
 /**
- * Requires an interactive user session (Better Auth). Rejects coworker keys,
- * including contextual ones — use for PII, session-bound operations, and any
- * handler that must read the real session user (e.g. before an admin-role check).
+ * Requires an interactive user session (Better Auth). Rejects coworker and
+ * orchestrator keys, including contextual ones — use for PII, session-bound
+ * operations, and any handler that must read the real session user (e.g.
+ * before an admin-role check).
  *
- * For the effective user (session or contextual coworker), use {@link requireUserContext}.
+ * For the effective user (session or contextual coworker/orchestrator), use
+ * {@link requireUserContext}.
  */
 export function requireUserAuthContext(
   authContext: AuthenticationContext,
