@@ -8980,8 +8980,42 @@ export const PublicSharedTaskSchema = {
                 }
             ]
         },
+        assignee: {
+            $ref: '#/components/schemas/PublicSharedTaskAssignee'
+        },
         coworker: {
-            $ref: '#/components/schemas/PublicSharedTaskCoworker'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cow_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ops Agent'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'ops-agent'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/coworker.png'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use assignee instead.'
         },
         jobs: {
             type: 'array',
@@ -9009,7 +9043,7 @@ export const PublicSharedTaskSchema = {
     ]
 } as const;
 
-export const PublicSharedTaskCoworkerSchema = {
+export const PublicSharedTaskAssigneeSchema = {
     type: [
         'object',
         'null'

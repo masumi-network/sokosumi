@@ -55,6 +55,7 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
+import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
@@ -535,6 +536,9 @@ export const auth = betterAuth({
     },
     deleteUser: {
       enabled: true,
+      beforeDelete: async (user) => {
+        await prepareTasksForUserDeletion(user.id, prisma);
+      },
     },
     additionalFields: betterAuthUserAdditionalFields,
   },

@@ -37,6 +37,7 @@ import type {
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
   PatchProjectsByIdData,
+  PatchTasksByIdData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
@@ -45,6 +46,7 @@ import type {
   PostProjectsByIdTasksData,
   PostProjectsData,
   PostTasksByIdLinksData,
+  PostTasksData,
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
@@ -1915,13 +1917,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function createTask(body: {
-    name?: string;
-    description?: string | null;
-    projectId?: string | null;
-    coworkerId?: string | null;
-    status?: "DRAFT" | "READY";
-  }) {
+  async function createTask(body: NonNullable<PostTasksData["body"]>) {
     return executeOperation(
       getClient,
       (client) =>
@@ -1970,12 +1966,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function patchTask(
     id: string,
-    body: {
-      name?: string;
-      description?: string | null;
-      projectId?: string | null;
-      coworkerId?: string | null;
-    },
+    body: NonNullable<PatchTasksByIdData["body"]>,
   ) {
     return executeOperation(
       getClient,

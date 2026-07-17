@@ -2707,12 +2707,23 @@ export type PublicSharedTask = {
     name: string;
     description?: string | null;
     status: TaskStatus & unknown;
-    coworker?: PublicSharedTaskCoworker;
+    assignee?: PublicSharedTaskAssignee;
+    /**
+     * Deprecated. Use assignee instead.
+     *
+     * @deprecated
+     */
+    coworker?: {
+        id: string;
+        name: string;
+        slug: string;
+        image?: string | null;
+    } | null;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
 };
 
-export type PublicSharedTaskCoworker = {
+export type PublicSharedTaskAssignee = {
     id: string;
     name: string;
     slug: string;
