@@ -223,7 +223,7 @@ describe("EditTaskPage", () => {
       id: "task_1",
       name: "Scheduled task",
       description: "Desc",
-      coworkerId: "cow_123",
+      assigneeId: "cow_123",
       status: "QUEUED",
       metadata: { schedule: { mode: "daily", timezone: "UTC" } },
       nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
