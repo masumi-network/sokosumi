@@ -35,24 +35,38 @@ function formatElapsed(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
+interface ProvisioningStateProps {
+  seed: string | null;
+  /** Wall-clock ms when provisioning actually started, persisted across a
+   * tab close/reopen. Null falls back to "now" (e.g. preview mode) — the
+   * elapsed clock just won't survive a remount in that case. */
+  startedAt: number | null;
+}
+
 /**
  * Indeterminate provisioning view. The orchestrator drives the real machine
  * boot — we don't have real per-step events yet, so these milestones are
  * explicit expectations with elapsed time rather than backend progress claims.
  */
-export default function ProvisioningState({ seed }: { seed: string | null }) {
+export default function ProvisioningState({
+  seed,
+  startedAt,
+}: ProvisioningStateProps) {
   const t = useTranslations("App.Hermes.Provisioning");
   const facts = orderedMessageList(t.raw("facts") as Record<string, string>);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(() =>
+    startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0,
+  );
 
   useEffect(() => {
-    const startedAt = Date.now();
+    const anchor = startedAt ?? Date.now();
+    setElapsedSeconds(Math.floor((Date.now() - anchor) / 1000));
     const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+      setElapsedSeconds(Math.floor((Date.now() - anchor) / 1000));
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [startedAt]);
 
   const activeStageIndex = useMemo(() => {
     let active = 0;

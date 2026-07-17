@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import EmptyState from "@/app/personal-assistant/components/empty-state";
@@ -133,6 +133,35 @@ function isForwardTransition(from: UiState, to: UiState): boolean {
   return STATE_RANK[to] >= STATE_RANK[from];
 }
 
+const PROVISIONING_STARTED_AT_STORAGE_PREFIX =
+  "hermes:provisioning-started-at:";
+
+/**
+ * Reads the persisted provisioning start time for this user, initializing it
+ * on first read. Both the elapsed-time display and the 15-minute timeout
+ * deadline need a start time that survives a tab close/reopen — without
+ * this, they'd anchor to `Date.now()` at every remount, making a slow
+ * provision look like it "restarted" and never actually time out.
+ */
+function getOrInitProvisioningStartedAt(
+  userId: string | null | undefined,
+): number {
+  const now = Date.now();
+  if (!userId || typeof window === "undefined") return now;
+  const key = `${PROVISIONING_STARTED_AT_STORAGE_PREFIX}${userId}`;
+  const stored = Number(window.localStorage.getItem(key));
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  window.localStorage.setItem(key, String(now));
+  return now;
+}
+
+function clearProvisioningStartedAt(userId: string | null | undefined): void {
+  if (!userId || typeof window === "undefined") return;
+  window.localStorage.removeItem(
+    `${PROVISIONING_STARTED_AT_STORAGE_PREFIX}${userId}`,
+  );
+}
+
 /** Injected when `?mock=confirmation` preview has no real org memberships. */
 const MOCK_CONFIRMATION_PREVIEW_ORGANIZATIONS: HermesOrganizationOption[] = [
   { id: "org_personal_demo", name: "My Workspace", slug: "personal" },
@@ -195,6 +224,23 @@ export default function HermesExperience({
   /** The subscription wall — shown instead of activating when a free-plan
    * user hits the CTA. Viewing EmptyState itself is never gated. */
   const [subscriptionWallOpen, setSubscriptionWallOpen] = useState(false);
+
+  // Anchors the elapsed-time display and the 15-minute timeout deadline to a
+  // persisted start time — recomputed only when we (re-)enter `provisioning`,
+  // so a tab close/reopen resumes the real clock instead of restarting it.
+  const provisioningStartedAt = useMemo(
+    () =>
+      uiState === "provisioning"
+        ? getOrInitProvisioningStartedAt(userId)
+        : null,
+    [uiState, userId],
+  );
+
+  // Clears the persisted start time once we leave `provisioning` (success or
+  // error) so a future, genuinely new provision attempt doesn't inherit it.
+  useEffect(() => {
+    if (uiState !== "provisioning") clearProvisioningStartedAt(userId);
+  }, [uiState, userId]);
 
   /**
    * Loads instance state then persisted history. Sequenced (not parallel) because
@@ -284,8 +330,12 @@ export default function HermesExperience({
     // same applies to `onboarding` which is driven by the orchestrator's own
     // ETA. Otherwise a user lingering on step 3 of the wizard for >15min
     // would get bounced to a misleading "provisioning timed out" error.
+    // Anchored to the persisted start time, not `Date.now()`, so a tab
+    // close/reopen doesn't grant a fresh 15 minutes each time.
     const deadline =
-      uiState === "provisioning" ? Date.now() + PROVISION_DEADLINE_MS : null;
+      uiState === "provisioning" && provisioningStartedAt !== null
+        ? provisioningStartedAt + PROVISION_DEADLINE_MS
+        : null;
 
     const tick = async () => {
       if (cancelled) return;
@@ -344,7 +394,7 @@ export default function HermesExperience({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [uiState, previewMode, t]);
+  }, [uiState, previewMode, t, provisioningStartedAt]);
 
   // Low-frequency instance refresh once we're running. The settings panel
   // mutates integration state via local overlay; without a parent refresh the
@@ -508,7 +558,12 @@ export default function HermesExperience({
     );
   }
   if (uiState === "provisioning") {
-    return <ProvisioningState seed={committedOrbSeed} />;
+    return (
+      <ProvisioningState
+        seed={committedOrbSeed}
+        startedAt={provisioningStartedAt}
+      />
+    );
   }
   if (uiState === "infrastructure_ready") {
     return (
