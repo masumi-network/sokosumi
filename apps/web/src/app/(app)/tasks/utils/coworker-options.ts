@@ -1,8 +1,11 @@
 import type { Coworker } from "@/lib/clients/generated/core";
-import { normalizeCoworkerSlug } from "@/lib/coworkers/ui-restricted-slugs";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
+
+function normalizeCoworkerSlug(slug: string): string {
+  return slug.trim().toLowerCase();
+}
 
 export function getCoworkerOptions(coworkers: Coworker[]): CoworkerOption[] {
   return coworkers
