@@ -207,7 +207,7 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Gran
 
 **Operations:**
 
-- Run `pnpm prisma:migrate:deploy` (migration `20260706150000_add_free_credit_reference_type`) **before** deploying Core — the `FREE` enum value and `credit_bucket.referenceNote` column must exist or grants fail at runtime.
+- Schema for free credits (`FREE` reference type, `credit_bucket.referenceNote`) is applied automatically by Core’s Vercel build (`pnpm vercel-build` → `prisma migrate deploy` after a successful app build). Ensure pending migrations are committed before deploying Core.
 
 ### CORS and Better Auth origins
 
@@ -326,6 +326,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | --------------------------------- | ------------------------ |
 | `pnpm core:dev`                   | Start development server |
 | `pnpm core:build`                 | Build for production     |
+| `pnpm --filter @sokosumi/core vercel-build` | Vercel: build then `prisma migrate deploy` |
 | `pnpm core:start`                 | Run production build     |
 | `pnpm --filter core lint`         | Lint core app            |
 | `pnpm --filter core write-openapi-snapshot-for-web` | Writes `apps/web/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for web `openapi-ts` |
