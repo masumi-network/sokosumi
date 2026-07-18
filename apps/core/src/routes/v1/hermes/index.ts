@@ -90,7 +90,11 @@ import { conflictWithData, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { isTransientFetchError } from "@/lib/external-service-errors";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
-import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
+import {
+  hasAdminRole,
+  requireOrchestratorAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import {
   hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
@@ -1168,6 +1172,30 @@ const destroyInstanceRoute = withGlobalHeaderParameters(
   }),
 );
 
+const purgeInstanceStateRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/instances/{userId}/purge",
+    description:
+      "Orchestrator-only: delete Sokosumi's local mirror state (chat history + instance metadata) for a user whose orchestrator-side instance was destroyed. Idempotent — purging a user with no local state is a no-op. Authenticated with an orchestrator API key (orch_); user sessions and coworker keys are rejected.",
+    tags: TAGS,
+    request: {
+      params: z.object({
+        userId: z.string().min(1).openapi({ example: "usr_123" }),
+      }),
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesEmptyResponseSchema,
+        "local assistant state purged",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
+
 const listMessagesRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
@@ -2024,31 +2052,11 @@ app.openapi(getInstanceRoute, async (c) => {
       );
     }
 
-    // The orchestrator has no instance for this user (a genuine 404, not a
-    // transient failure — getInstance throws for anything else). If our own
-    // display metadata (assistant name, avatar seed, message history)
-    // survived from an instance destroyed outside our own destroy flow
-    // (e.g. directly on the orchestrator, as happens during orchestrator-side
-    // testing), it's now orphaned and would otherwise keep showing a name/orb
-    // for an assistant that no longer exists — e.g. in the sidebar nav, which
-    // reads this table independently via getHermesUnreadCountAction. Clear it
-    // opportunistically; a cheap no-op when there's nothing to clean up.
-    await prisma
-      .$transaction([
-        prisma.hermesMessage.deleteMany({
-          where: { userId: userContext.userId },
-        }),
-        prisma.hermesInstance.deleteMany({
-          where: { userId: userContext.userId },
-        }),
-      ])
-      .catch((error) => {
-        Sentry.captureException(error, {
-          tags: { context: "hermes_stale_instance_cleanup" },
-          extra: { userId: userContext.userId },
-        });
-      });
-
+    // The orchestrator has no instance for this user. Deliberately NO local
+    // cleanup here: auto-deleting the mirror rows (chat history, assistant
+    // name, orb seed) on this signal means one wrong instance_not_found from
+    // the orchestrator irreversibly wipes real user data. Orchestrator-side
+    // deletions instead call POST /instances/{userId}/purge explicitly.
     return ok(c, hermesGetInstanceEnvelopeSchema.parse({ hasInstance: false }));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to fetch assistant instance");
@@ -2188,6 +2196,33 @@ app.openapi(destroyInstanceRoute, async (c) => {
     });
     throw serviceUnavailable(
       "Your assistant instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+    );
+  }
+
+  return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
+});
+
+app.openapi(purgeInstanceStateRoute, async (c) => {
+  // Orchestrator actor only — this is the explicit replacement for the
+  // removed GET /me/instance auto-cleanup: when an instance is destroyed on
+  // the orchestrator side, the orchestrator tells us to drop the local
+  // mirror rather than us inferring it from a 404 (where one wrong
+  // instance_not_found would irreversibly wipe real user data).
+  requireOrchestratorAuthContext(c.var.authContext);
+  const { userId } = c.req.valid("param");
+
+  try {
+    await prisma.$transaction([
+      prisma.hermesMessage.deleteMany({ where: { userId } }),
+      prisma.hermesInstance.deleteMany({ where: { userId } }),
+    ]);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_purge_instance_state" },
+      extra: { userId },
+    });
+    throw internalServerError(
+      "Failed to purge local assistant state. Retrying is safe.",
     );
   }
 

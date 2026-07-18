@@ -35,6 +35,24 @@ role.
 Usage bills from body `userId` / `organizationId` (no context headers on that
 route), matching coworker usage.
 
+## Instance lifecycle: purging Sokosumi's local mirror
+
+Sokosumi keeps a local mirror of each Hermes instance (chat history in
+`hermesMessage`, display metadata + poll cursors in `hermesInstance`). This
+mirror is **never auto-deleted** from polling signals — a spurious
+`instance_not_found` must not wipe user data. When the orchestrator destroys
+an instance outside Sokosumi's own `DELETE /v1/hermes/me/instance` flow, it
+must tell Sokosumi explicitly:
+
+```
+POST /v1/hermes/instances/{userId}/purge
+Authorization: Bearer orch_…
+```
+
+Orchestrator keys only (user sessions and coworker keys get 403). No body,
+no context headers. Idempotent: purging a user with no local state is a
+no-op, and retrying after a 500 is safe.
+
 ## Migration note
 
 Migration `20260717070000_add_orchestrator_actor` creates orchestrator tables

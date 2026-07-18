@@ -10866,6 +10866,92 @@ export type PostHermesMeInstanceResponses = {
 
 export type PostHermesMeInstanceResponse = PostHermesMeInstanceResponses[keyof PostHermesMeInstanceResponses];
 
+export type PostHermesInstancesByUserIdPurgeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/hermes/instances/{userId}/purge';
+};
+
+export type PostHermesInstancesByUserIdPurgeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesInstancesByUserIdPurgeError = PostHermesInstancesByUserIdPurgeErrors[keyof PostHermesInstancesByUserIdPurgeErrors];
+
+export type PostHermesInstancesByUserIdPurgeResponses = {
+    /**
+     * local assistant state purged
+     */
+    200: {
+        data: HermesEmptyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesInstancesByUserIdPurgeResponse = PostHermesInstancesByUserIdPurgeResponses[keyof PostHermesInstancesByUserIdPurgeResponses];
+
 export type GetHermesMeMessagesData = {
     body?: never;
     headers?: {

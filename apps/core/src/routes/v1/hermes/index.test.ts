@@ -1036,12 +1036,12 @@ describe("Hermes route contracts", () => {
     ]);
   });
 
-  it("clears stale local instance metadata when the orchestrator reports no instance", async () => {
-    // Regression coverage: an instance destroyed directly on the
-    // orchestrator (bypassing DELETE /me/instance) used to leave our own
-    // hermesInstance/hermesMessage rows behind — e.g. the sidebar nav kept
-    // showing the old assistant name/orb even though GET /me/instance
-    // correctly reported hasInstance: false.
+  it("does NOT delete local state when the orchestrator reports no instance", async () => {
+    // Regression coverage: an earlier iteration auto-purged the local
+    // mirror (chat history + instance metadata) whenever the orchestrator
+    // reported instance_not_found — meaning one wrong answer from the
+    // orchestrator irreversibly wiped real user data. Cleanup is now only
+    // ever explicit, via the orchestrator-only purge endpoint below.
     vi.mocked(getInstance).mockResolvedValue(null);
 
     const response = await createApp().request("/me/instance", {
@@ -1051,10 +1051,41 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(200);
     expect(body).toHaveProperty("data.hasInstance", false);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("purges local state for the orchestrator actor", async () => {
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue({
+      orchestratorId: "orch_123",
+      revokedAt: null,
+      expiresAt: null,
+      orchestrator: { archivedAt: null },
+    });
+
+    const response = await createApp().request("/instances/user_gone/purge", {
+      method: "POST",
+      headers: { Authorization: "Bearer orch_test_secret" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.ok", true);
     expect(prismaTransactionMock).toHaveBeenCalledWith([
       expect.any(Promise),
       expect.any(Promise),
     ]);
+  });
+
+  it("rejects the purge endpoint for regular user credentials", async () => {
+    const response = await createApp().request("/instances/user_123/purge", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe("Orchestrator authentication required");
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("persists the pending connection claim when initiating integration OAuth", async () => {
