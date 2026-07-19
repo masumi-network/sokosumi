@@ -386,8 +386,6 @@
     },
     "integrationsChip": {
       "ariaConnected": "{count, plural, one {# Integration verbunden — Einstellungen öffnen} other {# Integrationen verbunden — Einstellungen öffnen}}",
-      "connect": "Verbinden",
-      "connectIntegrations": "Integrationen verbinden",
       "integrations": "Integrationen"
     },
     "mockReplies": [

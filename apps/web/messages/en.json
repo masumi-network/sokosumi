@@ -2287,9 +2287,7 @@
           "default": "From your assistant"
         },
         "integrationsChip": {
-          "connect": "Connect",
           "integrations": "Integrations",
-          "connectIntegrations": "Connect integrations",
           "ariaConnected": "{count, plural, one {# integration connected — open settings} other {# integrations connected — open settings}}"
         },
         "confirmation": {

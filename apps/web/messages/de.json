@@ -2270,9 +2270,7 @@
           "default": "Von deinem Assistenten"
         },
         "integrationsChip": {
-          "connect": "Verbinden",
           "integrations": "Integrationen",
-          "connectIntegrations": "Integrationen verbinden",
           "ariaConnected": "{count, plural, one {# Integration verbunden — Einstellungen öffnen} other {# Integrationen verbunden — Einstellungen öffnen}}"
         },
         "confirmation": {

@@ -2270,9 +2270,7 @@
           "default": "来自你的助手"
         },
         "integrationsChip": {
-          "connect": "连接",
           "integrations": "集成",
-          "connectIntegrations": "连接集成",
           "ariaConnected": "{count, plural, one {已连接 # 个集成 — 打开设置} other {已连接 # 个集成 — 打开设置}}"
         },
         "confirmation": {

@@ -10,8 +10,8 @@ import {
   Coins,
   Copy,
   Loader2,
-  Plug,
   Plus,
+  Settings as SettingsIcon,
   Wrench,
   X,
 } from "lucide-react";
@@ -1053,24 +1053,6 @@ export default function RunningState({
             )}
           </div>
 
-          {/* Jump-to-latest pill — appears when scrolled up; snaps to the live answer. */}
-          {!atBottom && !isEmpty ? (
-            <button
-              type="button"
-              onClick={() => {
-                const el = scrollerRef.current;
-                if (el) {
-                  el.scrollTop = el.scrollHeight;
-                  setAtBottom(true);
-                }
-              }}
-              className="bg-background text-foreground border-border hover:bg-muted/60 focus-visible:ring-primary/40 absolute bottom-28 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm outline-none transition-colors focus-visible:ring-2"
-            >
-              <ArrowDown aria-hidden className="size-3.5" />
-              {t("jumpToLatest")}
-            </button>
-          ) : null}
-
           {/* Composer (natural height, anchored at bottom of flex column) */}
           <div className="bg-background relative mx-auto flex w-full shrink-0 flex-col items-center px-4 pt-2 pb-4">
             {/* Soft fade from scroll area into composer */}
@@ -1078,6 +1060,25 @@ export default function RunningState({
               aria-hidden
               className="from-background pointer-events-none absolute -top-8 right-0 left-0 z-5 h-8 bg-linear-to-t to-transparent"
             />
+            {/* Jump-to-latest pill — appears when scrolled up; anchored just
+                above the composer (not floating mid-chat). Border + arrow do
+                the work; no shadow, matching the rest of the app. */}
+            {!atBottom && !isEmpty ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const el = scrollerRef.current;
+                  if (el) {
+                    el.scrollTop = el.scrollHeight;
+                    setAtBottom(true);
+                  }
+                }}
+                className="bg-background text-foreground border-border hover:bg-muted/60 hover:border-foreground/30 focus-visible:ring-primary/40 absolute -top-11 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2"
+              >
+                <ArrowDown aria-hidden className="size-3.5" />
+                {t("jumpToLatest")}
+              </button>
+            ) : null}
             {instance?.transitioning ? (
               <div className="mb-2 w-full max-w-4xl">
                 <div className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
@@ -1889,6 +1890,7 @@ function IntegrationsChip({
   onClick: () => void;
 }) {
   const t = useTranslations("App.Hermes.Running.integrationsChip");
+  const tRunning = useTranslations("App.Hermes.Running");
   // Dedupe paired providers (outlook + outlook_calendar share one OAuth)
   // so the chip shows one entry per real service. Otherwise a single
   // Outlook connection looks like "2 connected" with the same icon twice.
@@ -1908,7 +1910,7 @@ function IntegrationsChip({
           aria-label={
             hasAny
               ? t("ariaConnected", { count: connected.length })
-              : t("connectIntegrations")
+              : tRunning("settingsCta")
           }
         >
           {hasAny ? (
@@ -1932,14 +1934,17 @@ function IntegrationsChip({
             </>
           ) : (
             <>
-              <Plug className="text-tertiary-foreground size-3.5" aria-hidden />
-              <span>{t("connect")}</span>
+              <SettingsIcon
+                className="text-tertiary-foreground size-3.5"
+                aria-hidden
+              />
+              <span>{tRunning("settingsCta")}</span>
             </>
           )}
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        {hasAny ? t("integrations") : t("connectIntegrations")}
+        {hasAny ? t("integrations") : tRunning("settingsCta")}
       </TooltipContent>
     </Tooltip>
   );
