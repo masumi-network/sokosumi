@@ -1,10 +1,15 @@
 /**
  * Guardrails for Prisma CLI on Vercel (loaded via `prisma.config.ts`).
  *
- * Applies to any command that loads the Prisma config (migrate, generate, …),
- * not only the package `prisma:migrate:deploy` script — so a raw
- * `prisma migrate deploy` on Preview is gated the same way.
+ * Scoped to DB-MUTATING commands only (`prisma migrate …`, `prisma db …`) —
+ * including a raw `prisma migrate deploy`, which loads this config the same
+ * way as the package script. Commands that never touch a database
+ * (`prisma generate`, run by this package's prepare script during every
+ * workspace install) are exempt: the web app's Vercel projects have no Neon
+ * integration and no DATABASE_URL_UNPOOLED, and failing THEIR builds guards
+ * nothing while breaking every preview deploy.
  *
+ * For mutating commands:
  * - Preview without DATABASE_URL_UNPOOLED: fail closed (avoids migrating a
  *   shared / production DB when Neon preview branching is misconfigured).
  * - Other Vercel envs without DATABASE_URL_UNPOOLED: warn (Neon DDL via the
@@ -16,6 +21,16 @@ export interface MigrateDeployPreflightEnv {
   VERCEL?: string;
   VERCEL_ENV?: string;
   DATABASE_URL_UNPOOLED?: string;
+}
+
+/**
+ * True when the Prisma CLI invocation (its argv) is a command that can write
+ * to the database: `migrate` (deploy/dev/reset/resolve/…) or `db`
+ * (push/execute/seed). Read-only/no-DB commands like `generate`, `validate`,
+ * or `format` return false and skip the preflight entirely.
+ */
+export function isDbMutatingPrismaCommand(argv: readonly string[]): boolean {
+  return argv.some((arg) => arg === "migrate" || arg === "db");
 }
 
 export type PreflightMessageLevel = "error" | "warn";

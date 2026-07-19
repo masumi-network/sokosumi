@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { checkMigrateDeployEnv } from "./migrate-deploy-preflight.js";
+import {
+  checkMigrateDeployEnv,
+  isDbMutatingPrismaCommand,
+} from "./migrate-deploy-preflight.js";
+
+describe("isDbMutatingPrismaCommand", () => {
+  it.each([
+    ["migrate deploy", ["node", "/x/prisma", "migrate", "deploy"]],
+    ["migrate dev", ["node", "/x/prisma", "migrate", "dev"]],
+    ["db push", ["node", "/x/prisma", "db", "push"]],
+    ["db execute", ["node", "/x/prisma", "db", "execute", "--file", "x.sql"]],
+  ])("is true for %s", (_label: string, argv: string[]) => {
+    expect(isDbMutatingPrismaCommand(argv)).toBe(true);
+  });
+
+  it.each([
+    // `prisma generate` runs in this package's prepare script during EVERY
+    // workspace install — including web-app Vercel builds with no Neon
+    // integration. It must never trip the preflight.
+    ["generate", ["node", "/x/prisma", "generate", "--no-hints"]],
+    ["validate", ["node", "/x/prisma", "validate"]],
+    ["format", ["node", "/x/prisma", "format"]],
+    ["no command", ["node", "/x/prisma"]],
+  ])("is false for %s", (_label: string, argv: string[]) => {
+    expect(isDbMutatingPrismaCommand(argv)).toBe(false);
+  });
+});
 
 describe("checkMigrateDeployEnv", () => {
   it("is a no-op outside Vercel", () => {
