@@ -2480,6 +2480,11 @@
           "intro_draft": "正在起草你的介绍"
         }
       },
+      "AutonomyPanel": {
+        "chip": "自主性",
+        "title": "自主性",
+        "subtitle": "助手在后台为你工作——运行定时任务并自主行动。选择它在无需确认时可以做多少事。"
+      },
       "Settings": {
         "title": "Hermes 设置",
         "subtitle": "配置按实例生效。保存工具密钥会重启 Hermes。",

@@ -479,5 +479,10 @@
     "lookHelp": "L'apparence de votre assistant dans toute l'application. Les changements s'appliquent immédiatement.",
     "lookSavedToast": "Couleur de l'orbe mise à jour.",
     "lookSaveFailed": "Impossible de mettre à jour la couleur de l'orbe. Réessayez."
+  },
+  "AutonomyPanel": {
+    "chip": "Autonomie",
+    "title": "Autonomie",
+    "subtitle": "Votre assistant travaille pour vous en arrière-plan — il exécute des tâches planifiées et agit de lui-même. Choisissez ce qu'il peut faire sans demander."
   }
 }

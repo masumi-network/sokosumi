@@ -2480,6 +2480,11 @@
           "intro_draft": "Redactando tu intro"
         }
       },
+      "AutonomyPanel": {
+        "chip": "Autonomía",
+        "title": "Autonomía",
+        "subtitle": "Tu asistente trabaja para ti en segundo plano: ejecuta tareas programadas y actúa por su cuenta. Elige cuánto puede hacer sin preguntar."
+      },
       "Settings": {
         "title": "Ajustes de Hermes",
         "subtitle": "La configuración es por instancia. Guardar un secreto de herramienta reinicia Hermes.",

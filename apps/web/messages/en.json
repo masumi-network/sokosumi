@@ -2497,6 +2497,11 @@
           "intro_draft": "Drafting your intro"
         }
       },
+      "AutonomyPanel": {
+        "chip": "Autonomy",
+        "title": "Autonomy",
+        "subtitle": "Your assistant works for you in the background — running scheduled tasks and acting on its own. Choose how much it can do without asking."
+      },
       "Settings": {
         "title": "Assistant settings",
         "subtitle": "Configuration is per-instance. Saving a tool secret restarts your assistant.",

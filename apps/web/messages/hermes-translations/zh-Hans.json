@@ -479,5 +479,10 @@
     "lookHelp": "助手在整个应用中的外观。更改立即生效。",
     "lookSavedToast": "球体颜色已更新。",
     "lookSaveFailed": "无法更新球体颜色，请重试。"
+  },
+  "AutonomyPanel": {
+    "chip": "自主性",
+    "title": "自主性",
+    "subtitle": "助手在后台为你工作——运行定时任务并自主行动。选择它在无需确认时可以做多少事。"
   }
 }

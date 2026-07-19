@@ -14,6 +14,7 @@ import {
   Settings as SettingsIcon,
   Wrench,
   X,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -108,6 +109,7 @@ import type {
 } from "@/lib/hermes/types";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
+import AutonomyPanel from "./autonomy-panel";
 
 /** The committed orb seed — the assistant's avatar across the chat. */
 const AssistantSeedContext = createContext<string>("personal-assistant");
@@ -286,6 +288,7 @@ export default function RunningState({
   // only the live render; this ref is what we read at completion).
   const turnStepsRef = useRef<ProgressStep[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autonomyOpen, setAutonomyOpen] = useState(false);
   // Dev-only mock confirmations injected via `?state=running&mock=confirmation`
   // (plus optional `&coworkerId=…&coworkerName=…`). Lets you eyeball the
   // ConfirmationCard chips without waiting for Hermes to actually emit a
@@ -925,10 +928,10 @@ export default function RunningState({
     <AssistantSeedContext.Provider value={avatarSeed}>
       <AssistantMotionContext.Provider value={orbMotion}>
         <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
-          {/* Floating top-right control — the integrations chip doubles as the
-          entry point into Settings (covers autonomy, schedules, danger zone)
-          so we don't need a separate gear button competing for attention. */}
+          {/* Floating top-right controls — Autonomy (level + scheduled
+          tasks) and Settings (identity, integrations, danger zone). */}
           <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+            <AutonomyChip onClick={() => setAutonomyOpen(true)} />
             <IntegrationsChip
               integrations={instance?.integrations ?? []}
               onClick={() => setSettingsOpen(true)}
@@ -1119,13 +1122,19 @@ export default function RunningState({
             onOpenChange={setSettingsOpen}
             previewMode={previewMode}
             integrations={instance?.integrations ?? []}
-            autonomyLevel={instance?.autonomyLevel ?? "medium"}
             lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
             lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
             assistantName={instance?.assistantName ?? null}
             avatarSeed={instance?.avatarSeed ?? null}
             orbBaseSeed={orbBaseSeed}
             onDestroy={onDestroy}
+            onRefreshInstance={onRefresh}
+          />
+          <AutonomyPanel
+            open={autonomyOpen}
+            onOpenChange={setAutonomyOpen}
+            previewMode={previewMode}
+            autonomyLevel={instance?.autonomyLevel ?? "medium"}
             onRefreshInstance={onRefresh}
           />
         </div>
@@ -1891,6 +1900,32 @@ function dedupeServiceIntegrations(
     result.push(integration);
   }
   return result;
+}
+
+/**
+ * Top-right chip opening the Autonomy panel — the home for "what the
+ * assistant does on its own" (autonomy level + scheduled tasks). Styled to
+ * match IntegrationsChip so the two controls read as one cluster.
+ */
+function AutonomyChip({ onClick }: { onClick: () => void }) {
+  const tPanel = useTranslations("App.Hermes.AutonomyPanel");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className="border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label={tPanel("title")}
+        >
+          <Zap className="text-tertiary-foreground size-3.5" aria-hidden />
+          <span>{tPanel("chip")}</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{tPanel("subtitle")}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 function IntegrationsChip({

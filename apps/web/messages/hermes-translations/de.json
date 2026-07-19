@@ -481,5 +481,10 @@
     "lookHelp": "Das Aussehen deines Assistenten in der ganzen App. Änderungen gelten sofort.",
     "lookSavedToast": "Orb-Farbe aktualisiert.",
     "lookSaveFailed": "Orb-Farbe konnte nicht aktualisiert werden. Versuche es erneut."
+  },
+  "AutonomyPanel": {
+    "chip": "Autonomie",
+    "title": "Autonomie",
+    "subtitle": "Dein Assistent arbeitet im Hintergrund für dich — führt geplante Aufgaben aus und handelt eigenständig. Lege fest, wie viel er ohne Rückfrage tun darf."
   }
 }
