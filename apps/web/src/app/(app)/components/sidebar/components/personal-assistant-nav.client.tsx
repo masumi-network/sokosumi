@@ -18,11 +18,6 @@ import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
 import { HERMES_NAV_REFRESH_EVENT } from "@/lib/hermes/nav-refresh";
 import { cn } from "@/lib/utils";
 
-interface PersonalAssistantNavProps {
-  /** Gated by `hermesBetaEnabled` in the app layout. */
-  enabled: boolean;
-}
-
 const UNREAD_POLL_INTERVAL_MS = 30_000;
 
 interface AssistantNavState {
@@ -42,7 +37,7 @@ interface AssistantNavState {
  * orb seed — so the sidebar shows the user's orb (and reacts after they pick
  * one) without a heavier instance fetch.
  */
-function useAssistantNavState(enabled: boolean): AssistantNavState {
+function useAssistantNavState(): AssistantNavState {
   const [state, setState] = useState<AssistantNavState>({
     count: 0,
     avatarSeed: null,
@@ -51,7 +46,6 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
   });
 
   useEffect(() => {
-    if (!enabled) return;
     let cancelled = false;
 
     const tick = async () => {
@@ -85,11 +79,9 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener(HERMES_NAV_REFRESH_EVENT, onNavRefresh);
     };
-  }, [enabled]);
+  }, []);
 
-  return enabled
-    ? state
-    : { count: 0, avatarSeed: null, assistantName: null, hasInstance: null };
+  return state;
 }
 
 /**
@@ -98,9 +90,7 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
  * live orb carries its identity, and the label becomes the assistant's chosen
  * name once it has one.
  */
-export default function PersonalAssistantNav({
-  enabled,
-}: PersonalAssistantNavProps) {
+export default function PersonalAssistantNav() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const {
@@ -108,9 +98,7 @@ export default function PersonalAssistantNav({
     avatarSeed,
     assistantName,
     hasInstance,
-  } = useAssistantNavState(enabled);
-
-  if (!enabled) return null;
+  } = useAssistantNavState();
 
   const href = "/personal-assistant";
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
@@ -147,7 +135,7 @@ export default function PersonalAssistantNav({
                     "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:px-0",
                     isActive
                       ? "border-transparent text-primary-foreground"
-                      : "border-sidebar-border text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      : "border-primary/50 hover:border-primary/70 text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
                   {/* The live agent: chosen orb once a colour is committed,

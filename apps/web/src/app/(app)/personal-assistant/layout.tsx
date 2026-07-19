@@ -1,7 +1,4 @@
-import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-
-import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 
 import FullscreenEffect from "./components/fullscreen-effect";
 
@@ -9,11 +6,7 @@ interface HermesLayoutProps {
   children: ReactNode;
 }
 
-export default async function HermesLayout({ children }: HermesLayoutProps) {
-  if (!(await hermesBetaEnabled())) {
-    notFound();
-  }
-
+export default function HermesLayout({ children }: HermesLayoutProps) {
   // We DON'T use `data-agent-fullbleed` here even though it nicely zeros
   // main's p-4 padding. That helper also sets `overflow: visible` on
   // main + every ancestor up to the app shell, which delegates scrolling

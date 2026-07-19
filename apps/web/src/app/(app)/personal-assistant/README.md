@@ -230,7 +230,7 @@ project channel if you don't have them yet. Never commit them.
 
 ### Enabling the feature
 
-The route is gated by the `hermes-beta` flag (`apps/web/src/lib/flags/hermes-beta.ts`).
+The route is open to all authenticated users; activation is gated by a paid plan (or admin role) on the Core provision endpoint.
 Locally it's enabled for users in `HERMES_BETA_ALLOWLIST`, or for everyone
 when `HERMES_BETA_ALL_USERS=true`.
 
@@ -280,7 +280,7 @@ hard local-only reset, drop those rows directly.
 ```
 apps/web/src/app/(app)/personal-assistant/
 ├── README.md                            ← you are here
-├── layout.tsx                           ← beta-flag gate + FullscreenEffect
+├── layout.tsx                           ← FullscreenEffect wrapper
 ├── page.tsx                             ← session pass-through, renders HermesExperience
 └── components/
     ├── hermes-experience.tsx            ← state machine + polling

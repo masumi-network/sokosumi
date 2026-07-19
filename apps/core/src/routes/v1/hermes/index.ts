@@ -1550,8 +1550,8 @@ const finalizeIntegrationRoute = withGlobalHeaderParameters(
 
 const app = new OpenAPIHonoWithAuth();
 
-// Temporary beta posture: web navigation/page access is domain-gated, while the
-// Core API remains available to authenticated users during early Hermes rollout.
+// Access posture: the personal assistant is available to all authenticated
+// users; the gate that matters is the paid-plan check on provisioning.
 app.openapi(postChatRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
   const body = c.req.valid("json");

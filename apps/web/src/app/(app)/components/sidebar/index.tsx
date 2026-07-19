@@ -29,7 +29,6 @@ interface SidebarProps {
   adminMenuEnabled: boolean;
   creditsData: UserCreditsData | null;
   currentTimestampMs: number;
-  hermesMenuEnabled: boolean;
   organizationName: string | null;
   session: Session;
   lowCreditsThreshold: number;
@@ -39,7 +38,6 @@ export default async function Sidebar({
   adminMenuEnabled,
   creditsData,
   currentTimestampMs,
-  hermesMenuEnabled,
   organizationName,
   session,
   lowCreditsThreshold,
@@ -83,8 +81,8 @@ export default async function Sidebar({
             activeOrganizationId={activeOrganizationId}
             planLabel={planLabel}
           >
-            <PersonalAssistantNav enabled={hermesMenuEnabled} />
-            {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}
+            <PersonalAssistantNav />
+            <SidebarSeparator className="mx-0" />
             <NewChatTaskActions />
             <SidebarSeparator className="mx-0 mt-2" />
             <MenuItems />

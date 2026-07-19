@@ -24,7 +24,6 @@ import type {
   Notice,
 } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
-import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userHasPaidOrEnterpriseCoverage, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
@@ -86,7 +85,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     activeOrganization,
     creditsResultRaw,
     coworkersResult,
-    hermesMenuEnabled,
     initialDesignMdAttachment,
   ] = await Promise.all([
     userService.showOnboarding(session),
@@ -94,7 +92,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     userService.getActiveOrganization(),
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers().catch(() => []),
-    hermesBetaEnabled(),
     designMdService.resolveEffectiveDesignMd(),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
@@ -182,7 +179,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               adminMenuEnabled={adminMenuEnabled}
               creditsData={creditsData}
               currentTimestampMs={currentTimestampMs}
-              hermesMenuEnabled={hermesMenuEnabled}
               organizationName={activeOrganization?.name ?? null}
               session={session}
               lowCreditsThreshold={lowCreditsThreshold}
