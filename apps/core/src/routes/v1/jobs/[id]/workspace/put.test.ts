@@ -58,7 +58,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 interface CurrentJobRecord {
   id: string;
-  userId: string;
+  ownerId: string;
   organizationId: string | null;
   taskId: string | null;
   workspaceId: string;
@@ -83,7 +83,7 @@ function createCurrentJobRecord(
 ): CurrentJobRecord {
   return {
     id: "job_123",
-    userId: "user_123",
+    ownerId: "user_123",
     organizationId: "org_billing",
     taskId: null,
     workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -95,12 +95,20 @@ function createCurrentJobRecord(
 }
 
 function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
+  const owner = {
+    id: "user_123",
+    name: "Ada Lovelace",
+    image: null,
+  };
+
   return {
     id: "job_123",
     createdAt: "2026-03-25T10:00:00.000Z",
     updatedAt: "2026-03-25T10:00:00.000Z",
     completedAt: null,
     agentId: "agent_123",
+    ownerId: "user_123",
+    owner,
     userId: "user_123",
     organizationId: "org_billing",
     projectId: null,
@@ -124,11 +132,7 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
       organizationId: null,
       organization: null,
     },
-    user: {
-      id: "user_123",
-      name: "Ada Lovelace",
-      image: null,
-    },
+    user: owner,
     organization: null,
     agent: {
       id: "agent_123",
@@ -239,6 +243,20 @@ describe("PUT /jobs/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(jobFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        ownerId: "user_123",
+      },
+      select: {
+        taskId: true,
+        workspace: {
+          select: {
+            organizationId: true,
+          },
+        },
+      },
+    });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
       id: "org_target",
       userId: "user_123",

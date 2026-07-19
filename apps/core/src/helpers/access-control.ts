@@ -52,7 +52,7 @@ export async function requireJobOwnership(
   const job = await tx.job.findFirst({
     where: {
       id: jobId,
-      userId: userContext.userId,
+      ownerId: userContext.userId,
     },
   });
 

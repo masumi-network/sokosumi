@@ -28,6 +28,9 @@ function buildTask({
     id,
     name: `Task ${id}`,
     status,
+    ownerId: "user-1",
+    owner: { id: "user-1", name: "Test User", image: null },
+    // Deprecated aliases — keep until clients migrate.
     userId: "user-1",
     user: { id: "user-1", name: "Test User", image: null },
     createdAt: new Date(updatedAt),

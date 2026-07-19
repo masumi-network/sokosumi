@@ -273,7 +273,7 @@ export function hasActiveTasksFilters(
 
 export function isTaskOwnerEditable(
   task: Pick<TaskWithCoworker, "ownerId">,
-  userId: string | null | undefined,
+  sessionUserId: string | null | undefined,
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): boolean {
@@ -284,7 +284,7 @@ export function isTaskOwnerEditable(
     return true;
   }
 
-  return userId != null && task.ownerId === userId;
+  return sessionUserId != null && task.ownerId === sessionUserId;
 }
 
 /**
@@ -295,13 +295,23 @@ export function isTaskOwnerEditable(
  */
 export function isTaskDraggableForViewFilters(
   task: Pick<TaskWithCoworker, "ownerId">,
-  userId: string | null | undefined,
+  sessionUserId: string | null | undefined,
   routeFilters: TasksFilters,
   initialFilters: TasksFilters,
   activeOrganizationId: string | null,
 ): boolean {
   return (
-    isTaskOwnerEditable(task, userId, routeFilters, activeOrganizationId) &&
-    isTaskOwnerEditable(task, userId, initialFilters, activeOrganizationId)
+    isTaskOwnerEditable(
+      task,
+      sessionUserId,
+      routeFilters,
+      activeOrganizationId,
+    ) &&
+    isTaskOwnerEditable(
+      task,
+      sessionUserId,
+      initialFilters,
+      activeOrganizationId,
+    )
   );
 }

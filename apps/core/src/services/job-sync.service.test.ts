@@ -203,7 +203,7 @@ function createJob(
     id: "job_1",
     agentId: "agent_1",
     agentJobId: "remote-job-1",
-    userId: "user_1",
+    ownerId: "user_1",
     jobType: JobType.PAID,
     refundedTransactionId: null,
     blockchainIdentifier: "blockchain-job-1",
@@ -222,7 +222,7 @@ function createJob(
       blockchainIdentifier: "agent-chain-1",
       authorContactEmail: null,
     },
-    user: {
+    owner: {
       id: "user_1",
       email: "user@example.com",
       name: "Ada",

@@ -15,7 +15,7 @@ export function canApproveVendorGrants(params: {
   organizationId: string | null;
   isAuthenticated: boolean;
   viewerMembership?: MemberWithOrganization;
-  taskOwnerUserId?: string | null;
+  taskOwnerId?: string | null;
   sessionUserId?: string | null;
 }): boolean {
   if (!params.isAuthenticated) {
@@ -24,9 +24,9 @@ export function canApproveVendorGrants(params: {
 
   if (params.organizationId === null) {
     if (
-      params.taskOwnerUserId != null &&
+      params.taskOwnerId != null &&
       params.sessionUserId != null &&
-      params.taskOwnerUserId !== params.sessionUserId
+      params.taskOwnerId !== params.sessionUserId
     ) {
       return false;
     }

@@ -140,7 +140,7 @@ describe("canonical share page", () => {
       job: {
         id: "job_123",
         name: "Shared Job",
-        user: {
+        owner: {
           name: "Ada Lovelace",
         },
         agent: {

@@ -61,7 +61,7 @@ describe("loadJobDetails", () => {
       data: {
         id: "job-1",
         agent: { id: "agent-1" },
-        userId: "other-user",
+        ownerId: "other-user",
       },
     });
 
@@ -71,7 +71,7 @@ describe("loadJobDetails", () => {
     expect(setQueryDataMock).toHaveBeenCalledWith(["jobs", "job-1"], {
       id: "job-1",
       agent: { id: "agent-1" },
-      userId: "other-user",
+      ownerId: "other-user",
     });
     expect(result).toMatchObject({
       job: {
@@ -94,7 +94,7 @@ describe("loadJobDetails", () => {
       data: {
         id: "job-1",
         agent: { id: "agent-1" },
-        userId: "user-1",
+        ownerId: "user-1",
       },
     });
 
@@ -104,7 +104,7 @@ describe("loadJobDetails", () => {
     expect(setQueryDataMock).toHaveBeenCalledWith(["jobs", "job-1"], {
       id: "job-1",
       agent: { id: "agent-1" },
-      userId: "user-1",
+      ownerId: "user-1",
     });
     expect(result).toMatchObject({
       job: {

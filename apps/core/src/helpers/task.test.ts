@@ -48,6 +48,10 @@ const defaultTaskCoworker = {
 };
 
 const defaultNestedJobUserOrg = {
+  ownerId: "user_123",
+  owner: defaultTaskUser,
+  // Deprecated aliases kept for dual-emit fixture coverage.
+  userId: "user_123",
   user: defaultTaskUser,
   organization: null as { id: string; name: string; slug: string } | null,
 };
@@ -966,7 +970,6 @@ describe("mapTask", () => {
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
           agentId: "agent_123",
-          userId: "user_123",
           organizationId: null,
           taskId: "tsk_123",
           name: "Job",

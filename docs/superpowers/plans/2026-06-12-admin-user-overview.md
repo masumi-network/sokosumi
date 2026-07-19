@@ -294,9 +294,9 @@ describe("GET /v1/admin/users/overview", () => {
     );
     expect(taskGroupByMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        by: ["userId"],
+        by: ["ownerId"],
         where: expect.objectContaining({
-          userId: { in: ["user_1"] },
+          ownerId: { in: ["user_1"] },
           status: { not: "DRAFT" },
         }),
       }),
@@ -414,9 +414,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ),
       userIds.length > 0
         ? prisma.task.groupBy({
-            by: ["userId"],
+            by: ["ownerId"],
             where: {
-              userId: { in: userIds },
+              ownerId: { in: userIds },
               status: { not: TaskStatus.DRAFT },
             },
             _count: { _all: true },
@@ -425,7 +425,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const taskCountByUserId = new Map(
-      taskCounts.map((row) => [row.userId, row._count._all]),
+      taskCounts.map((row) => [row.ownerId, row._count._all]),
     );
 
     const items = pageUsers.map((user, index) => ({

@@ -17,14 +17,26 @@ import {
 } from "@/helpers/loaded-relation-summaries";
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
+function mapJobOwnerSummary(
+  job: JobWithSummaryRelations | JobWithSokosumiStatus,
+) {
+  return userSummaryFromLoadedRelation(`Job ${job.id}`, job.ownerId, job.owner);
+}
+
 export function flattenJob(job: JobWithSummaryRelations) {
   const completedAt = getCompletedAt(job);
+  const owner = mapJobOwnerSummary(job);
+
   return {
     id: job.id,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     agentId: job.agentId,
-    userId: job.userId,
+    ownerId: job.ownerId,
+    owner,
+    // Deprecated aliases — keep until clients migrate.
+    userId: job.ownerId,
+    user: owner,
     organizationId: job.organizationId,
     projectId: job.projectId ?? null,
     taskId: job.taskId,
@@ -45,7 +57,6 @@ export function flattenJob(job: JobWithSummaryRelations) {
     sellerVkey: job.sellerVkey ?? null,
     jobStatusSettled: isJobStatusSettled(job, completedAt),
     workspace: mapWorkspaceSummary(job.workspace),
-    user: userSummaryFromLoadedRelation(`Job ${job.id}`, job.userId, job.user),
     organization: organizationSummaryFromLoadedRelation(
       `Job ${job.id}`,
       job.organizationId,
@@ -55,13 +66,19 @@ export function flattenJob(job: JobWithSummaryRelations) {
 }
 
 export function serializeJobDetails(job: JobWithSokosumiStatus) {
+  const owner = mapJobOwnerSummary(job);
+
   return {
     id: job.id,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     completedAt: job.completedAt,
     agentId: job.agentId,
-    userId: job.userId,
+    ownerId: job.ownerId,
+    owner,
+    // Deprecated aliases — keep until clients migrate.
+    userId: job.ownerId,
+    user: owner,
     organizationId: job.organizationId,
     projectId: job.projectId ?? null,
     taskId: job.taskId,
@@ -86,7 +103,6 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     agentJobId: job.agentJobId,
     identifierFromPurchaser: job.identifierFromPurchaser,
     workspace: mapWorkspaceSummary(job.workspace),
-    user: userSummaryFromLoadedRelation(`Job ${job.id}`, job.userId, job.user),
     organization: organizationSummaryFromLoadedRelation(
       `Job ${job.id}`,
       job.organizationId,

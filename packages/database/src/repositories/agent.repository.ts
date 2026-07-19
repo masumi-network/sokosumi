@@ -120,7 +120,7 @@ export const agentRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<AgentWithJobs[]> {
     const jobWhereCondition = {
-      userId,
+      ownerId: userId,
       workspaceId,
     };
 
