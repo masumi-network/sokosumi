@@ -31,6 +31,10 @@ interface AssistantNavState {
   avatarSeed: string | null;
   /** The chosen assistant name, or null until the user names it. */
   assistantName: string | null;
+  /** False until the user has activated an assistant at least once. Kept
+   * null before the first poll resolves so the "NEW" badge doesn't flash
+   * for already-activated users while the request is in flight. */
+  hasInstance: boolean | null;
 }
 
 /**
@@ -43,6 +47,7 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
     count: 0,
     avatarSeed: null,
     assistantName: null,
+    hasInstance: null,
   });
 
   useEffect(() => {
@@ -82,7 +87,9 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
     };
   }, [enabled]);
 
-  return enabled ? state : { count: 0, avatarSeed: null, assistantName: null };
+  return enabled
+    ? state
+    : { count: 0, avatarSeed: null, assistantName: null, hasInstance: null };
 }
 
 /**
@@ -100,6 +107,7 @@ export default function PersonalAssistantNav({
     count: unread,
     avatarSeed,
     assistantName,
+    hasInstance,
   } = useAssistantNavState(enabled);
 
   if (!enabled) return null;
@@ -107,6 +115,10 @@ export default function PersonalAssistantNav({
   const href = "/personal-assistant";
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
   const showUnread = unread > 0;
+  // First-run attention hook: a small "NEW" tag floating on the card until
+  // the user has activated an assistant. `hasInstance === null` (poll not
+  // resolved yet) deliberately shows nothing — no flash for existing users.
+  const showNewBadge = hasInstance === false;
   const unreadDisplay = unread > 99 ? "99+" : String(unread);
   // Once the user names the assistant, the nav shows the name instead of the
   // generic "Personal Assistant" label.
@@ -116,7 +128,15 @@ export default function PersonalAssistantNav({
     <SidebarGroup className="w-full">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
-          <SidebarMenuItem>
+          <SidebarMenuItem className="relative">
+            {showNewBadge ? (
+              <span
+                aria-hidden
+                className="bg-primary text-primary-foreground pointer-events-none absolute -top-1.5 -right-1 z-10 rounded-full px-1.5 py-px text-[9px] font-bold tracking-widest uppercase group-data-[collapsible=icon]:hidden"
+              >
+                {t("hermesNew")}
+              </span>
+            ) : null}
             <SidebarMenuButton asChild isActive={isActive} size="lg">
               <SheetClose asChild>
                 <Link

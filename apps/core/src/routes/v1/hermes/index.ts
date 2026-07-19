@@ -2288,7 +2288,12 @@ app.openapi(getUnreadCountRoute, async (c) => {
   if (!instance) {
     return ok(
       c,
-      hermesUnreadCountSchema.parse({ count: 0, avatarSeed, assistantName }),
+      hermesUnreadCountSchema.parse({
+        count: 0,
+        avatarSeed,
+        assistantName,
+        hasInstance: false,
+      }),
     );
   }
 
@@ -2304,7 +2309,12 @@ app.openapi(getUnreadCountRoute, async (c) => {
 
   return ok(
     c,
-    hermesUnreadCountSchema.parse({ count, avatarSeed, assistantName }),
+    hermesUnreadCountSchema.parse({
+      count,
+      avatarSeed,
+      assistantName,
+      hasInstance: true,
+    }),
   );
 });
 

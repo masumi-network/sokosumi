@@ -1755,7 +1755,9 @@ function Composer({
       <div
         className={cn(
           "chat-input-border-anchor",
-          "relative rounded-xl",
+          // z-10 lifts the glow above the scroll-fade overlay (z-5) — without
+          // it the fade's opaque bottom edge masks the halo into a hard line.
+          "relative z-10 rounded-xl",
           "shadow-[0_0_16px_0] shadow-primary/15",
           "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
           "transition-shadow duration-300",

@@ -475,6 +475,12 @@ export const hermesUnreadCountSchema = z
      * instance fetch. Null until the user names it.
      */
     assistantName: z.string().nullable().default(null),
+    /**
+     * Whether the user has ever activated an assistant (a local instance
+     * record exists). Drives first-run affordances like the sidebar "NEW"
+     * badge, which must vanish once the user is set up.
+     */
+    hasInstance: z.boolean().default(false),
   })
   .openapi("HermesUnreadCount");
 

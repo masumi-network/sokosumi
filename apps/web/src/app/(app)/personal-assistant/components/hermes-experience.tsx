@@ -419,9 +419,12 @@ export default function HermesExperience({
   // Nudge the sidebar nav to refetch its identity (name + orb) the moment it
   // changes here — onboarding completing, a rename, or a destroy — instead of
   // waiting out its 30s poll.
+  // The `instance === null` dep also fires the moment an instance first
+  // appears (activation) or disappears (destroy) — that's what retires the
+  // sidebar's first-run "NEW" badge without waiting for its 30s poll.
   useEffect(() => {
     requestHermesNavRefresh();
-  }, [instance?.assistantName, instance?.avatarSeed]);
+  }, [instance?.assistantName, instance?.avatarSeed, instance === null]);
 
   // Once the instance carries a persisted seed, the optimistic setup-time
   // choice has served its purpose — drop it so later changes (e.g. re-picking

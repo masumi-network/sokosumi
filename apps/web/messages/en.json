@@ -2645,6 +2645,7 @@
           "taskManager": "Tasks",
           "projects": "Projects",
           "hermes": "Personal Assistant",
+          "hermesNew": "New",
           "hermesUnread": "{count} unread",
           "history": "History",
           "admin": "Admin",

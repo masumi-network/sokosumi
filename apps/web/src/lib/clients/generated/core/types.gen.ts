@@ -1545,6 +1545,7 @@ export type HermesUnreadCount = {
     count: number;
     avatarSeed?: string | null;
     assistantName?: string | null;
+    hasInstance?: boolean;
 };
 
 export type MarkHermesInboxSeenRequest = {

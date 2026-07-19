@@ -5336,6 +5336,10 @@ export const HermesUnreadCountSchema = {
                 'null'
             ],
             default: null
+        },
+        hasInstance: {
+            type: 'boolean',
+            default: false
         }
     },
     required: [
