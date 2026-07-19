@@ -604,9 +604,9 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
 
 async function upsertHermesInstanceForUser(
   userId: string,
-  data?: { assistantName?: string; avatarSeed?: string },
+  data?: { assistantName?: string; avatarSeed?: string | null },
 ): Promise<void> {
-  const patch: { assistantName?: string; avatarSeed?: string } = {};
+  const patch: { assistantName?: string; avatarSeed?: string | null } = {};
   if (data?.assistantName !== undefined)
     patch.assistantName = data.assistantName;
   if (data?.avatarSeed !== undefined) patch.avatarSeed = data.avatarSeed;
@@ -2147,11 +2147,13 @@ app.openapi(updateInstanceRoute, async (c) => {
       email: body.email,
       timezone: body.timezone,
     });
-    // Assistant name is Sokosumi-side metadata — persist it locally rather
-    // than forwarding to the orchestrator (whose `name` is the user's name).
-    if (body.assistantName !== undefined) {
+    // Assistant name + orb seed are Sokosumi-side metadata — persist them
+    // locally rather than forwarding to the orchestrator (whose `name` is
+    // the user's name). A null avatarSeed resets to the white placeholder.
+    if (body.assistantName !== undefined || body.avatarSeed !== undefined) {
       await upsertHermesInstanceForUser(userContext.userId, {
         assistantName: body.assistantName,
+        avatarSeed: body.avatarSeed,
       });
     }
     const instance = await getInstance(userContext.userId);

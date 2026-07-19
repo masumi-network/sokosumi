@@ -380,6 +380,9 @@ interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
   name?: string | null;
   /** Rename the assistant. Sokosumi-side metadata. */
   assistantName?: string | null;
+  /** Re-pick the orb avatar. Sokosumi-side metadata; explicit `null` resets
+   * to the white placeholder, `undefined` leaves it untouched. */
+  avatarSeed?: string | null;
   email?: string | null;
   /** IANA tz, e.g. "America/New_York". */
   timezone?: string | null;
@@ -393,20 +396,31 @@ interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
 export const updateHermesInstanceAction = withSession<
   UpdateHermesInstanceArgs,
   Result<HermesInstancePublic, ActionError>
->(async ({ autonomyLevel, name, assistantName, email, timezone }) => {
-  try {
-    const response = await coreClient.updateHermesInstance({
-      autonomyLevel,
-      name: name ?? undefined,
-      assistantName: assistantName ?? undefined,
-      email: email ?? undefined,
-      timezone: timezone ?? undefined,
-    });
-    return Ok(mapHermesInstance(response.data)!);
-  } catch (error) {
-    return Err(toActionError(error));
-  }
-});
+>(
+  async ({
+    autonomyLevel,
+    name,
+    assistantName,
+    avatarSeed,
+    email,
+    timezone,
+  }) => {
+    try {
+      const response = await coreClient.updateHermesInstance({
+        autonomyLevel,
+        name: name ?? undefined,
+        assistantName: assistantName ?? undefined,
+        // null is meaningful here (reset to placeholder) — only strip undefined.
+        ...(avatarSeed !== undefined ? { avatarSeed } : {}),
+        email: email ?? undefined,
+        timezone: timezone ?? undefined,
+      });
+      return Ok(mapHermesInstance(response.data)!);
+    } catch (error) {
+      return Err(toActionError(error));
+    }
+  },
+);
 
 export interface HermesOnboardingProgressPayload {
   status: string;

@@ -476,6 +476,10 @@
     "namePlaceholder": "给你的助手起个名字",
     "nameSave": "保存",
     "nameSavedToast": "名称已更新。",
-    "nameSaveFailed": "无法更新名称。请重试。"
+    "nameSaveFailed": "无法更新名称。请重试。",
+    "lookSection": "球体颜色",
+    "lookHelp": "助手在整个应用中的外观。更改立即生效。",
+    "lookSavedToast": "球体颜色已更新。",
+    "lookSaveFailed": "无法更新球体颜色，请重试。"
   }
 }

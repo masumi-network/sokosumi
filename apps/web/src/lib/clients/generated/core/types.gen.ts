@@ -1494,6 +1494,7 @@ export type HermesUpdateInstanceRequest = {
     autonomyLevel?: HermesAutonomyLevel;
     name?: string;
     assistantName?: string;
+    avatarSeed?: string | null;
     email?: string;
     timezone?: string;
 };

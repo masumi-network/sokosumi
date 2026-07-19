@@ -123,6 +123,9 @@ interface RunningStateProps {
   userImageUrl?: string | null;
   /** The assistant's generative orb seed — its avatar in every message. */
   avatarSeed: string;
+  /** Base seed for the curated orb palette (the user's id) — drives the
+   * colour re-picker in Settings. */
+  orbBaseSeed: string;
   instance: HermesInstancePublic | null;
   previewMode: boolean;
   initialMessages?: HermesPersistedMessage[];
@@ -235,6 +238,7 @@ export default function RunningState({
   userName,
   userImageUrl,
   avatarSeed,
+  orbBaseSeed,
   instance,
   previewMode,
   initialMessages,
@@ -1118,6 +1122,8 @@ export default function RunningState({
             lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
             lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
             assistantName={instance?.assistantName ?? null}
+            avatarSeed={instance?.avatarSeed ?? null}
+            orbBaseSeed={orbBaseSeed}
             onDestroy={onDestroy}
             onRefreshInstance={onRefresh}
           />
@@ -1200,10 +1206,15 @@ function MessageRow({
   const formatter = useFormatter();
   const isUser = message.role === "user";
   const createdAt = new Date(message.createdAt);
-  const timestamp = formatter.dateTime(createdAt, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  // Same-day messages show just the time; older ones carry the date so
+  // scrollback stays legible ("Jul 16, 14:32" instead of a bare "14:32").
+  const isSameDay = createdAt.toDateString() === new Date().toDateString();
+  const timestamp = formatter.dateTime(
+    createdAt,
+    isSameDay
+      ? { hour: "2-digit", minute: "2-digit" }
+      : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
+  );
 
   if (isUser) {
     return (

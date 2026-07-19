@@ -24,6 +24,7 @@ const {
   hermesPendingConnectionDeleteMock,
   hermesPendingConnectionFindUniqueMock,
   hermesPendingConnectionUpsertMock,
+  hermesInstanceUpsertMock,
   hermesMessageCreateMock,
   hermesMessageFindManyMock,
   hermesMessageUpsertMock,
@@ -81,6 +82,7 @@ const {
     hermesPendingConnectionDeleteMock: vi.fn(),
     hermesPendingConnectionFindUniqueMock: vi.fn(),
     hermesPendingConnectionUpsertMock: vi.fn(),
+    hermesInstanceUpsertMock: vi.fn(),
     hermesMessageCreateMock: vi.fn(),
     hermesMessageFindManyMock: vi.fn(),
     hermesMessageUpsertMock: vi.fn(),
@@ -129,7 +131,7 @@ vi.mock("@/lib/db/prisma", () => ({
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findUnique: vi.fn().mockResolvedValue(null),
       update: vi.fn().mockResolvedValue(undefined),
-      upsert: vi.fn().mockResolvedValue(undefined),
+      upsert: hermesInstanceUpsertMock,
     },
     hermesMessage: {
       create: hermesMessageCreateMock,
@@ -279,6 +281,7 @@ describe("Hermes route contracts", () => {
     hermesMessageFindManyMock.mockResolvedValue([]);
     hermesMessageCreateMock.mockResolvedValue(undefined);
     hermesMessageUpsertMock.mockResolvedValue(undefined);
+    hermesInstanceUpsertMock.mockResolvedValue(undefined);
     ensureInstanceReadyMock.mockResolvedValue(undefined);
     syncHermesInboxForUserMock.mockResolvedValue({
       userId: "user_123",
@@ -1074,6 +1077,52 @@ describe("Hermes route contracts", () => {
       expect.any(Promise),
       expect.any(Promise),
     ]);
+  });
+
+  it("persists a re-picked orb seed via PATCH /me/instance", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ avatarSeed: "orb:jewel-sky:user_123" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(hermesInstanceUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123" },
+        create: expect.objectContaining({
+          avatarSeed: "orb:jewel-sky:user_123",
+        }),
+        update: expect.objectContaining({
+          avatarSeed: "orb:jewel-sky:user_123",
+        }),
+      }),
+    );
+  });
+
+  it("resets the orb seed to the placeholder with an explicit null", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ avatarSeed: null }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(hermesInstanceUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ avatarSeed: null }),
+      }),
+    );
   });
 
   it("rejects the purge endpoint for regular user credentials", async () => {

@@ -5171,6 +5171,14 @@ export const HermesUpdateInstanceRequestSchema = {
             minLength: 1,
             maxLength: 60
         },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 120
+        },
         email: {
             type: 'string',
             format: 'email'

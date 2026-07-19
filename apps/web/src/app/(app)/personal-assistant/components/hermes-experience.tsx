@@ -423,6 +423,14 @@ export default function HermesExperience({
     requestHermesNavRefresh();
   }, [instance?.assistantName, instance?.avatarSeed]);
 
+  // Once the instance carries a persisted seed, the optimistic setup-time
+  // choice has served its purpose — drop it so later changes (e.g. re-picking
+  // the colour in Settings) take effect immediately instead of being shadowed
+  // by the stale session snapshot.
+  useEffect(() => {
+    if (instance?.avatarSeed != null) setCommittedSeed(undefined);
+  }, [instance?.avatarSeed]);
+
   // Low-frequency instance refresh once we're running. The settings panel
   // mutates integration state via local overlay; without a parent refresh the
   // integrations chip and pendingConfirmations on the chat header drift until
@@ -636,6 +644,7 @@ export default function HermesExperience({
       userName={userName ?? null}
       userImageUrl={userImageUrl ?? null}
       avatarSeed={effectiveOrbSeed}
+      orbBaseSeed={orbBaseSeed}
       instance={instance}
       previewMode={previewMode}
       initialMessages={initialMessages}

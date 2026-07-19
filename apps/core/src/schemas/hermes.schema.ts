@@ -311,6 +311,9 @@ export const hermesUpdateInstanceRequestSchema = z
     name: z.string().min(1).optional(),
     /** Rename the assistant. Sokosumi-side metadata; see start-onboarding. */
     assistantName: z.string().min(1).max(60).optional(),
+    /** Re-pick the orb avatar seed. Sokosumi-side metadata; `null` resets to
+     * the white placeholder. */
+    avatarSeed: z.string().min(1).max(120).nullable().optional(),
     email: z.string().email().optional(),
     /** IANA tz, e.g. "America/New_York". */
     timezone: z.string().min(1).max(64).optional(),
@@ -320,6 +323,7 @@ export const hermesUpdateInstanceRequestSchema = z
       input.autonomyLevel !== undefined ||
       input.name !== undefined ||
       input.assistantName !== undefined ||
+      input.avatarSeed !== undefined ||
       input.email !== undefined ||
       input.timezone !== undefined,
     { message: "At least one field must be provided." },

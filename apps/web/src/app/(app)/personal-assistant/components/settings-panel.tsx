@@ -11,6 +11,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { hermesOAuthConnectErrorMessage } from "@/app/personal-assistant/components/hermes-oauth-messages";
+import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
 
 import {
   AlertDialog,
@@ -37,6 +38,7 @@ import {
   toggleHermesScheduleAction,
   updateHermesInstanceAction,
 } from "@/lib/actions/hermes";
+import { orbCandidateSeeds } from "@/lib/aurora-orb";
 import { humanizeCron } from "@/lib/hermes/humanize-cron";
 import type {
   HermesAutonomyLevel,
@@ -58,6 +60,10 @@ interface SettingsPanelProps {
   previewMode: boolean;
   /** Current assistant display name (null until the user names it). */
   assistantName: string | null;
+  /** Persisted orb seed (null = white placeholder). */
+  avatarSeed: string | null;
+  /** Base seed for the curated palette (the user's id). */
+  orbBaseSeed: string;
   integrations: HermesIntegration[];
   /** Current autonomy tier — drives the selector's checked state. */
   autonomyLevel: HermesAutonomyLevel;
@@ -110,6 +116,8 @@ export default function SettingsPanel({
   onOpenChange,
   previewMode,
   assistantName,
+  avatarSeed,
+  orbBaseSeed,
   integrations,
   autonomyLevel,
   lastSokosumiSyncAt,
@@ -153,6 +161,43 @@ export default function SettingsPanel({
     toast.success(t("nameSavedToast"));
     void onRefreshInstance?.();
   }, [nameDraft, assistantName, previewMode, onRefreshInstance, t]);
+  const tOnboarding = useTranslations("App.Hermes.Onboarding");
+  const orbSeeds = useMemo(() => orbCandidateSeeds(orbBaseSeed), [orbBaseSeed]);
+  // Optimistic local orb choice, resynced from the server prop — same
+  // pattern as the name/autonomy drafts above.
+  const [orbDraft, setOrbDraft] = useState<string | null>(avatarSeed);
+  const [orbSaving, setOrbSaving] = useState(false);
+
+  useEffect(() => {
+    setOrbDraft(avatarSeed);
+  }, [avatarSeed]);
+
+  const handlePickOrb = useCallback(
+    async (seed: string | null) => {
+      if (orbSaving || seed === orbDraft) return;
+      const previous = orbDraft;
+      setOrbDraft(seed);
+
+      if (previewMode) {
+        toast.success(t("lookSavedToast"));
+        return;
+      }
+
+      setOrbSaving(true);
+      const result = await updateHermesInstanceAction({ avatarSeed: seed });
+      setOrbSaving(false);
+
+      if (!result.ok) {
+        setOrbDraft(previous);
+        toast.error(result.error.message ?? t("lookSaveFailed"));
+        return;
+      }
+      toast.success(t("lookSavedToast"));
+      void onRefreshInstance?.();
+    },
+    [orbDraft, orbSaving, previewMode, onRefreshInstance, t],
+  );
+
   const [schedules, setSchedules] = useState<HermesSchedule[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
   // Optimistic local autonomy: lets the radio reflect the user's click
@@ -373,6 +418,59 @@ export default function SettingsPanel({
                   ) : null}
                   {t("nameSave")}
                 </Button>
+              </div>
+            </PanelSection>
+
+            {/* ── Orb colour (identity; the only place to re-pick it
+                 after setup) ────────────────────────────────────── */}
+            <PanelSection
+              title={t("lookSection")}
+              description={t("lookHelp")}
+              trailing={
+                orbSaving ? (
+                  <Loader2
+                    className="text-muted-foreground size-3.5 animate-spin"
+                    aria-hidden
+                  />
+                ) : null
+              }
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handlePickOrb(null)}
+                  aria-pressed={orbDraft === null}
+                  aria-label={tOnboarding("orbWhiteLabel")}
+                  disabled={orbSaving}
+                  className={cn(
+                    "focus-visible:ring-primary/40 rounded-full p-0.5 outline-none transition-all focus-visible:ring-2",
+                    orbDraft === null
+                      ? "ring-primary ring-offset-background ring-2 ring-offset-2"
+                      : "ring-border/60 hover:ring-foreground/30 ring-1",
+                  )}
+                >
+                  <PlaceholderOrb size={80} className="size-9" />
+                </button>
+                {orbSeeds.map((seed, index) => (
+                  <button
+                    key={seed}
+                    type="button"
+                    onClick={() => void handlePickOrb(seed)}
+                    aria-pressed={seed === orbDraft}
+                    aria-label={tOnboarding("orbOptionLabel", {
+                      index: index + 1,
+                    })}
+                    disabled={orbSaving}
+                    className={cn(
+                      "focus-visible:ring-primary/40 rounded-full p-0.5 outline-none transition-all focus-visible:ring-2",
+                      seed === orbDraft
+                        ? "ring-primary ring-offset-background ring-2 ring-offset-2"
+                        : "ring-border/60 hover:ring-foreground/30 ring-1",
+                    )}
+                  >
+                    <AuroraOrb seed={seed} size={80} className="size-9" />
+                  </button>
+                ))}
               </div>
             </PanelSection>
 

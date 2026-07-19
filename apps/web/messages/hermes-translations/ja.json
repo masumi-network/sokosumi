@@ -477,6 +477,10 @@
     "namePlaceholder": "アシスタントに名前を付けましょう",
     "nameSave": "保存",
     "nameSavedToast": "名前を更新しました。",
-    "nameSaveFailed": "名前を更新できませんでした。もう一度お試しください。"
+    "nameSaveFailed": "名前を更新できませんでした。もう一度お試しください。",
+    "lookSection": "オーブの色",
+    "lookHelp": "アプリ全体でのアシスタントの見た目です。変更はすぐに反映されます。",
+    "lookSavedToast": "オーブの色を更新しました。",
+    "lookSaveFailed": "オーブの色を更新できませんでした。もう一度お試しください。"
   }
 }

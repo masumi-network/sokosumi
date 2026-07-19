@@ -478,6 +478,10 @@
     "namePlaceholder": "Dai un nome al tuo assistente",
     "nameSave": "Salva",
     "nameSavedToast": "Nome aggiornato.",
-    "nameSaveFailed": "Impossibile aggiornare il nome. Riprova."
+    "nameSaveFailed": "Impossibile aggiornare il nome. Riprova.",
+    "lookSection": "Colore dell'orb",
+    "lookHelp": "L'aspetto del tuo assistente in tutta l'app. Le modifiche sono immediate.",
+    "lookSavedToast": "Colore dell'orb aggiornato.",
+    "lookSaveFailed": "Impossibile aggiornare il colore dell'orb. Riprova."
   }
 }
