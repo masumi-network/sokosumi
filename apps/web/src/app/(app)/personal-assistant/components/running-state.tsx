@@ -1740,96 +1740,107 @@ function Composer({
       className="w-full"
       label={attachLabel}
     >
-      <PromptInput
-        onSubmit={onSubmit}
+      {/* Same animated gradient border + soft glow as the /chat composer
+          (`.chat-input-border-anchor` in globals.css) so the two chat
+          surfaces read as one product. */}
+      <div
         className={cn(
-          "border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border transition-all duration-200",
-          disabled && "opacity-60 pointer-events-none",
+          "chat-input-border-anchor",
+          "relative rounded-xl",
+          "shadow-[0_0_16px_0] shadow-primary/15",
+          "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
+          "transition-shadow duration-300",
+          disabled && "pointer-events-none opacity-60",
         )}
       >
-        <FileUploadDropzone
-          className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
-          onClick={(event) => event.preventDefault()}
+        <PromptInput
+          onSubmit={onSubmit}
+          className="bg-background relative z-10 rounded-[calc(var(--radius-xl)-1.5px)] border-0 shadow-none transition-all duration-200"
         >
-          <PromptInputTextarea
-            ref={ref}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              disabled ? t("composerDisabledPlaceholder") : dynamicPlaceholder
-            }
-            disableAutoResize
-            maxHeight={200}
-            minHeight={44}
-            autoFocus
-            disabled={disabled}
-            className="placeholder:text-muted-foreground scrollbar-none grow resize-none border-0! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
-          />
-        </FileUploadDropzone>
+          <FileUploadDropzone
+            className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+            onClick={(event) => event.preventDefault()}
+          >
+            <PromptInputTextarea
+              ref={ref}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                disabled ? t("composerDisabledPlaceholder") : dynamicPlaceholder
+              }
+              disableAutoResize
+              maxHeight={200}
+              minHeight={44}
+              autoFocus
+              disabled={disabled}
+              className="placeholder:text-muted-foreground scrollbar-none grow resize-none border-0! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+            />
+          </FileUploadDropzone>
 
-        <FileUploadList orientation="horizontal" className="gap-2 px-3 pb-1">
-          {files.map((file) => (
-            <FileUploadItem
-              key={`${file.name}-${file.lastModified}`}
-              value={file}
-              className="bg-muted/40 border-border/60 flex max-w-56 items-center gap-2 rounded-md border px-2 py-1.5"
-            >
-              <FileUploadItemPreview className="size-7 shrink-0 rounded" />
-              <FileUploadItemMetadata className="min-w-0 flex-1 text-xs" />
-              <FileUploadItemDelete asChild>
+          <FileUploadList orientation="horizontal" className="gap-2 px-3 pb-1">
+            {files.map((file) => (
+              <FileUploadItem
+                key={`${file.name}-${file.lastModified}`}
+                value={file}
+                className="bg-muted/40 border-border/60 flex max-w-56 items-center gap-2 rounded-md border px-2 py-1.5"
+              >
+                <FileUploadItemPreview className="size-7 shrink-0 rounded" />
+                <FileUploadItemMetadata className="min-w-0 flex-1 text-xs" />
+                <FileUploadItemDelete asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground size-6 shrink-0 rounded-full"
+                    aria-label={t("removeFile")}
+                  >
+                    <X className="size-3.5" aria-hidden />
+                  </Button>
+                </FileUploadItemDelete>
+              </FileUploadItem>
+            ))}
+          </FileUploadList>
+
+          <PromptInputToolbar className="border-t-0 p-3">
+            <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
+              <FileUploadTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground size-6 shrink-0 rounded-full"
-                  aria-label={t("removeFile")}
+                  size="sm"
+                  className="size-8 rounded-full! p-0"
+                  title={attachLabel}
+                  aria-label={attachLabel}
                 >
-                  <X className="size-3.5" aria-hidden />
+                  <Plus className="size-3.5" />
                 </Button>
-              </FileUploadItemDelete>
-            </FileUploadItem>
-          ))}
-        </FileUploadList>
+              </FileUploadTrigger>
+            </PromptInputTools>
 
-        <PromptInputToolbar className="border-t-0 p-3">
-          <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
-            <FileUploadTrigger asChild>
+            {isReplying ? (
               <Button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="size-8 rounded-full! p-0"
-                title={attachLabel}
-                aria-label={attachLabel}
+                variant="default"
+                size="icon"
+                onClick={onStop}
+                aria-label={stopLabel}
+                className="size-8 rounded-full"
               >
-                <Plus className="size-3.5" />
+                <StopIcon size={14} />
               </Button>
-            </FileUploadTrigger>
-          </PromptInputTools>
-
-          {isReplying ? (
-            <Button
-              type="button"
-              variant="default"
-              size="icon"
-              onClick={onStop}
-              aria-label={stopLabel}
-              className="size-8 rounded-full"
-            >
-              <StopIcon size={14} />
-            </Button>
-          ) : (
-            <PromptInputSubmit
-              className="size-8 rounded-full transition-colors duration-200"
-              disabled={!canSend}
-              status={status}
-              aria-label={sendLabel}
-            >
-              <ArrowUpIcon size={14} />
-            </PromptInputSubmit>
-          )}
-        </PromptInputToolbar>
-      </PromptInput>
+            ) : (
+              <PromptInputSubmit
+                className="size-8 rounded-full transition-colors duration-200"
+                disabled={!canSend}
+                status={status}
+                aria-label={sendLabel}
+              >
+                <ArrowUpIcon size={14} />
+              </PromptInputSubmit>
+            )}
+          </PromptInputToolbar>
+        </PromptInput>
+      </div>
     </FileUpload>
   );
 }
