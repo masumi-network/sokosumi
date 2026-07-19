@@ -486,5 +486,8 @@
     "chip": "Autonomia",
     "title": "Autonomia",
     "subtitle": "Il tuo assistente lavora per te in background: esegue attività pianificate e agisce da solo. Scegli quanto può fare senza chiedere."
+  },
+  "Error": {
+    "startOver": "Ricomincia"
   }
 }

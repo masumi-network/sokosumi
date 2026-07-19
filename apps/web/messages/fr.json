@@ -2558,7 +2558,8 @@
       "Error": {
         "title": "Impossible de démarrer votre Hermes",
         "description": "L’orchestrateur a renvoyé une erreur. Réessayez dans une minute. Si le problème persiste, contactez le support.",
-        "retry": "Réessayer"
+        "retry": "Réessayer",
+        "startOver": "Recommencer"
       },
       "Skills": {
         "title": "Skills",

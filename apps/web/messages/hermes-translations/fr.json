@@ -484,5 +484,8 @@
     "chip": "Autonomie",
     "title": "Autonomie",
     "subtitle": "Votre assistant travaille pour vous en arrière-plan — il exécute des tâches planifiées et agit de lui-même. Choisissez ce qu'il peut faire sans demander."
+  },
+  "Error": {
+    "startOver": "Recommencer"
   }
 }

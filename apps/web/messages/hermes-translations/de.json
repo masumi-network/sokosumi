@@ -486,5 +486,8 @@
     "chip": "Autonomie",
     "title": "Autonomie",
     "subtitle": "Dein Assistent arbeitet im Hintergrund für dich — führt geplante Aufgaben aus und handelt eigenständig. Lege fest, wie viel er ohne Rückfrage tun darf."
+  },
+  "Error": {
+    "startOver": "Neu beginnen"
   }
 }

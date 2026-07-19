@@ -2558,7 +2558,8 @@
       "Error": {
         "title": "Hermes konnte nicht gestartet werden",
         "description": "Der Orchestrator hat einen Fehler gemeldet. Bitte in einer Minute erneut versuchen. Wenn es weiter passiert, kontaktiere den Support.",
-        "retry": "Erneut versuchen"
+        "retry": "Erneut versuchen",
+        "startOver": "Neu beginnen"
       },
       "Skills": {
         "title": "Skills",

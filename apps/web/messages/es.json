@@ -2558,7 +2558,8 @@
       "Error": {
         "title": "No pudimos iniciar tu Hermes",
         "description": "El orquestador devolvió un error. Vuelve a intentarlo en un minuto. Si continúa, contacta con soporte.",
-        "retry": "Reintentar"
+        "retry": "Reintentar",
+        "startOver": "Empezar de nuevo"
       },
       "Skills": {
         "title": "Skills",

@@ -485,5 +485,8 @@
     "chip": "Autonomía",
     "title": "Autonomía",
     "subtitle": "Tu asistente trabaja para ti en segundo plano: ejecuta tareas programadas y actúa por su cuenta. Elige cuánto puede hacer sin preguntar."
+  },
+  "Error": {
+    "startOver": "Empezar de nuevo"
   }
 }

@@ -2558,7 +2558,8 @@
       "Error": {
         "title": "无法启动 Hermes",
         "description": "编排器返回错误。请在一分钟后重试；若持续出现请联系支持。",
-        "retry": "重试"
+        "retry": "重试",
+        "startOver": "重新开始"
       },
       "Skills": {
         "title": "Skills",

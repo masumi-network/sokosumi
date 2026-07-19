@@ -2575,7 +2575,8 @@
       "Error": {
         "title": "We couldn't start your assistant",
         "description": "The orchestrator returned an error. Try again in a minute. If it keeps happening, contact support.",
-        "retry": "Try again"
+        "retry": "Try again",
+        "startOver": "Start over"
       },
       "Skills": {
         "title": "Skills",

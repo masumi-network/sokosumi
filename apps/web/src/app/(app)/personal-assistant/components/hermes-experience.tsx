@@ -639,7 +639,18 @@ export default function HermesExperience({
   }
   if (uiState === "error") {
     return (
-      <ErrorState message={errorMessage ?? undefined} onRetry={handleRetry} />
+      <ErrorState
+        message={errorMessage ?? undefined}
+        onRetry={handleRetry}
+        // Offer the destroy-and-restart escape hatch only when an instance
+        // actually exists and is the thing that's stuck — for transient
+        // fetch failures there is nothing to destroy.
+        onStartOver={
+          !previewMode && instance?.status === "error"
+            ? handleDestroy
+            : undefined
+        }
+      />
     );
   }
   return (

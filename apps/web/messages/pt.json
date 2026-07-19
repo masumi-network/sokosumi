@@ -2558,7 +2558,8 @@
       "Error": {
         "title": "Não foi possível iniciar o Hermes",
         "description": "O orquestrador devolveu um erro. Tente novamente dentro de um minuto. Se persistir, contacte o suporte.",
-        "retry": "Tentar novamente"
+        "retry": "Tentar novamente",
+        "startOver": "Recomeçar"
       },
       "Skills": {
         "title": "Skills",

@@ -2558,7 +2558,8 @@
       "Error": {
         "title": "Hermes を起動できませんでした",
         "description": "オーケストレーターがエラーを返しました。1分後に再試行してください。繰り返す場合はサポートへご連絡ください。",
-        "retry": "再試行"
+        "retry": "再試行",
+        "startOver": "最初からやり直す"
       },
       "Skills": {
         "title": "Skills",

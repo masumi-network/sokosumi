@@ -2558,7 +2558,8 @@
       "Error": {
         "title": "Non siamo riusciti ad avviare Hermes",
         "description": "L’orchestrator ha restituito un errore. Riprova tra un minuto. Se persiste, contatta il supporto.",
-        "retry": "Riprova"
+        "retry": "Riprova",
+        "startOver": "Ricomincia"
       },
       "Skills": {
         "title": "Skills",
