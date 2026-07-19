@@ -59,8 +59,22 @@ export const jobSummarySchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    userId: z.string().openapi({ example: "user_123" }),
-    user: userSummarySchema,
+    ownerId: z.string().openapi({
+      example: "user_123",
+      description: "Job owner. Always a user.",
+    }),
+    owner: userSummarySchema,
+    /** @deprecated Use `ownerId`. */
+    userId: z.string().openapi({
+      example: "user_123",
+      deprecated: true,
+      description: "Deprecated. Use ownerId instead.",
+    }),
+    /** @deprecated Use `owner`. */
+    user: userSummarySchema.openapi({
+      deprecated: true,
+      description: "Deprecated. Use owner instead.",
+    }),
     organizationId: z
       .string()
       .nullish()
@@ -186,8 +200,22 @@ export const jobSchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    userId: z.string().openapi({ example: "user_123" }),
-    user: userSummarySchema,
+    ownerId: z.string().openapi({
+      example: "user_123",
+      description: "Job owner. Always a user.",
+    }),
+    owner: userSummarySchema,
+    /** @deprecated Use `ownerId`. */
+    userId: z.string().openapi({
+      example: "user_123",
+      deprecated: true,
+      description: "Deprecated. Use ownerId instead.",
+    }),
+    /** @deprecated Use `owner`. */
+    user: userSummarySchema.openapi({
+      deprecated: true,
+      description: "Deprecated. Use owner instead.",
+    }),
     organizationId: z
       .string()
       .nullish()

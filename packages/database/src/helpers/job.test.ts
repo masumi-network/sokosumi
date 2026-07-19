@@ -11,7 +11,7 @@ function createPaidJob(overrides: Record<string, unknown> = {}) {
     id: "job-1",
     createdAt: new Date(now.getTime() - 60 * 60 * 1000),
     updatedAt: now,
-    userId: "user-1",
+    ownerId: "user-1",
     organizationId: null,
     agentId: "agent-1",
     agentJobId: "remote-job-1",

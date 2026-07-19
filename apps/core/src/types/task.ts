@@ -1,6 +1,6 @@
 import { type Prisma, workspaceRelationInclude } from "@sokosumi/database";
 import {
-  jobSummaryUserOrganizationInclude,
+  jobSummaryOwnerOrganizationInclude,
   jobWithEvents,
   jobWithPurchase,
   jobWithTransaction,
@@ -47,7 +47,7 @@ const taskBaseInclude = {
       ...jobWithEvents,
       ...jobWithTransaction,
       ...jobWithPurchase,
-      ...jobSummaryUserOrganizationInclude,
+      ...jobSummaryOwnerOrganizationInclude,
     },
     orderBy: {
       createdAt: "asc",

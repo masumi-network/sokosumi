@@ -139,7 +139,7 @@ function createFullJobForSecondFetch() {
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: new Date("2026-03-26T10:10:00.000Z"),
     agentId: "agent_123",
-    userId: "user_123",
+    ownerId: "user_123",
     organizationId: "org_123",
     taskId: null,
     name: "Shared Job",
@@ -155,7 +155,7 @@ function createFullJobForSecondFetch() {
     refundedTransaction: null,
     refundedTransactionId: null,
     share: null,
-    user: {
+    owner: {
       id: "user_123",
       name: "Ada Lovelace",
       image: null,
@@ -241,7 +241,7 @@ describe("POST /jobs/{id}/refund", () => {
       ) => {
         if (transactionPhase === "preflight") {
           jobFindUniqueMock.mockResolvedValueOnce({
-            userId: "user_123",
+            ownerId: "user_123",
             jobType: JobType.PAID,
             blockchainIdentifier: "purchase_bc_1",
             purchase: { externalId: "purchase_ext_1" },

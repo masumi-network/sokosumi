@@ -31,7 +31,7 @@ function buildJob(taskId: string) {
     createdAt: new Date("2026-03-01T10:00:00.000Z"),
     completedAt: null,
     updatedAt: new Date("2026-03-01T10:00:00.000Z"),
-    userId: "user-1",
+    ownerId: "user-1",
     organizationId: null,
     status: "processing",
     jobType: "PAID",

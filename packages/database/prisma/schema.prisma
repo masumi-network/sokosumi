@@ -34,7 +34,7 @@ model User {
 
   userAgentRatings UserAgentRating[]
   transactions     Transaction[]
-  jobs             Job[]
+  ownedJobs        Job[] @relation("JobOwner")
 
   stripeCustomerId        String?
   preferredOrganizationId String?
@@ -799,8 +799,8 @@ model Job {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerId String
+  owner   User   @relation("JobOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -844,7 +844,7 @@ model Job {
   projectId String?    @db.Uuid
   project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
+  @@index([ownerId])
   @@index([jobType])
   @@index([taskId])
   @@index([workspaceId])

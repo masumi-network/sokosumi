@@ -12,7 +12,7 @@ describe("isReadOnlyForViewer", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: null,
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: true,
         taskStatus: TaskStatus.READY,
@@ -24,7 +24,7 @@ describe("isReadOnlyForViewer", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -36,7 +36,7 @@ describe("isReadOnlyForViewer", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -48,7 +48,7 @@ describe("isReadOnlyForViewer", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: null,
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -60,7 +60,7 @@ describe("isReadOnlyForViewer", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: null,
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -72,7 +72,7 @@ describe("isReadOnlyForViewer", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: null,
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -84,7 +84,7 @@ describe("isReadOnlyForViewer", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
@@ -144,7 +144,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -156,7 +156,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: true,
         taskStatus: TaskStatus.READY,
@@ -168,7 +168,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: null,
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -180,7 +180,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
+        taskOwnerId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
