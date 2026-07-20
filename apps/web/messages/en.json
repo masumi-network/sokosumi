@@ -2515,6 +2515,8 @@
         "lookHelp": "Your assistant's look across the app. Changes apply immediately.",
         "lookSavedToast": "Orb colour updated.",
         "lookSaveFailed": "Couldn't update the orb colour. Try again.",
+        "personalitySection": "Personality",
+        "personalitySetupOnly": "Tone, detail, and style are chosen during setup and can't be changed here. Destroy and activate again to pick a new personality.",
         "modelSection": "Model",
         "modelLabel": "Model",
         "modelValue": "deepseek-4-flash",

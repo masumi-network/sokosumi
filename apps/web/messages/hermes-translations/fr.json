@@ -484,7 +484,9 @@
     "lookSection": "Couleur de l'orbe",
     "lookHelp": "L'apparence de votre assistant dans toute l'application. Les changements s'appliquent immédiatement.",
     "lookSavedToast": "Couleur de l'orbe mise à jour.",
-    "lookSaveFailed": "Impossible de mettre à jour la couleur de l'orbe. Réessayez."
+    "lookSaveFailed": "Impossible de mettre à jour la couleur de l'orbe. Réessayez.",
+    "personalitySection": "Personnalité",
+    "personalitySetupOnly": "Le ton, le niveau de détail et le style sont choisis à l'installation et ne peuvent pas être modifiés ici. Détruisez puis réactivez pour choisir une autre personnalité."
   },
   "AutonomyPanel": {
     "chip": "Autonomie",

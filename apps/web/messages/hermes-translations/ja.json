@@ -485,7 +485,9 @@
     "lookSection": "オーブの色",
     "lookHelp": "アプリ全体でのアシスタントの見た目です。変更はすぐに反映されます。",
     "lookSavedToast": "オーブの色を更新しました。",
-    "lookSaveFailed": "オーブの色を更新できませんでした。もう一度お試しください。"
+    "lookSaveFailed": "オーブの色を更新できませんでした。もう一度お試しください。",
+    "personalitySection": "パーソナリティ",
+    "personalitySetupOnly": "トーン・詳細度・スタイルはセットアップ時に選び、ここでは変更できません。別の性格にするには破棄してから再アクティブ化してください。"
   },
   "AutonomyPanel": {
     "chip": "自律性",

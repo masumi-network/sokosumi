@@ -484,7 +484,9 @@
     "lookSection": "球体颜色",
     "lookHelp": "助手在整个应用中的外观。更改立即生效。",
     "lookSavedToast": "球体颜色已更新。",
-    "lookSaveFailed": "无法更新球体颜色，请重试。"
+    "lookSaveFailed": "无法更新球体颜色，请重试。",
+    "personalitySection": "个性",
+    "personalitySetupOnly": "语气、细节与风格在设置时选定，此处无法更改。如需换个性，请销毁后重新激活。"
   },
   "AutonomyPanel": {
     "chip": "自主性",

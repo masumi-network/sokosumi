@@ -13,7 +13,7 @@ export default function PanelSection({
   title: string;
   description?: string;
   trailing?: React.ReactNode;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-4">

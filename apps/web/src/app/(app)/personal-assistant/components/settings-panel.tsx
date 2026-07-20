@@ -476,6 +476,12 @@ export default function SettingsPanel({
               />
             </PanelSection>
 
+            {/* ── Personality is setup-only (no PATCH today) ───── */}
+            <PanelSection
+              title={t("personalitySection")}
+              description={t("personalitySetupOnly")}
+            />
+
             {/* ── Skills (skills.sh marketplace) ───────────────── */}
             {!previewMode ? (
               <SkillsMarketplace

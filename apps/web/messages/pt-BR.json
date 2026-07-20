@@ -2506,6 +2506,8 @@
         "lookHelp": "A aparência do seu assistente em todo o app. As mudanças valem na hora.",
         "lookSavedToast": "Cor do orbe atualizada.",
         "lookSaveFailed": "Não foi possível atualizar a cor do orbe. Tente novamente.",
+        "personalitySection": "Personalidade",
+        "personalitySetupOnly": "Tom, detalhe e estilo são escolhidos na configuração e não podem ser alterados aqui. Destrua e ative de novo para escolher outra personalidade.",
         "modelSection": "Modelo",
         "modelLabel": "Modelo",
         "modelValue": "deepseek-4-flash",

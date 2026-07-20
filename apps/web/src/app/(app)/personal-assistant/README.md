@@ -56,9 +56,9 @@ The page is a state machine driven off `getHermesInstanceAction`:
 | ----------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `idle`                  | `EmptyState`          | No instance. Activation-first hero, capability summary, shortened journey, features, things-to-try carousel, disclaimer.               |
 | `provisioning`          | `ProvisioningState`   | `POST /me/instance` fired. Fly machine is booting; UI shows elapsed time, honest milestones, and rotating Hermes facts.                |
-| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Five-step wizard: **Name → Look + personality → Autonomy → Integrations → Review**.                         |
+| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Five-step wizard: **Name → Look + personality → Autonomy → Integrations → Review**. Personality is chosen here only (not editable later in Settings). |
 | `onboarding`            | `OnboardingProgress`  | `POST /me/instance/onboard` fired. Polls `/onboarding-progress` every second; renders the orchestrator's step list with status icons.  |
-| `ready` / `running`     | `RunningState`        | Chat is open. Integrations chip in top-right routes into Settings.                                                                     |
+| `ready` / `running`     | `RunningState`        | Chat is open. Header chips: Integrations → Settings; Autonomy → Autonomy panel (level + scheduled tasks). Skills live in Settings.   |
 | `error`                 | `ErrorState`          | Orchestrator error, fetch failure, or client provision timeout. Retry refetches instance status (does not re-fire provision). Start over destroys when status is `error`/`provisioning` or after a provision timeout. |
 
 All states share a `FlowBackground` (animated violet/cyan/amber blobs) and
@@ -94,9 +94,13 @@ The orchestrator exposes three operational tiers on every instance:
 
 Surfaces:
 
-- **Onboarding step 2** — `AutonomySelector` (radio cards with accent-tinted icon tiles).
-- **Settings sheet** — same selector in compact mode. Edits fire `PATCH /me/instance` (`updateHermesInstanceAction`); optimistic local state reverts on error.
+- **Onboarding step 3** — `AutonomySelector` (radio cards with accent-tinted icon tiles).
+- **Autonomy panel** (header chip) — same selector plus the scheduled-tasks list. Edits fire `PATCH /me/instance` (`updateHermesInstanceAction`); optimistic local state reverts on error.
 - **Type** — `HermesAutonomyLevel = "low" | "medium" | "high"`; default `"medium"` everywhere.
+
+### Personality (setup-only)
+
+Tone / detail / style (0–100) are chosen on onboarding step 2 (Look + personality), forwarded to the orchestrator, and mirrored on `hermesInstance`. Settings can rename the assistant and re-pick the orb colour after setup; **personality is not editable post-onboard** (no PATCH field today). Re-provision / destroy + activate again is the only way to change it.
 
 ---
 
@@ -234,8 +238,6 @@ The route is open to all authenticated users; activating **and using**
 (chat, onboard, settings mutations, skills, confirmations) are gated by a
 paid plan (or admin role) on the Core endpoints. Viewing history and
 destroying an instance stay open so cancelled users can tear down.
-Locally it's enabled for users in `HERMES_BETA_ALLOWLIST`, or for everyone
-when `HERMES_BETA_ALL_USERS=true`.
 
 ### Bypassing the subscription gate
 
@@ -294,17 +296,19 @@ apps/web/src/app/(app)/personal-assistant/
     ├── provisioning-state.tsx           ← honest "Setting up your agent…" view
     ├── onboarding-screen.tsx            ← 5-step wizard: Name → Look/personality → Autonomy → Integrations → Review
     ├── onboarding-progress.tsx          ← orchestrator step poll UI
-    ├── running-state.tsx                ← chat shell; imports running-state/ modules
-    ├── running-state/                   ← chat UI pieces (messages, composer, confirmations, …)
-    ├── error-state.tsx                  ← retry from error
+    ├── running-state.tsx                ← chat shell (hooks + panels + layout)
+    ├── running-state/                   ← timeline, composer, confirmations, scroll/send/inbox hooks, stream
+    ├── error-state.tsx                  ← retry / start-over from error
     │
     ├── autonomy-selector.tsx            ← shared low/medium/high radio cards
-    ├── settings-panel.tsx               ← right-side sheet (model / autonomy / integrations / sync / schedules / danger)
+    ├── autonomy-panel.tsx               ← autonomy level + scheduled tasks sheet
+    ├── settings-panel.tsx               ← name / orb / integrations / skills / sync / danger
+    ├── skills-marketplace.tsx           ← skills.sh catalog (Settings)
     ├── connect-interstitial.tsx         ← pre-OAuth modal; maps slug → identity provider
     ├── use-composio-oauth.ts            ← popup orchestration + postMessage handshake
     │
     ├── flow-background.tsx              ← animated gradient blobs
-    ├── fullscreen-effect.tsx            ← body data-attr toggle, hides shared header
+    ├── fullscreen-effect.tsx            ← body data-attr toggle for full-bleed below header
     ├── progress-pips.tsx                ← Setup / Personalize / Ready
     └── rotating-messages.tsx            ← cycling text (provisioning + thinking)
 ```
