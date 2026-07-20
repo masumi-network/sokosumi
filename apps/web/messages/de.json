@@ -120,6 +120,7 @@
       "account": "Konto",
       "billing": "Abrechnung",
       "connections": "Verbindungen",
+      "developer": "Entwickler",
       "support": "Support",
       "logout": "Abmelden",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits verwendet",
@@ -256,6 +257,7 @@
       "chat": "Chat",
       "tasks": "Aufgaben",
       "connections": "Verbindungen",
+      "developer": "Entwickler",
       "personal-assistant": "Persönlicher Assistent",
       "history": "Verlauf",
       "new": "Neu",
@@ -3225,13 +3227,6 @@
         "unknownError": "Etwas ist schiefgelaufen"
       }
     },
-    "Connections": {
-      "tabs": {
-        "connectedApps": "Verbundene Apps",
-        "apiKeys": "API-Keys",
-        "mcp": "MCP"
-      }
-    },
     "MCP": {
       "urlLabel": "MCP Server URL",
       "existingKeyNote": "Diese gehostete MCP-Verbindung verwendet OAuth. Dein MCP-Client fordert dich beim Verbinden auf, dich bei Sokosumi anzumelden.",
@@ -3451,7 +3446,8 @@
           "namePattern": "API-Key-Name darf nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche enthalten",
           "keyIdRequired": "API-Key-ID ist erforderlich",
           "confirmNameRequired": "Bitte bestätige den API-Key-Namen"
-        }
+        },
+        "retry": "Erneut versuchen"
       },
       "AuthorizedClients": {
         "title": "Autorisierte Anwendungen",
@@ -3499,10 +3495,8 @@
       },
       "OAuthClients": {
         "title": "OAuth-Clients",
-        "description": "Verwalte OAuth-Clients, die auf deinen Account zugreifen können",
+        "description": "Erstellen und verwalten Sie OAuth-Clients für Ihre Anwendungen.",
         "createButton": "OAuth-Client erstellen",
-        "createSuccess": "OAuth-Client erfolgreich erstellt",
-        "createError": "OAuth-Client konnte nicht erstellt werden",
         "copy": "Kopieren",
         "copySuccess": "In Zwischenablage kopiert",
         "CreateDialog": {
@@ -3512,7 +3506,7 @@
           "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
           "redirectUrisLabel": "Redirect-URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Gib eine Redirect-URI pro Zeile ein. Jede URI muss eine gültige URL sein.",
+          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
           "cancelButton": "Abbrechen",
           "createButton": "OAuth-Client erstellen"
         },
@@ -3522,7 +3516,73 @@
           "clientIdLabel": "Client-ID",
           "clientSecretLabel": "Client-Secret",
           "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Stelle sicher, dass du es sicher speicherst.",
-          "doneButton": "Fertig"
+          "doneButton": "Fertig",
+          "showSecret": "Secret anzeigen",
+          "hideSecret": "Secret verbergen"
+        },
+        "loading": "OAuth-Clients werden geladen...",
+        "noClientsFound": "Erstellen Sie Ihren ersten OAuth-Client, um zu beginnen.",
+        "retry": "Erneut versuchen",
+        "clientIdLabel": "Client-ID",
+        "redirectUrisLabel": "Redirect-URIs",
+        "created": "Erstellt: {date}",
+        "Status": {
+          "disabled": "Deaktiviert"
+        },
+        "Actions": {
+          "editTooltip": "OAuth-Client bearbeiten",
+          "deleteTooltip": "OAuth-Client löschen",
+          "rotateTooltip": "Client-Secret rotieren"
+        },
+        "EditDialog": {
+          "title": "OAuth-Client bearbeiten",
+          "description": "Aktualisieren Sie den Namen oder die Redirect-URIs für diesen OAuth-Client.",
+          "nameLabel": "Name",
+          "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
+          "redirectUrisLabel": "Redirect-URIs",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
+          "cancelButton": "Abbrechen",
+          "saveButton": "Änderungen speichern"
+        },
+        "DeleteDialog": {
+          "title": "OAuth-Client löschen",
+          "description": "Diese Aktion kann nicht rückgängig gemacht werden. Das Löschen von \"{name}\" entfernt den Client dauerhaft. Anwendungen, die diese Anmeldedaten verwenden, können sich nicht mehr authentifizieren.",
+          "cancelButton": "Abbrechen",
+          "deleteButton": "OAuth-Client löschen"
+        },
+        "Messages": {
+          "loadError": "OAuth-Clients konnten nicht geladen werden",
+          "createSuccess": "OAuth-Client erfolgreich erstellt",
+          "createError": "OAuth-Client konnte nicht erstellt werden",
+          "updateSuccess": "OAuth-Client erfolgreich aktualisiert",
+          "updateError": "OAuth-Client konnte nicht aktualisiert werden",
+          "deleteSuccess": "OAuth-Client erfolgreich gelöscht",
+          "deleteError": "OAuth-Client konnte nicht gelöscht werden",
+          "copyError": "Kopieren in die Zwischenablage fehlgeschlagen",
+          "rotateSuccess": "Client-Secret erfolgreich rotiert",
+          "rotateError": "Client-Secret konnte nicht rotiert werden"
+        },
+        "Validation": {
+          "nameRequired": "Name ist erforderlich",
+          "nameMaxLength": "Name darf maximal 100 Zeichen lang sein",
+          "redirectUrisRequired": "Mindestens eine Redirect-URI ist erforderlich",
+          "redirectUrisInvalid": "Jede Redirect-URI muss eine gültige HTTPS-URL sein (HTTP nur für localhost), ohne Fragment."
+        },
+        "RotateDialog": {
+          "title": "Client-Secret rotieren",
+          "description": "Dadurch wird das aktuelle Secret für „{name}“ ungültig und ein neues erzeugt. Anwendungen mit dem alten Secret funktionieren erst wieder, wenn du sie aktualisierst.",
+          "cancelButton": "Abbrechen",
+          "confirmButton": "Secret rotieren"
+        },
+        "RotatedSuccess": {
+          "title": "Client-Secret rotiert",
+          "description": "Speichere das neue Secret sicher. Das vorherige Secret funktioniert nicht mehr.",
+          "clientSecretLabel": "Neues Client-Secret",
+          "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Speichere es sicher.",
+          "doneButton": "Fertig",
+          "showSecret": "Secret anzeigen",
+          "hideSecret": "Secret verbergen"
         }
       },
       "OAuthCallback": {
@@ -3912,6 +3972,37 @@
       "discardDialogTitle": "Änderungen verwerfen?",
       "discardDialogDescription": "Deine Bearbeitungen gehen verloren, wenn du ohne Speichern gehst.",
       "discardConfirm": "Änderungen verwerfen"
+    },
+    "Developer": {
+      "tabs": {
+        "oauthClients": "OAuth-Clients",
+        "apiKeys": "API-Keys",
+        "docs": "Dokumentation"
+      },
+      "Docs": {
+        "title": "Entwicklerdokumentation",
+        "description": "Anleitungen und Referenzen für die Entwicklung mit Sokosumi.",
+        "links": {
+          "gettingStarted": {
+            "title": "Erste Schritte",
+            "description": "Erfahren Sie, wie Sie sich mit Sokosumi integrieren."
+          },
+          "apiReference": {
+            "title": "API-Referenz",
+            "description": "Erkunden Sie die Sokosumi OpenAPI-Dokumentation."
+          },
+          "mcp": {
+            "title": "MCP-Dokumentation",
+            "description": "Verbinden Sie KI-Clients über MCP mit Sokosumi."
+          }
+        }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Verbundene Apps",
+        "mcp": "MCP"
+      }
     }
   },
   "Share": {
