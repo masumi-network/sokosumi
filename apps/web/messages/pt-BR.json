@@ -3158,6 +3158,73 @@
       "tabs": {
         "oauthClients": "Clientes OAuth",
         "apiKeys": "Chaves de API"
+      },
+      "OAuthClients": {
+        "title": "Clientes OAuth",
+        "description": "Gerencie clientes OAuth para aplicativos que acessam sua conta.",
+        "createButton": "Criar cliente OAuth",
+        "loading": "Carregando clientes OAuth...",
+        "noClientsFound": "Nenhum cliente OAuth ainda. Crie um para começar.",
+        "copy": "Copiar",
+        "Messages": {
+          "loadError": "Falha ao carregar clientes OAuth",
+          "createSuccess": "Cliente OAuth criado com sucesso",
+          "createError": "Falha ao criar cliente OAuth",
+          "updateSuccess": "Cliente OAuth atualizado com sucesso",
+          "updateError": "Falha ao atualizar cliente OAuth",
+          "deleteSuccess": "Cliente OAuth excluído com sucesso",
+          "deleteError": "Falha ao excluir cliente OAuth",
+          "copySuccess": "Copiado para a área de transferência",
+          "copyError": "Falha ao copiar para a área de transferência"
+        },
+        "Validation": {
+          "nameRequired": "O nome é obrigatório",
+          "nameMaxLength": "O nome deve ter menos de 100 caracteres",
+          "redirectUrisRequired": "É necessário pelo menos um URI de redirecionamento",
+          "redirectUrisInvalid": "Cada URI de redirecionamento deve ser uma URL válida"
+        },
+        "Table": {
+          "name": "Nome",
+          "clientId": "ID do cliente",
+          "redirectUris": "URIs de redirecionamento",
+          "redirectUrisMore": "(+{count} a mais)",
+          "actions": "Ações"
+        },
+        "Actions": {
+          "editTooltip": "Editar cliente",
+          "deleteTooltip": "Excluir cliente"
+        },
+        "CreateDialog": {
+          "title": "Criar cliente OAuth",
+          "description": "Crie um novo cliente OAuth para permitir que aplicativos acessem sua conta.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "ex.: Meu aplicativo, Servidor de produção",
+          "redirectUrisLabel": "URIs de redirecionamento",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Insira um URI de redirecionamento por linha. Cada URI deve ser uma URL válida.",
+          "cancelButton": "Cancelar",
+          "createButton": "Criar cliente OAuth",
+          "CreatedSuccess": {
+            "title": "Cliente OAuth criado",
+            "description": "Seu cliente OAuth foi criado com sucesso. Guarde essas credenciais com segurança.",
+            "clientIdLabel": "ID do cliente",
+            "clientSecretLabel": "Segredo do cliente",
+            "clientSecretWarning": "Este segredo será mostrado apenas uma vez. Salve-o com segurança.",
+            "doneButton": "Pronto"
+          }
+        },
+        "EditDialog": {
+          "title": "Editar cliente OAuth",
+          "description": "Atualize o nome do cliente e os URIs de redirecionamento.",
+          "cancelButton": "Cancelar",
+          "saveButton": "Salvar alterações"
+        },
+        "DeleteDialog": {
+          "title": "Excluir cliente OAuth",
+          "description": "Isso excluirá permanentemente \"{name}\". Aplicativos que usam este cliente não poderão mais se autenticar.",
+          "cancelButton": "Cancelar",
+          "deleteButton": "Excluir cliente"
+        }
       }
     },
     "MCP": {
@@ -3423,34 +3490,6 @@
           "authorizeErrorGeneric": "Ocorreu um erro durante a autorização",
           "authorizeSuccess": "Aplicação autorizada com sucesso",
           "denyError": "Falha ao negar aplicativo"
-        }
-      },
-      "OAuthClients": {
-        "title": "Clientes OAuth",
-        "description": "Gerencie clientes OAuth que podem acessar sua conta",
-        "createButton": "Criar cliente OAuth",
-        "createSuccess": "Cliente OAuth criado com sucesso",
-        "createError": "Falha ao criar cliente OAuth",
-        "copy": "Copiar",
-        "copySuccess": "Copiado para a área de transferência",
-        "CreateDialog": {
-          "title": "Criar novo cliente OAuth",
-          "description": "Crie um novo cliente OAuth para permitir que aplicativos acessem sua conta.",
-          "nameLabel": "Nome",
-          "namePlaceholder": "ex.: Meu aplicativo, Servidor de produção",
-          "redirectUrisLabel": "URIs de redirecionamento",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Insira um URI de redirecionamento por linha. Cada URI deve ser uma URL válida.",
-          "cancelButton": "Cancelar",
-          "createButton": "Criar cliente OAuth"
-        },
-        "CreatedSuccess": {
-          "title": "Cliente OAuth criado",
-          "description": "Seu cliente OAuth foi criado com sucesso. Guarde essas credenciais com segurança.",
-          "clientIdLabel": "ID do cliente",
-          "clientSecretLabel": "Segredo do cliente",
-          "clientSecretWarning": "Este segredo será mostrado apenas uma vez. Salve-o com segurança.",
-          "doneButton": "Pronto"
         }
       },
       "OAuthCallback": {

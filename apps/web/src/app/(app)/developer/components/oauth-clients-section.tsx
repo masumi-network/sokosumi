@@ -1,3 +1,1 @@
-export function OAuthClientsSection() {
-  return <div data-mount-point="oauth-clients-section" />;
-}
+export { OAuthClientsSection } from "./oauth-clients/oauth-clients-section";

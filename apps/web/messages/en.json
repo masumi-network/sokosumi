@@ -3254,6 +3254,73 @@
       "tabs": {
         "oauthClients": "OAuth clients",
         "apiKeys": "API keys"
+      },
+      "OAuthClients": {
+        "title": "OAuth clients",
+        "description": "Manage OAuth clients for applications that access your account.",
+        "createButton": "Create OAuth client",
+        "loading": "Loading OAuth clients...",
+        "noClientsFound": "No OAuth clients yet. Create one to get started.",
+        "copy": "Copy",
+        "Messages": {
+          "loadError": "Failed to load OAuth clients",
+          "createSuccess": "OAuth client created successfully",
+          "createError": "Failed to create OAuth client",
+          "updateSuccess": "OAuth client updated successfully",
+          "updateError": "Failed to update OAuth client",
+          "deleteSuccess": "OAuth client deleted successfully",
+          "deleteError": "Failed to delete OAuth client",
+          "copySuccess": "Copied to clipboard",
+          "copyError": "Failed to copy to clipboard"
+        },
+        "Validation": {
+          "nameRequired": "Name is required",
+          "nameMaxLength": "Name must be less than 100 characters",
+          "redirectUrisRequired": "At least one redirect URI is required",
+          "redirectUrisInvalid": "Each redirect URI must be a valid URL"
+        },
+        "Table": {
+          "name": "Name",
+          "clientId": "Client ID",
+          "redirectUris": "Redirect URIs",
+          "redirectUrisMore": "(+{count} more)",
+          "actions": "Actions"
+        },
+        "Actions": {
+          "editTooltip": "Edit client",
+          "deleteTooltip": "Delete client"
+        },
+        "CreateDialog": {
+          "title": "Create OAuth client",
+          "description": "Create a new OAuth client to allow applications to access your account.",
+          "nameLabel": "Name",
+          "namePlaceholder": "e.g., My Application, Production Server",
+          "redirectUrisLabel": "Redirect URIs",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Enter one redirect URI per line. Each URI must be a valid URL.",
+          "cancelButton": "Cancel",
+          "createButton": "Create OAuth client",
+          "CreatedSuccess": {
+            "title": "OAuth client created",
+            "description": "Your OAuth client has been created successfully. Save these credentials securely.",
+            "clientIdLabel": "Client ID",
+            "clientSecretLabel": "Client secret",
+            "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
+            "doneButton": "Done"
+          }
+        },
+        "EditDialog": {
+          "title": "Edit OAuth client",
+          "description": "Update the client name and redirect URIs.",
+          "cancelButton": "Cancel",
+          "saveButton": "Save changes"
+        },
+        "DeleteDialog": {
+          "title": "Delete OAuth client",
+          "description": "This will permanently delete \"{name}\". Applications using this client will no longer be able to authenticate.",
+          "cancelButton": "Cancel",
+          "deleteButton": "Delete client"
+        }
       }
     },
     "MCP": {
@@ -3519,34 +3586,6 @@
           "authorizeErrorGeneric": "An error occurred during authorization",
           "authorizeSuccess": "Application authorized successfully",
           "denyError": "Failed to deny application"
-        }
-      },
-      "OAuthClients": {
-        "title": "OAuth Clients",
-        "description": "Manage OAuth clients that can access your account",
-        "createButton": "Create OAuth Client",
-        "createSuccess": "OAuth client created successfully",
-        "createError": "Failed to create OAuth client",
-        "copy": "Copy",
-        "copySuccess": "Copied to clipboard",
-        "CreateDialog": {
-          "title": "Create New OAuth Client",
-          "description": "Create a new OAuth client to allow applications to access your account.",
-          "nameLabel": "Name",
-          "namePlaceholder": "e.g., My Application, Production Server",
-          "redirectUrisLabel": "Redirect URIs",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Enter one redirect URI per line. Each URI must be a valid URL.",
-          "cancelButton": "Cancel",
-          "createButton": "Create OAuth Client"
-        },
-        "CreatedSuccess": {
-          "title": "OAuth Client Created",
-          "description": "Your OAuth client has been created successfully. Save these credentials securely.",
-          "clientIdLabel": "Client ID",
-          "clientSecretLabel": "Client Secret",
-          "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
-          "doneButton": "Done"
         }
       },
       "OAuthCallback": {

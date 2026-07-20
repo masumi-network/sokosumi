@@ -3158,6 +3158,73 @@
       "tabs": {
         "oauthClients": "OAuth 客户端",
         "apiKeys": "API 密钥"
+      },
+      "OAuthClients": {
+        "title": "OAuth 客户端",
+        "description": "管理可访问您账户的应用 OAuth 客户端。",
+        "createButton": "创建 OAuth 客户端",
+        "loading": "正在加载 OAuth 客户端...",
+        "noClientsFound": "尚无 OAuth 客户端。创建一个即可开始。",
+        "copy": "复制",
+        "Messages": {
+          "loadError": "加载 OAuth 客户端失败",
+          "createSuccess": "OAuth 客户端创建成功",
+          "createError": "创建 OAuth 客户端失败",
+          "updateSuccess": "OAuth 客户端更新成功",
+          "updateError": "更新 OAuth 客户端失败",
+          "deleteSuccess": "OAuth 客户端删除成功",
+          "deleteError": "删除 OAuth 客户端失败",
+          "copySuccess": "已复制到剪贴板",
+          "copyError": "复制到剪贴板失败"
+        },
+        "Validation": {
+          "nameRequired": "名称为必填项",
+          "nameMaxLength": "名称必须少于 100 个字符",
+          "redirectUrisRequired": "至少需要一个重定向 URI",
+          "redirectUrisInvalid": "每个重定向 URI 必须是有效的 URL"
+        },
+        "Table": {
+          "name": "名称",
+          "clientId": "客户端 ID",
+          "redirectUris": "重定向 URI",
+          "redirectUrisMore": "（+{count} 个）",
+          "actions": "操作"
+        },
+        "Actions": {
+          "editTooltip": "编辑客户端",
+          "deleteTooltip": "删除客户端"
+        },
+        "CreateDialog": {
+          "title": "创建 OAuth 客户端",
+          "description": "创建一个新的 OAuth 客户端以允许应用访问您的账户。",
+          "nameLabel": "名称",
+          "namePlaceholder": "例如：我的应用、生产服务器",
+          "redirectUrisLabel": "重定向 URI",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "每行输入一个重定向 URI。每个 URI 必须是有效的 URL。",
+          "cancelButton": "取消",
+          "createButton": "创建 OAuth 客户端",
+          "CreatedSuccess": {
+            "title": "OAuth 客户端已创建",
+            "description": "您的 OAuth 客户端已成功创建。请安全保存这些凭据。",
+            "clientIdLabel": "客户端 ID",
+            "clientSecretLabel": "客户端密钥",
+            "clientSecretWarning": "该密钥仅显示一次。请务必安全保存。",
+            "doneButton": "完成"
+          }
+        },
+        "EditDialog": {
+          "title": "编辑 OAuth 客户端",
+          "description": "更新客户端名称和重定向 URI。",
+          "cancelButton": "取消",
+          "saveButton": "保存更改"
+        },
+        "DeleteDialog": {
+          "title": "删除 OAuth 客户端",
+          "description": "这将永久删除“{name}”。使用此客户端的应用将无法再完成身份验证。",
+          "cancelButton": "取消",
+          "deleteButton": "删除客户端"
+        }
       }
     },
     "MCP": {
@@ -3423,34 +3490,6 @@
           "authorizeErrorGeneric": "授权过程中发生错误",
           "authorizeSuccess": "应用授权成功",
           "denyError": "拒绝应用失败"
-        }
-      },
-      "OAuthClients": {
-        "title": "OAuth 客户端",
-        "description": "管理可访问您账户的 OAuth 客户端",
-        "createButton": "创建 OAuth 客户端",
-        "createSuccess": "OAuth 客户端创建成功",
-        "createError": "创建 OAuth 客户端失败",
-        "copy": "复制",
-        "copySuccess": "已复制到剪贴板",
-        "CreateDialog": {
-          "title": "创建新的 OAuth 客户端",
-          "description": "创建一个新的 OAuth 客户端以允许应用访问您的账户。",
-          "nameLabel": "名称",
-          "namePlaceholder": "例如：我的应用、生产服务器",
-          "redirectUrisLabel": "重定向 URI",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "每行输入一个重定向 URI。每个 URI 必须是有效的 URL。",
-          "cancelButton": "取消",
-          "createButton": "创建 OAuth 客户端"
-        },
-        "CreatedSuccess": {
-          "title": "OAuth 客户端已创建",
-          "description": "您的 OAuth 客户端已成功创建。请安全保存这些凭据。",
-          "clientIdLabel": "客户端 ID",
-          "clientSecretLabel": "客户端密钥",
-          "clientSecretWarning": "该密钥仅显示一次。请务必安全保存。",
-          "doneButton": "完成"
         }
       },
       "OAuthCallback": {

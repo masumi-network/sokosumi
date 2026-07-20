@@ -3127,6 +3127,73 @@
       "tabs": {
         "oauthClients": "OAuth-Clients",
         "apiKeys": "API-Keys"
+      },
+      "OAuthClients": {
+        "title": "OAuth-Clients",
+        "description": "Verwalte OAuth-Clients für Anwendungen, die auf deinen Account zugreifen.",
+        "createButton": "OAuth-Client erstellen",
+        "loading": "OAuth-Clients werden geladen...",
+        "noClientsFound": "Noch keine OAuth-Clients. Erstelle einen, um zu starten.",
+        "copy": "Kopieren",
+        "Messages": {
+          "loadError": "OAuth-Clients konnten nicht geladen werden",
+          "createSuccess": "OAuth-Client erfolgreich erstellt",
+          "createError": "OAuth-Client konnte nicht erstellt werden",
+          "updateSuccess": "OAuth-Client erfolgreich aktualisiert",
+          "updateError": "OAuth-Client konnte nicht aktualisiert werden",
+          "deleteSuccess": "OAuth-Client erfolgreich gelöscht",
+          "deleteError": "OAuth-Client konnte nicht gelöscht werden",
+          "copySuccess": "In Zwischenablage kopiert",
+          "copyError": "Kopieren in die Zwischenablage fehlgeschlagen"
+        },
+        "Validation": {
+          "nameRequired": "Name ist erforderlich",
+          "nameMaxLength": "Name muss weniger als 100 Zeichen haben",
+          "redirectUrisRequired": "Mindestens eine Redirect-URI ist erforderlich",
+          "redirectUrisInvalid": "Jede Redirect-URI muss eine gültige URL sein"
+        },
+        "Table": {
+          "name": "Name",
+          "clientId": "Client-ID",
+          "redirectUris": "Redirect-URIs",
+          "redirectUrisMore": "(+{count} weitere)",
+          "actions": "Aktionen"
+        },
+        "Actions": {
+          "editTooltip": "Client bearbeiten",
+          "deleteTooltip": "Client löschen"
+        },
+        "CreateDialog": {
+          "title": "OAuth-Client erstellen",
+          "description": "Erstelle einen neuen OAuth-Client, damit Anwendungen auf deinen Account zugreifen können.",
+          "nameLabel": "Name",
+          "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
+          "redirectUrisLabel": "Redirect-URIs",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Gib eine Redirect-URI pro Zeile ein. Jede URI muss eine gültige URL sein.",
+          "cancelButton": "Abbrechen",
+          "createButton": "OAuth-Client erstellen",
+          "CreatedSuccess": {
+            "title": "OAuth-Client erstellt",
+            "description": "Dein OAuth-Client wurde erfolgreich erstellt. Speichere diese Zugangsdaten sicher.",
+            "clientIdLabel": "Client-ID",
+            "clientSecretLabel": "Client-Secret",
+            "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Stelle sicher, dass du es sicher speicherst.",
+            "doneButton": "Fertig"
+          }
+        },
+        "EditDialog": {
+          "title": "OAuth-Client bearbeiten",
+          "description": "Aktualisiere den Client-Namen und die Redirect-URIs.",
+          "cancelButton": "Abbrechen",
+          "saveButton": "Änderungen speichern"
+        },
+        "DeleteDialog": {
+          "title": "OAuth-Client löschen",
+          "description": "Dadurch wird \"{name}\" dauerhaft gelöscht. Anwendungen mit diesem Client können sich nicht mehr authentifizieren.",
+          "cancelButton": "Abbrechen",
+          "deleteButton": "Client löschen"
+        }
       }
     },
     "MCP": {
@@ -3392,34 +3459,6 @@
           "authorizeErrorGeneric": "Bei der Autorisierung ist ein Fehler aufgetreten",
           "authorizeSuccess": "Anwendung erfolgreich autorisiert",
           "denyError": "Anwendung konnte nicht abgelehnt werden"
-        }
-      },
-      "OAuthClients": {
-        "title": "OAuth-Clients",
-        "description": "Verwalte OAuth-Clients, die auf deinen Account zugreifen können",
-        "createButton": "OAuth-Client erstellen",
-        "createSuccess": "OAuth-Client erfolgreich erstellt",
-        "createError": "OAuth-Client konnte nicht erstellt werden",
-        "copy": "Kopieren",
-        "copySuccess": "In Zwischenablage kopiert",
-        "CreateDialog": {
-          "title": "Neuen OAuth-Client erstellen",
-          "description": "Erstelle einen neuen OAuth-Client, damit Anwendungen auf deinen Account zugreifen können.",
-          "nameLabel": "Name",
-          "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
-          "redirectUrisLabel": "Redirect-URIs",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Gib eine Redirect-URI pro Zeile ein. Jede URI muss eine gültige URL sein.",
-          "cancelButton": "Abbrechen",
-          "createButton": "OAuth-Client erstellen"
-        },
-        "CreatedSuccess": {
-          "title": "OAuth-Client erstellt",
-          "description": "Dein OAuth-Client wurde erfolgreich erstellt. Speichere diese Zugangsdaten sicher.",
-          "clientIdLabel": "Client-ID",
-          "clientSecretLabel": "Client-Secret",
-          "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Stelle sicher, dass du es sicher speicherst.",
-          "doneButton": "Fertig"
         }
       },
       "OAuthCallback": {

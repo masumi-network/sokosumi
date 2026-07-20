@@ -3158,6 +3158,73 @@
       "tabs": {
         "oauthClients": "OAuthクライアント",
         "apiKeys": "APIキー"
+      },
+      "OAuthClients": {
+        "title": "OAuthクライアント",
+        "description": "あなたのアカウントにアクセスするアプリケーション向けのOAuthクライアントを管理します。",
+        "createButton": "OAuthクライアントを作成",
+        "loading": "OAuthクライアントを読み込み中...",
+        "noClientsFound": "OAuthクライアントはまだありません。作成して始めましょう。",
+        "copy": "コピー",
+        "Messages": {
+          "loadError": "OAuthクライアントの読み込みに失敗しました",
+          "createSuccess": "OAuthクライアントを作成しました",
+          "createError": "OAuthクライアントの作成に失敗しました",
+          "updateSuccess": "OAuthクライアントを更新しました",
+          "updateError": "OAuthクライアントの更新に失敗しました",
+          "deleteSuccess": "OAuthクライアントを削除しました",
+          "deleteError": "OAuthクライアントの削除に失敗しました",
+          "copySuccess": "クリップボードにコピーしました",
+          "copyError": "クリップボードへのコピーに失敗しました"
+        },
+        "Validation": {
+          "nameRequired": "名前は必須です",
+          "nameMaxLength": "名前は100文字未満である必要があります",
+          "redirectUrisRequired": "リダイレクトURIは1つ以上必要です",
+          "redirectUrisInvalid": "各リダイレクトURIは有効なURLである必要があります"
+        },
+        "Table": {
+          "name": "名前",
+          "clientId": "クライアントID",
+          "redirectUris": "リダイレクトURI",
+          "redirectUrisMore": "（+{count}件）",
+          "actions": "操作"
+        },
+        "Actions": {
+          "editTooltip": "クライアントを編集",
+          "deleteTooltip": "クライアントを削除"
+        },
+        "CreateDialog": {
+          "title": "OAuthクライアントを作成",
+          "description": "アプリケーションがあなたのアカウントにアクセスできるように、新しいOAuthクライアントを作成します。",
+          "nameLabel": "名前",
+          "namePlaceholder": "例: My Application、Production Server",
+          "redirectUrisLabel": "リダイレクトURI",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "1行に1つずつリダイレクトURIを入力してください。各URIは有効なURLである必要があります。",
+          "cancelButton": "キャンセル",
+          "createButton": "OAuthクライアントを作成",
+          "CreatedSuccess": {
+            "title": "OAuthクライアントを作成しました",
+            "description": "OAuthクライアントを作成しました。これらの認証情報は安全に保管してください。",
+            "clientIdLabel": "クライアントID",
+            "clientSecretLabel": "クライアントシークレット",
+            "clientSecretWarning": "このシークレットは一度しか表示されません。必ず安全に保管してください。",
+            "doneButton": "完了"
+          }
+        },
+        "EditDialog": {
+          "title": "OAuthクライアントを編集",
+          "description": "クライアント名とリダイレクトURIを更新します。",
+          "cancelButton": "キャンセル",
+          "saveButton": "変更を保存"
+        },
+        "DeleteDialog": {
+          "title": "OAuthクライアントを削除",
+          "description": "「{name}」を完全に削除します。このクライアントを使用しているアプリケーションは認証できなくなります。",
+          "cancelButton": "キャンセル",
+          "deleteButton": "クライアントを削除"
+        }
       }
     },
     "MCP": {
@@ -3423,34 +3490,6 @@
           "authorizeErrorGeneric": "承認中にエラーが発生しました",
           "authorizeSuccess": "アプリケーションの認可に成功しました",
           "denyError": "アプリケーションの拒否に失敗しました"
-        }
-      },
-      "OAuthClients": {
-        "title": "OAuthクライアント",
-        "description": "あなたのアカウントにアクセスできるOAuthクライアントを管理します",
-        "createButton": "OAuthクライアントを作成",
-        "createSuccess": "OAuthクライアントを作成しました",
-        "createError": "OAuthクライアントの作成に失敗しました",
-        "copy": "コピー",
-        "copySuccess": "クリップボードにコピーしました",
-        "CreateDialog": {
-          "title": "新しいOAuthクライアントを作成",
-          "description": "アプリケーションがあなたのアカウントにアクセスできるように、新しいOAuthクライアントを作成します。",
-          "nameLabel": "名前",
-          "namePlaceholder": "例: My Application、Production Server",
-          "redirectUrisLabel": "リダイレクトURI",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "1行に1つずつリダイレクトURIを入力してください。各URIは有効なURLである必要があります。",
-          "cancelButton": "キャンセル",
-          "createButton": "OAuthクライアントを作成"
-        },
-        "CreatedSuccess": {
-          "title": "OAuthクライアントを作成しました",
-          "description": "OAuthクライアントを作成しました。これらの認証情報は安全に保管してください。",
-          "clientIdLabel": "クライアントID",
-          "clientSecretLabel": "クライアントシークレット",
-          "clientSecretWarning": "このシークレットは一度しか表示されません。必ず安全に保管してください。",
-          "doneButton": "完了"
         }
       },
       "OAuthCallback": {
