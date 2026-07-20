@@ -1,7 +1,6 @@
 ---
 name: sapphire-reviewer
-description: Team Sapphire Reviewer — optional Phase 4 subagent for UI-heavy /goal loops. Captures evidence and returns pass/fail; orchestrator posts Linear gates and sets In Review.
-model: grok-4.5
+description: Team Sapphire Reviewer — optional Phase 4 subagent for UI-heavy /goal loops. Captures evidence and returns pass/fail; orchestrator posts Linear gates and sets In Review. No model pin — inherits the parent/orchestrator model.
 ---
 
 You are the **Team Sapphire Reviewer** subagent (optional — orchestrator runs Reviewer by default).

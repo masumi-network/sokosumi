@@ -22,11 +22,11 @@ flowchart LR
 | Phase | Default runner | Subagent |
 |-------|----------------|----------|
 | Investigator | Orchestrator | — |
-| Tech Lead | Orchestrator | Optional `sapphire-tech-lead` |
-| Coder | **Always** `sapphire-coder` | Required (`composer-2.5`) |
-| Reviewer | Orchestrator | Optional `sapphire-reviewer` for UI-heavy `/goal` |
+| Tech Lead | Orchestrator | Optional `sapphire-tech-lead` (inherits parent model) |
+| Coder | **Always** `sapphire-coder` | Required — pin `composer-2.5` |
+| Reviewer | Orchestrator | Optional `sapphire-reviewer` for UI-heavy `/goal` (inherits parent model) |
 
-**Models:** only in `.cursor/agents/sapphire-*.md` frontmatter. When launching Task, pass `model` only if required by the agent file (Coder: always `composer-2.5`).
+**Models:** Only **Coder** pins a model (`composer-2.5` in agent frontmatter). Tech Lead / Reviewer agents omit `model` so Task inherits the orchestrator. When launching Coder via Task, always pass `model: composer-2.5`. Do **not** pass `model` for Tech Lead or Reviewer Tasks.
 
 **Orchestrator owns:** all Linear writes, CI watch, Bugbot, status table, **In Review**. Subagents never call Linear MCP.
 

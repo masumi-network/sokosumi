@@ -14,15 +14,13 @@ Single-issue squad: Investigator → Tech Lead → Coder(s) → Reviewer.
 
 ## Subagents
 
-Models live **only** in agent frontmatter. Do not duplicate model slugs elsewhere.
+| Role | When | Agent file | Model |
+|------|------|------------|-------|
+| Coder | **Always** for implementation | `.cursor/agents/sapphire-coder.md` | Pin `composer-2.5` |
+| Tech Lead | Optional (default: orchestrator) | `.cursor/agents/sapphire-tech-lead.md` | Inherit parent (no `model` in frontmatter) |
+| Reviewer | Optional UI-heavy `/goal` (default: orchestrator) | `.cursor/agents/sapphire-reviewer.md` | Inherit parent (no `model` in frontmatter) |
 
-| Role | When | Agent file |
-|------|------|------------|
-| Coder | **Always** for implementation | `.cursor/agents/sapphire-coder.md` |
-| Tech Lead | Optional (default: orchestrator) | `.cursor/agents/sapphire-tech-lead.md` |
-| Reviewer | Optional UI-heavy `/goal` (default: orchestrator) | `.cursor/agents/sapphire-reviewer.md` |
-
-Investigator always runs on the orchestrator.
+Investigator always runs on the orchestrator. Do not hardcode Tech Lead/Reviewer model slugs in the skill.
 
 ## Output rule
 
