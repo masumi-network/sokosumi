@@ -2,16 +2,23 @@ import "dotenv/config";
 
 import type { PrismaConfig } from "prisma/config";
 
-import { checkMigrateDeployEnv } from "./src/helpers/migrate-deploy-preflight.js";
+import {
+  checkMigrateDeployEnv,
+  isDbMutatingPrismaCommand,
+} from "./src/helpers/migrate-deploy-preflight.js";
 
-// Runs for any Prisma CLI command that loads this config (migrate, generate, …).
-// Preview without DATABASE_URL_UNPOOLED fails closed so a raw
-// `prisma migrate deploy` cannot fall back to a shared/production DATABASE_URL.
-const preflight = checkMigrateDeployEnv({
-  VERCEL: process.env.VERCEL,
-  VERCEL_ENV: process.env.VERCEL_ENV,
-  DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
-});
+// Preflight only DB-mutating CLI commands (`migrate …`, `db …`): Preview
+// without DATABASE_URL_UNPOOLED fails closed so a raw `prisma migrate deploy`
+// cannot fall back to a shared/production DATABASE_URL. No-DB commands like
+// `prisma generate` (this package's prepare script) skip it: they have
+// nothing to guard and must not fail installs/builds.
+const preflight = isDbMutatingPrismaCommand(process.argv)
+  ? checkMigrateDeployEnv({
+      VERCEL: process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
+    })
+  : { ok: true as const, messages: [] };
 
 for (const message of preflight.messages) {
   const prefix =
