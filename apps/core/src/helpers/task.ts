@@ -309,7 +309,7 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
   }
 
   throw new Error(
-    `Task event ${event.id}: exactly one actor FK must be set for API mapping`,
+    `Task event ${event.id}: unable to resolve actor for API mapping`,
   );
 }
 
