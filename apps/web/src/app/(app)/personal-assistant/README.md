@@ -17,7 +17,7 @@ end-user copy and screenshots, see the in-app empty state.
    browser  ──────►  │  apps/web (Next.js)  │
                      │ /personal-assistant  │
                      └──────────┬───────────┘
-                                │ server actions / SDK calls
+                                │ server actions / Route Handlers / SDK
                                 ▼
                      ┌──────────────────────┐
                      │  apps/core (Hono)    │
@@ -36,7 +36,8 @@ end-user copy and screenshots, see the in-app empty state.
        └────────────────────┘      └────────────────────┘
 ```
 
-- **apps/web** owns the UI flow, server actions, and the Composio callback page.
+- **apps/web** owns the UI flow, server actions, Route Handlers under
+  `src/app/api/personal-assistant/`, and the Composio callback page.
 - **apps/core** owns the orchestrator client, Composio client, server routes
   for `/me/instance`, integrations init/finalize, inbox polling, and the
   schemas that drive both.
@@ -56,7 +57,7 @@ The page is a state machine driven off `getHermesInstanceAction`:
 | ----------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `idle`                  | `EmptyState`          | No instance. Activation-first hero, capability summary, shortened journey, features, things-to-try carousel, disclaimer.               |
 | `provisioning`          | `ProvisioningState`   | `POST /me/instance` fired. Fly machine is booting; UI shows elapsed time, honest milestones, and rotating Hermes facts.                |
-| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Six-step wizard: **Name → Look + personality → Autonomy → Integrations → Skills → Review**. The skills marketplace mounts hidden from wizard load so its (slow) catalog fetch warms during the earlier steps; installs fire immediately and are on the machine when setup finishes. Personality is chosen here only (not editable later in Settings). |
+| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Six-step wizard: **Name → Look + personality → Autonomy → Integrations → Skills → Review**. The skills marketplace mounts hidden from wizard load so its catalog pre-warm can finish during earlier steps; the catalog is loaded via `GET /api/personal-assistant/skills-marketplace` (Route Handler + `fetch`, not a server action) so the pre-warm does not serialize behind Integrations OAuth. Installs fire immediately and are on the machine when setup finishes. Review recaps how many skills were added. Personality is chosen here only (not editable later in Settings). |
 | `onboarding`            | `OnboardingProgress`  | `POST /me/instance/onboard` fired. Polls `/onboarding-progress` every second; renders the orchestrator's step list with status icons.  |
 | `ready` / `running`     | `RunningState`        | Chat is open. Header chips: Autonomy → Autonomy panel (level + scheduled tasks); Skills → Skills marketplace popup (`skills-dialog.tsx`); Integrations → Settings.   |
 | `error`                 | `ErrorState`          | Orchestrator error, fetch failure, or client provision timeout. Retry refetches instance status (does not re-fire provision). Start over destroys when status is `error`/`provisioning` or after a provision timeout. |
@@ -303,7 +304,7 @@ apps/web/src/app/(app)/personal-assistant/
     ├── autonomy-selector.tsx            ← shared low/medium/high radio cards
     ├── autonomy-panel.tsx               ← autonomy level + scheduled tasks sheet
     ├── settings-panel.tsx               ← name / orb / integrations / sync / danger
-    ├── skills-marketplace.tsx           ← skills.sh catalog (wizard step + Skills dialog)
+    ├── skills-marketplace.tsx           ← skills.sh catalog (wizard step + Skills dialog); catalog via Route Handler fetch
     ├── skills-dialog.tsx                ← Skills marketplace popup, opened from the chat-header chip
     ├── connect-interstitial.tsx         ← pre-OAuth modal; maps slug → identity provider
     ├── use-composio-oauth.ts            ← popup orchestration + postMessage handshake
@@ -312,6 +313,12 @@ apps/web/src/app/(app)/personal-assistant/
     ├── fullscreen-effect.tsx            ← body data-attr toggle for full-bleed below header
     ├── progress-pips.tsx                ← Setup / Personalize / Ready
     └── rotating-messages.tsx            ← cycling text (provisioning + thinking)
+
+apps/web/src/app/api/personal-assistant/
+└── skills-marketplace/route.ts          ← GET catalog bundle (pre-warm + dialog); not a server action
+
+apps/web/src/lib/hermes/
+└── skills-marketplace-data.ts           ← shared Core load for the route (+ optional action)
 ```
 
 Public assets:
@@ -321,8 +328,12 @@ Public assets:
   swapped from `logos:*` (gradient SVGs that `better-icons --color` corrupts)
   to `simple-icons:*` flat versions (Jira, Teams).
 
-Server actions live in `apps/web/src/lib/actions/hermes/action.ts`; types
-are mirrored in `apps/web/src/lib/hermes/types.ts`. The generated SDK
+Server actions live in `apps/web/src/lib/actions/hermes/` (`action.ts`,
+`skills.ts`, …); types are mirrored in `apps/web/src/lib/hermes/types.ts`.
+Skills **mutations** (install/remove/search) stay on server actions; the
+marketplace **catalog read** uses `GET /api/personal-assistant/skills-marketplace`
+so wizard pre-warm does not occupy Next's per-session action queue (see
+`apps/web/AGENTS.md` — Server actions vs Route Handlers). The generated SDK
 (`apps/web/src/lib/clients/generated/core/*`) is refreshed via `pnpm --filter
 web generate:core:snapshot`.
 
