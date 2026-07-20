@@ -35,6 +35,15 @@ describe("buildTaskActivityActors", () => {
           taskId: "task-1",
           createdAt: new Date("2026-01-01T12:00:00.000Z"),
           updatedAt: new Date("2026-01-01T12:00:00.000Z"),
+          actor: {
+            type: "user",
+            id: "user-2",
+            user: {
+              id: "user-2",
+              name: "Grace Hopper",
+              image: null,
+            },
+          },
           userId: "user-2",
           user: {
             id: "user-2",
@@ -58,6 +67,16 @@ describe("buildTaskActivityActors", () => {
           taskId: "task-1",
           createdAt: new Date("2026-01-01T13:00:00.000Z"),
           updatedAt: new Date("2026-01-01T13:00:00.000Z"),
+          actor: {
+            type: "coworker",
+            id: "cow-2",
+            coworker: {
+              id: "cow-2",
+              name: "Research Agent",
+              image: null,
+              slug: "research-agent",
+            },
+          },
           userId: null,
           user: null,
           coworkerId: "cow-2",
@@ -82,6 +101,15 @@ describe("buildTaskActivityActors", () => {
           taskId: "task-1",
           createdAt: new Date("2026-01-01T14:00:00.000Z"),
           updatedAt: new Date("2026-01-01T14:00:00.000Z"),
+          actor: {
+            type: "orchestrator",
+            id: "orch-2",
+            orchestrator: {
+              id: "orch-2",
+              name: "Athena",
+              slug: "athena",
+            },
+          },
           userId: null,
           user: null,
           coworkerId: null,

@@ -462,18 +462,33 @@ export type TaskEvent = {
     taskId: string;
     createdAt: Date;
     updatedAt: Date;
+    actor: TaskEventActor;
+    /**
+     * Deprecated. Use actor when type is user.
+     *
+     * @deprecated
+     */
     userId?: string | null;
     /**
-     * Mirrors userId: omitted, null, or set when the actor user was loaded.
+     * Deprecated. Use actor when type is user. Mirrors userId when the actor user was loaded.
+     *
+     * @deprecated
      */
     user?: {
         id: string;
         name: string;
         image?: string | null;
     } | null;
+    /**
+     * Deprecated. Use actor when type is coworker.
+     *
+     * @deprecated
+     */
     coworkerId?: string | null;
     /**
-     * Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.
+     * Deprecated. Use actor when type is coworker. Mirrors coworkerId when the coworker relation was loaded.
+     *
+     * @deprecated
      */
     coworker?: {
         id: string;
@@ -481,9 +496,16 @@ export type TaskEvent = {
         image?: string | null;
         slug: string;
     } | null;
+    /**
+     * Deprecated. Use actor when type is orchestrator.
+     *
+     * @deprecated
+     */
     orchestratorId?: string | null;
     /**
-     * Mirrors orchestratorId: omitted, null, or set when the orchestrator relation was loaded.
+     * Deprecated. Use actor when type is orchestrator. Mirrors orchestratorId when the orchestrator relation was loaded.
+     *
+     * @deprecated
      */
     orchestrator?: {
         id: string;
@@ -497,6 +519,29 @@ export type TaskEvent = {
     channel: Channel;
     origin: Channel & unknown;
     status?: TaskStatus | null;
+};
+
+/**
+ * Actor that produced the event. Null when no actor FK is set.
+ */
+export type TaskEventActor = TaskEventActorUser | TaskEventActorCoworker | TaskEventActorOrchestrator | null;
+
+export type TaskEventActorUser = {
+    type: 'user';
+    id: string;
+    user: UserSummary;
+};
+
+export type TaskEventActorCoworker = {
+    type: 'coworker';
+    id: string;
+    coworker: CoworkerSummary;
+};
+
+export type TaskEventActorOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
 };
 
 /**

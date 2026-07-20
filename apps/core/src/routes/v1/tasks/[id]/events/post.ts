@@ -78,12 +78,11 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
     };
   }
 
-  // Status transitions from a delegated coworker are attributed to the context
-  // user plus the acting coworker so the audit trail is not a forged user-only
-  // record. Writes are assignee-only, so the context user owns the task.
+  // Status transitions from a delegated coworker are attributed to the acting
+  // coworker. The context user is implied by task ownership and assignee checks.
   if (authContext.context) {
     return {
-      userId: authContext.context.userId,
+      userId: null,
       coworkerId: authContext.coworkerId,
       orchestratorId: null,
     };

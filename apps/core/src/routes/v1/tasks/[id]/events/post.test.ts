@@ -207,7 +207,7 @@ function createApp(authContext: AuthenticationContext) {
 function enrichTaskEventRowForResponse(record: TaskEventRecord) {
   return {
     ...record,
-    owner: record.userId
+    user: record.userId
       ? { id: record.userId, name: "Task user", image: null }
       : null,
     coworker: record.coworkerId
@@ -216,6 +216,13 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
           name: "Task coworker",
           image: null,
           slug: "task-coworker",
+        }
+      : null,
+    orchestrator: record.orchestratorId
+      ? {
+          id: record.orchestratorId,
+          name: "Task orchestrator",
+          slug: "task-orchestrator",
         }
       : null,
     transaction: null as { amount: bigint } | null,
@@ -1153,7 +1160,7 @@ describe("POST /{id}/events", () => {
           createTaskEvent({
             status: TaskStatus.READY,
             comment: "Continue via delegated reopen",
-            userId: USER_ID,
+            userId: null,
             coworkerId: COWORKER_ID,
           }),
         ),
@@ -1195,7 +1202,7 @@ describe("POST /{id}/events", () => {
         data: expect.objectContaining({
           status: TaskStatus.READY,
           comment: "Continue via delegated reopen",
-          userId: USER_ID,
+          userId: null,
           coworkerId: COWORKER_ID,
         }),
       }),
@@ -2254,7 +2261,7 @@ describe("POST /{id}/events", () => {
         create: vi.fn().mockResolvedValue(
           createTaskEvent({
             status: TaskStatus.CANCELED,
-            userId: USER_ID,
+            userId: null,
             coworkerId: COWORKER_ID,
           }),
         ),
@@ -2290,7 +2297,7 @@ describe("POST /{id}/events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: TaskStatus.CANCELED,
-          userId: USER_ID,
+          userId: null,
           coworkerId: COWORKER_ID,
         }),
       }),

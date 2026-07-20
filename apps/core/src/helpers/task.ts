@@ -234,40 +234,118 @@ export function validateTaskAssigneeAssignment({
   }
 }
 
+function countTaskEventActorForeignKeys(event: TaskEventForMapping): number {
+  let count = 0;
+  if (event.userId != null) {
+    count += 1;
+  }
+  if (event.coworkerId != null) {
+    count += 1;
+  }
+  if (event.orchestratorId != null) {
+    count += 1;
+  }
+  return count;
+}
+
+export function mapTaskEventActor(event: TaskEventForMapping) {
+  const actorForeignKeyCount = countTaskEventActorForeignKeys(event);
+
+  if (actorForeignKeyCount === 0) {
+    return null;
+  }
+
+  if (actorForeignKeyCount > 1) {
+    throw new Error(
+      `Task event ${event.id}: at most one actor FK may be set for API mapping`,
+    );
+  }
+
+  if (event.userId != null) {
+    return {
+      type: "user" as const,
+      id: event.userId,
+      user: userSummaryFromLoadedRelation(
+        `Task event ${event.id} actor`,
+        event.userId,
+        event.user ?? null,
+      ),
+    };
+  }
+
+  if (event.coworkerId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task event ${event.id} actor`,
+      event.coworkerId,
+      event.coworker ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task event ${event.id}: actor coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: event.coworkerId,
+      coworker,
+    };
+  }
+
+  if (event.orchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task event ${event.id} actor`,
+      event.orchestratorId,
+      event.orchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `Task event ${event.id}: actor orchestrator summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "orchestrator" as const,
+      id: event.orchestratorId,
+      orchestrator,
+    };
+  }
+
+  throw new Error(
+    `Task event ${event.id}: exactly one actor FK must be set for API mapping`,
+  );
+}
+
 export function mapTaskEvent(event: TaskEventForMapping) {
-  const { cents, user, coworker, orchestrator, channel, ...rest } = event;
+  const {
+    cents,
+    channel,
+    user: _user,
+    coworker: _coworker,
+    orchestrator: _orchestrator,
+    ...rest
+  } = event;
+  const actor = mapTaskEventActor(event);
 
   return {
     ...rest,
     channel,
     origin: channel,
     credits: cents != null ? convertCentsToCredits(cents) : null,
-    ...(event.userId != null && user != null
+    actor,
+    ...(actor?.type === "user"
       ? {
-          user: {
-            id: user.id,
-            name: user.name,
-            image: user.image,
-          },
+          user: actor.user,
         }
       : {}),
-    ...(event.coworkerId != null && coworker != null
+    ...(actor?.type === "coworker"
       ? {
-          coworker: {
-            id: coworker.id,
-            name: coworker.name,
-            image: coworker.image,
-            slug: coworker.slug,
-          },
+          coworker: actor.coworker,
         }
       : {}),
-    ...(event.orchestratorId != null && orchestrator != null
+    ...(actor?.type === "orchestrator"
       ? {
-          orchestrator: {
-            id: orchestrator.id,
-            name: orchestrator.name,
-            slug: orchestrator.slug,
-          },
+          orchestrator: actor.orchestrator,
         }
       : {}),
   };

@@ -277,6 +277,17 @@ export function TaskActivitySection({
       authenticationUrl: null,
       channel: Channel.SOKOSUMI,
       origin: Channel.SOKOSUMI,
+      actor: currentUser
+        ? {
+            type: "user",
+            id: currentUser.id,
+            user: {
+              id: currentUser.id,
+              name: currentUser.name,
+              image: currentUser.image,
+            },
+          }
+        : null,
       userId: currentUser?.id ?? null,
       user: currentUser
         ? {
