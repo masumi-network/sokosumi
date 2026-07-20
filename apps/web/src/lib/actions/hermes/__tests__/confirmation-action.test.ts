@@ -53,6 +53,17 @@ vi.mock("@/lib/clients/core.client", () => ({
 
 import { approveHermesConfirmationAction } from "@/lib/actions/hermes";
 
+const SAMPLE_CONFIRMATION = {
+  id: "conf_1",
+  toolName: "sokosumi_create_task",
+  summary: "Create task 'Weekly report'.",
+  createdAt: "2026-07-17T12:00:00.000Z",
+  referencedCoworkers: [],
+  referencedOrganizations: [],
+  organizationId: "org-1" as string | null,
+  organizationName: "Org One" as string | null,
+};
+
 describe("approveHermesConfirmationAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,11 +80,16 @@ describe("approveHermesConfirmationAction", () => {
     const result = await approveHermesConfirmationAction({
       confirmationId: "conf_1",
       organizationId: "org-1",
+      confirmation: SAMPLE_CONFIRMATION,
     });
 
     expect(result.ok).toBe(true);
     expect(approveHermesConfirmationMock).toHaveBeenCalledWith("conf_1", {
       overrides: { organizationId: "org-1" },
+      confirmation: {
+        ...SAMPLE_CONFIRMATION,
+        createdAt: new Date(SAMPLE_CONFIRMATION.createdAt),
+      },
     });
   });
 
@@ -81,11 +97,16 @@ describe("approveHermesConfirmationAction", () => {
     const result = await approveHermesConfirmationAction({
       confirmationId: "conf_1",
       organizationId: null,
+      confirmation: SAMPLE_CONFIRMATION,
     });
 
     expect(result.ok).toBe(true);
     expect(approveHermesConfirmationMock).toHaveBeenCalledWith("conf_1", {
       overrides: { organizationId: null },
+      confirmation: {
+        ...SAMPLE_CONFIRMATION,
+        createdAt: new Date(SAMPLE_CONFIRMATION.createdAt),
+      },
     });
   });
 
@@ -99,5 +120,20 @@ describe("approveHermesConfirmationAction", () => {
       "conf_1",
       undefined,
     );
+  });
+
+  it("forwards the confirmation audit snapshot without overrides", async () => {
+    const result = await approveHermesConfirmationAction({
+      confirmationId: "conf_1",
+      confirmation: SAMPLE_CONFIRMATION,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(approveHermesConfirmationMock).toHaveBeenCalledWith("conf_1", {
+      confirmation: {
+        ...SAMPLE_CONFIRMATION,
+        createdAt: new Date(SAMPLE_CONFIRMATION.createdAt),
+      },
+    });
   });
 });

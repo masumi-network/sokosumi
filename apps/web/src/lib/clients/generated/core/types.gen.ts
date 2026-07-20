@@ -1650,10 +1650,12 @@ export type HermesApproveConfirmationRequest = {
     overrides?: {
         organizationId?: string | null;
     };
+    confirmation?: HermesPendingConfirmation;
 };
 
 export type HermesRejectConfirmationRequest = {
     reason?: string;
+    confirmation?: HermesPendingConfirmation;
 };
 
 export type HermesInitiateIntegrationResponse = {

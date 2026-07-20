@@ -11,8 +11,10 @@ import {
 } from "@/lib/clients/core.client";
 import type { HermesInstance } from "@/lib/clients/generated/core";
 import type {
+  HermesApproveConfirmationRequest,
   HermesGetInstanceNone,
   HermesGetInstanceSome,
+  HermesRejectConfirmationRequest,
 } from "@/lib/clients/generated/core/types.gen";
 import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
 import type {
@@ -638,6 +640,28 @@ export const toggleHermesScheduleAction = withSession<
 
 interface ResolveConfirmationArgs extends AuthenticatedRequest {
   confirmationId: string;
+  /**
+   * Display snapshot of the pending card the user acted on. Core uses this
+   * as a fallback when the orchestrator's pending list already dropped the
+   * row, so the audit message still persists.
+   */
+  confirmation?: HermesPendingConfirmation;
+}
+
+/** Map web ISO confirmation → Core request shape (`createdAt` as Date). */
+function toCoreConfirmationSnapshot(
+  confirmation: HermesPendingConfirmation,
+): NonNullable<HermesApproveConfirmationRequest["confirmation"]> {
+  return {
+    id: confirmation.id,
+    toolName: confirmation.toolName,
+    summary: confirmation.summary,
+    createdAt: new Date(confirmation.createdAt),
+    referencedCoworkers: confirmation.referencedCoworkers,
+    referencedOrganizations: confirmation.referencedOrganizations,
+    organizationId: confirmation.organizationId,
+    organizationName: confirmation.organizationName,
+  };
 }
 
 function mapConfirmationResolveResult(raw: {
@@ -673,17 +697,18 @@ export const approveHermesConfirmationAction = withSession<
   Result<HermesConfirmationResolveResult, ActionError>
 >(async (args) => {
   try {
-    const body =
-      "organizationId" in args
-        ? {
-            overrides: {
-              organizationId: args.organizationId ?? null,
-            },
-          }
-        : undefined;
+    const body: HermesApproveConfirmationRequest = {};
+    if ("organizationId" in args) {
+      body.overrides = {
+        organizationId: args.organizationId ?? null,
+      };
+    }
+    if (args.confirmation) {
+      body.confirmation = toCoreConfirmationSnapshot(args.confirmation);
+    }
     const response = await coreClient.approveHermesConfirmation(
       args.confirmationId,
-      body,
+      Object.keys(body).length > 0 ? body : undefined,
     );
     return Ok(mapConfirmationResolveResult(response.data));
   } catch (error) {
@@ -698,11 +723,18 @@ interface RejectConfirmationArgs extends ResolveConfirmationArgs {
 export const rejectHermesConfirmationAction = withSession<
   RejectConfirmationArgs,
   Result<HermesConfirmationResolveResult, ActionError>
->(async ({ confirmationId, reason }) => {
+>(async ({ confirmationId, reason, confirmation }) => {
   try {
-    const response = await coreClient.rejectHermesConfirmation(confirmationId, {
+    const body: HermesRejectConfirmationRequest = {
       reason: reason && reason.trim().length > 0 ? reason.trim() : undefined,
-    });
+    };
+    if (confirmation) {
+      body.confirmation = toCoreConfirmationSnapshot(confirmation);
+    }
+    const response = await coreClient.rejectHermesConfirmation(
+      confirmationId,
+      body,
+    );
     return Ok(mapConfirmationResolveResult(response.data));
   } catch (error) {
     return Err(toActionError(error));
