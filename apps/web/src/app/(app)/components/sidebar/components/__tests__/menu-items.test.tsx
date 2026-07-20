@@ -76,7 +76,7 @@ describe("MenuItems search action", () => {
   });
 
   it("opens history search and closes the mobile sidebar when search is clicked", () => {
-    render(<MenuItems hermesMenuEnabled={false} />);
+    render(<MenuItems />);
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }));
 

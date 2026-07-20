@@ -24,7 +24,6 @@ import type {
   Notice,
 } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
-import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userHasPaidOrEnterpriseCoverage, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
@@ -38,7 +37,6 @@ import { resolveAccountNotice } from "./components/account-notice-state";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
 import Header from "./components/header";
-import HeaderGate from "./components/header-gate";
 import { LoginAccountNoticeToast } from "./components/login-account-notice-toast.client";
 import { MarkSubscriptionOnboardingGateSeen } from "./components/mark-subscription-onboarding-gate-seen";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
@@ -87,7 +85,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     activeOrganization,
     creditsResultRaw,
     coworkersResult,
-    hermesMenuEnabled,
     initialDesignMdAttachment,
   ] = await Promise.all([
     userService.showOnboarding(session),
@@ -95,7 +92,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     userService.getActiveOrganization(),
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers().catch(() => []),
-    hermesBetaEnabled(),
     designMdService.resolveEffectiveDesignMd(),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
@@ -183,7 +179,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               adminMenuEnabled={adminMenuEnabled}
               creditsData={creditsData}
               currentTimestampMs={currentTimestampMs}
-              hermesMenuEnabled={hermesMenuEnabled}
               organizationName={activeOrganization?.name ?? null}
               session={session}
               lowCreditsThreshold={lowCreditsThreshold}
@@ -193,9 +188,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                 className="flex min-w-0 flex-1 flex-col overflow-clip"
                 data-app-content-inner
               >
-                <HeaderGate>
-                  <Header className="h-16 p-4" session={session} />
-                </HeaderGate>
+                <Header className="h-16 p-4" session={session} />
                 <main
                   className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
                   data-app-main
