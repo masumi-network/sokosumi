@@ -11,8 +11,8 @@ import type {
   DeleteApiKeyRequest,
   UpdateApiKeyRequest,
   UseApiKeysReturn,
-} from "@/app/connections/components/api-keys/types";
-import { getToggleActionText } from "@/app/connections/components/api-keys/utils";
+} from "@/app/developer/components/api-keys/types";
+import { getToggleActionText } from "@/app/developer/components/api-keys/utils";
 import { authClient } from "@/lib/auth/auth.client";
 
 export function useApiKeys(): UseApiKeysReturn {
