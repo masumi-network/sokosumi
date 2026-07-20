@@ -377,13 +377,14 @@ const ORCH_RETRY_BASE_DELAY_MS = 2000;
  * (2s/4s/8s/16s — ~30s total) before giving up. The orchestrator runs as a
  * single Railway replica, so every deploy has a brief window where its edge
  * returns 502/503/504 for in-flight requests — without a retry, a
- * synchronous user-initiated action (provision, patch, onboard) that lands
- * in that window surfaces as a hard failure even though the orchestrator is
- * healthy moments later.
+ * synchronous user-initiated action (provision, patch) that lands in that
+ * window surfaces as a hard failure even though the orchestrator is healthy
+ * moments later.
  *
- * Scoped to those synchronous setup calls only — NOT used for polling reads
- * (which just retry on the next poll tick) or chat completions (retrying a
- * POST with side effects on a transient status is unsafe).
+ * Scoped to provision + patch only — NOT used for polling reads (which just
+ * retry on the next poll tick), chat completions, or onboard (retrying a
+ * POST that starts research/boot can double side effects; the UI lets the
+ * user click Continue again instead).
  */
 async function orchFetchWithRetry(
   path: string,
@@ -1197,6 +1198,10 @@ export interface StartOnboardingInput {
  * POST /v1/instances/:userId/onboard
  * Fired when the user clicks "Let's go" on the onboarding screen. Flips
  * status to `onboarding`, runs boot + research, then flips to `ready`.
+ *
+ * Single-shot (no orchFetchWithRetry): onboard starts research/boot, so a
+ * gateway 503 after the orch accepted the request must not re-POST. Failures
+ * surface to the wizard; the user can click Continue again.
  */
 export async function startInstanceOnboarding(
   userId: string,
@@ -1214,7 +1219,7 @@ export async function startInstanceOnboarding(
   if (input.researchDepth) body.researchDepth = input.researchDepth;
   if (input.personality) body.personality = input.personality;
 
-  const res = await orchFetchWithRetry(
+  const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/onboard`,
     {
       method: "POST",
