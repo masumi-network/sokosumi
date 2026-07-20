@@ -72,7 +72,8 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
 
   if (isOrchestratorAuthContext(authContext)) {
     // Attribute status events to the orchestrator only. Context userId is
-    // workspace context, not a second actor FK (would break nested `actor`).
+    // workspace context, not a second actor FK — keep a single FK so nested
+    // `actor` and deprecated flat summaries stay unambiguous.
     return {
       userId: null,
       coworkerId: null,
@@ -81,15 +82,7 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
   }
 
   // Status transitions from a delegated coworker are attributed to the acting
-  // coworker. The context user is implied by task ownership and assignee checks.
-  if (authContext.context) {
-    return {
-      userId: null,
-      coworkerId: authContext.coworkerId,
-      orchestratorId: null,
-    };
-  }
-
+  // coworker only. Context userId is workspace context, not a second actor FK.
   return {
     userId: null,
     coworkerId: authContext.coworkerId,

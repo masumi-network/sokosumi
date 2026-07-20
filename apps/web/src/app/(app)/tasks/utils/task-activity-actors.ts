@@ -32,16 +32,17 @@ export function resolveTaskEventActorKind(
     return event.actor.type;
   }
 
+  // Match Core prefer order: orchestrator → coworker → user.
+  if (event.orchestratorId) {
+    return "orchestrator";
+  }
+
   if (event.coworkerId) {
     return "coworker";
   }
 
   if (event.userId) {
     return "user";
-  }
-
-  if (event.orchestratorId) {
-    return "orchestrator";
   }
 
   return null;
@@ -84,7 +85,19 @@ export function getEventActorInfo(
     }
   }
 
-  // Deprecated flat aliases — remove once clients always send nested actor.
+  // Deprecated flat aliases — remove once clients always receive nested actor.
+  // Prefer order matches Core: orchestrator → coworker → user.
+  if (event.orchestratorId) {
+    if (event.orchestrator) {
+      return {
+        name: event.orchestrator.name,
+        image: null,
+      };
+    }
+
+    return orchestratorById?.[event.orchestratorId];
+  }
+
   if (event.coworkerId) {
     if (event.coworker) {
       return {
@@ -105,17 +118,6 @@ export function getEventActorInfo(
     }
 
     return userById?.[event.userId];
-  }
-
-  if (event.orchestratorId) {
-    if (event.orchestrator) {
-      return {
-        name: event.orchestrator.name,
-        image: null,
-      };
-    }
-
-    return orchestratorById?.[event.orchestratorId];
   }
 
   return undefined;
@@ -163,9 +165,7 @@ export function buildTaskActivityActors(
           addUserActor(userById, event.actor.user);
           break;
         case "coworker":
-          if (event.actor.coworker != null) {
-            addCoworkerActor(coworkerById, event.actor.coworker);
-          }
+          addCoworkerActor(coworkerById, event.actor.coworker);
           break;
         case "orchestrator":
           addOrchestratorActor(orchestratorById, event.actor.orchestrator);

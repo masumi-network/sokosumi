@@ -894,6 +894,29 @@ describe("mapTaskEventActor", () => {
     });
   });
 
+  it("prefers orchestrator over coworker for legacy multi-FK rows", () => {
+    const orchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Hermes",
+      slug: "hermes",
+    };
+
+    expect(
+      mapTaskEventActor(
+        buildTaskEventFixture({
+          coworkerId: "cow_123",
+          coworker: defaultTaskCoworker,
+          orchestratorId: orchestrator.id,
+          orchestrator,
+        }),
+      ),
+    ).toEqual({
+      type: "orchestrator",
+      id: orchestrator.id,
+      orchestrator,
+    });
+  });
+
   it("throws when a single actor FK is set without the loaded relation", () => {
     expect(() =>
       mapTaskEventActor(
@@ -935,6 +958,30 @@ describe("mapTaskEvent", () => {
     expect(mapTaskEvent(buildTaskEventFixture())).not.toHaveProperty(
       "orchestrator",
     );
+  });
+
+  it("keeps all flat FKs but only preferred summary on legacy multi-FK rows", () => {
+    const mapped = mapTaskEvent(
+      buildTaskEventFixture({
+        userId: "user_123",
+        user: defaultTaskUser,
+        coworkerId: "cow_123",
+        coworker: defaultTaskCoworker,
+      }),
+    );
+
+    expect(mapped).toMatchObject({
+      actor: {
+        type: "coworker",
+        id: "cow_123",
+        coworker: defaultTaskCoworker,
+      },
+      userId: "user_123",
+      coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
+    });
+    expect(mapped).not.toHaveProperty("user");
+    expect(mapped).not.toHaveProperty("orchestrator");
   });
 });
 

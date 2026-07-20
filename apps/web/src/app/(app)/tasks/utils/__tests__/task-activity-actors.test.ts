@@ -35,6 +35,17 @@ describe("resolveTaskEventActorKind", () => {
       } as TaskEvent),
     ).toBe("coworker");
   });
+
+  it("prefers orchestrator over coworker/user on flat multi-FK fallback", () => {
+    expect(
+      resolveTaskEventActorKind({
+        actor: null,
+        coworkerId: "cow-1",
+        userId: "user-1",
+        orchestratorId: "orch-1",
+      } as TaskEvent),
+    ).toBe("orchestrator");
+  });
 });
 
 describe("getEventActorInfo", () => {

@@ -234,30 +234,19 @@ export function validateTaskAssigneeAssignment({
   }
 }
 
-function countTaskEventActorForeignKeys(event: TaskEventForMapping): number {
-  let count = 0;
-  if (event.userId != null) {
-    count += 1;
-  }
-  if (event.coworkerId != null) {
-    count += 1;
-  }
-  if (event.orchestratorId != null) {
-    count += 1;
-  }
-  return count;
-}
-
 export function mapTaskEventActor(event: TaskEventForMapping) {
-  const actorForeignKeyCount = countTaskEventActorForeignKeys(event);
-
-  if (actorForeignKeyCount === 0) {
+  if (
+    event.userId == null &&
+    event.coworkerId == null &&
+    event.orchestratorId == null
+  ) {
     return null;
   }
 
   // Prefer the acting agent when legacy rows stored multiple FKs
   // (orchestrator/coworker status events used to also set context userId).
   // New writes set exactly one actor FK.
+  // Prefer order: orchestrator → coworker → user.
   if (event.orchestratorId != null) {
     const orchestrator = orchestratorSummaryFromLoadedRelation(
       `Task event ${event.id} actor`,
@@ -296,21 +285,23 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
     };
   }
 
-  if (event.userId != null) {
-    return {
-      type: "user" as const,
-      id: event.userId,
-      user: userSummaryFromLoadedRelation(
-        `Task event ${event.id} actor`,
-        event.userId,
-        event.user ?? null,
-      ),
-    };
+  const userId = event.userId;
+  if (userId == null) {
+    // Unreachable: early return covers zero FKs; orch/coworker already handled.
+    throw new Error(
+      `Task event ${event.id}: unable to resolve actor for API mapping`,
+    );
   }
 
-  throw new Error(
-    `Task event ${event.id}: unable to resolve actor for API mapping`,
-  );
+  return {
+    type: "user" as const,
+    id: userId,
+    user: userSummaryFromLoadedRelation(
+      `Task event ${event.id} actor`,
+      userId,
+      event.user ?? null,
+    ),
+  };
 }
 
 export function mapTaskEvent(event: TaskEventForMapping) {
