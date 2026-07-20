@@ -235,7 +235,10 @@ project channel if you don't have them yet. Never commit them.
 
 ### Enabling the feature
 
-The route is open to all authenticated users; activating **and using**
+Web access is gated by the Hermes beta whitelist
+(`apps/web/src/lib/hermes/beta-access.ts`): only `nmkr.io` emails see the
+sidebar entry, and `/personal-assistant` 404s for everyone else via this
+route's `layout.tsx`. On top of that, activating **and using**
 (chat, onboard, settings mutations, skills, confirmations) are gated by a
 paid plan (or admin role) on the Core endpoints. Viewing history and
 destroying an instance stay open so cancelled users can tear down.
@@ -288,7 +291,7 @@ those rows directly.
 ```
 apps/web/src/app/(app)/personal-assistant/
 ├── README.md                            ← you are here
-├── layout.tsx                           ← FullscreenEffect wrapper
+├── layout.tsx                           ← beta whitelist gate + FullscreenEffect
 ├── page.tsx                             ← session pass-through, renders HermesExperience
 └── components/
     ├── hermes-experience.tsx            ← state machine + polling
