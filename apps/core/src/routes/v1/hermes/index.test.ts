@@ -1961,6 +1961,31 @@ describe("Hermes route contracts", () => {
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 
+  it("blocks chat/stream without paid coverage and never calls the orchestrator", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      status: "running",
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request("/chat/stream", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "hello" }),
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to use the personal assistant.",
+    );
+    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
   it("blocks onboarding without paid coverage", async () => {
     resolveActiveSubscriptionMock.mockResolvedValue(null);
 
