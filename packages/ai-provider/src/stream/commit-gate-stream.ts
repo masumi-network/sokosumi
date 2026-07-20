@@ -1,4 +1,4 @@
-import type { LanguageModelV3StreamPart } from "@ai-sdk/provider";
+import type { LanguageModelV4StreamPart } from "@ai-sdk/provider";
 
 import {
   COWORKER_AGENT_ERROR_SNIPPET,
@@ -10,7 +10,7 @@ export type CommitGateRetryReason = "agent-error" | "short-tail";
 export interface CommitGateOptions {
   onRetryNeeded: (
     reason: CommitGateRetryReason,
-  ) => Promise<ReadableStream<LanguageModelV3StreamPart> | null>;
+  ) => Promise<ReadableStream<LanguageModelV4StreamPart> | null>;
   minGoodChars?: number;
 }
 
@@ -30,8 +30,8 @@ function coworkerStreamTextLooksSuspiciouslyShort(
 }
 
 async function pipeStreamToController(
-  source: ReadableStream<LanguageModelV3StreamPart>,
-  controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
+  source: ReadableStream<LanguageModelV4StreamPart>,
+  controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>,
 ): Promise<void> {
   const reader = source.getReader();
   try {
@@ -55,16 +55,16 @@ function canCommitStream(text: string, minGoodChars: number): boolean {
 }
 
 export function createCommitGateStream(
-  sourceStream: ReadableStream<LanguageModelV3StreamPart>,
+  sourceStream: ReadableStream<LanguageModelV4StreamPart>,
   options: CommitGateOptions,
-): ReadableStream<LanguageModelV3StreamPart> {
+): ReadableStream<LanguageModelV4StreamPart> {
   const minGoodChars =
     options.minGoodChars ?? MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS;
   const sourceReader = sourceStream.getReader();
 
-  return new ReadableStream<LanguageModelV3StreamPart>({
+  return new ReadableStream<LanguageModelV4StreamPart>({
     async start(controller) {
-      const buffer: LanguageModelV3StreamPart[] = [];
+      const buffer: LanguageModelV4StreamPart[] = [];
       let textSoFar = "";
       let committed = false;
 

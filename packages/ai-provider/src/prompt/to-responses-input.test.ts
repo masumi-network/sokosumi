@@ -1,3 +1,4 @@
+import type { LanguageModelV4Prompt } from "@ai-sdk/provider";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -77,13 +78,19 @@ describe("promptToResponsesInput", () => {
           {
             type: "file",
             mediaType: "image/png",
-            data: new URL("https://example.com/image.png"),
+            data: {
+              type: "url",
+              url: new URL("https://example.com/image.png"),
+            },
           },
           {
             type: "file",
             mediaType: "application/pdf",
             filename: "brief.pdf",
-            data: "JVBERi0xLjcK",
+            data: {
+              type: "data",
+              data: "JVBERi0xLjcK",
+            },
           },
         ],
       },
@@ -119,13 +126,19 @@ describe("promptToResponsesInput", () => {
             type: "file",
             mediaType: "application/octet-stream",
             filename: "blob.bin",
-            data: "data:;base64,SGVsbG8=",
+            data: {
+              type: "data",
+              data: "data:;base64,SGVsbG8=",
+            },
           },
           {
             type: "file",
             mediaType: "application/pdf",
             filename: "from-url.pdf",
-            data: new URL("data:;base64,JVBERi0xLjcK"),
+            data: {
+              type: "url",
+              url: new URL("data:;base64,JVBERi0xLjcK"),
+            },
           },
         ],
       },
@@ -160,7 +173,12 @@ describe("promptToResponsesInput", () => {
             type: "file",
             mediaType: "application/pdf",
             filename: "brief.pdf",
-            data: "https://storage.example.com/containers/blobs/abc123.pdf",
+            data: {
+              type: "url",
+              url: new URL(
+                "https://storage.example.com/containers/blobs/abc123.pdf",
+              ),
+            },
           },
         ],
       },
@@ -190,9 +208,12 @@ describe("promptToResponsesInput", () => {
             type: "file",
             mediaType: "application/pdf",
             filename: "brief.pdf",
-            data: new URL(
-              "https://storage.example.com/containers/blobs/abc123.pdf",
-            ),
+            data: {
+              type: "url",
+              url: new URL(
+                "https://storage.example.com/containers/blobs/abc123.pdf",
+              ),
+            },
           },
         ],
       },
@@ -244,7 +265,7 @@ describe("promptToResponsesInput", () => {
           },
         ],
       },
-    ] as Parameters<typeof promptToResponsesInput>[0]);
+    ]);
 
     expect(input).toEqual([
       {
@@ -291,7 +312,7 @@ describe("promptToResponsesInput", () => {
           },
         ],
       },
-    ] as Parameters<typeof promptToResponsesInput>[0]);
+    ]);
 
     expect(input).toEqual([
       {
@@ -336,7 +357,7 @@ describe("promptToResponsesInput", () => {
           },
         ],
       },
-    ] as Parameters<typeof promptToResponsesInput>[0]);
+    ]);
 
     expect(input).toEqual([
       {
@@ -375,8 +396,38 @@ describe("promptToResponsesInput", () => {
             },
           ],
         },
-      ] as Parameters<typeof promptToResponsesInput>[0]),
+      ]),
     ).toThrowError(/provider file references/i);
+  });
+
+  it("still unwraps legacy bare file payloads at runtime", () => {
+    const prompt = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "legacy.pdf",
+            data: "https://storage.example.com/legacy.pdf",
+          },
+        ],
+      },
+    ] as unknown as LanguageModelV4Prompt;
+
+    expect(promptToResponsesInput(prompt)).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            file_url: "https://storage.example.com/legacy.pdf",
+            filename: "legacy.pdf",
+          },
+        ],
+      },
+    ]);
   });
 
   it("throws for non-base64 file data urls that cannot be mapped safely", () => {
@@ -389,7 +440,10 @@ describe("promptToResponsesInput", () => {
               type: "file",
               mediaType: "application/pdf",
               filename: "brief.pdf",
-              data: "data:application/pdf,plain-text",
+              data: {
+                type: "data",
+                data: "data:application/pdf,plain-text",
+              },
             },
           ],
         },
@@ -406,7 +460,10 @@ describe("promptToResponsesInput", () => {
             {
               type: "file",
               mediaType: "image/png",
-              data: "file:///tmp/x.png",
+              data: {
+                type: "url",
+                url: new URL("file:///tmp/x.png"),
+              },
             },
           ],
         },
@@ -426,7 +483,10 @@ describe("buildResponsesApiWarnings", () => {
             type: "file",
             mediaType: "application/pdf",
             filename: "x.pdf",
-            data: new URL("file:///tmp/x.pdf"),
+            data: {
+              type: "url",
+              url: new URL("file:///tmp/x.pdf"),
+            },
           },
         ],
       },
@@ -456,12 +516,18 @@ describe("buildResponsesApiWarnings", () => {
           {
             type: "file",
             mediaType: "application/pdf",
-            data: "JVBERi0xLjcK",
+            data: {
+              type: "data",
+              data: "JVBERi0xLjcK",
+            },
           },
           {
             type: "file",
             mediaType: "application/pdf",
-            data: "JVBERi0xLjcK",
+            data: {
+              type: "data",
+              data: "JVBERi0xLjcK",
+            },
           },
         ],
       },
@@ -527,7 +593,10 @@ describe("lastTurnToResponsesInput", () => {
           {
             type: "file",
             mediaType: "image/png",
-            data: new URL("https://example.com/image.png"),
+            data: {
+              type: "url",
+              url: new URL("https://example.com/image.png"),
+            },
           },
         ],
       },
