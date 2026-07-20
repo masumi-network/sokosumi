@@ -91,6 +91,10 @@ Run tests using Vitest with the `happy-dom` browser-like environment:
 pnpm test
 ```
 
+### Deployment (Vercel)
+
+[`vercel.json`](./vercel.json) sets `installCommand` to `pnpm install --filter web...` so only the web app and its workspace deps (`@sokosumi/chat`, `@sokosumi/email`, `@sokosumi/masumi`, `@sokosumi/net`, `@sokosumi/utils`) are installed. `@sokosumi/database` is not a dependency and is not built on web deploys — no Neon/`DATABASE_URL*` vars are required.
+
 ### Database setup
 
 The web app does not connect to Postgres directly. Bootstrap the database from the repo root (`pnpm prisma:migrate:dev`, `pnpm prisma:generate`) and configure `apps/core/.env` — see the root `AGENTS.md` setup section.
