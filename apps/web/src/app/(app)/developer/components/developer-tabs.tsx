@@ -1,0 +1,78 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useQueryState } from "nuqs";
+import { type ReactNode, useEffect } from "react";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type DeveloperTabValue = "oauth-clients" | "api-keys" | "mcp" | "docs";
+
+interface DeveloperTabsProps {
+  oauthClientsContent: ReactNode;
+  apiKeysContent: ReactNode;
+  mcpContent: ReactNode;
+  docsContent: ReactNode;
+}
+
+const ENABLED_TABS: DeveloperTabValue[] = [
+  "oauth-clients",
+  "api-keys",
+  "mcp",
+  "docs",
+];
+
+const TAB_TRIGGER_CLASS_NAME =
+  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm";
+
+export function DeveloperTabs({
+  oauthClientsContent,
+  apiKeysContent,
+  mcpContent,
+  docsContent,
+}: DeveloperTabsProps) {
+  const t = useTranslations("App.Developer");
+  const [tab, setTab] = useQueryState("tab", {
+    defaultValue: "oauth-clients",
+  });
+
+  const activeTab = ENABLED_TABS.includes(tab as DeveloperTabValue)
+    ? (tab as DeveloperTabValue)
+    : "oauth-clients";
+
+  useEffect(() => {
+    if (!ENABLED_TABS.includes(tab as DeveloperTabValue)) {
+      void setTab("oauth-clients");
+    }
+  }, [setTab, tab]);
+
+  return (
+    <Tabs
+      value={activeTab}
+      onValueChange={(value: string) => {
+        void setTab(value);
+      }}
+      className="flex flex-col gap-5"
+    >
+      <TabsList className="bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1">
+        <TabsTrigger value="oauth-clients" className={TAB_TRIGGER_CLASS_NAME}>
+          {t("tabs.oauthClients")}
+        </TabsTrigger>
+        <TabsTrigger value="api-keys" className={TAB_TRIGGER_CLASS_NAME}>
+          {t("tabs.apiKeys")}
+        </TabsTrigger>
+        <TabsTrigger value="mcp" className={TAB_TRIGGER_CLASS_NAME}>
+          {t("tabs.mcp")}
+        </TabsTrigger>
+        <TabsTrigger value="docs" className={TAB_TRIGGER_CLASS_NAME}>
+          {t("tabs.docs")}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="oauth-clients">{oauthClientsContent}</TabsContent>
+      <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
+      <TabsContent value="mcp">{mcpContent}</TabsContent>
+      <TabsContent value="docs">{docsContent}</TabsContent>
+    </Tabs>
+  );
+}

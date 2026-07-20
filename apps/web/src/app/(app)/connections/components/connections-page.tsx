@@ -1,13 +1,9 @@
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { AccountProvider } from "@/lib/auth/types";
 
-import { ApiKeysSection } from "./api-keys";
 import { OAuthAuthorizedClients } from "./authorized-clients";
-import { ConnectionsTabs } from "./connections-tabs";
-import { McpActiveKeyView } from "./mcp-active-key-view";
 import { SocialAccounts } from "./social-accounts";
 
 export async function ConnectionsPage() {
@@ -39,15 +35,7 @@ export async function ConnectionsPage() {
       <div className="mx-auto max-w-4xl space-y-8 px-4">
         <div className="space-y-6">
           {socialAccountsSection}
-          <ConnectionsTabs
-            connectedAppsContent={<OAuthAuthorizedClients />}
-            apiKeysContent={<ApiKeysSection />}
-            mcpContent={
-              <Suspense fallback={null}>
-                <McpActiveKeyView />
-              </Suspense>
-            }
-          />
+          <OAuthAuthorizedClients />
         </div>
       </div>
     </div>

@@ -120,6 +120,7 @@
       "account": "账户",
       "billing": "账单",
       "connections": "连接",
+      "developer": "开发者",
       "help": "帮助",
       "legal": "法律",
       "support": "支持",
@@ -256,6 +257,7 @@
       "chat": "聊天",
       "tasks": "任务",
       "connections": "连接",
+      "developer": "开发者",
       "hermes": "Hermes",
       "history": "历史记录",
       "new": "新建",
@@ -3140,13 +3142,6 @@
         "unknownError": "出现问题"
       }
     },
-    "Connections": {
-      "tabs": {
-        "connectedApps": "已连接的应用",
-        "apiKeys": "API 密钥",
-        "mcp": "MCP"
-      }
-    },
     "MCP": {
       "urlLabel": "MCP 服务器 URL",
       "existingKeyNote": "此托管 MCP 连接使用 OAuth。连接时，您的 MCP 客户端会要求您登录 Sokosumi。",
@@ -3414,10 +3409,8 @@
       },
       "OAuthClients": {
         "title": "OAuth 客户端",
-        "description": "管理可访问您账户的 OAuth 客户端",
+        "description": "创建并管理你构建的应用的 OAuth 客户端。",
         "createButton": "创建 OAuth 客户端",
-        "createSuccess": "OAuth 客户端创建成功",
-        "createError": "创建 OAuth 客户端失败",
         "copy": "复制",
         "copySuccess": "已复制到剪贴板",
         "CreateDialog": {
@@ -3438,6 +3431,51 @@
           "clientSecretLabel": "客户端密钥",
           "clientSecretWarning": "该密钥仅显示一次。请务必安全保存。",
           "doneButton": "完成"
+        },
+        "loading": "正在加载 OAuth 客户端...",
+        "noClientsFound": "创建你的第一个 OAuth 客户端以开始使用。",
+        "retry": "重试",
+        "redirectUrisLabel": "重定向 URI",
+        "created": "创建于：{date}",
+        "Status": {
+          "disabled": "已禁用"
+        },
+        "Actions": {
+          "editTooltip": "编辑 OAuth 客户端",
+          "deleteTooltip": "删除 OAuth 客户端"
+        },
+        "EditDialog": {
+          "title": "编辑 OAuth 客户端",
+          "description": "更新此 OAuth 客户端的名称或重定向 URI。",
+          "nameLabel": "名称",
+          "namePlaceholder": "例如：我的应用、生产服务器",
+          "redirectUrisLabel": "重定向 URI",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "每行输入一个重定向 URI。每个 URI 必须是有效的 URL。",
+          "cancelButton": "取消",
+          "saveButton": "保存更改"
+        },
+        "DeleteDialog": {
+          "title": "删除 OAuth 客户端",
+          "description": "此操作无法撤销。删除 \"{name}\" 将永久移除该客户端。使用这些凭据的应用将无法再进行身份验证。",
+          "cancelButton": "取消",
+          "deleteButton": "删除 OAuth 客户端"
+        },
+        "Messages": {
+          "loadError": "加载 OAuth 客户端失败",
+          "createSuccess": "OAuth 客户端创建成功",
+          "createError": "创建 OAuth 客户端失败",
+          "updateSuccess": "OAuth 客户端更新成功",
+          "updateError": "更新 OAuth 客户端失败",
+          "deleteSuccess": "OAuth 客户端删除成功",
+          "deleteError": "删除 OAuth 客户端失败",
+          "copyError": "复制到剪贴板失败"
+        },
+        "Validation": {
+          "nameRequired": "名称为必填项",
+          "nameMaxLength": "名称必须少于 100 个字符",
+          "redirectUrisRequired": "至少需要一个重定向 URI",
+          "redirectUrisInvalid": "每个重定向 URI 必须是有效的 URL"
         }
       },
       "OAuthCallback": {
@@ -3796,6 +3834,32 @@
       "discardDialogTitle": "放弃更改？",
       "discardDialogDescription": "如果不保存就离开，您的编辑将丢失。",
       "discardConfirm": "放弃更改"
+    },
+    "Developer": {
+      "tabs": {
+        "oauthClients": "OAuth 客户端",
+        "apiKeys": "API 密钥",
+        "mcp": "MCP",
+        "docs": "文档"
+      },
+      "Docs": {
+        "title": "开发者文档",
+        "description": "在 Sokosumi 上构建所需的指南与参考。",
+        "links": {
+          "gettingStarted": {
+            "title": "快速开始",
+            "description": "了解如何与 Sokosumi 集成。"
+          },
+          "apiReference": {
+            "title": "API 参考",
+            "description": "浏览 Sokosumi OpenAPI 文档。"
+          },
+          "mcp": {
+            "title": "MCP 文档",
+            "description": "通过 MCP 将 AI 客户端连接到 Sokosumi。"
+          }
+        }
+      }
     }
   },
   "Share": {

@@ -71,6 +71,7 @@ export function SettingsSubmenuContent({
         | "account"
         | "billing"
         | "connections"
+        | "developer"
         | "organizationsHeading",
     );
   }

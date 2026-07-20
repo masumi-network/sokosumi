@@ -120,6 +120,7 @@
       "account": "Account",
       "billing": "Fatturazione",
       "connections": "Connessioni",
+      "developer": "Sviluppatore",
       "help": "Aiuto",
       "legal": "Note legali",
       "support": "Supporto",
@@ -256,6 +257,7 @@
       "chat": "Chat",
       "tasks": "Attività",
       "connections": "Connessioni",
+      "developer": "Sviluppatore",
       "hermes": "Hermes",
       "history": "Cronologia",
       "new": "Nuovo",
@@ -3140,13 +3142,6 @@
         "unknownError": "Qualcosa è andato storto"
       }
     },
-    "Connections": {
-      "tabs": {
-        "connectedApps": "App connesse",
-        "apiKeys": "Chiavi API",
-        "mcp": "MCP"
-      }
-    },
     "MCP": {
       "urlLabel": "URL del server MCP",
       "existingKeyNote": "Questa connessione MCP ospitata usa OAuth. Il tuo client MCP ti chiederà di accedere a Sokosumi durante la connessione.",
@@ -3414,10 +3409,8 @@
       },
       "OAuthClients": {
         "title": "Client OAuth",
-        "description": "Gestisci i client OAuth che possono accedere al tuo account",
+        "description": "Crea e gestisci client OAuth per le applicazioni che sviluppi.",
         "createButton": "Crea client OAuth",
-        "createSuccess": "Client OAuth creato correttamente",
-        "createError": "Impossibile creare il client OAuth",
         "copy": "Copia",
         "copySuccess": "Copiato negli appunti",
         "CreateDialog": {
@@ -3438,6 +3431,51 @@
           "clientSecretLabel": "Segreto del client",
           "clientSecretWarning": "Questo segreto verrà mostrato solo una volta. Assicurati di salvarlo in modo sicuro.",
           "doneButton": "Fine"
+        },
+        "loading": "Caricamento client OAuth...",
+        "noClientsFound": "Crea il tuo primo client OAuth per iniziare.",
+        "retry": "Riprova",
+        "redirectUrisLabel": "URI di reindirizzamento",
+        "created": "Creato: {date}",
+        "Status": {
+          "disabled": "Disabilitato"
+        },
+        "Actions": {
+          "editTooltip": "Modifica client OAuth",
+          "deleteTooltip": "Elimina client OAuth"
+        },
+        "EditDialog": {
+          "title": "Modifica client OAuth",
+          "description": "Aggiorna il nome o gli URI di reindirizzamento di questo client OAuth.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "es. La mia applicazione, Server di produzione",
+          "redirectUrisLabel": "URI di reindirizzamento",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Inserisci un URI di reindirizzamento per riga. Ogni URI deve essere un URL valido.",
+          "cancelButton": "Annulla",
+          "saveButton": "Salva modifiche"
+        },
+        "DeleteDialog": {
+          "title": "Elimina client OAuth",
+          "description": "Questa azione non può essere annullata. Eliminando \"{name}\" il client verrà rimosso definitivamente. Le applicazioni che usano queste credenziali non potranno più autenticarsi.",
+          "cancelButton": "Annulla",
+          "deleteButton": "Elimina client OAuth"
+        },
+        "Messages": {
+          "loadError": "Impossibile caricare i client OAuth",
+          "createSuccess": "Client OAuth creato con successo",
+          "createError": "Impossibile creare il client OAuth",
+          "updateSuccess": "Client OAuth aggiornato con successo",
+          "updateError": "Impossibile aggiornare il client OAuth",
+          "deleteSuccess": "Client OAuth eliminato con successo",
+          "deleteError": "Impossibile eliminare il client OAuth",
+          "copyError": "Copia negli appunti non riuscita"
+        },
+        "Validation": {
+          "nameRequired": "Il nome è obbligatorio",
+          "nameMaxLength": "Il nome deve contenere meno di 100 caratteri",
+          "redirectUrisRequired": "È richiesto almeno un URI di reindirizzamento",
+          "redirectUrisInvalid": "Ogni URI di reindirizzamento deve essere un URL valido"
         }
       },
       "OAuthCallback": {
@@ -3796,6 +3834,32 @@
       "discardDialogTitle": "Annullare le modifiche?",
       "discardDialogDescription": "Le modifiche andranno perse se esci senza salvare.",
       "discardConfirm": "Annulla modifiche"
+    },
+    "Developer": {
+      "tabs": {
+        "oauthClients": "Client OAuth",
+        "apiKeys": "Chiavi API",
+        "mcp": "MCP",
+        "docs": "Documentazione"
+      },
+      "Docs": {
+        "title": "Documentazione per sviluppatori",
+        "description": "Guide e riferimenti per sviluppare su Sokosumi.",
+        "links": {
+          "gettingStarted": {
+            "title": "Per iniziare",
+            "description": "Scopri come integrarti con Sokosumi."
+          },
+          "apiReference": {
+            "title": "Riferimento API",
+            "description": "Esplora la documentazione OpenAPI di Sokosumi."
+          },
+          "mcp": {
+            "title": "Documentazione MCP",
+            "description": "Collega client AI a Sokosumi tramite MCP."
+          }
+        }
+      }
     }
   },
   "Share": {
