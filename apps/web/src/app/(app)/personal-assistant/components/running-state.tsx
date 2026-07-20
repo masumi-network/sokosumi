@@ -2330,9 +2330,10 @@ function ConfirmationCard({
       workspaceOverride
         ? {
             confirmationId: confirmation.id,
+            confirmation,
             ...workspaceOverride,
           }
-        : { confirmationId: confirmation.id },
+        : { confirmationId: confirmation.id, confirmation },
     );
     setBusy(null);
     if (!result.ok) {
@@ -2398,6 +2399,7 @@ function ConfirmationCard({
       : undefined;
     const result = await rejectHermesConfirmationAction({
       confirmationId: confirmation.id,
+      confirmation,
     });
     setBusy(null);
     if (!result.ok) {
