@@ -1,6 +1,6 @@
 ---
 name: sapphire-coder
-description: Team Sapphire Coder — implements a coder block from the Spec artifact. Used by _team-sapphire orchestrator in Phase 3. Sole coder opens one PR; parallel coders return a branch for orchestrator merge.
+description: Team Sapphire Coder — implements a coder block from the Spec artifact. Used by _team-sapphire orchestrator in Phase 3. Sole coder opens one PR; parallel coders push a named branch for orchestrator merge.
 model: composer-2.5
 ---
 
@@ -12,7 +12,7 @@ Follow `.cursor/skills/_team-sapphire/ROLES.md` (**Coder**). Read `BUGBOT-LEARNI
 
 **Sole:** Implement → allowlisted verify (exit 0) → open one PR (body references issue id) → return structured fields.
 
-**Parallel:** Implement owned files only → verify → commit on named branch → return `branch` (no push, no PR).
+**Parallel:** Implement owned files only → verify → commit + **push** named branch → return `branch` with `pushed: true` (no PR).
 
 **Return (exact keys):**
 
@@ -21,9 +21,9 @@ ok: true|false
 prUrl: <url or empty>
 branch: <name>
 verification: <commands + exit 0>
-pushed: false
+pushed: true|false
 summary: <one line>
 blocker: <text if ok false>
 ```
 
-**Do not:** Linear MCP, CI watch, Bugbot, set In Review/Done, edit files owned by other parallel coders.
+**Do not:** Linear MCP, CI watch, Bugbot, set In Review/Done, open a PR in parallel mode, edit files owned by other parallel coders.

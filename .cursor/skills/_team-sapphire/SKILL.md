@@ -43,7 +43,9 @@ Issue description holds only `## Requirement`, `## Sapphire status`, and footer.
 
 ## Subagent return shape
 
-Subagents return structured fields — **no** draft Linear comments, **no** Linear MCP:
+Subagents return structured fields — **no** draft Linear comments, **no** Linear MCP.
+
+**Coder / Reviewer:**
 
 ```text
 ok: true|false
@@ -55,7 +57,9 @@ summary: <one line>
 blocker: <text if ok false>
 ```
 
-Coder (sole): also opens the PR. Parallel coders: return `branch` only (no push/PR). Reviewer: set `pushed: true` if commits landed on the PR branch.
+**Tech Lead (optional):** `ok`, `spec` (full markdown), `summary`, `blocker` — no `prUrl`/`pushed`.
+
+Coder (sole): opens the PR; set `pushed: true` when the branch was pushed. Parallel coders: **push** the named branch (no PR); orchestrator fetches and merges. Reviewer: set `pushed: true` if commits landed on the PR branch.
 
 ## Intake
 
@@ -71,8 +75,8 @@ Load newest `**Sapphire · Investigation**` / `**Sapphire · Spec**` comments in
 | Condition | Action |
 |-----------|--------|
 | User asked for one phase only | Run that phase + exit gate; stop |
-| Status row `done` + artifact comment exists | Skip that phase |
-| Status `done` but artifact comment missing | Re-run that phase (and upstream if needed) |
+| Status row `done` + full artifact comment exists | Skip that phase |
+| Status `done` but full artifact missing (including legacy short `… complete` only) | **Re-run** that phase to post full artifact before downstream (exit gate may still treat legacy as satisfied) |
 | Coder `done` + complete comment has verification/CI/Bugbot 0 High + open PR + spec artifact | Skip Coder; run Reviewer |
 | PR open + Coder `done` but complete comment incomplete | **Gate repair** — run missing Pre-Reviewer gates; post/update Coder complete; do not re-implement unless a gate fails |
 | All rows `done`, not **In Review** | Finish Reviewer + Completion gate |
@@ -99,7 +103,7 @@ Then continue **all later phases** in this session.
 1. Read Spec artifact (+ Investigation if needed). Read `ROLES.md` (Coder) and `BUGBOT-LEARNINGS.md`.
 2. **Single coder (default):** Task `sapphire-coder` (`model: composer-2.5`) with coder block + issue id. Subagent implements, verifies (exit 0), opens **one PR**, returns structured fields.
 3. **Multiple sequential:** run coders in execution order on one branch (one Task after another, or sole Task with full scope). One PR at the end.
-4. **Parallel (`**Parallel:** true` + ownership table only):** parallel `sapphire-coder` Tasks — each commits on a named branch, **no PR**. Orchestrator merges → verify → one PR.
+4. **Parallel (`**Parallel:** true` + ownership table only):** parallel `sapphire-coder` Tasks — each commits, **pushes** a named branch, **no PR**. Orchestrator: `git fetch` each branch → merge onto one integration branch → verify → open **one PR**.
 5. **Pre-Reviewer gates (orchestrator):** (1) local verify exit 0 (already done by implementer) (2) PR open (3) CI green (`gh pr checks`) (4) Bugbot **0 High** (`BUGBOT-LEARNINGS.md`). Fix High on branch; re-run until clear.
 6. **Gate:** one `save_comment` → `**Sapphire · Coder complete**` (template in `GATES.md`). If ≥1 Medium: also `**Bugbot · medium (human review)**`. Then `save_issue` → Coder `done`. Stay **In Progress**.
 7. Continue to Phase 4.

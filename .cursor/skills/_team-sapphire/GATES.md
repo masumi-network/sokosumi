@@ -78,12 +78,12 @@ Before returning to the user:
 
 ### Legacy comments (older runs)
 
-Treat as satisfied when present:
+Treat as **exit-gate** satisfied when present (does **not** skip re-run for missing full artifacts — see `SKILL.md` Resume):
 
-| Old header | Counts as |
-|------------|-----------|
-| `**Sapphire · Investigator complete**` | Investigation gate (prefer full `**Sapphire · Investigation**` on re-run) |
-| `**Sapphire · Tech Lead complete**` | Tech Lead gate (prefer full `**Sapphire · Spec**` on re-run) |
+| Old header | Exit-gate stand-in |
+|------------|-------------------|
+| `**Sapphire · Investigator complete**` | Investigation row (still re-run for full `**Sapphire · Investigation**` before Tech Lead/Coder) |
+| `**Sapphire · Tech Lead complete**` | Tech Lead row (still re-run for full `**Sapphire · Spec**` before Coder/Reviewer) |
 | `**PR handoff**` + incomplete Coder complete | Gate repair — fold PR URL into `**Sapphire · Coder complete**` |
 
 If only a short complete comment exists (no full artifact), re-run that phase to post the artifact before downstream work.

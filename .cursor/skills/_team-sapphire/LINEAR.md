@@ -27,7 +27,7 @@ Every `save_issue` that sets `description`:
 
 1. `get_issue` first.
 2. Start from full existing `description`.
-3. Keep only `## Requirement`, `## Sapphire status`, and Sapphire footer.
+3. Keep only `## Requirement`, `## Sapphire status`, and optional Sapphire footer (one-line italic under a `---` after the status table, e.g. `_Sapphire squad — do not edit status by hand_`). If no footer exists, do not invent one.
 4. **Remove** `## Investigation`, `## Spec`, and other phase body sections.
 5. Update the status row; pass the **entire** trimmed markdown.
 
