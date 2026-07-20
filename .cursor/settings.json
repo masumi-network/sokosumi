@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "caveman/caveman": {
+      "enabled": true
+    },
+    "superpowers": {
+      "enabled": true
+    },
+    "cavekit-marketplace/ck": {
+      "enabled": true
+    },
+    "docs-canvas": {
+      "enabled": true
+    }
+  }
+}
