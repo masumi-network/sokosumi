@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -49,6 +49,16 @@ import type {
 interface SkillsMarketplaceProps {
   /** Onboarding hides the header + search; settings shows the full browser. */
   variant?: "settings" | "onboarding";
+  /**
+   * Whether the marketplace is currently visible to the user. The wizard
+   * pre-warms this component hidden; when it becomes active after a failed
+   * catalog load we silently retry once so the user never lands on a dead
+   * shelf that errored while they couldn't see it.
+   */
+  active?: boolean;
+  /** Suppress the internal title/subtitle when the host (e.g. SkillsDialog)
+   * already renders its own header. Search stays. */
+  hideHeader?: boolean;
   hasActiveSubscription?: boolean;
   onRequireSubscription?: () => void;
 }
@@ -63,6 +73,8 @@ const MAX_ONBOARDING = 16;
 
 export default function SkillsMarketplace({
   variant = "settings",
+  active = true,
+  hideHeader = false,
   hasActiveSubscription = true,
   onRequireSubscription,
 }: SkillsMarketplaceProps) {
@@ -76,6 +88,9 @@ export default function SkillsMarketplace({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  // Bumping this re-runs the catalog load (manual Retry / on-activate retry).
+  const [loadNonce, setLoadNonce] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(
     null,
@@ -102,24 +117,54 @@ export default function SkillsMarketplace({
   useEffect(() => {
     let cancelled = false;
     const max = variant === "onboarding" ? MAX_ONBOARDING : MAX_SETTINGS;
+    setLoading(true);
+    setLoadError(false);
     void (async () => {
-      // Single server action — Next serializes concurrent actions, so the
-      // fetches are bundled into one (they run in parallel inside it).
-      const res = await getSkillsMarketplaceAction({});
-      if (cancelled) return;
-      if (res.ok) {
-        setMarketing(res.data.marketing.slice(0, max));
-        setInstalled(res.data.installed);
-        setPreinstalled(res.data.preinstalled);
-      } else {
-        toast.error(res.error.message ?? t("emptyCatalog"));
+      try {
+        // Single server action — Next serializes concurrent actions, so the
+        // fetches are bundled into one (they run in parallel inside it).
+        const res = await getSkillsMarketplaceAction({});
+        if (cancelled) return;
+        if (res.ok) {
+          setMarketing(res.data.marketing.slice(0, max));
+          setInstalled(res.data.installed);
+          setPreinstalled(res.data.preinstalled);
+        } else {
+          // No toast: this component may be mounted hidden (wizard pre-warm),
+          // where a toast would surface context-free on an unrelated step.
+          // The failure renders inline with a Retry button instead.
+          setLoadError(true);
+        }
+      } catch {
+        // Transport-level failure (network blip, rolling deploy) rejects the
+        // action promise itself — without this the spinner would hang forever
+        // with no Retry.
+        if (cancelled) return;
+        setLoadError(true);
       }
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [variant]);
+  }, [variant, loadNonce]);
+
+  // One silent retry each time the marketplace becomes visible after a
+  // failed load — covers the pre-warm fetch dying while the machine was
+  // still booting. The ref caps it at one auto-attempt per activation so a
+  // persistently down orchestrator can't retry-loop; after that the inline
+  // Retry button is the recovery path.
+  const autoRetriedRef = useRef(false);
+  useEffect(() => {
+    if (!active) {
+      autoRetriedRef.current = false;
+      return;
+    }
+    if (loadError && !loading && !autoRetriedRef.current) {
+      autoRetriedRef.current = true;
+      setLoadNonce((n) => n + 1);
+    }
+  }, [active, loadError, loading]);
 
   // Debounced search.
   useEffect(() => {
@@ -263,17 +308,20 @@ export default function SkillsMarketplace({
       </div>
 
       {/* Onboarding embeds this under its own step heading; the header + search
-          are settings-only. */}
+          are settings-only. Hosts with their own header (SkillsDialog) keep
+          search but suppress the internal title to avoid doubling it. */}
       {variant === "settings" ? (
         <>
-          <div>
-            <h3 className="text-foreground text-sm font-semibold">
-              {t("title")}
-            </h3>
-            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-              {t("subtitle")}
-            </p>
-          </div>
+          {!hideHeader ? (
+            <div>
+              <h3 className="text-foreground text-sm font-semibold">
+                {t("title")}
+              </h3>
+              <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
+                {t("subtitle")}
+              </p>
+            </div>
+          ) : null}
 
           <div className="relative">
             <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
@@ -304,6 +352,20 @@ export default function SkillsMarketplace({
           onAdd={handleAdd}
           onRemove={handleRemove}
         />
+      ) : loadError ? (
+        // After the search branch on purpose: a failed catalog load must not
+        // swallow live search results (search hits the registry, which can be
+        // up while the orchestrator-backed installed/preinstalled reads fail).
+        <div className="flex flex-col items-center gap-3 py-6">
+          <p className="text-muted-foreground text-sm">{t("emptyCatalog")}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLoadNonce((n) => n + 1)}
+          >
+            {t("retry")}
+          </Button>
+        </div>
       ) : (
         <>
           <SkillShelf

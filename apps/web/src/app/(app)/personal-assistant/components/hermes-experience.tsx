@@ -652,6 +652,8 @@ export default function HermesExperience({
           integrations={instance?.integrations ?? []}
           previewMode={previewMode}
           isStarting={isStartingOnboarding}
+          hasActiveSubscription={hasActiveSubscription}
+          onRequireSubscription={() => setSubscriptionWallOpen(true)}
           onContinue={(opts) => void handleStartOnboarding(opts)}
         />
         {subscriptionWall}

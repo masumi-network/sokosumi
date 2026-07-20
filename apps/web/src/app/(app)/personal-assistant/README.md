@@ -294,7 +294,7 @@ apps/web/src/app/(app)/personal-assistant/
     ├── empty-state.tsx                  ← shell: /personal-assistant when no instance
     ├── empty-state/                     ← hero + journey + features + examples + disclaimer modules
     ├── provisioning-state.tsx           ← honest "Setting up your agent…" view
-    ├── onboarding-screen.tsx            ← 5-step wizard: Name → Look/personality → Autonomy → Integrations → Review
+    ├── onboarding-screen.tsx            ← 6-step wizard: Name → Look/personality → Autonomy → Integrations → Skills → Review
     ├── onboarding-progress.tsx          ← orchestrator step poll UI
     ├── running-state.tsx                ← chat shell (hooks + panels + layout)
     ├── running-state/                   ← timeline, composer, confirmations, scroll/send/inbox hooks, stream
@@ -302,8 +302,9 @@ apps/web/src/app/(app)/personal-assistant/
     │
     ├── autonomy-selector.tsx            ← shared low/medium/high radio cards
     ├── autonomy-panel.tsx               ← autonomy level + scheduled tasks sheet
-    ├── settings-panel.tsx               ← name / orb / integrations / skills / sync / danger
-    ├── skills-marketplace.tsx           ← skills.sh catalog (Settings)
+    ├── settings-panel.tsx               ← name / orb / integrations / sync / danger
+    ├── skills-marketplace.tsx           ← skills.sh catalog (wizard step + Skills dialog)
+    ├── skills-dialog.tsx                ← Skills marketplace popup, opened from the chat-header chip
     ├── connect-interstitial.tsx         ← pre-OAuth modal; maps slug → identity provider
     ├── use-composio-oauth.ts            ← popup orchestration + postMessage handshake
     │

@@ -2612,6 +2612,7 @@
         "emptyCatalog": "The skills catalog is unavailable right now.",
         "emptyInstalled": "No skills installed yet.",
         "noResults": "No skills found.",
+        "retry": "Try again",
         "reviewTitle": "Review before adding",
         "reviewBody": "Automated audits flagged this skill (risk: {risk}). Add it only if you trust the source.",
         "reviewConfirm": "Add anyway",

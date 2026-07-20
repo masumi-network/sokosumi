@@ -69,7 +69,7 @@ interface SettingsPanelProps {
    * local overlay for snappy UI, but the chip / autonomy badge upstream
    * read from parent state. */
   onRefreshInstance?: () => void | Promise<void>;
-  /** Paid coverage for settings mutations (rename, connect, skills…). */
+  /** Paid coverage for settings mutations (rename, orb, connect…). */
   hasActiveSubscription?: boolean;
   onRequireSubscription?: () => void;
 }

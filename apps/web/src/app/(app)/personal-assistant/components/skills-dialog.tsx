@@ -49,6 +49,7 @@ export default function SkillsDialog({
           {!previewMode ? (
             <SkillsMarketplace
               variant="settings"
+              hideHeader
               hasActiveSubscription={hasActiveSubscription}
               onRequireSubscription={onRequireSubscription}
             />

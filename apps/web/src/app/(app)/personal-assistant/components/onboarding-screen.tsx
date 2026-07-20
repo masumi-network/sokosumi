@@ -49,6 +49,10 @@ interface OnboardingScreenProps {
   previewMode: boolean;
   /** True while the parent is awaiting `POST /me/instance/onboard`. */
   isStarting?: boolean;
+  /** Paid coverage — gates skill installs on the Skills step so a lapsed
+   * subscription opens the wall instead of a raw Core 403 toast. */
+  hasActiveSubscription?: boolean;
+  onRequireSubscription?: () => void;
   onContinue: (options: {
     skipResearch: boolean;
     name: string | null;
@@ -135,9 +139,12 @@ export default function OnboardingScreen({
   integrations,
   previewMode,
   isStarting = false,
+  hasActiveSubscription = true,
+  onRequireSubscription,
   onContinue,
 }: OnboardingScreenProps) {
   const t = useTranslations("App.Hermes.Onboarding");
+  const tSkillsPanel = useTranslations("App.Hermes.SkillsPanel");
   const tProviders = useTranslations("App.Hermes.Onboarding.providers");
   const tOAuth = useTranslations("App.Hermes.Common.oauth");
   const composioOAuth = useComposioOAuth();
@@ -516,10 +523,15 @@ export default function OnboardingScreen({
         >
           <Section heading={t("skillsHeading")} description={t("skillsHelp")}>
             {!previewMode ? (
-              <SkillsMarketplace variant="onboarding" />
+              <SkillsMarketplace
+                variant="onboarding"
+                active={step === 5}
+                hasActiveSubscription={hasActiveSubscription}
+                onRequireSubscription={onRequireSubscription}
+              />
             ) : (
               <p className="text-muted-foreground text-center text-sm">
-                {t("moreLaterShort")}
+                {tSkillsPanel("previewUnavailable")}
               </p>
             )}
           </Section>

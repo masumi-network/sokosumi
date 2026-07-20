@@ -2456,9 +2456,7 @@
         "fullAccessBodyPrefix": "你的助手将能够",
         "fullAccessBodyBold": "起草回复并代表你在账户中行动",
         "fullAccessBodySuffix": "仅在你希望它代发邮件/创建事件时启用。",
-        "fullAccessCta": "连接（完全访问 — 读 + 发）",
-        "skillsHeading": "Add skills (optional)",
-        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
+        "fullAccessCta": "连接（完全访问 — 读 + 发）"
       },
       "OnboardingProgress": {
         "eyebrow": "正在准备你的智能体",

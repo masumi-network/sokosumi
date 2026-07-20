@@ -2456,9 +2456,7 @@
         "fullAccessBodyPrefix": "Tu asistente podrá",
         "fullAccessBodyBold": "redactar respuestas y actuar en tu cuenta en tu nombre",
         "fullAccessBodySuffix": "Actívalo solo si quieres que envíe correo / cree eventos por ti.",
-        "fullAccessCta": "Conectar (acceso completo — lectura + envío)",
-        "skillsHeading": "Add skills (optional)",
-        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
+        "fullAccessCta": "Conectar (acceso completo — lectura + envío)"
       },
       "OnboardingProgress": {
         "eyebrow": "Preparando tu agente",
