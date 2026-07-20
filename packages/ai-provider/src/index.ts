@@ -20,10 +20,10 @@ export {
 export type { SokosumiLanguageModel } from "./sokosumi-language-model.js";
 export { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
 export {
-  createResponsesSseToV3Stream,
+  createResponsesSseToV4Stream,
   emptyUsage,
   finishStop,
-} from "./stream/responses-sse-to-v3-stream.js";
+} from "./stream/responses-sse-to-v4-stream.js";
 export type {
   CreateSokosumiOptions,
   SokosumiProviderCallOptions,

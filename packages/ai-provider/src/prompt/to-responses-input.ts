@@ -1,9 +1,9 @@
 import {
   InvalidPromptError,
-  type LanguageModelV3FilePart,
-  type LanguageModelV3Prompt,
-  type SharedV3Warning,
+  type LanguageModelV4FilePart,
+  type LanguageModelV4Prompt,
   type SharedV4FileData,
+  type SharedV4Warning,
 } from "@ai-sdk/provider";
 
 interface OpenRouterResponsesInputTextItem {
@@ -25,11 +25,10 @@ interface OpenRouterResponsesInputFileItem {
 }
 
 /**
- * AI SDK 7 wraps LanguageModelV3 providers as V4 and passes tagged
- * `SharedV4FileData` (`{ type: "url" | "data" | ... }`) into `doStream`.
- * Legacy V3 prompts still use bare `Uint8Array | string | URL`.
+ * LanguageModelV4 file parts use tagged `SharedV4FileData`. Also accept legacy
+ * bare `Uint8Array | string | URL` at runtime for defensive compatibility.
  */
-type FilePartData = LanguageModelV3FilePart["data"] | SharedV4FileData;
+type FilePartData = SharedV4FileData | Uint8Array | string | URL;
 
 type UnwrappedFileData = Uint8Array | string | URL;
 
@@ -43,15 +42,41 @@ export type OpenRouterResponsesInputMessage = {
   >;
 };
 
+const MAPPED_USER_ASSISTANT_PART_TYPES = new Set(["text", "file"]);
+
 export function buildResponsesApiWarnings(
-  prompt: LanguageModelV3Prompt,
-): SharedV3Warning[] {
-  const warnings: SharedV3Warning[] = [];
+  prompt: LanguageModelV4Prompt,
+): SharedV4Warning[] {
+  const warnings: SharedV4Warning[] = [];
   for (const message of prompt) {
+    if (message.role === "tool") {
+      for (const part of message.content) {
+        if (part.type === "tool-result") {
+          continue;
+        }
+        warnings.push({
+          type: "unsupported",
+          feature: `tool ${part.type} parts`,
+          details:
+            "Only tool-result parts on tool messages are forwarded to the Responses input; other tool parts are dropped.",
+        });
+      }
+      continue;
+    }
+
     if (message.role !== "user" && message.role !== "assistant") {
       continue;
     }
     for (const part of message.content) {
+      if (!MAPPED_USER_ASSISTANT_PART_TYPES.has(part.type)) {
+        warnings.push({
+          type: "unsupported",
+          feature: `${message.role} ${part.type} parts`,
+          details:
+            "Only text and file parts are forwarded to the Responses input; this part type is dropped.",
+        });
+        continue;
+      }
       if (part.type !== "file") {
         continue;
       }
@@ -87,14 +112,16 @@ export function buildResponsesApiWarnings(
   return dedupeWarnings(warnings);
 }
 
-function dedupeWarnings(warnings: SharedV3Warning[]): SharedV3Warning[] {
+function dedupeWarnings(warnings: SharedV4Warning[]): SharedV4Warning[] {
   const seen = new Set<string>();
-  const out: SharedV3Warning[] = [];
+  const out: SharedV4Warning[] = [];
   for (const w of warnings) {
     const key =
       w.type === "other"
         ? `other:${w.message}`
-        : `${w.type}:${w.feature}:${w.details ?? ""}`;
+        : w.type === "deprecated"
+          ? `deprecated:${w.setting}:${w.message}`
+          : `${w.type}:${w.feature}:${w.details ?? ""}`;
     if (seen.has(key)) {
       continue;
     }
@@ -106,8 +133,8 @@ function dedupeWarnings(warnings: SharedV3Warning[]): SharedV3Warning[] {
 
 function userAssistantContent(
   message:
-    | Extract<LanguageModelV3Prompt[number], { role: "user" }>
-    | Extract<LanguageModelV3Prompt[number], { role: "assistant" }>,
+    | Extract<LanguageModelV4Prompt[number], { role: "user" }>
+    | Extract<LanguageModelV4Prompt[number], { role: "assistant" }>,
 ): OpenRouterResponsesInputMessage["content"] {
   const content: OpenRouterResponsesInputMessage["content"] = [];
   let textRun = "";
@@ -136,7 +163,7 @@ function userAssistantContent(
 }
 
 function toolMessageText(
-  message: Extract<LanguageModelV3Prompt[number], { role: "tool" }>,
+  message: Extract<LanguageModelV4Prompt[number], { role: "tool" }>,
 ): string {
   const lines: string[] = [];
   for (const part of message.content) {
@@ -150,7 +177,7 @@ function toolMessageText(
 }
 
 export function promptToResponsesInput(
-  prompt: LanguageModelV3Prompt,
+  prompt: LanguageModelV4Prompt,
 ): OpenRouterResponsesInputMessage[] {
   const input: OpenRouterResponsesInputMessage[] = [];
   for (const message of prompt) {
@@ -205,7 +232,7 @@ export function promptToResponsesInput(
 }
 
 function filePartToResponsesContent(
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
 ): OpenRouterResponsesInputImageItem | OpenRouterResponsesInputFileItem {
   if (isImageMediaType(part.mediaType)) {
     return {
@@ -232,7 +259,7 @@ function filePartToResponsesContent(
   };
 }
 
-function toImageUrl(part: LanguageModelV3FilePart): string {
+function toImageUrl(part: LanguageModelV4FilePart): string {
   const data = unwrapFilePartData(part);
   const url = toUrlString(data);
 
@@ -256,7 +283,7 @@ function toImageUrl(part: LanguageModelV3FilePart): string {
  * and OpenAI file-input guides.
  */
 function toResponsesInputFileData(
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
   data: UnwrappedFileData,
 ): string {
   if (data instanceof Uint8Array) {
@@ -320,10 +347,10 @@ function isImageMediaType(mediaType: string): boolean {
 }
 
 /**
- * Normalize AI SDK v7 tagged file data and legacy V3 bare payloads to
+ * Unwrap LanguageModelV4 tagged file data (and legacy bare payloads) to
  * `Uint8Array | string | URL` for Responses API mapping.
  */
-function unwrapFilePartData(part: LanguageModelV3FilePart): UnwrappedFileData {
+function unwrapFilePartData(part: LanguageModelV4FilePart): UnwrappedFileData {
   const data = part.data as FilePartData;
 
   if (!isTaggedFileData(data)) {
@@ -371,7 +398,7 @@ function isWebUrl(value: string): boolean {
 }
 
 function toDataUrl(
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
   data: UnwrappedFileData,
 ): string {
   if (data instanceof Uint8Array) {
@@ -400,7 +427,7 @@ function toDataUrl(
 
 function extractBase64DataFromDataUrl(
   value: string,
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
 ): string {
   // RFC 2397: mediatype may be empty (`data:;base64,...` is valid).
   const match = /^data:[^;,]*(?:;[^;,=]+=[^;,]+)*(;base64)?,(.*)$/i.exec(value);
@@ -416,7 +443,7 @@ function extractBase64DataFromDataUrl(
 }
 
 function invalidFilePartError(
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
   reason: string,
 ): InvalidPromptError {
   return new InvalidPromptError({
@@ -426,7 +453,7 @@ function invalidFilePartError(
 }
 
 export function lastTurnToResponsesInput(
-  prompt: LanguageModelV3Prompt,
+  prompt: LanguageModelV4Prompt,
 ): OpenRouterResponsesInputMessage[] {
   let start = -1;
   for (let i = prompt.length - 1; i >= 0; i--) {

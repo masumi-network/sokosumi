@@ -1,3 +1,4 @@
+import type { LanguageModelV4Prompt } from "@ai-sdk/provider";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -77,13 +78,19 @@ describe("promptToResponsesInput", () => {
           {
             type: "file",
             mediaType: "image/png",
-            data: new URL("https://example.com/image.png"),
+            data: {
+              type: "url",
+              url: new URL("https://example.com/image.png"),
+            },
           },
           {
             type: "file",
             mediaType: "application/pdf",
             filename: "brief.pdf",
-            data: "JVBERi0xLjcK",
+            data: {
+              type: "data",
+              data: "JVBERi0xLjcK",
+            },
           },
         ],
       },
@@ -119,13 +126,19 @@ describe("promptToResponsesInput", () => {
             type: "file",
             mediaType: "application/octet-stream",
             filename: "blob.bin",
-            data: "data:;base64,SGVsbG8=",
+            data: {
+              type: "data",
+              data: "data:;base64,SGVsbG8=",
+            },
           },
           {
             type: "file",
             mediaType: "application/pdf",
             filename: "from-url.pdf",
-            data: new URL("data:;base64,JVBERi0xLjcK"),
+            data: {
+              type: "url",
+              url: new URL("data:;base64,JVBERi0xLjcK"),
+            },
           },
         ],
       },
@@ -160,7 +173,12 @@ describe("promptToResponsesInput", () => {
             type: "file",
             mediaType: "application/pdf",
             filename: "brief.pdf",
-            data: "https://storage.example.com/containers/blobs/abc123.pdf",
+            data: {
+              type: "url",
+              url: new URL(
+                "https://storage.example.com/containers/blobs/abc123.pdf",
+              ),
+            },
           },
         ],
       },
@@ -190,9 +208,12 @@ describe("promptToResponsesInput", () => {
             type: "file",
             mediaType: "application/pdf",
             filename: "brief.pdf",
-            data: new URL(
-              "https://storage.example.com/containers/blobs/abc123.pdf",
-            ),
+            data: {
+              type: "url",
+              url: new URL(
+                "https://storage.example.com/containers/blobs/abc123.pdf",
+              ),
+            },
           },
         ],
       },
@@ -244,7 +265,7 @@ describe("promptToResponsesInput", () => {
           },
         ],
       },
-    ] as Parameters<typeof promptToResponsesInput>[0]);
+    ]);
 
     expect(input).toEqual([
       {
@@ -291,7 +312,7 @@ describe("promptToResponsesInput", () => {
           },
         ],
       },
-    ] as Parameters<typeof promptToResponsesInput>[0]);
+    ]);
 
     expect(input).toEqual([
       {
@@ -336,7 +357,7 @@ describe("promptToResponsesInput", () => {
           },
         ],
       },
-    ] as Parameters<typeof promptToResponsesInput>[0]);
+    ]);
 
     expect(input).toEqual([
       {
@@ -375,8 +396,92 @@ describe("promptToResponsesInput", () => {
             },
           ],
         },
-      ] as Parameters<typeof promptToResponsesInput>[0]),
+      ]),
     ).toThrowError(/provider file references/i);
+  });
+
+  it("still unwraps legacy bare file payloads at runtime", () => {
+    const prompt = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "legacy.pdf",
+            data: "https://storage.example.com/legacy.pdf",
+          },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "bytes.pdf",
+            data: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+          },
+          {
+            type: "file",
+            mediaType: "image/png",
+            data: new URL("https://example.com/bare-url.png"),
+          },
+        ],
+      },
+    ] as unknown as LanguageModelV4Prompt;
+
+    expect(promptToResponsesInput(prompt)).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            file_url: "https://storage.example.com/legacy.pdf",
+            filename: "legacy.pdf",
+          },
+          {
+            type: "input_file",
+            file_data: "data:application/pdf;base64,JVBERg==",
+            filename: "bytes.pdf",
+          },
+          {
+            type: "input_image",
+            image_url: "https://example.com/bare-url.png",
+            detail: "auto",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("maps tagged text file parts to inline file_data", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "text/plain",
+            filename: "notes.txt",
+            data: {
+              type: "text",
+              text: "hello",
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            file_data: `data:text/plain;base64,${Buffer.from("hello").toString("base64")}`,
+            filename: "notes.txt",
+          },
+        ],
+      },
+    ]);
   });
 
   it("throws for non-base64 file data urls that cannot be mapped safely", () => {
@@ -389,7 +494,10 @@ describe("promptToResponsesInput", () => {
               type: "file",
               mediaType: "application/pdf",
               filename: "brief.pdf",
-              data: "data:application/pdf,plain-text",
+              data: {
+                type: "data",
+                data: "data:application/pdf,plain-text",
+              },
             },
           ],
         },
@@ -406,7 +514,10 @@ describe("promptToResponsesInput", () => {
             {
               type: "file",
               mediaType: "image/png",
-              data: "file:///tmp/x.png",
+              data: {
+                type: "url",
+                url: new URL("file:///tmp/x.png"),
+              },
             },
           ],
         },
@@ -426,7 +537,10 @@ describe("buildResponsesApiWarnings", () => {
             type: "file",
             mediaType: "application/pdf",
             filename: "x.pdf",
-            data: new URL("file:///tmp/x.pdf"),
+            data: {
+              type: "url",
+              url: new URL("file:///tmp/x.pdf"),
+            },
           },
         ],
       },
@@ -456,12 +570,18 @@ describe("buildResponsesApiWarnings", () => {
           {
             type: "file",
             mediaType: "application/pdf",
-            data: "JVBERi0xLjcK",
+            data: {
+              type: "data",
+              data: "JVBERi0xLjcK",
+            },
           },
           {
             type: "file",
             mediaType: "application/pdf",
-            data: "JVBERi0xLjcK",
+            data: {
+              type: "data",
+              data: "JVBERi0xLjcK",
+            },
           },
         ],
       },
@@ -473,6 +593,83 @@ describe("buildResponsesApiWarnings", () => {
           w.type === "compatibility" && w.feature === "assistant file parts",
       ),
     ).toHaveLength(1);
+  });
+
+  it("warns for ignored V4 assistant and tool part types", () => {
+    const warnings = buildResponsesApiWarnings([
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "ok" },
+          { type: "reasoning", text: "hidden chain" },
+          {
+            type: "custom",
+            kind: "openai.something",
+          },
+          {
+            type: "reasoning-file",
+            mediaType: "image/png",
+            data: {
+              type: "url",
+              url: new URL("https://example.com/r.png"),
+            },
+          },
+          {
+            type: "tool-call",
+            toolCallId: "c1",
+            toolName: "search",
+            input: {},
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "c1",
+            toolName: "search",
+            output: { type: "text", value: "done" },
+          },
+          {
+            type: "tool-approval-response",
+            approvalId: "a1",
+            approved: true,
+          },
+        ],
+      },
+    ]);
+
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant reasoning parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant custom parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant reasoning-file parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant tool-call parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "tool tool-approval-response parts",
+        }),
+      ]),
+    );
+    expect(
+      warnings.some(
+        (w) =>
+          w.type === "unsupported" && w.feature === "tool tool-result parts",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -527,7 +724,10 @@ describe("lastTurnToResponsesInput", () => {
           {
             type: "file",
             mediaType: "image/png",
-            data: new URL("https://example.com/image.png"),
+            data: {
+              type: "url",
+              url: new URL("https://example.com/image.png"),
+            },
           },
         ],
       },

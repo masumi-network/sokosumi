@@ -2,12 +2,12 @@ import {
   APICallError,
   EmptyResponseBodyError,
   InvalidPromptError,
-  type LanguageModelV3,
-  type LanguageModelV3CallOptions,
-  type LanguageModelV3Content,
-  type LanguageModelV3GenerateResult,
-  type LanguageModelV3StreamResult,
-  type SharedV3Warning,
+  type LanguageModelV4,
+  type LanguageModelV4CallOptions,
+  type LanguageModelV4Content,
+  type LanguageModelV4GenerateResult,
+  type LanguageModelV4StreamResult,
+  type SharedV4Warning,
 } from "@ai-sdk/provider";
 import { getModelIdentifier } from "@sokosumi/chat";
 import { MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS } from "./coworker-agent-error.js";
@@ -19,10 +19,10 @@ import {
 } from "./prompt/to-responses-input.js";
 import { createCommitGateStream } from "./stream/commit-gate-stream.js";
 import {
-  createResponsesSseToV3Stream,
+  createResponsesSseToV4Stream,
   emptyUsage,
   finishStop,
-} from "./stream/responses-sse-to-v3-stream.js";
+} from "./stream/responses-sse-to-v4-stream.js";
 import type { CreateSokosumiOptions } from "./types.js";
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
@@ -32,7 +32,7 @@ const SOKOSUMI_SUPPORTED_URL_PATTERNS: Record<string, RegExp[]> = {
   "*": [/^https?:\/\//i, /^data:/i],
 };
 
-export type SokosumiLanguageModel = LanguageModelV3 & {
+export type SokosumiLanguageModel = LanguageModelV4 & {
   readonly provider: "sokosumi";
 };
 
@@ -49,14 +49,14 @@ export function createSokosumiLanguageModel(
 ): SokosumiLanguageModel {
   const modelIdForLanguageModel = resolveModelIdForLanguageModel(modelId);
   async function doGenerate(
-    options: LanguageModelV3CallOptions,
-  ): Promise<LanguageModelV3GenerateResult> {
+    options: LanguageModelV4CallOptions,
+  ): Promise<LanguageModelV4GenerateResult> {
     const streamResult = await doStream(options);
     const reader = streamResult.stream.getReader();
-    const content: LanguageModelV3Content[] = [];
+    const content: LanguageModelV4Content[] = [];
     let textBuffer = "";
     let reasoningBuffer = "";
-    let warnings: SharedV3Warning[] = [];
+    let warnings: SharedV4Warning[] = [];
     let finishReason = finishStop();
     let usage = emptyUsage();
 
@@ -115,8 +115,8 @@ export function createSokosumiLanguageModel(
   }
 
   async function doStream(
-    options: LanguageModelV3CallOptions,
-  ): Promise<LanguageModelV3StreamResult> {
+    options: LanguageModelV4CallOptions,
+  ): Promise<LanguageModelV4StreamResult> {
     const sokosumiOpts = parseSokosumiProviderOptions(
       options.providerOptions as Record<string, unknown> | undefined,
     );
@@ -171,7 +171,7 @@ export function createSokosumiLanguageModel(
   }
 
   return {
-    specificationVersion: "v3",
+    specificationVersion: "v4",
     provider: "sokosumi",
     modelId: modelIdForLanguageModel,
     supportedUrls: SOKOSUMI_SUPPORTED_URL_PATTERNS,
@@ -184,10 +184,10 @@ async function streamOpenRouter(
   modelId: string | null,
   config: CreateSokosumiOptions,
   responsesInput: ReturnType<typeof promptToResponsesInput>,
-  promptWarnings: SharedV3Warning[],
+  promptWarnings: SharedV4Warning[],
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
-  options: LanguageModelV3CallOptions,
-): Promise<LanguageModelV3StreamResult> {
+  options: LanguageModelV4CallOptions,
+): Promise<LanguageModelV4StreamResult> {
   const apiKey = config.openRouterApiKey?.trim();
   if (!apiKey) {
     throw new InvalidPromptError({
@@ -261,7 +261,7 @@ async function streamOpenRouter(
   }
 
   return {
-    stream: createResponsesSseToV3Stream(response.body, {
+    stream: createResponsesSseToV4Stream(response.body, {
       warnings: promptWarnings,
       onResponseStarted: sokosumiOpts.onResponseStarted,
       onResponseCompleted: sokosumiOpts.onResponseCompleted,
@@ -277,11 +277,11 @@ async function streamOpenRouter(
 }
 
 async function streamCoworkerWithRetry(
-  promptWarnings: SharedV3Warning[],
+  promptWarnings: SharedV4Warning[],
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
-  options: LanguageModelV3CallOptions,
+  options: LanguageModelV4CallOptions,
   attempt = 0,
-): Promise<LanguageModelV3StreamResult> {
+): Promise<LanguageModelV4StreamResult> {
   const inConversationMode = Boolean(
     sokosumiOpts.providerConversationId?.trim(),
   );
@@ -314,10 +314,10 @@ async function streamCoworkerWithRetry(
 }
 
 async function streamCoworker(
-  promptWarnings: SharedV3Warning[],
+  promptWarnings: SharedV4Warning[],
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
-  options: LanguageModelV3CallOptions,
-): Promise<LanguageModelV3StreamResult> {
+  options: LanguageModelV4CallOptions,
+): Promise<LanguageModelV4StreamResult> {
   const providerConvId = sokosumiOpts.providerConversationId?.trim() ?? null;
   const previousResponseId = sokosumiOpts.previousResponseId?.trim() ?? null;
 
@@ -461,7 +461,7 @@ async function streamCoworker(
   }
 
   return {
-    stream: createResponsesSseToV3Stream(response.body, {
+    stream: createResponsesSseToV4Stream(response.body, {
       warnings: promptWarnings,
       onResponseStarted: sokosumiOpts.onResponseStarted,
       onResponseCompleted: sokosumiOpts.onResponseCompleted,
