@@ -2,7 +2,7 @@
 
 Run **only after** the user approves the draft in chat.
 
-Creates **one** Linear issue with `## Requirement`. Team Sapphire runs on the same issue — no child issues.
+Creates **one** Linear issue with `## Requirement`. No child issues. No Sapphire handoff.
 
 ## Defaults
 
@@ -40,7 +40,7 @@ Override only when the user explicitly passed a different value during intake.
 
 **Do not pass `"Sokosumi"`.** Linear’s marketplace project is **Sōkosumi** (macron on the first o). The plain string `Sokosumi` does not resolve — the workspace also has Sokosumi Social Media, Sokosumi Task Board, etc. Use the slug (or `LINEAR_PROJECT_ID`) in every `save_issue` call.
 
-Do **not** set `delegate` on create — `HANDOFF.md` sets delegate after Sapphire footer.
+Do **not** set `delegate` on create.
 
 Do **not** set `parentId` unless user asked to file under an epic/parent.
 
@@ -57,8 +57,8 @@ Do **not** set `parentId` unless user asked to file under an epic/parent.
 
 Run **before** any Linear write (after user approval):
 
-1. Inspect `user-linear/tools/*.json`.
-2. If descriptors are missing or `CallMcpTool` reports the server does not exist, stop and tell the user:
+1. Inspect Linear MCP tool schemas (e.g. via `GetMcpTools` for the Linear server).
+2. If tools are missing or `CallMcpTool` reports the server does not exist, stop and tell the user:
 
    ```text
    Linear MCP is not loaded in this agent. In Cursor: Settings → MCP → enable `linear` (server id `user-linear`), then reload MCP servers. For Cloud Agents, open the agent run → MCP/tools → enable Linear for that agent (first delegated run often needs this once).
@@ -78,7 +78,7 @@ Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issu
 6. Label → exact match from draft
 7. Create issue via `save_issue` (no `id`, no `delegate`) — pass the full required field set above
 
-## Post-create verify (before handoff)
+## Post-create verify
 
 Immediately after create:
 
@@ -88,7 +88,7 @@ Immediately after create:
    - no assignee → `"me"`
    - state not `In Progress` → `"In Progress"`
    - priority not Medium (`3`) → `3`
-3. Do not start `HANDOFF.md` until defaults are confirmed on the issue.
+3. Return the issue id and URL. Do **not** set `delegate` or append Sapphire sections.
 
 ## Write-call shape
 
@@ -113,10 +113,9 @@ Immediately after create:
 
 Use the approved requirement from `REQUIREMENT-TEMPLATE.md`. No MCP logs or agent reasoning.
 
-Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, verification commands, or Sapphire status on create — `HANDOFF.md` adds the Sapphire footer and delegate.
+Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, verification commands, or `## Sapphire status` on create.
 
 ## Post-create
 
 1. Return issue identifier and URL.
-2. Continue to `HANDOFF.md` when `handoffToSapphire` is true (default).
-3. If handoff is skipped, tell the user to run `_team-sapphire` with the issue id.
+2. Optionally mention that Team Sapphire is separate: `Run _team-sapphire for SOK-XXX when ready.`

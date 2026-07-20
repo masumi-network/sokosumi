@@ -26,7 +26,7 @@ Investigator uses the orchestrator model — no subagent override.
 
 ## Upstream
 
-Requirement intake and approval: `../_task/SKILL.md`.
+Requirement intake and approval (separate skill): `../linear-requirement/SKILL.md`.
 
 ## Output rule
 

@@ -1,6 +1,6 @@
 # Requirement Issue Template
 
-Use for **human-written** or `_task`-drafted Linear issues. High-level input for Team Sapphire — not the final spec.
+Use for **human-written** or `linear-requirement`-drafted Linear issues. High-level product input — not the final spec.
 
 Keep it short. Architectural ideas welcome; file-level plans are not required here.
 
@@ -16,7 +16,7 @@ Keep it short. Architectural ideas welcome; file-level plans are not required he
 
 **Architecture ideas (optional, not final):**
 - Rough data flow or layer changes (API, DB, UI).
-- Open questions for Investigator / Tech Lead.
+- Open questions for a later design/investigation step.
 
 **References:**
 - Related Linear issues, mocks, PRs, or docs.
@@ -31,12 +31,10 @@ Keep it short. Architectural ideas welcome; file-level plans are not required he
 
 ## Bad example (too detailed for this stage)
 
-Contract tables, file change lists, and `pnpm web:check` — Tech Lead adds those in the session spec after Sapphire runs.
+Contract tables, file change lists, and `pnpm web:check` — those belong in a later design/spec step if someone builds the issue.
 
-## Handoff
+## After publish
 
-After `_task` approval, default handoff delegates **Cursor on the same issue** — see `HANDOFF.md`. Team Sapphire adds Investigation, Spec, and tracks progress on this issue.
+This skill stops after the Linear issue exists. To build with Team Sapphire, the user (or another agent turn) runs `_team-sapphire` for `SOK-XXX` separately.
 
-Manual: `Run _team-sapphire for SOK-XXX`.
-
-Requirement section must **not** include `[repo=…]` or a full spec — Tech Lead adds those in session.
+Requirement section must **not** include `[repo=…]` or a full spec.

@@ -1,20 +1,21 @@
 ---
-name: _task
-description: Refine a feature, bug, or improvement into a Sokosumi Linear issue with user approval before posting, then hand off to Team Sapphire for investigation, spec, implementation, and review on the same issue. Use when the user describes a new feature, bug fix, or improvement and wants a requirement drafted, reviewed, posted to Linear, and passed to the Sapphire squad.
-disable-model-invocation: true
+name: linear-requirement
+description: Refine a feature, bug, or improvement into a Sokosumi Linear issue with a ## Requirement section. Draft in chat, wait for user approval, then post to Linear. Use when the user describes a new feature, bug fix, or improvement and wants a requirement drafted and filed as a Linear issue — or when they ask to create, draft, or file a Sokosumi / SOK requirement or ticket.
 ---
 
-# _task
+# linear-requirement
 
-You are the **requirement agent**. Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough for Team Sapphire to start, not a final spec.
+You are the **requirement agent**. Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough for humans (or a separate build pipeline) to start, not a final spec.
 
-**Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write or Sapphire handoff.
+**Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write.
+
+This skill does **not** run Team Sapphire, open PRs, or set Linear delegate. After the issue exists, stop — the user starts build work separately if they want.
 
 ## Runtime compatibility
 
 | Agent | How to use |
 |-------|------------|
-| Cursor | Load from `.cursor/skills/_task/SKILL.md`. |
+| Cursor | Load from `.cursor/skills/linear-requirement/SKILL.md`. |
 | Claude Code | Read this `SKILL.md` when asked to draft a Sokosumi requirement. |
 | Codex | Treat this directory as task instructions. |
 
@@ -28,17 +29,16 @@ You are the **requirement agent**. Turn a rough feature, bug, or improvement int
 | Linear priority | `3` (Medium) unless user overrides |
 | Linear assignee | `me` unless user overrides |
 | Linear label | Infer exactly one: `Feature`, `Bug`, or `Improvement` |
-| Hand off to Sapphire | **true** unless user opts out (`handoffToSapphire: false`) |
 
 Do not ask for the Linear project by default.
 
 ## Workflow
 
-See `WORKFLOW.md` for the full intake → Sapphire pipeline.
+See `WORKFLOW.md`.
 
 1. **Intake**
    - Required: feature summary, bug report, or improvement idea (plain language).
-   - Optional: priority, assignee, locked decisions, label override, project override, `handoffToSapphire` (default **true**).
+   - Optional: priority, assignee, locked decisions, label override, project override.
    - If intake is vague, ask **one** clarifying question and wait.
    - If intake is a Linear issue to refine, load with `get_issue` and treat as raw input — not approved yet.
 
@@ -58,7 +58,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
      **Requirement draft:** project Sōkosumi · state In Progress · priority Medium · assignee me · label Feature
      ```
 
-   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Tech Lead adds those in the **session spec**.
+   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Those belong in a later design/spec step if someone builds the issue.
 
 4. **Approval gate (required)**
    - Present the full draft in chat under a clear heading, e.g. `## Draft requirement — review before Linear`.
@@ -66,21 +66,21 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
    - End with:
 
      ```text
-     Reply **approve** to post to Linear and hand off to Team Sapphire.
+     Reply **approve** to post this Linear requirement.
      Reply with edits to revise the draft.
      ```
 
-   - **Stop.** Do not call Linear MCP. Do not hand off until the user approves.
+   - **Stop.** Do not call Linear MCP until the user approves.
    - On edits: revise and show the draft again. Repeat until approved.
 
-5. **Publish and hand off (only after approval)**
+5. **Publish (only after approval)**
    - Read `LINEAR-MCP.md`.
    - Run MCP health check before any write.
    - Create via `save_issue` with **all** required fields from `LINEAR-MCP.md` — always include `project: "sokosumi-6357694ddd23"` when the user did not override project (do not skip it; do not use `"Sokosumi"`).
-   - After create, run post-create verify in `LINEAR-MCP.md` (`get_issue` → patch missing defaults) before handoff.
+   - After create, run post-create verify in `LINEAR-MCP.md` (`get_issue` → patch missing defaults).
    - Read MCP tool descriptors before any call.
-   - Follow `HANDOFF.md` when `handoffToSapphire` is true (default).
-   - Return issue id/URL, label, delegate status, and handoff path.
+   - Return issue id/URL, label, project, assignee, priority, and state.
+   - Optionally note: `Run _team-sapphire for SOK-XXX when ready` — do **not** start Sapphire, set `delegate`, or add `## Sapphire status`.
    - If Linear MCP is unavailable, say what must be reloaded. Do not use browser automation or raw API fallback.
 
 ## Writing style
@@ -89,7 +89,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
 - Bullets over paragraphs.
 - Cite real file paths or areas only when they clarify scope — not as an implementation plan.
 - Keep **Out of scope** explicit.
-- Do not over-specify architecture; Investigator and Tech Lead resolve details.
+- Do not over-specify architecture; leave design details for a later step.
 
 ## Label classification
 
@@ -115,8 +115,6 @@ Align proposed title prefix with label when helpful: `feat` / `fix` / `refactor`
 
 ## Supporting files
 
-- `WORKFLOW.md` — _task vs Team Sapphire in the pipeline.
+- `WORKFLOW.md` — intake → approve → Linear issue.
 - `REQUIREMENT-TEMPLATE.md` — requirement body shape.
 - `LINEAR-MCP.md` — create issue after approval.
-- `HANDOFF.md` — delegate Team Sapphire on the same issue.
-- `../_team-sapphire/SKILL.md` — downstream squad (do not run before approval).

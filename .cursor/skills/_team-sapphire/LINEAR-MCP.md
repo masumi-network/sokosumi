@@ -8,7 +8,7 @@ Single-issue updates only. No child issues.
 
 | Write to Linear | Do not write to Linear |
 |-----------------|------------------------|
-| `## Requirement` (from `_task` — preserve) | `## Investigation` — session only |
+| `## Requirement` (from `linear-requirement` or human — preserve) | `## Investigation` — session only |
 | `## Sapphire status` table | `## Spec` — session only |
 | Sapphire footer | Full investigation or spec in comments |
 | Issue **state** (`In Progress` → `In Review`) | |
@@ -22,7 +22,7 @@ Investigation and spec pass **in orchestrator session** to Tech Lead → Coder �
 
 - MCP only. Inspect `user-linear/tools/*.json` before writes.
 - Never call a write tool without a complete `arguments` object.
-- Stop if Linear MCP is not loaded — same reload message as `../_task/LINEAR-MCP.md`.
+- Stop if Linear MCP is not loaded — same reload message as `../linear-requirement/LINEAR-MCP.md`.
 - Optional smoke test: `get_user` with `{ "query": "me" }`.
 - **Never** append `## Investigation` or `## Spec` to the issue description.
 
@@ -75,7 +75,7 @@ Before the orchestrator returns to the user, `get_issue` + `list_comments` must 
 
 | Action | `save_issue` |
 |--------|----------------|
-| Phases 1–3 running | `state: "In Progress"` (default from _task) |
+| Phases 1–3 running | `state: "In Progress"` (default from issue create) |
 | Reviewer pass | `state: "In Review"` |
 | Human merge | Human sets `Done` — agents do not |
 
