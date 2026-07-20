@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings as SettingsIcon, Zap } from "lucide-react";
+import { Blocks, Settings as SettingsIcon, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -84,6 +84,31 @@ export function AutonomyChip({ onClick }: { onClick: () => void }) {
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{tPanel("subtitle")}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * Top-right chip opening the Skills marketplace popup — browse, search and
+ * install skills without leaving the chat. Styled to match the other chips.
+ */
+export function SkillsChip({ onClick }: { onClick: () => void }) {
+  const t = useTranslations("App.Hermes.SkillsPanel");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className="border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label={t("title")}
+        >
+          <Blocks className="text-tertiary-foreground size-3.5" aria-hidden />
+          <span>{t("chip")}</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{t("subtitle")}</TooltipContent>
     </Tooltip>
   );
 }

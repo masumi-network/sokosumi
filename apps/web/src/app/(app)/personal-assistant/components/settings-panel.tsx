@@ -46,7 +46,6 @@ import { cn } from "@/lib/utils";
 
 import ConnectInterstitial from "./connect-interstitial";
 import PanelSection from "./panel-section";
-import SkillsMarketplace from "./skills-marketplace";
 import { useComposioOAuth } from "./use-composio-oauth";
 
 interface SettingsPanelProps {
@@ -482,14 +481,8 @@ export default function SettingsPanel({
               description={t("personalitySetupOnly")}
             />
 
-            {/* ── Skills (skills.sh marketplace) ───────────────── */}
-            {!previewMode ? (
-              <SkillsMarketplace
-                variant="settings"
-                hasActiveSubscription={hasActiveSubscription}
-                onRequireSubscription={onRequireSubscription}
-              />
-            ) : null}
+            {/* ── Skills moved to the SkillsChip popup in the chat header —
+                see skills-dialog.tsx. ── */}
 
             {/* ── Memory refresh (informational, compact) ─────── */}
             <SyncStatusSection

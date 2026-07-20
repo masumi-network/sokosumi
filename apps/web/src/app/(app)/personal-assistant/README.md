@@ -56,9 +56,9 @@ The page is a state machine driven off `getHermesInstanceAction`:
 | ----------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `idle`                  | `EmptyState`          | No instance. Activation-first hero, capability summary, shortened journey, features, things-to-try carousel, disclaimer.               |
 | `provisioning`          | `ProvisioningState`   | `POST /me/instance` fired. Fly machine is booting; UI shows elapsed time, honest milestones, and rotating Hermes facts.                |
-| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Five-step wizard: **Name → Look + personality → Autonomy → Integrations → Review**. Personality is chosen here only (not editable later in Settings). |
+| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Six-step wizard: **Name → Look + personality → Autonomy → Integrations → Skills → Review**. The skills marketplace mounts hidden from wizard load so its (slow) catalog fetch warms during the earlier steps; installs fire immediately and are on the machine when setup finishes. Personality is chosen here only (not editable later in Settings). |
 | `onboarding`            | `OnboardingProgress`  | `POST /me/instance/onboard` fired. Polls `/onboarding-progress` every second; renders the orchestrator's step list with status icons.  |
-| `ready` / `running`     | `RunningState`        | Chat is open. Header chips: Integrations → Settings; Autonomy → Autonomy panel (level + scheduled tasks). Skills live in Settings.   |
+| `ready` / `running`     | `RunningState`        | Chat is open. Header chips: Autonomy → Autonomy panel (level + scheduled tasks); Skills → Skills marketplace popup (`skills-dialog.tsx`); Integrations → Settings.   |
 | `error`                 | `ErrorState`          | Orchestrator error, fetch failure, or client provision timeout. Retry refetches instance status (does not re-fire provision). Start over destroys when status is `error`/`provisioning` or after a provision timeout. |
 
 All states share a `FlowBackground` (animated violet/cyan/amber blobs) and

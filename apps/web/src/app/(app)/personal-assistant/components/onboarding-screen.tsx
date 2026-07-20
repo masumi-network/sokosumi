@@ -32,6 +32,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 import AutonomySelector from "./autonomy-selector";
+import SkillsMarketplace from "./skills-marketplace";
 import { useComposioOAuth } from "./use-composio-oauth";
 
 interface OnboardingScreenProps {
@@ -154,10 +155,10 @@ export default function OnboardingScreen({
     useState<HermesPersonality>(DEFAULT_PERSONALITY);
   const [autonomyLevel, setAutonomyLevel] =
     useState<HermesAutonomyLevel>("medium");
-  /** 1 = name, 2 = look + personality, 3 = autonomy, 4 = tools, 5 = review. */
-  type Step = 1 | 2 | 3 | 4 | 5;
+  /** 1 = name, 2 = look + personality, 3 = autonomy, 4 = tools, 5 = skills, 6 = review. */
+  type Step = 1 | 2 | 3 | 4 | 5 | 6;
   const [step, setStep] = useState<Step>(1);
-  const TOTAL_STEPS = 5;
+  const TOTAL_STEPS = 6;
   const goNext = useCallback(
     () => setStep((s) => (s < TOTAL_STEPS ? ((s + 1) as Step) : s)),
     [],
@@ -179,7 +180,7 @@ export default function OnboardingScreen({
       ? assistantName.trim()
         ? "idle"
         : null
-      : step === 5
+      : step === TOTAL_STEPS
         ? "happy"
         : personalityExpr;
   const heroSpeed = step >= 2 ? personalitySpeed : 1.3;
@@ -190,7 +191,7 @@ export default function OnboardingScreen({
   } | null>(null);
   const heroEventNonce = useRef(0);
   useEffect(() => {
-    if (step !== 5) return;
+    if (step !== TOTAL_STEPS) return;
     heroEventNonce.current += 1;
     setHeroEvent({
       expr: "happy",
@@ -357,7 +358,10 @@ export default function OnboardingScreen({
             doesn't chase them. */}
         <div
           key={step}
-          className="animate-in fade-in-0 slide-in-from-bottom-2 flex min-h-[19rem] flex-col justify-center duration-200"
+          className={cn(
+            "animate-in fade-in-0 slide-in-from-bottom-2 flex min-h-[19rem] flex-col justify-center duration-200",
+            step === 5 && "hidden",
+          )}
         >
           {step === 1 && (
             <Section
@@ -481,7 +485,7 @@ export default function OnboardingScreen({
             </Section>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <Section heading={t("reviewHeading")} description={t("reviewHelp")}>
               <AgentReviewCard
                 assistantName={assistantName.trim()}
@@ -493,6 +497,32 @@ export default function OnboardingScreen({
               />
             </Section>
           )}
+        </div>
+
+        {/* ── Step 5: skills — OUTSIDE the keyed remount container so the
+            marketplace mounts once on wizard load and stays mounted. Its
+            catalog fetch (which can be slow) warms in the background while
+            the user works through steps 1–4, so by the time they arrive the
+            shelf is already populated. Installs fire immediately; the
+            orchestrator queues them and they're on the machine when setup
+            finishes. */}
+        <div
+          className={cn(
+            "min-h-[19rem] flex-col justify-center",
+            step === 5
+              ? "animate-in fade-in-0 slide-in-from-bottom-2 flex duration-200"
+              : "hidden",
+          )}
+        >
+          <Section heading={t("skillsHeading")} description={t("skillsHelp")}>
+            {!previewMode ? (
+              <SkillsMarketplace variant="onboarding" />
+            ) : (
+              <p className="text-muted-foreground text-center text-sm">
+                {t("moreLaterShort")}
+              </p>
+            )}
+          </Section>
         </div>
 
         {/* ── Wizard navigation ───────────────────────────────────── */}
