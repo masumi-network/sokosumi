@@ -77,6 +77,17 @@ describe("parseConfirmationCardMessage", () => {
     ]);
   });
 
+  it("parses an already_resolved audit card", () => {
+    const parsed = parseConfirmationCardMessage(
+      JSON.stringify({ ...VALID_CARD, status: "already_resolved" }),
+    );
+
+    expect(parsed?.resolution).toEqual({
+      status: "already_resolved",
+      organizationId: "org_nmkr",
+    });
+  });
+
   it.each([
     ["not json at all", "plain text"],
     ["a JSON scalar", JSON.stringify("hello")],
@@ -87,7 +98,7 @@ describe("parseConfirmationCardMessage", () => {
     ["empty toolName", JSON.stringify({ ...VALID_CARD, toolName: "" })],
     [
       "an unexpected status",
-      JSON.stringify({ ...VALID_CARD, status: "already_resolved" }),
+      JSON.stringify({ ...VALID_CARD, status: "pending" }),
     ],
   ])("returns null for %s", (_label, content) => {
     expect(parseConfirmationCardMessage(content)).toBeNull();

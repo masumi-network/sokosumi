@@ -15,7 +15,7 @@ export const HERMES_CONFIRMATION_CARD_KIND = "confirmation_card";
 export interface PersistedConfirmationCard {
   confirmation: HermesPendingConfirmation;
   resolution: {
-    status: "approved" | "rejected";
+    status: "approved" | "rejected" | "already_resolved";
     organizationId: string | null;
   };
 }
@@ -82,7 +82,13 @@ export function parseConfirmationCardMessage(
   }
   if (typeof toolName !== "string" || toolName.length === 0) return null;
   if (typeof summary !== "string") return null;
-  if (status !== "approved" && status !== "rejected") return null;
+  if (
+    status !== "approved" &&
+    status !== "rejected" &&
+    status !== "already_resolved"
+  ) {
+    return null;
+  }
 
   return {
     confirmation: {

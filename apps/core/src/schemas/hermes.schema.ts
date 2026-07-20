@@ -206,6 +206,12 @@ export const hermesConfirmationResolveResponseSchema = z
 export const hermesRejectConfirmationRequestSchema = z
   .object({
     reason: z.string().min(1).max(500).optional(),
+    /**
+     * Display-only fallback for the audit card when the orchestrator's
+     * pending list no longer contains this confirmation (race / lag).
+     * `id` must match the path param or Core ignores it.
+     */
+    confirmation: hermesPendingConfirmationSchema.optional(),
   })
   .openapi("HermesRejectConfirmationRequest");
 
@@ -214,6 +220,8 @@ export const hermesRejectConfirmationRequestSchema = z
  * queued tool args before executing. `organizationId` is nullable so
  * personal scope can clear stale queued org args. Omit the whole
  * `overrides` block to keep the tool args exactly as Hermes proposed.
+ *
+ * `confirmation` is a display-only audit fallback (same rules as reject).
  */
 export const hermesApproveConfirmationRequestSchema = z
   .object({
@@ -222,6 +230,7 @@ export const hermesApproveConfirmationRequestSchema = z
         organizationId: z.string().min(1).nullable().optional(),
       })
       .optional(),
+    confirmation: hermesPendingConfirmationSchema.optional(),
   })
   .openapi("HermesApproveConfirmationRequest");
 
