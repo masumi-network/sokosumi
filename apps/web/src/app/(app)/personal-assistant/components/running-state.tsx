@@ -34,7 +34,11 @@ import {
 import { ChatTimeline } from "./running-state/chat-timeline";
 import { ComposerSection } from "./running-state/composer-section";
 import { buildMockPendingConfirmations } from "./running-state/confirmation-mock";
-import { AutonomyChip, IntegrationsChip } from "./running-state/header-chips";
+import {
+  AutonomyChip,
+  IntegrationsChip,
+  SkillsChip,
+} from "./running-state/header-chips";
 import {
   hasSameMessageIds,
   persistedToMessages,
@@ -44,6 +48,7 @@ import { useChatScroll } from "./running-state/use-chat-scroll";
 import { useChatSend } from "./running-state/use-chat-send";
 import { useHermesInboxSync } from "./running-state/use-hermes-inbox-sync";
 import { WelcomeBlock } from "./running-state/welcome-block";
+import SkillsPanel from "./skills-panel";
 
 export interface RunningStateProps {
   userName?: string | null;
@@ -98,6 +103,7 @@ export default function RunningState({
   const [files, setFiles] = useState<File[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [autonomyOpen, setAutonomyOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
   // Dev-only mock confirmations injected via `?state=running&mock=confirmation`
   // (plus optional `&coworkerId=…&coworkerName=…`). Lets you eyeball the
   // ConfirmationCard chips without waiting for Hermes to actually emit a
@@ -229,9 +235,11 @@ export default function RunningState({
       <AssistantMotionContext.Provider value={orbMotion}>
         <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
           {/* Floating top-right controls — Autonomy (level + scheduled
-          tasks) and Settings (identity, integrations, danger zone). */}
+          tasks), Skills (marketplace sheet) and Settings (identity,
+          integrations, danger zone). */}
           <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
             <AutonomyChip onClick={() => setAutonomyOpen(true)} />
+            <SkillsChip onClick={() => setSkillsOpen(true)} />
             <IntegrationsChip
               integrations={instance?.integrations ?? []}
               onClick={() => setSettingsOpen(true)}
@@ -319,6 +327,13 @@ export default function RunningState({
             hasActiveSubscription={hasActiveSubscription}
             onRequireSubscription={onRequireSubscription}
             onRefreshInstance={onRefresh}
+          />
+          <SkillsPanel
+            open={skillsOpen}
+            onOpenChange={setSkillsOpen}
+            previewMode={previewMode}
+            hasActiveSubscription={hasActiveSubscription}
+            onRequireSubscription={onRequireSubscription}
           />
         </div>
       </AssistantMotionContext.Provider>

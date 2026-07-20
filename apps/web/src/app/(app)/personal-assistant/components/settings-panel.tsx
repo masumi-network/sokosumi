@@ -46,7 +46,6 @@ import { cn } from "@/lib/utils";
 
 import ConnectInterstitial from "./connect-interstitial";
 import PanelSection from "./panel-section";
-import SkillsMarketplace from "./skills-marketplace";
 import { useComposioOAuth } from "./use-composio-oauth";
 
 interface SettingsPanelProps {
@@ -70,7 +69,7 @@ interface SettingsPanelProps {
    * local overlay for snappy UI, but the chip / autonomy badge upstream
    * read from parent state. */
   onRefreshInstance?: () => void | Promise<void>;
-  /** Paid coverage for settings mutations (rename, connect, skills…). */
+  /** Paid coverage for settings mutations (rename, orb, connect…). */
   hasActiveSubscription?: boolean;
   onRequireSubscription?: () => void;
 }
@@ -482,14 +481,8 @@ export default function SettingsPanel({
               description={t("personalitySetupOnly")}
             />
 
-            {/* ── Skills (skills.sh marketplace) ───────────────── */}
-            {!previewMode ? (
-              <SkillsMarketplace
-                variant="settings"
-                hasActiveSubscription={hasActiveSubscription}
-                onRequireSubscription={onRequireSubscription}
-              />
-            ) : null}
+            {/* ── Skills moved to the SkillsChip sheet in the chat header —
+                see skills-panel.tsx. ── */}
 
             {/* ── Memory refresh (informational, compact) ─────── */}
             <SyncStatusSection

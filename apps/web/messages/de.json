@@ -2458,9 +2458,7 @@
         "fullAccessBodyPrefix": "Dein Assistent kann",
         "fullAccessBodyBold": "Antworten entwerfen und in deinem Konto in deinem Auftrag handeln",
         "fullAccessBodySuffix": "Nur aktivieren, wenn es Mails senden / Termine anlegen soll.",
-        "fullAccessCta": "Verbinden (voller Zugriff — lesen + senden)",
-        "skillsHeading": "Add skills (optional)",
-        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
+        "fullAccessCta": "Verbinden (voller Zugriff — lesen + senden)"
       },
       "OnboardingProgress": {
         "eyebrow": "Dein Agent wird vorbereitet",

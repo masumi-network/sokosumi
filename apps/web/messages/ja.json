@@ -2458,9 +2458,7 @@
         "fullAccessBodyPrefix": "アシスタントは",
         "fullAccessBodyBold": "返信の下書きと、あなたの代わりのアカウント内での操作",
         "fullAccessBodySuffix": "ができるようになります。メール送信や予定作成を任せたい場合のみ有効にしてください。",
-        "fullAccessCta": "接続（フルアクセス — 読み取り + 送信）",
-        "skillsHeading": "Add skills (optional)",
-        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
+        "fullAccessCta": "接続（フルアクセス — 読み取り + 送信）"
       },
       "OnboardingProgress": {
         "eyebrow": "エージェントを準備中",

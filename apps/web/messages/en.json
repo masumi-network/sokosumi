@@ -2372,6 +2372,9 @@
         "reviewTools": "Tools",
         "reviewToolsCount": "{count} connected",
         "reviewToolsNone": "None yet",
+        "reviewSkills": "Skills",
+        "reviewSkillsCount": "{count} added",
+        "reviewSkillsNone": "None yet",
         "reviewOwnedBy": "{name}'s personal assistant",
         "reviewGeneric": "Your personal assistant",
         "reviewFocus": "focused on {role}",
@@ -2471,7 +2474,7 @@
         "fullAccessBodySuffix": "Only enable if you want it sending mail / creating events for you.",
         "fullAccessCta": "Connect (full access — read + send)",
         "skillsHeading": "Add skills (optional)",
-        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
+        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. They're installed while your assistant finishes setup, and you can add more anytime from the Skills button in chat."
       },
       "OnboardingProgress": {
         "eyebrow": "Preparing your agent",
@@ -2503,6 +2506,13 @@
         "chip": "Autonomy",
         "title": "Autonomy",
         "subtitle": "Your assistant works for you in the background — running scheduled tasks and acting on its own. Choose how much it can do without asking."
+      },
+      "SkillsPanel": {
+        "chip": "Skills",
+        "title": "Skills",
+        "subtitle": "Ready-made know-how for your assistant — browse the marketplace, search, and install with one click. Skills add instructions only, never code it runs.",
+        "tooltip": "Browse and install skills",
+        "previewUnavailable": "The skills marketplace isn't available in preview mode."
       },
       "Settings": {
         "title": "Assistant settings",
@@ -2608,6 +2618,7 @@
         "emptyCatalog": "The skills catalog is unavailable right now.",
         "emptyInstalled": "No skills installed yet.",
         "noResults": "No skills found.",
+        "retry": "Try again",
         "reviewTitle": "Review before adding",
         "reviewBody": "Automated audits flagged this skill (risk: {risk}). Add it only if you trust the source.",
         "reviewConfirm": "Add anyway",

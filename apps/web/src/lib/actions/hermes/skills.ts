@@ -30,65 +30,9 @@ function toActionError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
-// A single "marketing" search returns few hits; widen across adjacent queries.
-const MARKETING_QUERIES = ["marketing", "seo", "advertising", "social media"];
-const MARKETING_POOL_LIMIT = 40;
-
-export interface SkillsMarketplaceData {
-  marketing: SkillCatalogItem[];
-  installed: InstalledSkill[];
-  preinstalled: PreinstalledSkill[];
-}
-
-/**
- * One round-trip for the whole marketplace. Next serializes concurrent server
- * actions, so issuing the catalog/installed/preinstalled fetches as separate
- * actions made the page load them one after another. Bundling them here keeps
- * it to a single action while the underlying Core calls still run in parallel.
- */
-export const getSkillsMarketplaceAction = withSession<
-  AuthenticatedRequest,
-  Result<SkillsMarketplaceData, ActionError>
->(async () => {
-  try {
-    // Marketing searches degrade individually so one slow query can't blank the
-    // shelf; installed/preinstalled must succeed so we never show a false empty
-    // state (Add on existing skills, missing Included shelf, removable built-ins).
-    const [marketingPool, installedResponse, preinstalledResponse] =
-      await Promise.all([
-        Promise.all(
-          MARKETING_QUERIES.map((q) =>
-            coreClientNoRedirect
-              .searchSkillsCatalog({ q, limit: 20 })
-              .then((r) => r.data.skills)
-              .catch(() => [] as SkillCatalogItem[]),
-          ),
-        ),
-        coreClientNoRedirect.getInstalledSkills(),
-        coreClientNoRedirect.getPreinstalledSkills(),
-      ]);
-    const installed = installedResponse.data.skills;
-    const preinstalled = preinstalledResponse.data.skills;
-    // Don't offer skills the agent already has (installed or image-baked).
-    const have = new Set<string>([
-      ...installed.map((s) => s.slug),
-      ...preinstalled.map((s) => s.slug),
-    ]);
-    const seen = new Set<string>();
-    const marketing = marketingPool
-      .flat()
-      .filter((s) => {
-        if (have.has(s.slug) || seen.has(s.skillId)) return false;
-        seen.add(s.skillId);
-        return true;
-      })
-      .sort((a, b) => (b.installs ?? 0) - (a.installs ?? 0))
-      .slice(0, MARKETING_POOL_LIMIT);
-    return Ok({ marketing, installed, preinstalled });
-  } catch (error) {
-    return Err(toActionError(error));
-  }
-});
+// Marketplace catalog reads use GET /api/personal-assistant/skills-marketplace
+// (Route Handler + loadSkillsMarketplaceData) so client pre-warm does not
+// occupy Next's server-action queue. Mutations and search stay here as actions.
 
 interface BrowseSkillsArgs extends AuthenticatedRequest {
   view?: "trending" | "hot" | "all-time";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings as SettingsIcon, Zap } from "lucide-react";
+import { Blocks, Settings as SettingsIcon, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -67,6 +67,13 @@ function dedupeServiceIntegrations(
  * assistant does on its own" (autonomy level + scheduled tasks). Styled to
  * match IntegrationsChip so the two controls read as one cluster.
  */
+const chipButtonClassName =
+  "border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-1.5 rounded-full border px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:gap-2 sm:px-2.5";
+
+/** Text label collapses below `sm` so Autonomy + Skills + Integrations fit
+ * narrow phones; aria-label + tooltip keep the control discoverable. */
+const chipLabelClassName = "hidden sm:inline";
+
 export function AutonomyChip({ onClick }: { onClick: () => void }) {
   const tPanel = useTranslations("App.Hermes.AutonomyPanel");
 
@@ -76,14 +83,39 @@ export function AutonomyChip({ onClick }: { onClick: () => void }) {
         <button
           type="button"
           onClick={onClick}
-          className="border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className={chipButtonClassName}
           aria-label={tPanel("title")}
         >
           <Zap className="text-tertiary-foreground size-3.5" aria-hidden />
-          <span>{tPanel("chip")}</span>
+          <span className={chipLabelClassName}>{tPanel("chip")}</span>
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{tPanel("subtitle")}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * Top-right chip opening the Skills marketplace popup — browse, search and
+ * install skills without leaving the chat. Styled to match the other chips.
+ */
+export function SkillsChip({ onClick }: { onClick: () => void }) {
+  const t = useTranslations("App.Hermes.SkillsPanel");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className={chipButtonClassName}
+          aria-label={t("title")}
+        >
+          <Blocks className="text-tertiary-foreground size-3.5" aria-hidden />
+          <span className={chipLabelClassName}>{t("chip")}</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{t("tooltip")}</TooltipContent>
     </Tooltip>
   );
 }
@@ -112,7 +144,11 @@ export function IntegrationsChip({
         <button
           type="button"
           onClick={onClick}
-          className="border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-2 rounded-full border pl-1.5 pr-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className={
+            hasAny
+              ? "border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-1.5 rounded-full border pl-1.5 pr-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:gap-2 sm:pr-2.5"
+              : chipButtonClassName
+          }
           aria-label={
             hasAny
               ? t("ariaConnected", { count: connected.length })
@@ -144,7 +180,9 @@ export function IntegrationsChip({
                 className="text-tertiary-foreground size-3.5"
                 aria-hidden
               />
-              <span>{tRunning("settingsCta")}</span>
+              <span className={chipLabelClassName}>
+                {tRunning("settingsCta")}
+              </span>
             </>
           )}
         </button>

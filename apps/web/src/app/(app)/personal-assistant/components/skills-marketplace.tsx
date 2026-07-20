@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -35,7 +35,6 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   getSkillDetailAction,
-  getSkillsMarketplaceAction,
   installSkillAction,
   removeSkillAction,
   searchSkillsAction,
@@ -49,11 +48,33 @@ import type {
 interface SkillsMarketplaceProps {
   /** Onboarding hides the header + search; settings shows the full browser. */
   variant?: "settings" | "onboarding";
+  /**
+   * Whether the marketplace is currently visible to the user. The wizard
+   * pre-warms this component hidden; when it becomes active after a failed
+   * catalog load we silently retry once so the user never lands on a dead
+   * shelf that errored while they couldn't see it.
+   */
+  active?: boolean;
+  /** Suppress the internal title/subtitle when the host (e.g. SkillsPanel)
+   * already renders its own header. Search stays. */
+  hideHeader?: boolean;
   hasActiveSubscription?: boolean;
   onRequireSubscription?: () => void;
+  /**
+   * User-managed installed skills (excludes image-baked preinstalled).
+   * The setup review step uses this for a "Skills: N added" recap without
+   * re-fetching the catalog.
+   */
+  onVisibleInstalledCountChange?: (count: number) => void;
 }
 
 type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
+
+interface MarketplacePayload {
+  marketing: SkillCatalogItem[];
+  installed: InstalledSkill[];
+  preinstalled: PreinstalledSkill[];
+}
 
 const DEBOUNCE_MS = 300;
 // Keep the default shelf scannable — the catalog has hundreds of skills, so we
@@ -61,10 +82,34 @@ const DEBOUNCE_MS = 300;
 const MAX_SETTINGS = 30;
 const MAX_ONBOARDING = 16;
 
+/** Same-origin Route Handler — not a server action, so pre-warm never queues
+ * behind (or blocks) other wizard actions like Integrations OAuth. */
+const MARKETPLACE_URL = "/api/personal-assistant/skills-marketplace";
+
+async function fetchMarketplaceCatalog(): Promise<MarketplacePayload> {
+  const res = await fetch(MARKETPLACE_URL, {
+    method: "GET",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Marketplace catalog HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as { data?: MarketplacePayload };
+  if (!body.data) {
+    throw new Error("Marketplace catalog response missing data");
+  }
+  return body.data;
+}
+
 export default function SkillsMarketplace({
   variant = "settings",
+  active = true,
+  hideHeader = false,
   hasActiveSubscription = true,
   onRequireSubscription,
+  onVisibleInstalledCountChange,
 }: SkillsMarketplaceProps) {
   const t = useTranslations("App.Hermes.Skills");
 
@@ -76,6 +121,9 @@ export default function SkillsMarketplace({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  // Bumping this re-runs the catalog load (manual Retry / on-activate retry).
+  const [loadNonce, setLoadNonce] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(
     null,
@@ -99,27 +147,69 @@ export default function SkillsMarketplace({
     return map;
   }, [installed]);
 
+  // Notify the host from the places that change installed state (not a
+  // useEffect mirror) — keeps the setup Review recap in sync without an
+  // effects-for-parent-notify pattern.
+  const notifyVisibleInstalledCount = useCallback(
+    (
+      nextInstalled: InstalledSkill[],
+      nextPreinstalled: PreinstalledSkill[],
+    ) => {
+      if (!onVisibleInstalledCountChange) return;
+      const pre = new Set(nextPreinstalled.map((s) => s.slug));
+      onVisibleInstalledCountChange(
+        nextInstalled.filter((s) => !pre.has(s.slug)).length,
+      );
+    },
+    [onVisibleInstalledCountChange],
+  );
+
   useEffect(() => {
     let cancelled = false;
     const max = variant === "onboarding" ? MAX_ONBOARDING : MAX_SETTINGS;
+    setLoading(true);
+    setLoadError(false);
     void (async () => {
-      // Single server action — Next serializes concurrent actions, so the
-      // fetches are bundled into one (they run in parallel inside it).
-      const res = await getSkillsMarketplaceAction({});
-      if (cancelled) return;
-      if (res.ok) {
-        setMarketing(res.data.marketing.slice(0, max));
-        setInstalled(res.data.installed);
-        setPreinstalled(res.data.preinstalled);
-      } else {
-        toast.error(res.error.message ?? t("emptyCatalog"));
+      try {
+        // Route Handler fetch (not a server action) so wizard pre-warm does not
+        // serialize with Integrations OAuth / other actions on the same page.
+        const data = await fetchMarketplaceCatalog();
+        if (cancelled) return;
+        setMarketing(data.marketing.slice(0, max));
+        setInstalled(data.installed);
+        setPreinstalled(data.preinstalled);
+        notifyVisibleInstalledCount(data.installed, data.preinstalled);
+      } catch {
+        // No toast: this component may be mounted hidden (wizard pre-warm),
+        // where a toast would surface context-free on an unrelated step.
+        // Transport failures also land here so the spinner never hangs without
+        // Retry. The failure renders inline with a Retry button instead.
+        if (cancelled) return;
+        setLoadError(true);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [variant]);
+  }, [variant, loadNonce, notifyVisibleInstalledCount]);
+
+  // One silent retry each time the marketplace becomes visible after a
+  // failed load — covers the pre-warm fetch dying while the machine was
+  // still booting. The ref caps it at one auto-attempt per activation so a
+  // persistently down orchestrator can't retry-loop; after that the inline
+  // Retry button is the recovery path.
+  const autoRetriedRef = useRef(false);
+  useEffect(() => {
+    if (!active) {
+      autoRetriedRef.current = false;
+      return;
+    }
+    if (loadError && !loading && !autoRetriedRef.current) {
+      autoRetriedRef.current = true;
+      setLoadNonce((n) => n + 1);
+    }
+  }, [active, loadError, loading]);
 
   // Debounced search.
   useEffect(() => {
@@ -157,20 +247,24 @@ export default function SkillsMarketplace({
 
   const markInstalled = useCallback(
     (item: SkillCatalogItem, status: string) => {
-      setInstalled((prev) => [
-        ...prev.filter((s) => s.slug !== item.slug),
-        {
-          skillId: item.skillId,
-          source: item.source,
-          slug: item.slug,
-          name: item.name,
-          auditRisk: null,
-          status: status === "installing" ? "installing" : "installed",
-          installedAt: null,
-        },
-      ]);
+      setInstalled((prev) => {
+        const next: InstalledSkill[] = [
+          ...prev.filter((s) => s.slug !== item.slug),
+          {
+            skillId: item.skillId,
+            source: item.source,
+            slug: item.slug,
+            name: item.name,
+            auditRisk: null,
+            status: status === "installing" ? "installing" : "installed",
+            installedAt: null,
+          },
+        ];
+        notifyVisibleInstalledCount(next, preinstalled);
+        return next;
+      });
     },
-    [],
+    [notifyVisibleInstalledCount, preinstalled],
   );
 
   const doInstall = useCallback(
@@ -247,10 +341,20 @@ export default function SkillsMarketplace({
         toast.error(res.error.message ?? t("removeFailed"));
         return;
       }
-      setInstalled((prev) => prev.filter((s) => s.slug !== skill.slug));
+      setInstalled((prev) => {
+        const next = prev.filter((s) => s.slug !== skill.slug);
+        notifyVisibleInstalledCount(next, preinstalled);
+        return next;
+      });
       toast.success(t("removedToast", { name: skill.name }));
     },
-    [hasActiveSubscription, onRequireSubscription, t],
+    [
+      hasActiveSubscription,
+      notifyVisibleInstalledCount,
+      onRequireSubscription,
+      preinstalled,
+      t,
+    ],
   );
 
   return (
@@ -263,17 +367,20 @@ export default function SkillsMarketplace({
       </div>
 
       {/* Onboarding embeds this under its own step heading; the header + search
-          are settings-only. */}
+          are settings-only. Hosts with their own header (SkillsPanel) keep
+          search but suppress the internal title to avoid doubling it. */}
       {variant === "settings" ? (
         <>
-          <div>
-            <h3 className="text-foreground text-sm font-semibold">
-              {t("title")}
-            </h3>
-            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-              {t("subtitle")}
-            </p>
-          </div>
+          {!hideHeader ? (
+            <div>
+              <h3 className="text-foreground text-sm font-semibold">
+                {t("title")}
+              </h3>
+              <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
+                {t("subtitle")}
+              </p>
+            </div>
+          ) : null}
 
           <div className="relative">
             <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
@@ -304,6 +411,20 @@ export default function SkillsMarketplace({
           onAdd={handleAdd}
           onRemove={handleRemove}
         />
+      ) : loadError ? (
+        // After the search branch on purpose: a failed catalog load must not
+        // swallow live search results (search hits the registry, which can be
+        // up while the orchestrator-backed installed/preinstalled reads fail).
+        <div className="flex flex-col items-center gap-3 py-6">
+          <p className="text-muted-foreground text-sm">{t("emptyCatalog")}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLoadNonce((n) => n + 1)}
+          >
+            {t("retry")}
+          </Button>
+        </div>
       ) : (
         <>
           <SkillShelf
