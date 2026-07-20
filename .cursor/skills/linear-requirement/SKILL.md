@@ -80,7 +80,7 @@ See `WORKFLOW.md`.
    - After create, run post-create verify in `LINEAR-MCP.md` (`get_issue` → patch missing defaults).
    - Read MCP tool descriptors before any call.
    - Return issue id/URL, label, project, assignee, priority, and state.
-   - Optionally note: `Run _team-sapphire for SOK-XXX when ready` — do **not** start Sapphire, set `delegate`, or add `## Sapphire status`.
+   - Do **not** start Team Sapphire, set `delegate`, or add `## Sapphire status`.
    - If Linear MCP is unavailable, say what must be reloaded. Do not use browser automation or raw API fallback.
 
 ## Writing style

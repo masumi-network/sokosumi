@@ -35,6 +35,6 @@ Contract tables, file change lists, and `pnpm web:check` — those belong in a l
 
 ## After publish
 
-This skill stops after the Linear issue exists. To build with Team Sapphire, the user (or another agent turn) runs `_team-sapphire` for `SOK-XXX` separately.
+This skill stops after the Linear issue exists. Do not start a build squad from this skill.
 
 Requirement section must **not** include `[repo=…]` or a full spec.

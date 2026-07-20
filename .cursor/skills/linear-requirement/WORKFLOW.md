@@ -19,8 +19,6 @@ flowchart LR
 |-------|-------|--------|---------------|
 | **Requirement** | `linear-requirement` | Linear issue with `## Requirement` | **Yes** — user must approve draft |
 
-Optional later (not this skill): run `_team-sapphire` on the issue when the user asks.
-
 ## Workflow
 
 1. **Intake** — plain-language description or rough Linear issue.

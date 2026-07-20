@@ -118,4 +118,4 @@ Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, verification comm
 ## Post-create
 
 1. Return issue identifier and URL.
-2. Optionally mention that Team Sapphire is separate: `Run _team-sapphire for SOK-XXX when ready.`
+2. Stop — do not start Team Sapphire or set `delegate`.
