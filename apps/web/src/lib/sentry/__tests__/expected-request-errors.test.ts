@@ -169,6 +169,27 @@ describe("beforeSendServerEvent", () => {
       ),
     ).toBeNull();
   });
+
+  it("returns null for legacy web auth Prisma noise", () => {
+    expect(
+      beforeSendServerEvent(
+        {
+          type: undefined,
+          transaction: "GET /api/auth/[...all]",
+          exception: {
+            values: [
+              {
+                type: "PrismaClientKnownRequestError",
+                value:
+                  "Invalid `prisma.rateLimit.findMany()` invocation: Authentication failed",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("isExpectedClientNoiseErrorMessage", () => {

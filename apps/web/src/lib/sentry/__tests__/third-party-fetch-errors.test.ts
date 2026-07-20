@@ -484,4 +484,19 @@ describe("beforeSendClientEvent", () => {
       ),
     ).toBeNull();
   });
+
+  it("drops minified OAuth rejections on auth routes", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/auth/google",
+          exception: {
+            values: [{ type: "Error", value: "Aa" }],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
 });
