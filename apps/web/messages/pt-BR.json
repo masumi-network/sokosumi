@@ -3955,7 +3955,6 @@
       "tabs": {
         "oauthClients": "Clientes OAuth",
         "apiKeys": "Chaves de API",
-        "mcp": "MCP",
         "docs": "Documentação"
       },
       "Docs": {
@@ -3975,6 +3974,12 @@
             "description": "Conecte clientes de IA ao Sokosumi via MCP."
           }
         }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Apps conectados",
+        "mcp": "MCP"
       }
     }
   },

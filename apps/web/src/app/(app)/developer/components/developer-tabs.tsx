@@ -6,21 +6,15 @@ import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type DeveloperTabValue = "oauth-clients" | "api-keys" | "mcp" | "docs";
+type DeveloperTabValue = "oauth-clients" | "api-keys" | "docs";
 
 interface DeveloperTabsProps {
   oauthClientsContent: ReactNode;
   apiKeysContent: ReactNode;
-  mcpContent: ReactNode;
   docsContent: ReactNode;
 }
 
-const ENABLED_TABS: DeveloperTabValue[] = [
-  "oauth-clients",
-  "api-keys",
-  "mcp",
-  "docs",
-];
+const ENABLED_TABS: DeveloperTabValue[] = ["oauth-clients", "api-keys", "docs"];
 
 const TAB_TRIGGER_CLASS_NAME =
   "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm";
@@ -28,7 +22,6 @@ const TAB_TRIGGER_CLASS_NAME =
 export function DeveloperTabs({
   oauthClientsContent,
   apiKeysContent,
-  mcpContent,
   docsContent,
 }: DeveloperTabsProps) {
   const t = useTranslations("App.Developer");
@@ -61,9 +54,6 @@ export function DeveloperTabs({
         <TabsTrigger value="api-keys" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.apiKeys")}
         </TabsTrigger>
-        <TabsTrigger value="mcp" className={TAB_TRIGGER_CLASS_NAME}>
-          {t("tabs.mcp")}
-        </TabsTrigger>
         <TabsTrigger value="docs" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.docs")}
         </TabsTrigger>
@@ -71,7 +61,6 @@ export function DeveloperTabs({
 
       <TabsContent value="oauth-clients">{oauthClientsContent}</TabsContent>
       <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
-      <TabsContent value="mcp">{mcpContent}</TabsContent>
       <TabsContent value="docs">{docsContent}</TabsContent>
     </Tabs>
   );

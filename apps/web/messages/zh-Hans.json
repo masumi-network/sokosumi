@@ -3955,7 +3955,6 @@
       "tabs": {
         "oauthClients": "OAuth 客户端",
         "apiKeys": "API 密钥",
-        "mcp": "MCP",
         "docs": "文档"
       },
       "Docs": {
@@ -3975,6 +3974,12 @@
             "description": "通过 MCP 将 AI 客户端连接到 Sokosumi。"
           }
         }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "已连接的应用",
+        "mcp": "MCP"
       }
     }
   },

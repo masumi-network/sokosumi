@@ -3955,7 +3955,6 @@
       "tabs": {
         "oauthClients": "OAuth-Clients",
         "apiKeys": "API-Keys",
-        "mcp": "MCP",
         "docs": "Dokumentation"
       },
       "Docs": {
@@ -3975,6 +3974,12 @@
             "description": "Verbinden Sie KI-Clients über MCP mit Sokosumi."
           }
         }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Verbundene Apps",
+        "mcp": "MCP"
       }
     }
   },

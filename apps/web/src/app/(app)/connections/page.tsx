@@ -8,16 +8,15 @@ interface ConnectionsRouteProps {
   }>;
 }
 
-const DEVELOPER_LEGACY_TABS = new Set(["api-keys", "mcp"]);
-
 export default async function ConnectionsRoute({
   searchParams,
 }: ConnectionsRouteProps) {
   const params = await searchParams;
   const tabValue = Array.isArray(params.tab) ? params.tab[0] : params.tab;
 
-  if (tabValue && DEVELOPER_LEGACY_TABS.has(tabValue)) {
-    redirect(`/developer?tab=${tabValue}`);
+  // API keys moved to Developer; keep MCP on Connections.
+  if (tabValue === "api-keys") {
+    redirect("/developer?tab=api-keys");
   }
 
   return <ConnectionsPage />;

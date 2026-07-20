@@ -3955,7 +3955,6 @@
       "tabs": {
         "oauthClients": "Client OAuth",
         "apiKeys": "Chiavi API",
-        "mcp": "MCP",
         "docs": "Documentazione"
       },
       "Docs": {
@@ -3975,6 +3974,12 @@
             "description": "Collega client AI a Sokosumi tramite MCP."
           }
         }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "App connesse",
+        "mcp": "MCP"
       }
     }
   },

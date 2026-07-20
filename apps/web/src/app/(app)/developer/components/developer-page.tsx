@@ -1,9 +1,6 @@
-import { Suspense } from "react";
-
 import { ApiKeysSection } from "./api-keys";
 import { DeveloperTabs } from "./developer-tabs";
 import { DocsSection } from "./docs-section";
-import { McpActiveKeyView } from "./mcp-active-key-view";
 import { OAuthClientsSection } from "./oauth-clients";
 
 export function DeveloperPage() {
@@ -14,11 +11,6 @@ export function DeveloperPage() {
           <DeveloperTabs
             oauthClientsContent={<OAuthClientsSection />}
             apiKeysContent={<ApiKeysSection />}
-            mcpContent={
-              <Suspense fallback={null}>
-                <McpActiveKeyView />
-              </Suspense>
-            }
             docsContent={<DocsSection />}
           />
         </div>

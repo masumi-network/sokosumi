@@ -3955,7 +3955,6 @@
       "tabs": {
         "oauthClients": "OAuth クライアント",
         "apiKeys": "APIキー",
-        "mcp": "MCP",
         "docs": "ドキュメント"
       },
       "Docs": {
@@ -3975,6 +3974,12 @@
             "description": "MCP 経由で AI クライアントを Sokosumi に接続します。"
           }
         }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "接続済みアプリ",
+        "mcp": "MCP"
       }
     }
   },
