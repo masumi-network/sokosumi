@@ -4,6 +4,8 @@ Use for **human-written** or `linear-requirement`-drafted Linear issues. High-le
 
 Keep it short. Architectural ideas welcome; file-level plans are not required here.
 
+**Title (separate from body):** plain product title, e.g. `History view for past agent jobs` — not `feat(history): add view`.
+
 ```markdown
 ## Requirement
 
@@ -35,6 +37,6 @@ Contract tables, file change lists, and `pnpm web:check` — those belong in a l
 
 ## After publish
 
-This skill stops after the Linear issue exists.
+This skill stops after the Linear issue exists or is updated.
 
 Requirement section must **not** include `[repo=…]` or a full spec.

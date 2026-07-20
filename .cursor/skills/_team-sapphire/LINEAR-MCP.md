@@ -11,7 +11,7 @@ Single-issue updates only. No child issues.
 | `## Requirement` (from `linear-requirement` or human — preserve) | `## Investigation` — session only |
 | `## Sapphire status` table | `## Spec` — session only |
 | Sapphire footer | Full investigation or spec in comments |
-| Issue **state** (`In Progress` → `In Review`) | |
+| Issue **state** (`Triage`/`In Progress` → `In Review`) | |
 | Phase summary **comments** | |
 | `**PR handoff**` comment | |
 | `**Bugbot · medium (human review)**` comment (when ≥1 Medium) | |
@@ -75,7 +75,7 @@ Before the orchestrator returns to the user, `get_issue` + `list_comments` must 
 
 | Action | `save_issue` |
 |--------|----------------|
-| Phases 1–3 running | `state: "In Progress"` (default from issue create) |
+| Phases 1–3 running | `state: "In Progress"` (set when Sapphire starts if still `Triage`) |
 | Reviewer pass | `state: "In Review"` |
 | Human merge | Human sets `Done` — agents do not |
 

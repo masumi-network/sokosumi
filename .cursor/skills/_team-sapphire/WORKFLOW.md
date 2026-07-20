@@ -57,7 +57,8 @@ Phase transitions post structured **summary** comments (`**Sapphire · … compl
 
 | State | Set by | When |
 |-------|--------|------|
-| `In Progress` | Issue author (`linear-requirement` or human) | Issue created; through Investigator, Tech Lead, Coder |
+| `Triage` | Issue author (`linear-requirement` or human) | Requirement filed; awaiting pickup |
+| `In Progress` | Sapphire (or human) when work starts | Through Investigator, Tech Lead, Coder |
 | `In Review` | Reviewer | All `/goal` criteria pass |
 | `Done` | Human | After PR merge |
 

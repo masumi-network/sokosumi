@@ -4,10 +4,9 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 ## Load order
 
-1. Read `SKILL.md`.
-2. Read `WORKFLOW.md` for intake → approval → publish.
-3. Use `REQUIREMENT-TEMPLATE.md` for the draft body.
-4. Read `LINEAR-MCP.md` only **after** user approval.
+1. Read `SKILL.md` (workflow lives there).
+2. Use `REQUIREMENT-TEMPLATE.md` for the draft body.
+3. Read `LINEAR-MCP.md` only **after** user approval.
 
 ## Runtime notes
 
@@ -19,5 +18,6 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 - Draft in chat first. **Wait for approval.**
 - Keep requirements concise. No spec sections, no verification checklist.
-- After approval: one Linear issue with `## Requirement` only — no `delegate`.
+- After approval: one Linear issue create **or** update with `## Requirement` only (plus any preserved existing sections on update).
 - On create, never omit `project: "sokosumi-6357694ddd23"` (or user override) — verify with `get_issue` before finishing.
+- Default state is **Triage**. Titles are plain product language.

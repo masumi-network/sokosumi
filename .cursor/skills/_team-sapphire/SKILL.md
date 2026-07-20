@@ -81,6 +81,7 @@ When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and
 - Required: Linear issue id/URL (e.g. `SOK-XXX`) — user points at an issue with `## Requirement` (often from `linear-requirement`).
 - Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run — still apply **artifact-aware resume** when downstream phases need session investigation or spec (unless user explicitly asked to run that phase only).
 - Load issue with `get_issue`. Read `## Requirement` (or requirement body before Sapphire sections exist).
+- If issue state is **Triage**, set `state: "In Progress"` when Sapphire work starts (state-only `save_issue` is fine).
 - If `## Sapphire status` is **missing**, insert the initial status block per `LINEAR-MCP.md` (full-description merge via `save_issue`) **first** — do not run resume or cleanup rules until the table exists; then start Investigator (or the user’s explicit start phase).
 - If `## Sapphire status` is present, compute start phase with **artifact-aware resume** (do not use status table alone). Initialize `mode` = **full** (default).
   1. Set `target` = user start phase if specified, else first row not `done` (Investigator → Tech Lead → Coder → Reviewer).
