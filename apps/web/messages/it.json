@@ -2036,6 +2036,12 @@
         "destroyFailed": "Impossibile eliminare il tuo assistente.",
         "onboardingStartFailed": "Impossibile avviare l'onboarding."
       },
+      "SubscriptionWall": {
+        "title": "Sblocca il tuo assistente personale",
+        "description": "Attivalo con un piano a pagamento per metterlo al lavoro.",
+        "cta": "Vedi piani e prezzi",
+        "dismiss": "Forse più tardi"
+      },
       "EmptyState": {
         "eyebrow": "Hermes personale",
         "title": "Il tuo agente Hermes privato.",
@@ -2630,6 +2636,7 @@
           "projects": "Progetti",
           "hermes": "Assistente personale",
           "hermesNew": "Nuovo",
+          "hermesUnread": "{count} non letti",
           "history": "Cronologia",
           "admin": "Amministrazione",
           "settings": "Impostazioni",

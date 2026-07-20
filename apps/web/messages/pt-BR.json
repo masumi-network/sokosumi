@@ -2036,6 +2036,12 @@
         "destroyFailed": "Não foi possível destruir seu assistente.",
         "onboardingStartFailed": "Não foi possível iniciar a configuração."
       },
+      "SubscriptionWall": {
+        "title": "Desbloqueie seu assistente pessoal",
+        "description": "Ative-o com um plano pago para colocá-lo para trabalhar.",
+        "cta": "Ver planos e preços",
+        "dismiss": "Talvez depois"
+      },
       "EmptyState": {
         "eyebrow": "Hermes pessoal",
         "title": "Seu agente Hermes privado.",
@@ -2630,6 +2636,7 @@
           "projects": "Projetos",
           "hermes": "Assistente pessoal",
           "hermesNew": "Novo",
+          "hermesUnread": "{count} não lidas",
           "history": "Histórico",
           "admin": "Administração",
           "settings": "Configurações",

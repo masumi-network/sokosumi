@@ -21,7 +21,7 @@ end-user copy and screenshots, see the in-app empty state.
                                 ▼
                      ┌──────────────────────┐
                      │  apps/core (Hono)    │
-                     │  /hermes routes      │
+                     │  /v1/hermes/*        │
                      └──────────┬───────────┘
                                 │ Bearer-auth
                   ┌─────────────┼─────────────┐

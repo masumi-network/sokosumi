@@ -181,6 +181,12 @@
     "provisionFailed": "无法配置你的助手。",
     "provisionTimeout": "配置在 15 分钟后超时。请重试。"
   },
+  "SubscriptionWall": {
+    "title": "解锁你的个人助手",
+    "description": "订阅付费方案即可启用并开始使用。",
+    "cta": "查看方案与定价",
+    "dismiss": "稍后再说"
+  },
   "Metadata": {
     "description": "在你专属计算机上运行的私人 AI 助手。",
     "title": "个人助手"

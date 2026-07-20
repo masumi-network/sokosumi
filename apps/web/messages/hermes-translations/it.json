@@ -182,6 +182,12 @@
     "provisionFailed": "Impossibile provisionare il tuo assistente.",
     "provisionTimeout": "Il provisioning è scaduto dopo 15 minuti. Riprova."
   },
+  "SubscriptionWall": {
+    "title": "Sblocca il tuo assistente personale",
+    "description": "Attivalo con un piano a pagamento per metterlo al lavoro.",
+    "cta": "Vedi piani e prezzi",
+    "dismiss": "Forse più tardi"
+  },
   "Metadata": {
     "description": "Il tuo agente IA privato sul proprio computer.",
     "title": "Assistente personale"

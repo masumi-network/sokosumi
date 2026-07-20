@@ -399,7 +399,7 @@ export default function RunningState({
     };
   }, [previewMode]);
 
-  // Mark inbox as seen when the user lands on /hermes — clears the sidebar
+  // Mark inbox as seen when the user lands on /personal-assistant — clears the sidebar
   // unread badge for whatever was waiting on initial load.
   useEffect(() => {
     if (previewMode) return;

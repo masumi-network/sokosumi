@@ -2036,6 +2036,12 @@
         "destroyFailed": "Dein Assistent konnte nicht gelöscht werden.",
         "onboardingStartFailed": "Onboarding konnte nicht gestartet werden."
       },
+      "SubscriptionWall": {
+        "title": "Schalte deinen persönlichen Assistenten frei",
+        "description": "Aktiviere ihn mit einem bezahlten Plan, damit er für dich arbeiten kann.",
+        "cta": "Pläne & Preise ansehen",
+        "dismiss": "Vielleicht später"
+      },
       "EmptyState": {
         "eyebrow": "Persönlicher Hermes",
         "title": "Dein privater Hermes-Agent.",
@@ -2630,6 +2636,7 @@
           "projects": "Projekte",
           "hermes": "Persönlicher Assistent",
           "hermesNew": "Neu",
+          "hermesUnread": "{count} ungelesen",
           "history": "Verlauf",
           "admin": "Administration",
           "settings": "Einstellungen",

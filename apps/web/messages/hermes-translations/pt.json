@@ -182,6 +182,12 @@
     "provisionFailed": "Não foi possível aprovisionar o seu assistente.",
     "provisionTimeout": "O aprovisionamento expirou após 15 minutos. Tente novamente."
   },
+  "SubscriptionWall": {
+    "title": "Desbloqueia o teu assistente pessoal",
+    "description": "Ativa-o com um plano pago para o pôr a trabalhar.",
+    "cta": "Ver planos e preços",
+    "dismiss": "Talvez mais tarde"
+  },
   "Metadata": {
     "description": "O seu agente de IA privado no seu próprio computador.",
     "title": "Assistente pessoal"

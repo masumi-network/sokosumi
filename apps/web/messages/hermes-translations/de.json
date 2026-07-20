@@ -182,6 +182,12 @@
     "provisionFailed": "Dein Assistent konnte nicht bereitgestellt werden.",
     "provisionTimeout": "Die Bereitstellung ist nach 15 Minuten abgelaufen. Bitte versuche es erneut."
   },
+  "SubscriptionWall": {
+    "title": "Schalte deinen persönlichen Assistenten frei",
+    "description": "Aktiviere ihn mit einem bezahlten Plan, damit er für dich arbeiten kann.",
+    "cta": "Pläne & Preise ansehen",
+    "dismiss": "Vielleicht später"
+  },
   "Metadata": {
     "description": "Dein privater KI-Agent auf einem eigenen Computer.",
     "title": "Persönlicher Assistent"

@@ -181,6 +181,12 @@
     "provisionFailed": "No se pudo aprovisionar tu asistente.",
     "provisionTimeout": "El aprovisionamiento ha caducado tras 15 minutos. Inténtalo de nuevo."
   },
+  "SubscriptionWall": {
+    "title": "Desbloquea tu asistente personal",
+    "description": "Actívalo con un plan de pago para ponerlo a trabajar.",
+    "cta": "Ver planes y precios",
+    "dismiss": "Quizá más tarde"
+  },
   "Metadata": {
     "description": "Tu agente de IA privado en su propio ordenador.",
     "title": "Asistente personal"

@@ -2036,6 +2036,12 @@
         "destroyFailed": "无法销毁你的助手。",
         "onboardingStartFailed": "无法开始入门设置。"
       },
+      "SubscriptionWall": {
+        "title": "解锁你的个人助手",
+        "description": "订阅付费方案即可启用并开始使用。",
+        "cta": "查看方案与定价",
+        "dismiss": "稍后再说"
+      },
       "EmptyState": {
         "eyebrow": "个人 Hermes",
         "title": "你的私人 Hermes 助手。",
@@ -2630,6 +2636,7 @@
           "projects": "项目",
           "hermes": "个人助手",
           "hermesNew": "新",
+          "hermesUnread": "{count} 条未读",
           "history": "历史记录",
           "admin": "管理",
           "settings": "设置",

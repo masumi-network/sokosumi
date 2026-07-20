@@ -431,9 +431,10 @@ export async function getInstance(
     // Only the orchestrator's structured instance_not_found is authoritative
     // "this user has no instance". A bare 404 (edge/proxy misroute, an
     // orchestrator rollback that drops the route) must NOT read as
-    // "destroyed" — GET /me/instance clears local chat history and instance
-    // metadata on the null signal, so a spurious null here would wipe real
-    // user data. Verified against the live orchestrator: missing instance →
+    // "destroyed". Local mirror cleanup is orchestrator-driven via
+    // POST /v1/hermes/instances/{userId}/purge — never automatic on GET —
+    // but a spurious null still misleads the UI into hasInstance:false.
+    // Verified against the live orchestrator: missing instance →
     // code "instance_not_found"; unknown route → code "not_found".
     if (body.code === "instance_not_found") return null;
     throw new HermesOrchestratorError(res.status, body);

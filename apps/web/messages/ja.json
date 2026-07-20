@@ -2036,6 +2036,12 @@
         "destroyFailed": "アシスタントの削除に失敗しました。",
         "onboardingStartFailed": "オンボーディングを開始できませんでした。"
       },
+      "SubscriptionWall": {
+        "title": "パーソナルアシスタントを解除",
+        "description": "有料プランで有効化して、アシスタントを動かしましょう。",
+        "cta": "プランと料金を見る",
+        "dismiss": "あとで"
+      },
       "EmptyState": {
         "eyebrow": "パーソナル Hermes",
         "title": "あなた専用の Hermes エージェント。",
@@ -2630,6 +2636,7 @@
           "projects": "プロジェクト",
           "hermes": "パーソナルアシスタント",
           "hermesNew": "NEW",
+          "hermesUnread": "未読 {count} 件",
           "history": "履歴",
           "admin": "管理",
           "settings": "設定",

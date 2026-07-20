@@ -181,6 +181,12 @@
     "provisionFailed": "Échec du provisionnement de votre assistant.",
     "provisionTimeout": "Le provisionnement a expiré après 15 minutes. Veuillez réessayer."
   },
+  "SubscriptionWall": {
+    "title": "Débloquez votre assistant personnel",
+    "description": "Activez-le avec un forfait payant pour le mettre au travail.",
+    "cta": "Voir les offres et tarifs",
+    "dismiss": "Plus tard"
+  },
   "Metadata": {
     "description": "Votre agent IA privé sur son propre ordinateur.",
     "title": "Assistant personnel"
