@@ -148,27 +148,27 @@ function createEvent(
   const resolvedActor =
     actor !== undefined
       ? actor
-      : coworkerId && coworker
+      : orchestratorId && orchestrator
         ? {
-            type: "coworker" as const,
-            id: coworkerId,
-            coworker,
+            type: "orchestrator" as const,
+            id: orchestratorId,
+            orchestrator,
           }
-        : userId && user
+        : coworkerId && coworker
           ? {
-              type: "user" as const,
-              id: userId,
-              user: {
-                id: user.id,
-                name: user.name,
-                image: user.image ?? null,
-              },
+              type: "coworker" as const,
+              id: coworkerId,
+              coworker,
             }
-          : orchestratorId && orchestrator
+          : userId && user
             ? {
-                type: "orchestrator" as const,
-                id: orchestratorId,
-                orchestrator,
+                type: "user" as const,
+                id: userId,
+                user: {
+                  id: user.id,
+                  name: user.name,
+                  image: user.image ?? null,
+                },
               }
             : null;
 

@@ -1207,6 +1207,18 @@ describe("POST /{id}/events", () => {
         }),
       }),
     );
+
+    const body = await response.json();
+    expect(body.data.actor).toEqual({
+      type: "coworker",
+      id: COWORKER_ID,
+      coworker: {
+        id: COWORKER_ID,
+        name: "Task coworker",
+        image: null,
+        slug: "task-coworker",
+      },
+    });
   });
 
   it("attributes orchestrator DRAFT → READY status to orchestratorId only", async () => {

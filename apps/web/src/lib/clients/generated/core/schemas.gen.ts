@@ -1677,7 +1677,7 @@ export const TaskEventSchema = {
                 'name'
             ],
             deprecated: true,
-            description: 'Deprecated. Use actor when type is user. Mirrors userId when the actor user was loaded.'
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         coworkerId: {
             type: [
@@ -1720,7 +1720,7 @@ export const TaskEventSchema = {
                 'slug'
             ],
             deprecated: true,
-            description: 'Deprecated. Use actor when type is coworker. Mirrors coworkerId when the coworker relation was loaded.'
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         orchestratorId: {
             type: [
@@ -1758,7 +1758,7 @@ export const TaskEventSchema = {
                 'slug'
             ],
             deprecated: true,
-            description: 'Deprecated. Use actor when type is orchestrator. Mirrors orchestratorId when the orchestrator relation was loaded.'
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         transactionId: {
             type: [

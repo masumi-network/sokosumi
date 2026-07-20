@@ -470,7 +470,7 @@ export type TaskEvent = {
      */
     userId?: string | null;
     /**
-     * Deprecated. Use actor when type is user. Mirrors userId when the actor user was loaded.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
@@ -486,7 +486,7 @@ export type TaskEvent = {
      */
     coworkerId?: string | null;
     /**
-     * Deprecated. Use actor when type is coworker. Mirrors coworkerId when the coworker relation was loaded.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
@@ -503,7 +503,7 @@ export type TaskEvent = {
      */
     orchestratorId?: string | null;
     /**
-     * Deprecated. Use actor when type is orchestrator. Mirrors orchestratorId when the orchestrator relation was loaded.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
