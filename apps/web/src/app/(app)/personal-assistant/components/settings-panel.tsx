@@ -70,6 +70,9 @@ interface SettingsPanelProps {
    * local overlay for snappy UI, but the chip / autonomy badge upstream
    * read from parent state. */
   onRefreshInstance?: () => void | Promise<void>;
+  /** Paid coverage for settings mutations (rename, connect, skills…). */
+  hasActiveSubscription?: boolean;
+  onRequireSubscription?: () => void;
 }
 
 // Composio's `outlook` toolkit covers mail + calendar in a single connection,
@@ -114,6 +117,8 @@ export default function SettingsPanel({
   lastInboxRefreshAt,
   onDestroy,
   onRefreshInstance,
+  hasActiveSubscription = true,
+  onRequireSubscription,
 }: SettingsPanelProps) {
   const t = useTranslations("App.Hermes.Settings");
   const tProviders = useTranslations("App.Hermes.Onboarding.providers");
@@ -139,6 +144,11 @@ export default function SettingsPanel({
       return;
     }
 
+    if (!hasActiveSubscription) {
+      onRequireSubscription?.();
+      return;
+    }
+
     setNameSaving(true);
     const result = await updateHermesInstanceAction({ assistantName: trimmed });
     setNameSaving(false);
@@ -149,7 +159,15 @@ export default function SettingsPanel({
     }
     toast.success(t("nameSavedToast"));
     void onRefreshInstance?.();
-  }, [nameDraft, assistantName, previewMode, onRefreshInstance, t]);
+  }, [
+    nameDraft,
+    assistantName,
+    previewMode,
+    hasActiveSubscription,
+    onRequireSubscription,
+    onRefreshInstance,
+    t,
+  ]);
   const tOnboarding = useTranslations("App.Hermes.Onboarding");
   const orbSeeds = useMemo(() => orbCandidateSeeds(orbBaseSeed), [orbBaseSeed]);
   // Optimistic local orb choice, resynced from the server prop — same
@@ -172,6 +190,12 @@ export default function SettingsPanel({
         return;
       }
 
+      if (!hasActiveSubscription) {
+        setOrbDraft(previous);
+        onRequireSubscription?.();
+        return;
+      }
+
       setOrbSaving(true);
       const result = await updateHermesInstanceAction({ avatarSeed: seed });
       setOrbSaving(false);
@@ -184,7 +208,15 @@ export default function SettingsPanel({
       toast.success(t("lookSavedToast"));
       void onRefreshInstance?.();
     },
-    [orbDraft, orbSaving, previewMode, onRefreshInstance, t],
+    [
+      orbDraft,
+      orbSaving,
+      previewMode,
+      hasActiveSubscription,
+      onRequireSubscription,
+      onRefreshInstance,
+      t,
+    ],
   );
 
   const [overlay, setOverlay] = useState<
@@ -217,6 +249,11 @@ export default function SettingsPanel({
 
   const runConnect = useCallback(
     async (provider: HermesIntegrationProvider, mode: "read" | "write") => {
+      if (!previewMode && !hasActiveSubscription) {
+        onRequireSubscription?.();
+        return;
+      }
+
       setOverlay((prev) => ({ ...prev, [provider]: "connecting" }));
 
       if (previewMode) {
@@ -245,19 +282,33 @@ export default function SettingsPanel({
       // for the next background refresh tick.
       void onRefreshInstance?.();
     },
-    [previewMode, composioOAuth, onRefreshInstance, tOAuth],
+    [
+      previewMode,
+      hasActiveSubscription,
+      onRequireSubscription,
+      composioOAuth,
+      onRefreshInstance,
+      tOAuth,
+    ],
   );
 
   const handleDisconnect = useCallback(
     async (provider: HermesIntegrationProvider) => {
       const previous = effectiveStatus(provider);
-      setOverlay((prev) => ({ ...prev, [provider]: "connecting" }));
 
       if (previewMode) {
+        setOverlay((prev) => ({ ...prev, [provider]: "connecting" }));
         await new Promise((r) => setTimeout(r, 500));
         setOverlay((prev) => ({ ...prev, [provider]: "disconnected" }));
         return;
       }
+
+      if (!hasActiveSubscription) {
+        onRequireSubscription?.();
+        return;
+      }
+
+      setOverlay((prev) => ({ ...prev, [provider]: "connecting" }));
 
       const result = await disconnectHermesIntegrationAction({ provider });
       if (!result.ok) {
@@ -268,7 +319,14 @@ export default function SettingsPanel({
       setOverlay((prev) => ({ ...prev, [provider]: "disconnected" }));
       void onRefreshInstance?.();
     },
-    [previewMode, effectiveStatus, onRefreshInstance],
+    [
+      previewMode,
+      hasActiveSubscription,
+      onRequireSubscription,
+      effectiveStatus,
+      onRefreshInstance,
+      tOAuth,
+    ],
   );
 
   const handleDestroy = () => {
@@ -419,7 +477,13 @@ export default function SettingsPanel({
             </PanelSection>
 
             {/* ── Skills (skills.sh marketplace) ───────────────── */}
-            {!previewMode ? <SkillsMarketplace variant="settings" /> : null}
+            {!previewMode ? (
+              <SkillsMarketplace
+                variant="settings"
+                hasActiveSubscription={hasActiveSubscription}
+                onRequireSubscription={onRequireSubscription}
+              />
+            ) : null}
 
             {/* ── Memory refresh (informational, compact) ─────── */}
             <SyncStatusSection

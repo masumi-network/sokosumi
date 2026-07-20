@@ -307,7 +307,9 @@ describe("Hermes route contracts", () => {
     memberFindFirstMock.mockResolvedValue(null);
     memberFindManyMock.mockResolvedValue([]);
     enterpriseContractFindFirstMock.mockResolvedValue(null);
-    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    // Default to paid coverage so use-path tests exercise business logic,
+    // not the subscription gate. Unpaid cases set this back to null.
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "self_serve",
       plan: "free",
@@ -1743,6 +1745,8 @@ describe("Hermes route contracts", () => {
   });
 
   it("blocks provisioning without paid coverage and never calls the orchestrator", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+
     const response = await createApp().request("/me/instance", {
       method: "POST",
       headers: { Authorization: "Bearer test_api_key" },
@@ -1751,9 +1755,60 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(403);
     expect(body.message).toBe(
-      "A paid subscription is required to activate the personal assistant.",
+      "A paid subscription is required to use the personal assistant.",
     );
     expect(provisionInstance).not.toHaveBeenCalled();
+  });
+
+  it("blocks chat without paid coverage and never calls the orchestrator", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      status: "running",
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "hello" }),
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to use the personal assistant.",
+    );
+    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks onboarding without paid coverage", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assistantName: "Ada",
+        avatarSeed: "seed_1",
+        researchDepth: "deep",
+        autonomyLevel: "medium",
+        personality: { tone: 50, detail: 50, style: 50 },
+      }),
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to use the personal assistant.",
+    );
+    expect(startInstanceOnboardingMock).not.toHaveBeenCalled();
   });
 
   it("provisions when the user has an active paid personal subscription", async () => {
@@ -1773,6 +1828,7 @@ describe("Hermes route contracts", () => {
   });
 
   it("provisions when a member organization carries the paid plan", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
     memberFindManyMock.mockResolvedValue([{ organizationId: "org_paid" }]);
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "self_serve",

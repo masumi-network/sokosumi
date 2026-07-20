@@ -49,6 +49,8 @@ import type {
 interface SkillsMarketplaceProps {
   /** Onboarding hides the header + search; settings shows the full browser. */
   variant?: "settings" | "onboarding";
+  hasActiveSubscription?: boolean;
+  onRequireSubscription?: () => void;
 }
 
 type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
@@ -61,6 +63,8 @@ const MAX_ONBOARDING = 16;
 
 export default function SkillsMarketplace({
   variant = "settings",
+  hasActiveSubscription = true,
+  onRequireSubscription,
 }: SkillsMarketplaceProps) {
   const t = useTranslations("App.Hermes.Skills");
 
@@ -171,6 +175,10 @@ export default function SkillsMarketplace({
 
   const doInstall = useCallback(
     async (item: SkillCatalogItem) => {
+      if (!hasActiveSubscription) {
+        onRequireSubscription?.();
+        return;
+      }
       setBusy(item.skillId);
       const res = await installSkillAction({
         source: item.source,
@@ -188,7 +196,7 @@ export default function SkillsMarketplace({
         toast.success(t("addedToast", { name: item.name }));
       }
     },
-    [markInstalled, t],
+    [hasActiveSubscription, markInstalled, onRequireSubscription, t],
   );
 
   const handleAdd = useCallback(
@@ -228,6 +236,10 @@ export default function SkillsMarketplace({
 
   const handleRemove = useCallback(
     async (skill: InstalledSkill) => {
+      if (!hasActiveSubscription) {
+        onRequireSubscription?.();
+        return;
+      }
       setBusy(skill.skillId);
       const res = await removeSkillAction({ slug: skill.slug });
       setBusy(null);
@@ -238,7 +250,7 @@ export default function SkillsMarketplace({
       setInstalled((prev) => prev.filter((s) => s.slug !== skill.slug));
       toast.success(t("removedToast", { name: skill.name }));
     },
-    [t],
+    [hasActiveSubscription, onRequireSubscription, t],
   );
 
   return (

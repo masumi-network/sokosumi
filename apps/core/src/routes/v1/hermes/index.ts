@@ -1551,10 +1551,13 @@ const finalizeIntegrationRoute = withGlobalHeaderParameters(
 
 const app = new OpenAPIHonoWithAuth();
 
-// Access posture: the personal assistant is available to all authenticated
-// users; the gate that matters is the paid-plan check on provisioning.
+// Access posture: viewing is open to authenticated users; activating and
+// using (chat, onboard, settings mutations, skills) require paid coverage
+// (or admin). Destroy / purge / GET reads stay ungated so cancelled users
+// can still see history and tear down.
 app.openapi(postChatRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
   const userContent = typeof body.content === "string" ? body.content : "";
   const trimmed = userContent.trim();
@@ -1820,6 +1823,7 @@ export async function captureFromStream(
  */
 app.post("/chat/stream", async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
 
   const rawJson = await c.req.json().catch(() => null);
   const parsed = hermesChatRequestSchema.safeParse(rawJson);
@@ -2100,19 +2104,29 @@ async function userHasPaidPlanCoverage(userId: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Enforce paid coverage for activating and using the personal assistant.
+ * Admins are exempt. Reads (GET instance / messages / unread) stay open so
+ * the UI can still show history and the subscription wall; destroy stays
+ * open so cancelled users can tear the instance down.
+ */
+async function requirePaidPlanCoverage(userContext: {
+  userId: string;
+  role: string | null | undefined;
+}): Promise<void> {
+  if (hasAdminRole(userContext.role)) return;
+  if (await userHasPaidPlanCoverage(userContext.userId)) return;
+  throw forbidden(
+    "A paid subscription is required to use the personal assistant.",
+  );
+}
+
 app.openapi(provisionInstanceRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
   // Paid-plan gate, mirroring the web action's check (which alone is
   // bypassable by calling this route directly with an API key). Admins are
   // exempt so the team can operate test instances without billing.
-  if (
-    !hasAdminRole(userContext.role) &&
-    !(await userHasPaidPlanCoverage(userContext.userId))
-  ) {
-    throw forbidden(
-      "A paid subscription is required to activate the personal assistant.",
-    );
-  }
+  await requirePaidPlanCoverage(userContext);
   const user = await prisma.user.findUnique({
     where: { id: userContext.userId },
     select: { name: true, email: true },
@@ -2150,6 +2164,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
 
 app.openapi(updateInstanceRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   try {
@@ -2361,6 +2376,7 @@ app.openapi(markInboxSeenRoute, async (c) => {
 
 app.openapi(setSecretRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   if (!isValidSecretKey(body.key)) {
@@ -2391,6 +2407,7 @@ app.openapi(setSecretRoute, async (c) => {
 
 app.openapi(startOnboardingRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   // Pull name/email from the DB if the client didn't provide them, so the
@@ -2481,6 +2498,7 @@ app.openapi(listSchedulesRoute, async (c) => {
 
 app.openapi(patchScheduleRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { scheduleId } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -2506,6 +2524,7 @@ app.openapi(patchScheduleRoute, async (c) => {
 
 app.openapi(approveConfirmationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { confirmationId } = c.req.valid("param");
   // Body is optional on this route — when the client posts no payload Hono
   // returns `undefined` and we treat it as the no-overrides case (Hermes'
@@ -2582,6 +2601,7 @@ app.openapi(approveConfirmationRoute, async (c) => {
 
 app.openapi(rejectConfirmationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { confirmationId } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -2623,6 +2643,7 @@ app.openapi(rejectConfirmationRoute, async (c) => {
 
 app.openapi(disconnectIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { provider } = c.req.valid("param");
 
   // Mirror the dual-provider behaviour of finalize: Outlook's mail + calendar
@@ -2674,6 +2695,7 @@ function pairedOrchestratorProviders(
 
 app.openapi(initiateIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { provider, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
   const callbackUrl = `${getWebAppBaseUrl()}/composio/callback`;
@@ -2829,6 +2851,7 @@ async function clearPendingConnection(connectionId: string): Promise<void> {
 
 app.openapi(finalizeIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
 
@@ -3310,6 +3333,7 @@ app.openapi(preinstalledSkillsRoute, async (c) => {
 
 app.openapi(installSkillRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { source, slug } = c.req.valid("json");
 
   let input: HermesInstallSkillInput;
@@ -3355,6 +3379,7 @@ app.openapi(installSkillRoute, async (c) => {
 
 app.openapi(removeSkillRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { slug } = c.req.valid("param");
   try {
     await removeInstalledSkill(userContext.userId, slug);

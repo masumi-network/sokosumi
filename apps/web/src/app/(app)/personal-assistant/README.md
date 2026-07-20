@@ -230,7 +230,10 @@ project channel if you don't have them yet. Never commit them.
 
 ### Enabling the feature
 
-The route is open to all authenticated users; activation is gated by a paid plan (or admin role) on the Core provision endpoint.
+The route is open to all authenticated users; activating **and using**
+(chat, onboard, settings mutations, skills, confirmations) are gated by a
+paid plan (or admin role) on the Core endpoints. Viewing history and
+destroying an instance stay open so cancelled users can tear down.
 Locally it's enabled for users in `HERMES_BETA_ALLOWLIST`, or for everyone
 when `HERMES_BETA_ALL_USERS=true`.
 

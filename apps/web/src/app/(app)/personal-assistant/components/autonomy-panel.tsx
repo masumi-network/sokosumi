@@ -34,6 +34,8 @@ interface AutonomyPanelProps {
   onAutonomyChanged?: (next: HermesAutonomyLevel) => void;
   /** Re-pull the instance so the parent's autonomy badge stays fresh. */
   onRefreshInstance?: () => void | Promise<void>;
+  hasActiveSubscription?: boolean;
+  onRequireSubscription?: () => void;
 }
 
 /**
@@ -49,6 +51,8 @@ export default function AutonomyPanel({
   autonomyLevel,
   onAutonomyChanged,
   onRefreshInstance,
+  hasActiveSubscription = true,
+  onRequireSubscription,
 }: AutonomyPanelProps) {
   const t = useTranslations("App.Hermes.Settings");
   const tPanel = useTranslations("App.Hermes.AutonomyPanel");
@@ -69,6 +73,12 @@ export default function AutonomyPanel({
       setAutonomy(next);
 
       if (previewMode) return;
+
+      if (!hasActiveSubscription) {
+        setAutonomy(previous);
+        onRequireSubscription?.();
+        return;
+      }
 
       setAutonomySaving(true);
       // Piggyback the browser-detected IANA timezone every time the user
@@ -98,7 +108,15 @@ export default function AutonomyPanel({
       // resync the selector from the stale `autonomyLevel` prop.
       void onRefreshInstance?.();
     },
-    [autonomy, previewMode, onAutonomyChanged, onRefreshInstance, t],
+    [
+      autonomy,
+      previewMode,
+      hasActiveSubscription,
+      onRequireSubscription,
+      onAutonomyChanged,
+      onRefreshInstance,
+      t,
+    ],
   );
 
   const [schedules, setSchedules] = useState<HermesSchedule[]>([]);
@@ -158,6 +176,8 @@ export default function AutonomyPanel({
           <SchedulesSection
             schedules={schedules}
             loading={schedulesLoading}
+            hasActiveSubscription={hasActiveSubscription}
+            onRequireSubscription={onRequireSubscription}
             onScheduleUpdated={(updated) =>
               setSchedules((prev) =>
                 prev.map((s) => (s.id === updated.id ? updated : s)),
@@ -176,10 +196,14 @@ function SchedulesSection({
   schedules,
   loading,
   onScheduleUpdated,
+  hasActiveSubscription = true,
+  onRequireSubscription,
 }: {
   schedules: HermesSchedule[];
   loading: boolean;
   onScheduleUpdated: (next: HermesSchedule) => void;
+  hasActiveSubscription?: boolean;
+  onRequireSubscription?: () => void;
 }) {
   const t = useTranslations("App.Hermes.Settings");
   const onScheduleChange = onScheduleUpdated;
@@ -204,7 +228,13 @@ function SchedulesSection({
       ) : (
         <ul className="border-border/60 divide-border/60 divide-y overflow-hidden rounded-xl border">
           {schedules.map((s) => (
-            <ScheduleRow key={s.id} schedule={s} onChange={onScheduleChange} />
+            <ScheduleRow
+              key={s.id}
+              schedule={s}
+              onChange={onScheduleChange}
+              hasActiveSubscription={hasActiveSubscription}
+              onRequireSubscription={onRequireSubscription}
+            />
           ))}
         </ul>
       )}
@@ -226,15 +256,23 @@ function SchedulesSection({
 function ScheduleRow({
   schedule,
   onChange,
+  hasActiveSubscription = true,
+  onRequireSubscription,
 }: {
   schedule: HermesSchedule;
   onChange: (next: HermesSchedule) => void;
+  hasActiveSubscription?: boolean;
+  onRequireSubscription?: () => void;
 }) {
   const t = useTranslations("App.Hermes.Settings");
   const [toggling, setToggling] = useState(false);
 
   const handleToggle = async () => {
     if (toggling) return;
+    if (!hasActiveSubscription) {
+      onRequireSubscription?.();
+      return;
+    }
     setToggling(true);
     const result = await toggleHermesScheduleAction({
       scheduleId: schedule.id,
