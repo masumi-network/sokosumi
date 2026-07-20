@@ -56,7 +56,7 @@ interface SkillsMarketplaceProps {
    * shelf that errored while they couldn't see it.
    */
   active?: boolean;
-  /** Suppress the internal title/subtitle when the host (e.g. SkillsDialog)
+  /** Suppress the internal title/subtitle when the host (e.g. SkillsPanel)
    * already renders its own header. Search stays. */
   hideHeader?: boolean;
   hasActiveSubscription?: boolean;
@@ -308,7 +308,7 @@ export default function SkillsMarketplace({
       </div>
 
       {/* Onboarding embeds this under its own step heading; the header + search
-          are settings-only. Hosts with their own header (SkillsDialog) keep
+          are settings-only. Hosts with their own header (SkillsPanel) keep
           search but suppress the internal title to avoid doubling it. */}
       {variant === "settings" ? (
         <>

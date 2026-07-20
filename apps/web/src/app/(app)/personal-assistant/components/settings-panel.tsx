@@ -481,8 +481,8 @@ export default function SettingsPanel({
               description={t("personalitySetupOnly")}
             />
 
-            {/* ── Skills moved to the SkillsChip popup in the chat header —
-                see skills-dialog.tsx. ── */}
+            {/* ── Skills moved to the SkillsChip sheet in the chat header —
+                see skills-panel.tsx. ── */}
 
             {/* ── Memory refresh (informational, compact) ─────── */}
             <SyncStatusSection

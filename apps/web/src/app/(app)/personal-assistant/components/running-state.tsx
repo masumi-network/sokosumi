@@ -48,7 +48,7 @@ import { useChatScroll } from "./running-state/use-chat-scroll";
 import { useChatSend } from "./running-state/use-chat-send";
 import { useHermesInboxSync } from "./running-state/use-hermes-inbox-sync";
 import { WelcomeBlock } from "./running-state/welcome-block";
-import SkillsDialog from "./skills-dialog";
+import SkillsPanel from "./skills-panel";
 
 export interface RunningStateProps {
   userName?: string | null;
@@ -235,7 +235,7 @@ export default function RunningState({
       <AssistantMotionContext.Provider value={orbMotion}>
         <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
           {/* Floating top-right controls — Autonomy (level + scheduled
-          tasks), Skills (marketplace popup) and Settings (identity,
+          tasks), Skills (marketplace sheet) and Settings (identity,
           integrations, danger zone). */}
           <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
             <AutonomyChip onClick={() => setAutonomyOpen(true)} />
@@ -328,7 +328,7 @@ export default function RunningState({
             onRequireSubscription={onRequireSubscription}
             onRefreshInstance={onRefresh}
           />
-          <SkillsDialog
+          <SkillsPanel
             open={skillsOpen}
             onOpenChange={setSkillsOpen}
             previewMode={previewMode}
