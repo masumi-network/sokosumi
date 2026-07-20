@@ -618,6 +618,20 @@ async function upsertHermesInstanceForUser(
   });
 }
 
+/**
+ * Wipe Sokosumi's per-user Hermes mirror: chat history, instance metadata
+ * (name / orb / poll cursors), and any in-flight integration OAuth claims.
+ * Used by user destroy, orchestrator purge, and fresh provision after an
+ * orch-side teardown that left zombie rows behind. Idempotent.
+ */
+async function clearHermesLocalMirror(userId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.hermesMessage.deleteMany({ where: { userId } }),
+    prisma.hermesPendingConnection.deleteMany({ where: { userId } }),
+    prisma.hermesInstance.deleteMany({ where: { userId } }),
+  ]);
+}
+
 interface HermesInstanceMeta {
   assistantName: string | null;
   avatarSeed: string | null;
@@ -1193,7 +1207,7 @@ const purgeInstanceStateRoute = withGlobalHeaderParameters(
     method: "post",
     path: "/instances/{userId}/purge",
     description:
-      "Orchestrator-only: delete Sokosumi's local mirror state (chat history + instance metadata) for a user whose orchestrator-side instance was destroyed. Idempotent — purging a user with no local state is a no-op. Authenticated with an orchestrator API key (orch_); user sessions and coworker keys are rejected.",
+      "Orchestrator-only: delete Sokosumi's local mirror state (chat history, instance metadata, and pending integration OAuth claims) for a user whose orchestrator-side instance was destroyed. Idempotent — purging a user with no local state is a no-op. Authenticated with an orchestrator API key (orch_); user sessions and coworker keys are rejected.",
     tags: TAGS,
     request: {
       params: z.object({
@@ -2148,6 +2162,19 @@ app.openapi(provisionInstanceRoute, async (c) => {
   });
 
   try {
+    // `provisionInstance` is idempotent — re-POSTing for a live orch
+    // instance must NOT wipe chat. Only clear the local mirror when the
+    // orchestrator currently has no instance (fresh activate, or
+    // re-activate after an orch-side destroy that left zombie rows).
+    // On a pre-check blip, assume an instance exists so we never delete
+    // live history by accident.
+    let hadOrchestratorInstance = true;
+    try {
+      hadOrchestratorInstance = (await getInstance(userContext.userId)) != null;
+    } catch {
+      hadOrchestratorInstance = true;
+    }
+
     await provisionInstance(userContext.userId, {
       name: user?.name,
       email: user?.email,
@@ -2159,6 +2186,15 @@ app.openapi(provisionInstanceRoute, async (c) => {
       throw serviceUnavailable(
         "Provision call succeeded but the assistant instance is not visible yet.",
       );
+    }
+
+    if (!hadOrchestratorInstance) {
+      await clearHermesLocalMirror(userContext.userId).catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_provision_clear_stale_mirror" },
+          extra: { userId: userContext.userId },
+        });
+      });
     }
 
     await upsertHermesInstanceForUser(userContext.userId).catch((error) => {
@@ -2225,14 +2261,7 @@ app.openapi(destroyInstanceRoute, async (c) => {
   }
 
   try {
-    await prisma.$transaction([
-      prisma.hermesMessage.deleteMany({
-        where: { userId: userContext.userId },
-      }),
-      prisma.hermesInstance.deleteMany({
-        where: { userId: userContext.userId },
-      }),
-    ]);
+    await clearHermesLocalMirror(userContext.userId);
   } catch (error) {
     Sentry.captureException(error, {
       tags: { context: "hermes_destroy_db_cleanup" },
@@ -2256,10 +2285,7 @@ app.openapi(purgeInstanceStateRoute, async (c) => {
   const { userId } = c.req.valid("param");
 
   try {
-    await prisma.$transaction([
-      prisma.hermesMessage.deleteMany({ where: { userId } }),
-      prisma.hermesInstance.deleteMany({ where: { userId } }),
-    ]);
+    await clearHermesLocalMirror(userId);
   } catch (error) {
     Sentry.captureException(error, {
       tags: { context: "hermes_purge_instance_state" },
