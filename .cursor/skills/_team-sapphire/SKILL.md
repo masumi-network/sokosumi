@@ -1,6 +1,6 @@
 ---
 name: _team-sapphire
-description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), and Reviewer — in one session from requirement through PR and /goal review until In Review. Mandatory phase gates (comment + status table per phase) per PHASE-GATE.md. Use after _task posts a requirement, when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue is delegated with Sapphire handoff footer.
+description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), and Reviewer — in one session from requirement through PR and /goal review until In Review. Mandatory phase gates (comment + status table per phase) per PHASE-GATE.md. Use when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue already has a ## Requirement and they want the squad to implement it.
 disable-model-invocation: true
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 You are the **Sapphire orchestrator**. One Linear issue. Four roles. No child issues.
 
-Run the squad in order on the **same issue** `_task` created (or any SOK issue the user points at with a requirement body).
+Run the squad in order on the **same issue** the user points at (any SOK issue with a requirement body).
 
 ## Continuous orchestration (critical)
 
@@ -29,7 +29,7 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 - User explicitly asked to run a single phase only (e.g. `run investigator for SOK-XXX`) — run **Exit gate** for completed rows, then stop.
 - Unrecoverable blocker (no GitHub access, Linear MCP down, spec impossible) — report what finished, what is blocked, and the issue URL (Exit gate when Linear MCP is available).
 
-**Never** treat Investigator, Tech Lead, or Coder as standalone jobs when you were delegated from `_task` or invoked as `_team-sapphire` on a full issue. Phase comments (`**Sapphire · … complete**`) mark progress — they are **not** exit signals.
+**Never** treat Investigator, Tech Lead, or Coder as standalone jobs when you were invoked as `_team-sapphire` on a full issue. Phase comments (`**Sapphire · … complete**`) mark progress — they are **not** exit signals.
 
 Resume runs: pick start phase with **artifact-aware resume** (below) — not status table alone — then **continue through all later phases in the same session** unless a stop condition above applies.
 
@@ -69,7 +69,7 @@ Investigation and spec are **working documents for this agent run**. Keep them i
 |----------|-------------|-----------|-----------|
 | Investigation | Investigator | Tech Lead (same session) | Comment summary only |
 | Spec | Tech Lead | Coder, Reviewer (same session) | Comment summary only |
-| Requirement | `_task` | All phases | Description (unchanged) |
+| Requirement | On Linear issue (unchanged) | All phases | Description (unchanged) |
 | Status table | Orchestrator | Resume / humans | Description |
 
 When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and the Sapphire footer. Strip legacy `## Investigation` / `## Spec` blocks if present — do not re-add them.
@@ -78,9 +78,10 @@ When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and
 
 ## Intake
 
-- Required: Linear issue id/URL (e.g. `SOK-XXX`) — usually from `_task` handoff on the same issue.
+- Required: Linear issue id/URL (e.g. `SOK-XXX`) — user points at an issue with `## Requirement`.
 - Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run — still apply **artifact-aware resume** when downstream phases need session investigation or spec (unless user explicitly asked to run that phase only).
 - Load issue with `get_issue`. Read `## Requirement` (or requirement body before Sapphire sections exist).
+- If issue state is **Triage**, set `state: "In Progress"` when Sapphire work starts (state-only `save_issue` is fine).
 - If `## Sapphire status` is **missing**, insert the initial status block per `LINEAR-MCP.md` (full-description merge via `save_issue`) **first** — do not run resume or cleanup rules until the table exists; then start Investigator (or the user’s explicit start phase).
 - If `## Sapphire status` is present, compute start phase with **artifact-aware resume** (do not use status table alone). Initialize `mode` = **full** (default).
   1. Set `target` = user start phase if specified, else first row not `done` (Investigator → Tech Lead → Coder → Reviewer).
@@ -149,7 +150,7 @@ Before returning to the user, run **Exit gate** in `PHASE-GATE.md`: `get_issue` 
 - Read `PHASE-GATE.md` before the first phase — gates are blocking.
 - Read `BUGBOT-LEARNINGS.md` before Phase 1 (Investigator R1–R12 flags) and before Coder Pre-Reviewer gates (CI + Bugbot).
 - Read `LINEAR-MCP.md` before any write.
-- Health check before first call — same message as `_task` if `user-linear` is missing.
+- Health check before first call — if `user-linear` is missing, stop with the reload message in `LINEAR-MCP.md`.
 - Use `save_issue` for **status table**, **state**, and legacy section cleanup only — not investigation or spec; use `save_comment` for phase markers.
 
 ## Resume and idempotency
