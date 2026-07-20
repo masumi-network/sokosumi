@@ -27,7 +27,7 @@ Configure in the [Cloud Agents dashboard](https://cursor.com/agents) or `.cursor
 | **`install`** | e.g. `pnpm install` at repo root |
 | **`terminals` / `start`** | Keep `pnpm web:dev` (and `pnpm core:dev` if needed) running — see repo `AGENTS.md` |
 | **Secrets tab** | Web/core env vars, Sokosumi login email/password; TOTP secret + `oathtool` if 2FA — not `agent-browser auth` |
-| **MCP** | Linear + GitHub on the agent run (HTTP MCP preferred) |
+| **MCP** | GitHub on the agent run; Linear optional (read Requirement only) |
 | **Artifacts on GitHub** (optional) | Dashboard → allow posting artifacts into PR descriptions |
 
 Add a **Cursor Cloud specific instructions** section to root `AGENTS.md` with dev-server ports and login steps.
@@ -52,7 +52,7 @@ Default URL base: `http://localhost:3000/` — **path-only** routes from the spe
 
 ### Optional: `agent-browser` on Cloud
 
-Use only when PR artifacts are not enough — e.g. fixed filenames under `./evidence/`, Linear-only uploads, or scripted replay. Requires shell + one-time `npm install -g agent-browser@0.27.2`, `agent-browser install`, and `brew install ffmpeg` (or apt ffmpeg) for WebM. See **Optional: agent-browser CLI** below.
+Use only when PR artifacts are not enough — e.g. fixed filenames under `./evidence/`, or scripted replay. Requires shell + one-time `npm install -g agent-browser@0.27.2`, `agent-browser install`, and `brew install ffmpeg` (or apt ffmpeg) for WebM. See **Optional: agent-browser CLI** below.
 
 ---
 

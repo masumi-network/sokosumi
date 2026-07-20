@@ -31,10 +31,10 @@ Documented for teams that want Linear to start a Cloud Agent when someone assign
 | Name | SOK Team Sapphire → orchestrator |
 | Trigger | Linear — Delegate assigned → `Cursor` |
 | Filter | Team SOK; description contains `## Requirement` |
-| Tools | Linear MCP, GitHub MCP — computer use is built into Cloud Agents |
+| Tools | GitHub MCP; Linear MCP optional (Requirement read / rare Requirement edits). Computer use is built into Cloud Agents |
 | Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. Coder via `sapphire-coder`; Tech Lead/Reviewer on orchestrator unless optional agents. **Do not** post Linear phase reports — PR is the handoff. Reviewer UI: `VISUAL-CAPTURE.md`. |
 
-Filter on `## Requirement`, **not** `[repo=…]`. Prefer manual `@Cursor` or in-chat `_team-sapphire` unless you maintain this integration carefully.
+Filter on `## Requirement`, **not** `[repo=…]`.
 
 **If enabled:** something must assign delegate to `Cursor` (human or a separate process). Otherwise nothing runs. Keep this **off** unless you own that delegate assignment path.
 
