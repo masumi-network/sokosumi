@@ -15,17 +15,11 @@ import type {
   SkillCatalogDetail,
   SkillCatalogItem,
 } from "@/lib/clients/generated/core";
-import {
-  loadSkillsMarketplaceData,
-  type SkillsMarketplaceData,
-} from "@/lib/hermes/skills-marketplace-data";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
-
-export type { SkillsMarketplaceData };
 
 function toActionError(error: unknown): ActionError {
   if (!(error instanceof CoreApiRequestError)) {
@@ -36,22 +30,9 @@ function toActionError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
-/**
- * One round-trip for the whole marketplace. Prefer the Route Handler
- * (`GET /api/personal-assistant/skills-marketplace`) for client pre-warm so
- * the fetch does not occupy Next's serialized server-action queue; this
- * action remains for server-side callers that already sit on the action path.
- */
-export const getSkillsMarketplaceAction = withSession<
-  AuthenticatedRequest,
-  Result<SkillsMarketplaceData, ActionError>
->(async () => {
-  try {
-    return Ok(await loadSkillsMarketplaceData());
-  } catch (error) {
-    return Err(toActionError(error));
-  }
-});
+// Marketplace catalog reads use GET /api/personal-assistant/skills-marketplace
+// (Route Handler + loadSkillsMarketplaceData) so client pre-warm does not
+// occupy Next's server-action queue. Mutations and search stay here as actions.
 
 interface BrowseSkillsArgs extends AuthenticatedRequest {
   view?: "trending" | "hot" | "all-time";

@@ -6,9 +6,10 @@ import { loadSkillsMarketplaceData } from "@/lib/hermes/skills-marketplace-data"
 /**
  * GET /api/personal-assistant/skills-marketplace
  *
- * Same payload as `getSkillsMarketplaceAction`, but served as a normal fetch
- * so the wizard pre-warm (and dialog open) does not occupy Next's serialized
- * server-action queue — Integrations OAuth and other wizard actions stay free.
+ * Catalog bundle (marketing + installed + preinstalled) for the skills UI.
+ * Served as a normal fetch (not a server action) so wizard pre-warm and dialog
+ * open do not occupy Next's serialized server-action queue — Integrations
+ * OAuth and other wizard actions stay free.
  */
 export async function GET() {
   const session = await getSession();

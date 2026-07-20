@@ -90,6 +90,7 @@ async function fetchMarketplaceCatalog(): Promise<MarketplacePayload> {
   const res = await fetch(MARKETPLACE_URL, {
     method: "GET",
     credentials: "same-origin",
+    cache: "no-store",
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
@@ -140,15 +141,28 @@ export default function SkillsMarketplace({
     [installed, preinstalledSlugs],
   );
 
-  useEffect(() => {
-    onVisibleInstalledCountChange?.(visibleInstalled.length);
-  }, [visibleInstalled.length, onVisibleInstalledCountChange]);
-
   const installedBySlug = useMemo(() => {
     const map = new Map<string, InstalledSkill>();
     for (const s of installed) map.set(s.slug, s);
     return map;
   }, [installed]);
+
+  // Notify the host from the places that change installed state (not a
+  // useEffect mirror) — keeps the setup Review recap in sync without an
+  // effects-for-parent-notify pattern.
+  const notifyVisibleInstalledCount = useCallback(
+    (
+      nextInstalled: InstalledSkill[],
+      nextPreinstalled: PreinstalledSkill[],
+    ) => {
+      if (!onVisibleInstalledCountChange) return;
+      const pre = new Set(nextPreinstalled.map((s) => s.slug));
+      onVisibleInstalledCountChange(
+        nextInstalled.filter((s) => !pre.has(s.slug)).length,
+      );
+    },
+    [onVisibleInstalledCountChange],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -164,6 +178,7 @@ export default function SkillsMarketplace({
         setMarketing(data.marketing.slice(0, max));
         setInstalled(data.installed);
         setPreinstalled(data.preinstalled);
+        notifyVisibleInstalledCount(data.installed, data.preinstalled);
       } catch {
         // No toast: this component may be mounted hidden (wizard pre-warm),
         // where a toast would surface context-free on an unrelated step.
@@ -177,7 +192,7 @@ export default function SkillsMarketplace({
     return () => {
       cancelled = true;
     };
-  }, [variant, loadNonce]);
+  }, [variant, loadNonce, notifyVisibleInstalledCount]);
 
   // One silent retry each time the marketplace becomes visible after a
   // failed load — covers the pre-warm fetch dying while the machine was
@@ -232,20 +247,24 @@ export default function SkillsMarketplace({
 
   const markInstalled = useCallback(
     (item: SkillCatalogItem, status: string) => {
-      setInstalled((prev) => [
-        ...prev.filter((s) => s.slug !== item.slug),
-        {
-          skillId: item.skillId,
-          source: item.source,
-          slug: item.slug,
-          name: item.name,
-          auditRisk: null,
-          status: status === "installing" ? "installing" : "installed",
-          installedAt: null,
-        },
-      ]);
+      setInstalled((prev) => {
+        const next: InstalledSkill[] = [
+          ...prev.filter((s) => s.slug !== item.slug),
+          {
+            skillId: item.skillId,
+            source: item.source,
+            slug: item.slug,
+            name: item.name,
+            auditRisk: null,
+            status: status === "installing" ? "installing" : "installed",
+            installedAt: null,
+          },
+        ];
+        notifyVisibleInstalledCount(next, preinstalled);
+        return next;
+      });
     },
-    [],
+    [notifyVisibleInstalledCount, preinstalled],
   );
 
   const doInstall = useCallback(
@@ -322,10 +341,20 @@ export default function SkillsMarketplace({
         toast.error(res.error.message ?? t("removeFailed"));
         return;
       }
-      setInstalled((prev) => prev.filter((s) => s.slug !== skill.slug));
+      setInstalled((prev) => {
+        const next = prev.filter((s) => s.slug !== skill.slug);
+        notifyVisibleInstalledCount(next, preinstalled);
+        return next;
+      });
       toast.success(t("removedToast", { name: skill.name }));
     },
-    [hasActiveSubscription, onRequireSubscription, t],
+    [
+      hasActiveSubscription,
+      notifyVisibleInstalledCount,
+      onRequireSubscription,
+      preinstalled,
+      t,
+    ],
   );
 
   return (

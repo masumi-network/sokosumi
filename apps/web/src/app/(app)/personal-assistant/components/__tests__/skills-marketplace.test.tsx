@@ -100,7 +100,11 @@ describe("SkillsMarketplace", () => {
     expect(await screen.findByText("SEO Kit")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       MARKETPLACE_URL,
-      expect.objectContaining({ method: "GET", credentials: "same-origin" }),
+      expect.objectContaining({
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+      }),
     );
     expect(toastErrorMock).not.toHaveBeenCalled();
   });

@@ -318,7 +318,7 @@ apps/web/src/app/api/personal-assistant/
 └── skills-marketplace/route.ts          ← GET catalog bundle (pre-warm + dialog); not a server action
 
 apps/web/src/lib/hermes/
-└── skills-marketplace-data.ts           ← shared Core load for the route (+ optional action)
+└── skills-marketplace-data.ts           ← shared Core load for the catalog Route Handler
 ```
 
 Public assets:
