@@ -195,4 +195,118 @@ describe("hermes-orchestrator.client", () => {
     expect(schedules[0]?.nextRunAt).toBe(nextRunAt);
     expect(() => hermesScheduleSchema.parse(schedules[0])).not.toThrow();
   });
+
+  it("returns null only for a structured instance_not_found 404", async () => {
+    fetchMock.mockResolvedValue({
+      status: 404,
+      ok: false,
+      json: async () => ({
+        status: 404,
+        code: "instance_not_found",
+        title: "No Hermes instance exists for this user",
+      }),
+    });
+
+    const { getInstance } = await import("./hermes-orchestrator.client");
+
+    await expect(getInstance("user_gone")).resolves.toBeNull();
+  });
+
+  it("throws on a bare 404 (edge misroute) instead of reading it as no-instance", async () => {
+    // Regression coverage: GET /me/instance clears local chat history when
+    // getInstance returns null — a proxy/edge 404 without the structured
+    // instance_not_found code must never masquerade as "instance destroyed".
+    fetchMock.mockResolvedValue({
+      status: 404,
+      ok: false,
+      json: async () => ({
+        status: 404,
+        code: "not_found",
+        title: "Not found",
+      }),
+    });
+
+    const { getInstance, HermesOrchestratorError } = await import(
+      "./hermes-orchestrator.client"
+    );
+
+    await expect(getInstance("user_misrouted")).rejects.toBeInstanceOf(
+      HermesOrchestratorError,
+    );
+  });
+
+  it("wraps a raw fetch failure on onboard as HermesOrchestratorError without retrying", async () => {
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    const { startInstanceOnboarding, HermesOrchestratorError } = await import(
+      "./hermes-orchestrator.client"
+    );
+
+    await expect(
+      startInstanceOnboarding("user_network_blip", {
+        researchDepth: "deep",
+      }),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HermesOrchestratorError);
+      expect(
+        (error as InstanceType<typeof HermesOrchestratorError>).httpStatus,
+      ).toBe(503);
+      expect((error as Error).message).toContain("fetch failed");
+      return true;
+    });
+    // Onboard is single-shot — no orchFetchWithRetry — so the user can click
+    // Continue again without a silent second research/boot kickoff.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries provisionInstance on a transient 503 from the orchestrator edge, then succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock
+        .mockResolvedValueOnce({
+          status: 503,
+          ok: false,
+          json: async () => ({ code: "SERVICE_UNAVAILABLE" }),
+        })
+        .mockResolvedValueOnce({
+          status: 503,
+          ok: false,
+          json: async () => ({ code: "SERVICE_UNAVAILABLE" }),
+        })
+        .mockResolvedValueOnce({
+          status: 202,
+          ok: true,
+          json: async () => ({}),
+        });
+
+      const { provisionInstance } = await import(
+        "./hermes-orchestrator.client"
+      );
+
+      const resultPromise = provisionInstance("user_deploy_window", {});
+      await vi.runAllTimersAsync();
+
+      await expect(resultPromise).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry a non-transient 4xx (e.g. a genuine bad request)", async () => {
+    fetchMock.mockResolvedValue({
+      status: 400,
+      ok: false,
+      json: async () => ({ code: "BAD_REQUEST", title: "invalid userId" }),
+    });
+
+    const { provisionInstance, HermesOrchestratorError } = await import(
+      "./hermes-orchestrator.client"
+    );
+
+    await expect(
+      provisionInstance("user_bad_request", {}),
+    ).rejects.toBeInstanceOf(HermesOrchestratorError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -20,6 +20,7 @@ import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
+import PersonalAssistantNav from "./components/personal-assistant-nav.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
 import SidebarNav from "./components/sidebar-nav.client";
@@ -28,7 +29,6 @@ interface SidebarProps {
   adminMenuEnabled: boolean;
   creditsData: UserCreditsData | null;
   currentTimestampMs: number;
-  hermesMenuEnabled: boolean;
   organizationName: string | null;
   session: Session;
   lowCreditsThreshold: number;
@@ -38,7 +38,6 @@ export default async function Sidebar({
   adminMenuEnabled,
   creditsData,
   currentTimestampMs,
-  hermesMenuEnabled,
   organizationName,
   session,
   lowCreditsThreshold,
@@ -82,9 +81,11 @@ export default async function Sidebar({
             activeOrganizationId={activeOrganizationId}
             planLabel={planLabel}
           >
+            <PersonalAssistantNav />
+            <SidebarSeparator className="mx-0" />
             <NewChatTaskActions />
             <SidebarSeparator className="mx-0 mt-2" />
-            <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
+            <MenuItems />
             <SidebarSeparator className="mx-0" />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
             <SidebarSeparator className="mx-0" />

@@ -2319,7 +2319,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes instance",
+      "Failed to fetch assistant instance",
     );
   }
 
@@ -2330,7 +2330,7 @@ export function createCoreClient(getClient: GetClient) {
         corePostHermesMeInstance({
           client,
         }),
-      "Failed to provision Hermes instance",
+      "Failed to provision assistant instance",
     );
   }
 
@@ -2342,7 +2342,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to update Hermes instance",
+      "Failed to update assistant instance",
     );
   }
 
@@ -2353,7 +2353,7 @@ export function createCoreClient(getClient: GetClient) {
         coreDeleteHermesMeInstance({
           client,
         }),
-      "Failed to destroy Hermes instance",
+      "Failed to destroy assistant instance",
     );
   }
 
@@ -2366,7 +2366,7 @@ export function createCoreClient(getClient: GetClient) {
           query,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes messages",
+      "Failed to fetch assistant messages",
     );
   }
 
@@ -2378,7 +2378,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes unread count",
+      "Failed to fetch assistant unread count",
     );
   }
 
@@ -2390,7 +2390,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to mark Hermes inbox as seen",
+      "Failed to mark assistant inbox as seen",
     );
   }
 
@@ -2402,7 +2402,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to write Hermes secret",
+      "Failed to write assistant secret",
     );
   }
 
@@ -2414,7 +2414,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to start Hermes onboarding",
+      "Failed to start assistant onboarding",
     );
   }
 
@@ -2426,7 +2426,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes onboarding progress",
+      "Failed to fetch assistant onboarding progress",
     );
   }
 
@@ -2438,7 +2438,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to list Hermes integrations",
+      "Failed to list assistant integrations",
     );
   }
 
@@ -2450,7 +2450,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to list Hermes schedules",
+      "Failed to list assistant schedules",
     );
   }
 
@@ -2466,7 +2466,7 @@ export function createCoreClient(getClient: GetClient) {
           path: { scheduleId },
           body,
         }),
-      "Failed to update Hermes schedule",
+      "Failed to update assistant schedule",
     );
   }
 
@@ -2482,7 +2482,7 @@ export function createCoreClient(getClient: GetClient) {
           path: { confirmationId },
           body,
         }),
-      "Failed to approve Hermes confirmation",
+      "Failed to approve assistant confirmation",
     );
   }
 
@@ -2498,7 +2498,7 @@ export function createCoreClient(getClient: GetClient) {
           path: { confirmationId },
           body,
         }),
-      "Failed to reject Hermes confirmation",
+      "Failed to reject assistant confirmation",
     );
   }
 
@@ -2512,7 +2512,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           path,
         }),
-      "Failed to disconnect Hermes integration",
+      "Failed to disconnect assistant integration",
     );
   }
 

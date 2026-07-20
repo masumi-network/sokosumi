@@ -4992,6 +4992,24 @@ export const HermesInstanceSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        assistantName: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120,
+            default: null
+        },
+        personality: {
+            $ref: '#/components/schemas/HermesPersonality'
+        },
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
         },
@@ -5045,6 +5063,34 @@ export const HermesInstanceSchema = {
         'onboardedAt',
         'integrations'
     ]
+} as const;
+
+export const HermesPersonalitySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        tone: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        },
+        detail: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        },
+        style: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        }
+    },
+    default: null
 } as const;
 
 export const HermesAutonomyLevelSchema = {
@@ -5244,6 +5290,19 @@ export const HermesUpdateInstanceRequestSchema = {
             type: 'string',
             minLength: 1
         },
+        assistantName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 60
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 120
+        },
         email: {
             type: 'string',
             format: 'email'
@@ -5367,6 +5426,24 @@ export const HermesUnreadCountSchema = {
         count: {
             type: 'integer',
             minimum: 0
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        assistantName: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        hasInstance: {
+            type: 'boolean',
+            default: false
         }
     },
     required: [
@@ -5409,6 +5486,16 @@ export const HermesStartOnboardingRequestSchema = {
             type: 'string',
             minLength: 1
         },
+        assistantName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 60
+        },
+        avatarSeed: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         email: {
             type: 'string',
             format: 'email'
@@ -5429,6 +5516,9 @@ export const HermesStartOnboardingRequestSchema = {
                 'deep',
                 'light'
             ]
+        },
+        personality: {
+            $ref: '#/components/schemas/HermesPersonality'
         },
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
@@ -5680,6 +5770,9 @@ export const HermesApproveConfirmationRequestSchema = {
                     minLength: 1
                 }
             }
+        },
+        confirmation: {
+            $ref: '#/components/schemas/HermesPendingConfirmation'
         }
     }
 } as const;
@@ -5691,6 +5784,9 @@ export const HermesRejectConfirmationRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 500
+        },
+        confirmation: {
+            $ref: '#/components/schemas/HermesPendingConfirmation'
         }
     }
 } as const;
