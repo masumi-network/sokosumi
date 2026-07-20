@@ -60,13 +60,12 @@ export default async function HermesPage() {
     slug: m.organization.slug,
   }));
 
-  // Activating the assistant requires a paid plan — viewing the page (the
-  // landing content, the pitch) stays open to everyone. Fail closed: if the
-  // coverage lookups error we can't confirm a subscription, so treat the user
-  // as unsubscribed here. This is only the UX-level gate; provisionHermesAction
-  // re-checks server-side, which is the real enforcement. Admins skip the
-  // wall entirely (same admin-role check used to bypass restrictions
-  // elsewhere) so the team can set up and test instances without billing.
+  // Activating and using the assistant requires a paid plan — viewing the
+  // page (landing content, chat history) stays open to everyone. Fail closed:
+  // if the coverage lookups error we can't confirm a subscription, so treat
+  // the user as unsubscribed here. This is only the UX-level gate; Core
+  // re-checks on provision / chat / mutations. Admins skip the wall
+  // entirely so the team can set up and test instances without billing.
   // Coverage = personal Stripe plan OR any member org's billing plan
   // (enterprise contract or paid self-serve) — same rule as Core.
   const [hasCoverage, catalogResultRaw] = await Promise.all([

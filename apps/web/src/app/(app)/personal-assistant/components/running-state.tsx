@@ -135,6 +135,10 @@ interface RunningStateProps {
   organizations?: HermesOrganizationOption[];
   /** Active org from the session — pre-selected in the dropdown. */
   activeOrganizationId?: string | null;
+  /** Paid coverage for chat / confirmations / settings mutations. */
+  hasActiveSubscription?: boolean;
+  /** Opens the subscription wall when an unpaid user tries to use PA. */
+  onRequireSubscription?: () => void;
   onDestroy: () => Promise<void> | void;
   /** Re-pull the instance from the orchestrator. SettingsPanel calls this
    * after mutations so the integrations chip / autonomy badge don't drift. */
@@ -246,6 +250,8 @@ export default function RunningState({
   initialMessages,
   organizations = [],
   activeOrganizationId = null,
+  hasActiveSubscription = true,
+  onRequireSubscription,
   onDestroy,
   onRefresh,
 }: RunningStateProps) {
@@ -445,6 +451,11 @@ export default function RunningState({
       const trimmed = content.trim();
       const hasFiles = files.length > 0;
       if ((!trimmed && !hasFiles) || isReplying) return;
+
+      if (!previewMode && !hasActiveSubscription) {
+        onRequireSubscription?.();
+        return;
+      }
 
       const now = Date.now();
       const fileNote = hasFiles
@@ -779,7 +790,17 @@ export default function RunningState({
         }
       })();
     },
-    [files, isReplying, messages, mockReplies, onRefresh, previewMode, t],
+    [
+      files,
+      hasActiveSubscription,
+      isReplying,
+      messages,
+      mockReplies,
+      onRefresh,
+      onRequireSubscription,
+      previewMode,
+      t,
+    ],
   );
 
   const stop = useCallback(() => {
@@ -984,6 +1005,8 @@ export default function RunningState({
                         organizations={organizations}
                         activeOrganizationId={activeOrganizationId}
                         resolution={item.entry.resolution}
+                        hasActiveSubscription={hasActiveSubscription}
+                        onRequireSubscription={onRequireSubscription}
                         onResolved={() => {}}
                       />
                     ),
@@ -1008,6 +1031,8 @@ export default function RunningState({
                       organizations={organizations}
                       activeOrganizationId={activeOrganizationId}
                       resolution={null}
+                      hasActiveSubscription={hasActiveSubscription}
+                      onRequireSubscription={onRequireSubscription}
                       onResolved={(id, resolution, resolvedConfirmation) => {
                         // Anchor the card just past the newest thing on screen
                         // at this moment — after the message that raised the
@@ -1127,6 +1152,8 @@ export default function RunningState({
             assistantName={instance?.assistantName ?? null}
             avatarSeed={instance?.avatarSeed ?? null}
             orbBaseSeed={orbBaseSeed}
+            hasActiveSubscription={hasActiveSubscription}
+            onRequireSubscription={onRequireSubscription}
             onDestroy={onDestroy}
             onRefreshInstance={onRefresh}
           />
@@ -1135,6 +1162,8 @@ export default function RunningState({
             onOpenChange={setAutonomyOpen}
             previewMode={previewMode}
             autonomyLevel={instance?.autonomyLevel ?? "medium"}
+            hasActiveSubscription={hasActiveSubscription}
+            onRequireSubscription={onRequireSubscription}
             onRefreshInstance={onRefresh}
           />
         </div>
@@ -2196,6 +2225,8 @@ function ConfirmationCard({
   organizations,
   activeOrganizationId,
   resolution,
+  hasActiveSubscription = true,
+  onRequireSubscription,
 }: {
   confirmation: HermesPendingConfirmation;
   onResolved: (
@@ -2207,6 +2238,8 @@ function ConfirmationCard({
   activeOrganizationId: string | null;
   /** Non-null means the user already resolved this card; render read-only. */
   resolution: ConfirmationResolution | null;
+  hasActiveSubscription?: boolean;
+  onRequireSubscription?: () => void;
 }) {
   const t = useTranslations("App.Hermes.Running.confirmation");
   const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
@@ -2263,6 +2296,10 @@ function ConfirmationCard({
 
   const handleApprove = async () => {
     if (busy || isResolved) return;
+    if (!hasActiveSubscription) {
+      onRequireSubscription?.();
+      return;
+    }
     setBusy("approving");
     // The workspace dropdown shows a local default that may NOT match the
     // workspace Hermes proposed in its tool call. Only send an organization
@@ -2348,6 +2385,10 @@ function ConfirmationCard({
 
   const handleReject = async () => {
     if (busy || isResolved) return;
+    if (!hasActiveSubscription) {
+      onRequireSubscription?.();
+      return;
+    }
     setBusy("rejecting");
     const resolutionOrgId = showOrgPicker
       ? buildCurrentConfirmationApproveOrganizationOverride(

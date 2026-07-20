@@ -55,8 +55,9 @@ interface HermesExperienceProps {
   organizations?: HermesOrganizationOption[];
   /** Active org from the user's session; pre-selected in the dropdown. */
   activeOrganizationId?: string | null;
-  /** Whether the user (or their active org) has a paid subscription.
-   * Activating the assistant is gated on this — viewing the page is not. */
+  /** Whether the user (or a member org) has paid-plan coverage.
+   * Activating and using the assistant are gated on this — viewing
+   * history / the landing page is not. */
   hasActiveSubscription?: boolean;
   /** The 3 paid plans, shown as links on the subscription wall. Empty if
    * the catalog couldn't be loaded — the wall still works without them. */
@@ -228,9 +229,19 @@ export default function HermesExperience({
   const [committedSeed, setCommittedSeed] = useState<string | null | undefined>(
     undefined,
   );
-  /** The subscription wall — shown instead of activating when a free-plan
-   * user hits the CTA. Viewing EmptyState itself is never gated. */
+  /** The subscription wall — shown instead of activating / using when a
+   * free-plan user hits a paid CTA. Viewing EmptyState / history is
+   * never gated. */
   const [subscriptionWallOpen, setSubscriptionWallOpen] = useState(false);
+
+  const subscriptionWall = (
+    <SubscriptionRequiredDialog
+      open={subscriptionWallOpen}
+      onOpenChange={setSubscriptionWallOpen}
+      plans={subscriptionWallPlans}
+      activeOrganizationId={activeOrganizationId}
+    />
+  );
 
   // Anchors the elapsed-time displays (and, for provisioning, the 15-minute
   // timeout deadline) to persisted start times — recomputed only when we
@@ -533,6 +544,10 @@ export default function HermesExperience({
       autonomyLevel: HermesAutonomyLevel;
       personality: HermesPersonality;
     }) => {
+      if (!hasActiveSubscription) {
+        setSubscriptionWallOpen(true);
+        return;
+      }
       // Show their actual orb choice on the provisioning / progress screens
       // immediately, without waiting for the instance to round-trip it.
       setCommittedSeed(options.avatarSeed);
@@ -572,7 +587,7 @@ export default function HermesExperience({
         setIsStartingOnboarding(false);
       }
     },
-    [previewMode, t],
+    [previewMode, t, hasActiveSubscription],
   );
 
   // Base seed for the generative orb avatar — the user id makes every user's
@@ -597,12 +612,7 @@ export default function HermesExperience({
     return (
       <>
         <EmptyState onActivate={handleActivate} />
-        <SubscriptionRequiredDialog
-          open={subscriptionWallOpen}
-          onOpenChange={setSubscriptionWallOpen}
-          plans={subscriptionWallPlans}
-          activeOrganizationId={activeOrganizationId}
-        />
+        {subscriptionWall}
       </>
     );
   }
@@ -616,15 +626,18 @@ export default function HermesExperience({
   }
   if (uiState === "infrastructure_ready") {
     return (
-      <OnboardingScreen
-        defaultName={userName ?? ""}
-        defaultEmail={userEmail ?? ""}
-        orbBaseSeed={orbBaseSeed}
-        integrations={instance?.integrations ?? []}
-        previewMode={previewMode}
-        isStarting={isStartingOnboarding}
-        onContinue={(opts) => void handleStartOnboarding(opts)}
-      />
+      <>
+        <OnboardingScreen
+          defaultName={userName ?? ""}
+          defaultEmail={userEmail ?? ""}
+          orbBaseSeed={orbBaseSeed}
+          integrations={instance?.integrations ?? []}
+          previewMode={previewMode}
+          isStarting={isStartingOnboarding}
+          onContinue={(opts) => void handleStartOnboarding(opts)}
+        />
+        {subscriptionWall}
+      </>
     );
   }
   if (uiState === "onboarding") {
@@ -654,18 +667,23 @@ export default function HermesExperience({
     );
   }
   return (
-    <RunningState
-      userName={userName ?? null}
-      userImageUrl={userImageUrl ?? null}
-      avatarSeed={effectiveOrbSeed}
-      orbBaseSeed={orbBaseSeed}
-      instance={instance}
-      previewMode={previewMode}
-      initialMessages={initialMessages}
-      organizations={effectiveOrganizations}
-      activeOrganizationId={effectiveActiveOrgId}
-      onDestroy={handleDestroy}
-      onRefresh={() => refetchHermes({ background: true })}
-    />
+    <>
+      <RunningState
+        userName={userName ?? null}
+        userImageUrl={userImageUrl ?? null}
+        avatarSeed={effectiveOrbSeed}
+        orbBaseSeed={orbBaseSeed}
+        instance={instance}
+        previewMode={previewMode}
+        initialMessages={initialMessages}
+        organizations={effectiveOrganizations}
+        activeOrganizationId={effectiveActiveOrgId}
+        hasActiveSubscription={hasActiveSubscription}
+        onRequireSubscription={() => setSubscriptionWallOpen(true)}
+        onDestroy={handleDestroy}
+        onRefresh={() => refetchHermes({ background: true })}
+      />
+      {subscriptionWall}
+    </>
   );
 }
