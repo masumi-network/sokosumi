@@ -19,5 +19,5 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 - Draft in chat first. **Wait for approval.**
 - Keep requirements concise. No spec sections, no verification checklist.
-- After approval: one Linear issue with `## Requirement` only — no Sapphire handoff, no `delegate`.
+- After approval: one Linear issue with `## Requirement` only — no `delegate`.
 - On create, never omit `project: "sokosumi-6357694ddd23"` (or user override) — verify with `get_issue` before finishing.

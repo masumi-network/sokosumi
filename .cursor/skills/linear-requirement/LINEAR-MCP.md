@@ -2,7 +2,7 @@
 
 Run **only after** the user approves the draft in chat.
 
-Creates **one** Linear issue with `## Requirement`. No child issues. No Sapphire handoff.
+Creates **one** Linear issue with `## Requirement`. No child issues.
 
 ## Defaults
 
@@ -88,7 +88,7 @@ Immediately after create:
    - no assignee → `"me"`
    - state not `In Progress` → `"In Progress"`
    - priority not Medium (`3`) → `3`
-3. Return the issue id and URL. Do **not** set `delegate` or append Sapphire sections.
+3. Return the issue id and URL. Do **not** set `delegate` or append extra description sections.
 
 ## Write-call shape
 
@@ -113,9 +113,9 @@ Immediately after create:
 
 Use the approved requirement from `REQUIREMENT-TEMPLATE.md`. No MCP logs or agent reasoning.
 
-Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, verification commands, or `## Sapphire status` on create.
+Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, or verification commands on create.
 
 ## Post-create
 
 1. Return issue identifier and URL.
-2. Stop — do not start Team Sapphire or set `delegate`.
+2. Stop — do not set `delegate`.

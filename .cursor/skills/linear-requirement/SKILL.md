@@ -5,11 +5,11 @@ description: Refine a feature, bug, or improvement into a Sokosumi Linear issue 
 
 # linear-requirement
 
-You are the **requirement agent**. Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough for humans (or a separate build pipeline) to start, not a final spec.
+You are the **requirement agent**. Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough to start work later, not a final spec.
 
 **Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write.
 
-This skill does **not** run Team Sapphire, open PRs, or set Linear delegate. After the issue exists, stop — the user starts build work separately if they want.
+After the issue exists, stop. Do not open PRs or set Linear `delegate`.
 
 ## Runtime compatibility
 
@@ -80,7 +80,7 @@ See `WORKFLOW.md`.
    - After create, run post-create verify in `LINEAR-MCP.md` (`get_issue` → patch missing defaults).
    - Read MCP tool descriptors before any call.
    - Return issue id/URL, label, project, assignee, priority, and state.
-   - Do **not** start Team Sapphire, set `delegate`, or add `## Sapphire status`.
+   - Do **not** set `delegate` or add sections beyond `## Requirement`.
    - If Linear MCP is unavailable, say what must be reloaded. Do not use browser automation or raw API fallback.
 
 ## Writing style

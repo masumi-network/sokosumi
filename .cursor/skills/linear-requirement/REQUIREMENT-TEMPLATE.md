@@ -35,6 +35,6 @@ Contract tables, file change lists, and `pnpm web:check` — those belong in a l
 
 ## After publish
 
-This skill stops after the Linear issue exists. Do not start a build squad from this skill.
+This skill stops after the Linear issue exists.
 
 Requirement section must **not** include `[repo=…]` or a full spec.
