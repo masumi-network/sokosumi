@@ -31,10 +31,12 @@ const {
   initiateConnectionMock,
   isReservedSecretKeyMock,
   isValidSecretKeyMock,
+  enterpriseContractFindFirstMock,
   memberFindFirstMock,
   memberFindManyMock,
   organizationFindManyMock,
   resolveActiveSubscriptionMock,
+  resolveOrganizationBillingPlanMock,
   orchestratorApiKeyFindUniqueMock,
   patchInstanceMock,
   prismaTransactionMock,
@@ -89,10 +91,12 @@ const {
     initiateConnectionMock: vi.fn(),
     isReservedSecretKeyMock: vi.fn(),
     isValidSecretKeyMock: vi.fn(),
+    enterpriseContractFindFirstMock: vi.fn(),
     memberFindFirstMock: vi.fn(),
     memberFindManyMock: vi.fn(),
     organizationFindManyMock: vi.fn(),
     resolveActiveSubscriptionMock: vi.fn(),
+    resolveOrganizationBillingPlanMock: vi.fn(),
     orchestratorApiKeyFindUniqueMock: vi.fn(),
     patchInstanceMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
@@ -149,6 +153,9 @@ vi.mock("@/lib/db/prisma", () => ({
       delete: hermesPendingConnectionDeleteMock,
       deleteMany: hermesPendingConnectionDeleteManyMock,
     },
+    enterpriseContract: {
+      findFirst: enterpriseContractFindFirstMock,
+    },
     member: {
       findFirst: memberFindFirstMock,
       findMany: memberFindManyMock,
@@ -164,6 +171,15 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    resolveOrganizationBillingPlan: resolveOrganizationBillingPlanMock,
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   const actual =
@@ -290,7 +306,16 @@ describe("Hermes route contracts", () => {
     coworkerFindManyMock.mockResolvedValue([]);
     memberFindFirstMock.mockResolvedValue(null);
     memberFindManyMock.mockResolvedValue([]);
+    enterpriseContractFindFirstMock.mockResolvedValue(null);
     resolveActiveSubscriptionMock.mockResolvedValue(null);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "free",
+      purchasedSeats: 0,
+      subscriptionId: null,
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
     organizationFindManyMock.mockResolvedValue([]);
     hermesPendingConnectionUpsertMock.mockResolvedValue(undefined);
     hermesPendingConnectionFindUniqueMock.mockResolvedValue(null);
@@ -1749,10 +1774,14 @@ describe("Hermes route contracts", () => {
 
   it("provisions when a member organization carries the paid plan", async () => {
     memberFindManyMock.mockResolvedValue([{ organizationId: "org_paid" }]);
-    resolveActiveSubscriptionMock.mockImplementation(
-      async (referenceId: string) =>
-        referenceId === "org_paid" ? { plan: "pro" } : null,
-    );
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "pro",
+      purchasedSeats: 3,
+      subscriptionId: "sub_1",
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
 
     const response = await createApp().request("/me/instance", {
@@ -1762,6 +1791,39 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(200);
     expect(provisionInstance).toHaveBeenCalled();
+    expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledWith(
+      "org_paid",
+      expect.anything(),
+    );
+  });
+
+  it("provisions when a member organization has an active enterprise contract", async () => {
+    memberFindManyMock.mockResolvedValue([{ organizationId: "org_ent" }]);
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: true,
+      purchasedSeats: 10,
+      contractId: "contract_1",
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+    expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledWith(
+      "org_ent",
+      expect.anything(),
+    );
   });
 
   it("lets an admin provision without any subscription", async () => {

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   getMyCreditsMock,
+  getMyOrganizationsMock,
+  getOrganizationBillingPlanMock,
   provisionHermesInstanceMock,
   MockCoreApiRequestError,
   toCoreApiActionErrorMock,
@@ -19,6 +21,8 @@ const {
 
   return {
     getMyCreditsMock: vi.fn(),
+    getMyOrganizationsMock: vi.fn(),
+    getOrganizationBillingPlanMock: vi.fn(),
     provisionHermesInstanceMock: vi.fn(),
     MockCoreApiRequestError,
     toCoreApiActionErrorMock: vi.fn(),
@@ -53,6 +57,9 @@ vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
     getMyCredits: (...args: unknown[]) => getMyCreditsMock(...args),
+    getMyOrganizations: (...args: unknown[]) => getMyOrganizationsMock(...args),
+    getOrganizationBillingPlan: (...args: unknown[]) =>
+      getOrganizationBillingPlanMock(...args),
     provisionHermesInstance: (...args: unknown[]) =>
       provisionHermesInstanceMock(...args),
   },
@@ -84,6 +91,8 @@ describe("provisionHermesAction", () => {
     vi.clearAllMocks();
     mockSessionRole.current = undefined;
     provisionHermesInstanceMock.mockResolvedValue({ data: RUNNING_INSTANCE });
+    getMyOrganizationsMock.mockResolvedValue({ data: [] });
+    getOrganizationBillingPlanMock.mockResolvedValue(null);
   });
 
   it("blocks provisioning on the free plan without calling Core", async () => {
@@ -114,6 +123,7 @@ describe("provisionHermesAction", () => {
 
   it("fails closed when the credits lookup errors", async () => {
     getMyCreditsMock.mockRejectedValue(new Error("network blip"));
+    getMyOrganizationsMock.mockRejectedValue(new Error("network blip"));
 
     const result = await provisionHermesAction({});
 
@@ -133,6 +143,22 @@ describe("provisionHermesAction", () => {
 
     expect(result.ok).toBe(true);
     expect(provisionHermesInstanceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("provisions when a member organization is on an enterprise contract", async () => {
+    getMyCreditsMock.mockResolvedValue({ data: { subscription: null } });
+    getMyOrganizationsMock.mockResolvedValue({
+      data: [{ id: "org_ent", name: "Enterprise Org" }],
+    });
+    getOrganizationBillingPlanMock.mockResolvedValue({
+      data: { mode: "enterprise_contract", plan: "enterprise" },
+    });
+
+    const result = await provisionHermesAction({});
+
+    expect(result.ok).toBe(true);
+    expect(provisionHermesInstanceMock).toHaveBeenCalledTimes(1);
+    expect(getOrganizationBillingPlanMock).toHaveBeenCalledWith("org_ent");
   });
 
   it("lets an admin provision on the free plan", async () => {

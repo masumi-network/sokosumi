@@ -14,6 +14,7 @@ import type {
   HermesGetInstanceNone,
   HermesGetInstanceSome,
 } from "@/lib/clients/generated/core/types.gen";
+import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
 import type {
   HermesAutonomyLevel,
   HermesConfirmationResolveResult,
@@ -186,9 +187,10 @@ export const provisionHermesAction = withSession<
   Result<HermesInstancePublic, ActionError>
 >(async ({ session }) => {
   try {
-    const creditsResult = await coreClient.getMyCredits().catch(() => null);
-    const currentPlan = creditsResult?.data.subscription?.plan ?? "free";
-    if (currentPlan === "free" && !hasAdminRole(session.user.role)) {
+    // UX-level gate only — Core re-enforces on provision (incl. enterprise).
+    // Fail closed when coverage lookups fail.
+    const hasCoverage = await hasPaidPlanCoverage();
+    if (!hasCoverage && !hasAdminRole(session.user.role)) {
       return Err({ code: "SUBSCRIPTION_REQUIRED" });
     }
     const response = await coreClient.provisionHermesInstance();

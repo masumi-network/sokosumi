@@ -10,10 +10,8 @@ import type { SubscriptionWallPlan } from "@/app/personal-assistant/components/s
 import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { coreClient } from "@/lib/clients/core.client";
-import type {
-  GetSubscriptionCatalogResponse,
-  GetUsersByIdCreditsResponse,
-} from "@/lib/clients/generated/core";
+import type { GetSubscriptionCatalogResponse } from "@/lib/clients/generated/core";
+import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
 import { userService } from "@/lib/services/user.service";
 
 const PAID_PLAN_ORDER = [
@@ -64,19 +62,22 @@ export default async function HermesPage() {
 
   // Activating the assistant requires a paid plan — viewing the page (the
   // landing content, the pitch) stays open to everyone. Fail closed: if the
-  // credits call errors we can't confirm a subscription, so treat the user
+  // coverage lookups error we can't confirm a subscription, so treat the user
   // as unsubscribed here. This is only the UX-level gate; provisionHermesAction
   // re-checks server-side, which is the real enforcement. Admins skip the
   // wall entirely (same admin-role check used to bypass restrictions
   // elsewhere) so the team can set up and test instances without billing.
-  const [creditsResultRaw, catalogResultRaw] = await Promise.all([
-    session ? coreClient.getMyCredits().catch(() => null) : null,
+  // Coverage = personal Stripe plan OR any member org's billing plan
+  // (enterprise contract or paid self-serve) — same rule as Core.
+  const [hasCoverage, catalogResultRaw] = await Promise.all([
+    session
+      ? hasPaidPlanCoverage({
+          organizationIds: memberships.map((m) => m.organization.id),
+        })
+      : Promise.resolve(false),
     session ? coreClient.getSubscriptionCatalog().catch(() => null) : null,
   ]);
-  const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
-  const currentPlan = creditsResult?.data.subscription?.plan ?? "free";
-  const hasActiveSubscription =
-    currentPlan !== "free" || hasAdminRole(session?.user.role);
+  const hasActiveSubscription = hasCoverage || hasAdminRole(session?.user.role);
 
   // The 3 paid plans — gives the subscription wall real, clickable plan
   // links instead of a vague "upgrade to unlock". Best-effort: the wall

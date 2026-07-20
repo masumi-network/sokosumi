@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
+import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import {
   isUserUploadAllowedContentType,
@@ -2072,18 +2073,29 @@ app.openapi(getInstanceRoute, async (c) => {
  * plan itself rather than trusting the web action's check.
  */
 async function userHasPaidPlanCoverage(userId: string): Promise<boolean> {
+  // Personal Stripe subscription (user as referenceId).
+  const personal =
+    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+      userId,
+      prisma,
+    );
+  if (personal && personal.plan !== "free") return true;
+
+  // Org memberships via the canonical billing-plan resolver (enterprise
+  // contract first, then self-serve Stripe). Enterprise orgs often have no
+  // subscription row at all — the old Stripe-only loop missed them.
   const memberships = await prisma.member.findMany({
     where: { userId },
     select: { organizationId: true },
   });
-  const referenceIds = [userId, ...memberships.map((m) => m.organizationId)];
-  for (const referenceId of referenceIds) {
-    const subscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        referenceId,
-        prisma,
-      );
-    if (subscription && subscription.plan !== "free") return true;
+  for (const { organizationId } of memberships) {
+    const billingPlan = await resolveOrganizationBillingPlan(
+      organizationId,
+      prisma,
+    );
+    if (billingPlan.mode === "enterprise_contract") return true;
+    if (billingPlan.mode === "self_serve" && billingPlan.plan !== "free")
+      return true;
   }
   return false;
 }
