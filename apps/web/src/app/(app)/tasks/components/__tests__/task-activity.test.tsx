@@ -123,6 +123,7 @@ function createEvent(
     comment = null,
     authenticationUrl = null,
     channel = Channel.SOKOSUMI,
+    actor,
     userId = "user-1",
     user,
     coworkerId = null,
@@ -135,6 +136,7 @@ function createEvent(
     comment?: string | null;
     authenticationUrl?: string | null;
     channel?: Channel;
+    actor?: TaskEvent["actor"];
     userId?: string | null;
     user?: TaskEvent["user"];
     coworkerId?: string | null;
@@ -143,6 +145,33 @@ function createEvent(
     orchestrator?: TaskEvent["orchestrator"];
   },
 ): TaskEvent {
+  const resolvedActor =
+    actor !== undefined
+      ? actor
+      : coworkerId && coworker
+        ? {
+            type: "coworker" as const,
+            id: coworkerId,
+            coworker,
+          }
+        : userId && user
+          ? {
+              type: "user" as const,
+              id: userId,
+              user: {
+                id: user.id,
+                name: user.name,
+                image: user.image ?? null,
+              },
+            }
+          : orchestratorId && orchestrator
+            ? {
+                type: "orchestrator" as const,
+                id: orchestratorId,
+                orchestrator,
+              }
+            : null;
+
   return {
     id,
     createdAt,
@@ -153,6 +182,7 @@ function createEvent(
     authenticationUrl,
     channel,
     origin: channel,
+    actor: resolvedActor,
     userId,
     user,
     coworkerId,
@@ -522,6 +552,43 @@ describe("TaskActivitySection", () => {
 
     expect(screen.getByText("Hermes")).toBeInTheDocument();
     expect(screen.queryByText("System")).not.toBeInTheDocument();
+  });
+
+  it("prefers nested actor over conflicting deprecated flat FKs", () => {
+    const events: TaskEvent[] = [
+      createEvent("nested-actor-wins", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.READY,
+        actor: {
+          type: "orchestrator",
+          id: "orch-1",
+          orchestrator: {
+            id: "orch-1",
+            name: "Hermes",
+            slug: "hermes",
+          },
+        },
+        // Legacy dual FK: flat userId would have won the old coworker>user>orch order.
+        userId: "user-2",
+        user: {
+          id: "user-2",
+          name: "Ada Lovelace",
+          image: null,
+        },
+        coworkerId: null,
+        orchestratorId: "orch-1",
+        orchestrator: {
+          id: "orch-1",
+          name: "Hermes",
+          slug: "hermes",
+        },
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
   });
 
   it("shows upgrade plan billing CTA for latest out-of-credits event on free plan", () => {

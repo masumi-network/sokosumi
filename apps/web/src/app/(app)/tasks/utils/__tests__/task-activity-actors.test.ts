@@ -1,9 +1,68 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import type { Task } from "@/lib/clients/generated/core/types.gen";
+import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
-import { buildTaskActivityActors } from "../task-activity-actors";
+import {
+  buildTaskActivityActors,
+  getEventActorInfo,
+  resolveTaskEventActorKind,
+} from "../task-activity-actors";
+
+describe("resolveTaskEventActorKind", () => {
+  it("prefers nested actor type over flat FKs", () => {
+    const event = {
+      actor: {
+        type: "orchestrator",
+        id: "orch-1",
+        orchestrator: { id: "orch-1", name: "Hermes", slug: "hermes" },
+      },
+      userId: "user-1",
+      coworkerId: "cow-1",
+      orchestratorId: "orch-1",
+    } as TaskEvent;
+
+    expect(resolveTaskEventActorKind(event)).toBe("orchestrator");
+  });
+
+  it("falls back to deprecated flat FKs when actor is null", () => {
+    expect(
+      resolveTaskEventActorKind({
+        actor: null,
+        coworkerId: "cow-1",
+        userId: "user-1",
+        orchestratorId: null,
+      } as TaskEvent),
+    ).toBe("coworker");
+  });
+});
+
+describe("getEventActorInfo", () => {
+  it("reads name and image from nested actor", () => {
+    const event = {
+      actor: {
+        type: "user",
+        id: "user-2",
+        user: {
+          id: "user-2",
+          name: "Grace Hopper",
+          image: "ipfs://bafygrace",
+        },
+      },
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        name: "Wrong User",
+        image: null,
+      },
+    } as TaskEvent;
+
+    expect(getEventActorInfo(event)).toEqual({
+      name: "Grace Hopper",
+      image: resolveIpfsOrHttpUrl("ipfs://bafygrace"),
+    });
+  });
+});
 
 describe("buildTaskActivityActors", () => {
   it("builds actor maps from task and embedded event summaries", () => {
