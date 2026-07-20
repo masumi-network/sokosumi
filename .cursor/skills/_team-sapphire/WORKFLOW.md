@@ -1,14 +1,10 @@
 # Sapphire Pipeline
 
-Two skills. One Linear issue. Approval gate only on `_task`.
+One Linear issue with a `## Requirement`. Start when the user asks (or an optional automation fires).
 
 ```mermaid
 flowchart LR
-  user["User idea"] --> task["_task skill"]
-  task --> approve{"User\napproves?"}
-  approve -->|yes| issue["Linear issue\nRequirement + status"]
-  approve -->|no| task
-  issue --> sapphire["_team-sapphire"]
+  issue["Linear issue\n## Requirement"] --> sapphire["_team-sapphire"]
   sapphire --> inv["Investigator\n(session)"]
   inv --> lead["Tech Lead\n(session spec)"]
   lead --> code["Coder(s)"]
@@ -40,7 +36,7 @@ Only requirement and progress on the issue:
 
 ```markdown
 ## Requirement
-(from _task — do not rewrite without human approval)
+(from the Linear issue — do not rewrite without human approval)
 
 ## Sapphire status
 | Phase | Status |
@@ -59,15 +55,16 @@ Phase transitions post structured **summary** comments (`**Sapphire · … compl
 
 | State | Set by | When |
 |-------|--------|------|
-| `In Progress` | `_task` | Issue created; through Investigator, Tech Lead, Coder |
+| `Triage` | Issue already on Linear | Requirement filed; awaiting pickup |
+| `In Progress` | Sapphire (or human) when work starts | Through Investigator, Tech Lead, Coder |
 | `In Review` | Reviewer | All `/goal` criteria pass |
 | `Done` | Human | After PR merge |
 
-## Handoff from _task
+## How to start
 
-Default: `_task` posts the issue and delegates **Cursor on the same issue** — see `../_task/HANDOFF.md`.
+Manual (default): `Run _team-sapphire for SOK-XXX` in Cursor.
 
-Manual: `Run _team-sapphire for SOK-XXX` in Cursor.
+Optional Cloud trigger: see `CURSOR-AUTOMATION.md`.
 
 ## What not to do
 

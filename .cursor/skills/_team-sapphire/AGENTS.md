@@ -24,10 +24,6 @@ Single-issue squad: Investigator → Tech Lead → Coder(s) → Reviewer.
 
 Investigator uses the orchestrator model — no subagent override.
 
-## Upstream
-
-Requirement intake and approval: `../_task/SKILL.md`.
-
 ## Output rule
 
 Keep specs concise. Tech Lead spec always includes a data flow diagram. Linear holds **Requirement + status** only — investigation and spec stay in session.
