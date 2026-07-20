@@ -34,6 +34,7 @@ import {
   getInstanceOnboardingProgress,
   type HermesInstallSkillInput,
   HermesInstanceNotReadyError,
+  type HermesInstanceStatus,
   type HermesIntegrationMode,
   type HermesIntegrationProvider,
   HermesOrchestratorError,
@@ -621,8 +622,8 @@ async function upsertHermesInstanceForUser(
 /**
  * Wipe Sokosumi's per-user Hermes mirror: chat history, instance metadata
  * (name / orb / poll cursors), and any in-flight integration OAuth claims.
- * Used by user destroy, orchestrator purge, and fresh provision after an
- * orch-side teardown that left zombie rows behind. Idempotent.
+ * Used by user destroy, orchestrator purge, and a verified fresh provision
+ * (pre-check empty + post-provision still early / not onboarded). Idempotent.
  */
 async function clearHermesLocalMirror(userId: string): Promise<void> {
   await prisma.$transaction([
@@ -630,6 +631,29 @@ async function clearHermesLocalMirror(userId: string): Promise<void> {
     prisma.hermesPendingConnection.deleteMany({ where: { userId } }),
     prisma.hermesInstance.deleteMany({ where: { userId } }),
   ]);
+}
+
+/** Statuses that mean the orch instance was just created, not a live agent. */
+const FRESH_PROVISION_STATUSES = new Set<HermesInstanceStatus>([
+  "provisioning",
+  "infrastructure_ready",
+]);
+
+/**
+ * True when post-provision state is a brand-new instance we may safely wipe
+ * zombie local rows for. Ready/running (or already onboarded) must never
+ * trigger a chat wipe — a false pre-check `instance_not_found` plus an
+ * idempotent provision against a live orch instance would otherwise delete
+ * real history.
+ */
+function isFreshProvisionInstance(instance: {
+  status: HermesInstanceStatus;
+  onboardedAt: string | null;
+}): boolean {
+  return (
+    instance.onboardedAt == null &&
+    FRESH_PROVISION_STATUSES.has(instance.status)
+  );
 }
 
 interface HermesInstanceMeta {
@@ -2163,11 +2187,11 @@ app.openapi(provisionInstanceRoute, async (c) => {
 
   try {
     // `provisionInstance` is idempotent — re-POSTing for a live orch
-    // instance must NOT wipe chat. Only clear the local mirror when the
-    // orchestrator currently has no instance (fresh activate, or
-    // re-activate after an orch-side destroy that left zombie rows).
-    // On a pre-check blip, assume an instance exists so we never delete
-    // live history by accident.
+    // instance must NOT wipe chat. A structured pre-check
+    // `instance_not_found` can still be wrong; only clear the local mirror
+    // when post-provision state is still a fresh early instance. On a
+    // pre-check throw, assume an instance exists so we never delete live
+    // history by accident.
     let hadOrchestratorInstance = true;
     try {
       hadOrchestratorInstance = (await getInstance(userContext.userId)) != null;
@@ -2188,7 +2212,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
       );
     }
 
-    if (!hadOrchestratorInstance) {
+    if (!hadOrchestratorInstance && isFreshProvisionInstance(instance)) {
       await clearHermesLocalMirror(userContext.userId).catch((error) => {
         Sentry.captureException(error, {
           tags: { context: "hermes_provision_clear_stale_mirror" },

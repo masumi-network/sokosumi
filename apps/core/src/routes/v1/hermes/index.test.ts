@@ -1993,11 +1993,16 @@ describe("Hermes route contracts", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("clears leftover local mirror when provisioning after orch has no instance", async () => {
+  it("clears leftover local mirror when provisioning a fresh early instance", async () => {
     resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
     vi.mocked(getInstance)
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(instanceWithPendingConfirmation());
+      .mockResolvedValueOnce({
+        ...instanceWithPendingConfirmation(),
+        status: "provisioning",
+        pendingConfirmations: [],
+        onboardedAt: null,
+      });
 
     const response = await createApp().request("/me/instance", {
       method: "POST",
@@ -2013,6 +2018,30 @@ describe("Hermes route contracts", () => {
     expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
       where: { userId: "user_123" },
     });
+    expect(hermesInstanceUpsertMock).toHaveBeenCalled();
+  });
+
+  it("does not wipe chat when pre-check is empty but post-provision is already ready", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        ...instanceWithPendingConfirmation(),
+        status: "ready",
+        onboardedAt: "2026-07-01T00:00:00.000Z",
+      });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+    // False instance_not_found + idempotent provision against a live orch
+    // instance must never delete hermesMessage history.
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(hermesPendingConnectionDeleteManyMock).not.toHaveBeenCalled();
     expect(hermesInstanceUpsertMock).toHaveBeenCalled();
   });
 
