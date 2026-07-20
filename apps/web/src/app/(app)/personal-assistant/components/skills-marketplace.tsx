@@ -60,6 +60,12 @@ interface SkillsMarketplaceProps {
   hideHeader?: boolean;
   hasActiveSubscription?: boolean;
   onRequireSubscription?: () => void;
+  /**
+   * User-managed installed skills (excludes image-baked preinstalled).
+   * The setup review step uses this for a "Skills: N added" recap without
+   * re-fetching the catalog.
+   */
+  onVisibleInstalledCountChange?: (count: number) => void;
 }
 
 type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
@@ -102,6 +108,7 @@ export default function SkillsMarketplace({
   hideHeader = false,
   hasActiveSubscription = true,
   onRequireSubscription,
+  onVisibleInstalledCountChange,
 }: SkillsMarketplaceProps) {
   const t = useTranslations("App.Hermes.Skills");
 
@@ -132,6 +139,10 @@ export default function SkillsMarketplace({
     () => installed.filter((s) => !preinstalledSlugs.has(s.slug)),
     [installed, preinstalledSlugs],
   );
+
+  useEffect(() => {
+    onVisibleInstalledCountChange?.(visibleInstalled.length);
+  }, [visibleInstalled.length, onVisibleInstalledCountChange]);
 
   const installedBySlug = useMemo(() => {
     const map = new Map<string, InstalledSkill>();

@@ -183,4 +183,51 @@ describe("SkillsMarketplace", () => {
     expect(screen.queryByText("title…")).not.toBeInTheDocument();
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
+
+  it("reports visible installed count to the host (excludes preinstalled)", async () => {
+    const onCount = vi.fn();
+    fetchMock.mockResolvedValue(
+      okMarketplaceResponse({
+        installed: [
+          {
+            skillId: "inst-1",
+            source: "skills-sh",
+            slug: "seo-kit",
+            name: "SEO Kit",
+            auditRisk: null,
+            status: "installed",
+            installedAt: null,
+          },
+          {
+            skillId: "inst-2",
+            source: "skills-sh",
+            slug: "baked",
+            name: "Baked",
+            auditRisk: null,
+            status: "installed",
+            installedAt: null,
+          },
+        ],
+        preinstalled: [
+          {
+            slug: "baked",
+            name: "Baked",
+            description: "ships with image",
+          },
+        ],
+      }),
+    );
+
+    render(
+      <SkillsMarketplace
+        variant="onboarding"
+        active
+        onVisibleInstalledCountChange={onCount}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onCount).toHaveBeenCalledWith(1);
+    });
+  });
 });
