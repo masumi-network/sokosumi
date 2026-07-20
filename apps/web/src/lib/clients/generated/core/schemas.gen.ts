@@ -5666,6 +5666,9 @@ export const HermesApproveConfirmationRequestSchema = {
                     minLength: 1
                 }
             }
+        },
+        confirmation: {
+            $ref: '#/components/schemas/HermesPendingConfirmation'
         }
     }
 } as const;
@@ -5677,6 +5680,9 @@ export const HermesRejectConfirmationRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 500
+        },
+        confirmation: {
+            $ref: '#/components/schemas/HermesPendingConfirmation'
         }
     }
 } as const;
