@@ -29,28 +29,85 @@ export const taskEventChannelField = channelSchema.openapi({
 
 export const taskEventDeprecatedOriginField = deprecatedOriginField;
 
+const taskEventActorUserSchema = z
+  .object({
+    type: z.literal("user"),
+    id: z.string().openapi({ example: "user_123" }),
+    user: userSummarySchema,
+  })
+  .openapi("TaskEventActorUser");
+
+const taskEventActorCoworkerSchema = z
+  .object({
+    type: z.literal("coworker"),
+    id: z.string().openapi({ example: "cow_123" }),
+    coworker: coworkerSummarySchema,
+  })
+  .openapi("TaskEventActorCoworker");
+
+const taskEventActorOrchestratorSchema = z
+  .object({
+    type: z.literal("orchestrator"),
+    id: z.string().uuid().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
+    orchestrator: orchestratorSummarySchema,
+  })
+  .openapi("TaskEventActorOrchestrator");
+
+export const taskEventActorSchema = z
+  .discriminatedUnion("type", [
+    taskEventActorUserSchema,
+    taskEventActorCoworkerSchema,
+    taskEventActorOrchestratorSchema,
+  ])
+  .openapi("TaskEventActor");
+
 export const taskEventSchema = z
   .object({
     id: z.string().openapi({ example: "evt_123" }),
     taskId: z.string().openapi({ example: "tsk_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    userId: z.string().nullish().openapi({ example: "user_123" }),
+    actor: taskEventActorSchema.nullable().openapi({
+      description:
+        "Actor that produced the event. Null when no actor FK is set.",
+    }),
+    /** @deprecated Use `actor` when `actor.type === "user"`. */
+    userId: z.string().nullish().openapi({
+      example: "user_123",
+      deprecated: true,
+      description: "Deprecated. Use actor when type is user.",
+    }),
+    /** @deprecated Use `actor` when `actor.type === "user"`. */
     user: userSummarySchema.nullish().openapi({
+      deprecated: true,
       description:
-        "Mirrors userId: omitted, null, or set when the actor user was loaded.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
-    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
+    /** @deprecated Use `actor` when `actor.type === "coworker"`. */
+    coworkerId: z.string().nullish().openapi({
+      example: "cow_123",
+      deprecated: true,
+      description: "Deprecated. Use actor when type is coworker.",
+    }),
+    /** @deprecated Use `actor` when `actor.type === "coworker"`. */
     coworker: coworkerSummarySchema.nullish().openapi({
+      deprecated: true,
       description:
-        "Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
+    /** @deprecated Use `actor` when `actor.type === "orchestrator"`. */
     orchestratorId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
+      deprecated: true,
+      description: "Deprecated. Use actor when type is orchestrator.",
     }),
+    /** @deprecated Use `actor` when `actor.type === "orchestrator"`. */
     orchestrator: orchestratorSummarySchema.nullish().openapi({
+      deprecated: true,
       description:
-        "Mirrors orchestratorId: omitted, null, or set when the orchestrator relation was loaded.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
     transactionId: z.string().nullish().openapi({ example: "txn_123" }),
     credits: z.number().nullish().openapi({ example: 2.5 }),

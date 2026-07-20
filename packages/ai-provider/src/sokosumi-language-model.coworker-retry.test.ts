@@ -5,7 +5,7 @@ import { COWORKER_AGENT_ERROR_SNIPPET } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
 
 async function collectStreamText(
-  stream: ReadableStream<import("@ai-sdk/provider").LanguageModelV3StreamPart>,
+  stream: ReadableStream<import("@ai-sdk/provider").LanguageModelV4StreamPart>,
 ): Promise<string> {
   const reader = stream.getReader();
   let text = "";

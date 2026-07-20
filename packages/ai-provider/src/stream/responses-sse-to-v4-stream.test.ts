@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createResponsesSseToV3Stream } from "./responses-sse-to-v3-stream.js";
+import { createResponsesSseToV4Stream } from "./responses-sse-to-v4-stream.js";
 
 function encodeSse(lines: string[]): ReadableStream<Uint8Array> {
   const text = lines.join("\n") + "\n\n";
@@ -13,7 +13,7 @@ function encodeSse(lines: string[]): ReadableStream<Uint8Array> {
 }
 
 async function collectStreamTextAndReasoning(
-  stream: ReturnType<typeof createResponsesSseToV3Stream>,
+  stream: ReturnType<typeof createResponsesSseToV4Stream>,
 ): Promise<{ text: string; reasoning: Record<string, string> }> {
   const reader = stream.getReader();
   let text = "";
@@ -36,13 +36,13 @@ async function collectStreamTextAndReasoning(
 }
 
 function createImageGenerationStream(body: ReadableStream<Uint8Array>) {
-  return createResponsesSseToV3Stream(body, {
+  return createResponsesSseToV4Stream(body, {
     warnings: [],
     stripReactImageGenerationEnvelope: true,
   });
 }
 
-describe("createResponsesSseToV3Stream", () => {
+describe("createResponsesSseToV4Stream", () => {
   it("does not emit synthetic prelude reasoning (avoids UIMessage start/end mismatch)", async () => {
     const body = encodeSse([
       "event: response.created",
@@ -53,7 +53,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     const reasoningIds = new Set<string>();
     while (true) {
@@ -80,7 +80,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let sawMetadata = false;
     while (true) {
@@ -112,7 +112,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     const parts: { type: string; id?: string }[] = [];
     while (true) {
@@ -155,7 +155,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createResponsesSseToV4Stream(body, { warnings: [] }),
     );
 
     expect(reasoning.rs_delta).toBe("I will inspect the request.");
@@ -173,7 +173,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createResponsesSseToV4Stream(body, { warnings: [] }),
     );
 
     expect(reasoning.rs_done).toBe("I checked the structured summary.");
@@ -191,7 +191,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createResponsesSseToV4Stream(body, { warnings: [] }),
     );
 
     expect(reasoning.rs_shape).toBe("I created the final answer.");
@@ -213,7 +213,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, {
+    const stream = createResponsesSseToV4Stream(body, {
       warnings: [],
       onResponseCompleted: async (id) => {
         expect(id).toBe("resp_gate");
@@ -266,7 +266,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, {
+    const stream = createResponsesSseToV4Stream(body, {
       warnings: [],
       onResponseStarted: async () => {
         order.push("started-begin");
@@ -322,7 +322,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, {
+    const stream = createResponsesSseToV4Stream(body, {
       warnings: [],
       onResponseCompleted: async (id) => {
         completedIds.push(id);
@@ -357,7 +357,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let text = "";
     while (true) {
@@ -399,7 +399,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const result = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createResponsesSseToV4Stream(body, { warnings: [] }),
     );
 
     expect(result.text).toBe(text);
@@ -753,7 +753,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let text = "";
     while (true) {
@@ -782,7 +782,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let text = "";
     while (true) {
@@ -817,7 +817,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let text = "";
     while (true) {
@@ -855,7 +855,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let text = "";
     while (true) {
@@ -885,7 +885,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let text = "";
     while (true) {
@@ -916,7 +916,7 @@ describe("createResponsesSseToV3Stream", () => {
       "data: [DONE]",
     ]);
 
-    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const stream = createResponsesSseToV4Stream(body, { warnings: [] });
     const reader = stream.getReader();
     let text = "";
     while (true) {

@@ -7,6 +7,8 @@ import type { TaskWithIncludes } from "@/types/task";
 
 import {
   mapTask,
+  mapTaskEvent,
+  mapTaskEventActor,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -776,6 +778,210 @@ describe("validateTaskAssigneeAssignment", () => {
         assigneeId: "   ",
       }),
     ).not.toThrow();
+  });
+});
+
+function buildTaskEventFixture(
+  overrides: Record<string, unknown> = {},
+): Parameters<typeof mapTaskEvent>[0] {
+  return {
+    id: "evt_123",
+    taskId: "tsk_123",
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+    status: TaskStatus.RUNNING,
+    comment: null,
+    authenticationUrl: null,
+    channel: Channel.SOKOSUMI,
+    userId: null,
+    coworkerId: null,
+    orchestratorId: null,
+    transactionId: null,
+    cents: null,
+    user: null,
+    coworker: null,
+    orchestrator: null,
+    ...overrides,
+  };
+}
+
+describe("mapTaskEventActor", () => {
+  it("maps a user actor", () => {
+    const event = buildTaskEventFixture({
+      userId: "user_123",
+      user: defaultTaskUser,
+    });
+
+    expect(mapTaskEventActor(event)).toEqual({
+      type: "user",
+      id: "user_123",
+      user: defaultTaskUser,
+    });
+  });
+
+  it("maps a coworker actor", () => {
+    const event = buildTaskEventFixture({
+      coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
+    });
+
+    expect(mapTaskEventActor(event)).toEqual({
+      type: "coworker",
+      id: "cow_123",
+      coworker: defaultTaskCoworker,
+    });
+  });
+
+  it("maps an orchestrator actor", () => {
+    const orchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Hermes",
+      slug: "hermes",
+    };
+    const event = buildTaskEventFixture({
+      orchestratorId: orchestrator.id,
+      orchestrator,
+    });
+
+    expect(mapTaskEventActor(event)).toEqual({
+      type: "orchestrator",
+      id: orchestrator.id,
+      orchestrator,
+    });
+  });
+
+  it("returns null when no actor FK is set", () => {
+    expect(mapTaskEventActor(buildTaskEventFixture())).toBeNull();
+  });
+
+  it("prefers coworker over user for legacy multi-FK rows", () => {
+    expect(
+      mapTaskEventActor(
+        buildTaskEventFixture({
+          userId: "user_123",
+          user: defaultTaskUser,
+          coworkerId: "cow_123",
+          coworker: defaultTaskCoworker,
+        }),
+      ),
+    ).toEqual({
+      type: "coworker",
+      id: "cow_123",
+      coworker: defaultTaskCoworker,
+    });
+  });
+
+  it("prefers orchestrator over user for legacy multi-FK rows", () => {
+    const orchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Hermes",
+      slug: "hermes",
+    };
+
+    expect(
+      mapTaskEventActor(
+        buildTaskEventFixture({
+          userId: "user_123",
+          user: defaultTaskUser,
+          orchestratorId: orchestrator.id,
+          orchestrator,
+        }),
+      ),
+    ).toEqual({
+      type: "orchestrator",
+      id: orchestrator.id,
+      orchestrator,
+    });
+  });
+
+  it("prefers orchestrator over coworker for legacy multi-FK rows", () => {
+    const orchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Hermes",
+      slug: "hermes",
+    };
+
+    expect(
+      mapTaskEventActor(
+        buildTaskEventFixture({
+          coworkerId: "cow_123",
+          coworker: defaultTaskCoworker,
+          orchestratorId: orchestrator.id,
+          orchestrator,
+        }),
+      ),
+    ).toEqual({
+      type: "orchestrator",
+      id: orchestrator.id,
+      orchestrator,
+    });
+  });
+
+  it("throws when a single actor FK is set without the loaded relation", () => {
+    expect(() =>
+      mapTaskEventActor(
+        buildTaskEventFixture({
+          userId: "user_123",
+          user: null,
+        }),
+      ),
+    ).toThrow(/user relation must be loaded/);
+  });
+});
+
+describe("mapTaskEvent", () => {
+  it("includes nested actor and deprecated flat aliases", () => {
+    const event = buildTaskEventFixture({
+      userId: "user_123",
+      user: defaultTaskUser,
+    });
+
+    expect(mapTaskEvent(event)).toMatchObject({
+      actor: {
+        type: "user",
+        id: "user_123",
+        user: defaultTaskUser,
+      },
+      userId: "user_123",
+      user: defaultTaskUser,
+    });
+  });
+
+  it("exposes actor null without flat aliases when no actor FK is set", () => {
+    expect(mapTaskEvent(buildTaskEventFixture())).toMatchObject({
+      actor: null,
+    });
+    expect(mapTaskEvent(buildTaskEventFixture())).not.toHaveProperty("user");
+    expect(mapTaskEvent(buildTaskEventFixture())).not.toHaveProperty(
+      "coworker",
+    );
+    expect(mapTaskEvent(buildTaskEventFixture())).not.toHaveProperty(
+      "orchestrator",
+    );
+  });
+
+  it("keeps all flat FKs but only preferred summary on legacy multi-FK rows", () => {
+    const mapped = mapTaskEvent(
+      buildTaskEventFixture({
+        userId: "user_123",
+        user: defaultTaskUser,
+        coworkerId: "cow_123",
+        coworker: defaultTaskCoworker,
+      }),
+    );
+
+    expect(mapped).toMatchObject({
+      actor: {
+        type: "coworker",
+        id: "cow_123",
+        coworker: defaultTaskCoworker,
+      },
+      userId: "user_123",
+      coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
+    });
+    expect(mapped).not.toHaveProperty("user");
+    expect(mapped).not.toHaveProperty("orchestrator");
   });
 });
 

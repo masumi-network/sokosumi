@@ -5,12 +5,12 @@ import { createCommitGateStream } from "./commit-gate-stream.js";
 
 function partsStream(
   parts: Array<{ type: "text-delta"; delta: string } | { type: "finish" }>,
-): ReadableStream<import("@ai-sdk/provider").LanguageModelV3StreamPart> {
+): ReadableStream<import("@ai-sdk/provider").LanguageModelV4StreamPart> {
   return new ReadableStream({
     start(controller) {
       for (const part of parts) {
         controller.enqueue(
-          part as import("@ai-sdk/provider").LanguageModelV3StreamPart,
+          part as import("@ai-sdk/provider").LanguageModelV4StreamPart,
         );
       }
       controller.close();
@@ -19,7 +19,7 @@ function partsStream(
 }
 
 async function collectText(
-  stream: ReadableStream<import("@ai-sdk/provider").LanguageModelV3StreamPart>,
+  stream: ReadableStream<import("@ai-sdk/provider").LanguageModelV4StreamPart>,
 ): Promise<string> {
   const reader = stream.getReader();
   let text = "";
