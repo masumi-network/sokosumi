@@ -1,12 +1,12 @@
 ---
 name: _team-sapphire
-description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), Reviewer — from requirement through PR and /goal until In Review. Use when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue has ## Requirement and they want the squad to implement it.
+description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), Reviewer — from requirement through PR with CI and Bugbot green. Use when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue has ## Requirement and they want the squad to implement it.
 disable-model-invocation: true
 ---
 
 # Team Sapphire
 
-You are the **Sapphire orchestrator**. One Linear issue. Four phases. **Do not stop after one phase** — run through **In Review** in this session unless the user asked for a single phase or you hit an unrecoverable blocker.
+You are the **Sapphire orchestrator**. One Linear issue. Four phases. **Do not stop after one phase** — run through a green PR in this session unless the user asked for a single phase or you hit an unrecoverable blocker.
 
 ```mermaid
 flowchart LR
@@ -14,7 +14,7 @@ flowchart LR
   lead --> code[Coder]
   code --> gates[CI + Bugbot]
   gates --> rev[Reviewer]
-  rev --> ir[In Review]
+  rev --> pr[PR ready]
 ```
 
 ## Who runs what
@@ -26,24 +26,23 @@ flowchart LR
 | Coder | **Always** `sapphire-coder` | Required — pin `composer-2.5` |
 | Reviewer | Orchestrator | Optional `sapphire-reviewer` for UI-heavy `/goal` (inherits parent model) |
 
-**Models:** Only **Coder** pins a model (`composer-2.5` in agent frontmatter). Tech Lead / Reviewer agents omit `model` so Task inherits the orchestrator. When launching Coder via Task, always pass `model: composer-2.5`. Do **not** pass `model` for Tech Lead or Reviewer Tasks.
+**Models:** Only **Coder** pins a model (`composer-2.5` in agent frontmatter). Tech Lead / Reviewer omit `model` so Task inherits the orchestrator. When launching Coder via Task, always pass `model: composer-2.5`. Do **not** pass `model` for Tech Lead or Reviewer Tasks.
 
-**Orchestrator owns:** all Linear writes, CI watch, Bugbot, status table, **In Review**. Subagents never call Linear MCP.
+**Orchestrator owns:** CI watch, Bugbot, PR readiness. Subagents never call Linear MCP.
 
-## Artifacts (Linear comments)
+## Linear — almost never
 
-Investigation and spec live as **comments** (not the issue description). Resume loads them via `list_comments`.
+The **pull request** is the report. Do **not** post phase comments, status tables, Investigation/Spec comments, or change issue state for a normal Sapphire run.
 
-| Header | Body |
-|--------|------|
-| `**Sapphire · Investigation**` | Full investigation markdown |
-| `**Sapphire · Spec**` | Full spec markdown |
+**Write Linear only when the Requirement itself must change** (human-approved wording). Then `save_issue` / `save_comment` per `LINEAR.md`. Otherwise Linear is **read-only** (`get_issue` for `## Requirement`).
 
-Issue description holds only `## Requirement`, `## Sapphire status`, and footer. Strip legacy `## Investigation` / `## Spec` sections on the next status write.
+## Session artifacts
+
+Investigation and Spec stay **in this session** and pass phase to phase. Put a short Spec summary in the **PR body** (link the Linear issue). Do not write them to Linear.
 
 ## Subagent return shape
 
-Subagents return structured fields — **no** draft Linear comments, **no** Linear MCP.
+Subagents return structured fields — **no** Linear MCP.
 
 **Coder / Reviewer:**
 
@@ -57,83 +56,75 @@ summary: <one line>
 blocker: <text if ok false>
 ```
 
-**Tech Lead (optional):** `ok`, `spec` (full markdown), `summary`, `blocker` — no `prUrl`/`pushed`.
+**Tech Lead (optional):** `ok`, `spec` (full markdown), `summary`, `blocker`.
 
-Coder (sole): opens the PR; set `pushed: true` when the branch was pushed. Parallel coders: **push** the named branch (no PR); orchestrator fetches and merges. Reviewer: set `pushed: true` if commits landed on the PR branch.
+Coder (sole): opens the PR; set `pushed: true` when the branch was pushed. Parallel: **push** named branch (no PR); orchestrator fetches and merges. Reviewer: `pushed: true` if commits landed on the PR branch.
 
 ## Intake
 
-1. `get_issue` — require `## Requirement`.
-2. If still **Triage** → `state: "In Progress"`.
-3. If `## Sapphire status` missing → insert initial table (`LINEAR.md`), then start Investigator.
-4. Else resume (below).
+1. `get_issue` — require `## Requirement` (read-only).
+2. Start Investigator (or user’s explicit start phase). Resume from open PR / session context when continuing a run.
 
 ## Resume
 
-Load newest `**Sapphire · Investigation**` / `**Sapphire · Spec**` comments into context.
-
 | Condition | Action |
 |-----------|--------|
-| User asked for one phase only | Run that phase + exit gate; stop |
-| Status row `done` + full artifact comment exists | Skip that phase |
-| Status `done` but full artifact missing (including legacy short `… complete` only) | **Re-run** that phase to post full artifact before downstream (exit gate may still treat legacy as satisfied) |
-| Coder `done` + complete comment has verification/CI/Bugbot 0 High + open PR + spec artifact | Skip Coder; run Reviewer |
-| PR open + Coder `done` but complete comment incomplete | **Gate repair** — run missing Pre-Reviewer gates; post/update Coder complete; do not re-implement unless a gate fails |
-| All rows `done`, not **In Review** | Finish Reviewer + Completion gate |
-| All rows `done` + **In Review** | Exit gate; stop — await human merge |
+| User asked for one phase only | Run that phase; stop |
+| Same session — investigation/spec already in context | Skip completed upstream phases |
+| New session — open PR for issue + user wants review only | Load Spec from PR body / re-run Tech Lead if missing; start Reviewer |
+| New session — no usable Spec | Re-run Investigator → Tech Lead before Coder |
+| PR open, CI/Bugbot incomplete | Finish quality gates, then Reviewer if needed |
+| Reviewer passed + CI green + Bugbot 0 High | Stop — await human merge |
 
 Then continue **all later phases** in this session.
 
 ## Phase 1 — Investigator
 
 1. Read `ROLES.md` (Investigator). Flag `BUGBOT-LEARNINGS.md` R1–R12 triggers.
-2. Produce investigation (patterns, pitfalls, open questions — not a final spec).
-3. **Gate:** `save_comment` → `**Sapphire · Investigation**` (full body). `save_issue` → Investigator `done`.
-4. Continue to Phase 2.
+2. Keep investigation in session — pass to Tech Lead. **No Linear write.**
+3. Continue to Phase 2.
 
 ## Phase 2 — Tech Lead
 
-1. Read `ROLES.md` (Tech Lead), `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`. Inputs: Requirement + Investigation artifact.
-2. Run on orchestrator (or optional `sapphire-tech-lead`). Output full spec — always include **Data flow**. Default **one coder**; parallel only per rubric.
-3. **Gate:** `save_comment` → `**Sapphire · Spec**` (full body; first lines: coder count + order). `save_issue` → Tech Lead `done`.
+1. Read `ROLES.md` (Tech Lead), `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`.
+2. Run on orchestrator (or optional `sapphire-tech-lead`). Full spec with **Data flow**. Default **one coder**.
+3. Keep Spec in session — pass to Coder/Reviewer. **No Linear write.**
 4. Continue to Phase 3.
 
 ## Phase 3 — Coder
 
-1. Read Spec artifact (+ Investigation if needed). Read `ROLES.md` (Coder) and `BUGBOT-LEARNINGS.md`.
-2. **Single coder (default):** Task `sapphire-coder` (`model: composer-2.5`) with coder block + issue id. Subagent implements, verifies (exit 0), opens **one PR**, returns structured fields.
-3. **Multiple sequential:** run coders in execution order on one branch (one Task after another, or sole Task with full scope). One PR at the end.
-4. **Parallel (`**Parallel:** true` + ownership table only):** parallel `sapphire-coder` Tasks — each commits, **pushes** a named branch, **no PR**. Orchestrator: `git fetch` each branch → merge onto one integration branch → verify → open **one PR**.
-5. **Pre-Reviewer gates (orchestrator):** (1) local verify exit 0 (already done by implementer) (2) PR open (3) CI green (`gh pr checks`) (4) Bugbot **0 High** (`BUGBOT-LEARNINGS.md`). Fix High on branch; re-run until clear.
-6. **Gate:** one `save_comment` → `**Sapphire · Coder complete**` (template in `GATES.md`). If ≥1 Medium: also `**Bugbot · medium (human review)**`. Then `save_issue` → Coder `done`. Stay **In Progress**.
-7. Continue to Phase 4.
+1. Read session Spec. Read `ROLES.md` (Coder) and `BUGBOT-LEARNINGS.md`.
+2. **Single coder (default):** Task `sapphire-coder` (`model: composer-2.5`) — implement, verify (exit 0), open **one PR** (body references issue id + short Spec summary).
+3. **Sequential multi-coder:** execution order on one branch; one PR at the end.
+4. **Parallel (`**Parallel:** true` + ownership table):** parallel Tasks — each pushes a named branch, no PR. Orchestrator fetch → merge → verify → one PR.
+5. **Quality gates (orchestrator):** CI green (`gh pr checks`) + Bugbot **0 High**. Fix High on branch; re-run until clear. Medium: note in PR body for human merge — do **not** post to Linear.
+6. Continue to Phase 4.
 
 ## Phase 4 — Reviewer
 
-1. Entry: Coder complete documents verification exit 0, CI green, Bugbot 0 High — else return to Phase 3.
-2. Read Spec artifact + `ROLES.md` (Reviewer). UI evidence: `VISUAL-CAPTURE.md`.
-3. Run `/goal` on orchestrator (or optional `sapphire-reviewer` for UI-heavy). Fix on PR branch when needed.
+1. Entry: local verification exit 0, CI green, Bugbot 0 High — else return to Phase 3.
+2. Read session Spec + `ROLES.md` (Reviewer). UI: `VISUAL-CAPTURE.md`.
+3. `/goal` on orchestrator (or optional `sapphire-reviewer`). Fix on PR branch when needed.
 4. If Reviewer pushed: re-run Bugbot 0 High + confirm CI green.
-5. **Gate:** `save_comment` → `**Sapphire · Reviewer complete**`. `save_issue` → Reviewer `done`. Then `save_issue` → `state: "In Review"` only. Do not mark **Done**.
-
-## Exit gate
-
-Before returning to the user: `get_issue` + `list_comments` per `GATES.md`. Repair missing comments/status/state. Do not report success with a stale table.
+5. On pass: stop. Human merges the PR. **No Linear state change.** Do not mark issue **Done**.
 
 ## Stop early only when
 
 - User asked for a single phase
-- Issue already **In Review** and Reviewer `done` (exit gate, then await merge)
-- Unrecoverable blocker (no GitHub, Linear MCP down, impossible spec) — report what finished and the issue URL
+- PR already ready (Reviewer pass + CI + Bugbot 0 High) — await merge
+- Unrecoverable blocker — report what finished, issue URL, PR URL if any
+
+## Output to user
+
+Return issue id/URL, phases completed, **PR link**, CI/Bugbot summary. That is the handoff — not Linear comments.
 
 ## Supporting files (read when needed)
 
 | File | When |
 |------|------|
 | `ROLES.md` | Each phase |
-| `GATES.md` | Before any phase gate / exit |
-| `LINEAR.md` | Before Linear writes |
+| `LINEAR.md` | Only if Requirement text must change |
 | `SPEC-TEMPLATE.md` / `SUBAGENT-RUBRIC.md` | Tech Lead |
-| `BUGBOT-LEARNINGS.md` | Investigator flags; Coder/Bugbot gates |
+| `BUGBOT-LEARNINGS.md` | Investigator flags; Bugbot gates |
 | `VISUAL-CAPTURE.md` | Reviewer UI evidence |
 | `CURSOR-AUTOMATION.md` | Optional Cloud trigger setup |

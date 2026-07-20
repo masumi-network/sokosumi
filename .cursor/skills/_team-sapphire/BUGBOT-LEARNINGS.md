@@ -2,7 +2,7 @@
 
 Distilled from high/medium Bugbot findings on `masumi-network/sokosumi` and local review sessions. Use these to prevent regressions before Reviewer runs.
 
-**Mandatory gates (orchestrator after PR open — before Phase 4):** see `GATES.md` **Pre-Reviewer gates**.
+**Mandatory gates (orchestrator after PR open — before Reviewer):** CI green + Bugbot 0 High. See `SKILL.md` Phase 3. Do **not** post Bugbot results to Linear — note Medium findings in the PR body for human merge.
 
 ## Quality rules (R1–R12)
 
@@ -118,7 +118,7 @@ Apply when the **trigger** matches the work. Investigator flags risks; Tech Lead
 
 ## Mandatory Bugbot (before Reviewer)
 
-**Gate runner** (orchestrator in squad mode; standalone Coder when invoked alone) runs **one Bugbot review** per PR before Phase 4 (after the PR exists). **Re-run** after Reviewer pushes commits to the PR branch — zero High required before **In Review**. Launch a **Task** subagent — do not assume a repo-local skill file:
+**Gate runner** (orchestrator in squad mode; standalone Coder when invoked alone) runs **one Bugbot review** per PR before Reviewer (after the PR exists). **Re-run** after Reviewer pushes commits — zero High required before declaring the PR ready. Launch a **Task** subagent — do not assume a repo-local skill file:
 
 | Field | Value |
 |-------|-------|
@@ -139,30 +139,22 @@ In Cursor IDE, `/review-bugbot` runs the same flow when the editor skill is inst
 | Severity | Action |
 |----------|--------|
 | **High** | **Must fix** on the PR branch. Re-run Bugbot until **zero High** findings. |
-| **Medium** | **Do not block** Reviewer. Post `**Bugbot · medium (human review)**` **once** during the Coder gate (`GATES.md`) — not during the Bugbot run. Human fixes on merge pass if needed. Fix in PR only if trivial and in scope. |
+| **Medium** | **Do not block** Reviewer. Note in the **PR body** for human merge — not Linear. Fix in PR only if trivial and in scope. |
 | **Low** | Optional note; no gate. |
 
-### Medium findings — Linear comment (Coder gate only)
+### Medium findings — PR body only
 
-Post **once** with the Coder gate in `GATES.md` — alongside or just before `**Sapphire · Coder complete**`. Skip when there are no medium findings.
-
-```markdown
-**Bugbot · medium (human review)**
-
-For human review on merge — not blocking Reviewer.
-
-| Severity | Location | Finding |
-|----------|----------|---------|
-| Medium | `path:line` | One-line summary |
-```
-
-When there are **no** medium findings, skip this comment; say `**Bugbot medium:** none` in `**Sapphire · Coder complete**`.
-
-Post a short Bugbot summary in `**Sapphire · Coder complete**`:
+When Bugbot reports ≥1 Medium, add a short table to the **PR description** (or a PR comment). Do **not** post to Linear.
 
 ```markdown
-**Bugbot:** 0 High (re-run after fixes). Medium: N — see `**Bugbot · medium (human review)**` comment (or `none`).
+### Bugbot medium (human review)
+
+| Location | Finding |
+|----------|---------|
+| `path:line` | … |
 ```
+
+Skip when there are no medium findings.
 
 If Bugbot cannot run (subagent failure after retry), **stop before Reviewer** and report the blocker.
 

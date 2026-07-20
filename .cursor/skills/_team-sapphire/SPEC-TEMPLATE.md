@@ -1,6 +1,6 @@
 # Spec Template
 
-Tech Lead output. Posted as `**Sapphire · Spec**` comment (not issue description). Delete unused optional sections except **Data flow**.
+Tech Lead writes this as the **session Spec** (short summary also goes in the PR body). Delete unused optional sections except **Data flow**. Do **not** post the full Spec to Linear.
 
 ````markdown
 ## Spec

@@ -38,18 +38,16 @@ Add a **Cursor Cloud specific instructions** section to root `AGENTS.md` with de
 2. **Sign in** — read email/password from dashboard **Secrets** (and TOTP secret + `oathtool --totp -b "$TOTP_SECRET"` if 2FA). Open `http://localhost:3000/signin`, fill fields, then **submit with Enter** — the sign-in form is controlled `react-hook-form`; a submit **click** alone often no-ops while values look filled. See `apps/web/AGENTS.md` → **Browser Automation** (selectors: `auth-field-email`, `auth-field-currentPassword`). Session persists in the VM for the run.
 3. **Computer use** — open path-only routes from the spec; click through happy path, dark mode, empty/loading/error when required.
 4. **Artifacts** — let the agent attach screenshots and flow videos to the **PR** (verify in PR conversation / description if GitHub embed is enabled).
-5. **Linear** — Reviewer completion comment links the PR and cites artifact screenshots/video there; do not re-record with a separate CLI unless optional path below applies.
+5. **Evidence in PR** — cite artifacts in the PR body or a PR comment — not on Linear.
 
 Default URL base: `http://localhost:3000/` — **path-only** routes from the spec (no query strings from Linear text).
 
-**Linear comment template:**
+**PR evidence template:**
 
 ```markdown
-**Visual evidence**
-- PR artifacts: <link to PR — screenshots and video attached by Cloud Agent>
+### Visual evidence
+- PR artifacts: screenshots / video attached by Cloud Agent
 - Verified: happy path; light/dark (if applicable); states per spec
-
-**PR:** <link>
 ```
 
 ### Optional: `agent-browser` on Cloud
@@ -136,7 +134,7 @@ See `.agents/skills/agent-browser/references/video-recording.md`.
 
 ### Attach evidence (CLI path)
 
-Post paths or uploaded URLs on the Linear issue and link in the GitHub PR comment.
+Attach under `./evidence/` or upload into the **GitHub PR** (description / comment). Do not post evidence to Linear.
 
 ---
 
