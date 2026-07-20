@@ -263,7 +263,10 @@ pnpm approve-builds @sentry/profiling-node
 
 ## Deployment (Vercel)
 
-Core’s [`vercel.json`](./vercel.json) sets `buildCommand` to `pnpm vercel-build`, which:
+Core’s [`vercel.json`](./vercel.json) sets:
+
+- `installCommand` to `pnpm install --filter @sokosumi/core...` so only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
+- `buildCommand` to `pnpm vercel-build`, which:
 
 1. Runs `pnpm run build` (workspace deps + `tsup`)
 2. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`
@@ -271,7 +274,7 @@ Core’s [`vercel.json`](./vercel.json) sets `buildCommand` to `pnpm vercel-buil
 
 **Order is intentional:** migrate runs only after a successful app build so a compile failure never touches the database. Schema still applies before Vercel activates the new deployment once migrate succeeds (unlike some Neon samples that migrate first).
 
-No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch. Preview builds **require** `DATABASE_URL_UNPOOLED` (`prisma.config.ts` fails closed for any Prisma CLI command) so a misconfigured Preview cannot fall back to a shared/production `DATABASE_URL`.
+No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch. Preview builds **require** `DATABASE_URL_UNPOOLED` for DB-mutating Prisma CLI commands (`migrate …`, `db …`) so a misconfigured Preview cannot fall back to a shared/production `DATABASE_URL`. `prisma generate` (package prepare) does not need it.
 
 ### Neon / migrate checklist
 

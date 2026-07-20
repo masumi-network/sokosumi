@@ -4,10 +4,8 @@
  * Scoped to DB-MUTATING commands only (`prisma migrate …`, `prisma db …`) —
  * including a raw `prisma migrate deploy`, which loads this config the same
  * way as the package script. Commands that never touch a database
- * (`prisma generate`, run by this package's prepare script during every
- * workspace install) are exempt: the web app's Vercel projects have no Neon
- * integration and no DATABASE_URL_UNPOOLED, and failing THEIR builds guards
- * nothing while breaking every preview deploy.
+ * (`prisma generate`, run by this package's prepare script during workspace
+ * install) are exempt: they have nothing to guard and must not fail builds.
  *
  * For mutating commands:
  * - Preview without DATABASE_URL_UNPOOLED: fail closed (avoids migrating a

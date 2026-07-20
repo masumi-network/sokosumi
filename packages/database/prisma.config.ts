@@ -10,9 +10,8 @@ import {
 // Preflight only DB-mutating CLI commands (`migrate …`, `db …`): Preview
 // without DATABASE_URL_UNPOOLED fails closed so a raw `prisma migrate deploy`
 // cannot fall back to a shared/production DATABASE_URL. No-DB commands like
-// `prisma generate` (this package's prepare script, run during every
-// workspace install — including web-app Vercel builds that have no Neon
-// integration) skip it: they have nothing to guard and must not fail builds.
+// `prisma generate` (this package's prepare script) skip it: they have
+// nothing to guard and must not fail installs/builds.
 const preflight = isDbMutatingPrismaCommand(process.argv)
   ? checkMigrateDeployEnv({
       VERCEL: process.env.VERCEL,

@@ -16,13 +16,10 @@ describe("isDbMutatingPrismaCommand", () => {
   });
 
   it.each([
-    // `prisma generate` runs in this package's prepare script during EVERY
-    // workspace install — including web-app Vercel builds with no Neon
-    // integration. It must never trip the preflight.
-    ["generate", ["node", "/x/prisma", "generate", "--no-hints"]],
+    ["generate", ["node", "/x/prisma", "generate"]],
     ["validate", ["node", "/x/prisma", "validate"]],
     ["format", ["node", "/x/prisma", "format"]],
-    ["no command", ["node", "/x/prisma"]],
+    ["version", ["node", "/x/prisma", "version"]],
   ])("is false for %s", (_label: string, argv: string[]) => {
     expect(isDbMutatingPrismaCommand(argv)).toBe(false);
   });

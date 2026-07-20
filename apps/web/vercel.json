@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install --filter web...",
   "relatedProjects": [
     "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",
     "prj_GrqmJbIxWe0I6aYiZHZC2hiJYLiH"
