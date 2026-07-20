@@ -1,8 +1,6 @@
-"use client";
-
 import { BookOpen, Code2, ExternalLink, Plug } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 
 import {
   Card,
@@ -30,8 +28,8 @@ const DOCS_LINKS = [
   },
 ];
 
-export function DocsSection() {
-  const t = useTranslations("App.Developer.Docs");
+export async function DocsSection() {
+  const t = await getTranslations("App.Developer.Docs");
 
   return (
     <Card>

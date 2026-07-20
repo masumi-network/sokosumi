@@ -3477,7 +3477,8 @@
           "namePattern": "Il nome della chiave API può contenere solo lettere, numeri, spazi, trattini e underscore",
           "keyIdRequired": "L’ID della chiave API è obbligatorio",
           "confirmNameRequired": "Conferma il nome della chiave API"
-        }
+        },
+        "retry": "Riprova"
       },
       "AuthorizedClients": {
         "title": "Applicazioni autorizzate",
@@ -3536,7 +3537,7 @@
           "namePlaceholder": "es. La mia applicazione, Server di produzione",
           "redirectUrisLabel": "URI di reindirizzamento",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Inserisci un URI di reindirizzamento per riga. Ogni URI deve essere un URL valido.",
+          "redirectUrisHelp": "Una URI di reindirizzamento per riga. Usa HTTPS (HTTP solo per localhost/loopback), senza frammenti. Sono consentiti schemi app personalizzati.",
           "cancelButton": "Annulla",
           "createButton": "Crea client OAuth"
         },
@@ -3546,7 +3547,9 @@
           "clientIdLabel": "ID client",
           "clientSecretLabel": "Segreto del client",
           "clientSecretWarning": "Questo segreto verrà mostrato solo una volta. Assicurati di salvarlo in modo sicuro.",
-          "doneButton": "Fine"
+          "doneButton": "Fine",
+          "showSecret": "Mostra secret",
+          "hideSecret": "Nascondi secret"
         },
         "loading": "Caricamento client OAuth...",
         "noClientsFound": "Crea il tuo primo client OAuth per iniziare.",
@@ -3567,7 +3570,7 @@
           "namePlaceholder": "es. La mia applicazione, Server di produzione",
           "redirectUrisLabel": "URI di reindirizzamento",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Inserisci un URI di reindirizzamento per riga. Ogni URI deve essere un URL valido.",
+          "redirectUrisHelp": "Una URI di reindirizzamento per riga. Usa HTTPS (HTTP solo per localhost/loopback), senza frammenti. Sono consentiti schemi app personalizzati.",
           "cancelButton": "Annulla",
           "saveButton": "Salva modifiche"
         },
@@ -3591,7 +3594,7 @@
           "nameRequired": "Il nome è obbligatorio",
           "nameMaxLength": "Il nome deve contenere meno di 100 caratteri",
           "redirectUrisRequired": "È richiesto almeno un URI di reindirizzamento",
-          "redirectUrisInvalid": "Ogni URI di reindirizzamento deve essere un URL valido"
+          "redirectUrisInvalid": "Ogni URI di reindirizzamento deve essere un URL HTTPS valido (HTTP consentito per localhost), senza frammento."
         }
       },
       "OAuthCallback": {

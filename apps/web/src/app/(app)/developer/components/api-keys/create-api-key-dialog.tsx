@@ -27,7 +27,11 @@ import { Input } from "@/components/ui/input";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
 import type { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
-import { createApiKeySchema, DEFAULT_CREATE_FORM_VALUES } from "./utils";
+import {
+  createApiKeySchema,
+  DEFAULT_CREATE_FORM_VALUES,
+  DIALOG_CLEANUP_TIMEOUT,
+} from "./utils";
 
 export function CreateApiKeyDialog({
   open,
@@ -48,6 +52,18 @@ export function CreateApiKeyDialog({
 
   const { isSubmitting } = form.formState;
 
+  const clearPendingCleanup = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const resetDialogState = () => {
+    setCreatedKey(null);
+    form.reset();
+  };
+
   const onSubmit = async (values: CreateApiKeyFormData) => {
     const result = await createApiKey({
       name: values.name,
@@ -60,18 +76,22 @@ export function CreateApiKeyDialog({
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    onOpenChange(open);
-    if (!open) {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => {
-        setCreatedKey(null);
-        form.reset();
-        timeoutRef.current = null;
-      }, 300);
+  const handleOpenChange = (nextOpen: boolean) => {
+    onOpenChange(nextOpen);
+    clearPendingCleanup();
+
+    if (nextOpen) {
+      // Avoid re-showing a prior key if reopened during close animation.
+      resetDialogState();
+      return;
     }
+
+    // Clear the one-time secret immediately; delay form reset for animation.
+    setCreatedKey(null);
+    timeoutRef.current = setTimeout(() => {
+      form.reset();
+      timeoutRef.current = null;
+    }, DIALOG_CLEANUP_TIMEOUT);
   };
 
   const handleSuccessClose = () => {
@@ -80,9 +100,7 @@ export function CreateApiKeyDialog({
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      clearPendingCleanup();
     };
   }, []);
 
@@ -135,9 +153,9 @@ export function CreateApiKeyDialog({
                     {t("CreateDialog.cancelButton")}
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                    {isSubmitting ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : null}
                     {t("CreateDialog.createButton")}
                   </Button>
                 </DialogFooter>

@@ -70,6 +70,8 @@ export interface ApiKeysHeaderProps {
 export interface ApiKeysListProps {
   apiKeys: ApiKeyRecord[];
   isInitialLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
   onToggleStatus: (apiKey: ApiKeyRecord) => Promise<void>;
   onDeleteClick: (apiKey: ApiKeyRecord) => void;
 }

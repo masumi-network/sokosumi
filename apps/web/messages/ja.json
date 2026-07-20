@@ -3477,7 +3477,8 @@
           "namePattern": "APIキー名に使用できるのは、英数字、スペース、ハイフン、アンダースコアのみです",
           "keyIdRequired": "APIキーIDは必須です",
           "confirmNameRequired": "APIキー名を確認してください"
-        }
+        },
+        "retry": "再試行"
       },
       "AuthorizedClients": {
         "title": "承認済みアプリケーション",
@@ -3536,7 +3537,7 @@
           "namePlaceholder": "例: My Application、Production Server",
           "redirectUrisLabel": "リダイレクトURI",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "1行に1つずつリダイレクトURIを入力してください。各URIは有効なURLである必要があります。",
+          "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
           "cancelButton": "キャンセル",
           "createButton": "OAuthクライアントを作成"
         },
@@ -3546,7 +3547,9 @@
           "clientIdLabel": "クライアントID",
           "clientSecretLabel": "クライアントシークレット",
           "clientSecretWarning": "このシークレットは一度しか表示されません。必ず安全に保管してください。",
-          "doneButton": "完了"
+          "doneButton": "完了",
+          "showSecret": "シークレットを表示",
+          "hideSecret": "シークレットを隠す"
         },
         "loading": "OAuth クライアントを読み込み中...",
         "noClientsFound": "最初の OAuth クライアントを作成して始めましょう。",
@@ -3567,7 +3570,7 @@
           "namePlaceholder": "例: マイアプリ、本番サーバー",
           "redirectUrisLabel": "リダイレクト URI",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "リダイレクト URI を1行に1つ入力してください。各 URI は有効な URL である必要があります。",
+          "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
           "cancelButton": "キャンセル",
           "saveButton": "変更を保存"
         },
@@ -3591,7 +3594,7 @@
           "nameRequired": "名前は必須です",
           "nameMaxLength": "名前は100文字未満にしてください",
           "redirectUrisRequired": "少なくとも1つのリダイレクト URI が必要です",
-          "redirectUrisInvalid": "各リダイレクト URI は有効な URL である必要があります"
+          "redirectUrisInvalid": "各リダイレクトURIは有効なHTTPS URLである必要があります（localhostではHTTP可）。フラグメントは不可。"
         }
       },
       "OAuthCallback": {

@@ -103,7 +103,11 @@ describe("useOAuthClients", () => {
     });
     expect(createResult!.success).toBe(true);
     expect(createResult!.data?.clientId).toBe("client_2");
-    expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(createResult!.data?.clientSecret).toBe("secret");
+    // List refresh is fire-and-forget after credentials are returned.
+    await waitFor(() => {
+      expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   it("updates a client with the Better Auth payload shape", async () => {

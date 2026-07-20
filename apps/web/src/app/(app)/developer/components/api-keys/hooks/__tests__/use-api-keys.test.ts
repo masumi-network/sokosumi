@@ -153,7 +153,10 @@ describe("useApiKeys", () => {
       },
     });
     expect(createMock).toHaveBeenCalledWith({ name: "My key" });
-    expect(listMock.mock.calls.length).toBeGreaterThan(initialListCallCount);
     expect(toast.success).toHaveBeenCalledWith("Messages.createSuccess");
+    // List refresh is fire-and-forget after the one-time key is returned.
+    await waitFor(() => {
+      expect(listMock.mock.calls.length).toBeGreaterThan(initialListCallCount);
+    });
   });
 });

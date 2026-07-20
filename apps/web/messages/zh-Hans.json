@@ -3477,7 +3477,8 @@
           "namePattern": "API 密钥名称只能包含字母、数字、空格、连字符和下划线",
           "keyIdRequired": "API 密钥 ID 为必填项",
           "confirmNameRequired": "请确认 API 密钥名称"
-        }
+        },
+        "retry": "重试"
       },
       "AuthorizedClients": {
         "title": "已授权的应用",
@@ -3536,7 +3537,7 @@
           "namePlaceholder": "例如：我的应用、生产服务器",
           "redirectUrisLabel": "重定向 URI",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "每行输入一个重定向 URI。每个 URI 必须是有效的 URL。",
+          "redirectUrisHelp": "每行一个重定向 URI。使用 HTTPS（仅 localhost/loopback 可用 HTTP），不得包含片段。允许自定义应用 scheme。",
           "cancelButton": "取消",
           "createButton": "创建 OAuth 客户端"
         },
@@ -3546,7 +3547,9 @@
           "clientIdLabel": "客户端 ID",
           "clientSecretLabel": "客户端密钥",
           "clientSecretWarning": "该密钥仅显示一次。请务必安全保存。",
-          "doneButton": "完成"
+          "doneButton": "完成",
+          "showSecret": "显示密钥",
+          "hideSecret": "隐藏密钥"
         },
         "loading": "正在加载 OAuth 客户端...",
         "noClientsFound": "创建你的第一个 OAuth 客户端以开始使用。",
@@ -3567,7 +3570,7 @@
           "namePlaceholder": "例如：我的应用、生产服务器",
           "redirectUrisLabel": "重定向 URI",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "每行输入一个重定向 URI。每个 URI 必须是有效的 URL。",
+          "redirectUrisHelp": "每行一个重定向 URI。使用 HTTPS（仅 localhost/loopback 可用 HTTP），不得包含片段。允许自定义应用 scheme。",
           "cancelButton": "取消",
           "saveButton": "保存更改"
         },
@@ -3591,7 +3594,7 @@
           "nameRequired": "名称为必填项",
           "nameMaxLength": "名称必须少于 100 个字符",
           "redirectUrisRequired": "至少需要一个重定向 URI",
-          "redirectUrisInvalid": "每个重定向 URI 必须是有效的 URL"
+          "redirectUrisInvalid": "每个重定向 URI 必须是有效的 HTTPS URL（localhost 允许 HTTP），且不能包含片段。"
         }
       },
       "OAuthCallback": {

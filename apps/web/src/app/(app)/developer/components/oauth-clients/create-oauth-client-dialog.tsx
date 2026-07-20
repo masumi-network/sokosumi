@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -43,6 +43,8 @@ interface ClientSecretFieldProps {
   label: string;
   warning: string;
   copyLabel: string;
+  showLabel: string;
+  hideLabel: string;
   onCopy: (value: string) => Promise<void>;
 }
 
@@ -51,22 +53,41 @@ function ClientSecretField({
   label,
   warning,
   copyLabel,
+  showLabel,
+  hideLabel,
   onCopy,
 }: ClientSecretFieldProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
   return (
     <div>
       <p className="text-sm font-medium">{label}</p>
       <p className="text-muted-foreground mb-2 text-xs">{warning}</p>
       <div className="flex items-center gap-2">
-        <Input
-          type="text"
-          value={secret}
-          readOnly
-          autoComplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          className="font-mono text-sm"
-        />
+        <div className="relative min-w-0 flex-1">
+          <Input
+            type={isVisible ? "text" : "password"}
+            value={secret}
+            readOnly
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            className="font-mono pr-10 text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => setIsVisible((value) => !value)}
+            aria-label={isVisible ? hideLabel : showLabel}
+            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex items-center pr-3"
+            tabIndex={-1}
+          >
+            {isVisible ? (
+              <EyeOff className="size-4" aria-hidden />
+            ) : (
+              <Eye className="size-4" aria-hidden />
+            )}
+          </button>
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -201,6 +222,8 @@ export function CreateOAuthClientDialog({
                   label={t("CreatedSuccess.clientSecretLabel")}
                   warning={t("CreatedSuccess.clientSecretWarning")}
                   copyLabel={t("copy")}
+                  showLabel={t("CreatedSuccess.showSecret")}
+                  hideLabel={t("CreatedSuccess.hideSecret")}
                   onCopy={handleCopy}
                 />
               ) : null}

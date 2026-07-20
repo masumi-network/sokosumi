@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { ApiKeysSection } from "./api-keys";
 import { DeveloperTabs } from "./developer-tabs";
 import { DocsSection } from "./docs-section";
@@ -11,7 +13,11 @@ export function DeveloperPage() {
           <DeveloperTabs
             oauthClientsContent={<OAuthClientsSection />}
             apiKeysContent={<ApiKeysSection />}
-            docsContent={<DocsSection />}
+            docsContent={
+              <Suspense fallback={null}>
+                <DocsSection />
+              </Suspense>
+            }
           />
         </div>
       </div>

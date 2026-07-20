@@ -3446,7 +3446,8 @@
           "namePattern": "API-Key-Name darf nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche enthalten",
           "keyIdRequired": "API-Key-ID ist erforderlich",
           "confirmNameRequired": "Bitte bestätige den API-Key-Namen"
-        }
+        },
+        "retry": "Erneut versuchen"
       },
       "AuthorizedClients": {
         "title": "Autorisierte Anwendungen",
@@ -3505,7 +3506,7 @@
           "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
           "redirectUrisLabel": "Redirect-URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Gib eine Redirect-URI pro Zeile ein. Jede URI muss eine gültige URL sein.",
+          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
           "cancelButton": "Abbrechen",
           "createButton": "OAuth-Client erstellen"
         },
@@ -3515,7 +3516,9 @@
           "clientIdLabel": "Client-ID",
           "clientSecretLabel": "Client-Secret",
           "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Stelle sicher, dass du es sicher speicherst.",
-          "doneButton": "Fertig"
+          "doneButton": "Fertig",
+          "showSecret": "Secret anzeigen",
+          "hideSecret": "Secret verbergen"
         },
         "loading": "OAuth-Clients werden geladen...",
         "noClientsFound": "Erstellen Sie Ihren ersten OAuth-Client, um zu beginnen.",
@@ -3536,7 +3539,7 @@
           "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
           "redirectUrisLabel": "Redirect-URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Geben Sie eine Redirect-URI pro Zeile ein. Jede URI muss eine gültige URL sein.",
+          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
           "cancelButton": "Abbrechen",
           "saveButton": "Änderungen speichern"
         },
@@ -3560,7 +3563,7 @@
           "nameRequired": "Name ist erforderlich",
           "nameMaxLength": "Name darf maximal 100 Zeichen lang sein",
           "redirectUrisRequired": "Mindestens eine Redirect-URI ist erforderlich",
-          "redirectUrisInvalid": "Jede Redirect-URI muss eine gültige URL sein"
+          "redirectUrisInvalid": "Jede Redirect-URI muss eine gültige HTTPS-URL sein (HTTP nur für localhost), ohne Fragment."
         }
       },
       "OAuthCallback": {

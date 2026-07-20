@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createOAuthClientSchema, parseRedirectUris } from "../utils";
+import {
+  createOAuthClientSchema,
+  isSafeRedirectUri,
+  parseRedirectUris,
+} from "../utils";
 
 const t = ((key: string) => key) as Parameters<
   typeof createOAuthClientSchema
@@ -11,6 +15,39 @@ describe("parseRedirectUris", () => {
     expect(
       parseRedirectUris(" https://example.com/a \n\nhttps://example.com/b\n  "),
     ).toEqual(["https://example.com/a", "https://example.com/b"]);
+  });
+});
+
+describe("isSafeRedirectUri", () => {
+  it("accepts https URLs", () => {
+    expect(isSafeRedirectUri("https://example.com/callback")).toBe(true);
+  });
+
+  it("accepts loopback http URLs", () => {
+    expect(isSafeRedirectUri("http://localhost:3000/callback")).toBe(true);
+    expect(isSafeRedirectUri("http://127.0.0.1/callback")).toBe(true);
+    expect(isSafeRedirectUri("http://[::1]/callback")).toBe(true);
+  });
+
+  it("accepts custom app schemes", () => {
+    expect(isSafeRedirectUri("myapp://callback")).toBe(true);
+  });
+
+  it("rejects non-loopback http", () => {
+    expect(isSafeRedirectUri("http://example.com/callback")).toBe(false);
+  });
+
+  it("rejects fragments", () => {
+    expect(isSafeRedirectUri("https://example.com/callback#frag")).toBe(false);
+  });
+
+  it("rejects dangerous schemes", () => {
+    expect(isSafeRedirectUri("javascript:alert(1)")).toBe(false);
+    expect(isSafeRedirectUri("data:text/html,hi")).toBe(false);
+  });
+
+  it("rejects unparseable strings", () => {
+    expect(isSafeRedirectUri("not-a-url")).toBe(false);
   });
 });
 
@@ -56,6 +93,14 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "My App",
       redirectUris: "not-a-url",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-loopback http redirect URIs", () => {
+    const result = schema.safeParse({
+      name: "My App",
+      redirectUris: "http://example.com/callback",
     });
     expect(result.success).toBe(false);
   });

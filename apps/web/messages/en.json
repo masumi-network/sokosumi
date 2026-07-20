@@ -3527,7 +3527,8 @@
           "namePattern": "API key name can only contain letters, numbers, spaces, hyphens, and underscores",
           "keyIdRequired": "API key ID is required",
           "confirmNameRequired": "Please confirm the API key name"
-        }
+        },
+        "retry": "Retry"
       },
       "AuthorizedClients": {
         "title": "Authorized Applications",
@@ -3586,7 +3587,7 @@
           "namePlaceholder": "e.g., My Application, Production Server",
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Enter one redirect URI per line. Each URI must be a valid URL.",
+          "redirectUrisHelp": "Enter one redirect URI per line. Use HTTPS (HTTP only for localhost/loopback), no fragments. Custom app schemes are allowed.",
           "cancelButton": "Cancel",
           "createButton": "Create OAuth Client"
         },
@@ -3596,7 +3597,9 @@
           "clientIdLabel": "Client ID",
           "clientSecretLabel": "Client Secret",
           "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
-          "doneButton": "Done"
+          "doneButton": "Done",
+          "showSecret": "Show secret",
+          "hideSecret": "Hide secret"
         },
         "loading": "Loading OAuth clients...",
         "noClientsFound": "Create your first OAuth client to get started.",
@@ -3617,7 +3620,7 @@
           "namePlaceholder": "e.g., My Application, Production Server",
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Enter one redirect URI per line. Each URI must be a valid URL.",
+          "redirectUrisHelp": "Enter one redirect URI per line. Use HTTPS (HTTP only for localhost/loopback), no fragments. Custom app schemes are allowed.",
           "cancelButton": "Cancel",
           "saveButton": "Save Changes"
         },
@@ -3641,7 +3644,7 @@
           "nameRequired": "Name is required",
           "nameMaxLength": "Name must be less than 100 characters",
           "redirectUrisRequired": "At least one redirect URI is required",
-          "redirectUrisInvalid": "Each redirect URI must be a valid URL"
+          "redirectUrisInvalid": "Each redirect URI must be a valid HTTPS URL (HTTP allowed for localhost), with no fragment."
         }
       },
       "OAuthCallback": {

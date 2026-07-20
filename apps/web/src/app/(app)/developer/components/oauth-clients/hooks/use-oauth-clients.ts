@@ -74,7 +74,8 @@ export function useOAuthClients(): UseOAuthClientsReturn {
 
         if (result.data) {
           toast.success(t("Messages.createSuccess"));
-          await refresh();
+          // Reveal credentials immediately; list refresh is non-blocking.
+          void refresh();
           return {
             success: true,
             data: {

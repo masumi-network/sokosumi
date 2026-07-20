@@ -3477,7 +3477,8 @@
           "namePattern": "Le nom de la clé API ne peut contenir que des lettres, des chiffres, des espaces, des tirets et des underscores",
           "keyIdRequired": "L’identifiant de la clé API est requis",
           "confirmNameRequired": "Veuillez confirmer le nom de la clé API"
-        }
+        },
+        "retry": "Réessayer"
       },
       "AuthorizedClients": {
         "title": "Applications autorisées",
@@ -3536,7 +3537,7 @@
           "namePlaceholder": "ex. : mon application, serveur de production",
           "redirectUrisLabel": "URI de redirection",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Saisissez une URI de redirection par ligne. Chaque URI doit être une URL valide.",
+          "redirectUrisHelp": "Une URI de redirection par ligne. Utilisez HTTPS (HTTP uniquement pour localhost/loopback), sans fragments. Les schémas d'app personnalisés sont autorisés.",
           "cancelButton": "Annuler",
           "createButton": "Créer un client OAuth"
         },
@@ -3546,7 +3547,9 @@
           "clientIdLabel": "ID client",
           "clientSecretLabel": "Secret client",
           "clientSecretWarning": "Ce secret ne sera affiché qu’une seule fois. Assurez-vous de l’enregistrer en lieu sûr.",
-          "doneButton": "Terminé"
+          "doneButton": "Terminé",
+          "showSecret": "Afficher le secret",
+          "hideSecret": "Masquer le secret"
         },
         "loading": "Chargement des clients OAuth...",
         "noClientsFound": "Créez votre premier client OAuth pour commencer.",
@@ -3567,7 +3570,7 @@
           "namePlaceholder": "p. ex. Mon application, Serveur de production",
           "redirectUrisLabel": "URI de redirection",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Saisissez une URI de redirection par ligne. Chaque URI doit être une URL valide.",
+          "redirectUrisHelp": "Une URI de redirection par ligne. Utilisez HTTPS (HTTP uniquement pour localhost/loopback), sans fragments. Les schémas d'app personnalisés sont autorisés.",
           "cancelButton": "Annuler",
           "saveButton": "Enregistrer"
         },
@@ -3591,7 +3594,7 @@
           "nameRequired": "Le nom est requis",
           "nameMaxLength": "Le nom doit contenir moins de 100 caractères",
           "redirectUrisRequired": "Au moins une URI de redirection est requise",
-          "redirectUrisInvalid": "Chaque URI de redirection doit être une URL valide"
+          "redirectUrisInvalid": "Chaque URI de redirection doit être une URL HTTPS valide (HTTP autorisé pour localhost), sans fragment."
         }
       },
       "OAuthCallback": {
