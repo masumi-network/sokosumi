@@ -862,8 +862,9 @@ async function persistHermesConfirmationCard(args: {
 /**
  * Best-effort snapshot of a pending confirmation just before it is resolved
  * — the orchestrator drops it from `pendingConfirmations` on resolve.
- * Returns null on miss/failure; callers may fall back to a client-supplied
- * display snapshot so the audit card still lands in message history.
+ * Returns null on miss/failure; callers may fall back to a minimal
+ * id-matched card so the audit trail still lands without trusting client
+ * display fields.
  */
 async function snapshotPendingConfirmation(
   userId: string,
@@ -881,9 +882,10 @@ async function snapshotPendingConfirmation(
 }
 
 /**
- * Prefer the orchestrator pending-list snapshot; fall back to the client's
- * display copy when the list already dropped the row. Client `id` must match
- * the path param — mismatched payloads are ignored (display-only trust).
+ * Prefer the orchestrator pending-list snapshot. When it is gone, accept a
+ * client payload only to prove `id` matches the path param, then persist a
+ * minimal card — never client `summary` / `toolName` / refs / org labels
+ * (those are attacker-controlled for the user's own history otherwise).
  */
 function resolveConfirmationForAudit(
   confirmationId: string,
@@ -891,8 +893,17 @@ function resolveConfirmationForAudit(
   clientSnapshot: HermesPendingConfirmation | undefined,
 ): HermesPendingConfirmation | null {
   if (orchSnapshot) return orchSnapshot;
-  if (clientSnapshot?.id === confirmationId) return clientSnapshot;
-  return null;
+  if (clientSnapshot?.id !== confirmationId) return null;
+  return {
+    id: confirmationId,
+    toolName: "gated_action",
+    summary: "Confirmation resolved",
+    createdAt: new Date().toISOString(),
+    referencedCoworkers: [],
+    referencedOrganizations: [],
+    organizationId: null,
+    organizationName: null,
+  };
 }
 
 /**
@@ -2651,7 +2662,7 @@ app.openapi(approveConfirmationRoute, async (c) => {
       overrides,
     );
     // Persist a durable audit card whenever this gate leaves pending.
-    // Prefer orch snapshot; fall back to the client's display copy when
+    // Prefer orch snapshot; fall back to a minimal id-matched card when
     // the pending list already dropped the row. `already_resolved` also
     // writes (idempotent upsert) so a race that skipped the first writer's
     // persist still leaves a trail.

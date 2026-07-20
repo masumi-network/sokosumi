@@ -1786,7 +1786,7 @@ describe("Hermes route contracts", () => {
     expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
   });
 
-  it("persists from the client confirmation fallback when the orch snapshot is missing", async () => {
+  it("persists a minimal audit card from client id when the orch snapshot is missing", async () => {
     vi.mocked(getInstance).mockResolvedValue({
       ...instanceWithPendingConfirmation(),
       pendingConfirmations: [],
@@ -1795,7 +1795,7 @@ describe("Hermes route contracts", () => {
     const clientConfirmation = {
       id: "conf_1",
       toolName: "sokosumi_create_task",
-      summary: "Create task 'Weekly report' and assign it to Alex.",
+      summary: "Attacker-controlled summary that must not be persisted.",
       createdAt: "2026-07-17T12:00:00.000Z",
       referencedCoworkers: [],
       referencedOrganizations: [],
@@ -1820,13 +1820,24 @@ describe("Hermes route contracts", () => {
     const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
       create: { content: string };
     };
-    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+    const content = JSON.parse(upsertArgs.create.content) as {
+      confirmationId: string;
+      toolName: string;
+      summary: string;
+      status: string;
+      organizationId: string | null;
+      organizationName: string | null;
+    };
+    expect(content).toMatchObject({
       confirmationId: "conf_1",
-      toolName: "sokosumi_create_task",
+      toolName: "gated_action",
+      summary: "Confirmation resolved",
       status: "approved",
-      organizationId: "org_nmkr",
-      organizationName: "NMKR",
+      organizationId: null,
+      organizationName: null,
     });
+    expect(content.summary).not.toContain("Attacker-controlled");
+    expect(content.toolName).not.toBe("sokosumi_create_task");
   });
 
   it("ignores a client confirmation whose id does not match the path param", async () => {
@@ -1862,7 +1873,7 @@ describe("Hermes route contracts", () => {
     expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
   });
 
-  it("persists already_resolved from client fallback when orch pending list is empty", async () => {
+  it("persists already_resolved as a minimal card when orch pending list is empty", async () => {
     vi.mocked(getInstance).mockResolvedValue({
       ...instanceWithPendingConfirmation(),
       pendingConfirmations: [],
@@ -1904,7 +1915,8 @@ describe("Hermes route contracts", () => {
     expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
       confirmationId: "conf_1",
       status: "already_resolved",
-      toolName: "sokosumi_create_job",
+      toolName: "gated_action",
+      summary: "Confirmation resolved",
     });
   });
 

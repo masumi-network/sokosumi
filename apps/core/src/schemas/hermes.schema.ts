@@ -207,9 +207,10 @@ export const hermesRejectConfirmationRequestSchema = z
   .object({
     reason: z.string().min(1).max(500).optional(),
     /**
-     * Display-only fallback for the audit card when the orchestrator's
-     * pending list no longer contains this confirmation (race / lag).
-     * `id` must match the path param or Core ignores it.
+     * Id-gated audit fallback when the orchestrator's pending list no
+     * longer contains this confirmation (race / lag). `id` must match the
+     * path param or Core ignores it. Display fields (`summary`, `toolName`,
+     * refs, org labels) are not trusted — Core persists a minimal card.
      */
     confirmation: hermesPendingConfirmationSchema.optional(),
   })
@@ -221,7 +222,7 @@ export const hermesRejectConfirmationRequestSchema = z
  * personal scope can clear stale queued org args. Omit the whole
  * `overrides` block to keep the tool args exactly as Hermes proposed.
  *
- * `confirmation` is a display-only audit fallback (same rules as reject).
+ * `confirmation` is an id-gated audit fallback (same rules as reject).
  */
 export const hermesApproveConfirmationRequestSchema = z
   .object({
