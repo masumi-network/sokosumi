@@ -213,6 +213,172 @@ describe("promptToResponsesInput", () => {
     ]);
   });
 
+  it("maps AI SDK v7 tagged url file parts to input_file file_url", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Please review." },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+            data: {
+              type: "url",
+              url: new URL(
+                "https://storage.example.com/containers/blobs/abc123.pdf",
+              ),
+            },
+          },
+          {
+            type: "file",
+            mediaType:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename: "notes.docx",
+            data: {
+              type: "url",
+              url: new URL(
+                "https://storage.example.com/containers/blobs/notes.docx",
+              ),
+            },
+          },
+        ],
+      },
+    ] as Parameters<typeof promptToResponsesInput>[0]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          { type: "input_text", text: "Please review." },
+          {
+            type: "input_file",
+            file_url: "https://storage.example.com/containers/blobs/abc123.pdf",
+            filename: "brief.pdf",
+          },
+          {
+            type: "input_file",
+            file_url: "https://storage.example.com/containers/blobs/notes.docx",
+            filename: "notes.docx",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("maps AI SDK v7 tagged data and image url file parts", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "image/png",
+            data: {
+              type: "url",
+              url: new URL("https://example.com/image.png"),
+            },
+          },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+            data: {
+              type: "data",
+              data: "JVBERi0xLjcK",
+            },
+          },
+        ],
+      },
+    ] as Parameters<typeof promptToResponsesInput>[0]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_image",
+            image_url: "https://example.com/image.png",
+            detail: "auto",
+          },
+          {
+            type: "input_file",
+            file_data: "data:application/pdf;base64,JVBERi0xLjcK",
+            filename: "brief.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("maps top-level image mediaType segment to input_image", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "image",
+            data: {
+              type: "url",
+              url: new URL("https://example.com/photo.jpg"),
+            },
+          },
+          {
+            type: "file",
+            mediaType: "image/*",
+            data: {
+              type: "url",
+              url: new URL("https://example.com/wild.webp"),
+            },
+          },
+        ],
+      },
+    ] as Parameters<typeof promptToResponsesInput>[0]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_image",
+            image_url: "https://example.com/photo.jpg",
+            detail: "auto",
+          },
+          {
+            type: "input_image",
+            image_url: "https://example.com/wild.webp",
+            detail: "auto",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("throws for AI SDK v7 provider file references", () => {
+    expect(() =>
+      promptToResponsesInput([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              mediaType: "application/pdf",
+              filename: "brief.pdf",
+              data: {
+                type: "reference",
+                reference: { openai: "file-abc" },
+              },
+            },
+          ],
+        },
+      ] as Parameters<typeof promptToResponsesInput>[0]),
+    ).toThrowError(/provider file references/i);
+  });
+
   it("throws for non-base64 file data urls that cannot be mapped safely", () => {
     expect(() =>
       promptToResponsesInput([
