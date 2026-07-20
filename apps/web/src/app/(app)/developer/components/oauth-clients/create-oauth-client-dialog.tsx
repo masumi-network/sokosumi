@@ -72,7 +72,12 @@ export function CreateOAuthClientDialog({
     }
   };
 
+  const isCredentialsOnce = createdCredentials !== null;
+
   const handleOpenChange = (nextOpen: boolean) => {
+    // Block Esc/outside/X while one-time secret is visible — Done only.
+    if (!nextOpen && isCredentialsOnce) return;
+
     onOpenChange(nextOpen);
     if (!nextOpen) {
       if (timeoutRef.current) {
@@ -87,7 +92,9 @@ export function CreateOAuthClientDialog({
   };
 
   const handleSuccessClose = () => {
-    handleOpenChange(false);
+    setCreatedCredentials(null);
+    onOpenChange(false);
+    form.reset();
   };
 
   useEffect(() => {
@@ -100,7 +107,18 @@ export function CreateOAuthClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent
+        className={isCredentialsOnce ? "[&>button]:hidden" : undefined}
+        onEscapeKeyDown={
+          isCredentialsOnce ? (event) => event.preventDefault() : undefined
+        }
+        onPointerDownOutside={
+          isCredentialsOnce ? (event) => event.preventDefault() : undefined
+        }
+        onInteractOutside={
+          isCredentialsOnce ? (event) => event.preventDefault() : undefined
+        }
+      >
         {createdCredentials ? (
           <CredentialsOnceDisplay
             credentials={createdCredentials}
