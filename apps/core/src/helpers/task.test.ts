@@ -854,8 +854,8 @@ describe("mapTaskEventActor", () => {
     expect(mapTaskEventActor(buildTaskEventFixture())).toBeNull();
   });
 
-  it("throws when multiple actor FKs are set", () => {
-    expect(() =>
+  it("prefers coworker over user for legacy multi-FK rows", () => {
+    expect(
       mapTaskEventActor(
         buildTaskEventFixture({
           userId: "user_123",
@@ -864,7 +864,34 @@ describe("mapTaskEventActor", () => {
           coworker: defaultTaskCoworker,
         }),
       ),
-    ).toThrow(/at most one actor FK/);
+    ).toEqual({
+      type: "coworker",
+      id: "cow_123",
+      coworker: defaultTaskCoworker,
+    });
+  });
+
+  it("prefers orchestrator over user for legacy multi-FK rows", () => {
+    const orchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Hermes",
+      slug: "hermes",
+    };
+
+    expect(
+      mapTaskEventActor(
+        buildTaskEventFixture({
+          userId: "user_123",
+          user: defaultTaskUser,
+          orchestratorId: orchestrator.id,
+          orchestrator,
+        }),
+      ),
+    ).toEqual({
+      type: "orchestrator",
+      id: orchestrator.id,
+      orchestrator,
+    });
   });
 
   it("throws when a single actor FK is set without the loaded relation", () => {

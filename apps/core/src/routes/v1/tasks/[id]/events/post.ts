@@ -71,8 +71,10 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
   }
 
   if (isOrchestratorAuthContext(authContext)) {
+    // Attribute status events to the orchestrator only. Context userId is
+    // workspace context, not a second actor FK (would break nested `actor`).
     return {
-      userId: authContext.context?.userId ?? null,
+      userId: null,
       coworkerId: null,
       orchestratorId: authContext.orchestratorId,
     };

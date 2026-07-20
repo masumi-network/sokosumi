@@ -255,21 +255,25 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
     return null;
   }
 
-  if (actorForeignKeyCount > 1) {
-    throw new Error(
-      `Task event ${event.id}: at most one actor FK may be set for API mapping`,
+  // Prefer the acting agent when legacy rows stored multiple FKs
+  // (orchestrator/coworker status events used to also set context userId).
+  // New writes set exactly one actor FK.
+  if (event.orchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task event ${event.id} actor`,
+      event.orchestratorId,
+      event.orchestrator ?? null,
     );
-  }
+    if (orchestrator == null) {
+      throw new Error(
+        `Task event ${event.id}: actor orchestrator summary missing for API mapping`,
+      );
+    }
 
-  if (event.userId != null) {
     return {
-      type: "user" as const,
-      id: event.userId,
-      user: userSummaryFromLoadedRelation(
-        `Task event ${event.id} actor`,
-        event.userId,
-        event.user ?? null,
-      ),
+      type: "orchestrator" as const,
+      id: event.orchestratorId,
+      orchestrator,
     };
   }
 
@@ -292,22 +296,15 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
     };
   }
 
-  if (event.orchestratorId != null) {
-    const orchestrator = orchestratorSummaryFromLoadedRelation(
-      `Task event ${event.id} actor`,
-      event.orchestratorId,
-      event.orchestrator ?? null,
-    );
-    if (orchestrator == null) {
-      throw new Error(
-        `Task event ${event.id}: actor orchestrator summary missing for API mapping`,
-      );
-    }
-
+  if (event.userId != null) {
     return {
-      type: "orchestrator" as const,
-      id: event.orchestratorId,
-      orchestrator,
+      type: "user" as const,
+      id: event.userId,
+      user: userSummaryFromLoadedRelation(
+        `Task event ${event.id} actor`,
+        event.userId,
+        event.user ?? null,
+      ),
     };
   }
 
