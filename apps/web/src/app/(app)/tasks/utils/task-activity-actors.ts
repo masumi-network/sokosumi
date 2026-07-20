@@ -165,7 +165,9 @@ export function buildTaskActivityActors(
           addUserActor(userById, event.actor.user);
           break;
         case "coworker":
-          addCoworkerActor(coworkerById, event.actor.coworker);
+          if (event.actor.coworker != null) {
+            addCoworkerActor(coworkerById, event.actor.coworker);
+          }
           break;
         case "orchestrator":
           addOrchestratorActor(orchestratorById, event.actor.orchestrator);
