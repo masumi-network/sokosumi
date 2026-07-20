@@ -273,8 +273,10 @@ Useful for design iteration.
 ### Resetting an instance
 
 `DELETE /v1/instances/:userId` on the orchestrator (mirror also clears
-`hermesInstance` + `hermesMessage` in our DB via the destroy route). For a
-hard local-only reset, drop those rows directly.
+`hermesInstance` + `hermesMessage` + `hermesPendingConnection` in our DB via
+the destroy route). Orchestrator-side deletes must also
+`POST /v1/hermes/instances/{userId}/purge`. For a hard local-only reset, drop
+those rows directly.
 
 ---
 

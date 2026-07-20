@@ -1103,7 +1103,11 @@ describe("Hermes route contracts", () => {
     expect(prismaTransactionMock).toHaveBeenCalledWith([
       expect.any(Promise),
       expect.any(Promise),
+      expect.any(Promise),
     ]);
+    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_gone" },
+    });
   });
 
   it("persists a re-picked orb seed via PATCH /me/instance", async () => {
@@ -1366,7 +1370,14 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(200);
     expect(body).toHaveProperty("data.ok", true);
     expect(destroyInstance).toHaveBeenCalledWith("user_123");
-    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(prismaTransactionMock).toHaveBeenCalledWith([
+      expect.any(Promise),
+      expect.any(Promise),
+      expect.any(Promise),
+    ]);
+    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_123" },
+    });
   });
 
   it("returns 503 and reports to Sentry when orchestrator destroy succeeds but DB cleanup fails", async () => {
@@ -1825,6 +1836,31 @@ describe("Hermes route contracts", () => {
       "user_123",
       expect.any(Object),
     );
+    // Idempotent re-provision of a live instance must not wipe chat.
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("clears leftover local mirror when provisioning after orch has no instance", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).toHaveBeenCalledWith([
+      expect.any(Promise),
+      expect.any(Promise),
+      expect.any(Promise),
+    ]);
+    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_123" },
+    });
+    expect(hermesInstanceUpsertMock).toHaveBeenCalled();
   });
 
   it("provisions when a member organization carries the paid plan", async () => {

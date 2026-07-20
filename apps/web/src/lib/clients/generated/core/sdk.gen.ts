@@ -676,7 +676,7 @@ export const postHermesMeInstance = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Orchestrator-only: delete Sokosumi's local mirror state (chat history + instance metadata) for a user whose orchestrator-side instance was destroyed. Idempotent — purging a user with no local state is a no-op. Authenticated with an orchestrator API key (orch_); user sessions and coworker keys are rejected.
+ * Orchestrator-only: delete Sokosumi's local mirror state (chat history, instance metadata, and pending integration OAuth claims) for a user whose orchestrator-side instance was destroyed. Idempotent — purging a user with no local state is a no-op. Authenticated with an orchestrator API key (orch_); user sessions and coworker keys are rejected.
  */
 export const postHermesInstancesByUserIdPurge = <ThrowOnError extends boolean = false>(options: Options<PostHermesInstancesByUserIdPurgeData, ThrowOnError>): RequestResult<PostHermesInstancesByUserIdPurgeResponses, PostHermesInstancesByUserIdPurgeErrors, ThrowOnError> => (options.client ?? client).post<PostHermesInstancesByUserIdPurgeResponses, PostHermesInstancesByUserIdPurgeErrors, ThrowOnError>({
     responseTransformer: postHermesInstancesByUserIdPurgeResponseTransformer,
