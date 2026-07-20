@@ -120,6 +120,7 @@
       "account": "アカウント",
       "billing": "請求",
       "connections": "接続",
+      "developer": "デベロッパー",
       "help": "ヘルプ",
       "legal": "法務",
       "support": "サポート",
@@ -256,6 +257,7 @@
       "chat": "チャット",
       "tasks": "タスク",
       "connections": "接続",
+      "developer": "デベロッパー",
       "personal-assistant": "パーソナルアシスタント",
       "history": "履歴",
       "new": "新規",
@@ -3254,13 +3256,6 @@
         "unknownError": "問題が発生しました"
       }
     },
-    "Connections": {
-      "tabs": {
-        "connectedApps": "接続済みアプリ",
-        "apiKeys": "APIキー",
-        "mcp": "MCP"
-      }
-    },
     "MCP": {
       "urlLabel": "MCPサーバーURL",
       "existingKeyNote": "このホスト型MCP接続はOAuthを使用します。接続時にMCPクライアントがSokosumiへのサインインを求めます。",
@@ -3480,7 +3475,8 @@
           "namePattern": "APIキー名に使用できるのは、英数字、スペース、ハイフン、アンダースコアのみです",
           "keyIdRequired": "APIキーIDは必須です",
           "confirmNameRequired": "APIキー名を確認してください"
-        }
+        },
+        "retry": "再試行"
       },
       "AuthorizedClients": {
         "title": "承認済みアプリケーション",
@@ -3528,10 +3524,8 @@
       },
       "OAuthClients": {
         "title": "OAuthクライアント",
-        "description": "あなたのアカウントにアクセスできるOAuthクライアントを管理します",
+        "description": "構築するアプリケーション用の OAuth クライアントを作成・管理します。",
         "createButton": "OAuthクライアントを作成",
-        "createSuccess": "OAuthクライアントを作成しました",
-        "createError": "OAuthクライアントの作成に失敗しました",
         "copy": "コピー",
         "copySuccess": "クリップボードにコピーしました",
         "CreateDialog": {
@@ -3541,7 +3535,7 @@
           "namePlaceholder": "例: My Application、Production Server",
           "redirectUrisLabel": "リダイレクトURI",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "1行に1つずつリダイレクトURIを入力してください。各URIは有効なURLである必要があります。",
+          "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
           "cancelButton": "キャンセル",
           "createButton": "OAuthクライアントを作成"
         },
@@ -3551,7 +3545,73 @@
           "clientIdLabel": "クライアントID",
           "clientSecretLabel": "クライアントシークレット",
           "clientSecretWarning": "このシークレットは一度しか表示されません。必ず安全に保管してください。",
-          "doneButton": "完了"
+          "doneButton": "完了",
+          "showSecret": "シークレットを表示",
+          "hideSecret": "シークレットを隠す"
+        },
+        "loading": "OAuth クライアントを読み込み中...",
+        "noClientsFound": "最初の OAuth クライアントを作成して始めましょう。",
+        "retry": "再試行",
+        "clientIdLabel": "クライアント ID",
+        "redirectUrisLabel": "リダイレクト URI",
+        "created": "作成日: {date}",
+        "Status": {
+          "disabled": "無効"
+        },
+        "Actions": {
+          "editTooltip": "OAuth クライアントを編集",
+          "deleteTooltip": "OAuth クライアントを削除",
+          "rotateTooltip": "クライアントシークレットをローテーション"
+        },
+        "EditDialog": {
+          "title": "OAuth クライアントを編集",
+          "description": "この OAuth クライアントの名前またはリダイレクト URI を更新します。",
+          "nameLabel": "名前",
+          "namePlaceholder": "例: マイアプリ、本番サーバー",
+          "redirectUrisLabel": "リダイレクト URI",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
+          "cancelButton": "キャンセル",
+          "saveButton": "変更を保存"
+        },
+        "DeleteDialog": {
+          "title": "OAuth クライアントを削除",
+          "description": "この操作は取り消せません。\"{name}\" を削除するとクライアントは完全に削除されます。これらの認証情報を使用するアプリケーションは認証できなくなります。",
+          "cancelButton": "キャンセル",
+          "deleteButton": "OAuth クライアントを削除"
+        },
+        "Messages": {
+          "loadError": "OAuth クライアントの読み込みに失敗しました",
+          "createSuccess": "OAuth クライアントを作成しました",
+          "createError": "OAuth クライアントの作成に失敗しました",
+          "updateSuccess": "OAuth クライアントを更新しました",
+          "updateError": "OAuth クライアントの更新に失敗しました",
+          "deleteSuccess": "OAuth クライアントを削除しました",
+          "deleteError": "OAuth クライアントの削除に失敗しました",
+          "copyError": "クリップボードへのコピーに失敗しました",
+          "rotateSuccess": "クライアントシークレットをローテーションしました",
+          "rotateError": "クライアントシークレットのローテーションに失敗しました"
+        },
+        "Validation": {
+          "nameRequired": "名前は必須です",
+          "nameMaxLength": "名前は100文字未満にしてください",
+          "redirectUrisRequired": "少なくとも1つのリダイレクト URI が必要です",
+          "redirectUrisInvalid": "各リダイレクトURIは有効なHTTPS URLである必要があります（localhostではHTTP可）。フラグメントは不可。"
+        },
+        "RotateDialog": {
+          "title": "クライアントシークレットのローテーション",
+          "description": "「{name}」の現在のシークレットは無効になり、新しいシークレットが生成されます。古いシークレットを使っているアプリケーションは、更新するまで動作しなくなります。",
+          "cancelButton": "キャンセル",
+          "confirmButton": "シークレットをローテーション"
+        },
+        "RotatedSuccess": {
+          "title": "クライアントシークレットをローテーションしました",
+          "description": "新しいシークレットを安全に保存してください。以前のシークレットは使えなくなります。",
+          "clientSecretLabel": "新しいクライアントシークレット",
+          "clientSecretWarning": "このシークレットは一度だけ表示されます。必ず安全に保存してください。",
+          "doneButton": "完了",
+          "showSecret": "シークレットを表示",
+          "hideSecret": "シークレットを隠す"
         }
       },
       "OAuthCallback": {
@@ -3910,6 +3970,37 @@
       "discardDialogTitle": "変更を破棄しますか？",
       "discardDialogDescription": "保存せずに離れると、編集内容は失われます。",
       "discardConfirm": "変更を破棄"
+    },
+    "Developer": {
+      "tabs": {
+        "oauthClients": "OAuth クライアント",
+        "apiKeys": "APIキー",
+        "docs": "ドキュメント"
+      },
+      "Docs": {
+        "title": "デベロッパー向けドキュメント",
+        "description": "Sokosumi 上で開発するためのガイドとリファレンス。",
+        "links": {
+          "gettingStarted": {
+            "title": "はじめに",
+            "description": "Sokosumi との連携方法を学びます。"
+          },
+          "apiReference": {
+            "title": "API リファレンス",
+            "description": "Sokosumi の OpenAPI ドキュメントを確認します。"
+          },
+          "mcp": {
+            "title": "MCP ドキュメント",
+            "description": "MCP 経由で AI クライアントを Sokosumi に接続します。"
+          }
+        }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "接続済みアプリ",
+        "mcp": "MCP"
+      }
     }
   },
   "Share": {

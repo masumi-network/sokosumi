@@ -20,6 +20,7 @@ function isSettingsRouteActive(pathname: string): boolean {
     pathname === "/account" ||
     pathname === "/billing" ||
     pathname === "/connections" ||
+    pathname === "/developer" ||
     pathname.startsWith("/organizations/")
   );
 }

@@ -6,22 +6,19 @@ import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ConnectionsTabValue = "connected-apps" | "api-keys" | "mcp";
+type ConnectionsTabValue = "connected-apps" | "mcp";
 
 interface ConnectionsTabsProps {
-  apiKeysContent: ReactNode;
   connectedAppsContent: ReactNode;
   mcpContent: ReactNode;
 }
 
-const ENABLED_TABS: ConnectionsTabValue[] = [
-  "connected-apps",
-  "api-keys",
-  "mcp",
-];
+const ENABLED_TABS: ConnectionsTabValue[] = ["connected-apps", "mcp"];
+
+const TAB_TRIGGER_CLASS_NAME =
+  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm";
 
 export function ConnectionsTabs({
-  apiKeysContent,
   connectedAppsContent,
   mcpContent,
 }: ConnectionsTabsProps) {
@@ -49,28 +46,15 @@ export function ConnectionsTabs({
       className="flex flex-col gap-5"
     >
       <TabsList className="bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1">
-        <TabsTrigger
-          value="connected-apps"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-        >
+        <TabsTrigger value="connected-apps" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.connectedApps")}
         </TabsTrigger>
-        <TabsTrigger
-          value="api-keys"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-        >
-          {t("tabs.apiKeys")}
-        </TabsTrigger>
-        <TabsTrigger
-          value="mcp"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-        >
+        <TabsTrigger value="mcp" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.mcp")}
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="connected-apps">{connectedAppsContent}</TabsContent>
-      <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
       <TabsContent value="mcp">{mcpContent}</TabsContent>
     </Tabs>
   );

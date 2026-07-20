@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useApiKeys } from "@/app/connections/components/api-keys/hooks/use-api-keys";
+import { useApiKeys } from "@/app/developer/components/api-keys/hooks/use-api-keys";
 
 const listMock = vi.fn();
 const createMock = vi.fn();
@@ -153,7 +153,10 @@ describe("useApiKeys", () => {
       },
     });
     expect(createMock).toHaveBeenCalledWith({ name: "My key" });
-    expect(listMock.mock.calls.length).toBeGreaterThan(initialListCallCount);
     expect(toast.success).toHaveBeenCalledWith("Messages.createSuccess");
+    // List refresh is fire-and-forget after the one-time key is returned.
+    await waitFor(() => {
+      expect(listMock.mock.calls.length).toBeGreaterThan(initialListCallCount);
+    });
   });
 });
