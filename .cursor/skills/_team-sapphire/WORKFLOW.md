@@ -1,6 +1,6 @@
 # Sapphire Pipeline
 
-Separate from requirement filing. One Linear issue. Start when the user asks (or an optional automation fires).
+One Linear issue with a `## Requirement`. Start when the user asks (or an optional automation fires).
 
 ```mermaid
 flowchart LR
@@ -14,8 +14,6 @@ flowchart LR
   rev -->|pass| review["In Review"]
   review --> human["Human merge → Done"]
 ```
-
-Requirement drafting lives in `../linear-requirement/` — that skill does **not** start Sapphire.
 
 ## Single session rule
 
@@ -38,7 +36,7 @@ Only requirement and progress on the issue:
 
 ```markdown
 ## Requirement
-(from linear-requirement or human — do not rewrite without human approval)
+(from the Linear issue — do not rewrite without human approval)
 
 ## Sapphire status
 | Phase | Status |
@@ -57,7 +55,7 @@ Phase transitions post structured **summary** comments (`**Sapphire · … compl
 
 | State | Set by | When |
 |-------|--------|------|
-| `Triage` | Issue author (`linear-requirement` or human) | Requirement filed; awaiting pickup |
+| `Triage` | Issue already on Linear | Requirement filed; awaiting pickup |
 | `In Progress` | Sapphire (or human) when work starts | Through Investigator, Tech Lead, Coder |
 | `In Review` | Reviewer | All `/goal` criteria pass |
 | `Done` | Human | After PR merge |
@@ -66,7 +64,7 @@ Phase transitions post structured **summary** comments (`**Sapphire · … compl
 
 Manual (default): `Run _team-sapphire for SOK-XXX` in Cursor.
 
-Optional Cloud trigger: see `CURSOR-AUTOMATION.md` — not tied to `linear-requirement`.
+Optional Cloud trigger: see `CURSOR-AUTOMATION.md`.
 
 ## What not to do
 

@@ -8,7 +8,7 @@ Single-issue updates only. No child issues.
 
 | Write to Linear | Do not write to Linear |
 |-----------------|------------------------|
-| `## Requirement` (from `linear-requirement` or human — preserve) | `## Investigation` — session only |
+| `## Requirement` (preserve — do not rewrite without human approval) | `## Investigation` — session only |
 | `## Sapphire status` table | `## Spec` — session only |
 | Sapphire footer | Full investigation or spec in comments |
 | Issue **state** (`Triage`/`In Progress` → `In Review`) | |
@@ -22,7 +22,11 @@ Investigation and spec pass **in orchestrator session** to Tech Lead → Coder �
 
 - MCP only. Inspect `user-linear/tools/*.json` before writes.
 - Never call a write tool without a complete `arguments` object.
-- Stop if Linear MCP is not loaded — same reload message as `../linear-requirement/LINEAR-MCP.md`.
+- Stop if Linear MCP is not loaded. Tell the user:
+
+  ```text
+  Linear MCP is not loaded in this agent. In Cursor: Settings → MCP → enable `linear` (server id `user-linear`), then reload MCP servers. For Cloud Agents, open the agent run → MCP/tools → enable Linear for that agent (first delegated run often needs this once).
+  ```
 - Optional smoke test: `get_user` with `{ "query": "me" }`.
 - **Never** append `## Investigation` or `## Spec` to the issue description.
 

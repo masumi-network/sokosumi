@@ -1,6 +1,6 @@
 # Cursor Automation (optional)
 
-Optional Linear → Cloud Agent trigger for Team Sapphire. **Not** started by `linear-requirement` — that skill only files the requirement.
+Optional Linear → Cloud Agent trigger for Team Sapphire.
 
 ## One issue, one trigger
 
@@ -36,7 +36,7 @@ Documented for teams that want Linear to start a Cloud Agent when someone assign
 
 Filter on `## Sapphire status`, **not** `[repo=…]` alone.
 
-**If enabled:** something else must assign delegate to `Cursor` (human or a separate process) — `linear-requirement` does **not**. Otherwise nothing runs. Keep this **off** unless you own that delegate assignment path.
+**If enabled:** something must assign delegate to `Cursor` (human or a separate process). Otherwise nothing runs. Keep this **off** unless you own that delegate assignment path.
 
 ## Cloud environment (Reviewer visuals)
 

@@ -5,8 +5,8 @@ description: >-
   approval. Use when the user wants a Linear requirement, ticket, or SOK issue
   drafted or filed — e.g. "file this as a Linear issue", "draft a requirement",
   "create a SOK ticket". Do not use when the user is debugging or implementing
-  code in-repo, reviewing a PR, running Team Sapphire, or only chatting about a
-  bug/feature without asking to file it.
+  code in-repo, reviewing a PR, or only chatting about a bug/feature without
+  asking to file it.
 ---
 
 # linear-requirement

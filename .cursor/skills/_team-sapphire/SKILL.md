@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 You are the **Sapphire orchestrator**. One Linear issue. Four roles. No child issues.
 
-Run the squad in order on the **same issue** the user points at (usually created by `linear-requirement`, or any SOK issue with a requirement body).
+Run the squad in order on the **same issue** the user points at (any SOK issue with a requirement body).
 
 ## Continuous orchestration (critical)
 
@@ -69,7 +69,7 @@ Investigation and spec are **working documents for this agent run**. Keep them i
 |----------|-------------|-----------|-----------|
 | Investigation | Investigator | Tech Lead (same session) | Comment summary only |
 | Spec | Tech Lead | Coder, Reviewer (same session) | Comment summary only |
-| Requirement | `linear-requirement` (or human) | All phases | Description (unchanged) |
+| Requirement | On Linear issue (unchanged) | All phases | Description (unchanged) |
 | Status table | Orchestrator | Resume / humans | Description |
 
 When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and the Sapphire footer. Strip legacy `## Investigation` / `## Spec` blocks if present — do not re-add them.
@@ -78,7 +78,7 @@ When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and
 
 ## Intake
 
-- Required: Linear issue id/URL (e.g. `SOK-XXX`) — user points at an issue with `## Requirement` (often from `linear-requirement`).
+- Required: Linear issue id/URL (e.g. `SOK-XXX`) — user points at an issue with `## Requirement`.
 - Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run — still apply **artifact-aware resume** when downstream phases need session investigation or spec (unless user explicitly asked to run that phase only).
 - Load issue with `get_issue`. Read `## Requirement` (or requirement body before Sapphire sections exist).
 - If issue state is **Triage**, set `state: "In Progress"` when Sapphire work starts (state-only `save_issue` is fine).
@@ -150,7 +150,7 @@ Before returning to the user, run **Exit gate** in `PHASE-GATE.md`: `get_issue` 
 - Read `PHASE-GATE.md` before the first phase — gates are blocking.
 - Read `BUGBOT-LEARNINGS.md` before Phase 1 (Investigator R1–R12 flags) and before Coder Pre-Reviewer gates (CI + Bugbot).
 - Read `LINEAR-MCP.md` before any write.
-- Health check before first call — same message as `linear-requirement` if `user-linear` is missing.
+- Health check before first call — if `user-linear` is missing, stop with the reload message in `LINEAR-MCP.md`.
 - Use `save_issue` for **status table**, **state**, and legacy section cleanup only — not investigation or spec; use `save_comment` for phase markers.
 
 ## Resume and idempotency
