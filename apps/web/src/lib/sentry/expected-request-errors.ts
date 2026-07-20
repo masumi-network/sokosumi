@@ -49,6 +49,28 @@ function getEventErrorType(event: ErrorEvent): string | undefined {
   return event.exception?.values?.[0]?.type;
 }
 
+function getEventTransaction(event: ErrorEvent): string {
+  if (typeof event.transaction === "string") {
+    return event.transaction;
+  }
+
+  const tagTransaction = event.tags?.transaction;
+  return typeof tagTransaction === "string" ? tagTransaction : "";
+}
+
+/**
+ * Web removed its local Better Auth handler in #3194; `/api/auth/*` now proxies
+ * to Core. Preview deployments still on the old handler (or bots replaying the
+ * path) can throw Prisma auth DB errors (SOKOSUMI-Q0).
+ */
+export function isLegacyWebAuthPrismaNoise(event: ErrorEvent): boolean {
+  if (getEventErrorType(event) !== "PrismaClientKnownRequestError") {
+    return false;
+  }
+
+  return getEventTransaction(event).includes("/api/auth/");
+}
+
 interface CoreApiRequestErrorShape {
   name: string;
   status?: number;
@@ -173,7 +195,8 @@ export function beforeSendServerEvent(
 ): ErrorEvent | null {
   if (
     isExpectedAuthSentryEvent(event) ||
-    isExpectedBusinessSentryEvent(event)
+    isExpectedBusinessSentryEvent(event) ||
+    isLegacyWebAuthPrismaNoise(event)
   ) {
     return null;
   }
