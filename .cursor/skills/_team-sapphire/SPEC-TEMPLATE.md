@@ -1,20 +1,21 @@
 # Spec Template
 
-Tech Lead writes this as the **session spec** (not posted to Linear). Delete sections that do not apply except **Data flow**.
+Tech Lead writes this as the **session Spec** (short summary also goes in the PR body). Delete unused optional sections except **Data flow**. Do **not** post the full Spec to Linear.
 
 ````markdown
 ## Spec
 
 [repo=masumi-network/sokosumi]
 
-**Problem:** One or two sentences (may mirror Requirement).
+**Coders:** 1 (or N — sequential unless Parallel)
+**Parallel:** false
+
+**Problem:** One or two sentences.
 
 **Goal:** One or two sentences — user-facing outcome.
 
-**Linear:** project Sokosumi - label Feature
-
 **Confirmed decisions:**
-- Locked decision from Requirement or resolved in spec.
+- …
 
 ## Data flow
 
@@ -50,7 +51,7 @@ flowchart TB
 
 ## Coder breakdown
 
-(When SUBAGENT-RUBRIC score ≥ 2 — see TECH-LEAD.md.)
+(Only when rubric score ≥ 2.)
 
 ### Coder A — Scope name
 
@@ -70,27 +71,22 @@ flowchart LR
 
 ## Verification
 
-Scope hints only — agents map to allowlisted `pnpm` scripts per `REVIEWER.md`. UI manual checks: path-only local URLs; capture per `VISUAL-CAPTURE.md`.
+Scope hints — map to allowlisted `pnpm` scripts in `ROLES.md`. UI: path-only routes; capture per `VISUAL-CAPTURE.md`.
 
 - Scope: `apps/web` — web:check, web:test, web:build
-- Manual: path-only route checks
 
 ## Out of scope
 
 - Non-goals for v1.
 ````
 
-## Before handing to Coder
+## Before handoff
 
 - No YAML plan frontmatter.
-- Remove empty optional sections.
 - Keep Data flow, Verification, Out of scope.
-- Spec stays in orchestrator session — not written to Linear.
-- Copy optional sections from **Appendix: optional BUGBOT sections** only when `BUGBOT-LEARNINGS.md` triggers apply (`TECH-LEAD.md`).
+- Copy appendix sections only when `BUGBOT-LEARNINGS.md` triggers apply.
 
 ## Appendix: optional BUGBOT sections
-
-**Do not** include these in every spec. Copy only the sections whose triggers fired; delete unused appendix blocks before handoff.
 
 ### Mutation order (R1)
 
@@ -108,7 +104,6 @@ Scope hints only — agents map to allowlisted `pnpm` scripts per `REVIEWER.md`.
 
 - Display TZ: …
 - Parse/persist TZ: …
-- Cron / interval meaning vs UI label: …
 
 ### Auth matrix (R10)
 
