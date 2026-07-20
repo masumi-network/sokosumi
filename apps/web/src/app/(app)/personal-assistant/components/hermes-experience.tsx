@@ -7,6 +7,10 @@ import { toast } from "sonner";
 
 import EmptyState from "@/app/personal-assistant/components/empty-state";
 import ErrorState from "@/app/personal-assistant/components/error-state";
+import {
+  shouldClearSetupPhaseClock,
+  shouldOfferHermesStartOver,
+} from "@/app/personal-assistant/components/hermes-setup-recovery";
 import LoadingState from "@/app/personal-assistant/components/loading-state";
 import OnboardingProgress from "@/app/personal-assistant/components/onboarding-progress";
 import OnboardingScreen from "@/app/personal-assistant/components/onboarding-screen";
@@ -216,6 +220,10 @@ export default function HermesExperience({
     HermesPersistedMessage[]
   >([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /** True when the current error screen is the client-side 15m provision
+   * deadline — drives Start over even though orch status is still
+   * `provisioning`. */
+  const [isProvisionTimeout, setIsProvisionTimeout] = useState(false);
   /** True while `POST /me/instance/onboard` is in flight. Keeps the setup
    * wizard mounted so `OnboardingProgress` does not poll until onboard has
    * actually started. */
@@ -262,13 +270,13 @@ export default function HermesExperience({
     [uiState, userId],
   );
 
-  // Clears each persisted start time once we leave its phase (success or
-  // error) so a future, genuinely new setup attempt doesn't inherit it.
-  // `loading` is exempt: it's the transient mount state BEFORE the instance
-  // fetch discovers which phase we're in — clearing there would wipe the
-  // keys on every reload and defeat the cross-reload persistence entirely.
+  // Clears each persisted start time once we leave its phase for a real
+  // onward/idle transition. Kept across `error` / `loading` so Retry after
+  // a client-side provision timeout reuses the original start (and still
+  // times out) instead of granting a fresh 15 minutes.
   useEffect(() => {
-    if (uiState === "loading") return;
+    if (!shouldClearSetupPhaseClock(uiState)) return;
+    setIsProvisionTimeout(false);
     if (uiState !== "provisioning") clearPhaseStartedAt("provisioning", userId);
     if (uiState !== "onboarding") clearPhaseStartedAt("onboarding", userId);
   }, [uiState, userId]);
@@ -372,6 +380,7 @@ export default function HermesExperience({
       if (cancelled) return;
       if (deadline !== null && Date.now() > deadline) {
         setUiState("error");
+        setIsProvisionTimeout(true);
         setErrorMessage(t("provisionTimeout"));
         return;
       }
@@ -474,6 +483,10 @@ export default function HermesExperience({
       setSubscriptionWallOpen(true);
       return;
     }
+    // Fresh activate — drop any leftover timeout clock from a prior stuck
+    // attempt (normally cleared on idle, but be explicit).
+    clearPhaseStartedAt("provisioning", userId);
+    setIsProvisionTimeout(false);
     setUiState("provisioning");
     setErrorMessage(null);
     const result = await provisionHermesAction({});
@@ -496,11 +509,13 @@ export default function HermesExperience({
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.
     setUiState(nextUi);
-  }, [t, hasActiveSubscription]);
+  }, [t, hasActiveSubscription, userId]);
 
   const handleRetry = useCallback(() => {
     if (previewMode) return;
     setErrorMessage(null);
+    // Keep `isProvisionTimeout` so a still-stuck provision can offer Start
+    // over after refetch; cleared when we leave error for a real phase.
     setUiState("loading");
     void refetchHermes();
   }, [previewMode, refetchHermes]);
@@ -518,12 +533,15 @@ export default function HermesExperience({
     }
     setInstance(null);
     setInitialMessages([]);
+    setIsProvisionTimeout(false);
+    clearPhaseStartedAt("provisioning", userId);
+    clearPhaseStartedAt("onboarding", userId);
     // Forget the destroyed assistant's orb choice — the next activation is a
     // fresh identity and must start from the white placeholder, not the old
     // assistant's colour.
     setCommittedSeed(undefined);
     setUiState("idle");
-  }, [previewMode, t]);
+  }, [previewMode, t, userId]);
 
   /**
    * Kicks off the orchestrator's research-intro flow. The progress screen
@@ -655,11 +673,14 @@ export default function HermesExperience({
       <ErrorState
         message={errorMessage ?? undefined}
         onRetry={handleRetry}
-        // Offer the destroy-and-restart escape hatch only when an instance
-        // actually exists and is the thing that's stuck — for transient
-        // fetch failures there is nothing to destroy.
+        // Destroy when orch reports `error`, or when provision is stuck
+        // (client 15m timeout leaves status as `provisioning`).
         onStartOver={
-          !previewMode && instance?.status === "error"
+          shouldOfferHermesStartOver({
+            previewMode,
+            instanceStatus: instance?.status,
+            isProvisionTimeout,
+          })
             ? handleDestroy
             : undefined
         }
