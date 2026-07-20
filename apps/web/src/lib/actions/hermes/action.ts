@@ -3,6 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 
 import type { ActionError } from "@/lib/actions";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import {
   CoreApiRequestError,
   coreClient,
@@ -10,9 +11,12 @@ import {
 } from "@/lib/clients/core.client";
 import type { HermesInstance } from "@/lib/clients/generated/core";
 import type {
+  HermesApproveConfirmationRequest,
   HermesGetInstanceNone,
   HermesGetInstanceSome,
+  HermesRejectConfirmationRequest,
 } from "@/lib/clients/generated/core/types.gen";
+import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
 import type {
   HermesAutonomyLevel,
   HermesConfirmationResolveResult,
@@ -23,6 +27,7 @@ import type {
   HermesOnboardingStepStatus,
   HermesPendingConfirmation,
   HermesPersistedMessage,
+  HermesPersonality,
   HermesSchedule,
   HermesScheduleKind,
   HermesScheduleSource,
@@ -57,6 +62,15 @@ function mapHermesInstance(
     endpointUrl: instance.endpointUrl,
     lastActivityAt: toIsoString(instance.lastActivityAt),
     onboardedAt: toIsoString(instance.onboardedAt),
+    assistantName: instance.assistantName ?? null,
+    avatarSeed: instance.avatarSeed ?? null,
+    personality: instance.personality
+      ? {
+          tone: instance.personality.tone ?? 50,
+          detail: instance.personality.detail ?? 50,
+          style: instance.personality.style ?? 50,
+        }
+      : null,
     autonomyLevel: (instance.autonomyLevel ?? "medium") as HermesAutonomyLevel,
     integrations: instance.integrations.map(mapHermesIntegration),
     transitioning: instance.transitioning ?? false,
@@ -164,12 +178,23 @@ export const getHermesInstanceAction = withSession<
  * Provisions a new Hermes instance for the signed-in user (idempotent).
  * Returns the post-provision state — the caller should poll
  * `getHermesInstanceAction` until status === "running".
+ *
+ * Requires a paid plan, unless the signed-in user has the admin role. This
+ * re-checks server-side (the UI already gates the activate button on the
+ * same signal) so the action can't be triggered directly to bypass the
+ * subscription wall.
  */
 export const provisionHermesAction = withSession<
   Record<string, never>,
   Result<HermesInstancePublic, ActionError>
->(async () => {
+>(async ({ session }) => {
   try {
+    // UX-level gate only — Core re-enforces on provision (incl. enterprise).
+    // Fail closed when coverage lookups fail.
+    const hasCoverage = await hasPaidPlanCoverage();
+    if (!hasCoverage && !hasAdminRole(session.user.role)) {
+      return Err({ code: "SUBSCRIPTION_REQUIRED" });
+    }
     const response = await coreClient.provisionHermesInstance();
     return Ok(mapHermesInstance(response.data)!);
   } catch (error) {
@@ -212,11 +237,24 @@ export const listHermesMessagesAction = withSession<
  */
 export const getHermesUnreadCountAction = withSession<
   Record<string, never>,
-  Result<number, ActionError>
+  Result<
+    {
+      count: number;
+      avatarSeed: string | null;
+      assistantName: string | null;
+      hasInstance: boolean;
+    },
+    ActionError
+  >
 >(async () => {
   try {
     const response = await coreClient.getHermesUnreadCount();
-    return Ok(response.data.count);
+    return Ok({
+      count: response.data.count,
+      avatarSeed: response.data.avatarSeed ?? null,
+      assistantName: response.data.assistantName ?? null,
+      hasInstance: response.data.hasInstance ?? false,
+    });
   } catch (error) {
     return Err(toActionError(error));
   }
@@ -287,6 +325,10 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
   /** When true, the orchestrator skips the public-web research pass. */
   skipResearch: boolean;
   name?: string | null;
+  /** User-chosen display name for the assistant. Sokosumi-side only. */
+  assistantName?: string | null;
+  /** Seed for the chosen generative orb avatar. Sokosumi-side only. */
+  avatarSeed?: string | null;
   email?: string | null;
   /** Free-form role label (e.g. "Founder / CEO", "Engineering"). Hermes uses
    * this to personalize tone and prioritization, not for access control. */
@@ -296,6 +338,9 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
   company?: string | null;
   /** Optional autonomy override; PATCHed onto the instance before start. */
   autonomyLevel?: HermesAutonomyLevel | null;
+  /** Assistant personality (tone / detail / style, 0–100). Forwarded to the
+   * orchestrator to shape the agent's system prompt. */
+  personality?: HermesPersonality | null;
 }
 
 /**
@@ -307,27 +352,47 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
 export const startHermesOnboardingAction = withSession<
   StartOnboardingArgs,
   Result<void, ActionError>
->(async ({ skipResearch, name, email, role, company, autonomyLevel }) => {
-  try {
-    await coreClient.startHermesOnboarding({
-      name: name ?? undefined,
-      email: email ?? undefined,
-      role: role ?? undefined,
-      company: company ?? undefined,
-      // "light" = web-only research (used by skip-for-now path);
-      // "deep" = inbox + web (default for users who connected integrations).
-      researchDepth: skipResearch ? "light" : "deep",
-      autonomyLevel: autonomyLevel ?? undefined,
-    });
-    return Ok();
-  } catch (error) {
-    return Err(toActionError(error));
-  }
-});
+>(
+  async ({
+    skipResearch,
+    name,
+    assistantName,
+    avatarSeed,
+    email,
+    role,
+    company,
+    autonomyLevel,
+    personality,
+  }) => {
+    try {
+      await coreClient.startHermesOnboarding({
+        name: name ?? undefined,
+        assistantName: assistantName ?? undefined,
+        avatarSeed: avatarSeed ?? undefined,
+        email: email ?? undefined,
+        role: role ?? undefined,
+        company: company ?? undefined,
+        // "light" = web-only research (used by skip-for-now path);
+        // "deep" = inbox + web (default for users who connected integrations).
+        researchDepth: skipResearch ? "light" : "deep",
+        autonomyLevel: autonomyLevel ?? undefined,
+        personality: personality ?? undefined,
+      });
+      return Ok();
+    } catch (error) {
+      return Err(toActionError(error));
+    }
+  },
+);
 
 interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
   autonomyLevel?: HermesAutonomyLevel;
   name?: string | null;
+  /** Rename the assistant. Sokosumi-side metadata. */
+  assistantName?: string | null;
+  /** Re-pick the orb avatar. Sokosumi-side metadata; explicit `null` resets
+   * to the white placeholder, `undefined` leaves it untouched. */
+  avatarSeed?: string | null;
   email?: string | null;
   /** IANA tz, e.g. "America/New_York". */
   timezone?: string | null;
@@ -341,19 +406,31 @@ interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
 export const updateHermesInstanceAction = withSession<
   UpdateHermesInstanceArgs,
   Result<HermesInstancePublic, ActionError>
->(async ({ autonomyLevel, name, email, timezone }) => {
-  try {
-    const response = await coreClient.updateHermesInstance({
-      autonomyLevel,
-      name: name ?? undefined,
-      email: email ?? undefined,
-      timezone: timezone ?? undefined,
-    });
-    return Ok(mapHermesInstance(response.data)!);
-  } catch (error) {
-    return Err(toActionError(error));
-  }
-});
+>(
+  async ({
+    autonomyLevel,
+    name,
+    assistantName,
+    avatarSeed,
+    email,
+    timezone,
+  }) => {
+    try {
+      const response = await coreClient.updateHermesInstance({
+        autonomyLevel,
+        name: name ?? undefined,
+        assistantName: assistantName ?? undefined,
+        // null is meaningful here (reset to placeholder) — only strip undefined.
+        ...(avatarSeed !== undefined ? { avatarSeed } : {}),
+        email: email ?? undefined,
+        timezone: timezone ?? undefined,
+      });
+      return Ok(mapHermesInstance(response.data)!);
+    } catch (error) {
+      return Err(toActionError(error));
+    }
+  },
+);
 
 export interface HermesOnboardingProgressPayload {
   status: string;
@@ -563,6 +640,28 @@ export const toggleHermesScheduleAction = withSession<
 
 interface ResolveConfirmationArgs extends AuthenticatedRequest {
   confirmationId: string;
+  /**
+   * Display snapshot of the pending card the user acted on. Core uses this
+   * as a fallback when the orchestrator's pending list already dropped the
+   * row, so the audit message still persists.
+   */
+  confirmation?: HermesPendingConfirmation;
+}
+
+/** Map web ISO confirmation → Core request shape (`createdAt` as Date). */
+function toCoreConfirmationSnapshot(
+  confirmation: HermesPendingConfirmation,
+): NonNullable<HermesApproveConfirmationRequest["confirmation"]> {
+  return {
+    id: confirmation.id,
+    toolName: confirmation.toolName,
+    summary: confirmation.summary,
+    createdAt: new Date(confirmation.createdAt),
+    referencedCoworkers: confirmation.referencedCoworkers,
+    referencedOrganizations: confirmation.referencedOrganizations,
+    organizationId: confirmation.organizationId,
+    organizationName: confirmation.organizationName,
+  };
 }
 
 function mapConfirmationResolveResult(raw: {
@@ -598,17 +697,18 @@ export const approveHermesConfirmationAction = withSession<
   Result<HermesConfirmationResolveResult, ActionError>
 >(async (args) => {
   try {
-    const body =
-      "organizationId" in args
-        ? {
-            overrides: {
-              organizationId: args.organizationId ?? null,
-            },
-          }
-        : undefined;
+    const body: HermesApproveConfirmationRequest = {};
+    if ("organizationId" in args) {
+      body.overrides = {
+        organizationId: args.organizationId ?? null,
+      };
+    }
+    if (args.confirmation) {
+      body.confirmation = toCoreConfirmationSnapshot(args.confirmation);
+    }
     const response = await coreClient.approveHermesConfirmation(
       args.confirmationId,
-      body,
+      Object.keys(body).length > 0 ? body : undefined,
     );
     return Ok(mapConfirmationResolveResult(response.data));
   } catch (error) {
@@ -623,11 +723,18 @@ interface RejectConfirmationArgs extends ResolveConfirmationArgs {
 export const rejectHermesConfirmationAction = withSession<
   RejectConfirmationArgs,
   Result<HermesConfirmationResolveResult, ActionError>
->(async ({ confirmationId, reason }) => {
+>(async ({ confirmationId, reason, confirmation }) => {
   try {
-    const response = await coreClient.rejectHermesConfirmation(confirmationId, {
+    const body: HermesRejectConfirmationRequest = {
       reason: reason && reason.trim().length > 0 ? reason.trim() : undefined,
-    });
+    };
+    if (confirmation) {
+      body.confirmation = toCoreConfirmationSnapshot(confirmation);
+    }
+    const response = await coreClient.rejectHermesConfirmation(
+      confirmationId,
+      body,
+    );
     return Ok(mapConfirmationResolveResult(response.data));
   } catch (error) {
     return Err(toActionError(error));

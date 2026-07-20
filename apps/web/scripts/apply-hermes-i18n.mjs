@@ -4,6 +4,10 @@
  * 2. Overlay legacy translations from main branch
  * 3. Apply nested overrides from messages/hermes-translations/{locale}.json
  * 4. Remove deprecated Provisioning.step1–step4 keys
+ *
+ * Ordered lists in en are keyed maps (`"0"`, `"1"`, …) for next-intl. Override
+ * packs may still use JSON arrays — normalize them to maps before merge so a
+ * re-run cannot regress locales back to arrays.
  */
 import { execSync } from "node:child_process";
 import fs from "node:fs";
@@ -15,6 +19,50 @@ const messagesDir = path.join(__dirname, "../messages");
 const overridesDir = path.join(messagesDir, "hermes-translations");
 
 const LOCALES = ["de", "es", "fr", "it", "ja", "pt", "pt-BR", "zh-Hans"];
+
+/**
+ * When `shape` is a keyed numeric map and `value` is an array, rewrite the
+ * array as `{ "0": …, "1": … }` so deepMerge keeps the en catalog shape.
+ * Recurses into objects. Leaves non-list values alone.
+ */
+function alignOrderedListsToShape(value, shape) {
+  if (Array.isArray(value)) {
+    const shapeIsKeyedMap =
+      shape !== null &&
+      typeof shape === "object" &&
+      !Array.isArray(shape) &&
+      Object.keys(shape).length > 0 &&
+      Object.keys(shape).every((key) => /^\d+$/.test(key));
+    if (shapeIsKeyedMap) {
+      const asMap = {};
+      for (let i = 0; i < value.length; i++) {
+        const itemShape = shape[String(i)];
+        asMap[String(i)] = alignOrderedListsToShape(value[i], itemShape);
+      }
+      return asMap;
+    }
+    return value.map((item, i) =>
+      alignOrderedListsToShape(
+        item,
+        Array.isArray(shape) ? shape[i] : undefined,
+      ),
+    );
+  }
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    shape !== null &&
+    typeof shape === "object" &&
+    !Array.isArray(shape)
+  ) {
+    const out = { ...value };
+    for (const [key, child] of Object.entries(value)) {
+      out[key] = alignOrderedListsToShape(child, shape[key]);
+    }
+    return out;
+  }
+  return value;
+}
 
 function deepMerge(base, overlay) {
   if (
@@ -73,7 +121,8 @@ function readHermesOverrides(overridePath) {
 }
 
 function applyHermesOverrides(tree, overrides) {
-  const merged = deepMerge(tree, overrides);
+  const aligned = alignOrderedListsToShape(overrides, tree);
+  const merged = deepMerge(tree, aligned);
   merged.Provisioning = stripProvisioningSteps(merged.Provisioning);
   return merged;
 }

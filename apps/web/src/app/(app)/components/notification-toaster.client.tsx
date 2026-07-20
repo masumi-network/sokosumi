@@ -11,7 +11,10 @@ import {
 } from "@/lib/constants/notification-toaster";
 
 function isHermesRoute(pathname: string | null) {
-  return pathname === "/hermes" || pathname?.startsWith("/hermes/");
+  return (
+    pathname === "/personal-assistant" ||
+    pathname?.startsWith("/personal-assistant/")
+  );
 }
 
 export function NotificationToaster() {

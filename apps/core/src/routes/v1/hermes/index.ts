@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
+import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
+import { subscriptionRepository } from "@sokosumi/database/repositories";
 import {
   isUserUploadAllowedContentType,
   normalizeUserUploadContentType,
@@ -32,6 +34,7 @@ import {
   getInstanceOnboardingProgress,
   type HermesInstallSkillInput,
   HermesInstanceNotReadyError,
+  type HermesInstanceStatus,
   type HermesIntegrationMode,
   type HermesIntegrationProvider,
   HermesOrchestratorError,
@@ -89,7 +92,11 @@ import { conflictWithData, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { isTransientFetchError } from "@/lib/external-service-errors";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  hasAdminRole,
+  requireOrchestratorAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import {
   hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
@@ -588,7 +595,7 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
       error.httpStatus === 403 ||
       error.httpStatus === 429
     ) {
-      throw serviceUnavailable("Hermes is temporarily unavailable.");
+      throw serviceUnavailable("Your assistant is temporarily unavailable.");
     }
 
     throw badRequest(error.message);
@@ -597,12 +604,180 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
   throw internalServerError(fallback);
 }
 
-async function upsertHermesInstanceForUser(userId: string): Promise<void> {
+async function upsertHermesInstanceForUser(
+  userId: string,
+  data?: { assistantName?: string; avatarSeed?: string | null },
+): Promise<void> {
+  const patch: { assistantName?: string; avatarSeed?: string | null } = {};
+  if (data?.assistantName !== undefined)
+    patch.assistantName = data.assistantName;
+  if (data?.avatarSeed !== undefined) patch.avatarSeed = data.avatarSeed;
   await prisma.hermesInstance.upsert({
     where: { userId },
-    create: { userId },
-    update: {},
+    create: { userId, ...patch },
+    update: patch,
   });
+}
+
+/**
+ * Wipe Sokosumi's per-user Hermes mirror: chat history, instance metadata
+ * (name / orb / poll cursors), and any in-flight integration OAuth claims.
+ * Used by user destroy, orchestrator purge, and a verified fresh provision
+ * (pre-check empty + post-provision still early / not onboarded). Idempotent.
+ */
+async function clearHermesLocalMirror(userId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.hermesMessage.deleteMany({ where: { userId } }),
+    prisma.hermesPendingConnection.deleteMany({ where: { userId } }),
+    prisma.hermesInstance.deleteMany({ where: { userId } }),
+  ]);
+}
+
+/** Statuses that mean the orch instance was just created, not a live agent. */
+const FRESH_PROVISION_STATUSES = new Set<HermesInstanceStatus>([
+  "provisioning",
+  "infrastructure_ready",
+]);
+
+/**
+ * True when post-provision state is a brand-new instance we may safely wipe
+ * zombie local rows for. Ready/running (or already onboarded) must never
+ * trigger a chat wipe — a false pre-check `instance_not_found` plus an
+ * idempotent provision against a live orch instance would otherwise delete
+ * real history.
+ */
+function isFreshProvisionInstance(instance: {
+  status: HermesInstanceStatus;
+  onboardedAt: string | null;
+}): boolean {
+  return (
+    instance.onboardedAt == null &&
+    FRESH_PROVISION_STATUSES.has(instance.status)
+  );
+}
+
+interface HermesInstanceMeta {
+  assistantName: string | null;
+  avatarSeed: string | null;
+}
+
+/**
+ * Reads the Sokosumi-side display metadata (assistant name + orb avatar seed)
+ * for a user. These are supplementary display fields the orchestrator knows
+ * nothing about. Returns nulls on any read failure (e.g. a column-adding
+ * migration not yet applied, or a transient DB blip) so it never takes down
+ * the whole instance fetch — the assistant still loads with fallbacks.
+ */
+async function readHermesInstanceMeta(
+  userId: string,
+): Promise<HermesInstanceMeta> {
+  try {
+    const row = await prisma.hermesInstance.findUnique({
+      where: { userId },
+      select: { assistantName: true, avatarSeed: true },
+    });
+    return {
+      assistantName: row?.assistantName ?? null,
+      avatarSeed: row?.avatarSeed ?? null,
+    };
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_read_instance_meta" },
+    });
+    return { assistantName: null, avatarSeed: null };
+  }
+}
+
+interface HermesPersonalityValues {
+  tone: number;
+  detail: number;
+  style: number;
+}
+
+/**
+ * Persists the chosen personality (the Sokosumi-side mirror of what's
+ * forwarded to the orchestrator) so the chat UI can reflect it. Resilient on
+ * its own: a write failure (e.g. the personality columns' migration not yet
+ * applied) is swallowed so it never fails onboarding — the agent still starts,
+ * the chat just falls back to a calm default orb.
+ */
+async function persistHermesPersonality(
+  userId: string,
+  personality: HermesPersonalityValues,
+): Promise<void> {
+  const patch = {
+    personalityTone: personality.tone,
+    personalityDetail: personality.detail,
+    personalityStyle: personality.style,
+  };
+  try {
+    await prisma.hermesInstance.upsert({
+      where: { userId },
+      create: { userId, ...patch },
+      update: patch,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_persist_personality" },
+    });
+  }
+}
+
+/**
+ * Reads the chosen personality back. Kept as its own query + try/catch
+ * (separate from readHermesInstanceMeta) so that if the personality columns'
+ * migration hasn't been applied, the failure stays isolated to personality and
+ * does NOT null out the assistant name / orb seed. Returns null when unset or
+ * on any read failure.
+ */
+async function readHermesInstancePersonality(
+  userId: string,
+): Promise<HermesPersonalityValues | null> {
+  try {
+    const row = await prisma.hermesInstance.findUnique({
+      where: { userId },
+      select: {
+        personalityTone: true,
+        personalityDetail: true,
+        personalityStyle: true,
+      },
+    });
+    if (
+      !row ||
+      row.personalityTone === null ||
+      row.personalityDetail === null ||
+      row.personalityStyle === null
+    ) {
+      return null;
+    }
+    return {
+      tone: row.personalityTone,
+      detail: row.personalityDetail,
+      style: row.personalityStyle,
+    };
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_read_instance_personality" },
+    });
+    return null;
+  }
+}
+
+/**
+ * Convenience for the instance-response merge points: the display metadata
+ * (name + orb seed) plus the personality, each read resiliently and in
+ * parallel. Spread over the orchestrator instance before Zod parsing.
+ */
+async function readHermesInstanceDisplay(
+  userId: string,
+): Promise<
+  HermesInstanceMeta & { personality: HermesPersonalityValues | null }
+> {
+  const [meta, personality] = await Promise.all([
+    readHermesInstanceMeta(userId),
+    readHermesInstancePersonality(userId),
+  ]);
+  return { ...meta, personality };
 }
 
 /**
@@ -611,6 +786,125 @@ async function upsertHermesInstanceForUser(userId: string): Promise<void> {
  * (it shifts every existing welcome's deterministic id).
  */
 const HERMES_WELCOME_UUID_NAMESPACE = "f4e5b2cd-1c1a-4d8a-9a2e-7c1ad1b8d5a9";
+
+/**
+ * Stable namespace UUID for deriving HermesMessage ids from resolved
+ * confirmation cards. Same do-not-change contract as the welcome namespace.
+ */
+const HERMES_CONFIRMATION_CARD_UUID_NAMESPACE =
+  "0b6f3a41-8d2e-4f7c-9b5a-2e4c8d1f6a73";
+
+/** `HermesMessage.kind` for a persisted resolved-confirmation audit card. */
+const HERMES_CONFIRMATION_CARD_KIND = "confirmation_card";
+
+/**
+ * Persists a resolved confirmation as a `confirmation_card` message so the
+ * approve/reject audit trail survives a reload. Without this the resolved
+ * card only lives in tab-local React state — closing the tab silently
+ * erases the record of what the user approved and into which workspace.
+ *
+ * Idempotent via a deterministic UUIDv5 id derived from
+ * `(userId, confirmationId)` — a double-click or a retried request lands on
+ * the same row (`update: {}` no-op). Best-effort by design: a persistence
+ * failure must never fail the resolve that already happened.
+ */
+async function persistHermesConfirmationCard(args: {
+  userId: string;
+  confirmation: HermesPendingConfirmation;
+  status: "approved" | "rejected" | "already_resolved";
+  /** Final workspace the tool call ran in (override, else Hermes' proposal).
+   * `null` = personal scope. */
+  organizationId: string | null;
+  organizationName: string | null;
+}): Promise<void> {
+  try {
+    // Resolve referenced coworker/org UUIDs now so the persisted card can
+    // render name chips after a reload, when the live enriched confirmation
+    // is long gone from the orchestrator's pendingConfirmations.
+    const [enriched] = await enrichPendingConfirmations(
+      [args.confirmation],
+      args.userId,
+    );
+    const confirmation = enriched ?? args.confirmation;
+    const id = uuidv5(
+      `${args.userId}:confirmation-card:${confirmation.id}`,
+      HERMES_CONFIRMATION_CARD_UUID_NAMESPACE,
+    );
+    await prisma.hermesMessage.upsert({
+      where: { id },
+      create: {
+        id,
+        userId: args.userId,
+        role: "assistant",
+        kind: HERMES_CONFIRMATION_CARD_KIND,
+        content: JSON.stringify({
+          confirmationId: confirmation.id,
+          toolName: confirmation.toolName,
+          summary: confirmation.summary,
+          status: args.status,
+          organizationId: args.organizationId,
+          organizationName: args.organizationName,
+          referencedCoworkers: confirmation.referencedCoworkers,
+          referencedOrganizations: confirmation.referencedOrganizations,
+          confirmationCreatedAt: confirmation.createdAt,
+        }),
+      },
+      update: {},
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_confirmation_card_persist" },
+      extra: { userId: args.userId, confirmationId: args.confirmation.id },
+    });
+  }
+}
+
+/**
+ * Best-effort snapshot of a pending confirmation just before it is resolved
+ * — the orchestrator drops it from `pendingConfirmations` on resolve.
+ * Returns null on miss/failure; callers may fall back to a minimal
+ * id-matched card so the audit trail still lands without trusting client
+ * display fields.
+ */
+async function snapshotPendingConfirmation(
+  userId: string,
+  confirmationId: string,
+): Promise<HermesPendingConfirmation | null> {
+  try {
+    const instance = await getInstance(userId);
+    return (
+      instance?.pendingConfirmations.find((p) => p.id === confirmationId) ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Prefer the orchestrator pending-list snapshot. When it is gone, accept a
+ * client payload only to prove `id` matches the path param, then persist a
+ * minimal card — never client `summary` / `toolName` / refs / org labels
+ * (those are attacker-controlled for the user's own history otherwise).
+ */
+function resolveConfirmationForAudit(
+  confirmationId: string,
+  orchSnapshot: HermesPendingConfirmation | null,
+  clientSnapshot: HermesPendingConfirmation | undefined,
+): HermesPendingConfirmation | null {
+  if (orchSnapshot) return orchSnapshot;
+  if (clientSnapshot?.id !== confirmationId) return null;
+  return {
+    id: confirmationId,
+    toolName: "gated_action",
+    summary: "Confirmation resolved",
+    createdAt: new Date().toISOString(),
+    referencedCoworkers: [],
+    referencedOrganizations: [],
+    organizationId: null,
+    organizationName: null,
+  };
+}
 
 /**
  * Per-process memo of welcome ids we've already persisted this lifetime.
@@ -832,7 +1126,7 @@ const postChatRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/chat",
-    description: "Send a message to the current user's Hermes instance",
+    description: "Send a message to the current user's assistant instance",
     tags: TAGS,
     request: {
       body: {
@@ -846,14 +1140,14 @@ const postChatRoute = withGlobalHeaderParameters(
     responses: {
       200: jsonSuccessResponse(
         hermesChatResponseSchema,
-        "Hermes chat response. The assistant message is returned as data.message.",
+        "assistant chat response. The assistant message is returned as data.message.",
       ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       409: jsonSuccessResponse(
         hermesInstanceNotReadySchema,
-        "Hermes instance is not ready. Uses the standard data/meta envelope with only data.status.",
+        "assistant instance is not ready. Uses the standard data/meta envelope with only data.status.",
       ),
       413: jsonErrorResponse("Payload Too Large"),
       503: jsonErrorResponse("Service Unavailable"),
@@ -865,12 +1159,12 @@ const getInstanceRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/instance",
-    description: "Get the current user's Hermes instance",
+    description: "Get the current user's assistant instance",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(
         hermesGetInstanceEnvelopeSchema,
-        "Hermes instance (data.instance is null when none exists)",
+        "assistant instance (data.instance is null when none exists)",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -883,10 +1177,10 @@ const provisionInstanceRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/me/instance",
-    description: "Provision the current user's Hermes instance",
+    description: "Provision the current user's assistant instance",
     tags: TAGS,
     responses: {
-      200: jsonSuccessResponse(hermesInstanceSchema, "Hermes instance"),
+      200: jsonSuccessResponse(hermesInstanceSchema, "assistant instance"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -900,7 +1194,7 @@ const updateInstanceRoute = withGlobalHeaderParameters(
     method: "patch",
     path: "/me/instance",
     description:
-      "Update mutable fields (autonomyLevel, name, email) on the current user's Hermes instance",
+      "Update mutable fields (autonomyLevel, name, email) on the current user's assistant instance",
     tags: TAGS,
     request: {
       body: {
@@ -912,7 +1206,10 @@ const updateInstanceRoute = withGlobalHeaderParameters(
       },
     },
     responses: {
-      200: jsonSuccessResponse(hermesInstanceSchema, "Updated Hermes instance"),
+      200: jsonSuccessResponse(
+        hermesInstanceSchema,
+        "Updated assistant instance",
+      ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -926,12 +1223,12 @@ const destroyInstanceRoute = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
     path: "/me/instance",
-    description: "Destroy the current user's Hermes instance",
+    description: "Destroy the current user's assistant instance",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(
         hermesEmptyResponseSchema,
-        "Hermes instance destroyed",
+        "assistant instance destroyed",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -940,11 +1237,35 @@ const destroyInstanceRoute = withGlobalHeaderParameters(
   }),
 );
 
+const purgeInstanceStateRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/instances/{userId}/purge",
+    description:
+      "Orchestrator-only: delete Sokosumi's local mirror state (chat history, instance metadata, and pending integration OAuth claims) for a user whose orchestrator-side instance was destroyed. Idempotent — purging a user with no local state is a no-op. Authenticated with an orchestrator API key (orch_); user sessions and coworker keys are rejected.",
+    tags: TAGS,
+    request: {
+      params: z.object({
+        userId: z.string().min(1).openapi({ example: "usr_123" }),
+      }),
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesEmptyResponseSchema,
+        "local assistant state purged",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
+
 const listMessagesRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/messages",
-    description: "List the current user's persisted Hermes messages",
+    description: "List the current user's persisted assistant messages",
     tags: TAGS,
     request: {
       query: cursorPaginationQuerySchema,
@@ -952,7 +1273,7 @@ const listMessagesRoute = withGlobalHeaderParameters(
     responses: {
       200: jsonPaginatedSuccessResponse(
         z.array(hermesPersistedMessageSchema),
-        "Hermes messages",
+        "assistant messages",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -964,7 +1285,7 @@ const getUnreadCountRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/unread-count",
-    description: "Get the current user's unread Hermes inbox count",
+    description: "Get the current user's unread assistant inbox count",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(hermesUnreadCountSchema, "Hermes unread count"),
@@ -978,7 +1299,7 @@ const markInboxSeenRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/me/inbox/seen",
-    description: "Mark current user's Hermes inbox messages as seen",
+    description: "Mark current user's assistant inbox messages as seen",
     tags: TAGS,
     request: {
       body: {
@@ -992,7 +1313,7 @@ const markInboxSeenRoute = withGlobalHeaderParameters(
     responses: {
       200: jsonSuccessResponse(
         hermesEmptyResponseSchema,
-        "Hermes inbox marked seen",
+        "assistant inbox marked seen",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -1005,7 +1326,7 @@ const setSecretRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/me/secrets",
-    description: "Set a secret on the current user's Hermes instance",
+    description: "Set a secret on the current user's assistant instance",
     tags: TAGS,
     request: {
       body: {
@@ -1017,7 +1338,10 @@ const setSecretRoute = withGlobalHeaderParameters(
       },
     },
     responses: {
-      200: jsonSuccessResponse(hermesEmptyResponseSchema, "Hermes secret set"),
+      200: jsonSuccessResponse(
+        hermesEmptyResponseSchema,
+        "assistant secret set",
+      ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -1080,7 +1404,7 @@ const listIntegrationsRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/instance/integrations",
-    description: "List the current user's connected Hermes integrations",
+    description: "List the current user's connected assistant integrations",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(
@@ -1291,10 +1615,13 @@ const finalizeIntegrationRoute = withGlobalHeaderParameters(
 
 const app = new OpenAPIHonoWithAuth();
 
-// Temporary beta posture: web navigation/page access is domain-gated, while the
-// Core API remains available to authenticated users during early Hermes rollout.
+// Access posture: viewing is open to authenticated users; activating and
+// using (chat, onboard, settings mutations, skills) require paid coverage
+// (or admin). Destroy / purge / GET reads stay ungated so cancelled users
+// can still see history and tear down.
 app.openapi(postChatRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
   const userContent = typeof body.content === "string" ? body.content : "";
   const trimmed = userContent.trim();
@@ -1311,7 +1638,16 @@ app.openapi(postChatRoute, async (c) => {
   await awaitPriorHermesStreamPersistence(userContext.userId);
 
   const historyNewestFirst = await prisma.hermesMessage.findMany({
-    where: { userId: userContext.userId },
+    // Resolved-confirmation audit cards are UI artifacts (JSON snapshots for
+    // the read-only card render), not conversation — excluding them keeps
+    // machine-format JSON out of the model's context and stops each card
+    // from consuming a history slot. The OR shape is deliberate: a plain
+    // `kind: { not: ... }` would also drop the kind-null rows (regular chat
+    // turns) under SQL null semantics.
+    where: {
+      userId: userContext.userId,
+      OR: [{ kind: null }, { kind: { not: HERMES_CONFIRMATION_CARD_KIND } }],
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: MAX_CHAT_CONTEXT_MESSAGES,
     select: { role: true, content: true },
@@ -1334,7 +1670,7 @@ app.openapi(postChatRoute, async (c) => {
       return conflictWithData(c, { status: error.status });
     }
 
-    return mapOrchestratorError(error, "Failed to prepare Hermes instance");
+    return mapOrchestratorError(error, "Failed to prepare assistant instance");
   }
 
   const persistedUserContent = buildPersistedUserContent(trimmed, files);
@@ -1359,7 +1695,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw serviceUnavailable("Hermes is temporarily unavailable.");
+    throw serviceUnavailable("Your assistant is temporarily unavailable.");
   }
 
   if (upstream.status >= 500) {
@@ -1371,7 +1707,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw serviceUnavailable("Hermes is temporarily unavailable.");
+    throw serviceUnavailable("Your assistant is temporarily unavailable.");
   }
 
   if (!upstream.ok) {
@@ -1380,7 +1716,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw badRequest(text || "Hermes rejected the chat request.");
+    throw badRequest(text || "Your assistant rejected the chat request.");
   }
 
   const parsed = (await upstream
@@ -1396,7 +1732,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw serviceUnavailable("Hermes returned an empty response.");
+    throw serviceUnavailable("Your assistant returned an empty response.");
   }
 
   const transcriptTurn: HermesChatTranscriptTurn = {
@@ -1551,6 +1887,7 @@ export async function captureFromStream(
  */
 app.post("/chat/stream", async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
 
   const rawJson = await c.req.json().catch(() => null);
   const parsed = hermesChatRequestSchema.safeParse(rawJson);
@@ -1573,7 +1910,16 @@ app.post("/chat/stream", async (c) => {
   await awaitPriorHermesStreamPersistence(userContext.userId);
 
   const historyNewestFirst = await prisma.hermesMessage.findMany({
-    where: { userId: userContext.userId },
+    // Resolved-confirmation audit cards are UI artifacts (JSON snapshots for
+    // the read-only card render), not conversation — excluding them keeps
+    // machine-format JSON out of the model's context and stops each card
+    // from consuming a history slot. The OR shape is deliberate: a plain
+    // `kind: { not: ... }` would also drop the kind-null rows (regular chat
+    // turns) under SQL null semantics.
+    where: {
+      userId: userContext.userId,
+      OR: [{ kind: null }, { kind: { not: HERMES_CONFIRMATION_CARD_KIND } }],
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: MAX_CHAT_CONTEXT_MESSAGES,
     select: { role: true, content: true },
@@ -1735,8 +2081,10 @@ app.openapi(getInstanceRoute, async (c) => {
         instance.pendingConfirmations,
         userContext.userId,
       );
+      const meta = await readHermesInstanceDisplay(userContext.userId);
       const parsedInstance = hermesInstanceSchema.parse({
         ...instance,
+        ...meta,
         pendingConfirmations: enrichedConfirmations,
       });
 
@@ -1773,20 +2121,99 @@ app.openapi(getInstanceRoute, async (c) => {
       );
     }
 
+    // The orchestrator has no instance for this user. Deliberately NO local
+    // cleanup here: auto-deleting the mirror rows (chat history, assistant
+    // name, orb seed) on this signal means one wrong instance_not_found from
+    // the orchestrator irreversibly wipes real user data. Orchestrator-side
+    // deletions instead call POST /instances/{userId}/purge explicitly.
     return ok(c, hermesGetInstanceEnvelopeSchema.parse({ hasInstance: false }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to fetch Hermes instance");
+    return mapOrchestratorError(error, "Failed to fetch assistant instance");
   }
 });
 
+/**
+ * True when the user has paid-plan coverage: an active non-free subscription
+ * on their personal reference or on any organization they belong to. The
+ * web app's subscription wall gates on the session's active workspace; this
+ * is the API-level floor beneath it — Better Auth API keys and OAuth access
+ * tokens mint plain user auth contexts, so the Core route must enforce the
+ * plan itself rather than trusting the web action's check.
+ */
+async function userHasPaidPlanCoverage(userId: string): Promise<boolean> {
+  // Personal Stripe subscription (user as referenceId).
+  const personal =
+    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+      userId,
+      prisma,
+    );
+  if (personal && personal.plan !== "free") return true;
+
+  // Org memberships via the canonical billing-plan resolver (enterprise
+  // contract first, then self-serve Stripe). Enterprise orgs often have no
+  // subscription row at all — the old Stripe-only loop missed them.
+  const memberships = await prisma.member.findMany({
+    where: { userId },
+    select: { organizationId: true },
+  });
+  for (const { organizationId } of memberships) {
+    const billingPlan = await resolveOrganizationBillingPlan(
+      organizationId,
+      prisma,
+    );
+    // Match the canonical coverage checks (organization-subscription-auth,
+    // seat service): an "active" contract past its commercial term is not
+    // consumable and must not grant assistant access.
+    if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable)
+      return true;
+    if (billingPlan.mode === "self_serve" && billingPlan.plan !== "free")
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Enforce paid coverage for activating and using the personal assistant.
+ * Admins are exempt. Reads (GET instance / messages / unread) stay open so
+ * the UI can still show history and the subscription wall; destroy stays
+ * open so cancelled users can tear the instance down.
+ */
+async function requirePaidPlanCoverage(userContext: {
+  userId: string;
+  role: string | null | undefined;
+}): Promise<void> {
+  if (hasAdminRole(userContext.role)) return;
+  if (await userHasPaidPlanCoverage(userContext.userId)) return;
+  throw forbidden(
+    "A paid subscription is required to use the personal assistant.",
+  );
+}
+
 app.openapi(provisionInstanceRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  // Paid-plan gate, mirroring the web action's check (which alone is
+  // bypassable by calling this route directly with an API key). Admins are
+  // exempt so the team can operate test instances without billing.
+  await requirePaidPlanCoverage(userContext);
   const user = await prisma.user.findUnique({
     where: { id: userContext.userId },
     select: { name: true, email: true },
   });
 
   try {
+    // `provisionInstance` is idempotent — re-POSTing for a live orch
+    // instance must NOT wipe chat. A structured pre-check
+    // `instance_not_found` can still be wrong; only clear the local mirror
+    // when post-provision state is still a fresh early instance. On a
+    // pre-check throw, assume an instance exists so we never delete live
+    // history by accident.
+    let hadOrchestratorInstance = true;
+    try {
+      hadOrchestratorInstance = (await getInstance(userContext.userId)) != null;
+    } catch {
+      hadOrchestratorInstance = true;
+    }
+
     await provisionInstance(userContext.userId, {
       name: user?.name,
       email: user?.email,
@@ -1796,8 +2223,17 @@ app.openapi(provisionInstanceRoute, async (c) => {
 
     if (!instance) {
       throw serviceUnavailable(
-        "Provision call succeeded but the Hermes instance is not visible yet.",
+        "Provision call succeeded but the assistant instance is not visible yet.",
       );
+    }
+
+    if (!hadOrchestratorInstance && isFreshProvisionInstance(instance)) {
+      await clearHermesLocalMirror(userContext.userId).catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_provision_clear_stale_mirror" },
+          extra: { userId: userContext.userId },
+        });
+      });
     }
 
     await upsertHermesInstanceForUser(userContext.userId).catch((error) => {
@@ -1806,14 +2242,19 @@ app.openapi(provisionInstanceRoute, async (c) => {
       });
     });
 
-    return ok(c, hermesInstanceSchema.parse(instance));
+    const meta = await readHermesInstanceDisplay(userContext.userId);
+    return ok(c, hermesInstanceSchema.parse({ ...instance, ...meta }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to provision Hermes instance");
+    return mapOrchestratorError(
+      error,
+      "Failed to provision assistant instance",
+    );
   }
 });
 
 app.openapi(updateInstanceRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   try {
@@ -1823,17 +2264,37 @@ app.openapi(updateInstanceRoute, async (c) => {
       email: body.email,
       timezone: body.timezone,
     });
+    // Assistant name + orb seed are Sokosumi-side metadata — persist them
+    // locally rather than forwarding to the orchestrator (whose `name` is
+    // the user's name). A null avatarSeed resets to the white placeholder.
+    // Best-effort, matching onboard: orch PATCH already succeeded; a local
+    // meta write failure must not 500 the request — UI falls back to
+    // generic name/orb until the next successful persist.
+    if (body.assistantName !== undefined || body.avatarSeed !== undefined) {
+      await upsertHermesInstanceForUser(userContext.userId, {
+        assistantName: body.assistantName,
+        avatarSeed: body.avatarSeed,
+      }).catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_patch_meta_persist" },
+          extra: { userId: userContext.userId },
+        });
+      });
+    }
     const instance = await getInstance(userContext.userId);
 
     if (!instance) {
       throw serviceUnavailable(
-        "Update succeeded but the Hermes instance is no longer visible.",
+        "Update succeeded but the assistant instance is no longer visible.",
       );
     }
 
-    return ok(c, hermesInstanceSchema.parse(instance));
+    // Always re-merge the persisted name so an unrelated PATCH (e.g. autonomy)
+    // doesn't blank it out via the schema's `assistantName` default.
+    const meta = await readHermesInstanceDisplay(userContext.userId);
+    return ok(c, hermesInstanceSchema.parse({ ...instance, ...meta }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to update Hermes instance");
+    return mapOrchestratorError(error, "Failed to update assistant instance");
   }
 });
 
@@ -1843,25 +2304,42 @@ app.openapi(destroyInstanceRoute, async (c) => {
   try {
     await destroyInstance(userContext.userId);
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to destroy Hermes instance");
+    return mapOrchestratorError(error, "Failed to destroy assistant instance");
   }
 
   try {
-    await prisma.$transaction([
-      prisma.hermesMessage.deleteMany({
-        where: { userId: userContext.userId },
-      }),
-      prisma.hermesInstance.deleteMany({
-        where: { userId: userContext.userId },
-      }),
-    ]);
+    await clearHermesLocalMirror(userContext.userId);
   } catch (error) {
     Sentry.captureException(error, {
       tags: { context: "hermes_destroy_db_cleanup" },
       extra: { userId: userContext.userId },
     });
     throw serviceUnavailable(
-      "Your Hermes instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+      "Your assistant instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+    );
+  }
+
+  return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
+});
+
+app.openapi(purgeInstanceStateRoute, async (c) => {
+  // Orchestrator actor only — this is the explicit replacement for the
+  // removed GET /me/instance auto-cleanup: when an instance is destroyed on
+  // the orchestrator side, the orchestrator tells us to drop the local
+  // mirror rather than us inferring it from a 404 (where one wrong
+  // instance_not_found would irreversibly wipe real user data).
+  requireOrchestratorAuthContext(c.var.authContext);
+  const { userId } = c.req.valid("param");
+
+  try {
+    await clearHermesLocalMirror(userId);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_purge_instance_state" },
+      extra: { userId },
+    });
+    throw internalServerError(
+      "Failed to purge local assistant state. Retrying is safe.",
     );
   }
 
@@ -1913,13 +2391,25 @@ app.openapi(listMessagesRoute, async (c) => {
 
 app.openapi(getUnreadCountRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  // Read the orb seed + name resiliently (tolerates the pending migrations).
+  const { avatarSeed, assistantName } = await readHermesInstanceMeta(
+    userContext.userId,
+  );
   const instance = await prisma.hermesInstance.findUnique({
     where: { userId: userContext.userId },
     select: { lastSeenInboxAt: true },
   });
 
   if (!instance) {
-    return ok(c, hermesUnreadCountSchema.parse({ count: 0 }));
+    return ok(
+      c,
+      hermesUnreadCountSchema.parse({
+        count: 0,
+        avatarSeed,
+        assistantName,
+        hasInstance: false,
+      }),
+    );
   }
 
   const count = await prisma.hermesMessage.count({
@@ -1932,7 +2422,15 @@ app.openapi(getUnreadCountRoute, async (c) => {
     },
   });
 
-  return ok(c, hermesUnreadCountSchema.parse({ count }));
+  return ok(
+    c,
+    hermesUnreadCountSchema.parse({
+      count,
+      avatarSeed,
+      assistantName,
+      hasInstance: true,
+    }),
+  );
 });
 
 app.openapi(markInboxSeenRoute, async (c) => {
@@ -1966,6 +2464,7 @@ app.openapi(markInboxSeenRoute, async (c) => {
 
 app.openapi(setSecretRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   if (!isValidSecretKey(body.key)) {
@@ -1988,7 +2487,7 @@ app.openapi(setSecretRoute, async (c) => {
     await setInstanceSecret(userContext.userId, body.key, body.value);
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to write Hermes secret");
+    return mapOrchestratorError(error, "Failed to write assistant secret");
   }
 });
 
@@ -1996,6 +2495,7 @@ app.openapi(setSecretRoute, async (c) => {
 
 app.openapi(startOnboardingRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   // Pull name/email from the DB if the client didn't provide them, so the
@@ -2006,6 +2506,30 @@ app.openapi(startOnboardingRoute, async (c) => {
   });
 
   try {
+    // Persist the user's chosen assistant name + orb avatar seed (Sokosumi-side
+    // only) so they're available the moment the chat opens. Not forwarded to
+    // the orchestrator. Best-effort, matching persistHermesPersonality below:
+    // a local metadata write failure must not fail the whole onboard — the
+    // agent still starts, the UI just falls back to the generic name/orb.
+    if (body.assistantName || body.avatarSeed) {
+      await upsertHermesInstanceForUser(userContext.userId, {
+        assistantName: body.assistantName,
+        avatarSeed: body.avatarSeed,
+      }).catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_onboard_meta_persist" },
+          extra: { userId: userContext.userId },
+        });
+      });
+    }
+
+    // Mirror the chosen personality Sokosumi-side (resilient on its own) so the
+    // chat orb can reflect it. It's still forwarded to the orchestrator below
+    // for the system prompt — this is purely the local display copy.
+    if (body.personality) {
+      await persistHermesPersonality(userContext.userId, body.personality);
+    }
+
     // Push autonomy first so the orchestrator's research-intro reflects it.
     if (body.autonomyLevel) {
       await patchInstance(userContext.userId, {
@@ -2019,10 +2543,11 @@ app.openapi(startOnboardingRoute, async (c) => {
       role: body.role,
       company: body.company,
       researchDepth: body.researchDepth,
+      personality: body.personality,
     });
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to start Hermes onboarding");
+    return mapOrchestratorError(error, "Failed to start assistant onboarding");
   }
 });
 
@@ -2044,7 +2569,7 @@ app.openapi(listIntegrationsRoute, async (c) => {
     const integrations = await listInstanceIntegrations(userContext.userId);
     return ok(c, hermesIntegrationsListResponseSchema.parse({ integrations }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to list Hermes integrations");
+    return mapOrchestratorError(error, "Failed to list assistant integrations");
   }
 });
 
@@ -2055,12 +2580,13 @@ app.openapi(listSchedulesRoute, async (c) => {
     const schedules = await listInstanceSchedules(userContext.userId);
     return ok(c, hermesSchedulesListResponseSchema.parse({ schedules }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to list Hermes schedules");
+    return mapOrchestratorError(error, "Failed to list assistant schedules");
   }
 });
 
 app.openapi(patchScheduleRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { scheduleId } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -2080,12 +2606,13 @@ app.openapi(patchScheduleRoute, async (c) => {
     }
     return ok(c, hermesScheduleSchema.parse(updated));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to update Hermes schedule");
+    return mapOrchestratorError(error, "Failed to update assistant schedule");
   }
 });
 
 app.openapi(approveConfirmationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { confirmationId } = c.req.valid("param");
   // Body is optional on this route — when the client posts no payload Hono
   // returns `undefined` and we treat it as the no-overrides case (Hermes'
@@ -2093,6 +2620,10 @@ app.openapi(approveConfirmationRoute, async (c) => {
   const body = c.req.valid("json") ?? {};
 
   let overrides: { organizationId?: string | null } | undefined;
+  // The workspace the tool call will actually run in when an override is
+  // applied — captured during the membership check so the persisted audit
+  // card can name it without a second lookup.
+  let overrideOrganizationName: string | null = null;
   if (body.overrides) {
     overrides = {};
     if ("organizationId" in body.overrides) {
@@ -2105,17 +2636,28 @@ app.openapi(approveConfirmationRoute, async (c) => {
         // to land here.
         const membership = await prisma.member.findFirst({
           where: { userId: userContext.userId, organizationId: requestedOrgId },
-          select: { id: true },
+          select: { id: true, organization: { select: { name: true } } },
         });
         if (!membership) {
           throw badRequest(
             "You are not a member of the organization you tried to approve into.",
           );
         }
+        overrideOrganizationName = membership.organization?.name ?? null;
       }
       overrides.organizationId = requestedOrgId;
     }
   }
+
+  const pendingSnapshot = await snapshotPendingConfirmation(
+    userContext.userId,
+    confirmationId,
+  );
+  const auditConfirmation = resolveConfirmationForAudit(
+    confirmationId,
+    pendingSnapshot,
+    body.confirmation,
+  );
 
   try {
     const result = await approveConfirmation(
@@ -2123,16 +2665,55 @@ app.openapi(approveConfirmationRoute, async (c) => {
       confirmationId,
       overrides,
     );
+    // Persist a durable audit card whenever this gate leaves pending.
+    // Prefer orch snapshot; fall back to a minimal id-matched card when
+    // the pending list already dropped the row. `already_resolved` also
+    // writes (idempotent upsert) so a race that skipped the first writer's
+    // persist still leaves a trail.
+    if (
+      (result.status === "approved" || result.status === "already_resolved") &&
+      auditConfirmation
+    ) {
+      const overrodeOrganization =
+        result.status === "approved" &&
+        overrides !== undefined &&
+        "organizationId" in overrides;
+      await persistHermesConfirmationCard({
+        userId: userContext.userId,
+        confirmation: auditConfirmation,
+        status: result.status,
+        organizationId: overrodeOrganization
+          ? (overrides?.organizationId ?? null)
+          : auditConfirmation.organizationId,
+        organizationName: overrodeOrganization
+          ? overrideOrganizationName
+          : auditConfirmation.organizationName,
+      });
+    }
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to approve Hermes confirmation");
+    return mapOrchestratorError(
+      error,
+      "Failed to approve assistant confirmation",
+    );
   }
 });
 
 app.openapi(rejectConfirmationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { confirmationId } = c.req.valid("param");
   const body = c.req.valid("json");
+
+  const pendingSnapshot = await snapshotPendingConfirmation(
+    userContext.userId,
+    confirmationId,
+  );
+  const auditConfirmation = resolveConfirmationForAudit(
+    confirmationId,
+    pendingSnapshot,
+    body.confirmation,
+  );
 
   try {
     const result = await rejectConfirmation(
@@ -2140,9 +2721,24 @@ app.openapi(rejectConfirmationRoute, async (c) => {
       confirmationId,
       body.reason,
     );
+    if (
+      (result.status === "rejected" || result.status === "already_resolved") &&
+      auditConfirmation
+    ) {
+      await persistHermesConfirmationCard({
+        userId: userContext.userId,
+        confirmation: auditConfirmation,
+        status: result.status,
+        organizationId: auditConfirmation.organizationId,
+        organizationName: auditConfirmation.organizationName,
+      });
+    }
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to reject Hermes confirmation");
+    return mapOrchestratorError(
+      error,
+      "Failed to reject assistant confirmation",
+    );
   }
 });
 
@@ -2155,6 +2751,7 @@ app.openapi(rejectConfirmationRoute, async (c) => {
 
 app.openapi(disconnectIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { provider } = c.req.valid("param");
 
   // Mirror the dual-provider behaviour of finalize: Outlook's mail + calendar
@@ -2180,7 +2777,7 @@ app.openapi(disconnectIntegrationRoute, async (c) => {
   if (firstFailure) {
     return mapOrchestratorError(
       firstFailure.reason,
-      "Failed to disconnect Hermes integration",
+      "Failed to disconnect assistant integration",
     );
   }
   return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
@@ -2206,6 +2803,7 @@ function pairedOrchestratorProviders(
 
 app.openapi(initiateIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { provider, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
   const callbackUrl = `${getWebAppBaseUrl()}/composio/callback`;
@@ -2361,6 +2959,7 @@ async function clearPendingConnection(connectionId: string): Promise<void> {
 
 app.openapi(finalizeIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
 
@@ -2842,6 +3441,7 @@ app.openapi(preinstalledSkillsRoute, async (c) => {
 
 app.openapi(installSkillRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { source, slug } = c.req.valid("json");
 
   let input: HermesInstallSkillInput;
@@ -2887,6 +3487,7 @@ app.openapi(installSkillRoute, async (c) => {
 
 app.openapi(removeSkillRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
+  await requirePaidPlanCoverage(userContext);
   const { slug } = c.req.valid("param");
   try {
     await removeInstalledSkill(userContext.userId, slug);
