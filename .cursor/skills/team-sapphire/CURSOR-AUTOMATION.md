@@ -8,7 +8,7 @@ Use **at most one** start path per issue:
 
 | Path | When to use |
 |------|-------------|
-| **Manual in Cursor** | Default — `Run _team-sapphire for SOK-XXX` |
+| **Manual in Cursor** | Default — `Run team-sapphire for SOK-XXX` |
 | **Manual `@Cursor` comment** | One comment on the issue to start a Cloud Agent |
 | **Cursor Automation below** | Optional Linear→Cloud integration — enable only if you want auto-start on delegate |
 
@@ -17,14 +17,14 @@ Do **not** add automations that trigger on description contains `[repo=…]` alo
 ## Manual `@Cursor` comment (Cloud)
 
 ```markdown
-@Cursor Run _team-sapphire skill for SOK-XXX. Single issue — Investigator, Tech Lead, Coder, Reviewer per `.cursor/skills/_team-sapphire/SKILL.md`. Do not create child issues.
+@Cursor Run team-sapphire skill for SOK-XXX. Single issue — Investigator, Tech Lead, Coder, Reviewer per `.cursor/skills/team-sapphire/SKILL.md`. Do not create child issues.
 ```
 
 Do **not** also set `delegate: "Cursor"` on the same issue when using this comment — duplicate triggers can start two Sapphire runs.
 
 ## Reference automation (disabled by default)
 
-Documented for teams that want Linear to start a Cloud Agent when someone assigns delegate to `Cursor` (or an equivalent trigger). Prefer manual `@Cursor` or in-chat `_team-sapphire` unless you maintain this integration carefully.
+Documented for teams that want Linear to start a Cloud Agent when someone assigns delegate to `Cursor` (or an equivalent trigger). Prefer manual `@Cursor` or in-chat `team-sapphire` unless you maintain this integration carefully.
 
 | Field | Value |
 |-------|--------|
@@ -32,7 +32,7 @@ Documented for teams that want Linear to start a Cloud Agent when someone assign
 | Trigger | Linear — Delegate assigned → `Cursor` |
 | Filter | Team SOK; description contains `## Requirement` |
 | Tools | GitHub MCP; Linear MCP optional (Requirement read / rare Requirement edits). Computer use is built into Cloud Agents |
-| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. Coder via `sapphire-coder`; Tech Lead/Reviewer on orchestrator unless optional agents. **Do not** post Linear phase reports — PR is the handoff. Reviewer UI: `VISUAL-CAPTURE.md`. |
+| Instructions | Read repo `.cursor/skills/team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. Coder via `sapphire-coder`; Tech Lead/Reviewer on orchestrator unless optional agents. **Do not** post Linear phase reports — PR is the handoff. Reviewer UI: `VISUAL-CAPTURE.md`. |
 
 Filter on `## Requirement`, **not** `[repo=…]`.
 

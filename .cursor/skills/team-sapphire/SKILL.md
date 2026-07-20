@@ -1,5 +1,5 @@
 ---
-name: _team-sapphire
+name: team-sapphire
 description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), Reviewer — from requirement through PR with CI and Bugbot green. Use when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue has ## Requirement and they want the squad to implement it.
 disable-model-invocation: true
 ---
