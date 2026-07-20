@@ -11,13 +11,12 @@ type Messages = typeof en;
 
 /**
  * next-intl's `AbstractIntlMessages` shape is `{ [k]: string | AbstractIntlMessages }`
- * — strings or nested objects only, no arrays. Several Hermes copy keys
- * (`hints`, `roleOptions`, `demoInbox`, etc.) are arrays of strings or
- * arrays of small objects that we read via `t.raw()`. Re-declare the
- * shape locally so it accepts those array values — without this,
- * `Messages extends AbstractIntlMessages` is `false`, `IntlMessages`
- * collapses to `never`, and every dependent type (form namespaces, etc.)
- * resolves to `never` and the build fails.
+ * — strings or nested objects only, no arrays. Ordered Hermes lists
+ * (`hints`, `roleOptions`, `demoInbox`, `thinkingMessages`, etc.) must be
+ * keyed maps (`{ "0": "…", "1": "…" }`) rehydrated via `orderedMessageList`.
+ * This widened value type still accepts residual arrays so a mismatched
+ * locale catalog cannot collapse `IntlMessages` to `never` and break the
+ * build — keep non-`en` catalogs in map shape to match `en.json`.
  */
 type SokosumiIntlValue =
   | string

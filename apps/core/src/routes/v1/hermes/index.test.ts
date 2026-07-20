@@ -1136,6 +1136,28 @@ describe("Hermes route contracts", () => {
     );
   });
 
+  it("still returns 200 when PATCH orch succeeds but local meta upsert fails", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    hermesInstanceUpsertMock.mockRejectedValueOnce(new Error("db down"));
+
+    const response = await createApp().request("/me/instance", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ avatarSeed: "orb:jewel-sky:user_123" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: { context: "hermes_patch_meta_persist" },
+      }),
+    );
+  });
+
   it("resets the orb seed to the placeholder with an explicit null", async () => {
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
 

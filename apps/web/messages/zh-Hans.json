@@ -2089,40 +2089,40 @@
           "never": "永不",
           "inboxScanned": "收件箱 · 已扫描",
           "memoryWritten": "记忆 · 已写入",
-          "demoInbox": [
-            {
+          "demoInbox": {
+            "0": {
               "from": "Project lead",
               "subject": "Launch checklist"
             },
-            {
+            "1": {
               "from": "Customer team",
               "subject": "Contract questions"
             },
-            {
+            "2": {
               "from": "Build bot",
               "subject": "Deployment failed"
             }
-          ],
-          "demoMemory": [
-            "Launch plan is the current priority",
-            "Project lead owns approvals",
-            "Open questions need a reply"
-          ],
+          },
+          "demoMemory": {
+            "0": "Launch plan is the current priority",
+            "1": "Project lead owns approvals",
+            "2": "Open questions need a reply"
+          },
           "actUserMessage": "Find a time with the project lead next week.",
           "actWorking": "你的助手正在工作",
-          "actSteps": [
-            "Found an open slot",
-            "Drafted the invite",
-            "Pulled project context"
-          ],
+          "actSteps": {
+            "0": "Found an open slot",
+            "1": "Drafted the invite",
+            "2": "Pulled project context"
+          },
           "actHeld": "Time held for review",
           "overnightTitle": "Morning brief",
-          "overnightSchedule": [
-            "Review overnight messages",
-            "Sync Sokosumi jobs",
-            "Draft the morning brief",
-            "Post to chat and Slack"
-          ]
+          "overnightSchedule": {
+            "0": "Review overnight messages",
+            "1": "Sync Sokosumi jobs",
+            "2": "Draft the morning brief",
+            "3": "Post to chat and Slack"
+          }
         },
         "journeyEyebrow": "端到端",
         "journeyHeading": "个人助手如何工作，一步步来",
@@ -2159,6 +2159,8 @@
         "feature5Body": "每日简报、跟进、提醒，一次设置即可。",
         "feature6Title": "贯通你的整个工作栈",
         "feature6Body": "邮件、日历、CRM、代码、文档，尽在一个聊天中。",
+        "feature7Title": "主权设计",
+        "feature7Body": "开源模型，托管于瑞士。",
         "examplesHeading": "可以尝试的事",
         "examplesHelp": "打开聊天随便问。几个起点：",
         "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
@@ -2182,24 +2184,22 @@
         "disclaimer2": "它可能出错。在信任之前，请审阅任何涉及客户、同事或金钱的内容。",
         "disclaimer3": "已连接账户通过 OAuth 授予你的助手限定访问权限。一旦不再信任，请立即断开任何集成。",
         "disclaimer4": "测试版软件。行为可能在版本之间变化。对话历史属于你，但能力会不断演进。",
-        "poweredBy": "由 Nous Research 提供支持",
-        "feature7Title": "主权设计",
-        "feature7Body": "开源模型，托管于瑞士。"
+        "poweredBy": "由 Nous Research 提供支持"
       },
       "Provisioning": {
         "title": "正在启动你的个人助手",
         "subtitle": "通常大约需要一分钟。你可以关闭此标签页 — 你的助手会在后台继续准备。",
         "settingUp": "正在设置你的智能体…",
         "whileYouWait": "等待期间",
-        "facts": [
-          "你的助手拥有专属私有计算机，并在会话间记住你的上下文。",
-          "连接 Gmail、Outlook、Slack、Linear、GitHub、Notion 等。",
-          "你的助手可以聘请其他 Sokosumi 智能体代你工作。",
-          "在此、Telegram、Slack 或你工作的任何地方聊天——随时继续。",
-          "每天早上你的助手可以发送需要你关注事项的简报。",
-          "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
-          "用自然语言让你的助手安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
-        ],
+        "facts": {
+          "0": "你的助手拥有专属私有计算机，并在会话间记住你的上下文。",
+          "1": "连接 Gmail、Outlook、Slack、Linear、GitHub、Notion 等。",
+          "2": "你的助手可以聘请其他 Sokosumi 智能体代你工作。",
+          "3": "在此、Telegram、Slack 或你工作的任何地方聊天——随时继续。",
+          "4": "每天早上你的助手可以发送需要你关注事项的简报。",
+          "5": "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
+          "6": "用自然语言让你的助手安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
+        },
         "elapsedLabel": "{elapsed} elapsed",
         "stageComputer": "Creating private computer",
         "stageComputerBody": "Starting the isolated workspace for this account.",
@@ -2236,35 +2236,35 @@
           "emptyResponse": "你的助手返回了空响应。",
           "unreachable": "无法连接你的助手。请检查网络连接。"
         },
-        "mockReplies": [
-          "这是本地个人助手预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实助手。",
-          "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，你的助手再响应。",
-          "我会这样做：写入长期记忆、在任务列表添加跟进，并为下次会话保留上下文。"
-        ],
-        "thinkingMessages": [
-          "思考中",
-          "正在请教日历之神",
-          "翻阅你的收件箱",
-          "字里行间细读",
-          "酝酿回复",
-          "加载你的上下文",
-          "四处打听",
-          "挑选合适工具",
-          "谨慎起草",
-          "行动前再三确认",
-          "替你完成枯燥部分",
-          "理清 Slack",
-          "交叉核对记忆",
-          "追查一个细节",
-          "斟酌措辞",
-          "快好了"
-        ],
-        "rotatingHints": [
-          "Try: schedule a daily inbox brief at 8am",
-          "Try: summarize my open customer threads",
-          "Try: draft a follow-up to my last meeting notes",
-          "Try: what's overdue in my inbox?"
-        ],
+        "mockReplies": {
+          "0": "这是本地个人助手预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实助手。",
+          "1": "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，你的助手再响应。",
+          "2": "我会这样做：写入长期记忆、在任务列表添加跟进，并为下次会话保留上下文。"
+        },
+        "thinkingMessages": {
+          "0": "思考中",
+          "1": "正在请教日历之神",
+          "2": "翻阅你的收件箱",
+          "3": "字里行间细读",
+          "4": "酝酿回复",
+          "5": "加载你的上下文",
+          "6": "四处打听",
+          "7": "挑选合适工具",
+          "8": "谨慎起草",
+          "9": "行动前再三确认",
+          "10": "替你完成枯燥部分",
+          "11": "理清 Slack",
+          "12": "交叉核对记忆",
+          "13": "追查一个细节",
+          "14": "斟酌措辞",
+          "15": "快好了"
+        },
+        "rotatingHints": {
+          "0": "Try: schedule a daily inbox brief at 8am",
+          "1": "Try: summarize my open customer threads",
+          "2": "Try: draft a follow-up to my last meeting notes",
+          "3": "Try: what's overdue in my inbox?"
+        },
         "outboxKinds": {
           "welcome": "欢迎",
           "daily_brief": "每日简报",
@@ -2431,18 +2431,18 @@
         "continueWithCount": "继续，{count, plural, =0 {未连接任何集成} =1 {已连接 # 个集成} other {已连接 # 个集成}}",
         "footnote": "你可随时在设置中添加或移除集成。",
         "autonomyAriaLabel": "你的助手自主级别",
-        "roleOptions": [
-          "创始人 / CEO",
-          "产品",
-          "工程",
-          "设计",
-          "市场",
-          "销售",
-          "运营",
-          "财务",
-          "客户成功",
-          "其他"
-        ],
+        "roleOptions": {
+          "0": "创始人 / CEO",
+          "1": "产品",
+          "2": "工程",
+          "3": "设计",
+          "4": "市场",
+          "5": "销售",
+          "6": "运营",
+          "7": "财务",
+          "8": "客户成功",
+          "9": "其他"
+        },
         "capabilities": {
           "gmail": "读取和搜索收件箱，起草并发送邮件",
           "google_calendar": "读取事件、查看空闲时间、创建和更新会议",
@@ -2469,14 +2469,14 @@
         "stepFallbackLabel": "正在预热",
         "footerHint": "完成后，聊天将打开并显示来自你的助手的个性化介绍。",
         "pollError": "目前无法连接编排器 — 仍在重试。",
-        "hints": [
-          "小贴士：进入后问「今天我的收件箱有什么重要的？」",
-          "你的助手会记住你的项目、联系人和偏好。",
-          "试试：「每个工作日上午 8 点，把收件箱简报发给我。」",
-          "你的助手可以聘请其他 Sokosumi 智能体协助研究。",
-          "稍后在设置中连接更多工具 — Slack、Linear、Notion 等。",
-          "每天早上你的助手会发送需要你关注事项的简报。"
-        ],
+        "hints": {
+          "0": "小贴士：进入后问「今天我的收件箱有什么重要的？」",
+          "1": "你的助手会记住你的项目、联系人和偏好。",
+          "2": "试试：「每个工作日上午 8 点，把收件箱简报发给我。」",
+          "3": "你的助手可以聘请其他 Sokosumi 智能体协助研究。",
+          "4": "稍后在设置中连接更多工具 — Slack、Linear、Notion 等。",
+          "5": "每天早上你的助手会发送需要你关注事项的简报。"
+        },
         "previewSteps": {
           "save_details": "正在保存你的详细信息",
           "connect_integrations": "正在连接你的集成",

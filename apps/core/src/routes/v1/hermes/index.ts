@@ -2228,10 +2228,18 @@ app.openapi(updateInstanceRoute, async (c) => {
     // Assistant name + orb seed are Sokosumi-side metadata — persist them
     // locally rather than forwarding to the orchestrator (whose `name` is
     // the user's name). A null avatarSeed resets to the white placeholder.
+    // Best-effort, matching onboard: orch PATCH already succeeded; a local
+    // meta write failure must not 500 the request — UI falls back to
+    // generic name/orb until the next successful persist.
     if (body.assistantName !== undefined || body.avatarSeed !== undefined) {
       await upsertHermesInstanceForUser(userContext.userId, {
         assistantName: body.assistantName,
         avatarSeed: body.avatarSeed,
+      }).catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_patch_meta_persist" },
+          extra: { userId: userContext.userId },
+        });
       });
     }
     const instance = await getInstance(userContext.userId);

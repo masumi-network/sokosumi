@@ -2089,40 +2089,40 @@
           "never": "なし",
           "inboxScanned": "受信トレイ · スキャン済み",
           "memoryWritten": "メモリ · 記録済み",
-          "demoInbox": [
-            {
+          "demoInbox": {
+            "0": {
               "from": "Project lead",
               "subject": "Launch checklist"
             },
-            {
+            "1": {
               "from": "Customer team",
               "subject": "Contract questions"
             },
-            {
+            "2": {
               "from": "Build bot",
               "subject": "Deployment failed"
             }
-          ],
-          "demoMemory": [
-            "Launch plan is the current priority",
-            "Project lead owns approvals",
-            "Open questions need a reply"
-          ],
+          },
+          "demoMemory": {
+            "0": "Launch plan is the current priority",
+            "1": "Project lead owns approvals",
+            "2": "Open questions need a reply"
+          },
           "actUserMessage": "Find a time with the project lead next week.",
           "actWorking": "アシスタントが作業中",
-          "actSteps": [
-            "Found an open slot",
-            "Drafted the invite",
-            "Pulled project context"
-          ],
+          "actSteps": {
+            "0": "Found an open slot",
+            "1": "Drafted the invite",
+            "2": "Pulled project context"
+          },
           "actHeld": "Time held for review",
           "overnightTitle": "Morning brief",
-          "overnightSchedule": [
-            "Review overnight messages",
-            "Sync Sokosumi jobs",
-            "Draft the morning brief",
-            "Post to chat and Slack"
-          ]
+          "overnightSchedule": {
+            "0": "Review overnight messages",
+            "1": "Sync Sokosumi jobs",
+            "2": "Draft the morning brief",
+            "3": "Post to chat and Slack"
+          }
         },
         "journeyEyebrow": "エンドツーエンド",
         "journeyHeading": "アシスタントの動き方（ステップごと）",
@@ -2159,6 +2159,8 @@
         "feature5Body": "毎日のブリーフィング、フォローアップ、リマインダーを一度の設定で。",
         "feature6Title": "スタック全体と連携",
         "feature6Body": "メール、カレンダー、CRM、コード、ドキュメント。すべてを1つのチャットで。",
+        "feature7Title": "設計から主権を",
+        "feature7Body": "オープンソースモデルをスイスでホスティング。",
         "examplesHeading": "試してみること",
         "examplesHelp": "チャットを開いて何でも聞いてください。いくつかの例：",
         "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
@@ -2182,24 +2184,22 @@
         "disclaimer2": "間違えることもあります。顧客・同僚・お金に関わる操作は、信頼する前に必ず確認してください。",
         "disclaimer3": "接続したアカウントは OAuth でアシスタントにスコープ付きアクセスを渡します。信頼できなくなったらすぐに連携を切断してください。",
         "disclaimer4": "ベータ版ソフトウェアです。リリース間で挙動が変わることがあります。会話履歴はあなたのものですが、機能は進化し続けます。",
-        "poweredBy": "Powered by Nous Research",
-        "feature7Title": "設計から主権を",
-        "feature7Body": "オープンソースモデルをスイスでホスティング。"
+        "poweredBy": "Powered by Nous Research"
       },
       "Provisioning": {
         "title": "アシスタントを起動しています",
         "subtitle": "通常は約 1 分かかります。このタブを閉じても構いません — アシスタントはバックグラウンドで準備を続けます。",
         "settingUp": "エージェントをセットアップ中…",
         "whileYouWait": "お待ちの間",
-        "facts": [
-          "アシスタントは専用のプライベートなコンピュータを持ち、セッションをまたいで文脈を覚えます。",
-          "Gmail、Outlook、Slack、Linear、GitHub、Notion などを接続できます。",
-          "アシスタントは他の Sokosumi エージェントをあなたの代わりに起用できます。",
-          "ここ、Telegram、Slack、普段お使いの場所からチャット — どこからでも続けられます。",
-          "毎朝、注意が必要なことをアシスタントがブリーフで送れます。",
-          "受信トレイの確認、返信の下書き、会議の予約 — すべてチャットから。",
-          "普段の言葉でスケジュールを依頼：「毎週月曜9時に、今週の予定を要約して」。"
-        ],
+        "facts": {
+          "0": "アシスタントは専用のプライベートなコンピュータを持ち、セッションをまたいで文脈を覚えます。",
+          "1": "Gmail、Outlook、Slack、Linear、GitHub、Notion などを接続できます。",
+          "2": "アシスタントは他の Sokosumi エージェントをあなたの代わりに起用できます。",
+          "3": "ここ、Telegram、Slack、普段お使いの場所からチャット — どこからでも続けられます。",
+          "4": "毎朝、注意が必要なことをアシスタントがブリーフで送れます。",
+          "5": "受信トレイの確認、返信の下書き、会議の予約 — すべてチャットから。",
+          "6": "普段の言葉でスケジュールを依頼：「毎週月曜9時に、今週の予定を要約して」。"
+        },
         "elapsedLabel": "{elapsed} elapsed",
         "stageComputer": "Creating private computer",
         "stageComputerBody": "Starting the isolated workspace for this account.",
@@ -2236,35 +2236,35 @@
           "emptyResponse": "アシスタントが空の応答を返しました。",
           "unreachable": "アシスタントに接続できませんでした。接続を確認してください。"
         },
-        "mockReplies": [
-          "ローカルのアシスタントプレビューからのモック応答です。?state=running をオフにすると、オーケストレーター経由の本番アシスタントが表示されます。",
-          "了解です。本番ではメッセージは Sokosumi サーバーを経由し、オーケストレーターがプライベートエンドポイントを返し、アシスタントが応答します。",
-          "次のようにします：長期メモリに保存し、タスクリストにフォローアップを追加し、次のセッション用に文脈を保持します。"
-        ],
-        "thinkingMessages": [
-          "考え中",
-          "カレンダーの神々に相談中",
-          "受信トレイを精査中",
-          "行間を読み取り中",
-          "応答を煮込み中",
-          "文脈を読み込み中",
-          "周囲に確認中",
-          "適切なツールを選択中",
-          "慎重に下書き中",
-          "実行前に再確認中",
-          "退屈な作業を代行中",
-          "Slack を整理中",
-          "メモリを照合中",
-          "詳細を追跡中",
-          "言葉を選び中",
-          "もうすぐです"
-        ],
-        "rotatingHints": [
-          "Try: schedule a daily inbox brief at 8am",
-          "Try: summarize my open customer threads",
-          "Try: draft a follow-up to my last meeting notes",
-          "Try: what's overdue in my inbox?"
-        ],
+        "mockReplies": {
+          "0": "ローカルのアシスタントプレビューからのモック応答です。?state=running をオフにすると、オーケストレーター経由の本番アシスタントが表示されます。",
+          "1": "了解です。本番ではメッセージは Sokosumi サーバーを経由し、オーケストレーターがプライベートエンドポイントを返し、アシスタントが応答します。",
+          "2": "次のようにします：長期メモリに保存し、タスクリストにフォローアップを追加し、次のセッション用に文脈を保持します。"
+        },
+        "thinkingMessages": {
+          "0": "考え中",
+          "1": "カレンダーの神々に相談中",
+          "2": "受信トレイを精査中",
+          "3": "行間を読み取り中",
+          "4": "応答を煮込み中",
+          "5": "文脈を読み込み中",
+          "6": "周囲に確認中",
+          "7": "適切なツールを選択中",
+          "8": "慎重に下書き中",
+          "9": "実行前に再確認中",
+          "10": "退屈な作業を代行中",
+          "11": "Slack を整理中",
+          "12": "メモリを照合中",
+          "13": "詳細を追跡中",
+          "14": "言葉を選び中",
+          "15": "もうすぐです"
+        },
+        "rotatingHints": {
+          "0": "Try: schedule a daily inbox brief at 8am",
+          "1": "Try: summarize my open customer threads",
+          "2": "Try: draft a follow-up to my last meeting notes",
+          "3": "Try: what's overdue in my inbox?"
+        },
         "outboxKinds": {
           "welcome": "ようこそ",
           "daily_brief": "デイリーブリーフ",
@@ -2431,18 +2431,18 @@
         "continueWithCount": "{count, plural, =0 {連携なし} =1 {# 件の連携} other {# 件の連携}}で続行",
         "footnote": "連携は設定からいつでも追加・削除できます。",
         "autonomyAriaLabel": "アシスタントの自律レベル",
-        "roleOptions": [
-          "創業者 / CEO",
-          "プロダクト",
-          "エンジニアリング",
-          "デザイン",
-          "マーケティング",
-          "セールス",
-          "オペレーション",
-          "ファイナンス",
-          "カスタマーサクセス",
-          "その他"
-        ],
+        "roleOptions": {
+          "0": "創業者 / CEO",
+          "1": "プロダクト",
+          "2": "エンジニアリング",
+          "3": "デザイン",
+          "4": "マーケティング",
+          "5": "セールス",
+          "6": "オペレーション",
+          "7": "ファイナンス",
+          "8": "カスタマーサクセス",
+          "9": "その他"
+        },
         "capabilities": {
           "gmail": "受信トレイの読み取り・検索、メールの下書きと送信",
           "google_calendar": "予定の読み取り、空き確認、会議の作成・更新",
@@ -2469,14 +2469,14 @@
         "stepFallbackLabel": "準備中",
         "footerHint": "完了すると、アシスタントからのパーソナライズされたイントロ付きでチャットが開きます。",
         "pollError": "オーケストレーターに今は接続できません — 再試行中です。",
-        "hints": [
-          "ヒント：開始後は「今日の受信トレイで重要なことは？」と聞いてみてください。",
-          "アシスタントはプロジェクト、連絡先、好みを覚えます。",
-          "試す：「平日毎朝8時に受信トレイのブリーフを送って」。",
-          "アシスタントは調査のため他の Sokosumi エージェントを起用できます。",
-          "設定から後で Slack、Linear、Notion などを追加接続できます。",
-          "毎朝、注意が必要なことをアシスタントがブリーフで送ります。"
-        ],
+        "hints": {
+          "0": "ヒント：開始後は「今日の受信トレイで重要なことは？」と聞いてみてください。",
+          "1": "アシスタントはプロジェクト、連絡先、好みを覚えます。",
+          "2": "試す：「平日毎朝8時に受信トレイのブリーフを送って」。",
+          "3": "アシスタントは調査のため他の Sokosumi エージェントを起用できます。",
+          "4": "設定から後で Slack、Linear、Notion などを追加接続できます。",
+          "5": "毎朝、注意が必要なことをアシスタントがブリーフで送ります。"
+        },
         "previewSteps": {
           "save_details": "詳細を保存中",
           "connect_integrations": "連携を接続中",

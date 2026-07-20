@@ -2089,40 +2089,40 @@
           "never": "mai",
           "inboxScanned": "Inbox · analizzata",
           "memoryWritten": "Memoria · scritta",
-          "demoInbox": [
-            {
+          "demoInbox": {
+            "0": {
               "from": "Project lead",
               "subject": "Launch checklist"
             },
-            {
+            "1": {
               "from": "Customer team",
               "subject": "Contract questions"
             },
-            {
+            "2": {
               "from": "Build bot",
               "subject": "Deployment failed"
             }
-          ],
-          "demoMemory": [
-            "Launch plan is the current priority",
-            "Project lead owns approvals",
-            "Open questions need a reply"
-          ],
+          },
+          "demoMemory": {
+            "0": "Launch plan is the current priority",
+            "1": "Project lead owns approvals",
+            "2": "Open questions need a reply"
+          },
           "actUserMessage": "Find a time with the project lead next week.",
           "actWorking": "Il tuo assistente sta lavorando",
-          "actSteps": [
-            "Found an open slot",
-            "Drafted the invite",
-            "Pulled project context"
-          ],
+          "actSteps": {
+            "0": "Found an open slot",
+            "1": "Drafted the invite",
+            "2": "Pulled project context"
+          },
           "actHeld": "Time held for review",
           "overnightTitle": "Morning brief",
-          "overnightSchedule": [
-            "Review overnight messages",
-            "Sync Sokosumi jobs",
-            "Draft the morning brief",
-            "Post to chat and Slack"
-          ]
+          "overnightSchedule": {
+            "0": "Review overnight messages",
+            "1": "Sync Sokosumi jobs",
+            "2": "Draft the morning brief",
+            "3": "Post to chat and Slack"
+          }
         },
         "journeyEyebrow": "Dall'inizio alla fine",
         "journeyHeading": "Come funziona il tuo assistente, passo dopo passo",
@@ -2159,6 +2159,8 @@
         "feature5Body": "Brief quotidiani, follow-up, promemoria. Imposti una volta sola.",
         "feature6Title": "Funziona con tutto il tuo stack",
         "feature6Body": "Mail, calendario, CRM, codice, documenti. Tutto in un'unica chat.",
+        "feature7Title": "Sovranità by design",
+        "feature7Body": "Modelli open source, ospitati in Svizzera.",
         "examplesHeading": "Cose da provare",
         "examplesHelp": "Apri la chat e chiedi qualsiasi cosa. Alcuni punti di partenza:",
         "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
@@ -2182,24 +2184,22 @@
         "disclaimer2": "Può sbagliare. Rivedi tutto ciò che riguarda un cliente, un collega o del denaro prima di fidarti.",
         "disclaimer3": "Gli account collegati danno al tuo assistente accesso con ambito via OAuth. Scollega qualsiasi integrazione nel momento in cui smetti di fidarti.",
         "disclaimer4": "Software in beta. Il comportamento può cambiare tra le release. La cronologia delle conversazioni è tua, ma le capacità evolveranno.",
-        "poweredBy": "Powered by Nous Research",
-        "feature7Title": "Sovranità by design",
-        "feature7Body": "Modelli open source, ospitati in Svizzera."
+        "poweredBy": "Powered by Nous Research"
       },
       "Provisioning": {
         "title": "Avvio del tuo assistente",
         "subtitle": "Di solito ci vuole circa un minuto. Puoi chiudere questa scheda — il tuo assistente continuerà a prepararsi in background.",
         "settingUp": "Configurazione del tuo agente…",
         "whileYouWait": "Mentre aspetti",
-        "facts": [
-          "Il tuo assistente ha un computer privato tutto suo e ricorda il contesto tra una sessione e l'altra.",
-          "Collega Gmail, Outlook, Slack, Linear, GitHub, Notion e altro.",
-          "Il tuo assistente può assumere altri agenti Sokosumi per lavorare per tuo conto.",
-          "Chatta qui, su Telegram, Slack o ovunque lavori — riprendi da qualsiasi posto.",
-          "Ogni mattina il tuo assistente può inviarti un brief di ciò che richiede attenzione.",
-          "Leggi la inbox, redigi risposte, programma riunioni — tutto dalla chat.",
-          "Chiedi al tuo assistente di programmare in linguaggio naturale: \"ogni lunedì alle 9, riassumi la mia settimana\"."
-        ],
+        "facts": {
+          "0": "Il tuo assistente ha un computer privato tutto suo e ricorda il contesto tra una sessione e l'altra.",
+          "1": "Collega Gmail, Outlook, Slack, Linear, GitHub, Notion e altro.",
+          "2": "Il tuo assistente può assumere altri agenti Sokosumi per lavorare per tuo conto.",
+          "3": "Chatta qui, su Telegram, Slack o ovunque lavori — riprendi da qualsiasi posto.",
+          "4": "Ogni mattina il tuo assistente può inviarti un brief di ciò che richiede attenzione.",
+          "5": "Leggi la inbox, redigi risposte, programma riunioni — tutto dalla chat.",
+          "6": "Chiedi al tuo assistente di programmare in linguaggio naturale: \"ogni lunedì alle 9, riassumi la mia settimana\"."
+        },
         "elapsedLabel": "{elapsed} elapsed",
         "stageComputer": "Creating private computer",
         "stageComputerBody": "Starting the isolated workspace for this account.",
@@ -2236,35 +2236,35 @@
           "emptyResponse": "Il tuo assistente ha restituito una risposta vuota.",
           "unreachable": "Impossibile raggiungere il tuo assistente. Controlla la connessione."
         },
-        "mockReplies": [
-          "Sono una risposta mock dalla preview locale del tuo assistente. Disattiva ?state=running per vedere il vero assistente collegato all'orchestrator.",
-          "Ricevuto. In produzione il messaggio passa dal server Sokosumi, l'orchestrator restituisce il tuo endpoint privato e il tuo assistente risponde.",
-          "Ecco cosa farei: salvo in memoria a lungo termine, aggiungo un follow-up alla lista attività e tengo il contesto per la prossima sessione."
-        ],
-        "thinkingMessages": [
-          "Sto pensando",
-          "Consulto gli dei del calendario",
-          "Setaccio la tua inbox",
-          "Leggo tra le righe",
-          "Preparo una risposta",
-          "Recupero il tuo contesto",
-          "Chiedo in giro",
-          "Scelgo lo strumento giusto",
-          "Redigo con cura",
-          "Ricontrollo prima di agire",
-          "Faccio la parte noiosa per te",
-          "Districo Slack",
-          "Incrocio la memoria",
-          "Cerco un dettaglio",
-          "Scelgo le parole",
-          "Quasi fatto"
-        ],
-        "rotatingHints": [
-          "Try: schedule a daily inbox brief at 8am",
-          "Try: summarize my open customer threads",
-          "Try: draft a follow-up to my last meeting notes",
-          "Try: what's overdue in my inbox?"
-        ],
+        "mockReplies": {
+          "0": "Sono una risposta mock dalla preview locale del tuo assistente. Disattiva ?state=running per vedere il vero assistente collegato all'orchestrator.",
+          "1": "Ricevuto. In produzione il messaggio passa dal server Sokosumi, l'orchestrator restituisce il tuo endpoint privato e il tuo assistente risponde.",
+          "2": "Ecco cosa farei: salvo in memoria a lungo termine, aggiungo un follow-up alla lista attività e tengo il contesto per la prossima sessione."
+        },
+        "thinkingMessages": {
+          "0": "Sto pensando",
+          "1": "Consulto gli dei del calendario",
+          "2": "Setaccio la tua inbox",
+          "3": "Leggo tra le righe",
+          "4": "Preparo una risposta",
+          "5": "Recupero il tuo contesto",
+          "6": "Chiedo in giro",
+          "7": "Scelgo lo strumento giusto",
+          "8": "Redigo con cura",
+          "9": "Ricontrollo prima di agire",
+          "10": "Faccio la parte noiosa per te",
+          "11": "Districo Slack",
+          "12": "Incrocio la memoria",
+          "13": "Cerco un dettaglio",
+          "14": "Scelgo le parole",
+          "15": "Quasi fatto"
+        },
+        "rotatingHints": {
+          "0": "Try: schedule a daily inbox brief at 8am",
+          "1": "Try: summarize my open customer threads",
+          "2": "Try: draft a follow-up to my last meeting notes",
+          "3": "Try: what's overdue in my inbox?"
+        },
         "outboxKinds": {
           "welcome": "Benvenuto",
           "daily_brief": "Brief giornaliero",
@@ -2431,18 +2431,18 @@
         "continueWithCount": "Continuo con {count, plural, =0 {nessuna integrazione} =1 {# integrazione} other {# integrazioni}}",
         "footnote": "Puoi aggiungere o rimuovere integrazioni in qualsiasi momento dalle Impostazioni.",
         "autonomyAriaLabel": "Livello di autonomia del tuo assistente",
-        "roleOptions": [
-          "Founder / CEO",
-          "Prodotto",
-          "Ingegneria",
-          "Design",
-          "Marketing",
-          "Vendite",
-          "Operazioni",
-          "Finanza",
-          "Customer Success",
-          "Altro"
-        ],
+        "roleOptions": {
+          "0": "Founder / CEO",
+          "1": "Prodotto",
+          "2": "Ingegneria",
+          "3": "Design",
+          "4": "Marketing",
+          "5": "Vendite",
+          "6": "Operazioni",
+          "7": "Finanza",
+          "8": "Customer Success",
+          "9": "Altro"
+        },
         "capabilities": {
           "gmail": "Leggi e cerca nella inbox, redigi e invia email",
           "google_calendar": "Leggi eventi, verifica disponibilità, crea e aggiorna riunioni",
@@ -2469,14 +2469,14 @@
         "stepFallbackLabel": "Avvio in corso",
         "footerHint": "Al termine si aprirà la chat con un'intro personalizzata dal tuo assistente.",
         "pollError": "Impossibile raggiungere l'orchestrator in questo momento — riprovo.",
-        "hints": [
-          "Suggerimento: chiedi \"cosa è importante nella mia inbox oggi?\" una volta dentro.",
-          "Il tuo assistente ricorda i tuoi progetti, i contatti, le preferenze.",
-          "Prova: \"ogni giorno feriale alle 8, inviami il brief della inbox\".",
-          "Il tuo assistente può assumere altri agenti Sokosumi per la ricerca.",
-          "Collega altri strumenti dopo dalle Impostazioni — Slack, Linear, Notion e altro.",
-          "Ogni mattina il tuo assistente invierà un brief di ciò che richiede attenzione."
-        ],
+        "hints": {
+          "0": "Suggerimento: chiedi \"cosa è importante nella mia inbox oggi?\" una volta dentro.",
+          "1": "Il tuo assistente ricorda i tuoi progetti, i contatti, le preferenze.",
+          "2": "Prova: \"ogni giorno feriale alle 8, inviami il brief della inbox\".",
+          "3": "Il tuo assistente può assumere altri agenti Sokosumi per la ricerca.",
+          "4": "Collega altri strumenti dopo dalle Impostazioni — Slack, Linear, Notion e altro.",
+          "5": "Ogni mattina il tuo assistente invierà un brief di ciò che richiede attenzione."
+        },
         "previewSteps": {
           "save_details": "Salvataggio dei tuoi dettagli",
           "connect_integrations": "Connessione alle tue integrazioni",
