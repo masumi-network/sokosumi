@@ -411,6 +411,17 @@ describe("promptToResponsesInput", () => {
             filename: "legacy.pdf",
             data: "https://storage.example.com/legacy.pdf",
           },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "bytes.pdf",
+            data: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+          },
+          {
+            type: "file",
+            mediaType: "image/png",
+            data: new URL("https://example.com/bare-url.png"),
+          },
         ],
       },
     ] as unknown as LanguageModelV4Prompt;
@@ -424,6 +435,49 @@ describe("promptToResponsesInput", () => {
             type: "input_file",
             file_url: "https://storage.example.com/legacy.pdf",
             filename: "legacy.pdf",
+          },
+          {
+            type: "input_file",
+            file_data: "data:application/pdf;base64,JVBERg==",
+            filename: "bytes.pdf",
+          },
+          {
+            type: "input_image",
+            image_url: "https://example.com/bare-url.png",
+            detail: "auto",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("maps tagged text file parts to inline file_data", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "text/plain",
+            filename: "notes.txt",
+            data: {
+              type: "text",
+              text: "hello",
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            file_data: `data:text/plain;base64,${Buffer.from("hello").toString("base64")}`,
+            filename: "notes.txt",
           },
         ],
       },
@@ -539,6 +593,83 @@ describe("buildResponsesApiWarnings", () => {
           w.type === "compatibility" && w.feature === "assistant file parts",
       ),
     ).toHaveLength(1);
+  });
+
+  it("warns for ignored V4 assistant and tool part types", () => {
+    const warnings = buildResponsesApiWarnings([
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "ok" },
+          { type: "reasoning", text: "hidden chain" },
+          {
+            type: "custom",
+            kind: "openai.something",
+          },
+          {
+            type: "reasoning-file",
+            mediaType: "image/png",
+            data: {
+              type: "url",
+              url: new URL("https://example.com/r.png"),
+            },
+          },
+          {
+            type: "tool-call",
+            toolCallId: "c1",
+            toolName: "search",
+            input: {},
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "c1",
+            toolName: "search",
+            output: { type: "text", value: "done" },
+          },
+          {
+            type: "tool-approval-response",
+            approvalId: "a1",
+            approved: true,
+          },
+        ],
+      },
+    ]);
+
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant reasoning parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant custom parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant reasoning-file parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "assistant tool-call parts",
+        }),
+        expect.objectContaining({
+          type: "unsupported",
+          feature: "tool tool-approval-response parts",
+        }),
+      ]),
+    );
+    expect(
+      warnings.some(
+        (w) =>
+          w.type === "unsupported" && w.feature === "tool tool-result parts",
+      ),
+    ).toBe(false);
   });
 });
 

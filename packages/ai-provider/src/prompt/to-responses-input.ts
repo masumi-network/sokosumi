@@ -42,15 +42,41 @@ export type OpenRouterResponsesInputMessage = {
   >;
 };
 
+const MAPPED_USER_ASSISTANT_PART_TYPES = new Set(["text", "file"]);
+
 export function buildResponsesApiWarnings(
   prompt: LanguageModelV4Prompt,
 ): SharedV4Warning[] {
   const warnings: SharedV4Warning[] = [];
   for (const message of prompt) {
+    if (message.role === "tool") {
+      for (const part of message.content) {
+        if (part.type === "tool-result") {
+          continue;
+        }
+        warnings.push({
+          type: "unsupported",
+          feature: `tool ${part.type} parts`,
+          details:
+            "Only tool-result parts on tool messages are forwarded to the Responses input; other tool parts are dropped.",
+        });
+      }
+      continue;
+    }
+
     if (message.role !== "user" && message.role !== "assistant") {
       continue;
     }
     for (const part of message.content) {
+      if (!MAPPED_USER_ASSISTANT_PART_TYPES.has(part.type)) {
+        warnings.push({
+          type: "unsupported",
+          feature: `${message.role} ${part.type} parts`,
+          details:
+            "Only text and file parts are forwarded to the Responses input; this part type is dropped.",
+        });
+        continue;
+      }
       if (part.type !== "file") {
         continue;
       }
