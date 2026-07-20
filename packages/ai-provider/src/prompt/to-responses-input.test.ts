@@ -313,6 +313,51 @@ describe("promptToResponsesInput", () => {
     ]);
   });
 
+  it("maps top-level image mediaType segment to input_image", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "image",
+            data: {
+              type: "url",
+              url: new URL("https://example.com/photo.jpg"),
+            },
+          },
+          {
+            type: "file",
+            mediaType: "image/*",
+            data: {
+              type: "url",
+              url: new URL("https://example.com/wild.webp"),
+            },
+          },
+        ],
+      },
+    ] as Parameters<typeof promptToResponsesInput>[0]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_image",
+            image_url: "https://example.com/photo.jpg",
+            detail: "auto",
+          },
+          {
+            type: "input_image",
+            image_url: "https://example.com/wild.webp",
+            detail: "auto",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("throws for AI SDK v7 provider file references", () => {
     expect(() =>
       promptToResponsesInput([

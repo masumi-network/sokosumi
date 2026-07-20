@@ -74,7 +74,7 @@ export function buildResponsesApiWarnings(
         url !== null &&
         !url.startsWith("data:") &&
         !isWebUrl(url) &&
-        !part.mediaType.startsWith("image/")
+        !isImageMediaType(part.mediaType)
       ) {
         warnings.push({
           type: "compatibility",
@@ -207,7 +207,7 @@ export function promptToResponsesInput(
 function filePartToResponsesContent(
   part: LanguageModelV3FilePart,
 ): OpenRouterResponsesInputImageItem | OpenRouterResponsesInputFileItem {
-  if (part.mediaType.startsWith("image/")) {
+  if (isImageMediaType(part.mediaType)) {
     return {
       type: "input_image",
       image_url: toImageUrl(part),
@@ -303,6 +303,20 @@ function isTaggedFileData(value: unknown): value is SharedV4FileData {
   return (
     type === "data" || type === "url" || type === "reference" || type === "text"
   );
+}
+
+/**
+ * AI SDK 7 allows top-level media segments (`"image"`) as well as full IANA
+ * types (`"image/png"`) and wildcards (`"image/*"`).
+ */
+function isImageMediaType(mediaType: string): boolean {
+  const normalized = mediaType.trim().toLowerCase();
+  if (normalized.length === 0) {
+    return false;
+  }
+  const slash = normalized.indexOf("/");
+  const topLevel = slash === -1 ? normalized : normalized.slice(0, slash);
+  return topLevel === "image";
 }
 
 /**
