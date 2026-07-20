@@ -234,40 +234,106 @@ export function validateTaskAssigneeAssignment({
   }
 }
 
+export function mapTaskEventActor(event: TaskEventForMapping) {
+  if (
+    event.userId == null &&
+    event.coworkerId == null &&
+    event.orchestratorId == null
+  ) {
+    return null;
+  }
+
+  // Prefer the acting agent when legacy rows stored multiple FKs
+  // (orchestrator/coworker status events used to also set context userId).
+  // New writes set exactly one actor FK.
+  // Prefer order: orchestrator → coworker → user.
+  if (event.orchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task event ${event.id} actor`,
+      event.orchestratorId,
+      event.orchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `Task event ${event.id}: actor orchestrator summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "orchestrator" as const,
+      id: event.orchestratorId,
+      orchestrator,
+    };
+  }
+
+  if (event.coworkerId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task event ${event.id} actor`,
+      event.coworkerId,
+      event.coworker ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task event ${event.id}: actor coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: event.coworkerId,
+      coworker,
+    };
+  }
+
+  const userId = event.userId;
+  if (userId == null) {
+    // Unreachable: early return covers zero FKs; orch/coworker already handled.
+    throw new Error(
+      `Task event ${event.id}: unable to resolve actor for API mapping`,
+    );
+  }
+
+  return {
+    type: "user" as const,
+    id: userId,
+    user: userSummaryFromLoadedRelation(
+      `Task event ${event.id} actor`,
+      userId,
+      event.user ?? null,
+    ),
+  };
+}
+
 export function mapTaskEvent(event: TaskEventForMapping) {
-  const { cents, user, coworker, orchestrator, channel, ...rest } = event;
+  const {
+    cents,
+    channel,
+    user: _user,
+    coworker: _coworker,
+    orchestrator: _orchestrator,
+    ...rest
+  } = event;
+  const actor = mapTaskEventActor(event);
 
   return {
     ...rest,
     channel,
     origin: channel,
     credits: cents != null ? convertCentsToCredits(cents) : null,
-    ...(event.userId != null && user != null
+    actor,
+    ...(actor?.type === "user"
       ? {
-          user: {
-            id: user.id,
-            name: user.name,
-            image: user.image,
-          },
+          user: actor.user,
         }
       : {}),
-    ...(event.coworkerId != null && coworker != null
+    ...(actor?.type === "coworker"
       ? {
-          coworker: {
-            id: coworker.id,
-            name: coworker.name,
-            image: coworker.image,
-            slug: coworker.slug,
-          },
+          coworker: actor.coworker,
         }
       : {}),
-    ...(event.orchestratorId != null && orchestrator != null
+    ...(actor?.type === "orchestrator"
       ? {
-          orchestrator: {
-            id: orchestrator.id,
-            name: orchestrator.name,
-            slug: orchestrator.slug,
-          },
+          orchestrator: actor.orchestrator,
         }
       : {}),
   };

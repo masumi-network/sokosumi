@@ -1,6 +1,6 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
-import type { Task } from "@/lib/clients/generated/core/types.gen";
+import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
 import { getCoworkerImage } from "./coworker-image";
 
@@ -15,10 +15,113 @@ export interface TaskActivityActors {
   orchestratorById?: Record<string, TaskActivityActorInfo>;
 }
 
+export type TaskEventActorKind = "user" | "coworker" | "orchestrator";
+
 type TaskActivityActorSource = Pick<
   Task,
   "owner" | "assignee" | "creator" | "events"
 >;
+
+/**
+ * Prefer nested `actor`. Fall back to deprecated flat FKs for older payloads.
+ */
+export function resolveTaskEventActorKind(
+  event: TaskEvent,
+): TaskEventActorKind | null {
+  if (event.actor != null) {
+    return event.actor.type;
+  }
+
+  // Match Core prefer order: orchestrator → coworker → user.
+  if (event.orchestratorId) {
+    return "orchestrator";
+  }
+
+  if (event.coworkerId) {
+    return "coworker";
+  }
+
+  if (event.userId) {
+    return "user";
+  }
+
+  return null;
+}
+
+export function getEventActorInfo(
+  event: TaskEvent,
+  userById?: Record<string, TaskActivityActorInfo>,
+  coworkerById?: Record<string, TaskActivityActorInfo>,
+  orchestratorById?: Record<string, TaskActivityActorInfo>,
+): TaskActivityActorInfo | undefined {
+  if (event.actor != null) {
+    switch (event.actor.type) {
+      case "user":
+        return {
+          name: event.actor.user.name,
+          image: event.actor.user.image
+            ? resolveIpfsOrHttpUrl(event.actor.user.image)
+            : null,
+        };
+      case "coworker": {
+        if (event.actor.coworker == null) {
+          return coworkerById?.[event.actor.id];
+        }
+
+        return {
+          name: event.actor.coworker.name,
+          image: getCoworkerImage(event.actor.coworker),
+        };
+      }
+      case "orchestrator":
+        return {
+          name: event.actor.orchestrator.name,
+          image: null,
+        };
+      default: {
+        const _exhaustive: never = event.actor;
+        return _exhaustive;
+      }
+    }
+  }
+
+  // Deprecated flat aliases — remove once clients always receive nested actor.
+  // Prefer order matches Core: orchestrator → coworker → user.
+  if (event.orchestratorId) {
+    if (event.orchestrator) {
+      return {
+        name: event.orchestrator.name,
+        image: null,
+      };
+    }
+
+    return orchestratorById?.[event.orchestratorId];
+  }
+
+  if (event.coworkerId) {
+    if (event.coworker) {
+      return {
+        name: event.coworker.name,
+        image: getCoworkerImage(event.coworker),
+      };
+    }
+
+    return coworkerById?.[event.coworkerId];
+  }
+
+  if (event.userId) {
+    if (event.user) {
+      return {
+        name: event.user.name,
+        image: event.user.image ? resolveIpfsOrHttpUrl(event.user.image) : null,
+      };
+    }
+
+    return userById?.[event.userId];
+  }
+
+  return undefined;
+}
 
 export function buildTaskActivityActors(
   task: TaskActivityActorSource,
@@ -56,6 +159,28 @@ export function buildTaskActivityActors(
   }
 
   for (const event of task.events) {
+    if (event.actor != null) {
+      switch (event.actor.type) {
+        case "user":
+          addUserActor(userById, event.actor.user);
+          break;
+        case "coworker":
+          if (event.actor.coworker != null) {
+            addCoworkerActor(coworkerById, event.actor.coworker);
+          }
+          break;
+        case "orchestrator":
+          addOrchestratorActor(orchestratorById, event.actor.orchestrator);
+          break;
+        default: {
+          const _exhaustive: never = event.actor;
+          void _exhaustive;
+        }
+      }
+      continue;
+    }
+
+    // Deprecated flat aliases for events without nested actor yet.
     if (event.user) {
       addUserActor(userById, event.user);
     }

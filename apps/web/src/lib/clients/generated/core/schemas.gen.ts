@@ -1638,12 +1638,17 @@ export const TaskEventSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        actor: {
+            $ref: '#/components/schemas/TaskEventActor'
+        },
         userId: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'user_123'
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use actor when type is user.'
         },
         user: {
             type: [
@@ -1671,14 +1676,17 @@ export const TaskEventSchema = {
                 'id',
                 'name'
             ],
-            description: 'Mirrors userId: omitted, null, or set when the actor user was loaded.'
+            deprecated: true,
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         coworkerId: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'cow_123'
+            example: 'cow_123',
+            deprecated: true,
+            description: 'Deprecated. Use actor when type is coworker.'
         },
         coworker: {
             type: [
@@ -1711,7 +1719,8 @@ export const TaskEventSchema = {
                 'name',
                 'slug'
             ],
-            description: 'Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.'
+            deprecated: true,
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         orchestratorId: {
             type: [
@@ -1719,7 +1728,9 @@ export const TaskEventSchema = {
                 'null'
             ],
             format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
+            example: '01960001-0001-7001-8001-000000000099',
+            deprecated: true,
+            description: 'Deprecated. Use actor when type is orchestrator.'
         },
         orchestrator: {
             type: [
@@ -1746,7 +1757,8 @@ export const TaskEventSchema = {
                 'name',
                 'slug'
             ],
-            description: 'Mirrors orchestratorId: omitted, null, or set when the orchestrator relation was loaded.'
+            deprecated: true,
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         transactionId: {
             type: [
@@ -1807,8 +1819,100 @@ export const TaskEventSchema = {
         'taskId',
         'createdAt',
         'updatedAt',
+        'actor',
         'channel',
         'origin'
+    ]
+} as const;
+
+export const TaskEventActorSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/TaskEventActorUser'
+        },
+        {
+            $ref: '#/components/schemas/TaskEventActorCoworker'
+        },
+        {
+            $ref: '#/components/schemas/TaskEventActorOrchestrator'
+        },
+        {
+            type: 'null'
+        }
+    ],
+    description: 'Actor that produced the event. Null when no actor FK is set.'
+} as const;
+
+export const TaskEventActorUserSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'user'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'user'
+    ]
+} as const;
+
+export const TaskEventActorCoworkerSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'coworker'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'coworker'
+    ]
+} as const;
+
+export const TaskEventActorOrchestratorSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'orchestrator'
+            ]
+        },
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        orchestrator: {
+            $ref: '#/components/schemas/OrchestratorSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'orchestrator'
     ]
 } as const;
 

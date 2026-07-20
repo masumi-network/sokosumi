@@ -3,7 +3,6 @@
 import {
   extractFileLikeLinks,
   extractHttpLinks,
-  resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
@@ -21,7 +20,11 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
-import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import {
+  getEventActorInfo,
+  resolveTaskEventActorKind,
+  type TaskActivityActorInfo,
+} from "@/app/tasks/utils/task-activity-actors";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
@@ -55,7 +58,6 @@ import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
-
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
@@ -64,53 +66,6 @@ import {
   getTaskStatusDotColorClass,
   TaskStatusBadge,
 } from "./task-status-badge";
-
-interface ActorInfo {
-  name: string;
-  image: string | null;
-}
-
-function getEventActorInfo(
-  event: TaskEvent,
-  userById?: Record<string, ActorInfo>,
-  coworkerById?: Record<string, ActorInfo>,
-  orchestratorById?: Record<string, ActorInfo>,
-): ActorInfo | undefined {
-  if (event.coworkerId) {
-    if (event.coworker) {
-      return {
-        name: event.coworker.name,
-        image: getCoworkerImage(event.coworker),
-      };
-    }
-
-    return coworkerById?.[event.coworkerId];
-  }
-
-  if (event.userId) {
-    if (event.user) {
-      return {
-        name: event.user.name,
-        image: event.user.image ? resolveIpfsOrHttpUrl(event.user.image) : null,
-      };
-    }
-
-    return userById?.[event.userId];
-  }
-
-  if (event.orchestratorId) {
-    if (event.orchestrator) {
-      return {
-        name: event.orchestrator.name,
-        image: null,
-      };
-    }
-
-    return orchestratorById?.[event.orchestratorId];
-  }
-
-  return undefined;
-}
 
 interface TaskActivityProps {
   taskId: string;
@@ -126,10 +81,10 @@ interface TaskActivityProps {
   actionUpdatedStatusLabel: string;
   events: TaskEvent[];
   agentNameById?: Map<string, string>;
-  userById?: Record<string, ActorInfo>;
-  coworkerById?: Record<string, ActorInfo>;
-  orchestratorById?: Record<string, ActorInfo>;
-  currentUser?: ({ id: string } & ActorInfo) | null;
+  userById?: Record<string, TaskActivityActorInfo>;
+  coworkerById?: Record<string, TaskActivityActorInfo>;
+  orchestratorById?: Record<string, TaskActivityActorInfo>;
+  currentUser?: ({ id: string } & TaskActivityActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
   /**
@@ -277,6 +232,17 @@ export function TaskActivitySection({
       authenticationUrl: null,
       channel: Channel.SOKOSUMI,
       origin: Channel.SOKOSUMI,
+      actor: currentUser
+        ? {
+            type: "user",
+            id: currentUser.id,
+            user: {
+              id: currentUser.id,
+              name: currentUser.name,
+              image: currentUser.image,
+            },
+          }
+        : null,
       userId: currentUser?.id ?? null,
       user: currentUser
         ? {
@@ -458,13 +424,15 @@ export function TaskActivitySection({
       {orderedEvents.length > 0 ? (
         <div className="space-y-3">
           {orderedEvents.map((event, index) => {
-            const actorLabel = event.coworkerId
-              ? actorCoworkerLabel
-              : event.userId
-                ? actorUserLabel
-                : event.orchestratorId
-                  ? actorOrchestratorLabel
-                  : actorSystemLabel;
+            const actorKind = resolveTaskEventActorKind(event);
+            const actorLabel =
+              actorKind === "coworker"
+                ? actorCoworkerLabel
+                : actorKind === "user"
+                  ? actorUserLabel
+                  : actorKind === "orchestrator"
+                    ? actorOrchestratorLabel
+                    : actorSystemLabel;
             const actorInfo = getEventActorInfo(
               event,
               userById,
