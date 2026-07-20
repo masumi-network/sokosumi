@@ -132,6 +132,7 @@ export function useChatSend({
         controller,
         t,
         onRefresh,
+        onRequireSubscription,
         setMessages,
         setIsReplying,
         setProgressChips,

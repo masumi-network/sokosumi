@@ -26,6 +26,10 @@ interface StreamChatTurnOptions {
   controller: AbortController;
   t: (key: string, values?: Record<string, string | number>) => string;
   onRefresh?: () => void | Promise<void>;
+  /** Opens the subscription wall when Core rejects the turn with its
+   * paid-plan 403 — the client-side gate's snapshot can go stale
+   * (plan expired mid-session), and a dead-end toast would hide the fix. */
+  onRequireSubscription?: () => void;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setIsReplying: React.Dispatch<React.SetStateAction<boolean>>;
   setProgressChips: React.Dispatch<React.SetStateAction<ProgressStep[]>>;
@@ -51,6 +55,7 @@ export async function streamChatTurn({
   controller,
   t,
   onRefresh,
+  onRequireSubscription,
   setMessages,
   setIsReplying,
   setProgressChips,
@@ -101,6 +106,14 @@ export async function streamChatTurn({
           ? t("errors.warmingUp")
           : (body.message ?? t("errors.notReady")),
       );
+      setIsReplying(false);
+      return;
+    }
+
+    if (res.status === 403 && onRequireSubscription) {
+      // Core's paid-plan gate is the sole 403 source on this route.
+      await res.json().catch(() => ({}));
+      onRequireSubscription();
       setIsReplying(false);
       return;
     }

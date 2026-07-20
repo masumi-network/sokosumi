@@ -2277,9 +2277,7 @@
         },
         "integrationsChip": {
           "integrations": "Integrações",
-          "ariaConnected": "{count, plural, one {# integração conectada — abrir configurações} other {# integrações conectadas — abrir configurações}}",
-          "connect": "Conectar",
-          "connectIntegrations": "Conectar integrações"
+          "ariaConnected": "{count, plural, one {# integração conectada — abrir configurações} other {# integrações conectadas — abrir configurações}}"
         },
         "confirmation": {
           "heading": "Seu assistente precisa da sua aprovação",
@@ -2606,8 +2604,7 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      },
-      "BetaTag": "Beta"
+      }
     },
     "Error": {
       "title": "Algo deu errado",

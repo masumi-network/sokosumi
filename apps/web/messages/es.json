@@ -2277,9 +2277,7 @@
         },
         "integrationsChip": {
           "integrations": "Integraciones",
-          "ariaConnected": "{count, plural, one {# integración conectada — abrir ajustes} other {# integraciones conectadas — abrir ajustes}}",
-          "connect": "Conectar",
-          "connectIntegrations": "Conectar integraciones"
+          "ariaConnected": "{count, plural, one {# integración conectada — abrir ajustes} other {# integraciones conectadas — abrir ajustes}}"
         },
         "confirmation": {
           "heading": "Tu asistente necesita tu visto bueno",
@@ -2606,8 +2604,7 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      },
-      "BetaTag": "Beta"
+      }
     },
     "Error": {
       "title": "Algo salió mal",

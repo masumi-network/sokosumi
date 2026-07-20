@@ -2277,9 +2277,7 @@
         },
         "integrationsChip": {
           "integrations": "集成",
-          "ariaConnected": "{count, plural, one {已连接 # 个集成 — 打开设置} other {已连接 # 个集成 — 打开设置}}",
-          "connect": "连接",
-          "connectIntegrations": "连接集成"
+          "ariaConnected": "{count, plural, one {已连接 # 个集成 — 打开设置} other {已连接 # 个集成 — 打开设置}}"
         },
         "confirmation": {
           "heading": "你的助手需要你的确认",
@@ -2606,8 +2604,7 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      },
-      "BetaTag": "测试版"
+      }
     },
     "Error": {
       "title": "出现问题",

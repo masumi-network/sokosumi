@@ -2277,9 +2277,7 @@
         },
         "integrationsChip": {
           "integrations": "Integrationen",
-          "ariaConnected": "{count, plural, one {# Integration verbunden — Einstellungen öffnen} other {# Integrationen verbunden — Einstellungen öffnen}}",
-          "connect": "Verbinden",
-          "connectIntegrations": "Integrationen verbinden"
+          "ariaConnected": "{count, plural, one {# Integration verbunden — Einstellungen öffnen} other {# Integrationen verbunden — Einstellungen öffnen}}"
         },
         "confirmation": {
           "heading": "Dein Assistent braucht dein Okay",
@@ -2606,8 +2604,7 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      },
-      "BetaTag": "Beta"
+      }
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",

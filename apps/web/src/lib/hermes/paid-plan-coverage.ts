@@ -13,12 +13,19 @@ export function isPaidBillingPlan(plan: string | null | undefined): boolean {
  * `userHasPaidPlanCoverage`: personal Stripe plan first, then any member
  * org's resolved billing plan (enterprise contract or paid self-serve).
  * Fail closed when lookups error.
+ *
+ * The personal probe must be `getMyActiveSubscription` (GET
+ * /users/me/subscription), which resolves by userId regardless of the
+ * session's active workspace — `getMyCredits` is active-organization-scoped
+ * and would report a free org's plan over the user's own paid one.
  */
 export async function hasPaidPlanCoverage(options?: {
   organizationIds?: string[];
 }): Promise<boolean> {
-  const creditsResult = await coreClient.getMyCredits().catch(() => null);
-  if (isPaidBillingPlan(creditsResult?.data.subscription?.plan)) return true;
+  const personalResult = await coreClient
+    .getMyActiveSubscription()
+    .catch(() => null);
+  if (isPaidBillingPlan(personalResult?.data.subscription?.plan)) return true;
 
   let organizationIds = options?.organizationIds;
   if (!organizationIds) {
@@ -34,5 +41,14 @@ export async function hasPaidPlanCoverage(options?: {
     ),
   );
 
-  return results.some((result) => isPaidBillingPlan(result?.data.plan));
+  return results.some((result) => {
+    const billingPlan = result?.data;
+    if (!billingPlan) return false;
+    // Same rule as Core: an "active" enterprise contract past its
+    // commercial term is not consumable and does not count as coverage.
+    if (billingPlan.mode === "enterprise_contract") {
+      return billingPlan.isConsumable;
+    }
+    return isPaidBillingPlan(billingPlan.plan);
+  });
 }

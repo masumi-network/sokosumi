@@ -2137,6 +2137,32 @@ describe("Hermes route contracts", () => {
     );
   });
 
+  it("blocks provisioning when the enterprise contract is past its commercial term", async () => {
+    memberFindManyMock.mockResolvedValue([{ organizationId: "org_ent" }]);
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    // Status still "active" but past-term: the resolver reports the contract
+    // as not consumable, matching the seat/credit coverage checks.
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: false,
+      purchasedSeats: 10,
+      contractId: "contract_1",
+      endsAt: new Date("2026-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(403);
+    expect(provisionInstance).not.toHaveBeenCalled();
+  });
+
   it("lets an admin provision without any subscription", async () => {
     userFindUniqueMock.mockResolvedValue({ role: "admin" });
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());

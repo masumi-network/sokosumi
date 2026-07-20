@@ -2277,9 +2277,7 @@
         },
         "integrationsChip": {
           "integrations": "連携",
-          "ariaConnected": "{count, plural, one {# 件の連携が接続済み — 設定を開く} other {# 件の連携が接続済み — 設定を開く}}",
-          "connect": "接続",
-          "connectIntegrations": "連携を接続"
+          "ariaConnected": "{count, plural, one {# 件の連携が接続済み — 設定を開く} other {# 件の連携が接続済み — 設定を開く}}"
         },
         "confirmation": {
           "heading": "アシスタントの承認が必要です",
@@ -2606,8 +2604,7 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      },
-      "BetaTag": "ベータ"
+      }
     },
     "Error": {
       "title": "問題が発生しました",

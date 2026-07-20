@@ -2277,9 +2277,7 @@
         },
         "integrationsChip": {
           "integrations": "Intégrations",
-          "ariaConnected": "{count, plural, one {# intégration connectée — ouvrir les paramètres} other {# intégrations connectées — ouvrir les paramètres}}",
-          "connect": "Connecter",
-          "connectIntegrations": "Connecter des intégrations"
+          "ariaConnected": "{count, plural, one {# intégration connectée — ouvrir les paramètres} other {# intégrations connectées — ouvrir les paramètres}}"
         },
         "confirmation": {
           "heading": "Votre assistant a besoin de votre accord",
@@ -2606,8 +2604,7 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      },
-      "BetaTag": "Bêta"
+      }
     },
     "Error": {
       "title": "Une erreur est survenue",
