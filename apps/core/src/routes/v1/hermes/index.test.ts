@@ -1713,7 +1713,7 @@ describe("Hermes route contracts", () => {
     });
   });
 
-  it("does not persist a confirmation card when the orchestrator reports already_resolved", async () => {
+  it("persists an audit card when the orchestrator reports already_resolved", async () => {
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
     approveConfirmationMock.mockResolvedValue({
       status: "already_resolved",
@@ -1730,10 +1730,19 @@ describe("Hermes route contracts", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      status: "already_resolved",
+      organizationId: "org_nmkr",
+      organizationName: "NMKR",
+    });
   });
 
-  it("still approves (without persisting a card) when the pre-resolve snapshot fetch fails", async () => {
+  it("still approves without persisting when snapshot fails and no client fallback is sent", async () => {
     vi.mocked(getInstance).mockRejectedValue(
       new HermesOrchestratorError(503, { title: "edge restart" }),
     );
@@ -1753,6 +1762,128 @@ describe("Hermes route contracts", () => {
       undefined,
     );
     expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("persists from the client confirmation fallback when the orch snapshot is missing", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      pendingConfirmations: [],
+    });
+
+    const clientConfirmation = {
+      id: "conf_1",
+      toolName: "sokosumi_create_task",
+      summary: "Create task 'Weekly report' and assign it to Alex.",
+      createdAt: "2026-07-17T12:00:00.000Z",
+      referencedCoworkers: [],
+      referencedOrganizations: [],
+      organizationId: "org_nmkr",
+      organizationName: "NMKR",
+    };
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confirmation: clientConfirmation }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      toolName: "sokosumi_create_task",
+      status: "approved",
+      organizationId: "org_nmkr",
+      organizationName: "NMKR",
+    });
+  });
+
+  it("ignores a client confirmation whose id does not match the path param", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirmation: {
+            id: "conf_other",
+            toolName: "sokosumi_create_task",
+            summary: "Wrong id",
+            createdAt: "2026-07-17T12:00:00.000Z",
+            referencedCoworkers: [],
+            referencedOrganizations: [],
+            organizationId: null,
+            organizationName: null,
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("persists already_resolved from client fallback when orch pending list is empty", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      pendingConfirmations: [],
+    });
+    approveConfirmationMock.mockResolvedValue({
+      status: "already_resolved",
+      result: null,
+      error: null,
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirmation: {
+            id: "conf_1",
+            toolName: "sokosumi_create_job",
+            summary: "Run job for weekly report.",
+            createdAt: "2026-07-17T12:00:00.000Z",
+            referencedCoworkers: [],
+            referencedOrganizations: [],
+            organizationId: null,
+            organizationName: null,
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      status: "already_resolved",
+      toolName: "sokosumi_create_job",
+    });
   });
 
   it("blocks provisioning without paid coverage and never calls the orchestrator", async () => {

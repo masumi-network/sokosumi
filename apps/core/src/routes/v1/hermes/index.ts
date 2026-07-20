@@ -787,7 +787,7 @@ const HERMES_CONFIRMATION_CARD_KIND = "confirmation_card";
 async function persistHermesConfirmationCard(args: {
   userId: string;
   confirmation: HermesPendingConfirmation;
-  status: "approved" | "rejected";
+  status: "approved" | "rejected" | "already_resolved";
   /** Final workspace the tool call ran in (override, else Hermes' proposal).
    * `null` = personal scope. */
   organizationId: string | null;
@@ -837,9 +837,9 @@ async function persistHermesConfirmationCard(args: {
 
 /**
  * Best-effort snapshot of a pending confirmation just before it is resolved
- * — the orchestrator drops it from `pendingConfirmations` on resolve, and
- * this is the only source for the persisted audit card. Returns null (and
- * skips persistence) on any failure rather than blocking the resolve.
+ * — the orchestrator drops it from `pendingConfirmations` on resolve.
+ * Returns null on miss/failure; callers may fall back to a client-supplied
+ * display snapshot so the audit card still lands in message history.
  */
 async function snapshotPendingConfirmation(
   userId: string,
@@ -854,6 +854,21 @@ async function snapshotPendingConfirmation(
   } catch {
     return null;
   }
+}
+
+/**
+ * Prefer the orchestrator pending-list snapshot; fall back to the client's
+ * display copy when the list already dropped the row. Client `id` must match
+ * the path param — mismatched payloads are ignored (display-only trust).
+ */
+function resolveConfirmationForAudit(
+  confirmationId: string,
+  orchSnapshot: HermesPendingConfirmation | null,
+  clientSnapshot: HermesPendingConfirmation | undefined,
+): HermesPendingConfirmation | null {
+  if (orchSnapshot) return orchSnapshot;
+  if (clientSnapshot?.id === confirmationId) return clientSnapshot;
+  return null;
 }
 
 /**
@@ -2591,6 +2606,11 @@ app.openapi(approveConfirmationRoute, async (c) => {
     userContext.userId,
     confirmationId,
   );
+  const auditConfirmation = resolveConfirmationForAudit(
+    confirmationId,
+    pendingSnapshot,
+    body.confirmation,
+  );
 
   try {
     const result = await approveConfirmation(
@@ -2598,22 +2618,29 @@ app.openapi(approveConfirmationRoute, async (c) => {
       confirmationId,
       overrides,
     );
-    // Persist the audit card only for a resolve this request actually
-    // performed — "already_resolved" means an earlier request (which
-    // persisted its own card) got there first.
-    if (result.status === "approved" && pendingSnapshot) {
+    // Persist a durable audit card whenever this gate leaves pending.
+    // Prefer orch snapshot; fall back to the client's display copy when
+    // the pending list already dropped the row. `already_resolved` also
+    // writes (idempotent upsert) so a race that skipped the first writer's
+    // persist still leaves a trail.
+    if (
+      (result.status === "approved" || result.status === "already_resolved") &&
+      auditConfirmation
+    ) {
       const overrodeOrganization =
-        overrides !== undefined && "organizationId" in overrides;
+        result.status === "approved" &&
+        overrides !== undefined &&
+        "organizationId" in overrides;
       await persistHermesConfirmationCard({
         userId: userContext.userId,
-        confirmation: pendingSnapshot,
-        status: "approved",
+        confirmation: auditConfirmation,
+        status: result.status,
         organizationId: overrodeOrganization
           ? (overrides?.organizationId ?? null)
-          : pendingSnapshot.organizationId,
+          : auditConfirmation.organizationId,
         organizationName: overrodeOrganization
           ? overrideOrganizationName
-          : pendingSnapshot.organizationName,
+          : auditConfirmation.organizationName,
       });
     }
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
@@ -2635,6 +2662,11 @@ app.openapi(rejectConfirmationRoute, async (c) => {
     userContext.userId,
     confirmationId,
   );
+  const auditConfirmation = resolveConfirmationForAudit(
+    confirmationId,
+    pendingSnapshot,
+    body.confirmation,
+  );
 
   try {
     const result = await rejectConfirmation(
@@ -2642,13 +2674,16 @@ app.openapi(rejectConfirmationRoute, async (c) => {
       confirmationId,
       body.reason,
     );
-    if (result.status === "rejected" && pendingSnapshot) {
+    if (
+      (result.status === "rejected" || result.status === "already_resolved") &&
+      auditConfirmation
+    ) {
       await persistHermesConfirmationCard({
         userId: userContext.userId,
-        confirmation: pendingSnapshot,
-        status: "rejected",
-        organizationId: pendingSnapshot.organizationId,
-        organizationName: pendingSnapshot.organizationName,
+        confirmation: auditConfirmation,
+        status: result.status,
+        organizationId: auditConfirmation.organizationId,
+        organizationName: auditConfirmation.organizationName,
       });
     }
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));

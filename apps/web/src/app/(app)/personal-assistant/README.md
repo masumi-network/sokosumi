@@ -59,7 +59,7 @@ The page is a state machine driven off `getHermesInstanceAction`:
 | `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Five-step wizard: **Name → Look + personality → Autonomy → Integrations → Review**.                         |
 | `onboarding`            | `OnboardingProgress`  | `POST /me/instance/onboard` fired. Polls `/onboarding-progress` every second; renders the orchestrator's step list with status icons.  |
 | `ready` / `running`     | `RunningState`        | Chat is open. Integrations chip in top-right routes into Settings.                                                                     |
-| `error`                 | `ErrorState`          | Orchestrator returned an error or instance is in a bad state. Retry button re-fires provision.                                         |
+| `error`                 | `ErrorState`          | Orchestrator error, fetch failure, or client provision timeout. Retry refetches instance status (does not re-fire provision). Start over destroys when status is `error`/`provisioning` or after a provision timeout. |
 
 All states share a `FlowBackground` (animated violet/cyan/amber blobs) and
 the `ProgressPips` macro indicator (`Setup → Personalize → Ready`).

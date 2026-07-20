@@ -235,39 +235,28 @@ describe("hermes-orchestrator.client", () => {
     );
   });
 
-  it("wraps a raw fetch failure as a HermesOrchestratorError instead of letting it propagate opaque", async () => {
-    vi.useFakeTimers();
-    try {
-      fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+  it("wraps a raw fetch failure on onboard as HermesOrchestratorError without retrying", async () => {
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
 
-      const { startInstanceOnboarding, HermesOrchestratorError } = await import(
-        "./hermes-orchestrator.client"
-      );
+    const { startInstanceOnboarding, HermesOrchestratorError } = await import(
+      "./hermes-orchestrator.client"
+    );
 
-      const resultPromise = startInstanceOnboarding("user_network_blip", {
+    await expect(
+      startInstanceOnboarding("user_network_blip", {
         researchDepth: "deep",
-      });
-      // Attach the rejection assertion before advancing timers, so the
-      // eventual rejection is never briefly "unhandled" mid-await.
-      const expectation = expect(resultPromise).rejects.toSatisfy(
-        (error: unknown) => {
-          expect(error).toBeInstanceOf(HermesOrchestratorError);
-          expect(
-            (error as InstanceType<typeof HermesOrchestratorError>).httpStatus,
-          ).toBe(503);
-          expect((error as Error).message).toContain("fetch failed");
-          return true;
-        },
-      );
-      // Every attempt fails, so this exhausts the full retry budget before
-      // rejecting — advance through all of it rather than the real ~30s.
-      await vi.runAllTimersAsync();
-      await expectation;
-      // 1 initial attempt + 4 retries.
-      expect(fetchMock).toHaveBeenCalledTimes(5);
-    } finally {
-      vi.useRealTimers();
-    }
+      }),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HermesOrchestratorError);
+      expect(
+        (error as InstanceType<typeof HermesOrchestratorError>).httpStatus,
+      ).toBe(503);
+      expect((error as Error).message).toContain("fetch failed");
+      return true;
+    });
+    // Onboard is single-shot — no orchFetchWithRetry — so the user can click
+    // Continue again without a silent second research/boot kickoff.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("retries provisionInstance on a transient 503 from the orchestrator edge, then succeeds", async () => {
