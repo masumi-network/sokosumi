@@ -46,12 +46,14 @@ Do **not** set `parentId` unless user asked to file under an epic/parent.
 
 ## Update existing issue
 
-When the user approved a refine of an existing issue (`SOK-XXX`):
+When publish target is `update:SOK-XXX` and the user approved the draft:
 
 1. `get_issue` immediately before write — `save_issue` **replaces** the entire `description` when `description` is sent.
 2. Start from the full current description. Replace or insert `## Requirement` with the approved body. Preserve any other sections already on the issue.
-3. Call `save_issue` with `id` + merged `description`. Also set `title`, `labels`, `priority`, `assignee`, `state`, and `project` when the approved draft changed them or defaults are missing/wrong.
-4. Do **not** create a second issue.
+3. Call `save_issue` with `id` + merged `description`. Also set `title` and/or `labels` when the approved draft changed them.
+4. Set `priority`, `assignee`, or `project` **only** when the user explicitly overrode them in the approved draft.
+5. **Never set `state` on update** unless the user explicitly asked to change state. Do **not** reset `In Progress` / `In Review` / etc. to `Triage` because that is the create default.
+6. Do **not** create a second issue.
 
 ## Hard rules
 
@@ -60,7 +62,7 @@ When the user approved a refine of an existing issue (`SOK-XXX`):
 - Never call a write tool without a complete `arguments` object.
 - Stop if Linear MCP is not loaded.
 - **Never create or update before user approval.**
-- **Never create without `project`** — same rule as `assignee`, `state`, and `priority`.
+- **Never create without `project`** — same rule as `assignee`, `state`, and `priority` on create.
 
 ## MCP health check
 
@@ -77,7 +79,7 @@ Run **before** any Linear write (after user approval):
 
 Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issue_labels`, `list_issues` / search, `get_user`, `get_issue`, `save_issue`, `save_comment`.
 
-## Resolution order
+## Resolution order (create only)
 
 1. Team → `SOK`
 2. Project → `sokosumi-6357694ddd23` / Sōkosumi (or user override)
@@ -85,19 +87,20 @@ Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issu
 4. Priority → `3` (Medium) unless user override
 5. Assignee → `me` unless user override
 6. Label → exact match from draft
-7. Create (`save_issue` without `id`) or update (`save_issue` with `id`) — pass the full required field set above
+7. Create via `save_issue` without `id` — pass the full required create field set above
 
 ## Post-write verify
 
 Immediately after create or update:
 
 1. `get_issue` with the identifier.
-2. If any default is missing or wrong and the user did not override it, patch with `save_issue` + `id`:
+2. **Create only:** if any create default is missing or wrong and the user did not override it, patch with `save_issue` + `id`:
    - `projectId` not `a51c9d61-b1a4-457e-a382-1277e1f7be4a` (or `project` not `Sōkosumi`) → `"project": "sokosumi-6357694ddd23"`
    - no assignee → `"me"`
-   - state not `Triage` (on new creates, or when the approved draft kept Triage) → `"Triage"`
+   - state not `Triage` → `"Triage"`
    - priority not Medium (`3`) → `3`
-3. Return the issue id and URL.
+3. **Update:** do **not** patch state/assignee/priority/project back to create defaults. Only confirm `## Requirement` (and approved title/labels) landed.
+4. Return the issue id and URL.
 
 ## Write-call shape (create)
 
@@ -117,6 +120,22 @@ Immediately after create or update:
   }
 }
 ```
+
+## Write-call shape (update)
+
+```json
+{
+  "server": "user-linear",
+  "toolName": "save_issue",
+  "arguments": {
+    "id": "SOK-XXX",
+    "title": "History view for past agent jobs",
+    "description": "## Requirement\n\n**Problem:** …\n\n## Other preserved section\n…"
+  }
+}
+```
+
+Omit `state` on update unless the user explicitly asked to change it. Include `labels` / `priority` / `assignee` / `project` only when the approved draft overrode them.
 
 ## Description body
 

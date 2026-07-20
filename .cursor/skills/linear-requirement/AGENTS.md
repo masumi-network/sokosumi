@@ -18,6 +18,7 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 - Draft in chat first. **Wait for approval.**
 - Keep requirements concise. No spec sections, no verification checklist.
-- After approval: one Linear issue create **or** update with `## Requirement` only (plus any preserved existing sections on update).
+- After approval: one Linear issue **create** or **update** with `## Requirement` (plus any preserved existing sections on update).
 - On create, never omit `project: "sokosumi-6357694ddd23"` (or user override) — verify with `get_issue` before finishing.
-- Default state is **Triage**. Titles are plain product language.
+- Default state is **Triage** on create only. Updates never reset state to Triage.
+- Titles are plain product language.

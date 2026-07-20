@@ -53,30 +53,41 @@ Do not ask for the Linear project by default.
 1. **Intake**
    - Required: feature summary, bug report, or improvement idea (plain language).
    - Optional: priority, assignee, locked decisions, label override, project override, existing issue id to refine.
+   - Track **publish target**: `create` (default) or `update:SOK-XXX`.
    - If intake is vague, ask **one** clarifying question and wait.
-   - If intake is an existing Linear issue to refine, load with `get_issue` and treat as raw input — not approved yet. Publish will **update** that issue, not create a second one.
+   - If intake names an existing Linear issue to refine, load with `get_issue`, set publish target to `update:SOK-XXX`, and treat the body as raw input — not approved yet.
 
 2. **Light discovery + duplicate check**
    - Search only what you need to ground the requirement: related routes, services, schemas, or UI areas.
    - Read scoped `AGENTS.md` when the area is clear.
-   - If Linear MCP is healthy, **search for near-duplicate or related issues** before drafting. If a close match exists, show the id/title/URL and ask: update that issue, file a new one, or stop.
+   - If Linear MCP is healthy and publish target is still `create`, run a **duplicate search** before drafting:
+     1. Build 2–5 keywords from the problem (product area + symptom/goal).
+     2. Call `list_issues` (or Linear search) filtered to team `SOK` / project Sōkosumi when the tool allows; use those keywords as the query.
+     3. Show up to **5** closest hits (id, title, state, URL).
+     4. Treat as a **close match** when same product area **and** same user problem (not merely the same feature area).
+     5. If any close match exists, ask: **update that issue**, **file a new one**, or **stop**.
+     6. If the user picks an issue to update, set publish target to `update:SOK-XXX` immediately and load it with `get_issue` before drafting.
    - Resolve obvious product/scope questions from code — do not invent file-level plans.
    - Keep notes short. No research report.
 
 3. **Draft requirement**
    - Fill `REQUIREMENT-TEMPLATE.md`.
    - Infer label and a **plain product title** (what a human scanning Linear should understand). Do **not** use Conventional Commit prefixes (`feat:`, `fix:`) for the Linear title.
-   - Show near the top (chat draft only — do **not** post this line to Linear):
+   - Show near the top (chat draft only — do **not** post this line to Linear). For **create**, use defaults. For **update**, show the existing issue’s current state/assignee/priority unless the user overrode them:
 
      ```markdown
-     **Requirement draft:** project Sōkosumi · state Triage · priority Medium · assignee me · label Feature
+     **Requirement draft:** create · project Sōkosumi · state Triage · priority Medium · assignee me · label Feature
+     ```
+
+     ```markdown
+     **Requirement draft:** update SOK-XXX · project Sōkosumi · state In Progress (keep) · priority Medium · assignee me · label Bug
      ```
 
    - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Those belong in a later design/spec step if someone builds the issue.
 
 4. **Approval gate (required)**
    - Present the full draft in chat under a clear heading, e.g. `## Draft requirement — review before Linear`.
-   - Include proposed title, label, create vs update target (new vs `SOK-XXX`), and the requirement body.
+   - Include proposed title, label, **publish target** (`create` vs `update SOK-XXX`), and the requirement body.
    - End with:
 
      ```text
@@ -90,9 +101,9 @@ Do not ask for the Linear project by default.
 5. **Publish (only after approval)**
    - Read `LINEAR-MCP.md`.
    - Run MCP health check before any write.
-   - **Create** (new issue): `save_issue` with **all** required create fields — always include `project: "sokosumi-6357694ddd23"` when the user did not override project (do not skip it; do not use `"Sokosumi"`).
-   - **Update** (existing issue): `save_issue` with `id` + full merged `description` (preserve non-requirement sections if present; replace/ensure `## Requirement`). Apply defaults only when the user did not override them and the field is missing/wrong.
-   - After write, run post-create/update verify in `LINEAR-MCP.md` (`get_issue` → patch missing defaults).
+   - **Create** (publish target `create`): `save_issue` with **all** required create fields — always include `project: "sokosumi-6357694ddd23"` when the user did not override project (do not skip it; do not use `"Sokosumi"`).
+   - **Update** (publish target `update:SOK-XXX`): follow **Update existing issue** in `LINEAR-MCP.md` — merge `## Requirement`, optional title/labels; **do not** reset `state` (or other workflow fields) to create defaults.
+   - After write, run post-write verify in `LINEAR-MCP.md`.
    - Read MCP tool descriptors before any call.
    - Return issue id/URL, label, project, assignee, priority, and state.
    - If Linear MCP is unavailable, say what must be reloaded. Do not use browser automation or raw API fallback.
