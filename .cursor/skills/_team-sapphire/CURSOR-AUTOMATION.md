@@ -32,7 +32,7 @@ Documented for teams that want Linear to start a Cloud Agent when someone assign
 | Trigger | Linear — Delegate assigned → `Cursor` |
 | Filter | Team SOK; description contains `## Sapphire status` |
 | Tools | Linear MCP, GitHub MCP — computer use is built into Cloud Agents |
-| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. **Role models:** Tech Lead, Coder, Reviewer (see `.cursor/agents/sapphire-*.md`). **Mandatory:** `PHASE-GATE.md` — post phase comment + update status table after each phase; run exit gate before finishing. Reviewer: PR artifacts per `VISUAL-CAPTURE.md`. |
+| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. Coder via `sapphire-coder`; Tech Lead/Reviewer on orchestrator unless optional agents. **Mandatory:** `GATES.md` — post phase artifacts/comments + status after each phase; exit gate before finishing. Reviewer UI: `VISUAL-CAPTURE.md`. |
 
 Filter on `## Sapphire status`, **not** `[repo=…]` alone. Cloud auto-start only fires after that footer exists on the issue (Sapphire intake adds it, or a human `@Cursor` run does). Assigning delegate alone on a bare requirement issue is not enough.
 

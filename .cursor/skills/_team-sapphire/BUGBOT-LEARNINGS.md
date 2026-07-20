@@ -2,7 +2,7 @@
 
 Distilled from high/medium Bugbot findings on `masumi-network/sokosumi` and local review sessions. Use these to prevent regressions before Reviewer runs.
 
-**Mandatory gates (orchestrator after PR open — before Phase 4):** see `CODER.md` **Pre-Reviewer gates** and `PHASE-GATE.md`.
+**Mandatory gates (orchestrator after PR open — before Phase 4):** see `GATES.md` **Pre-Reviewer gates**.
 
 ## Quality rules (R1–R12)
 
@@ -139,12 +139,12 @@ In Cursor IDE, `/review-bugbot` runs the same flow when the editor skill is inst
 | Severity | Action |
 |----------|--------|
 | **High** | **Must fix** on the PR branch. Re-run Bugbot until **zero High** findings. |
-| **Medium** | **Do not block** Reviewer. Post `**Bugbot · medium (human review)**` **once** during **Phase gate** (`CODER.md` step 2) — not during the Bugbot run. Human fixes on merge pass if needed. Fix in PR only if trivial and in scope. |
+| **Medium** | **Do not block** Reviewer. Post `**Bugbot · medium (human review)**` **once** during the Coder gate (`GATES.md`) — not during the Bugbot run. Human fixes on merge pass if needed. Fix in PR only if trivial and in scope. |
 | **Low** | Optional note; no gate. |
 
-### Medium findings — Linear comment (Phase gate only)
+### Medium findings — Linear comment (Coder gate only)
 
-Post **once** during **Phase gate** step 2 in `CODER.md` — after `**PR handoff**`, before `**Sapphire · Coder complete**`. Skip when there are no medium findings.
+Post **once** with the Coder gate in `GATES.md` — alongside or just before `**Sapphire · Coder complete**`. Skip when there are no medium findings.
 
 ```markdown
 **Bugbot · medium (human review)**
