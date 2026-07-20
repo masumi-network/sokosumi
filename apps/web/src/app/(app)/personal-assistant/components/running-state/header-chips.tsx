@@ -108,7 +108,7 @@ export function SkillsChip({ onClick }: { onClick: () => void }) {
           <span>{t("chip")}</span>
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{t("subtitle")}</TooltipContent>
+      <TooltipContent side="bottom">{t("tooltip")}</TooltipContent>
     </Tooltip>
   );
 }

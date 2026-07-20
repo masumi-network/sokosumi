@@ -35,7 +35,6 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   getSkillDetailAction,
-  getSkillsMarketplaceAction,
   installSkillAction,
   removeSkillAction,
   searchSkillsAction,
@@ -65,11 +64,37 @@ interface SkillsMarketplaceProps {
 
 type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
 
+interface MarketplacePayload {
+  marketing: SkillCatalogItem[];
+  installed: InstalledSkill[];
+  preinstalled: PreinstalledSkill[];
+}
+
 const DEBOUNCE_MS = 300;
 // Keep the default shelf scannable — the catalog has hundreds of skills, so we
 // show only the most-installed marketing skills and let search reach the rest.
 const MAX_SETTINGS = 30;
 const MAX_ONBOARDING = 16;
+
+/** Same-origin Route Handler — not a server action, so pre-warm never queues
+ * behind (or blocks) other wizard actions like Integrations OAuth. */
+const MARKETPLACE_URL = "/api/personal-assistant/skills-marketplace";
+
+async function fetchMarketplaceCatalog(): Promise<MarketplacePayload> {
+  const res = await fetch(MARKETPLACE_URL, {
+    method: "GET",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Marketplace catalog HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as { data?: MarketplacePayload };
+  if (!body.data) {
+    throw new Error("Marketplace catalog response missing data");
+  }
+  return body.data;
+}
 
 export default function SkillsMarketplace({
   variant = "settings",
@@ -121,28 +146,22 @@ export default function SkillsMarketplace({
     setLoadError(false);
     void (async () => {
       try {
-        // Single server action — Next serializes concurrent actions, so the
-        // fetches are bundled into one (they run in parallel inside it).
-        const res = await getSkillsMarketplaceAction({});
+        // Route Handler fetch (not a server action) so wizard pre-warm does not
+        // serialize with Integrations OAuth / other actions on the same page.
+        const data = await fetchMarketplaceCatalog();
         if (cancelled) return;
-        if (res.ok) {
-          setMarketing(res.data.marketing.slice(0, max));
-          setInstalled(res.data.installed);
-          setPreinstalled(res.data.preinstalled);
-        } else {
-          // No toast: this component may be mounted hidden (wizard pre-warm),
-          // where a toast would surface context-free on an unrelated step.
-          // The failure renders inline with a Retry button instead.
-          setLoadError(true);
-        }
+        setMarketing(data.marketing.slice(0, max));
+        setInstalled(data.installed);
+        setPreinstalled(data.preinstalled);
       } catch {
-        // Transport-level failure (network blip, rolling deploy) rejects the
-        // action promise itself — without this the spinner would hang forever
-        // with no Retry.
+        // No toast: this component may be mounted hidden (wizard pre-warm),
+        // where a toast would surface context-free on an unrelated step.
+        // Transport failures also land here so the spinner never hangs without
+        // Retry. The failure renders inline with a Retry button instead.
         if (cancelled) return;
         setLoadError(true);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;

@@ -2508,6 +2508,7 @@
         "chip": "Skills",
         "title": "Skills",
         "subtitle": "Ready-made know-how for your assistant — browse the marketplace, search, and install with one click. Skills add instructions only, never code it runs.",
+        "tooltip": "Browse and install skills",
         "previewUnavailable": "The skills marketplace isn't available in preview mode."
       },
       "Settings": {

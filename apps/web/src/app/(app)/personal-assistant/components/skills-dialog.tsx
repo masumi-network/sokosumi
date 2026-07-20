@@ -46,18 +46,22 @@ export default function SkillsDialog({
           <DialogDescription>{t("subtitle")}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {!previewMode ? (
+          {/* Mount only while open so catalog fetch is intentional and not
+              dependent on Radix Presence keeping content around. Reopen
+              remounts and refetches fresh installed/preinstalled state. */}
+          {open && !previewMode ? (
             <SkillsMarketplace
               variant="settings"
               hideHeader
               hasActiveSubscription={hasActiveSubscription}
               onRequireSubscription={onRequireSubscription}
             />
-          ) : (
+          ) : null}
+          {open && previewMode ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
               {t("previewUnavailable")}
             </p>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

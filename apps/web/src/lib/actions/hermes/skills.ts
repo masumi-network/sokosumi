@@ -15,11 +15,17 @@ import type {
   SkillCatalogDetail,
   SkillCatalogItem,
 } from "@/lib/clients/generated/core";
+import {
+  loadSkillsMarketplaceData,
+  type SkillsMarketplaceData,
+} from "@/lib/hermes/skills-marketplace-data";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
+
+export type { SkillsMarketplaceData };
 
 function toActionError(error: unknown): ActionError {
   if (!(error instanceof CoreApiRequestError)) {
@@ -30,61 +36,18 @@ function toActionError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
-// A single "marketing" search returns few hits; widen across adjacent queries.
-const MARKETING_QUERIES = ["marketing", "seo", "advertising", "social media"];
-const MARKETING_POOL_LIMIT = 40;
-
-export interface SkillsMarketplaceData {
-  marketing: SkillCatalogItem[];
-  installed: InstalledSkill[];
-  preinstalled: PreinstalledSkill[];
-}
-
 /**
- * One round-trip for the whole marketplace. Next serializes concurrent server
- * actions, so issuing the catalog/installed/preinstalled fetches as separate
- * actions made the page load them one after another. Bundling them here keeps
- * it to a single action while the underlying Core calls still run in parallel.
+ * One round-trip for the whole marketplace. Prefer the Route Handler
+ * (`GET /api/personal-assistant/skills-marketplace`) for client pre-warm so
+ * the fetch does not occupy Next's serialized server-action queue; this
+ * action remains for server-side callers that already sit on the action path.
  */
 export const getSkillsMarketplaceAction = withSession<
   AuthenticatedRequest,
   Result<SkillsMarketplaceData, ActionError>
 >(async () => {
   try {
-    // Marketing searches degrade individually so one slow query can't blank the
-    // shelf; installed/preinstalled must succeed so we never show a false empty
-    // state (Add on existing skills, missing Included shelf, removable built-ins).
-    const [marketingPool, installedResponse, preinstalledResponse] =
-      await Promise.all([
-        Promise.all(
-          MARKETING_QUERIES.map((q) =>
-            coreClientNoRedirect
-              .searchSkillsCatalog({ q, limit: 20 })
-              .then((r) => r.data.skills)
-              .catch(() => [] as SkillCatalogItem[]),
-          ),
-        ),
-        coreClientNoRedirect.getInstalledSkills(),
-        coreClientNoRedirect.getPreinstalledSkills(),
-      ]);
-    const installed = installedResponse.data.skills;
-    const preinstalled = preinstalledResponse.data.skills;
-    // Don't offer skills the agent already has (installed or image-baked).
-    const have = new Set<string>([
-      ...installed.map((s) => s.slug),
-      ...preinstalled.map((s) => s.slug),
-    ]);
-    const seen = new Set<string>();
-    const marketing = marketingPool
-      .flat()
-      .filter((s) => {
-        if (have.has(s.slug) || seen.has(s.skillId)) return false;
-        seen.add(s.skillId);
-        return true;
-      })
-      .sort((a, b) => (b.installs ?? 0) - (a.installs ?? 0))
-      .slice(0, MARKETING_POOL_LIMIT);
-    return Ok({ marketing, installed, preinstalled });
+    return Ok(await loadSkillsMarketplaceData());
   } catch (error) {
     return Err(toActionError(error));
   }
