@@ -16,11 +16,17 @@ export function ApiKeysSection() {
   const {
     apiKeys,
     isInitialLoading,
+    error,
+    refresh,
     create,
     update,
     delete: deleteApiKey,
   } = useApiKeys();
   const dialogState = useDialogState();
+
+  const handleRetry = useCallback(() => {
+    void refresh(true);
+  }, [refresh]);
 
   const handleCreateClick = useCallback(() => {
     dialogState.createDialog.setOpen(true);
@@ -65,6 +71,8 @@ export function ApiKeysSection() {
         <ApiKeysList
           apiKeys={apiKeys}
           isInitialLoading={isInitialLoading}
+          error={error}
+          onRetry={handleRetry}
           onToggleStatus={handleToggleStatus}
           onDeleteClick={handleDeleteClick}
         />

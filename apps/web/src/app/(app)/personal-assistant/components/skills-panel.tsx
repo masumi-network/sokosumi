@@ -51,18 +51,22 @@ export default function SkillsPanel({
           </SheetDescription>
         </SheetHeader>
         <div className="px-6 py-6">
-          {!previewMode ? (
+          {/* Mount only while open so the catalog fetch is intentional and not
+              dependent on Radix Presence keeping content around. Reopen
+              remounts and refetches fresh installed/preinstalled state. */}
+          {open && !previewMode ? (
             <SkillsMarketplace
               variant="settings"
               hideHeader
               hasActiveSubscription={hasActiveSubscription}
               onRequireSubscription={onRequireSubscription}
             />
-          ) : (
+          ) : null}
+          {open && previewMode ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
               {t("previewUnavailable")}
             </p>
-          )}
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>

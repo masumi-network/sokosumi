@@ -35,7 +35,6 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   getSkillDetailAction,
-  getSkillsMarketplaceAction,
   installSkillAction,
   removeSkillAction,
   searchSkillsAction,
@@ -61,9 +60,21 @@ interface SkillsMarketplaceProps {
   hideHeader?: boolean;
   hasActiveSubscription?: boolean;
   onRequireSubscription?: () => void;
+  /**
+   * User-managed installed skills (excludes image-baked preinstalled).
+   * The setup review step uses this for a "Skills: N added" recap without
+   * re-fetching the catalog.
+   */
+  onVisibleInstalledCountChange?: (count: number) => void;
 }
 
 type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
+
+interface MarketplacePayload {
+  marketing: SkillCatalogItem[];
+  installed: InstalledSkill[];
+  preinstalled: PreinstalledSkill[];
+}
 
 const DEBOUNCE_MS = 300;
 // Keep the default shelf scannable — the catalog has hundreds of skills, so we
@@ -71,12 +82,34 @@ const DEBOUNCE_MS = 300;
 const MAX_SETTINGS = 30;
 const MAX_ONBOARDING = 16;
 
+/** Same-origin Route Handler — not a server action, so pre-warm never queues
+ * behind (or blocks) other wizard actions like Integrations OAuth. */
+const MARKETPLACE_URL = "/api/personal-assistant/skills-marketplace";
+
+async function fetchMarketplaceCatalog(): Promise<MarketplacePayload> {
+  const res = await fetch(MARKETPLACE_URL, {
+    method: "GET",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Marketplace catalog HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as { data?: MarketplacePayload };
+  if (!body.data) {
+    throw new Error("Marketplace catalog response missing data");
+  }
+  return body.data;
+}
+
 export default function SkillsMarketplace({
   variant = "settings",
   active = true,
   hideHeader = false,
   hasActiveSubscription = true,
   onRequireSubscription,
+  onVisibleInstalledCountChange,
 }: SkillsMarketplaceProps) {
   const t = useTranslations("App.Hermes.Skills");
 
@@ -114,6 +147,23 @@ export default function SkillsMarketplace({
     return map;
   }, [installed]);
 
+  // Notify the host from the places that change installed state (not a
+  // useEffect mirror) — keeps the setup Review recap in sync without an
+  // effects-for-parent-notify pattern.
+  const notifyVisibleInstalledCount = useCallback(
+    (
+      nextInstalled: InstalledSkill[],
+      nextPreinstalled: PreinstalledSkill[],
+    ) => {
+      if (!onVisibleInstalledCountChange) return;
+      const pre = new Set(nextPreinstalled.map((s) => s.slug));
+      onVisibleInstalledCountChange(
+        nextInstalled.filter((s) => !pre.has(s.slug)).length,
+      );
+    },
+    [onVisibleInstalledCountChange],
+  );
+
   useEffect(() => {
     let cancelled = false;
     const max = variant === "onboarding" ? MAX_ONBOARDING : MAX_SETTINGS;
@@ -121,33 +171,28 @@ export default function SkillsMarketplace({
     setLoadError(false);
     void (async () => {
       try {
-        // Single server action — Next serializes concurrent actions, so the
-        // fetches are bundled into one (they run in parallel inside it).
-        const res = await getSkillsMarketplaceAction({});
+        // Route Handler fetch (not a server action) so wizard pre-warm does not
+        // serialize with Integrations OAuth / other actions on the same page.
+        const data = await fetchMarketplaceCatalog();
         if (cancelled) return;
-        if (res.ok) {
-          setMarketing(res.data.marketing.slice(0, max));
-          setInstalled(res.data.installed);
-          setPreinstalled(res.data.preinstalled);
-        } else {
-          // No toast: this component may be mounted hidden (wizard pre-warm),
-          // where a toast would surface context-free on an unrelated step.
-          // The failure renders inline with a Retry button instead.
-          setLoadError(true);
-        }
+        setMarketing(data.marketing.slice(0, max));
+        setInstalled(data.installed);
+        setPreinstalled(data.preinstalled);
+        notifyVisibleInstalledCount(data.installed, data.preinstalled);
       } catch {
-        // Transport-level failure (network blip, rolling deploy) rejects the
-        // action promise itself — without this the spinner would hang forever
-        // with no Retry.
+        // No toast: this component may be mounted hidden (wizard pre-warm),
+        // where a toast would surface context-free on an unrelated step.
+        // Transport failures also land here so the spinner never hangs without
+        // Retry. The failure renders inline with a Retry button instead.
         if (cancelled) return;
         setLoadError(true);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [variant, loadNonce]);
+  }, [variant, loadNonce, notifyVisibleInstalledCount]);
 
   // One silent retry each time the marketplace becomes visible after a
   // failed load — covers the pre-warm fetch dying while the machine was
@@ -202,20 +247,24 @@ export default function SkillsMarketplace({
 
   const markInstalled = useCallback(
     (item: SkillCatalogItem, status: string) => {
-      setInstalled((prev) => [
-        ...prev.filter((s) => s.slug !== item.slug),
-        {
-          skillId: item.skillId,
-          source: item.source,
-          slug: item.slug,
-          name: item.name,
-          auditRisk: null,
-          status: status === "installing" ? "installing" : "installed",
-          installedAt: null,
-        },
-      ]);
+      setInstalled((prev) => {
+        const next: InstalledSkill[] = [
+          ...prev.filter((s) => s.slug !== item.slug),
+          {
+            skillId: item.skillId,
+            source: item.source,
+            slug: item.slug,
+            name: item.name,
+            auditRisk: null,
+            status: status === "installing" ? "installing" : "installed",
+            installedAt: null,
+          },
+        ];
+        notifyVisibleInstalledCount(next, preinstalled);
+        return next;
+      });
     },
-    [],
+    [notifyVisibleInstalledCount, preinstalled],
   );
 
   const doInstall = useCallback(
@@ -292,10 +341,20 @@ export default function SkillsMarketplace({
         toast.error(res.error.message ?? t("removeFailed"));
         return;
       }
-      setInstalled((prev) => prev.filter((s) => s.slug !== skill.slug));
+      setInstalled((prev) => {
+        const next = prev.filter((s) => s.slug !== skill.slug);
+        notifyVisibleInstalledCount(next, preinstalled);
+        return next;
+      });
       toast.success(t("removedToast", { name: skill.name }));
     },
-    [hasActiveSubscription, onRequireSubscription, t],
+    [
+      hasActiveSubscription,
+      notifyVisibleInstalledCount,
+      onRequireSubscription,
+      preinstalled,
+      t,
+    ],
   );
 
   return (

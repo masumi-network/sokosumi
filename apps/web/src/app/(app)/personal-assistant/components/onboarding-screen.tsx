@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Blocks,
   Check,
   Gauge,
   Loader2,
@@ -162,6 +163,12 @@ export default function OnboardingScreen({
     useState<HermesPersonality>(DEFAULT_PERSONALITY);
   const [autonomyLevel, setAutonomyLevel] =
     useState<HermesAutonomyLevel>("medium");
+  // Skills added during step 5 (user-managed installed count from the
+  // pre-warmed marketplace). Review step recaps this without another fetch.
+  const [skillsInstalledCount, setSkillsInstalledCount] = useState(0);
+  const handleSkillsInstalledCountChange = useCallback((count: number) => {
+    setSkillsInstalledCount(count);
+  }, []);
   /** 1 = name, 2 = look + personality, 3 = autonomy, 4 = tools, 5 = skills, 6 = review. */
   type Step = 1 | 2 | 3 | 4 | 5 | 6;
   const [step, setStep] = useState<Step>(1);
@@ -501,6 +508,7 @@ export default function OnboardingScreen({
                 personality={personality}
                 autonomyLevel={autonomyLevel}
                 connectedCount={connectedCount}
+                skillsCount={skillsInstalledCount}
               />
             </Section>
           )}
@@ -528,6 +536,7 @@ export default function OnboardingScreen({
                 active={step === 5}
                 hasActiveSubscription={hasActiveSubscription}
                 onRequireSubscription={onRequireSubscription}
+                onVisibleInstalledCountChange={handleSkillsInstalledCountChange}
               />
             ) : (
               <p className="text-muted-foreground text-center text-sm">
@@ -718,7 +727,8 @@ const AUTONOMY_LABEL_KEYS = {
 /**
  * Premium "meet your assistant" card for the final review step — the orb, the
  * agent's name, whose assistant it is + its focus, and a recap of personality,
- * initiative and connected tools. The reveal that closes setup.
+ * initiative, connected tools, and skills added on step 5. The reveal that
+ * closes setup.
  */
 function AgentReviewCard({
   assistantName,
@@ -727,6 +737,7 @@ function AgentReviewCard({
   personality,
   autonomyLevel,
   connectedCount,
+  skillsCount,
 }: {
   assistantName: string;
   userName: string;
@@ -734,6 +745,7 @@ function AgentReviewCard({
   personality: HermesPersonality;
   autonomyLevel: HermesAutonomyLevel;
   connectedCount: number;
+  skillsCount: number;
 }) {
   const t = useTranslations("App.Hermes.Onboarding");
 
@@ -766,6 +778,14 @@ function AgentReviewCard({
         connectedCount > 0
           ? t("reviewToolsCount", { count: connectedCount })
           : t("reviewToolsNone"),
+    },
+    {
+      Icon: Blocks,
+      label: t("reviewSkills"),
+      value:
+        skillsCount > 0
+          ? t("reviewSkillsCount", { count: skillsCount })
+          : t("reviewSkillsNone"),
     },
   ];
 

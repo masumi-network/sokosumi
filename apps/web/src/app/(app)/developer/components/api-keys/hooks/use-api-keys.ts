@@ -4,6 +4,8 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { authClient } from "@/lib/auth/auth.client";
+
 import type {
   ApiKeyRecord,
   CreateApiKeyRequest,
@@ -11,9 +13,8 @@ import type {
   DeleteApiKeyRequest,
   UpdateApiKeyRequest,
   UseApiKeysReturn,
-} from "@/app/connections/components/api-keys/types";
-import { getToggleActionText } from "@/app/connections/components/api-keys/utils";
-import { authClient } from "@/lib/auth/auth.client";
+} from "../types";
+import { getToggleActionText } from "../utils";
 
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
@@ -59,7 +60,8 @@ export function useApiKeys(): UseApiKeysReturn {
 
         if (result.data) {
           toast.success(t("Messages.createSuccess"));
-          await refresh();
+          // Reveal the one-time key immediately; list refresh is non-blocking.
+          void refresh();
           return {
             success: true,
             data: {

@@ -107,9 +107,9 @@ export function getApiKeyColumns(
             }
           >
             {row.original.enabled ? (
-              <EyeOff className="h-4 w-4" />
+              <EyeOff className="size-4" />
             ) : (
-              <Eye className="h-4 w-4" />
+              <Eye className="size-4" />
             )}
           </Button>
           <Button
@@ -121,7 +121,7 @@ export function getApiKeyColumns(
             }}
             title={t("Actions.deleteTooltip")}
           >
-            <Trash2 className="text-destructive h-4 w-4" />
+            <Trash2 className="text-destructive size-4" />
           </Button>
         </div>
       ),

@@ -36,6 +36,15 @@ src/app/
 - Use `'use client'` only when accessing browser APIs
 - Leverage server actions for mutations instead of client-side state
 
+### Server actions vs Route Handlers
+
+Next.js serializes concurrent **server actions** per session. A long action started in the background (for example catalog pre-warm on mount) can delay unrelated user actions on the same page (for example OAuth start).
+
+- Prefer **server actions** for mutations and explicit user-triggered work.
+- For **background or pre-warm reads** that must not contend with other actions, use a session-authenticated **Route Handler** under `src/app/api/` and `fetch` from the client (cookies / `credentials: "same-origin"`).
+- Share server-side load logic in `src/lib/` so the Route Handler (and any future callers) stay in sync (see `src/lib/hermes/skills-marketplace-data.ts` + `GET /api/personal-assistant/skills-marketplace` as the reference pattern).
+- Do **not** fire long server actions on mount of a hidden multi-step UI while later steps still call actions.
+
 ### Route Organization
 
 - Group related routes using parentheses: `(app)`, `(auth)`

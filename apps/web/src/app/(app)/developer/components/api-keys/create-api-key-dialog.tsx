@@ -27,7 +27,11 @@ import { Input } from "@/components/ui/input";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
 import type { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
-import { createApiKeySchema, DEFAULT_CREATE_FORM_VALUES } from "./utils";
+import {
+  createApiKeySchema,
+  DEFAULT_CREATE_FORM_VALUES,
+  DIALOG_CLEANUP_TIMEOUT,
+} from "./utils";
 
 export function CreateApiKeyDialog({
   open,
@@ -47,6 +51,19 @@ export function CreateApiKeyDialog({
   });
 
   const { isSubmitting } = form.formState;
+  const showingCredentials = createdKey !== null;
+
+  const clearPendingCleanup = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const resetDialogState = () => {
+    setCreatedKey(null);
+    form.reset();
+  };
 
   const onSubmit = async (values: CreateApiKeyFormData) => {
     const result = await createApiKey({
@@ -60,35 +77,65 @@ export function CreateApiKeyDialog({
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    onOpenChange(open);
-    if (!open) {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => {
-        setCreatedKey(null);
-        form.reset();
-        timeoutRef.current = null;
-      }, 300);
+  const handleOpenChange = (nextOpen: boolean) => {
+    // One-time key must only dismiss via Done.
+    if (!nextOpen && showingCredentials) {
+      return;
     }
+
+    onOpenChange(nextOpen);
+    clearPendingCleanup();
+
+    if (nextOpen) {
+      // Avoid re-showing a prior key if reopened during close animation.
+      resetDialogState();
+      return;
+    }
+
+    // Clear the one-time secret immediately; delay form reset for animation.
+    setCreatedKey(null);
+    timeoutRef.current = setTimeout(() => {
+      form.reset();
+      timeoutRef.current = null;
+    }, DIALOG_CLEANUP_TIMEOUT);
   };
 
   const handleSuccessClose = () => {
-    handleOpenChange(false);
+    clearPendingCleanup();
+    setCreatedKey(null);
+    onOpenChange(false);
+    timeoutRef.current = setTimeout(() => {
+      form.reset();
+      timeoutRef.current = null;
+    }, DIALOG_CLEANUP_TIMEOUT);
   };
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      clearPendingCleanup();
     };
   }, []);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent
+        className={showingCredentials ? "[&>button]:hidden" : undefined}
+        onEscapeKeyDown={(event) => {
+          if (showingCredentials) {
+            event.preventDefault();
+          }
+        }}
+        onPointerDownOutside={(event) => {
+          if (showingCredentials) {
+            event.preventDefault();
+          }
+        }}
+        onInteractOutside={(event) => {
+          if (showingCredentials) {
+            event.preventDefault();
+          }
+        }}
+      >
         {createdKey ? (
           <ApiKeySuccessDisplay
             apiKey={createdKey}
@@ -135,9 +182,9 @@ export function CreateApiKeyDialog({
                     {t("CreateDialog.cancelButton")}
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                    {isSubmitting ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : null}
                     {t("CreateDialog.createButton")}
                   </Button>
                 </DialogFooter>
