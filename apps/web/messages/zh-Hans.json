@@ -3554,6 +3554,7 @@
         "loading": "正在加载 OAuth 客户端...",
         "noClientsFound": "创建你的第一个 OAuth 客户端以开始使用。",
         "retry": "重试",
+        "clientIdLabel": "客户端 ID",
         "redirectUrisLabel": "重定向 URI",
         "created": "创建于：{date}",
         "Status": {

@@ -3523,6 +3523,7 @@
         "loading": "Cargando clientes OAuth...",
         "noClientsFound": "Crea tu primer cliente OAuth para empezar.",
         "retry": "Reintentar",
+        "clientIdLabel": "ID de cliente",
         "redirectUrisLabel": "URIs de redirección",
         "created": "Creado: {date}",
         "Status": {

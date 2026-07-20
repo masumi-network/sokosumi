@@ -3554,6 +3554,7 @@
         "loading": "OAuth クライアントを読み込み中...",
         "noClientsFound": "最初の OAuth クライアントを作成して始めましょう。",
         "retry": "再試行",
+        "clientIdLabel": "クライアント ID",
         "redirectUrisLabel": "リダイレクト URI",
         "created": "作成日: {date}",
         "Status": {

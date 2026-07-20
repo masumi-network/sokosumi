@@ -73,9 +73,10 @@ export function OAuthClientsList({
                   </span>
                 ) : null}
               </div>
-              <p className="text-muted-foreground font-mono text-xs break-all">
-                {client.client_id}
-              </p>
+              <div className="text-muted-foreground text-xs">
+                <span className="font-medium">{t("clientIdLabel")}: </span>
+                <span className="font-mono break-all">{client.client_id}</span>
+              </div>
               {client.redirect_uris?.length ? (
                 <div className="text-muted-foreground text-xs">
                   <span className="font-medium">

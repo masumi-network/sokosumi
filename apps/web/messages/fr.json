@@ -3554,6 +3554,7 @@
         "loading": "Chargement des clients OAuth...",
         "noClientsFound": "Créez votre premier client OAuth pour commencer.",
         "retry": "Réessayer",
+        "clientIdLabel": "ID client",
         "redirectUrisLabel": "URI de redirection",
         "created": "Créé : {date}",
         "Status": {
