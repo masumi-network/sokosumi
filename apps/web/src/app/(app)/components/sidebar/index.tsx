@@ -11,6 +11,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
@@ -44,6 +45,9 @@ export default async function Sidebar({
 }: SidebarProps) {
   const tCredit = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
+  // Hermes beta gate: the Personal Assistant entry only renders for
+  // whitelisted email domains; /personal-assistant itself 404s in its layout.
+  const hermesMenuEnabled = isHermesBetaAccessEmail(session.user.email);
   const currentPlan = creditsData?.subscription?.plan ?? "free";
   const planForLabel = creditsData === null ? null : currentPlan;
   const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
@@ -81,8 +85,8 @@ export default async function Sidebar({
             activeOrganizationId={activeOrganizationId}
             planLabel={planLabel}
           >
-            <PersonalAssistantNav />
-            <SidebarSeparator className="mx-0" />
+            <PersonalAssistantNav enabled={hermesMenuEnabled} />
+            {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}
             <NewChatTaskActions />
             <SidebarSeparator className="mx-0 mt-2" />
             <MenuItems />
