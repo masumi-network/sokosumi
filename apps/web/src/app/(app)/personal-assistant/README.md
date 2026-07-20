@@ -289,11 +289,13 @@ apps/web/src/app/(app)/personal-assistant/
 ├── page.tsx                             ← session pass-through, renders HermesExperience
 └── components/
     ├── hermes-experience.tsx            ← state machine + polling
-    ├── empty-state.tsx                  ← /personal-assistant when no instance — hero + journey + features + examples + disclaimer
+    ├── empty-state.tsx                  ← shell: /personal-assistant when no instance
+    ├── empty-state/                     ← hero + journey + features + examples + disclaimer modules
     ├── provisioning-state.tsx           ← honest "Setting up your agent…" view
     ├── onboarding-screen.tsx            ← 5-step wizard: Name → Look/personality → Autonomy → Integrations → Review
     ├── onboarding-progress.tsx          ← orchestrator step poll UI
-    ├── running-state.tsx                ← chat UI; integrations chip in top-right
+    ├── running-state.tsx                ← chat shell; imports running-state/ modules
+    ├── running-state/                   ← chat UI pieces (messages, composer, confirmations, …)
     ├── error-state.tsx                  ← retry from error
     │
     ├── autonomy-selector.tsx            ← shared low/medium/high radio cards
