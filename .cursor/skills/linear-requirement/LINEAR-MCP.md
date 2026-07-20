@@ -2,7 +2,9 @@
 
 Run **only after** the user approves the draft in chat.
 
-Creates **one** Linear issue with `## Requirement`. Team Sapphire runs on the same issue — no child issues.
+Creates or updates **one** Linear issue with `## Requirement`. No child issues.
+
+Only touch the fields documented here — no other Linear side effects.
 
 ## Defaults
 
@@ -11,7 +13,7 @@ const LINEAR_TEAM = "SOK";
 // Marketplace project — pass slug/ID to save_issue, not "Sokosumi" (ambiguous; wrong spelling).
 const LINEAR_PROJECT = "sokosumi-6357694ddd23"; // display name: Sōkosumi
 const LINEAR_PROJECT_ID = "a51c9d61-b1a4-457e-a382-1277e1f7be4a";
-const LINEAR_STATE = "In Progress";
+const LINEAR_STATE = "Triage";
 const LINEAR_PRIORITY = 3; // Medium — 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low
 const LINEAR_ASSIGNEE = "me";
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
@@ -25,11 +27,11 @@ Every `save_issue` **create** call (no `id`) must include **all** of:
 
 | Field | Default |
 |-------|---------|
-| `title` | user-approved proposed title |
+| `title` | user-approved **product** title (no `feat:` / `fix:` prefix) |
 | `description` | approved requirement (`## Requirement`) |
 | `team` | `SOK` |
 | `project` | `sokosumi-6357694ddd23` (Sōkosumi marketplace) |
-| `state` | `In Progress` |
+| `state` | `Triage` |
 | `priority` | `3` (Medium) |
 | `assignee` | `me` |
 | `labels` | exactly one of `Feature`, `Bug`, `Improvement` |
@@ -40,9 +42,18 @@ Override only when the user explicitly passed a different value during intake.
 
 **Do not pass `"Sokosumi"`.** Linear’s marketplace project is **Sōkosumi** (macron on the first o). The plain string `Sokosumi` does not resolve — the workspace also has Sokosumi Social Media, Sokosumi Task Board, etc. Use the slug (or `LINEAR_PROJECT_ID`) in every `save_issue` call.
 
-Do **not** set `delegate` on create — `HANDOFF.md` sets delegate after Sapphire footer.
-
 Do **not** set `parentId` unless user asked to file under an epic/parent.
+
+## Update existing issue
+
+When publish target is `update:SOK-XXX` and the user approved the draft:
+
+1. `get_issue` immediately before write — `save_issue` **replaces** the entire `description` when `description` is sent.
+2. Start from the full current description. Replace or insert `## Requirement` with the approved body. Preserve any other sections already on the issue.
+3. Call `save_issue` with `id` + merged `description`. Also set `title` and/or `labels` when the approved draft changed them.
+4. Set `priority`, `assignee`, or `project` **only** when the user explicitly overrode them in the approved draft.
+5. **Never set `state` on update** unless the user explicitly asked to change state. Do **not** reset `In Progress` / `In Review` / etc. to `Triage` because that is the create default.
+6. Do **not** create a second issue.
 
 ## Hard rules
 
@@ -50,15 +61,15 @@ Do **not** set `parentId` unless user asked to file under an epic/parent.
 - Inspect Linear tool descriptors before write calls.
 - Never call a write tool without a complete `arguments` object.
 - Stop if Linear MCP is not loaded.
-- **Never create before user approval.**
-- **Never create without `project`** — same rule as `assignee`, `state`, and `priority`.
+- **Never create or update before user approval.**
+- **Never create without `project`** — same rule as `assignee`, `state`, and `priority` on create.
 
 ## MCP health check
 
 Run **before** any Linear write (after user approval):
 
-1. Inspect `user-linear/tools/*.json`.
-2. If descriptors are missing or `CallMcpTool` reports the server does not exist, stop and tell the user:
+1. Inspect Linear MCP tool schemas (e.g. via `GetMcpTools` for the Linear server).
+2. If tools are missing or `CallMcpTool` reports the server does not exist, stop and tell the user:
 
    ```text
    Linear MCP is not loaded in this agent. In Cursor: Settings → MCP → enable `linear` (server id `user-linear`), then reload MCP servers. For Cloud Agents, open the agent run → MCP/tools → enable Linear for that agent (first delegated run often needs this once).
@@ -66,42 +77,43 @@ Run **before** any Linear write (after user approval):
 
 3. Optional smoke test: `get_user` with `{ "query": "me" }` to confirm auth before `save_issue`.
 
-Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issue_labels`, `get_user`, `get_issue`, `save_issue`, `save_comment`.
+Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issue_labels`, `list_issues` / search, `get_user`, `get_issue`, `save_issue`, `save_comment`.
 
-## Resolution order
+## Resolution order (create only)
 
 1. Team → `SOK`
 2. Project → `sokosumi-6357694ddd23` / Sōkosumi (or user override)
-3. State → `In Progress`
+3. State → `Triage`
 4. Priority → `3` (Medium) unless user override
 5. Assignee → `me` unless user override
 6. Label → exact match from draft
-7. Create issue via `save_issue` (no `id`, no `delegate`) — pass the full required field set above
+7. Create via `save_issue` without `id` — pass the full required create field set above
 
-## Post-create verify (before handoff)
+## Post-write verify
 
-Immediately after create:
+Immediately after create or update:
 
-1. `get_issue` with the new identifier.
-2. If any default is missing or wrong and the user did not override it, patch with `save_issue` + `id`:
+1. `get_issue` with the identifier.
+2. **Create only:** if any create default is missing or wrong and the user did not override it, patch with `save_issue` + `id`:
    - `projectId` not `a51c9d61-b1a4-457e-a382-1277e1f7be4a` (or `project` not `Sōkosumi`) → `"project": "sokosumi-6357694ddd23"`
    - no assignee → `"me"`
-   - state not `In Progress` → `"In Progress"`
+   - state not `Triage` → `"Triage"`
    - priority not Medium (`3`) → `3`
-3. Do not start `HANDOFF.md` until defaults are confirmed on the issue.
+3. **Update:** do **not** patch state/assignee/priority/project back to create defaults. Only confirm `## Requirement` (and approved title/labels) landed.
+4. Return the issue id and URL.
 
-## Write-call shape
+## Write-call shape (create)
 
 ```json
 {
   "server": "user-linear",
   "toolName": "save_issue",
   "arguments": {
-    "title": "feat(scope): concise requirement title",
+    "title": "History view for past agent jobs",
     "description": "## Requirement\n\n**Problem:** …",
     "team": "SOK",
     "project": "sokosumi-6357694ddd23",
-    "state": "In Progress",
+    "state": "Triage",
     "priority": 3,
     "assignee": "me",
     "labels": ["Feature"]
@@ -109,14 +121,29 @@ Immediately after create:
 }
 ```
 
+## Write-call shape (update)
+
+```json
+{
+  "server": "user-linear",
+  "toolName": "save_issue",
+  "arguments": {
+    "id": "SOK-XXX",
+    "title": "History view for past agent jobs",
+    "description": "## Requirement\n\n**Problem:** …\n\n## Other preserved section\n…"
+  }
+}
+```
+
+Omit `state` on update unless the user explicitly asked to change it. Include `labels` / `priority` / `assignee` / `project` only when the approved draft overrode them.
+
 ## Description body
 
 Use the approved requirement from `REQUIREMENT-TEMPLATE.md`. No MCP logs or agent reasoning.
 
-Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, verification commands, or Sapphire status on create — `HANDOFF.md` adds the Sapphire footer and delegate.
+Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, or verification commands on create/update.
 
-## Post-create
+## Post-write
 
 1. Return issue identifier and URL.
-2. Continue to `HANDOFF.md` when `handoffToSapphire` is true (default).
-3. If handoff is skipped, tell the user to run `_team-sapphire` with the issue id.
+2. Stop.

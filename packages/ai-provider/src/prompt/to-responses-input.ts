@@ -1,8 +1,9 @@
 import {
   InvalidPromptError,
-  type LanguageModelV3FilePart,
-  type LanguageModelV3Prompt,
-  type SharedV3Warning,
+  type LanguageModelV4FilePart,
+  type LanguageModelV4Prompt,
+  type SharedV4FileData,
+  type SharedV4Warning,
 } from "@ai-sdk/provider";
 
 interface OpenRouterResponsesInputTextItem {
@@ -23,6 +24,14 @@ interface OpenRouterResponsesInputFileItem {
   filename?: string;
 }
 
+/**
+ * LanguageModelV4 file parts use tagged `SharedV4FileData`. Also accept legacy
+ * bare `Uint8Array | string | URL` at runtime for defensive compatibility.
+ */
+type FilePartData = SharedV4FileData | Uint8Array | string | URL;
+
+type UnwrappedFileData = Uint8Array | string | URL;
+
 export type OpenRouterResponsesInputMessage = {
   type: "message";
   role: string;
@@ -33,15 +42,41 @@ export type OpenRouterResponsesInputMessage = {
   >;
 };
 
+const MAPPED_USER_ASSISTANT_PART_TYPES = new Set(["text", "file"]);
+
 export function buildResponsesApiWarnings(
-  prompt: LanguageModelV3Prompt,
-): SharedV3Warning[] {
-  const warnings: SharedV3Warning[] = [];
+  prompt: LanguageModelV4Prompt,
+): SharedV4Warning[] {
+  const warnings: SharedV4Warning[] = [];
   for (const message of prompt) {
+    if (message.role === "tool") {
+      for (const part of message.content) {
+        if (part.type === "tool-result") {
+          continue;
+        }
+        warnings.push({
+          type: "unsupported",
+          feature: `tool ${part.type} parts`,
+          details:
+            "Only tool-result parts on tool messages are forwarded to the Responses input; other tool parts are dropped.",
+        });
+      }
+      continue;
+    }
+
     if (message.role !== "user" && message.role !== "assistant") {
       continue;
     }
     for (const part of message.content) {
+      if (!MAPPED_USER_ASSISTANT_PART_TYPES.has(part.type)) {
+        warnings.push({
+          type: "unsupported",
+          feature: `${message.role} ${part.type} parts`,
+          details:
+            "Only text and file parts are forwarded to the Responses input; this part type is dropped.",
+        });
+        continue;
+      }
       if (part.type !== "file") {
         continue;
       }
@@ -53,12 +88,18 @@ export function buildResponsesApiWarnings(
             "File parts on assistant messages are forwarded to the Responses input. Confirm your model endpoint accepts multimodal assistant turns.",
         });
       }
-      const url = toUrlString(part.data);
+      let url: string | null = null;
+      try {
+        url = toUrlString(unwrapFilePartData(part));
+      } catch {
+        // Unsupported tagged shapes (e.g. provider references) are errors at
+        // map time; skip URL compatibility warnings here.
+      }
       if (
         url !== null &&
         !url.startsWith("data:") &&
         !isWebUrl(url) &&
-        !part.mediaType.startsWith("image/")
+        !isImageMediaType(part.mediaType)
       ) {
         warnings.push({
           type: "compatibility",
@@ -71,14 +112,16 @@ export function buildResponsesApiWarnings(
   return dedupeWarnings(warnings);
 }
 
-function dedupeWarnings(warnings: SharedV3Warning[]): SharedV3Warning[] {
+function dedupeWarnings(warnings: SharedV4Warning[]): SharedV4Warning[] {
   const seen = new Set<string>();
-  const out: SharedV3Warning[] = [];
+  const out: SharedV4Warning[] = [];
   for (const w of warnings) {
     const key =
       w.type === "other"
         ? `other:${w.message}`
-        : `${w.type}:${w.feature}:${w.details ?? ""}`;
+        : w.type === "deprecated"
+          ? `deprecated:${w.setting}:${w.message}`
+          : `${w.type}:${w.feature}:${w.details ?? ""}`;
     if (seen.has(key)) {
       continue;
     }
@@ -90,8 +133,8 @@ function dedupeWarnings(warnings: SharedV3Warning[]): SharedV3Warning[] {
 
 function userAssistantContent(
   message:
-    | Extract<LanguageModelV3Prompt[number], { role: "user" }>
-    | Extract<LanguageModelV3Prompt[number], { role: "assistant" }>,
+    | Extract<LanguageModelV4Prompt[number], { role: "user" }>
+    | Extract<LanguageModelV4Prompt[number], { role: "assistant" }>,
 ): OpenRouterResponsesInputMessage["content"] {
   const content: OpenRouterResponsesInputMessage["content"] = [];
   let textRun = "";
@@ -120,7 +163,7 @@ function userAssistantContent(
 }
 
 function toolMessageText(
-  message: Extract<LanguageModelV3Prompt[number], { role: "tool" }>,
+  message: Extract<LanguageModelV4Prompt[number], { role: "tool" }>,
 ): string {
   const lines: string[] = [];
   for (const part of message.content) {
@@ -134,7 +177,7 @@ function toolMessageText(
 }
 
 export function promptToResponsesInput(
-  prompt: LanguageModelV3Prompt,
+  prompt: LanguageModelV4Prompt,
 ): OpenRouterResponsesInputMessage[] {
   const input: OpenRouterResponsesInputMessage[] = [];
   for (const message of prompt) {
@@ -189,9 +232,9 @@ export function promptToResponsesInput(
 }
 
 function filePartToResponsesContent(
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
 ): OpenRouterResponsesInputImageItem | OpenRouterResponsesInputFileItem {
-  if (part.mediaType.startsWith("image/")) {
+  if (isImageMediaType(part.mediaType)) {
     return {
       type: "input_image",
       image_url: toImageUrl(part),
@@ -199,7 +242,8 @@ function filePartToResponsesContent(
     };
   }
 
-  const url = toUrlString(part.data);
+  const data = unwrapFilePartData(part);
+  const url = toUrlString(data);
   if (url !== null && !url.startsWith("data:")) {
     return {
       type: "input_file",
@@ -210,13 +254,14 @@ function filePartToResponsesContent(
 
   return {
     type: "input_file",
-    file_data: toResponsesInputFileData(part),
+    file_data: toResponsesInputFileData(part, data),
     filename: part.filename,
   };
 }
 
-function toImageUrl(part: LanguageModelV3FilePart): string {
-  const url = toUrlString(part.data);
+function toImageUrl(part: LanguageModelV4FilePart): string {
+  const data = unwrapFilePartData(part);
+  const url = toUrlString(data);
 
   if (url !== null) {
     if (url.startsWith("data:") || isWebUrl(url)) {
@@ -228,7 +273,7 @@ function toImageUrl(part: LanguageModelV3FilePart): string {
     );
   }
 
-  return toDataUrl(part);
+  return toDataUrl(part, data);
 }
 
 /**
@@ -237,13 +282,16 @@ function toImageUrl(part: LanguageModelV3FilePart): string {
  * (`data:application/pdf;base64,...`), not raw base64 — see OpenRouter PDF docs
  * and OpenAI file-input guides.
  */
-function toResponsesInputFileData(part: LanguageModelV3FilePart): string {
-  if (part.data instanceof Uint8Array) {
-    return `data:${part.mediaType};base64,${Buffer.from(part.data).toString("base64")}`;
+function toResponsesInputFileData(
+  part: LanguageModelV4FilePart,
+  data: UnwrappedFileData,
+): string {
+  if (data instanceof Uint8Array) {
+    return `data:${part.mediaType};base64,${Buffer.from(data).toString("base64")}`;
   }
 
-  if (part.data instanceof URL) {
-    const url = part.data.toString();
+  if (data instanceof URL) {
+    const url = data.toString();
     if (url.startsWith("data:")) {
       extractBase64DataFromDataUrl(url, part);
       return url;
@@ -254,27 +302,82 @@ function toResponsesInputFileData(part: LanguageModelV3FilePart): string {
     );
   }
 
-  if (typeof part.data === "string") {
-    if (isWebUrl(part.data)) {
+  if (typeof data === "string") {
+    if (isWebUrl(data)) {
       throw invalidFilePartError(
         part,
         "URL-based file parts must be sent as file_url.",
       );
     }
-    if (part.data.startsWith("data:")) {
-      extractBase64DataFromDataUrl(part.data, part);
-      return part.data;
+    if (data.startsWith("data:")) {
+      extractBase64DataFromDataUrl(data, part);
+      return data;
     }
-    return `data:${part.mediaType};base64,${part.data}`;
+    return `data:${part.mediaType};base64,${data}`;
   }
 
   throw invalidFilePartError(
     part,
-    `Unsupported file data type "${typeof part.data}".`,
+    `Unsupported file data type "${typeof data}".`,
   );
 }
 
-function toUrlString(data: LanguageModelV3FilePart["data"]): string | null {
+function isTaggedFileData(value: unknown): value is SharedV4FileData {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const type = (value as { type?: unknown }).type;
+  return (
+    type === "data" || type === "url" || type === "reference" || type === "text"
+  );
+}
+
+/**
+ * AI SDK 7 allows top-level media segments (`"image"`) as well as full IANA
+ * types (`"image/png"`) and wildcards (`"image/*"`).
+ */
+function isImageMediaType(mediaType: string): boolean {
+  const normalized = mediaType.trim().toLowerCase();
+  if (normalized.length === 0) {
+    return false;
+  }
+  const slash = normalized.indexOf("/");
+  const topLevel = slash === -1 ? normalized : normalized.slice(0, slash);
+  return topLevel === "image";
+}
+
+/**
+ * Unwrap LanguageModelV4 tagged file data (and legacy bare payloads) to
+ * `Uint8Array | string | URL` for Responses API mapping.
+ */
+function unwrapFilePartData(part: LanguageModelV4FilePart): UnwrappedFileData {
+  const data = part.data as FilePartData;
+
+  if (!isTaggedFileData(data)) {
+    return data;
+  }
+
+  switch (data.type) {
+    case "url":
+      return data.url;
+    case "data":
+      return data.data;
+    case "text":
+      return new TextEncoder().encode(data.text);
+    case "reference":
+      throw invalidFilePartError(
+        part,
+        "Provider file references are not supported; pass a URL or inline file data.",
+      );
+    default: {
+      const _exhaustive: never = data;
+      void _exhaustive;
+      throw invalidFilePartError(part, "Unsupported tagged file data variant.");
+    }
+  }
+}
+
+function toUrlString(data: UnwrappedFileData): string | null {
   if (data instanceof URL) {
     return data.toString();
   }
@@ -294,34 +397,37 @@ function isWebUrl(value: string): boolean {
   return value.startsWith("http://") || value.startsWith("https://");
 }
 
-function toDataUrl(part: LanguageModelV3FilePart): string {
-  if (part.data instanceof Uint8Array) {
-    return `data:${part.mediaType};base64,${Buffer.from(part.data).toString("base64")}`;
+function toDataUrl(
+  part: LanguageModelV4FilePart,
+  data: UnwrappedFileData,
+): string {
+  if (data instanceof Uint8Array) {
+    return `data:${part.mediaType};base64,${Buffer.from(data).toString("base64")}`;
   }
 
-  if (typeof part.data === "string") {
-    if (part.data.startsWith("data:")) {
-      return part.data;
+  if (typeof data === "string") {
+    if (data.startsWith("data:")) {
+      return data;
     }
-    if (isWebUrl(part.data)) {
-      return part.data;
+    if (isWebUrl(data)) {
+      return data;
     }
-    return `data:${part.mediaType};base64,${part.data}`;
+    return `data:${part.mediaType};base64,${data}`;
   }
 
-  if (part.data instanceof URL) {
-    return part.data.toString();
+  if (data instanceof URL) {
+    return data.toString();
   }
 
   throw invalidFilePartError(
     part,
-    `Unsupported image data type "${typeof part.data}".`,
+    `Unsupported image data type "${typeof data}".`,
   );
 }
 
 function extractBase64DataFromDataUrl(
   value: string,
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
 ): string {
   // RFC 2397: mediatype may be empty (`data:;base64,...` is valid).
   const match = /^data:[^;,]*(?:;[^;,=]+=[^;,]+)*(;base64)?,(.*)$/i.exec(value);
@@ -337,7 +443,7 @@ function extractBase64DataFromDataUrl(
 }
 
 function invalidFilePartError(
-  part: LanguageModelV3FilePart,
+  part: LanguageModelV4FilePart,
   reason: string,
 ): InvalidPromptError {
   return new InvalidPromptError({
@@ -347,7 +453,7 @@ function invalidFilePartError(
 }
 
 export function lastTurnToResponsesInput(
-  prompt: LanguageModelV3Prompt,
+  prompt: LanguageModelV4Prompt,
 ): OpenRouterResponsesInputMessage[] {
   let start = -1;
   for (let i = prompt.length - 1; i >= 0; i--) {

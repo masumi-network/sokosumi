@@ -1,8 +1,8 @@
 import type {
-  LanguageModelV3FinishReason,
-  LanguageModelV3StreamPart,
-  LanguageModelV3Usage,
-  SharedV3Warning,
+  LanguageModelV4FinishReason,
+  LanguageModelV4StreamPart,
+  LanguageModelV4Usage,
+  SharedV4Warning,
 } from "@ai-sdk/provider";
 
 import {
@@ -20,7 +20,7 @@ const MAX_REACT_ENVELOPE_BUFFER_CHARS = 16_384;
 const DATA_IMAGE_URL_REGEX =
   /^data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/i;
 
-export function emptyUsage(): LanguageModelV3Usage {
+export function emptyUsage(): LanguageModelV4Usage {
   return {
     inputTokens: {
       total: undefined,
@@ -36,12 +36,12 @@ export function emptyUsage(): LanguageModelV3Usage {
   };
 }
 
-export function finishStop(): LanguageModelV3FinishReason {
+export function finishStop(): LanguageModelV4FinishReason {
   return { unified: "stop", raw: undefined };
 }
 
-export interface ResponsesSseToV3Options {
-  warnings: SharedV3Warning[];
+export interface ResponsesSseToV4Options {
+  warnings: SharedV4Warning[];
   onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
   stripReactImageGenerationEnvelope?: boolean;
@@ -172,10 +172,10 @@ function extractReasoningTextFromItem(item: unknown): string {
     .join("");
 }
 
-export function createResponsesSseToV3Stream(
+export function createResponsesSseToV4Stream(
   body: ReadableStream<Uint8Array>,
-  options: ResponsesSseToV3Options,
-): ReadableStream<LanguageModelV3StreamPart> {
+  options: ResponsesSseToV4Options,
+): ReadableStream<LanguageModelV4StreamPart> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   const {
@@ -185,7 +185,7 @@ export function createResponsesSseToV3Stream(
     stripReactImageGenerationEnvelope = false,
   } = options;
 
-  return new ReadableStream<LanguageModelV3StreamPart>({
+  return new ReadableStream<LanguageModelV4StreamPart>({
     async start(controller) {
       controller.enqueue({ type: "stream-start", warnings });
 

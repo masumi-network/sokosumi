@@ -207,7 +207,7 @@ function createApp(authContext: AuthenticationContext) {
 function enrichTaskEventRowForResponse(record: TaskEventRecord) {
   return {
     ...record,
-    owner: record.userId
+    user: record.userId
       ? { id: record.userId, name: "Task user", image: null }
       : null,
     coworker: record.coworkerId
@@ -216,6 +216,13 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
           name: "Task coworker",
           image: null,
           slug: "task-coworker",
+        }
+      : null,
+    orchestrator: record.orchestratorId
+      ? {
+          id: record.orchestratorId,
+          name: "Task orchestrator",
+          slug: "task-orchestrator",
         }
       : null,
     transaction: null as { amount: bigint } | null,
@@ -1153,7 +1160,7 @@ describe("POST /{id}/events", () => {
           createTaskEvent({
             status: TaskStatus.READY,
             comment: "Continue via delegated reopen",
-            userId: USER_ID,
+            userId: null,
             coworkerId: COWORKER_ID,
           }),
         ),
@@ -1195,11 +1202,88 @@ describe("POST /{id}/events", () => {
         data: expect.objectContaining({
           status: TaskStatus.READY,
           comment: "Continue via delegated reopen",
-          userId: USER_ID,
+          userId: null,
           coworkerId: COWORKER_ID,
         }),
       }),
     );
+
+    const body = await response.json();
+    expect(body.data.actor).toEqual({
+      type: "coworker",
+      id: COWORKER_ID,
+      coworker: {
+        id: COWORKER_ID,
+        name: "Task coworker",
+        image: null,
+        slug: "task-coworker",
+      },
+    });
+  });
+
+  it("attributes orchestrator DRAFT → READY status to orchestratorId only", async () => {
+    const ORCHESTRATOR_ID = "01960001-0001-7001-8001-000000000099";
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            comment: null,
+            userId: null,
+            coworkerId: null,
+            orchestratorId: ORCHESTRATOR_ID,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.DRAFT }),
+    );
+
+    const app = createApp({
+      actor: "orchestrator",
+      orchestratorId: ORCHESTRATOR_ID,
+      context: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.READY,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          userId: null,
+          coworkerId: null,
+          orchestratorId: ORCHESTRATOR_ID,
+        }),
+      }),
+    );
+
+    const body = await response.json();
+    expect(body.data.actor).toEqual({
+      type: "orchestrator",
+      id: ORCHESTRATOR_ID,
+      orchestrator: {
+        id: ORCHESTRATOR_ID,
+        name: "Task orchestrator",
+        slug: "task-orchestrator",
+      },
+    });
   });
 
   it("rejects agent COMPLETED → READY (agent reopen is to RUNNING only)", async () => {
@@ -2254,7 +2338,7 @@ describe("POST /{id}/events", () => {
         create: vi.fn().mockResolvedValue(
           createTaskEvent({
             status: TaskStatus.CANCELED,
-            userId: USER_ID,
+            userId: null,
             coworkerId: COWORKER_ID,
           }),
         ),
@@ -2290,7 +2374,7 @@ describe("POST /{id}/events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: TaskStatus.CANCELED,
-          userId: USER_ID,
+          userId: null,
           coworkerId: COWORKER_ID,
         }),
       }),
