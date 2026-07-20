@@ -8,6 +8,7 @@ import {
   Cable,
   ChevronDown,
   CircleHelp,
+  Code2,
   Landmark,
   LifeBuoy,
   ListChecks,
@@ -193,6 +194,13 @@ export default function UserAvatarClient({
             >
               <Cable className="text-muted-foreground" />
               {t("connections")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2"
+              onClick={(e: React.MouseEvent) => handleClick(e, "/developer")}
+            >
+              <Code2 className="text-muted-foreground" />
+              {t("developer")}
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />

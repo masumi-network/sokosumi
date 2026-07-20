@@ -120,6 +120,7 @@
       "account": "账户",
       "billing": "账单",
       "connections": "连接",
+      "developer": "开发者",
       "help": "帮助",
       "legal": "法律",
       "support": "支持",
@@ -3143,8 +3144,20 @@
     "Connections": {
       "tabs": {
         "connectedApps": "已连接的应用",
-        "apiKeys": "API 密钥",
         "mcp": "MCP"
+      }
+    },
+    "Developer": {
+      "title": "开发者",
+      "description": "管理用于在 Sokosumi 上构建的 OAuth 客户端和 API 密钥。",
+      "docs": {
+        "gettingStarted": "入门指南",
+        "apiReference": "API 参考",
+        "mcp": "MCP 文档"
+      },
+      "tabs": {
+        "oauthClients": "OAuth 客户端",
+        "apiKeys": "API 密钥"
       }
     },
     "MCP": {

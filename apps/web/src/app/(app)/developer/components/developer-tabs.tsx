@@ -6,31 +6,31 @@ import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ConnectionsTabValue = "connected-apps" | "mcp";
+type DeveloperTabValue = "oauth-clients" | "api-keys";
 
-interface ConnectionsTabsProps {
-  connectedAppsContent: ReactNode;
-  mcpContent: ReactNode;
+interface DeveloperTabsProps {
+  apiKeysContent: ReactNode;
+  oauthClientsContent: ReactNode;
 }
 
-const ENABLED_TABS: ConnectionsTabValue[] = ["connected-apps", "mcp"];
+const ENABLED_TABS: DeveloperTabValue[] = ["oauth-clients", "api-keys"];
 
-export function ConnectionsTabs({
-  connectedAppsContent,
-  mcpContent,
-}: ConnectionsTabsProps) {
-  const t = useTranslations("App.Connections");
+export function DeveloperTabs({
+  apiKeysContent,
+  oauthClientsContent,
+}: DeveloperTabsProps) {
+  const t = useTranslations("App.Developer");
   const [tab, setTab] = useQueryState("tab", {
-    defaultValue: "connected-apps",
+    defaultValue: "oauth-clients",
   });
 
-  const activeTab = ENABLED_TABS.includes(tab as ConnectionsTabValue)
-    ? (tab as ConnectionsTabValue)
-    : "connected-apps";
+  const activeTab = ENABLED_TABS.includes(tab as DeveloperTabValue)
+    ? (tab as DeveloperTabValue)
+    : "oauth-clients";
 
   useEffect(() => {
-    if (!ENABLED_TABS.includes(tab as ConnectionsTabValue)) {
-      void setTab("connected-apps");
+    if (!ENABLED_TABS.includes(tab as DeveloperTabValue)) {
+      void setTab("oauth-clients");
     }
   }, [setTab, tab]);
 
@@ -44,21 +44,21 @@ export function ConnectionsTabs({
     >
       <TabsList className="bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1">
         <TabsTrigger
-          value="connected-apps"
+          value="oauth-clients"
           className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
         >
-          {t("tabs.connectedApps")}
+          {t("tabs.oauthClients")}
         </TabsTrigger>
         <TabsTrigger
-          value="mcp"
+          value="api-keys"
           className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
         >
-          {t("tabs.mcp")}
+          {t("tabs.apiKeys")}
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="connected-apps">{connectedAppsContent}</TabsContent>
-      <TabsContent value="mcp">{mcpContent}</TabsContent>
+      <TabsContent value="oauth-clients">{oauthClientsContent}</TabsContent>
+      <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
     </Tabs>
   );
 }

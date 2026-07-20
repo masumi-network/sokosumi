@@ -120,6 +120,7 @@
       "account": "Account",
       "billing": "Billing",
       "connections": "Connections",
+      "developer": "Developer",
       "help": "Help",
       "legal": "Legal",
       "support": "Support",
@@ -3239,8 +3240,20 @@
     "Connections": {
       "tabs": {
         "connectedApps": "Connected Apps",
-        "apiKeys": "API Keys",
         "mcp": "MCP"
+      }
+    },
+    "Developer": {
+      "title": "Developer",
+      "description": "Manage OAuth clients and API keys for building on Sokosumi.",
+      "docs": {
+        "gettingStarted": "Getting started",
+        "apiReference": "API reference",
+        "mcp": "MCP documentation"
+      },
+      "tabs": {
+        "oauthClients": "OAuth clients",
+        "apiKeys": "API keys"
       }
     },
     "MCP": {

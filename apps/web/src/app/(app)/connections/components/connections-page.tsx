@@ -4,7 +4,6 @@ import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { AccountProvider } from "@/lib/auth/types";
 
-import { ApiKeysSection } from "./api-keys";
 import { OAuthAuthorizedClients } from "./authorized-clients";
 import { ConnectionsTabs } from "./connections-tabs";
 import { McpActiveKeyView } from "./mcp-active-key-view";
@@ -41,7 +40,6 @@ export async function ConnectionsPage() {
           {socialAccountsSection}
           <ConnectionsTabs
             connectedAppsContent={<OAuthAuthorizedClients />}
-            apiKeysContent={<ApiKeysSection />}
             mcpContent={
               <Suspense fallback={null}>
                 <McpActiveKeyView />

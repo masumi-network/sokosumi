@@ -120,6 +120,7 @@
       "account": "アカウント",
       "billing": "請求",
       "connections": "接続",
+      "developer": "開発者",
       "help": "ヘルプ",
       "legal": "法務",
       "support": "サポート",
@@ -3143,8 +3144,20 @@
     "Connections": {
       "tabs": {
         "connectedApps": "接続済みアプリ",
-        "apiKeys": "APIキー",
         "mcp": "MCP"
+      }
+    },
+    "Developer": {
+      "title": "開発者",
+      "description": "Sokosumi上で開発するためのOAuthクライアントとAPIキーを管理します。",
+      "docs": {
+        "gettingStarted": "はじめに",
+        "apiReference": "APIリファレンス",
+        "mcp": "MCPドキュメント"
+      },
+      "tabs": {
+        "oauthClients": "OAuthクライアント",
+        "apiKeys": "APIキー"
       }
     },
     "MCP": {

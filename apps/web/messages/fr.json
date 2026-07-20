@@ -120,6 +120,7 @@
       "account": "Compte",
       "billing": "Facturation",
       "connections": "Connexions",
+      "developer": "Développeur",
       "help": "Aide",
       "legal": "Mentions légales",
       "support": "Support",
@@ -3143,8 +3144,20 @@
     "Connections": {
       "tabs": {
         "connectedApps": "Applications connectées",
-        "apiKeys": "Clés API",
         "mcp": "MCP"
+      }
+    },
+    "Developer": {
+      "title": "Développeur",
+      "description": "Gérez les clients OAuth et les clés API pour développer sur Sokosumi.",
+      "docs": {
+        "gettingStarted": "Premiers pas",
+        "apiReference": "Référence API",
+        "mcp": "Documentation MCP"
+      },
+      "tabs": {
+        "oauthClients": "Clients OAuth",
+        "apiKeys": "Clés API"
       }
     },
     "MCP": {
