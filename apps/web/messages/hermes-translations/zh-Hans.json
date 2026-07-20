@@ -49,25 +49,25 @@
     "disclaimer3": "已连接账户通过 OAuth 授予你的助手限定访问权限。一旦不再信任，请立即断开任何集成。",
     "disclaimer4": "测试版软件。行为可能在版本之间变化。对话历史属于你，但能力会不断演进。",
     "disclaimerHeading": "开始前有几句实话",
-    "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
-    "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
-    "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
-    "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
-    "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
-    "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
-    "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
-    "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
-    "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
-    "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
-    "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
-    "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
+    "example1": "总结本周发布相关邮件，缺上下文就雇 Research 智能体补齐，并在下次通话前给我简报。",
+    "example1Reply": "我找到了发布线程和未决事项。正在雇 **Research** 补齐公司与干系人上下文。\n\n下次通话前会给你一份含未决问题、负责人备注和议程草稿的短简报。",
+    "example2": "调研最新销售邮件里的公司，报告就绪后起草一封简洁跟进。",
+    "example2Reply": "已找到线程，并提取了公司名、用例和未决请求。正在雇 **Company Research**，涵盖产品、增长、融资以及与你当前优先级的重叠。\n\n返回后，我会起草一封含继续或放弃的三条最强理由的回复。",
+    "example3": "每个工作日早晨，把昨天的收件箱和今天的日历整理成短简报并发到 Slack。",
+    "example3Reply": "已排程。每个工作日早晨我会：\n\n1. 检查前一晚以来的新邮件并扫描今日日历\n2. 汇总决策、冲突与阻塞\n3. 在 Slack 发短简报，并为需要你拍板的事项附跟进线程\n\n首次运行已排到下一个工作日早晨。",
+    "example4": "检查等我处理的 GitHub PR 和 Linear Issue，然后起草应发给工程的交接说明。",
+    "example4Reply": "找到了等待你审阅的 PR 和 Issue。两项今天需要决策，其余可委派。\n\n正在起草含负责人、阻塞与建议下一步的交接说明。发给工程前会先征求你同意。",
+    "example5": "雇 Market Research 智能体关注本周我们品类的公开讨论，并把情绪与行动项发我。",
+    "example5Reply": "正在雇 **Market Research**，涵盖近期公开讨论、反复抱怨、购买触发与竞品提及。\n\n返回后，我会总结情绪、抽出最强引用，并把具体发现变成跟进任务。",
+    "example6": "若分配的任务一周失败两次，申请退款、用日志开 Issue，仅在再次重复时通知我。",
+    "example6Reply": "持续监控中。当你被分配的任务失败时，我会收集失败细节并在符合条件时申请退款。\n\n若同一模式在七天内重复两次，会在通知你之前起草含日志、可能原因与建议负责人的 Issue。",
     "exampleCategories": {
-      "example1": "Inbox briefing",
-      "example2": "Company research + reply",
-      "example3": "Daily brief",
-      "example4": "PR and issue follow-up",
-      "example5": "Market scan",
-      "example6": "Failure watch"
+      "example1": "收件箱简报",
+      "example2": "公司调研 + 回复",
+      "example3": "每日简报",
+      "example4": "PR 与 Issue 跟进",
+      "example5": "市场扫描",
+      "example6": "失败监控"
     },
     "examplesEyebrow": "试试看",
     "examplesHeading": "可以尝试的事",
@@ -76,7 +76,7 @@
     "featuresEyebrow": "功能",
     "featuresHeading": "为日常严肃工作而打造",
     "integrationsEyebrow": "集成",
-    "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
+    "journeyDescription": "先激活它，连接所需账户，再让它在 Sokosumi 与你的工具之间协调工作。",
     "journeyEyebrow": "端到端",
     "journeyHeading": "个人助手如何工作，一步步来",
     "journeyStep1Body": "从你的 Sokosumi 账户一键完成。无需安装，无需管理 API 密钥。从此刻起你的助手即绑定到你的账户。",
@@ -117,46 +117,46 @@
     "servicesHelp": "在设置时连接一次即可。你的助手可以在你的账户中读取、搜索、起草并执行操作。我们会定期添加更多工具连接器。",
     "servicesMoreLabel": "以及更多",
     "visuals": {
-      "actHeld": "Time held for review",
-      "actSteps": [
-        "Found an open slot",
-        "Drafted the invite",
-        "Pulled project context"
-      ],
-      "actUserMessage": "Find a time with the project lead next week.",
+      "actHeld": "已预留审阅时间",
+      "actSteps": {
+        "0": "找到空档",
+        "1": "起草邀请",
+        "2": "拉取项目上下文"
+      },
+      "actUserMessage": "下周和项目负责人约个时间。",
       "actWorking": "你的助手正在工作",
       "activated": "已激活",
-      "demoInbox": [
-        {
-          "from": "Project lead",
-          "subject": "Launch checklist"
+      "demoInbox": {
+        "0": {
+          "from": "项目负责人",
+          "subject": "发布清单"
         },
-        {
-          "from": "Customer team",
-          "subject": "Contract questions"
+        "1": {
+          "from": "客户团队",
+          "subject": "合同问题"
         },
-        {
+        "2": {
           "from": "Build bot",
-          "subject": "Deployment failed"
+          "subject": "部署失败"
         }
-      ],
-      "demoMemory": [
-        "Launch plan is the current priority",
-        "Project lead owns approvals",
-        "Open questions need a reply"
-      ],
+      },
+      "demoMemory": {
+        "0": "发布计划是当前优先事项",
+        "1": "项目负责人负责审批",
+        "2": "未决问题需要回复"
+      },
       "encrypted": "已加密",
       "filesystem": "你的文件",
       "inboxScanned": "收件箱 · 已扫描",
       "memoryWritten": "记忆 · 已写入",
       "microVmLabel": "你的专属计算机",
       "never": "永不",
-      "overnightSchedule": [
-        "Review overnight messages",
-        "Sync Sokosumi jobs",
-        "Draft the morning brief",
-        "Post to chat and Slack"
-      ],
+      "overnightSchedule": {
+        "0": "审阅夜间消息",
+        "1": "同步 Sokosumi 任务",
+        "2": "起草晨间简报",
+        "3": "发到聊天和 Slack"
+      },
       "overnightTitle": "Morning brief",
       "persistent": "持久",
       "secrets": "密钥",
@@ -260,18 +260,18 @@
     },
     "retry": "重试",
     "roleLabel": "角色",
-    "roleOptions": [
-      "创始人 / CEO",
-      "产品",
-      "工程",
-      "设计",
-      "市场",
-      "销售",
-      "运营",
-      "财务",
-      "客户成功",
-      "其他"
-    ],
+    "roleOptions": {
+      "0": "创始人 / CEO",
+      "1": "产品",
+      "2": "工程",
+      "3": "设计",
+      "4": "市场",
+      "5": "销售",
+      "6": "运营",
+      "7": "财务",
+      "8": "客户成功",
+      "9": "其他"
+    },
     "rolePlaceholder": "你的工作是？",
     "skipCta": "跳过",
     "skipCtaHelp": "改用通用欢迎语。",
@@ -291,14 +291,14 @@
     "etaSettling": "快完成了…",
     "eyebrow": "正在准备你的智能体",
     "footerHint": "完成后，聊天将打开并显示来自你的助手的个性化介绍。",
-    "hints": [
-      "小贴士：进入后问「今天我的收件箱有什么重要的？」",
-      "你的助手会记住你的项目、联系人和偏好。",
-      "试试：「每个工作日上午 8 点，把收件箱简报发给我。」",
-      "你的助手可以聘请其他 Sokosumi 智能体协助研究。",
-      "稍后在设置中连接更多工具 — Slack、Linear、Notion 等。",
-      "每天早上你的助手会发送需要你关注事项的简报。"
-    ],
+    "hints": {
+      "0": "小贴士：进入后问「今天我的收件箱有什么重要的？」",
+      "1": "你的助手会记住你的项目、联系人和偏好。",
+      "2": "试试：「每个工作日上午 8 点，把收件箱简报发给我。」",
+      "3": "你的助手可以聘请其他 Sokosumi 智能体协助研究。",
+      "4": "稍后在设置中连接更多工具 — Slack、Linear、Notion 等。",
+      "5": "每天早上你的助手会发送需要你关注事项的简报。"
+    },
     "pollError": "目前无法连接编排器 — 仍在重试。",
     "previewSteps": {
       "save_details": "正在保存你的详细信息",
@@ -318,15 +318,15 @@
     "setup": "设置"
   },
   "Provisioning": {
-    "facts": [
-      "你的助手拥有专属私有计算机，并在会话间记住你的上下文。",
-      "连接 Gmail、Outlook、Slack、Linear、GitHub、Notion 等。",
-      "你的助手可以聘请其他 Sokosumi 智能体代你工作。",
-      "在此、Telegram、Slack 或你工作的任何地方聊天——随时继续。",
-      "每天早上你的助手可以发送需要你关注事项的简报。",
-      "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
-      "用自然语言让你的助手安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
-    ],
+    "facts": {
+      "0": "你的助手拥有专属私有计算机，并在会话间记住你的上下文。",
+      "1": "连接 Gmail、Outlook、Slack、Linear、GitHub、Notion 等。",
+      "2": "你的助手可以聘请其他 Sokosumi 智能体代你工作。",
+      "3": "在此、Telegram、Slack 或你工作的任何地方聊天——随时继续。",
+      "4": "每天早上你的助手可以发送需要你关注事项的简报。",
+      "5": "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
+      "6": "用自然语言让你的助手安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
+    },
     "settingUp": "正在设置你的智能体…",
     "subtitle": "通常大约需要一分钟。你可以关闭此标签页 — 你的助手会在后台继续准备。",
     "title": "正在启动你的个人助手",
@@ -393,11 +393,11 @@
       "ariaConnected": "{count, plural, one {已连接 # 个集成 — 打开设置} other {已连接 # 个集成 — 打开设置}}",
       "integrations": "集成"
     },
-    "mockReplies": [
-      "这是本地个人助手预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实助手。",
-      "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，你的助手再响应。",
-      "我会这样做：写入长期记忆、在任务列表添加跟进，并为下次会话保留上下文。"
-    ],
+    "mockReplies": {
+      "0": "这是本地个人助手预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实助手。",
+      "1": "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，你的助手再响应。",
+      "2": "我会这样做：写入长期记忆、在任务列表添加跟进，并为下次会话保留上下文。"
+    },
     "outboxKinds": {
       "confirmation_resolved": "确认",
       "daily_brief": "每日简报",
@@ -409,30 +409,30 @@
       "welcome": "欢迎"
     },
     "removeFile": "移除",
-    "rotatingHints": [
-      "Try: schedule a daily inbox brief at 8am",
-      "Try: summarize my open customer threads",
-      "Try: draft a follow-up to my last meeting notes",
-      "Try: what's overdue in my inbox?"
-    ],
-    "thinkingMessages": [
-      "思考中",
-      "正在请教日历之神",
-      "翻阅你的收件箱",
-      "字里行间细读",
-      "酝酿回复",
-      "加载你的上下文",
-      "四处打听",
-      "挑选合适工具",
-      "谨慎起草",
-      "行动前再三确认",
-      "替你完成枯燥部分",
-      "理清 Slack",
-      "交叉核对记忆",
-      "追查一个细节",
-      "斟酌措辞",
-      "快好了"
-    ],
+    "rotatingHints": {
+      "0": "Try: schedule a daily inbox brief at 8am",
+      "1": "Try: summarize my open customer threads",
+      "2": "Try: draft a follow-up to my last meeting notes",
+      "3": "Try: what's overdue in my inbox?"
+    },
+    "thinkingMessages": {
+      "0": "思考中",
+      "1": "正在请教日历之神",
+      "2": "翻阅你的收件箱",
+      "3": "字里行间细读",
+      "4": "酝酿回复",
+      "5": "加载你的上下文",
+      "6": "四处打听",
+      "7": "挑选合适工具",
+      "8": "谨慎起草",
+      "9": "行动前再三确认",
+      "10": "替你完成枯燥部分",
+      "11": "理清 Slack",
+      "12": "交叉核对记忆",
+      "13": "追查一个细节",
+      "14": "斟酌措辞",
+      "15": "快好了"
+    },
     "transitioning": "你的助手正在应用你的更改…",
     "transitioningHint": "（约需 30 秒）",
     "assistantFallback": "你的助手"

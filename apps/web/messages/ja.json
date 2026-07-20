@@ -2071,12 +2071,12 @@
           "linkedin": "LinkedIn"
         },
         "exampleCategories": {
-          "example1": "Inbox briefing",
-          "example2": "Company research + reply",
-          "example3": "Daily brief",
-          "example4": "PR and issue follow-up",
-          "example5": "Market scan",
-          "example6": "Failure watch"
+          "example1": "受信トレイのブリーフィング",
+          "example2": "企業調査 + 返信",
+          "example3": "デイリーブリーフ",
+          "example4": "PR と Issue のフォローアップ",
+          "example5": "市場スキャン",
+          "example6": "障害ウォッチ"
         },
         "visuals": {
           "activated": "有効化済み",
@@ -2091,42 +2091,42 @@
           "memoryWritten": "メモリ · 記録済み",
           "demoInbox": {
             "0": {
-              "from": "Project lead",
-              "subject": "Launch checklist"
+              "from": "プロジェクトリード",
+              "subject": "ローンチチェックリスト"
             },
             "1": {
-              "from": "Customer team",
-              "subject": "Contract questions"
+              "from": "カスタマーチーム",
+              "subject": "契約の質問"
             },
             "2": {
               "from": "Build bot",
-              "subject": "Deployment failed"
+              "subject": "デプロイ失敗"
             }
           },
           "demoMemory": {
-            "0": "Launch plan is the current priority",
-            "1": "Project lead owns approvals",
-            "2": "Open questions need a reply"
+            "0": "ローンチ計画が現在の優先事項",
+            "1": "プロジェクトリードが承認を担当",
+            "2": "未解決の質問には返信が必要"
           },
-          "actUserMessage": "Find a time with the project lead next week.",
+          "actUserMessage": "来週、プロジェクトリードと時間を見つけて。",
           "actWorking": "アシスタントが作業中",
           "actSteps": {
-            "0": "Found an open slot",
-            "1": "Drafted the invite",
-            "2": "Pulled project context"
+            "0": "空き枠を発見",
+            "1": "招待を下書き",
+            "2": "プロジェクト文脈を取得"
           },
-          "actHeld": "Time held for review",
+          "actHeld": "レビュー用に時間を確保",
           "overnightTitle": "Morning brief",
           "overnightSchedule": {
-            "0": "Review overnight messages",
-            "1": "Sync Sokosumi jobs",
-            "2": "Draft the morning brief",
-            "3": "Post to chat and Slack"
+            "0": "夜間メッセージを確認",
+            "1": "Sokosumi ジョブを同期",
+            "2": "朝のブリーフを下書き",
+            "3": "チャットと Slack に投稿"
           }
         },
         "journeyEyebrow": "エンドツーエンド",
         "journeyHeading": "アシスタントの動き方（ステップごと）",
-        "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
+        "journeyDescription": "有効化し、必要なアカウントを接続してから、Sokosumi とツール横断で仕事の調整を依頼してください。",
         "journeyStep1Tag": "00:00",
         "journeyStep1Title": "アシスタントを有効化",
         "journeyStep1Body": "Sokosumi アカウントからワンクリック。インストール不要、API キーの管理も不要。この瞬間からアシスタントはあなたのアカウントに紐づきます。",
@@ -2163,18 +2163,18 @@
         "feature7Body": "オープンソースモデルをスイスでホスティング。",
         "examplesHeading": "試してみること",
         "examplesHelp": "チャットを開いて何でも聞いてください。いくつかの例：",
-        "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
-        "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
-        "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
-        "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
-        "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
-        "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
-        "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
-        "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
-        "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
-        "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
-        "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
-        "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
+        "example1": "今週のローンチ関連メールを要約し、不足している文脈は Research エージェントに依頼して、次の通話前にブリーフィングして。",
+        "example1Reply": "ローンチのスレッドと未決事項を見つけました。会社とステークホルダーの文脈を補うため **Research** を依頼します。\n\n次の通話前に、未解決の質問・担当メモ・アジェンダ草案つきの短いブリーフを返します。",
+        "example2": "最新の営業メールの企業を調査し、レポートができたら簡潔なフォローアップを下書きして。",
+        "example2Reply": "スレッドを見つけ、会社名・ユースケース・未解決の依頼を抽出しました。製品・トラクション・資金調達・現在の優先事項との重なりを扱う **Company Research** を依頼します。\n\n戻ってきたら、続ける／見送るための最も強い3つの理由つきの返信を下書きします。",
+        "example3": "平日の毎朝、昨日の受信トレイと今日のカレンダーを短いブリーフにして Slack に投稿して。",
+        "example3Reply": "スケジュール済み。平日の毎朝:\n\n1. 前夜以降の新着メールを確認し、今日のカレンダーをスキャン\n2. 決定・衝突・ブロックを要約\n3. 判断が必要な項目のフォロースレッド付きで短いブリーフを Slack に投稿\n\n初回実行は次の平日朝にキュー済みです。",
+        "example4": "自分待ちの GitHub PR と Linear Issue を確認し、エンジニアリングに送る引き継ぎメモを下書きして。",
+        "example4Reply": "レビュー待ちの PR と Issue を見つけました。今日判断が必要なものが2件、残りは委任可能です。\n\n担当・ブロッカー・次のアクション付きの引き継ぎメモを下書きします。エンジニアリングへ投稿する前に確認します。",
+        "example5": "今週のカテゴリに関する公開議論について Market Research エージェントを雇い、センチメントとアクション項目を送って。",
+        "example5Reply": "最近の公開議論・繰り返される不満・購買トリガー・競合言及を扱う **Market Research** を依頼します。\n\n戻ってきたらセンチメントを要約し、強い引用を抜き出し、具体的な発見をフォローアップタスクにします。",
+        "example6": "割り当てジョブが1週間に2回失敗したら返金を申請し、ログ付きで Issue を開き、繰り返すときだけ通知して。",
+        "example6Reply": "監視中。割り当てジョブが失敗したら詳細を集め、可能な場合は返金を申請します。\n\n同じパターンが7日で2回繰り返したら、ログ・想定原因・提案オーナー付きの Issue を下書きしてから通知します。",
         "examplesPickHint": "プロンプトを選ぶとアシスタントの返答例が表示されます",
         "sokosumiTitle": "Sokosumi と連携",
         "sokosumiBody": "タスクを読み、有効なエージェント経由でジョブを実行し、プラットフォーム上でアシスト — すべてマイクロVM内で。",
@@ -2277,7 +2277,9 @@
         },
         "integrationsChip": {
           "integrations": "連携",
-          "ariaConnected": "{count, plural, one {# 件の連携が接続済み — 設定を開く} other {# 件の連携が接続済み — 設定を開く}}"
+          "ariaConnected": "{count, plural, one {# 件の連携が接続済み — 設定を開く} other {# 件の連携が接続済み — 設定を開く}}",
+          "connect": "接続",
+          "connectIntegrations": "連携を接続"
         },
         "confirmation": {
           "heading": "アシスタントの承認が必要です",
@@ -2602,7 +2604,8 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      }
+      },
+      "BetaTag": "ベータ"
     },
     "Error": {
       "title": "問題が発生しました",

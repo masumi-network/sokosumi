@@ -2071,12 +2071,12 @@
           "linkedin": "LinkedIn"
         },
         "exampleCategories": {
-          "example1": "Inbox briefing",
-          "example2": "Company research + reply",
-          "example3": "Daily brief",
-          "example4": "PR and issue follow-up",
-          "example5": "Market scan",
-          "example6": "Failure watch"
+          "example1": "Resumen del buzón",
+          "example2": "Investigación de empresa + respuesta",
+          "example3": "Brief diario",
+          "example4": "Seguimiento de PRs e issues",
+          "example5": "Escaneo de mercado",
+          "example6": "Vigilancia de fallos"
         },
         "visuals": {
           "activated": "Activado",
@@ -2091,42 +2091,42 @@
           "memoryWritten": "Memoria · escrita",
           "demoInbox": {
             "0": {
-              "from": "Project lead",
-              "subject": "Launch checklist"
+              "from": "Jefe de proyecto",
+              "subject": "Checklist de lanzamiento"
             },
             "1": {
-              "from": "Customer team",
-              "subject": "Contract questions"
+              "from": "Equipo de clientes",
+              "subject": "Preguntas del contrato"
             },
             "2": {
               "from": "Build bot",
-              "subject": "Deployment failed"
+              "subject": "Despliegue fallido"
             }
           },
           "demoMemory": {
-            "0": "Launch plan is the current priority",
-            "1": "Project lead owns approvals",
-            "2": "Open questions need a reply"
+            "0": "El plan de lanzamiento es la prioridad actual",
+            "1": "El jefe de proyecto aprueba",
+            "2": "Las preguntas abiertas necesitan respuesta"
           },
-          "actUserMessage": "Find a time with the project lead next week.",
+          "actUserMessage": "Encuentra un hueco con el jefe de proyecto la semana que viene.",
           "actWorking": "Tu asistente está trabajando",
           "actSteps": {
-            "0": "Found an open slot",
-            "1": "Drafted the invite",
-            "2": "Pulled project context"
+            "0": "Hueco libre encontrado",
+            "1": "Invitación redactada",
+            "2": "Contexto del proyecto cargado"
           },
-          "actHeld": "Time held for review",
+          "actHeld": "Tiempo reservado para revisión",
           "overnightTitle": "Morning brief",
           "overnightSchedule": {
-            "0": "Review overnight messages",
-            "1": "Sync Sokosumi jobs",
-            "2": "Draft the morning brief",
-            "3": "Post to chat and Slack"
+            "0": "Revisar mensajes nocturnos",
+            "1": "Sincronizar trabajos de Sokosumi",
+            "2": "Redactar el brief matutino",
+            "3": "Publicar en el chat y Slack"
           }
         },
         "journeyEyebrow": "De principio a fin",
         "journeyHeading": "Cómo funciona tu asistente, paso a paso",
-        "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
+        "journeyDescription": "Actívalo, conecta las cuentas que necesita y pídele que coordine el trabajo en Sokosumi y tus herramientas.",
         "journeyStep1Tag": "00:00",
         "journeyStep1Title": "Activas tu asistente",
         "journeyStep1Body": "Un clic desde tu cuenta de Sokosumi. Sin instalaciones ni API keys que gestionar. Tu asistente queda vinculado a tu cuenta desde este momento.",
@@ -2163,18 +2163,18 @@
         "feature7Body": "Modelos de código abierto, alojados en Suiza.",
         "examplesHeading": "Cosas para probar",
         "examplesHelp": "Abre el chat y pregunta lo que quieras. Algunos puntos de partida:",
-        "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
-        "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
-        "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
-        "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
-        "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
-        "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
-        "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
-        "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
-        "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
-        "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
-        "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
-        "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
+        "example1": "Resume los correos del lanzamiento de esta semana, contrata al agente Research para el contexto que falte y prepárame un brief antes de la siguiente llamada.",
+        "example1Reply": "Encontré el hilo del lanzamiento y las decisiones abiertas. Contrato a **Research** para completar el contexto de la empresa y los stakeholders.\n\nTe devolveré un brief corto con preguntas abiertas, notas de responsables y un borrador de agenda antes de tu próxima llamada.",
+        "example2": "Investiga la empresa del último correo de ventas y redacta un seguimiento conciso cuando el informe esté listo.",
+        "example2Reply": "Encontré el hilo y extraje el nombre de la empresa, el caso de uso y la pregunta abierta. Contrato a **Company Research** con un brief sobre producto, tracción, financiación y solapamiento con tus prioridades actuales.\n\nCuando vuelva, redactaré una respuesta con las tres razones más fuertes para seguir o pasar.",
+        "example3": "Cada mañana laborable, convierte el buzón de ayer y el calendario de hoy en un brief corto y publícalo en Slack.",
+        "example3Reply": "Programado. Cada mañana laborable haré:\n\n1. Revisar el correo nuevo desde la noche anterior y escanear el calendario de hoy\n2. Resumir decisiones, conflictos y bloqueos\n3. Publicar un brief corto en Slack con hilos de seguimiento para lo que necesite tu decisión\n\nLa primera ejecución está en cola para la próxima mañana laborable.",
+        "example4": "Revisa los PRs de GitHub y los issues de Linear que me esperan y redacta las notas de traspaso que debería enviar a ingeniería.",
+        "example4Reply": "Encontré los PRs e issues que esperan tu revisión. Dos necesitan una decisión hoy y el resto se puede delegar.\n\nEstoy redactando una nota de traspaso con responsables, bloqueos y siguientes pasos. Preguntaré antes de publicarla a ingeniería.",
+        "example5": "Contrata al agente Market Research sobre la discusión pública de esta semana en nuestra categoría y envíame el sentimiento y las acciones.",
+        "example5Reply": "Contrato a **Market Research** con un brief sobre discusiones públicas recientes, quejas repetidas, disparadores de compra y menciones de competidores.\n\nCuando vuelva, resumiré el sentimiento, extraeré las citas más fuertes y convertiré hallazgos concretos en tareas de seguimiento.",
+        "example6": "Si un trabajo asignado falla dos veces en una semana, solicita el reembolso, abre un issue con los logs y avísame solo si se repite.",
+        "example6Reply": "En vigilancia. Cuando un trabajo asignado a ti falle, reuniré los detalles del fallo y solicitaré un reembolso cuando proceda.\n\nSi el mismo patrón se repite dos veces en siete días, redactaré un issue con logs, causa probable y responsable sugerido antes de avisarte.",
         "examplesPickHint": "Elige un prompt para ver cómo respondería tu asistente",
         "sokosumiTitle": "Conectado a Sokosumi",
         "sokosumiBody": "Lee tus tareas, ejecuta jobs con los agents habilitados y te asiste en la plataforma, todo dentro de tu microVM.",
@@ -2277,7 +2277,9 @@
         },
         "integrationsChip": {
           "integrations": "Integraciones",
-          "ariaConnected": "{count, plural, one {# integración conectada — abrir ajustes} other {# integraciones conectadas — abrir ajustes}}"
+          "ariaConnected": "{count, plural, one {# integración conectada — abrir ajustes} other {# integraciones conectadas — abrir ajustes}}",
+          "connect": "Conectar",
+          "connectIntegrations": "Conectar integraciones"
         },
         "confirmation": {
           "heading": "Tu asistente necesita tu visto bueno",
@@ -2602,7 +2604,8 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      }
+      },
+      "BetaTag": "Beta"
     },
     "Error": {
       "title": "Algo salió mal",

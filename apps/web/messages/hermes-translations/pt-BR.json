@@ -49,25 +49,25 @@
     "disclaimer3": "Contas conectadas dão ao seu assistente acesso limitado via OAuth. Desconecte qualquer integração assim que deixar de confiar.",
     "disclaimer4": "Software beta. O comportamento pode mudar entre versões. Seu histórico de conversa é seu, mas as capacidades vão evoluir.",
     "disclaimerHeading": "Algumas coisas honestas antes de começar",
-    "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
-    "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
-    "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
-    "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
-    "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
-    "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
-    "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
-    "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
-    "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
-    "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
-    "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
-    "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
+    "example1": "Resuma os e-mails de lançamento desta semana, contrate o agente Research para o contexto que falta e me briefe antes da próxima call.",
+    "example1Reply": "Encontrei o fio do lançamento e as decisões em aberto. Contratei **Research** para completar o contexto da empresa e dos stakeholders.\n\nVou devolver um brief curto com perguntas em aberto, notas dos responsáveis e um rascunho de agenda antes da sua próxima call.",
+    "example2": "Pesquise a empresa do último e-mail de vendas e redija um follow-up conciso quando o relatório estiver pronto.",
+    "example2Reply": "Fio encontrado; extraí nome da empresa, caso de uso e pedido em aberto. Contratei **Company Research** com um brief sobre produto, tração, funding e sobreposição com suas prioridades atuais.\n\nQuando voltar, redijo uma resposta com as três razões mais fortes para continuar ou passar.",
+    "example3": "Toda manhã de dia útil, transforme a caixa de ontem e o calendário de hoje em um brief curto e poste no Slack.",
+    "example3Reply": "Agendado. Toda manhã de dia útil vou:\n\n1. Revisar o e-mail novo desde a noite anterior e escanear o calendário de hoje\n2. Resumir decisões, conflitos e bloqueios\n3. Postar um brief curto no Slack com fios de follow-up para o que precisa da sua decisão\n\nA primeira execução está na fila para a próxima manhã de dia útil.",
+    "example4": "Verifique os PRs do GitHub e as issues do Linear à minha espera e redija as notas de handoff que eu deveria enviar para a engenharia.",
+    "example4Reply": "Encontrei os PRs e issues à espera da sua revisão. Dois precisam de decisão hoje e o resto pode ser delegado.\n\nEstou redigindo uma nota de handoff com responsáveis, bloqueios e próximas ações. Vou perguntar antes de postar para a engenharia.",
+    "example5": "Contrate o agente Market Research sobre a discussão pública desta semana em torno da nossa categoria e me envie o sentimento e os action items.",
+    "example5Reply": "Contratei **Market Research** com um brief sobre discussões públicas recentes, reclamações repetidas, gatilhos de compra e menções de concorrentes.\n\nQuando voltar, resumo o sentimento, extraio as citações mais fortes e transformo achados concretos em tarefas de follow-up.",
+    "example6": "Se um job atribuído falhar duas vezes em uma semana, solicite o reembolso, abra uma issue com os logs e me avise só se repetir.",
+    "example6Reply": "Em vigilância. Quando um job atribuído a você falhar, reúno os detalhes e solicito reembolso quando elegível.\n\nSe o mesmo padrão se repetir duas vezes em sete dias, redijo uma issue com logs, causa provável e owner sugerido antes de avisar você.",
     "exampleCategories": {
-      "example1": "Inbox briefing",
-      "example2": "Company research + reply",
-      "example3": "Daily brief",
-      "example4": "PR and issue follow-up",
-      "example5": "Market scan",
-      "example6": "Failure watch"
+      "example1": "Briefing da caixa de entrada",
+      "example2": "Pesquisa de empresa + resposta",
+      "example3": "Brief diário",
+      "example4": "Follow-up de PRs e issues",
+      "example5": "Scan de mercado",
+      "example6": "Vigilância de falhas"
     },
     "examplesEyebrow": "Experimente",
     "examplesHeading": "Coisas para experimentar",
@@ -76,7 +76,7 @@
     "featuresEyebrow": "Recursos",
     "featuresHeading": "Feito para o trabalho diário e sério",
     "integrationsEyebrow": "Integrações",
-    "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
+    "journeyDescription": "Ative-o, conecte as contas de que ele precisa e peça para coordenar o trabalho no Sokosumi e nas suas ferramentas.",
     "journeyEyebrow": "Do início ao fim",
     "journeyHeading": "Como seu assistente funciona, passo a passo",
     "journeyStep1Body": "Um clique na sua conta Sokosumi. Sem instalações nem API keys para gerenciar. Seu assistente fica vinculado à sua conta a partir deste momento.",
@@ -117,46 +117,46 @@
     "servicesHelp": "Conecte uma vez durante a configuração. Seu assistente pode ler, buscar, redigir e agir nas suas contas. Adicionamos conectores com frequência.",
     "servicesMoreLabel": "e mais",
     "visuals": {
-      "actHeld": "Time held for review",
-      "actSteps": [
-        "Found an open slot",
-        "Drafted the invite",
-        "Pulled project context"
-      ],
-      "actUserMessage": "Find a time with the project lead next week.",
+      "actHeld": "Tempo reservado para revisão",
+      "actSteps": {
+        "0": "Slot livre encontrado",
+        "1": "Convite rascunhado",
+        "2": "Contexto do projeto obtido"
+      },
+      "actUserMessage": "Encontre um horário com o project lead na próxima semana.",
       "actWorking": "Seu assistente está trabalhando",
       "activated": "Ativado",
-      "demoInbox": [
-        {
+      "demoInbox": {
+        "0": {
           "from": "Project lead",
-          "subject": "Launch checklist"
+          "subject": "Checklist de lançamento"
         },
-        {
-          "from": "Customer team",
-          "subject": "Contract questions"
+        "1": {
+          "from": "Time de clientes",
+          "subject": "Perguntas do contrato"
         },
-        {
+        "2": {
           "from": "Build bot",
-          "subject": "Deployment failed"
+          "subject": "Deploy falhou"
         }
-      ],
-      "demoMemory": [
-        "Launch plan is the current priority",
-        "Project lead owns approvals",
-        "Open questions need a reply"
-      ],
+      },
+      "demoMemory": {
+        "0": "O plano de lançamento é a prioridade atual",
+        "1": "O project lead aprova",
+        "2": "Perguntas em aberto precisam de resposta"
+      },
       "encrypted": "criptografado",
       "filesystem": "Seus arquivos",
       "inboxScanned": "Caixa de entrada · escaneada",
       "memoryWritten": "Memória · gravada",
       "microVmLabel": "Seu próprio computador",
       "never": "nunca",
-      "overnightSchedule": [
-        "Review overnight messages",
-        "Sync Sokosumi jobs",
-        "Draft the morning brief",
-        "Post to chat and Slack"
-      ],
+      "overnightSchedule": {
+        "0": "Revisar mensagens noturnas",
+        "1": "Sincronizar jobs Sokosumi",
+        "2": "Redigir o brief da manhã",
+        "3": "Postar no chat e Slack"
+      },
       "overnightTitle": "Morning brief",
       "persistent": "persistente",
       "secrets": "Segredos",
@@ -260,18 +260,18 @@
     },
     "retry": "Tentar novamente",
     "roleLabel": "Função",
-    "roleOptions": [
-      "Fundador / CEO",
-      "Produto",
-      "Engenharia",
-      "Design",
-      "Marketing",
-      "Vendas",
-      "Operações",
-      "Finanças",
-      "Sucesso do cliente",
-      "Outro"
-    ],
+    "roleOptions": {
+      "0": "Fundador / CEO",
+      "1": "Produto",
+      "2": "Engenharia",
+      "3": "Design",
+      "4": "Marketing",
+      "5": "Vendas",
+      "6": "Operações",
+      "7": "Finanças",
+      "8": "Sucesso do cliente",
+      "9": "Outro"
+    },
     "rolePlaceholder": "O que você faz?",
     "skipCta": "Pular",
     "skipCtaHelp": "Usar uma mensagem de boas-vindas genérica.",
@@ -291,14 +291,14 @@
     "etaSettling": "Quase pronto…",
     "eyebrow": "Preparando seu agente",
     "footerHint": "Quando terminar, o chat abrirá com uma introdução personalizada do seu assistente.",
-    "hints": [
-      "Dica: pergunte \"o que é importante na minha caixa de entrada hoje?\" quando entrar.",
-      "Seu assistente lembra seus projetos, seus contatos, suas preferências.",
-      "Experimente: \"todo dia útil às 8h, me envie o resumo da minha caixa de entrada.\"",
-      "Seu assistente pode contratar outros agentes do Sokosumi para ajudar com pesquisa.",
-      "Conecte mais ferramentas depois em Configurações — Slack, Linear, Notion e mais.",
-      "Toda manhã seu assistente enviará um resumo do que precisa da sua atenção."
-    ],
+    "hints": {
+      "0": "Dica: pergunte \"o que é importante na minha caixa de entrada hoje?\" quando entrar.",
+      "1": "Seu assistente lembra seus projetos, seus contatos, suas preferências.",
+      "2": "Experimente: \"todo dia útil às 8h, me envie o resumo da minha caixa de entrada.\"",
+      "3": "Seu assistente pode contratar outros agentes do Sokosumi para ajudar com pesquisa.",
+      "4": "Conecte mais ferramentas depois em Configurações — Slack, Linear, Notion e mais.",
+      "5": "Toda manhã seu assistente enviará um resumo do que precisa da sua atenção."
+    },
     "pollError": "Não foi possível contatar o orquestrador agora — continuamos tentando.",
     "previewSteps": {
       "save_details": "Salvando seus detalhes",
@@ -318,15 +318,15 @@
     "setup": "Configuração"
   },
   "Provisioning": {
-    "facts": [
-      "Seu assistente ganha seu próprio computador privado e lembra seu contexto entre sessões.",
-      "Conecte Gmail, Outlook, Slack, Linear, GitHub, Notion e mais.",
-      "Seu assistente pode contratar outros agentes do Sokosumi para trabalhar em seu nome.",
-      "Converse aqui, no Telegram, Slack ou onde você trabalha — continue de qualquer lugar.",
-      "Toda manhã seu assistente pode enviar um resumo do que precisa da sua atenção.",
-      "Leia sua caixa de entrada, redija respostas, agende reuniões — tudo pelo chat.",
-      "Peça ao seu assistente para agendar coisas em linguagem natural: \"toda segunda às 9h, resuma minha semana à frente.\""
-    ],
+    "facts": {
+      "0": "Seu assistente ganha seu próprio computador privado e lembra seu contexto entre sessões.",
+      "1": "Conecte Gmail, Outlook, Slack, Linear, GitHub, Notion e mais.",
+      "2": "Seu assistente pode contratar outros agentes do Sokosumi para trabalhar em seu nome.",
+      "3": "Converse aqui, no Telegram, Slack ou onde você trabalha — continue de qualquer lugar.",
+      "4": "Toda manhã seu assistente pode enviar um resumo do que precisa da sua atenção.",
+      "5": "Leia sua caixa de entrada, redija respostas, agende reuniões — tudo pelo chat.",
+      "6": "Peça ao seu assistente para agendar coisas em linguagem natural: \"toda segunda às 9h, resuma minha semana à frente.\""
+    },
     "settingUp": "Configurando seu agente…",
     "subtitle": "Isso costuma levar cerca de um minuto. Você pode fechar esta aba — seu assistente continua se preparando em segundo plano.",
     "title": "Iniciando seu assistente",
@@ -393,11 +393,11 @@
       "ariaConnected": "{count, plural, one {# integração conectada — abrir configurações} other {# integrações conectadas — abrir configurações}}",
       "integrations": "Integrações"
     },
-    "mockReplies": [
-      "Sou uma resposta simulada da sua prévia local do assistente. Remova ?state=running para ver seu assistente real conectado ao orquestrador.",
-      "Entendi. Em produção, sua mensagem passa pelo servidor do Sokosumi, o orquestrador retorna seu endpoint privado e seu assistente responde.",
-      "É o que eu faria: salvar isso na memória de longo prazo, adicionar um follow-up à sua lista de tarefas e manter o contexto para a próxima sessão."
-    ],
+    "mockReplies": {
+      "0": "Sou uma resposta simulada da sua prévia local do assistente. Remova ?state=running para ver seu assistente real conectado ao orquestrador.",
+      "1": "Entendi. Em produção, sua mensagem passa pelo servidor do Sokosumi, o orquestrador retorna seu endpoint privado e seu assistente responde.",
+      "2": "É o que eu faria: salvar isso na memória de longo prazo, adicionar um follow-up à sua lista de tarefas e manter o contexto para a próxima sessão."
+    },
     "outboxKinds": {
       "confirmation_resolved": "Confirmação",
       "daily_brief": "Resumo diário",
@@ -409,31 +409,31 @@
       "welcome": "Boas-vindas"
     },
     "removeFile": "Remover",
-    "rotatingHints": [
-      "Try: schedule a daily inbox brief at 8am",
-      "Try: summarize my open customer threads",
-      "Try: draft a follow-up to my last meeting notes",
-      "Try: what's overdue in my inbox?"
-    ],
+    "rotatingHints": {
+      "0": "Try: schedule a daily inbox brief at 8am",
+      "1": "Try: summarize my open customer threads",
+      "2": "Try: draft a follow-up to my last meeting notes",
+      "3": "Try: what's overdue in my inbox?"
+    },
     "statusError": "Erro",
-    "thinkingMessages": [
-      "Pensando",
-      "Consultando os deuses do calendário",
-      "Revendo sua caixa de entrada",
-      "Lendo nas entrelinhas",
-      "Preparando uma resposta",
-      "Carregando seu contexto",
-      "Perguntando por aí",
-      "Escolhendo a ferramenta certa",
-      "Redigindo com cuidado",
-      "Conferindo antes de agir",
-      "Fazendo a parte chata por você",
-      "Desembaraçando o Slack",
-      "Cruzando a memória",
-      "Rastreando um detalhe",
-      "Escolhendo minhas palavras",
-      "Quase lá"
-    ],
+    "thinkingMessages": {
+      "0": "Pensando",
+      "1": "Consultando os deuses do calendário",
+      "2": "Revendo sua caixa de entrada",
+      "3": "Lendo nas entrelinhas",
+      "4": "Preparando uma resposta",
+      "5": "Carregando seu contexto",
+      "6": "Perguntando por aí",
+      "7": "Escolhendo a ferramenta certa",
+      "8": "Redigindo com cuidado",
+      "9": "Conferindo antes de agir",
+      "10": "Fazendo a parte chata por você",
+      "11": "Desembaraçando o Slack",
+      "12": "Cruzando a memória",
+      "13": "Rastreando um detalhe",
+      "14": "Escolhendo minhas palavras",
+      "15": "Quase lá"
+    },
     "transitioning": "Seu assistente está aplicando sua alteração…",
     "transitioningHint": "(leva cerca de 30 segundos)",
     "assistantFallback": "seu assistente"

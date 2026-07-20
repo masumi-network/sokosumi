@@ -2071,12 +2071,12 @@
           "linkedin": "LinkedIn"
         },
         "exampleCategories": {
-          "example1": "Inbox briefing",
-          "example2": "Company research + reply",
-          "example3": "Daily brief",
-          "example4": "PR and issue follow-up",
-          "example5": "Market scan",
-          "example6": "Failure watch"
+          "example1": "收件箱简报",
+          "example2": "公司调研 + 回复",
+          "example3": "每日简报",
+          "example4": "PR 与 Issue 跟进",
+          "example5": "市场扫描",
+          "example6": "失败监控"
         },
         "visuals": {
           "activated": "已激活",
@@ -2091,42 +2091,42 @@
           "memoryWritten": "记忆 · 已写入",
           "demoInbox": {
             "0": {
-              "from": "Project lead",
-              "subject": "Launch checklist"
+              "from": "项目负责人",
+              "subject": "发布清单"
             },
             "1": {
-              "from": "Customer team",
-              "subject": "Contract questions"
+              "from": "客户团队",
+              "subject": "合同问题"
             },
             "2": {
               "from": "Build bot",
-              "subject": "Deployment failed"
+              "subject": "部署失败"
             }
           },
           "demoMemory": {
-            "0": "Launch plan is the current priority",
-            "1": "Project lead owns approvals",
-            "2": "Open questions need a reply"
+            "0": "发布计划是当前优先事项",
+            "1": "项目负责人负责审批",
+            "2": "未决问题需要回复"
           },
-          "actUserMessage": "Find a time with the project lead next week.",
+          "actUserMessage": "下周和项目负责人约个时间。",
           "actWorking": "你的助手正在工作",
           "actSteps": {
-            "0": "Found an open slot",
-            "1": "Drafted the invite",
-            "2": "Pulled project context"
+            "0": "找到空档",
+            "1": "起草邀请",
+            "2": "拉取项目上下文"
           },
-          "actHeld": "Time held for review",
+          "actHeld": "已预留审阅时间",
           "overnightTitle": "Morning brief",
           "overnightSchedule": {
-            "0": "Review overnight messages",
-            "1": "Sync Sokosumi jobs",
-            "2": "Draft the morning brief",
-            "3": "Post to chat and Slack"
+            "0": "审阅夜间消息",
+            "1": "同步 Sokosumi 任务",
+            "2": "起草晨间简报",
+            "3": "发到聊天和 Slack"
           }
         },
         "journeyEyebrow": "端到端",
         "journeyHeading": "个人助手如何工作，一步步来",
-        "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
+        "journeyDescription": "先激活它，连接所需账户，再让它在 Sokosumi 与你的工具之间协调工作。",
         "journeyStep1Tag": "00:00",
         "journeyStep1Title": "你激活个人助手",
         "journeyStep1Body": "从你的 Sokosumi 账户一键完成。无需安装，无需管理 API 密钥。从此刻起你的助手即绑定到你的账户。",
@@ -2163,18 +2163,18 @@
         "feature7Body": "开源模型，托管于瑞士。",
         "examplesHeading": "可以尝试的事",
         "examplesHelp": "打开聊天随便问。几个起点：",
-        "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
-        "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
-        "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
-        "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
-        "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
-        "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
-        "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
-        "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
-        "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
-        "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
-        "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
-        "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
+        "example1": "总结本周发布相关邮件，缺上下文就雇 Research 智能体补齐，并在下次通话前给我简报。",
+        "example1Reply": "我找到了发布线程和未决事项。正在雇 **Research** 补齐公司与干系人上下文。\n\n下次通话前会给你一份含未决问题、负责人备注和议程草稿的短简报。",
+        "example2": "调研最新销售邮件里的公司，报告就绪后起草一封简洁跟进。",
+        "example2Reply": "已找到线程，并提取了公司名、用例和未决请求。正在雇 **Company Research**，涵盖产品、增长、融资以及与你当前优先级的重叠。\n\n返回后，我会起草一封含继续或放弃的三条最强理由的回复。",
+        "example3": "每个工作日早晨，把昨天的收件箱和今天的日历整理成短简报并发到 Slack。",
+        "example3Reply": "已排程。每个工作日早晨我会：\n\n1. 检查前一晚以来的新邮件并扫描今日日历\n2. 汇总决策、冲突与阻塞\n3. 在 Slack 发短简报，并为需要你拍板的事项附跟进线程\n\n首次运行已排到下一个工作日早晨。",
+        "example4": "检查等我处理的 GitHub PR 和 Linear Issue，然后起草应发给工程的交接说明。",
+        "example4Reply": "找到了等待你审阅的 PR 和 Issue。两项今天需要决策，其余可委派。\n\n正在起草含负责人、阻塞与建议下一步的交接说明。发给工程前会先征求你同意。",
+        "example5": "雇 Market Research 智能体关注本周我们品类的公开讨论，并把情绪与行动项发我。",
+        "example5Reply": "正在雇 **Market Research**，涵盖近期公开讨论、反复抱怨、购买触发与竞品提及。\n\n返回后，我会总结情绪、抽出最强引用，并把具体发现变成跟进任务。",
+        "example6": "若分配的任务一周失败两次，申请退款、用日志开 Issue，仅在再次重复时通知我。",
+        "example6Reply": "持续监控中。当你被分配的任务失败时，我会收集失败细节并在符合条件时申请退款。\n\n若同一模式在七天内重复两次，会在通知你之前起草含日志、可能原因与建议负责人的 Issue。",
         "examplesPickHint": "选择一个提示，查看你的助手会如何回复",
         "sokosumiTitle": "接入 Sokosumi",
         "sokosumiBody": "读取任务、通过已启用的智能体运行作业，在平台内协助你——全部在微虚拟机中完成。",
@@ -2277,7 +2277,9 @@
         },
         "integrationsChip": {
           "integrations": "集成",
-          "ariaConnected": "{count, plural, one {已连接 # 个集成 — 打开设置} other {已连接 # 个集成 — 打开设置}}"
+          "ariaConnected": "{count, plural, one {已连接 # 个集成 — 打开设置} other {已连接 # 个集成 — 打开设置}}",
+          "connect": "连接",
+          "connectIntegrations": "连接集成"
         },
         "confirmation": {
           "heading": "你的助手需要你的确认",
@@ -2602,7 +2604,8 @@
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
         "removeFailed": "Couldn't remove the skill."
-      }
+      },
+      "BetaTag": "测试版"
     },
     "Error": {
       "title": "出现问题",
