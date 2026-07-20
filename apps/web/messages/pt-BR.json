@@ -3561,7 +3561,8 @@
         },
         "Actions": {
           "editTooltip": "Editar cliente OAuth",
-          "deleteTooltip": "Excluir cliente OAuth"
+          "deleteTooltip": "Excluir cliente OAuth",
+          "rotateTooltip": "Rotacionar segredo do cliente"
         },
         "EditDialog": {
           "title": "Editar cliente OAuth",
@@ -3588,13 +3589,30 @@
           "updateError": "Falha ao atualizar cliente OAuth",
           "deleteSuccess": "Cliente OAuth excluído com sucesso",
           "deleteError": "Falha ao excluir cliente OAuth",
-          "copyError": "Falha ao copiar para a área de transferência"
+          "copyError": "Falha ao copiar para a área de transferência",
+          "rotateSuccess": "Segredo do cliente rotacionado com sucesso",
+          "rotateError": "Falha ao rotacionar o segredo do cliente"
         },
         "Validation": {
           "nameRequired": "O nome é obrigatório",
           "nameMaxLength": "O nome deve ter menos de 100 caracteres",
           "redirectUrisRequired": "É necessária pelo menos uma URI de redirecionamento",
           "redirectUrisInvalid": "Cada URI de redirecionamento deve ser uma URL HTTPS válida (HTTP permitido para localhost), sem fragmento."
+        },
+        "RotateDialog": {
+          "title": "Rotacionar segredo do cliente",
+          "description": "Isso invalidará o segredo atual de \"{name}\" e gerará um novo. Aplicativos que usam o segredo antigo deixarão de funcionar até você atualizá-los.",
+          "cancelButton": "Cancelar",
+          "confirmButton": "Rotacionar segredo"
+        },
+        "RotatedSuccess": {
+          "title": "Segredo do cliente rotacionado",
+          "description": "Salve o novo segredo com segurança. O segredo anterior não funciona mais.",
+          "clientSecretLabel": "Novo segredo do cliente",
+          "clientSecretWarning": "Este segredo será exibido apenas uma vez. Salve-o com segurança.",
+          "doneButton": "Concluído",
+          "showSecret": "Mostrar segredo",
+          "hideSecret": "Ocultar segredo"
         }
       },
       "OAuthCallback": {

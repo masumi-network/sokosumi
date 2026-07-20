@@ -26,6 +26,7 @@
   "dependencies": {
     "@ai-sdk/react": "4.0.34",
     "@better-auth/api-key": "1.6.23",
+    "@better-auth/core": "1.6.23",
     "@better-auth/i18n": "1.6.23",
     "@better-auth/oauth-provider": "1.6.23",
     "@better-auth/passkey": "1.6.23",

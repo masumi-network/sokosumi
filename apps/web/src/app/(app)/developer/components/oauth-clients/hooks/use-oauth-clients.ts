@@ -11,6 +11,8 @@ import type {
   CreateOAuthClientResult,
   DeleteOAuthClientRequest,
   OAuthClientRecord,
+  RotateOAuthClientRequest,
+  RotateOAuthClientResult,
   UpdateOAuthClientRequest,
   UseOAuthClientsReturn,
 } from "../types";
@@ -158,6 +160,56 @@ export function useOAuthClients(): UseOAuthClientsReturn {
     [refresh, t],
   );
 
+  const rotateSecret = useCallback(
+    async (
+      data: RotateOAuthClientRequest,
+    ): Promise<RotateOAuthClientResult> => {
+      try {
+        const result = await authClient.oauth2.client.rotateSecret({
+          client_id: data.clientId,
+        });
+
+        if (result.error) {
+          const errorMessage =
+            result.error.message ?? t("Messages.rotateError");
+          toast.error(errorMessage);
+          return {
+            success: false,
+            error: { message: errorMessage },
+          };
+        }
+
+        if (result.data) {
+          toast.success(t("Messages.rotateSuccess"));
+          // Reveal secret immediately; list refresh is non-blocking.
+          void refresh();
+          return {
+            success: true,
+            data: {
+              clientId: result.data.client_id,
+              clientSecret: result.data.client_secret ?? null,
+            },
+          };
+        }
+
+        const errorMessage = t("Messages.rotateError");
+        toast.error(errorMessage);
+        return {
+          success: false,
+          error: { message: errorMessage },
+        };
+      } catch {
+        const errorMessage = t("Messages.rotateError");
+        toast.error(errorMessage);
+        return {
+          success: false,
+          error: { message: errorMessage },
+        };
+      }
+    },
+    [refresh, t],
+  );
+
   useEffect(() => {
     void refresh(true);
   }, [refresh]);
@@ -170,5 +222,6 @@ export function useOAuthClients(): UseOAuthClientsReturn {
     create,
     update,
     delete: deleteClient,
+    rotateSecret,
   };
 }

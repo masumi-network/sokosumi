@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ export function OAuthClientsList({
   error,
   onRetry,
   onEditClick,
+  onRotateClick,
   onDeleteClick,
 }: OAuthClientsListProps) {
   const t = useTranslations("App.Account.OAuthClients");
@@ -101,6 +102,17 @@ export function OAuthClientsList({
               >
                 <Pencil className="size-4" />
               </Button>
+              {!client.public ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onRotateClick(client)}
+                  title={t("Actions.rotateTooltip")}
+                  aria-label={t("Actions.rotateTooltip")}
+                >
+                  <KeyRound className="size-4" />
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 variant="ghost"

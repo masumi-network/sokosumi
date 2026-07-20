@@ -3561,7 +3561,8 @@
         },
         "Actions": {
           "editTooltip": "Modifica client OAuth",
-          "deleteTooltip": "Elimina client OAuth"
+          "deleteTooltip": "Elimina client OAuth",
+          "rotateTooltip": "Ruota secret del client"
         },
         "EditDialog": {
           "title": "Modifica client OAuth",
@@ -3588,13 +3589,30 @@
           "updateError": "Impossibile aggiornare il client OAuth",
           "deleteSuccess": "Client OAuth eliminato con successo",
           "deleteError": "Impossibile eliminare il client OAuth",
-          "copyError": "Copia negli appunti non riuscita"
+          "copyError": "Copia negli appunti non riuscita",
+          "rotateSuccess": "Secret del client ruotato con successo",
+          "rotateError": "Impossibile ruotare il secret del client"
         },
         "Validation": {
           "nameRequired": "Il nome è obbligatorio",
           "nameMaxLength": "Il nome deve contenere meno di 100 caratteri",
           "redirectUrisRequired": "È richiesto almeno un URI di reindirizzamento",
           "redirectUrisInvalid": "Ogni URI di reindirizzamento deve essere un URL HTTPS valido (HTTP consentito per localhost), senza frammento."
+        },
+        "RotateDialog": {
+          "title": "Ruota secret del client",
+          "description": "Questo invalidirà il secret attuale di \"{name}\" e ne genererà uno nuovo. Le applicazioni che usano il secret precedente smetteranno di funzionare finché non le aggiorni.",
+          "cancelButton": "Annulla",
+          "confirmButton": "Ruota secret"
+        },
+        "RotatedSuccess": {
+          "title": "Secret del client ruotato",
+          "description": "Salva il nuovo secret in modo sicuro. Il secret precedente non funziona più.",
+          "clientSecretLabel": "Nuovo secret del client",
+          "clientSecretWarning": "Questo secret verrà mostrato una sola volta. Assicurati di salvarlo in modo sicuro.",
+          "doneButton": "Fatto",
+          "showSecret": "Mostra secret",
+          "hideSecret": "Nascondi secret"
         }
       },
       "OAuthCallback": {

@@ -10,6 +10,7 @@ import { EditOAuthClientDialog } from "./edit-oauth-client-dialog";
 import { useOAuthClients } from "./hooks/use-oauth-clients";
 import { OAuthClientsHeader } from "./oauth-clients-header";
 import { OAuthClientsList } from "./oauth-clients-list";
+import { RotateOAuthClientDialog } from "./rotate-oauth-client-dialog";
 import type { OAuthClientRecord } from "./types";
 
 export function OAuthClientsSection() {
@@ -21,15 +22,19 @@ export function OAuthClientsSection() {
     create,
     update,
     delete: deleteClient,
+    rotateSecret,
   } = useOAuthClients();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [rotateOpen, setRotateOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<OAuthClientRecord | null>(
     null,
   );
   const [clientToDelete, setClientToDelete] =
+    useState<OAuthClientRecord | null>(null);
+  const [clientToRotate, setClientToRotate] =
     useState<OAuthClientRecord | null>(null);
 
   const handleCreateClick = useCallback(() => {
@@ -44,6 +49,11 @@ export function OAuthClientsSection() {
   const handleDeleteClick = useCallback((client: OAuthClientRecord) => {
     setClientToDelete(client);
     setDeleteOpen(true);
+  }, []);
+
+  const handleRotateClick = useCallback((client: OAuthClientRecord) => {
+    setClientToRotate(client);
+    setRotateOpen(true);
   }, []);
 
   const handleRetry = useCallback(() => {
@@ -61,6 +71,7 @@ export function OAuthClientsSection() {
           error={error}
           onRetry={handleRetry}
           onEditClick={handleEditClick}
+          onRotateClick={handleRotateClick}
           onDeleteClick={handleDeleteClick}
         />
 
@@ -94,6 +105,18 @@ export function OAuthClientsSection() {
           }}
           onSuccess={() => setClientToDelete(null)}
           deleteClient={deleteClient}
+        />
+
+        <RotateOAuthClientDialog
+          client={clientToRotate}
+          open={rotateOpen}
+          onOpenChange={(open) => {
+            setRotateOpen(open);
+            if (!open) {
+              setClientToRotate(null);
+            }
+          }}
+          rotateSecret={rotateSecret}
         />
       </CardContent>
     </Card>

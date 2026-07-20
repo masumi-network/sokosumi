@@ -42,6 +42,21 @@ export interface DeleteOAuthClientRequest {
   clientId: string;
 }
 
+export interface RotateOAuthClientRequest {
+  clientId: string;
+}
+
+export interface RotateOAuthClientResult {
+  success: boolean;
+  data?: {
+    clientId: string;
+    clientSecret: string | null;
+  };
+  error?: {
+    message: string;
+  };
+}
+
 export interface UseOAuthClientsReturn {
   clients: OAuthClientRecord[];
   isInitialLoading: boolean;
@@ -50,6 +65,9 @@ export interface UseOAuthClientsReturn {
   create: (data: CreateOAuthClientRequest) => Promise<CreateOAuthClientResult>;
   update: (data: UpdateOAuthClientRequest) => Promise<boolean>;
   delete: (data: DeleteOAuthClientRequest) => Promise<boolean>;
+  rotateSecret: (
+    data: RotateOAuthClientRequest,
+  ) => Promise<RotateOAuthClientResult>;
 }
 
 export interface OAuthClientsHeaderProps {
@@ -62,6 +80,7 @@ export interface OAuthClientsListProps {
   error: string | null;
   onRetry: () => void;
   onEditClick: (client: OAuthClientRecord) => void;
+  onRotateClick: (client: OAuthClientRecord) => void;
   onDeleteClick: (client: OAuthClientRecord) => void;
 }
 
@@ -88,6 +107,16 @@ export interface DeleteOAuthClientDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   deleteClient: (data: DeleteOAuthClientRequest) => Promise<boolean>;
+}
+
+export interface RotateOAuthClientDialogProps {
+  client: OAuthClientRecord | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+  rotateSecret: (
+    data: RotateOAuthClientRequest,
+  ) => Promise<RotateOAuthClientResult>;
 }
 
 export type TranslationFunction = ReturnType<typeof useTranslations>;

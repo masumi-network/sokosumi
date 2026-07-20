@@ -3611,7 +3611,8 @@
         },
         "Actions": {
           "editTooltip": "Edit OAuth client",
-          "deleteTooltip": "Delete OAuth client"
+          "deleteTooltip": "Delete OAuth client",
+          "rotateTooltip": "Rotate client secret"
         },
         "EditDialog": {
           "title": "Edit OAuth Client",
@@ -3638,13 +3639,30 @@
           "updateError": "Failed to update OAuth client",
           "deleteSuccess": "OAuth client deleted successfully",
           "deleteError": "Failed to delete OAuth client",
-          "copyError": "Failed to copy to clipboard"
+          "copyError": "Failed to copy to clipboard",
+          "rotateSuccess": "Client secret rotated successfully",
+          "rotateError": "Failed to rotate client secret"
         },
         "Validation": {
           "nameRequired": "Name is required",
           "nameMaxLength": "Name must be less than 100 characters",
           "redirectUrisRequired": "At least one redirect URI is required",
           "redirectUrisInvalid": "Each redirect URI must be a valid HTTPS URL (HTTP allowed for localhost), with no fragment."
+        },
+        "RotateDialog": {
+          "title": "Rotate Client Secret",
+          "description": "This will invalidate the current secret for \"{name}\" and generate a new one. Applications using the old secret will stop working until you update them.",
+          "cancelButton": "Cancel",
+          "confirmButton": "Rotate Secret"
+        },
+        "RotatedSuccess": {
+          "title": "Client Secret Rotated",
+          "description": "Save the new secret securely. The previous secret no longer works.",
+          "clientSecretLabel": "New Client Secret",
+          "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
+          "doneButton": "Done",
+          "showSecret": "Show secret",
+          "hideSecret": "Hide secret"
         }
       },
       "OAuthCallback": {

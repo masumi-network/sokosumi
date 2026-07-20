@@ -3561,7 +3561,8 @@
         },
         "Actions": {
           "editTooltip": "OAuth クライアントを編集",
-          "deleteTooltip": "OAuth クライアントを削除"
+          "deleteTooltip": "OAuth クライアントを削除",
+          "rotateTooltip": "クライアントシークレットをローテーション"
         },
         "EditDialog": {
           "title": "OAuth クライアントを編集",
@@ -3588,13 +3589,30 @@
           "updateError": "OAuth クライアントの更新に失敗しました",
           "deleteSuccess": "OAuth クライアントを削除しました",
           "deleteError": "OAuth クライアントの削除に失敗しました",
-          "copyError": "クリップボードへのコピーに失敗しました"
+          "copyError": "クリップボードへのコピーに失敗しました",
+          "rotateSuccess": "クライアントシークレットをローテーションしました",
+          "rotateError": "クライアントシークレットのローテーションに失敗しました"
         },
         "Validation": {
           "nameRequired": "名前は必須です",
           "nameMaxLength": "名前は100文字未満にしてください",
           "redirectUrisRequired": "少なくとも1つのリダイレクト URI が必要です",
           "redirectUrisInvalid": "各リダイレクトURIは有効なHTTPS URLである必要があります（localhostではHTTP可）。フラグメントは不可。"
+        },
+        "RotateDialog": {
+          "title": "クライアントシークレットのローテーション",
+          "description": "「{name}」の現在のシークレットは無効になり、新しいシークレットが生成されます。古いシークレットを使っているアプリケーションは、更新するまで動作しなくなります。",
+          "cancelButton": "キャンセル",
+          "confirmButton": "シークレットをローテーション"
+        },
+        "RotatedSuccess": {
+          "title": "クライアントシークレットをローテーションしました",
+          "description": "新しいシークレットを安全に保存してください。以前のシークレットは使えなくなります。",
+          "clientSecretLabel": "新しいクライアントシークレット",
+          "clientSecretWarning": "このシークレットは一度だけ表示されます。必ず安全に保存してください。",
+          "doneButton": "完了",
+          "showSecret": "シークレットを表示",
+          "hideSecret": "シークレットを隠す"
         }
       },
       "OAuthCallback": {

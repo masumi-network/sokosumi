@@ -5,6 +5,7 @@ export { useOAuthClients } from "./hooks/use-oauth-clients";
 export { OAuthClientsHeader } from "./oauth-clients-header";
 export { OAuthClientsList } from "./oauth-clients-list";
 export { OAuthClientsSection } from "./oauth-clients-section";
+export { RotateOAuthClientDialog } from "./rotate-oauth-client-dialog";
 export type {
   CreateOAuthClientFormData,
   CreateOAuthClientRequest,
@@ -12,6 +13,8 @@ export type {
   DeleteOAuthClientRequest,
   EditOAuthClientFormData,
   OAuthClientRecord,
+  RotateOAuthClientRequest,
+  RotateOAuthClientResult,
   UpdateOAuthClientRequest,
   UseOAuthClientsReturn,
 } from "./types";
@@ -21,5 +24,6 @@ export {
   DEFAULT_EDIT_FORM_VALUES,
   DIALOG_CLEANUP_TIMEOUT,
   editOAuthClientSchema,
+  isSafeRedirectUri,
   parseRedirectUris,
 } from "./utils";

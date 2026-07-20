@@ -3530,7 +3530,8 @@
         },
         "Actions": {
           "editTooltip": "OAuth-Client bearbeiten",
-          "deleteTooltip": "OAuth-Client löschen"
+          "deleteTooltip": "OAuth-Client löschen",
+          "rotateTooltip": "Client-Secret rotieren"
         },
         "EditDialog": {
           "title": "OAuth-Client bearbeiten",
@@ -3557,13 +3558,30 @@
           "updateError": "OAuth-Client konnte nicht aktualisiert werden",
           "deleteSuccess": "OAuth-Client erfolgreich gelöscht",
           "deleteError": "OAuth-Client konnte nicht gelöscht werden",
-          "copyError": "Kopieren in die Zwischenablage fehlgeschlagen"
+          "copyError": "Kopieren in die Zwischenablage fehlgeschlagen",
+          "rotateSuccess": "Client-Secret erfolgreich rotiert",
+          "rotateError": "Client-Secret konnte nicht rotiert werden"
         },
         "Validation": {
           "nameRequired": "Name ist erforderlich",
           "nameMaxLength": "Name darf maximal 100 Zeichen lang sein",
           "redirectUrisRequired": "Mindestens eine Redirect-URI ist erforderlich",
           "redirectUrisInvalid": "Jede Redirect-URI muss eine gültige HTTPS-URL sein (HTTP nur für localhost), ohne Fragment."
+        },
+        "RotateDialog": {
+          "title": "Client-Secret rotieren",
+          "description": "Dadurch wird das aktuelle Secret für „{name}“ ungültig und ein neues erzeugt. Anwendungen mit dem alten Secret funktionieren erst wieder, wenn du sie aktualisierst.",
+          "cancelButton": "Abbrechen",
+          "confirmButton": "Secret rotieren"
+        },
+        "RotatedSuccess": {
+          "title": "Client-Secret rotiert",
+          "description": "Speichere das neue Secret sicher. Das vorherige Secret funktioniert nicht mehr.",
+          "clientSecretLabel": "Neues Client-Secret",
+          "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Speichere es sicher.",
+          "doneButton": "Fertig",
+          "showSecret": "Secret anzeigen",
+          "hideSecret": "Secret verbergen"
         }
       },
       "OAuthCallback": {

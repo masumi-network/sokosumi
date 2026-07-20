@@ -5,6 +5,7 @@ const getClientsMock = vi.fn();
 const createClientMock = vi.fn();
 const updateClientMock = vi.fn();
 const deleteClientMock = vi.fn();
+const rotateClientSecretMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -24,6 +25,9 @@ vi.mock("@/lib/auth/auth.client", () => ({
       createClient: (...args: unknown[]) => createClientMock(...args),
       updateClient: (...args: unknown[]) => updateClientMock(...args),
       deleteClient: (...args: unknown[]) => deleteClientMock(...args),
+      client: {
+        rotateSecret: (...args: unknown[]) => rotateClientSecretMock(...args),
+      },
     },
   },
 }));
@@ -160,5 +164,37 @@ describe("useOAuthClients", () => {
 
     expect(success).toBe(true);
     expect(deleteClientMock).toHaveBeenCalledWith({ client_id: "client_1" });
+  });
+
+  it("rotates a client secret and returns the new secret", async () => {
+    rotateClientSecretMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_secret: "new-secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    let rotateResult: Awaited<ReturnType<typeof result.current.rotateSecret>>;
+    await act(async () => {
+      rotateResult = await result.current.rotateSecret({
+        clientId: "client_1",
+      });
+    });
+
+    expect(rotateClientSecretMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+    });
+    expect(rotateResult!.success).toBe(true);
+    expect(rotateResult!.data?.clientId).toBe("client_1");
+    expect(rotateResult!.data?.clientSecret).toBe("new-secret");
+    await waitFor(() => {
+      expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 });

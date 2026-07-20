@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ClientSecretField } from "./client-secret-field";
 import type {
   CreateOAuthClientDialogProps,
   CreateOAuthClientFormData,
@@ -37,69 +38,6 @@ import {
   DIALOG_CLEANUP_TIMEOUT,
   parseRedirectUris,
 } from "./utils";
-
-interface ClientSecretFieldProps {
-  secret: string;
-  label: string;
-  warning: string;
-  copyLabel: string;
-  showLabel: string;
-  hideLabel: string;
-  onCopy: (value: string) => Promise<void>;
-}
-
-function ClientSecretField({
-  secret,
-  label,
-  warning,
-  copyLabel,
-  showLabel,
-  hideLabel,
-  onCopy,
-}: ClientSecretFieldProps) {
-  const [isVisible, setIsVisible] = useState(false);
-
-  return (
-    <div>
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-muted-foreground mb-2 text-xs">{warning}</p>
-      <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Input
-            type={isVisible ? "text" : "password"}
-            value={secret}
-            readOnly
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            className="font-mono pr-10 text-sm"
-          />
-          <button
-            type="button"
-            onClick={() => setIsVisible((value) => !value)}
-            aria-label={isVisible ? hideLabel : showLabel}
-            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex items-center pr-3"
-            tabIndex={-1}
-          >
-            {isVisible ? (
-              <EyeOff className="size-4" aria-hidden />
-            ) : (
-              <Eye className="size-4" aria-hidden />
-            )}
-          </button>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void onCopy(secret)}
-        >
-          {copyLabel}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export function CreateOAuthClientDialog({
   open,
@@ -122,6 +60,7 @@ export function CreateOAuthClientDialog({
   });
 
   const { isSubmitting } = form.formState;
+  const showingCredentials = createdCredentials !== null;
 
   const clearPendingCleanup = () => {
     if (timeoutRef.current) {
@@ -149,6 +88,11 @@ export function CreateOAuthClientDialog({
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
+    // One-time secrets must only dismiss via Done.
+    if (!nextOpen && showingCredentials) {
+      return;
+    }
+
     onOpenChange(nextOpen);
     clearPendingCleanup();
 
@@ -161,6 +105,16 @@ export function CreateOAuthClientDialog({
     // Delay form reset so close animation does not flash the empty form.
     // Credentials are cleared immediately to avoid secret re-display on reopen.
     setCreatedCredentials(null);
+    timeoutRef.current = setTimeout(() => {
+      form.reset();
+      timeoutRef.current = null;
+    }, DIALOG_CLEANUP_TIMEOUT);
+  };
+
+  const handleCredentialsDone = () => {
+    clearPendingCleanup();
+    setCreatedCredentials(null);
+    onOpenChange(false);
     timeoutRef.current = setTimeout(() => {
       form.reset();
       timeoutRef.current = null;
@@ -184,7 +138,24 @@ export function CreateOAuthClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent
+        className={showingCredentials ? "[&>button]:hidden" : undefined}
+        onEscapeKeyDown={(event) => {
+          if (showingCredentials) {
+            event.preventDefault();
+          }
+        }}
+        onPointerDownOutside={(event) => {
+          if (showingCredentials) {
+            event.preventDefault();
+          }
+        }}
+        onInteractOutside={(event) => {
+          if (showingCredentials) {
+            event.preventDefault();
+          }
+        }}
+      >
         {createdCredentials ? (
           <>
             <DialogHeader>
@@ -229,7 +200,7 @@ export function CreateOAuthClientDialog({
               ) : null}
 
               <DialogFooter>
-                <Button onClick={() => handleOpenChange(false)}>
+                <Button onClick={handleCredentialsDone}>
                   {t("CreatedSuccess.doneButton")}
                 </Button>
               </DialogFooter>

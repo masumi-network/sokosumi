@@ -3561,7 +3561,8 @@
         },
         "Actions": {
           "editTooltip": "编辑 OAuth 客户端",
-          "deleteTooltip": "删除 OAuth 客户端"
+          "deleteTooltip": "删除 OAuth 客户端",
+          "rotateTooltip": "轮换客户端密钥"
         },
         "EditDialog": {
           "title": "编辑 OAuth 客户端",
@@ -3588,13 +3589,30 @@
           "updateError": "更新 OAuth 客户端失败",
           "deleteSuccess": "OAuth 客户端删除成功",
           "deleteError": "删除 OAuth 客户端失败",
-          "copyError": "复制到剪贴板失败"
+          "copyError": "复制到剪贴板失败",
+          "rotateSuccess": "客户端密钥轮换成功",
+          "rotateError": "轮换客户端密钥失败"
         },
         "Validation": {
           "nameRequired": "名称为必填项",
           "nameMaxLength": "名称必须少于 100 个字符",
           "redirectUrisRequired": "至少需要一个重定向 URI",
           "redirectUrisInvalid": "每个重定向 URI 必须是有效的 HTTPS URL（localhost 允许 HTTP），且不能包含片段。"
+        },
+        "RotateDialog": {
+          "title": "轮换客户端密钥",
+          "description": "这将使“{name}”的当前密钥失效并生成新密钥。使用旧密钥的应用在你更新之前将无法工作。",
+          "cancelButton": "取消",
+          "confirmButton": "轮换密钥"
+        },
+        "RotatedSuccess": {
+          "title": "客户端密钥已轮换",
+          "description": "请妥善保存新密钥。旧密钥已失效。",
+          "clientSecretLabel": "新客户端密钥",
+          "clientSecretWarning": "此密钥仅显示一次。请务必妥善保存。",
+          "doneButton": "完成",
+          "showSecret": "显示密钥",
+          "hideSecret": "隐藏密钥"
         }
       },
       "OAuthCallback": {
