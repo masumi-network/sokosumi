@@ -21,10 +21,9 @@ interface ErrorStateProps {
   onRetry: () => void;
   /**
    * When set, the screen offers a confirmed "Start over" that destroys the
-   * stuck instance and returns to the landing page. Wired only when an
-   * instance actually exists in `error` status — an orchestrator-side
-   * failure can leave it stuck there forever, and Retry (a plain refetch)
-   * can never recover from that on its own.
+   * stuck instance and returns to the landing page. Wired for orch `error`,
+   * stuck `provisioning` (incl. client 15m timeout), or an explicit provision
+   * timeout flag — Retry alone (refetch) cannot recover from those.
    */
   onStartOver?: () => Promise<void> | void;
   message?: string;
