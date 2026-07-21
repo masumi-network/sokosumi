@@ -87,7 +87,12 @@ export function isSchemaDriftPrismaError(error: unknown): boolean {
     return true;
   }
 
-  return /does not exist in the current database/i.test(getErrorMessage(error));
+  const message = getErrorMessage(error);
+
+  return (
+    /does not exist in the current database/i.test(message) ||
+    /not found in enum/i.test(message)
+  );
 }
 
 export function shouldSuppressSentryForExternalError(error: unknown): boolean {
