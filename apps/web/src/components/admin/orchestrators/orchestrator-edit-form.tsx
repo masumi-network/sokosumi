@@ -68,6 +68,7 @@ export function OrchestratorEditForm({
   const t = useTranslations("App.Admin.Orchestrators.EditForm");
   const router = useRouter();
 
+  const [baseline, setBaseline] = useState(orchestrator);
   const [name, setName] = useState(orchestrator.name);
   const [caption, setCaption] = useState(orchestrator.caption ?? "");
   const [description, setDescription] = useState(
@@ -121,8 +122,13 @@ export function OrchestratorEditForm({
   }
 
   function handleRemoveImage() {
-    setPendingImageFile(null);
-    setPendingImageFiles([]);
+    // Pending pick: clear selection only — do not mark stored image for delete.
+    if (pendingImageFile) {
+      setPendingImageFile(null);
+      setPendingImageFiles([]);
+      return;
+    }
+
     setRemoveImage(true);
   }
 
@@ -135,7 +141,7 @@ export function OrchestratorEditForm({
       return;
     }
 
-    const patchBody = buildPatchBody(orchestrator, {
+    const patchBody = buildPatchBody(baseline, {
       name,
       caption,
       description,
@@ -154,7 +160,7 @@ export function OrchestratorEditForm({
     setIsSubmitting(true);
     try {
       const result = await updateAdminOrchestratorDisplayAction({
-        id: orchestrator.id,
+        id: baseline.id,
         patchBody,
         imageIntent,
         imageFile: pendingImageFile ?? undefined,
@@ -171,17 +177,18 @@ export function OrchestratorEditForm({
         return;
       }
 
-      setName(result.data.orchestrator.name);
-      setCaption(result.data.orchestrator.caption ?? "");
-      setDescription(result.data.orchestrator.description ?? "");
-      setImageValue(result.data.orchestrator.image ?? "");
+      const saved = result.data.orchestrator;
+      setBaseline(saved);
+      setName(saved.name);
+      setCaption(saved.caption ?? "");
+      setDescription(saved.description ?? "");
+      setImageValue(saved.image ?? "");
       setPendingImageFile(null);
       setPendingImageFiles([]);
       setRemoveImage(false);
 
       if (result.data.imageError) {
-        toast.error(result.data.imageError);
-        toast.message(t("success.textSavedImageFailed"));
+        toast.error(t("success.textSavedImageFailed"));
       } else {
         toast.success(t("success.saved"));
       }
@@ -233,7 +240,7 @@ export function OrchestratorEditForm({
           <Label htmlFor="orchestrator-slug">{t("fields.slug.label")}</Label>
           <Input
             id="orchestrator-slug"
-            value={orchestrator.slug}
+            value={baseline.slug}
             disabled
             readOnly
           />
