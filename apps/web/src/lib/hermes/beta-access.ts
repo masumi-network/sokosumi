@@ -1,29 +1,19 @@
 import { getEmailDomain } from "@/lib/utils";
 
-/** Email domains allowed to use Hermes beta (sidebar, page, APIs). */
+/**
+ * Email domains allowed to use the Hermes beta (sidebar entry + page).
+ * Everyone else gets a 404 on /personal-assistant and no nav item —
+ * activation itself additionally stays behind the Core paid-plan gate.
+ */
 export const HERMES_BETA_EMAIL_DOMAINS = ["nmkr.io"] as const;
 
-export const HERMES_BETA_ALLOWED_EMAILS = [
-  "k.platz@house-of-communication.com",
-  "y.bollinger@house-of-communication.com",
-  "s.kuepers@house-of-communication.com",
-  "m.starkova@house-of-communication.com",
-] as const;
-
 const HERMES_BETA_EMAIL_DOMAIN_SET = new Set<string>(HERMES_BETA_EMAIL_DOMAINS);
-const HERMES_BETA_ALLOWED_EMAIL_SET = new Set<string>(
-  HERMES_BETA_ALLOWED_EMAILS.map((allowedEmail) => allowedEmail.toLowerCase()),
-);
 
 export function isHermesBetaAccessEmail(
   email: string | null | undefined,
 ): boolean {
   if (!email) {
     return false;
-  }
-
-  if (HERMES_BETA_ALLOWED_EMAIL_SET.has(email.toLowerCase())) {
-    return true;
   }
 
   const domain = getEmailDomain(email);

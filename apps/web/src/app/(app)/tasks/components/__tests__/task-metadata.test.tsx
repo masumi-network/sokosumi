@@ -131,6 +131,7 @@ describe("TaskMetadata", () => {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Hermes",
               slug: "hermes",
+              image: null,
             },
           },
         })}

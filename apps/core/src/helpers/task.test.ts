@@ -837,6 +837,7 @@ describe("mapTaskEventActor", () => {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       slug: "hermes",
+      image: "https://example.com/hermes.png",
     };
     const event = buildTaskEventFixture({
       orchestratorId: orchestrator.id,
@@ -876,6 +877,7 @@ describe("mapTaskEventActor", () => {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       slug: "hermes",
+      image: null,
     };
 
     expect(
@@ -899,6 +901,7 @@ describe("mapTaskEventActor", () => {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       slug: "hermes",
+      image: null,
     };
 
     expect(
@@ -1092,6 +1095,7 @@ describe("mapTask", () => {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       slug: "hermes",
+      image: null,
     };
     const task = {
       id: "tsk_alias",

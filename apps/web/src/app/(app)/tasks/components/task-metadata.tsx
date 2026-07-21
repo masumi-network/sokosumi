@@ -79,7 +79,9 @@ function resolveTaskCreatorDisplay(
 
       return {
         name: orchestrator.name,
-        image: null,
+        image: orchestrator.image
+          ? resolveIpfsOrHttpUrl(orchestrator.image)
+          : null,
       };
     }
     default: {

@@ -57,6 +57,12 @@ const publicTaskInclude = {
           image: true,
         },
       },
+      orchestrator: {
+        select: {
+          name: true,
+          image: true,
+        },
+      },
       transaction: {
         select: { amount: true },
       },
@@ -92,8 +98,17 @@ function mapPublicTaskMilestone(
       event.transaction?.amount != null && event.transaction.amount < 0n
         ? convertCentsToCredits(event.transaction.amount * -1n)
         : null,
-    actorName: event.coworker?.name ?? event.user?.name ?? null,
-    actorImage: event.coworker?.image ?? event.user?.image ?? null,
+    // Prefer order matches Core task events: orchestrator → coworker → user.
+    actorName:
+      event.orchestrator?.name ??
+      event.coworker?.name ??
+      event.user?.name ??
+      null,
+    actorImage:
+      event.orchestrator?.image ??
+      event.coworker?.image ??
+      event.user?.image ??
+      null,
   };
 }
 

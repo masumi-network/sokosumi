@@ -2,10 +2,12 @@ import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
 import {
+  buildOrchestratorImagePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
+  isOwnedOrchestratorImageUrl,
 } from "@sokosumi/utils";
-import { list, put } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
@@ -269,5 +271,80 @@ export async function uploadGeneratedChatImage(params: {
       },
     });
     return null;
+  }
+}
+
+/**
+ * Upload an orchestrator image to Vercel Blob (public, random suffix).
+ * Returns the public URL, or null when blob storage is not configured / put fails.
+ */
+export async function uploadOrchestratorImage(params: {
+  orchestratorId: string;
+  bytes: ArrayBuffer | Buffer | Blob;
+  contentType: string;
+  filename: string;
+}): Promise<string | null> {
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    console.warn(
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping orchestrator image upload",
+    );
+    return null;
+  }
+
+  const pathname = buildOrchestratorImagePathname(
+    params.orchestratorId,
+    params.filename,
+    params.contentType,
+  );
+
+  try {
+    const blob = await put(pathname, params.bytes, {
+      access: "public",
+      contentType: params.contentType,
+      token: env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: true,
+    });
+    return blob.url;
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadOrchestratorImage",
+      },
+    });
+    return null;
+  }
+}
+
+/**
+ * Best-effort delete of a previous orchestrator image when the URL is owned by
+ * that orchestrator (pathname under `orchestrators/{id}/`). Foreign / invalid
+ * URLs are ignored.
+ */
+export async function deleteOrchestratorImageIfOwned(
+  url: string | null | undefined,
+  orchestratorId: string,
+): Promise<void> {
+  if (!url || !isOwnedOrchestratorImageUrl(url, orchestratorId)) {
+    return;
+  }
+
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    return;
+  }
+
+  try {
+    await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "deleteOrchestratorImageIfOwned",
+      },
+      extra: {
+        orchestratorId,
+        url,
+      },
+    });
   }
 }

@@ -3,26 +3,26 @@ import { describe, expect, it } from "vitest";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 
 describe("isHermesBetaAccessEmail", () => {
-  it("matches allowed beta domains only", () => {
-    expect(isHermesBetaAccessEmail("a@nmkr.io")).toBe(true);
-    expect(isHermesBetaAccessEmail("a@sub.nmkr.io")).toBe(false);
-    expect(isHermesBetaAccessEmail(null)).toBe(false);
-    expect(isHermesBetaAccessEmail("not-an-email")).toBe(false);
-  });
+  it.each(["a@nmkr.io", "A@NMKR.IO", "patrick@nmkr.io"])(
+    "allows nmkr.io email %s",
+    (email) => {
+      expect(isHermesBetaAccessEmail(email)).toBe(true);
+    },
+  );
 
   it.each([
-    "k.platz@house-of-communication.com",
-    "y.bollinger@house-of-communication.com",
-    "s.kuepers@house-of-communication.com",
-    "m.starkova@house-of-communication.com",
-    "K.PLATZ@HOUSE-OF-COMMUNICATION.COM",
-  ])("allows House of Communication pilot email %s", (email) => {
-    expect(isHermesBetaAccessEmail(email)).toBe(true);
+    ["a subdomain", "a@sub.nmkr.io"],
+    ["a lookalike domain", "a@nmkr.io.evil.com"],
+    ["another company", "someone@house-of-communication.com"],
+    ["a plain gmail", "someone@gmail.com"],
+    ["not an email", "not-an-email"],
+    ["empty string", ""],
+  ])("denies %s", (_label, email) => {
+    expect(isHermesBetaAccessEmail(email)).toBe(false);
   });
 
-  it("denies other House of Communication emails", () => {
-    expect(isHermesBetaAccessEmail("someone@house-of-communication.com")).toBe(
-      false,
-    );
+  it("denies null and undefined", () => {
+    expect(isHermesBetaAccessEmail(null)).toBe(false);
+    expect(isHermesBetaAccessEmail(undefined)).toBe(false);
   });
 });

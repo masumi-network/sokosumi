@@ -48,6 +48,7 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
     id: string;
     name: string;
     slug: string;
+    image: string | null;
   } | null;
 };
 

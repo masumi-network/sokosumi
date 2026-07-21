@@ -36,6 +36,7 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
+  PatchOrchestratorsByIdData,
   PatchProjectsByIdData,
   PatchTasksByIdData,
   PostAgentsByIdJobsData,
@@ -67,6 +68,7 @@ import {
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteOrchestratorsByIdImage as coreDeleteOrchestratorsByIdImage,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
@@ -116,6 +118,8 @@ import {
   getJobsById as coreGetJobsById,
   getNotifications as coreGetNotifications,
   getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
+  getOrchestrators as coreGetOrchestrators,
+  getOrchestratorsById as coreGetOrchestratorsById,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
@@ -164,6 +168,7 @@ import {
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
+  patchOrchestratorsById as corePatchOrchestratorsById,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -184,6 +189,7 @@ import {
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
+  postOrchestratorsByIdImage as corePostOrchestratorsByIdImage,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
   postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
@@ -921,6 +927,75 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to list users",
+    );
+  }
+
+  async function listOrchestrators() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrchestrators({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to list orchestrators",
+    );
+  }
+
+  async function getOrchestratorById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrchestratorsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch orchestrator",
+    );
+  }
+
+  async function patchOrchestratorById(
+    id: string,
+    body: NonNullable<PatchOrchestratorsByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchOrchestratorsById({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update orchestrator",
+    );
+  }
+
+  async function uploadOrchestratorImage(id: string, file: Blob | File) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrchestratorsByIdImage({
+          client,
+          path: { id },
+          body: { file },
+          cache: "no-store",
+        }),
+      "Failed to upload orchestrator image",
+    );
+  }
+
+  async function deleteOrchestratorImage(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteOrchestratorsByIdImage({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to remove orchestrator image",
     );
   }
 
@@ -2319,7 +2394,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes instance",
+      "Failed to fetch assistant instance",
     );
   }
 
@@ -2330,7 +2405,7 @@ export function createCoreClient(getClient: GetClient) {
         corePostHermesMeInstance({
           client,
         }),
-      "Failed to provision Hermes instance",
+      "Failed to provision assistant instance",
     );
   }
 
@@ -2342,7 +2417,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to update Hermes instance",
+      "Failed to update assistant instance",
     );
   }
 
@@ -2353,7 +2428,7 @@ export function createCoreClient(getClient: GetClient) {
         coreDeleteHermesMeInstance({
           client,
         }),
-      "Failed to destroy Hermes instance",
+      "Failed to destroy assistant instance",
     );
   }
 
@@ -2366,7 +2441,7 @@ export function createCoreClient(getClient: GetClient) {
           query,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes messages",
+      "Failed to fetch assistant messages",
     );
   }
 
@@ -2378,7 +2453,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes unread count",
+      "Failed to fetch assistant unread count",
     );
   }
 
@@ -2390,7 +2465,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to mark Hermes inbox as seen",
+      "Failed to mark assistant inbox as seen",
     );
   }
 
@@ -2402,7 +2477,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to write Hermes secret",
+      "Failed to write assistant secret",
     );
   }
 
@@ -2414,7 +2489,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           body,
         }),
-      "Failed to start Hermes onboarding",
+      "Failed to start assistant onboarding",
     );
   }
 
@@ -2426,7 +2501,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to fetch Hermes onboarding progress",
+      "Failed to fetch assistant onboarding progress",
     );
   }
 
@@ -2438,7 +2513,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to list Hermes integrations",
+      "Failed to list assistant integrations",
     );
   }
 
@@ -2450,7 +2525,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           cache: "no-store",
         }),
-      "Failed to list Hermes schedules",
+      "Failed to list assistant schedules",
     );
   }
 
@@ -2466,7 +2541,7 @@ export function createCoreClient(getClient: GetClient) {
           path: { scheduleId },
           body,
         }),
-      "Failed to update Hermes schedule",
+      "Failed to update assistant schedule",
     );
   }
 
@@ -2482,7 +2557,7 @@ export function createCoreClient(getClient: GetClient) {
           path: { confirmationId },
           body,
         }),
-      "Failed to approve Hermes confirmation",
+      "Failed to approve assistant confirmation",
     );
   }
 
@@ -2498,7 +2573,7 @@ export function createCoreClient(getClient: GetClient) {
           path: { confirmationId },
           body,
         }),
-      "Failed to reject Hermes confirmation",
+      "Failed to reject assistant confirmation",
     );
   }
 
@@ -2512,7 +2587,7 @@ export function createCoreClient(getClient: GetClient) {
           client,
           path,
         }),
-      "Failed to disconnect Hermes integration",
+      "Failed to disconnect assistant integration",
     );
   }
 
@@ -2986,6 +3061,11 @@ export function createCoreClient(getClient: GetClient) {
     getCoworkers,
     searchAdminUsers,
     listAdminUsers,
+    listOrchestrators,
+    getOrchestratorById,
+    patchOrchestratorById,
+    uploadOrchestratorImage,
+    deleteOrchestratorImage,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,

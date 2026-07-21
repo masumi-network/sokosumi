@@ -11,6 +11,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
@@ -20,6 +21,7 @@ import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
+import PersonalAssistantNav from "./components/personal-assistant-nav.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
 import SidebarNav from "./components/sidebar-nav.client";
@@ -28,7 +30,6 @@ interface SidebarProps {
   adminMenuEnabled: boolean;
   creditsData: UserCreditsData | null;
   currentTimestampMs: number;
-  hermesMenuEnabled: boolean;
   organizationName: string | null;
   session: Session;
   lowCreditsThreshold: number;
@@ -38,13 +39,15 @@ export default async function Sidebar({
   adminMenuEnabled,
   creditsData,
   currentTimestampMs,
-  hermesMenuEnabled,
   organizationName,
   session,
   lowCreditsThreshold,
 }: SidebarProps) {
   const tCredit = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
+  // Hermes beta gate: the Personal Assistant entry only renders for
+  // whitelisted email domains; /personal-assistant itself 404s in its layout.
+  const hermesMenuEnabled = isHermesBetaAccessEmail(session.user.email);
   const currentPlan = creditsData?.subscription?.plan ?? "free";
   const planForLabel = creditsData === null ? null : currentPlan;
   const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
@@ -82,9 +85,11 @@ export default async function Sidebar({
             activeOrganizationId={activeOrganizationId}
             planLabel={planLabel}
           >
+            <PersonalAssistantNav enabled={hermesMenuEnabled} />
+            {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}
             <NewChatTaskActions />
             <SidebarSeparator className="mx-0 mt-2" />
-            <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
+            <MenuItems />
             <SidebarSeparator className="mx-0" />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
             <SidebarSeparator className="mx-0" />

@@ -455,6 +455,7 @@ export type OrchestratorSummary = {
     id: string;
     name: string;
     slug: string;
+    image: string | null;
 };
 
 export type TaskEvent = {
@@ -511,6 +512,7 @@ export type TaskEvent = {
         id: string;
         name: string;
         slug: string;
+        image: string | null;
     } | null;
     transactionId?: string | null;
     credits?: number | null;
@@ -1454,6 +1456,9 @@ export type HermesInstance = {
     endpointUrl: string | null;
     lastActivityAt: Date | null;
     onboardedAt: Date | null;
+    assistantName?: string | null;
+    avatarSeed?: string | null;
+    personality?: HermesPersonality;
     autonomyLevel?: HermesAutonomyLevel;
     integrations: Array<HermesIntegration>;
     transitioning?: boolean;
@@ -1462,6 +1467,12 @@ export type HermesInstance = {
     timezone?: string | null;
     pendingConfirmations?: Array<HermesPendingConfirmation>;
 };
+
+export type HermesPersonality = {
+    tone?: number;
+    detail?: number;
+    style?: number;
+} | null;
 
 export const HermesAutonomyLevel = {
     LOW: 'low',
@@ -1539,6 +1550,8 @@ export type HermesConfirmationOrganizationRef = {
 export type HermesUpdateInstanceRequest = {
     autonomyLevel?: HermesAutonomyLevel;
     name?: string;
+    assistantName?: string;
+    avatarSeed?: string | null;
     email?: string;
     timezone?: string;
 };
@@ -1577,6 +1590,9 @@ export type HermesChatMessageRole = typeof HermesChatMessageRole[keyof typeof He
 
 export type HermesUnreadCount = {
     count: number;
+    avatarSeed?: string | null;
+    assistantName?: string | null;
+    hasInstance?: boolean;
 };
 
 export type MarkHermesInboxSeenRequest = {
@@ -1590,10 +1606,13 @@ export type SetHermesSecretRequest = {
 
 export type HermesStartOnboardingRequest = {
     name?: string;
+    assistantName?: string;
+    avatarSeed?: string;
     email?: string;
     role?: string;
     company?: string;
     researchDepth?: 'deep' | 'light';
+    personality?: HermesPersonality;
     autonomyLevel?: HermesAutonomyLevel;
 };
 
@@ -1678,10 +1697,12 @@ export type HermesApproveConfirmationRequest = {
     overrides?: {
         organizationId?: string | null;
     };
+    confirmation?: HermesPendingConfirmation;
 };
 
 export type HermesRejectConfirmationRequest = {
     reason?: string;
+    confirmation?: HermesPendingConfirmation;
 };
 
 export type HermesInitiateIntegrationResponse = {
@@ -2943,6 +2964,7 @@ export type Orchestrator = {
     name: string;
     caption: string | null;
     description: string | null;
+    image: string | null;
 };
 
 export type OrchestratorApiKey = {
@@ -10480,7 +10502,7 @@ export type PostHermesChatErrors = {
         };
     };
     /**
-     * Hermes instance is not ready. Uses the standard data/meta envelope with only data.status.
+     * assistant instance is not ready. Uses the standard data/meta envelope with only data.status.
      */
     409: {
         data: HermesInstanceNotReady;
@@ -10524,7 +10546,7 @@ export type PostHermesChatError = PostHermesChatErrors[keyof PostHermesChatError
 
 export type PostHermesChatResponses = {
     /**
-     * Hermes chat response. The assistant message is returned as data.message.
+     * assistant chat response. The assistant message is returned as data.message.
      */
     200: {
         data: HermesChatResponse;
@@ -10608,7 +10630,7 @@ export type DeleteHermesMeInstanceError = DeleteHermesMeInstanceErrors[keyof Del
 
 export type DeleteHermesMeInstanceResponses = {
     /**
-     * Hermes instance destroyed
+     * assistant instance destroyed
      */
     200: {
         data: HermesEmptyResponse;
@@ -10692,7 +10714,7 @@ export type GetHermesMeInstanceError = GetHermesMeInstanceErrors[keyof GetHermes
 
 export type GetHermesMeInstanceResponses = {
     /**
-     * Hermes instance (data.instance is null when none exists)
+     * assistant instance (data.instance is null when none exists)
      */
     200: {
         data: HermesGetInstanceEnvelope;
@@ -10804,7 +10826,7 @@ export type PatchHermesMeInstanceError = PatchHermesMeInstanceErrors[keyof Patch
 
 export type PatchHermesMeInstanceResponses = {
     /**
-     * Updated Hermes instance
+     * Updated assistant instance
      */
     200: {
         data: HermesInstance;
@@ -10902,7 +10924,7 @@ export type PostHermesMeInstanceError = PostHermesMeInstanceErrors[keyof PostHer
 
 export type PostHermesMeInstanceResponses = {
     /**
-     * Hermes instance
+     * assistant instance
      */
     200: {
         data: HermesInstance;
@@ -10915,6 +10937,92 @@ export type PostHermesMeInstanceResponses = {
 };
 
 export type PostHermesMeInstanceResponse = PostHermesMeInstanceResponses[keyof PostHermesMeInstanceResponses];
+
+export type PostHermesInstancesByUserIdPurgeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/hermes/instances/{userId}/purge';
+};
+
+export type PostHermesInstancesByUserIdPurgeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesInstancesByUserIdPurgeError = PostHermesInstancesByUserIdPurgeErrors[keyof PostHermesInstancesByUserIdPurgeErrors];
+
+export type PostHermesInstancesByUserIdPurgeResponses = {
+    /**
+     * local assistant state purged
+     */
+    200: {
+        data: HermesEmptyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesInstancesByUserIdPurgeResponse = PostHermesInstancesByUserIdPurgeResponses[keyof PostHermesInstancesByUserIdPurgeResponses];
 
 export type GetHermesMeMessagesData = {
     body?: never;
@@ -10981,7 +11089,7 @@ export type GetHermesMeMessagesError = GetHermesMeMessagesErrors[keyof GetHermes
 
 export type GetHermesMeMessagesResponses = {
     /**
-     * Hermes messages
+     * assistant messages
      */
     200: {
         data: Array<HermesPersistedMessage>;
@@ -11135,7 +11243,7 @@ export type PostHermesMeInboxSeenError = PostHermesMeInboxSeenErrors[keyof PostH
 
 export type PostHermesMeInboxSeenResponses = {
     /**
-     * Hermes inbox marked seen
+     * assistant inbox marked seen
      */
     200: {
         data: HermesEmptyResponse;
@@ -11247,7 +11355,7 @@ export type PostHermesMeSecretsError = PostHermesMeSecretsErrors[keyof PostHerme
 
 export type PostHermesMeSecretsResponses = {
     /**
-     * Hermes secret set
+     * assistant secret set
      */
     200: {
         data: HermesEmptyResponse;
@@ -22452,6 +22560,197 @@ export type PatchOrchestratorsByIdApiKeysByKeyIdResponses = {
 };
 
 export type PatchOrchestratorsByIdApiKeysByKeyIdResponse = PatchOrchestratorsByIdApiKeysByKeyIdResponses[keyof PatchOrchestratorsByIdApiKeysByKeyIdResponses];
+
+export type DeleteOrchestratorsByIdImageData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/image';
+};
+
+export type DeleteOrchestratorsByIdImageErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdImageError = DeleteOrchestratorsByIdImageErrors[keyof DeleteOrchestratorsByIdImageErrors];
+
+export type DeleteOrchestratorsByIdImageResponses = {
+    /**
+     * Remove orchestrator image
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdImageResponse = DeleteOrchestratorsByIdImageResponses[keyof DeleteOrchestratorsByIdImageResponses];
+
+export type PostOrchestratorsByIdImageData = {
+    body: {
+        /**
+         * Orchestrator image file (png, jpeg, webp, or gif; max 2 MB)
+         */
+        file?: Blob | File;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/image';
+};
+
+export type PostOrchestratorsByIdImageErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrchestratorsByIdImageError = PostOrchestratorsByIdImageErrors[keyof PostOrchestratorsByIdImageErrors];
+
+export type PostOrchestratorsByIdImageResponses = {
+    /**
+     * Upload orchestrator image
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrchestratorsByIdImageResponse = PostOrchestratorsByIdImageResponses[keyof PostOrchestratorsByIdImageResponses];
 
 export type DeleteOrchestratorsByIdData = {
     body?: never;

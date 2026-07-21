@@ -120,6 +120,7 @@
       "account": "Account",
       "billing": "Fatturazione",
       "connections": "Connessioni",
+      "developer": "Sviluppatore",
       "help": "Aiuto",
       "legal": "Note legali",
       "support": "Supporto",
@@ -256,7 +257,8 @@
       "chat": "Chat",
       "tasks": "Attività",
       "connections": "Connessioni",
-      "hermes": "Hermes",
+      "developer": "Sviluppatore",
+      "personal-assistant": "Assistente personale",
       "history": "Cronologia",
       "new": "Nuovo",
       "notifications": "Notifiche",
@@ -1973,12 +1975,11 @@
     },
     "Hermes": {
       "Metadata": {
-        "title": "Hermes",
+        "title": "Assistente personale",
         "description": "Il tuo agente IA privato sul proprio computer."
       },
-      "BetaTag": "Beta",
       "Common": {
-        "hermesAvatarAlt": "Hermes",
+        "hermesAvatarAlt": "Assistente personale",
         "cancel": "Annulla",
         "oauth": {
           "popupBlocked": "Consenti i popup per questo sito per collegare un account.",
@@ -1991,14 +1992,14 @@
       },
       "ConnectInterstitial": {
         "title": "Nota sulla schermata successiva",
-        "description": "La schermata di consenso di {provider} elencherà autorizzazioni ampie — è normale. Hermes si collega tramite Composio, il nostro provider di integrazione, e l'app OAuth di Composio è verificata per l'intero set di ambiti predefiniti.",
+        "description": "La schermata di consenso di {provider} elencherà autorizzazioni ampie — è normale. Il tuo assistente si collega tramite Composio, il nostro provider di integrazione, e l'app OAuth di Composio è verificata per l'intero set di ambiti predefiniti.",
         "providerFallback": "Il provider",
         "pickedPrefix": "Hai scelto",
         "modeReadOnly": "sola lettura",
         "modeFullAccess": "accesso completo",
         "pickedSuffix": "per {providerName}.",
-        "bodyWrite": "Hermes potrà leggere, inviare e agire nel tuo account per tuo conto.",
-        "bodyReadOnly": "Hermes può solo leggere. Anche se {authProvider} può elencare permessi di invio/modifica, da parte nostra Hermes è bloccato in sola lettura — non può inviare né modificare nulla nel tuo account.",
+        "bodyWrite": "Il tuo assistente potrà leggere, inviare e agire nel tuo account per tuo conto.",
+        "bodyReadOnly": "Il tuo assistente può solo leggere. Anche se {authProvider} può elencare permessi di invio/modifica, da parte nostra il tuo assistente è bloccato in sola lettura — non può inviare né modificare nulla nel tuo account.",
         "continueTo": "Continua su {provider}",
         "continueFallback": "provider",
         "authProviders": {
@@ -2030,12 +2031,18 @@
         "message": "Caricamento di Hermes…"
       },
       "Experience": {
-        "fetchFailed": "Impossibile raggiungere Hermes.",
+        "fetchFailed": "Impossibile raggiungere il tuo assistente.",
         "provisionTimeout": "Il provisioning è scaduto dopo 15 minuti. Riprova.",
-        "instanceVanished": "L'istanza Hermes è scomparsa durante il provisioning.",
-        "provisionFailed": "Impossibile provisionare il tuo Hermes.",
-        "destroyFailed": "Impossibile eliminare il tuo Hermes.",
+        "instanceVanished": "L'istanza dell'assistente è scomparsa durante il provisioning.",
+        "provisionFailed": "Impossibile provisionare il tuo assistente.",
+        "destroyFailed": "Impossibile eliminare il tuo assistente.",
         "onboardingStartFailed": "Impossibile avviare l'onboarding."
+      },
+      "SubscriptionWall": {
+        "title": "Sblocca il tuo assistente personale",
+        "description": "Attivalo con un piano a pagamento per metterlo al lavoro.",
+        "cta": "Vedi piani e prezzi",
+        "dismiss": "Forse più tardi"
       },
       "EmptyState": {
         "eyebrow": "Hermes personale",
@@ -2047,7 +2054,7 @@
         "integrationsEyebrow": "Integrazioni",
         "examplesEyebrow": "Prova questo",
         "servicesHeading": "Si collega agli strumenti che usi",
-        "servicesHelp": "Collega una volta durante la configurazione. Hermes può leggere, cercare, redigere e agire nei tuoi account. Nuovi connettori arrivano regolarmente.",
+        "servicesHelp": "Collega una volta durante la configurazione. Il tuo assistente può leggere, cercare, redigere e agire nei tuoi account. Nuovi connettori arrivano regolarmente.",
         "servicesMoreLabel": "e altro",
         "serviceLabels": {
           "gmail": "Gmail",
@@ -2066,12 +2073,12 @@
           "linkedin": "LinkedIn"
         },
         "exampleCategories": {
-          "example1": "Inbox + agente Research",
-          "example2": "Competitor Research + risposta",
-          "example3": "Agente Brief, giornaliero",
-          "example4": "GitHub + Linear + Slack",
-          "example5": "Reddit Research",
-          "example6": "Monitoraggio + rimborso + Linear"
+          "example1": "Brief della posta",
+          "example2": "Ricerca azienda + risposta",
+          "example3": "Brief quotidiano",
+          "example4": "Follow-up PR e issue",
+          "example5": "Scan di mercato",
+          "example6": "Controllo dei fallimenti"
         },
         "visuals": {
           "activated": "Attivato",
@@ -2084,47 +2091,47 @@
           "never": "mai",
           "inboxScanned": "Inbox · analizzata",
           "memoryWritten": "Memoria · scritta",
-          "demoInbox": [
-            {
-              "from": "Hannah",
-              "subject": "Revisione roadmap Q4"
+          "demoInbox": {
+            "0": {
+              "from": "Project lead",
+              "subject": "Checklist di lancio"
             },
-            {
-              "from": "Alex",
-              "subject": "Deal Cardano — prossimi passi"
+            "1": {
+              "from": "Team clienti",
+              "subject": "Domande sul contratto"
             },
-            {
-              "from": "CI bot",
-              "subject": "Build #2438 fallita"
+            "2": {
+              "from": "Build bot",
+              "subject": "Deploy fallito"
             }
-          ],
-          "demoMemory": [
-            "Lavoro al lancio Q4",
-            "Hannah è la product lead",
-            "Il deal Cardano chiude il 15 mar"
-          ],
-          "actUserMessage": "Fissa una call con Hannah martedì prossimo alle 10.",
-          "actWorking": "Hermes sta lavorando",
-          "actSteps": [
-            "Trovato uno slot libero",
-            "Bozza invito creata",
-            "Assunto l'agente Research per il contesto"
-          ],
-          "actHeld": "Martedì · 10:00 tenuto",
-          "overnightTitle": "Stanotte · 4 attività",
-          "overnightSchedule": [
-            "Recupera le email della notte",
-            "Sincronizza i job Sokosumi",
-            "Redigi il brief del mattino",
-            "Invia in chat + Telegram"
-          ]
+          },
+          "demoMemory": {
+            "0": "Il piano di lancio è la priorità attuale",
+            "1": "Il project lead approva",
+            "2": "Le domande aperte richiedono una risposta"
+          },
+          "actUserMessage": "Trova uno slot con il project lead la prossima settimana.",
+          "actWorking": "Il tuo assistente sta lavorando",
+          "actSteps": {
+            "0": "Slot libero trovato",
+            "1": "Invito abbozzato",
+            "2": "Contesto progetto recuperato"
+          },
+          "actHeld": "Tempo trattenuto per la review",
+          "overnightTitle": "Brief del mattino",
+          "overnightSchedule": {
+            "0": "Rivedere i messaggi notturni",
+            "1": "Sincronizzare i job Sokosumi",
+            "2": "Redigere il brief del mattino",
+            "3": "Pubblicare in chat e Slack"
+          }
         },
         "journeyEyebrow": "Dall'inizio alla fine",
-        "journeyHeading": "Come funziona Hermes, passo dopo passo",
-        "journeyDescription": "Dal momento in cui attivi il tuo agente al brief che ti aspetta sul telefono domani mattina.",
+        "journeyHeading": "Come funziona il tuo assistente, passo dopo passo",
+        "journeyDescription": "Attivalo, collega gli account di cui ha bisogno, poi chiedigli di coordinare il lavoro su Sokosumi e i tuoi strumenti.",
         "journeyStep1Tag": "00:00",
-        "journeyStep1Title": "Attivi Hermes",
-        "journeyStep1Body": "Un clic dal tuo account Sokosumi. Nessuna installazione, nessuna API key da gestire. Da questo momento Hermes è legato al tuo account.",
+        "journeyStep1Title": "Attivi il tuo assistente",
+        "journeyStep1Body": "Un clic dal tuo account Sokosumi. Nessuna installazione, nessuna API key da gestire. Da questo momento il tuo assistente è legato al tuo account.",
         "journeyStep2Tag": "00:30",
         "journeyStep2Title": "Si avvia il tuo computer",
         "journeyStep2Body": "Un computer privato viene preparato solo per te. Note e impostazioni restano al loro posto, le password sono protette e nulla è condiviso con altri.",
@@ -2133,66 +2140,77 @@
         "journeyStep3Body": "Accedi a Gmail, Outlook, Calendar, Slack, Notion, Linear, GitHub e altro. Le credenziali non passano mai da Sokosumi — restano solo sul tuo computer.",
         "journeyStep4Tag": "02:00",
         "journeyStep4Title": "Legge il tuo mondo",
-        "journeyStep4Body": "Hermes analizza la tua inbox, guarda il calendario, sincronizza i job Sokosumi e costruisce una memoria privata di chi e cosa conta.",
+        "journeyStep4Body": "Il tuo assistente analizza la tua inbox, guarda il calendario, sincronizza i job Sokosumi e costruisce una memoria privata di chi e cosa conta.",
         "journeyStep5Tag": "live",
         "journeyStep5Title": "Lavora mentre chatti",
-        "journeyStep5Body": "Chiedi in linguaggio naturale. Hermes sceglie lo strumento giusto, redige l'email, apre il ticket, assume un agente specialista Sokosumi quando serve. E riporta il risultato.",
+        "journeyStep5Body": "Chiedi in linguaggio naturale. Il tuo assistente sceglie lo strumento giusto, redige l'email, apre il ticket, assume un agente specialista Sokosumi quando serve. E riporta il risultato.",
         "journeyStep6Tag": "scheduled",
         "journeyStep6Title": "Lavora mentre dormi",
-        "journeyStep6Body": "Dì a Hermes quando eseguire le cose. In linguaggio naturale. Brief, follow-up e digest notturni arrivano in chat (e su Telegram o Slack) prima che ti svegli.",
+        "journeyStep6Body": "Dì al tuo assistente quando eseguire le cose. In linguaggio naturale. Brief, follow-up e digest notturni arrivano in chat (e su Telegram o Slack) prima che ti svegli.",
         "featuresEyebrow": "Funzionalità",
         "featuresHeading": "Pensato per il lavoro quotidiano serio",
         "feature1Title": "Vive dove sei tu",
         "feature1Body": "Telegram, Discord, Slack, WhatsApp, Signal, email, CLI. Inizia ovunque, riprendi ovunque.",
-        "feature2Title": "Cresce nel tempo",
-        "feature2Body": "Memoria persistente e skill generate automaticamente. Impara i tuoi progetti e come portarli avanti.",
+        "feature2Title": "Ingaggia agenti specialisti",
+        "feature2Body": "Coinvolge qualsiasi agente Sokosumi su richiesta.",
         "feature3Title": "Automazioni programmate",
         "feature3Body": "Cron in linguaggio naturale per report, briefing e backup. Esegue in autonomia.",
-        "feature4Title": "Delega e parallelizza",
-        "feature4Body": "Subagent isolati con terminali propri — pipeline parallele, zero costo di contesto.",
-        "feature5Title": "Sandbox reale",
-        "feature5Body": "Locale, Docker, SSH, Singularity, Modal. Hardening dei container e isolamento dei namespace.",
-        "feature6Title": "Controllo web e browser completo",
-        "feature6Body": "Ricerca, automazione del browser, visione, generazione immagini, TTS, ragionamento multi-modello.",
+        "feature4Title": "Gira nella tua micro-VM personale",
+        "feature4Body": "Isolato per impostazione predefinita. I tuoi dati restano tuoi.",
+        "feature5Title": "Attività pianificate",
+        "feature5Body": "Brief quotidiani, follow-up, promemoria. Imposti una volta sola.",
+        "feature6Title": "Funziona con tutto il tuo stack",
+        "feature6Body": "Mail, calendario, CRM, codice, documenti. Tutto in un'unica chat.",
+        "feature7Title": "Sovranità by design",
+        "feature7Body": "Modelli open source, ospitati in Svizzera.",
         "examplesHeading": "Cose da provare",
         "examplesHelp": "Apri la chat e chiedi qualsiasi cosa. Alcuni punti di partenza:",
-        "example1": "Trova ogni email sul deal Cardano, assumi l'agente Research per profilare il loro team e fammi un brief prima della call di venerdì.",
-        "example1Reply": "Sto recuperando il filo Cardano. 14 email da settembre tra Alex, legal e finance. Assumo **Research** (12 crediti) sulle quattro persone in call venerdì: background, mosse recenti, contatti in comune.\n\nETA ~15 min. Ti lascio un brief di una pagina qui + te lo invio via email 30 min prima della call.",
-        "example2": "Assumi l'agente Competitor Research sull'azienda di cui Maya mi ha scritto, poi redigi una risposta di follow-up quando torna.",
-        "example2Reply": "Trovata l'email di Maya. Oggetto: \"Cosa ne pensi di Nevermind Labs?\". Assumo **Competitor Research** (18 crediti) con brief: prodotto, trazione, funding, GTM, overlap con la nostra roadmap.\n\nQuando torna redigo la tua risposta con i tre punti chiave inline e la metto in bozze per la revisione.",
-        "example3": "Ogni giorno feriale alle 8, assumi l'agente Brief su inbox di ieri + calendario di oggi e pubblica il riepilogo su Slack #me.",
-        "example3Reply": "Programmato. Ogni giorno feriale alle 08:00:\n\n1. Recupero ogni email dalle 20:00 del giorno prima e il calendario di oggi\n2. Assumo l'agente **Brief** (3 crediti/esecuzione) per riassumere, segnalare conflitti e blocchi\n3. Pubblico il risultato su #me con un thread per ogni voce che richiede una decisione\n\nPrima esecuzione: domani alle 08:00.",
-        "example4": "Controlla le mie PR GitHub da revisionare, apri ticket Linear per quelle che non riesco a fare oggi e pubblica il resto in #engineering per un aiuto.",
-        "example4Reply": "Sei PR richiedono la tua revisione. Due hanno >24h:\n\n• **sok#2934** (Patrick) — Hermes Beta. ~2h di revisione.\n• **sok#2941** (Alex) — fix billing. ~20 min.\n\nSto aprendo ticket Linear per le quattro più vecchie assegnate a te e un post Slack in #engineering per chiedere supporto sulle due grandi. Approvi l'invio?",
-        "example5": "Assumi l'agente Reddit Research su cosa si dice di Masumi questa settimana, poi inviami sentiment principale + eventuali azioni.",
-        "example5Reply": "Assumo **Reddit Research** (15 crediti) con brief: post e commenti che menzionano Masumi negli ultimi 7 giorni su r/cardano, r/agentic, r/MachineLearning.\n\nQuando torna mostro: sentiment complessivo, top tre thread citati e azioni concrete (bug da aprire, dev da ringraziare, FUD da affrontare). ETA ~12 min.",
-        "example6": "Quando il task deal di Hannah va in FAILED, richiedi un rimborso e apri un ticket Linear — non disturbarmi a meno che non succeda due volte in una settimana.",
-        "example6Reply": "Monitoro i task assegnati a **Hannah** nella tua org NMKR che vanno in `FAILED`. Quando succede:\n\n1. Chiamo **sokosumi_refund_job** per l'esecuzione fallita\n2. Apro un ticket Linear con i log di errore nel progetto Bugs\n3. Resto in silenzio a meno che non succeda due volte in 7 giorni — poi ti avviso con entrambi i report\n\nSorveglianza attiva.",
-        "examplesPickHint": "Scegli un prompt per vedere come risponderebbe Hermes",
+        "example1": "Riassumi le email di lancio di questa settimana, incarica l'agente Research per il contesto mancante e fammi un brief prima della prossima call.",
+        "example1Reply": "Ho trovato il thread di lancio e le decisioni aperte. Incarico **Research** per completare il contesto azienda e stakeholder.\n\nTi restituirò un brief breve con domande aperte, note sui responsabili e una bozza di agenda prima della prossima call.",
+        "example2": "Ricerca l'azienda dell'ultima email commerciale e redigi un follow-up conciso quando il report è pronto.",
+        "example2Reply": "Thread trovato; estratti nome azienda, use case e richiesta aperta. Incarico **Company Research** con un brief su prodotto, traction, funding e sovrapposizione con le priorità attuali.\n\nAl ritorno, redigerò una risposta con le tre ragioni più forti per continuare o passare.",
+        "example3": "Ogni mattina feriale, trasforma la posta di ieri e il calendario di oggi in un brief breve e pubblicalo su Slack.",
+        "example3Reply": "Programmato. Ogni mattina feriale farò:\n\n1. Controllare la posta nuova dalla sera precedente e scansionare il calendario di oggi\n2. Riassumere decisioni, conflitti e blocchi\n3. Pubblicare un brief breve su Slack con thread di follow-up per ciò che richiede la tua decisione\n\nLa prima esecuzione è in coda per la prossima mattina feriale.",
+        "example4": "Controlla le PR GitHub e le issue Linear in attesa su di me, poi redigi le note di handoff da inviare all'engineering.",
+        "example4Reply": "Ho trovato le PR e le issue in attesa della tua review. Due richiedono una decisione oggi, il resto può essere delegato.\n\nSto redigendo una nota di handoff con responsabili, blocchi e prossime azioni. Chiederò prima di pubblicarla all'engineering.",
+        "example5": "Incarica l'agente Market Research sulla discussione pubblica di questa settimana intorno alla nostra categoria, poi inviami sentiment e action item.",
+        "example5Reply": "Incarico **Market Research** con un brief su discussioni pubbliche recenti, lamentele ripetute, trigger d'acquisto e menzioni dei competitor.\n\nAl ritorno, riassumerò il sentiment, estrarrò le citazioni più forti e trasformerò i risultati concreti in task di follow-up.",
+        "example6": "Se un job assegnato fallisce due volte in una settimana, richiedi il rimborso, apri un'issue con i log e avvisami solo se si ripete.",
+        "example6Reply": "In sorveglianza. Quando un job assegnato a te fallisce, raccolgo i dettagli e richiedo un rimborso dove possibile.\n\nSe lo stesso schema si ripete due volte in sette giorni, redigo un'issue con log, causa probabile e owner suggerito prima di avvisarti.",
+        "examplesPickHint": "Scegli un prompt per vedere come risponderebbe il tuo assistente",
         "sokosumiTitle": "Collegato a Sokosumi",
         "sokosumiBody": "Legge i tuoi task, esegue job tramite gli agent abilitati, ti assiste sulla piattaforma — tutto nella tua microVM.",
         "footnote": "Accesso beta. Un’istanza per account. Attivando accetti i termini beta — Hermes esegue codice per tuo conto nella sandbox.",
         "disclaimerHeading": "Alcune cose oneste prima di iniziare",
-        "disclaimer1": "Hermes agisce per tuo conto. Le email che invia, i ticket che apre e i crediti che spende sono reali. Scegli con attenzione il livello di autonomia.",
+        "disclaimer1": "Il tuo assistente agisce per tuo conto. Le email che invia, i ticket che apre e i crediti che spende sono reali. Scegli con attenzione il livello di autonomia.",
         "disclaimer2": "Può sbagliare. Rivedi tutto ciò che riguarda un cliente, un collega o del denaro prima di fidarti.",
-        "disclaimer3": "Gli account collegati danno ad Hermes accesso con ambito via OAuth. Scollega qualsiasi integrazione nel momento in cui smetti di fidarti.",
+        "disclaimer3": "Gli account collegati danno al tuo assistente accesso con ambito via OAuth. Scollega qualsiasi integrazione nel momento in cui smetti di fidarti.",
         "disclaimer4": "Software in beta. Il comportamento può cambiare tra le release. La cronologia delle conversazioni è tua, ma le capacità evolveranno.",
         "poweredBy": "Powered by Nous Research"
       },
       "Provisioning": {
-        "title": "Avvio del tuo Hermes",
-        "subtitle": "Di solito ci vuole circa un minuto. Puoi chiudere questa scheda — Hermes continuerà a prepararsi in background.",
+        "title": "Avvio del tuo assistente",
+        "subtitle": "Di solito ci vuole circa un minuto. Puoi chiudere questa scheda — il tuo assistente continuerà a prepararsi in background.",
         "settingUp": "Configurazione del tuo agente…",
         "whileYouWait": "Mentre aspetti",
-        "facts": [
-          "Hermes ha un computer privato tutto suo e ricorda il contesto tra una sessione e l'altra.",
-          "Collega Gmail, Outlook, Slack, Linear, GitHub, Notion e altro.",
-          "Hermes può assumere altri agenti Sokosumi per lavorare per tuo conto.",
-          "Chatta qui, su Telegram, Slack o ovunque lavori — riprendi da qualsiasi posto.",
-          "Ogni mattina Hermes può inviarti un brief di ciò che richiede attenzione.",
-          "Leggi la inbox, redigi risposte, programma riunioni — tutto dalla chat.",
-          "Chiedi a Hermes di programmare in linguaggio naturale: \"ogni lunedì alle 9, riassumi la mia settimana\"."
-        ]
+        "facts": {
+          "0": "Il tuo assistente ha un computer privato tutto suo e ricorda il contesto tra una sessione e l'altra.",
+          "1": "Collega Gmail, Outlook, Slack, Linear, GitHub, Notion e altro.",
+          "2": "Il tuo assistente può assumere altri agenti Sokosumi per lavorare per tuo conto.",
+          "3": "Chatta qui, su Telegram, Slack o ovunque lavori — riprendi da qualsiasi posto.",
+          "4": "Ogni mattina il tuo assistente può inviarti un brief di ciò che richiede attenzione.",
+          "5": "Leggi la inbox, redigi risposte, programma riunioni — tutto dalla chat.",
+          "6": "Chiedi al tuo assistente di programmare in linguaggio naturale: \"ogni lunedì alle 9, riassumi la mia settimana\"."
+        },
+        "elapsedLabel": "{elapsed} elapsed",
+        "stageComputer": "Creating private computer",
+        "stageComputerBody": "Starting the isolated workspace for this account.",
+        "stageWorkspace": "Preparing assistant workspace",
+        "stageWorkspaceBody": "Loading the assistant runtime and saved settings.",
+        "stageReady": "Waiting for assistant",
+        "stageReadyBody": "Checking until the assistant reports that it is ready for setup.",
+        "longWaitTitle": "Still working",
+        "longWaitBody": "This can take longer when capacity is cold. You can leave and return to Personal Assistant; setup will continue in the background."
       },
       "Running": {
         "statusActive": "Attivo",
@@ -2209,46 +2227,46 @@
         "removeFile": "Rimuovi",
         "emptyTitle": "pronto quando lo sei tu",
         "emptyHint": "prova un briefing giornaliero — «ogni giorno feriale alle 9, riassumi i miei task aperti».",
-        "transitioning": "Hermes sta applicando la modifica…",
+        "assistantFallback": "il tuo assistente",
+        "transitioning": "Il tuo assistente sta applicando la modifica…",
         "transitioningHint": "(circa 30 secondi)",
-        "composerDisabledPlaceholder": "Hermes sta applicando la modifica…",
+        "composerDisabledPlaceholder": "Il tuo assistente sta applicando la modifica…",
         "errors": {
-          "warmingUp": "Il tuo Hermes si sta ancora avviando. Riprova tra qualche secondo.",
-          "notReady": "Il tuo Hermes non è ancora pronto.",
-          "apiError": "Hermes ha restituito un errore ({status}).",
-          "emptyResponse": "Hermes ha restituito una risposta vuota.",
-          "unreachable": "Impossibile raggiungere Hermes. Controlla la connessione."
+          "warmingUp": "Il tuo assistente si sta ancora avviando. Riprova tra qualche secondo.",
+          "notReady": "Il tuo assistente non è ancora pronto.",
+          "apiError": "Il tuo assistente ha restituito un errore ({status}).",
+          "emptyResponse": "Il tuo assistente ha restituito una risposta vuota.",
+          "unreachable": "Impossibile raggiungere il tuo assistente. Controlla la connessione."
         },
-        "mockReplies": [
-          "Sono una risposta mock dalla preview locale di Hermes. Disattiva ?state=running per vedere il vero Hermes collegato all'orchestrator.",
-          "Ricevuto. In produzione il messaggio passa dal server Sokosumi, l'orchestrator restituisce il tuo endpoint privato e Hermes risponde.",
-          "Ecco cosa farei: salvo in memoria a lungo termine, aggiungo un follow-up alla lista attività e tengo il contesto per la prossima sessione."
-        ],
-        "thinkingMessages": [
-          "Sto pensando",
-          "Consulto gli dei del calendario",
-          "Setaccio la tua inbox",
-          "Leggo tra le righe",
-          "Preparo una risposta",
-          "Recupero il tuo contesto",
-          "Chiedo in giro",
-          "Scelgo lo strumento giusto",
-          "Redigo con cura",
-          "Ricontrollo prima di agire",
-          "Faccio la parte noiosa per te",
-          "Districo Slack",
-          "Incrocio la memoria",
-          "Cerco un dettaglio",
-          "Scelgo le parole",
-          "Quasi fatto"
-        ],
-        "rotatingHints": [
-          "Scrivi a Hermes…",
-          "Prova: programma un brief inbox giornaliero alle 8",
-          "Prova: riassumi i miei thread Cardano aperti",
-          "Prova: redigi un follow-up alle note dell'ultima riunione",
-          "Prova: cosa è in ritardo nella mia inbox?"
-        ],
+        "mockReplies": {
+          "0": "Sono una risposta mock dalla preview locale del tuo assistente. Disattiva ?state=running per vedere il vero assistente collegato all'orchestrator.",
+          "1": "Ricevuto. In produzione il messaggio passa dal server Sokosumi, l'orchestrator restituisce il tuo endpoint privato e il tuo assistente risponde.",
+          "2": "Ecco cosa farei: salvo in memoria a lungo termine, aggiungo un follow-up alla lista attività e tengo il contesto per la prossima sessione."
+        },
+        "thinkingMessages": {
+          "0": "Sto pensando",
+          "1": "Consulto gli dei del calendario",
+          "2": "Setaccio la tua inbox",
+          "3": "Leggo tra le righe",
+          "4": "Preparo una risposta",
+          "5": "Recupero il tuo contesto",
+          "6": "Chiedo in giro",
+          "7": "Scelgo lo strumento giusto",
+          "8": "Redigo con cura",
+          "9": "Ricontrollo prima di agire",
+          "10": "Faccio la parte noiosa per te",
+          "11": "Districo Slack",
+          "12": "Incrocio la memoria",
+          "13": "Cerco un dettaglio",
+          "14": "Scelgo le parole",
+          "15": "Quasi fatto"
+        },
+        "rotatingHints": {
+          "0": "Try: schedule a daily inbox brief at 8am",
+          "1": "Try: summarize my open customer threads",
+          "2": "Try: draft a follow-up to my last meeting notes",
+          "3": "Try: what's overdue in my inbox?"
+        },
         "outboxKinds": {
           "welcome": "Benvenuto",
           "daily_brief": "Brief giornaliero",
@@ -2257,29 +2275,28 @@
           "daily_suggestions": "Suggerimenti",
           "reminder": "Promemoria",
           "confirmation_resolved": "Conferma",
-          "default": "Da Hermes"
+          "default": "Dal tuo assistente"
         },
         "integrationsChip": {
-          "connect": "Collega",
           "integrations": "Integrazioni",
-          "connectIntegrations": "Collega integrazioni",
           "ariaConnected": "{count, plural, one {# integrazione collegata — apri impostazioni} other {# integrazioni collegate — apri impostazioni}}"
         },
         "confirmation": {
-          "heading": "Hermes ha bisogno del tuo ok",
+          "heading": "Il tuo assistente ha bisogno del tuo ok",
           "approve": "Approva",
           "reject": "Rifiuta",
           "approveFailed": "Impossibile approvare.",
           "rejectFailed": "Impossibile rifiutare.",
-          "erroredAfterApproval": "L'azione di Hermes è andata in errore dopo l'approvazione.",
-          "approvedToast": "Approvato. Hermes eseguirà l'azione.",
-          "rejectedToast": "Rifiutato. Hermes non eseguirà l'azione.",
+          "erroredAfterApproval": "L'azione del tuo assistente è andata in errore dopo l'approvazione.",
+          "approvedToast": "Approvato. Il tuo assistente eseguirà l'azione.",
+          "rejectedToast": "Rifiutato. Il tuo assistente non eseguirà l'azione.",
           "alreadyResolvedToast": "Era già stato gestito.",
           "alreadyResolvedStatus": "Già gestito",
-          "resolvedFallback": "Hermes ha eseguito l'azione approvata.",
+          "resolvedFallback": "Il tuo assistente ha eseguito l'azione approvata.",
           "organizationLabel": "Crea in",
           "organizationPersonal": "Personale",
           "costNotice": "Il costo non può essere calcolato in anticipo. I crediti utilizzati da questo lavoro verranno detratti dal tuo saldo man mano che viene eseguito.",
+          "creatingInBackground": "The agent is creating your task in the background — it'll appear in the chat shortly.",
           "approvedStatus": "Approvato",
           "rejectedStatus": "Rifiutato",
           "tools": {
@@ -2310,14 +2327,57 @@
             "defaultTask": "Attività",
             "viewTask": "Vedi attività"
           }
-        }
+        },
+        "stillWorking": "Still working on it…",
+        "stillWorkingLong": "Still going — this one is taking a little longer…",
+        "answeredIn": "Answered in {seconds}s",
+        "copyAction": "Copy message",
+        "copiedAction": "Copied",
+        "jumpToLatest": "Latest",
+        "toolSteps": "{count} steps"
       },
       "Onboarding": {
-        "eyebrow": "Benvenuto in Hermes",
-        "title": "Configuriamo il tuo agente.",
-        "subtitle": "Collega alcuni strumenti così Hermes è utile dal primo minuto. Salta se preferisci partire da zero.",
+        "eyebrow": "Benvenuto nel tuo assistente personale",
+        "title": "Let's set up your assistant.",
+        "subtitle": "Choose how it should look, how much initiative it can take, and which accounts it can use first.",
         "identityHeading": "I tuoi dati",
-        "identityHelp": "Hermes li usa per il contesto — per rivolgersi a te per nome, dare priorità al lavoro che corrisponde al tuo ruolo e ancorare la ricerca alla tua azienda.",
+        "identityHelp": "Il tuo assistente li usa per il contesto — per rivolgersi a te per nome, dare priorità al lavoro che corrisponde al tuo ruolo e ancorare la ricerca alla tua azienda.",
+        "assistantNameLabel": "Assistente",
+        "assistantNamePlaceholder": "Dai un nome al tuo assistente",
+        "orbPickerLabel": "Choose a look",
+        "orbOptionLabel": "Look option {index}",
+        "orbWhiteLabel": "Standard white",
+        "assistantHeading": "Your assistant",
+        "assistantHelp": "Choose its look and give it a name. You can change both later.",
+        "nameStepHeading": "Name your assistant",
+        "nameStepHelp": "What should we call it? You can rename it any time.",
+        "lookStepHeading": "Choose its look and personality",
+        "lookStepHelp": "Pick the assistant's face, then tune how it should sound in chat.",
+        "reviewHeading": "Review before creation",
+        "reviewHelp": "Confirm the assistant you are about to create.",
+        "reviewMeet": "Meet",
+        "reviewPersonality": "Personality",
+        "reviewAutonomy": "Initiative",
+        "reviewTools": "Tools",
+        "reviewToolsCount": "{count} connected",
+        "reviewToolsNone": "None yet",
+        "reviewOwnedBy": "{name}'s personal assistant",
+        "reviewGeneric": "Your personal assistant",
+        "reviewFocus": "focused on {role}",
+        "moreLaterShort": "Slack, Notion, GitHub and more can be connected later from Settings.",
+        "personalityBalanced": "Balanced",
+        "assistantFallbackName": "Your assistant",
+        "personalityHeading": "Personality",
+        "personalityStepHelp": "Shape how your assistant comes across. You can fine-tune this any time.",
+        "personalityToneLabel": "Tone",
+        "personalityToneLow": "Direct",
+        "personalityToneHigh": "Warm",
+        "personalityDetailLabel": "Detail",
+        "personalityDetailLow": "Concise",
+        "personalityDetailHigh": "Thorough",
+        "personalityStyleLabel": "Style",
+        "personalityStyleLow": "Formal",
+        "personalityStyleHigh": "Playful",
         "nameLabel": "Nome",
         "namePlaceholder": "Patrick Tobler",
         "emailLabel": "Email",
@@ -2329,18 +2389,18 @@
         "stepLabel": "Passo {step} di {total}",
         "next": "Avanti",
         "back": "Indietro",
-        "autonomyHeading": "Quanta iniziativa deve prendere Hermes?",
-        "autonomyHelp": "Puoi cambiarlo in qualsiasi momento dalle Impostazioni.",
+        "autonomyHeading": "Quanta iniziativa deve prendere il tuo assistente?",
+        "autonomyHelp": "Set this before connecting accounts. You can change it any time from Settings.",
         "autonomyLowLabel": "Sola lettura",
-        "autonomyLowBody": "Hermes può leggere inbox, calendario e attività ma non agisce mai. Il più sicuro mentre ti abitui.",
+        "autonomyLowBody": "Il tuo assistente può leggere inbox, calendario e attività ma non agisce mai. Il più sicuro mentre ti abitui.",
         "autonomyMediumLabel": "Chiedi prima",
-        "autonomyMediumBody": "Hermes può agire, ma chiede conferma in chat prima di spendere crediti o fare modifiche non banali. Consigliato.",
+        "autonomyMediumBody": "Il tuo assistente può agire, ma chiede conferma in chat prima di spendere crediti o fare modifiche non banali. Consigliato.",
         "autonomyMediumRecommended": "Consigliato",
         "autonomyHighLabel": "Autonomo",
-        "autonomyHighBody": "L'esperienza agente completa. Hermes agisce da solo. Apre ticket, invia email e spende i tuoi crediti Sokosumi per assumere altri agenti quando ritiene che il lavoro ne valga la pena. Limitato da regole di costo (rifiuta se il saldo scenderebbe sotto 10 crediti; chiede se un singolo job supera il 25% del saldo). Meglio quando ti fidi di come funziona.",
+        "autonomyHighBody": "L'esperienza agente completa. Il tuo assistente agisce da solo. Apre ticket, invia email e spende i tuoi crediti Sokosumi per assumere altri agenti quando ritiene che il lavoro ne valga la pena. Limitato da regole di costo (rifiuta se il saldo scenderebbe sotto 10 crediti; chiede se un singolo job supera il 25% del saldo). Meglio quando ti fidi di come funziona.",
         "autonomyHighSpendBadge": "Spende crediti",
         "integrationsHeading": "Integrazioni",
-        "integrationsHelp": "Hermes si collega tramite Composio. Autorizzi ogni provider in un popup; i token non passano mai da Sokosumi.",
+        "integrationsHelp": "Connect the accounts you want available now. You can skip this and add more later from Settings.",
         "providers": {
           "gmail": "Gmail",
           "outlook": "Outlook Mail",
@@ -2368,23 +2428,23 @@
         "skipCta": "Salta",
         "skipCtaHelp": "Usa un benvenuto generico.",
         "moreLaterHeading": "Altro che puoi collegare dopo",
-        "moreLaterHelp": "Dalle Impostazioni, una volta configurato Hermes.",
-        "continueCta": "Configura il mio agente",
+        "moreLaterHelp": "Dalle Impostazioni, una volta configurato il tuo assistente.",
+        "continueCta": "Create assistant",
         "continueWithCount": "Continuo con {count, plural, =0 {nessuna integrazione} =1 {# integrazione} other {# integrazioni}}",
         "footnote": "Puoi aggiungere o rimuovere integrazioni in qualsiasi momento dalle Impostazioni.",
-        "autonomyAriaLabel": "Livello di autonomia Hermes",
-        "roleOptions": [
-          "Founder / CEO",
-          "Prodotto",
-          "Ingegneria",
-          "Design",
-          "Marketing",
-          "Vendite",
-          "Operazioni",
-          "Finanza",
-          "Customer Success",
-          "Altro"
-        ],
+        "autonomyAriaLabel": "Livello di autonomia del tuo assistente",
+        "roleOptions": {
+          "0": "Founder / CEO",
+          "1": "Prodotto",
+          "2": "Ingegneria",
+          "3": "Design",
+          "4": "Marketing",
+          "5": "Vendite",
+          "6": "Operazioni",
+          "7": "Finanza",
+          "8": "Customer Success",
+          "9": "Altro"
+        },
         "capabilities": {
           "gmail": "Leggi e cerca nella inbox, redigi e invia email",
           "google_calendar": "Leggi eventi, verifica disponibilità, crea e aggiorna riunioni",
@@ -2394,29 +2454,29 @@
         "connectError": "Impossibile collegare — riprova",
         "connectedReadOnly": "{label} · sola lettura",
         "connectedFullAccess": "{label} · accesso completo",
-        "fullAccessPrompt": "Serve che Hermes invii / crei per tuo conto?",
-        "fullAccessBodyPrefix": "Hermes potrà",
+        "fullAccessPrompt": "Serve che il tuo assistente invii / crei per tuo conto?",
+        "fullAccessBodyPrefix": "Il tuo assistente potrà",
         "fullAccessBodyBold": "redigere risposte e agire nel tuo account per tuo conto",
         "fullAccessBodySuffix": "Abilita solo se vuoi che invii email / crei eventi per te.",
         "fullAccessCta": "Collega (accesso completo — lettura + invio)"
       },
       "OnboardingProgress": {
         "eyebrow": "Preparazione del tuo agente",
-        "title": "Stiamo preparando Hermes per te",
-        "subtitle": "Ci vogliono alcuni minuti. Puoi chiudere questa scheda; Hermes continua la configurazione in background.",
+        "title": "Stiamo preparando il tuo assistente per te",
+        "subtitle": "Ci vogliono alcuni minuti. Puoi chiudere questa scheda; il tuo assistente continua la configurazione in background.",
         "etaLabel": "Circa {seconds} secondi rimanenti",
         "etaSettling": "Quasi fatto…",
         "stepFallbackLabel": "Avvio in corso",
-        "footerHint": "Al termine si aprirà la chat con un'intro personalizzata da Hermes.",
+        "footerHint": "Al termine si aprirà la chat con un'intro personalizzata dal tuo assistente.",
         "pollError": "Impossibile raggiungere l'orchestrator in questo momento — riprovo.",
-        "hints": [
-          "Suggerimento: chiedi \"cosa è importante nella mia inbox oggi?\" una volta dentro.",
-          "Hermes ricorda i tuoi progetti, i contatti, le preferenze.",
-          "Prova: \"ogni giorno feriale alle 8, inviami il brief della inbox\".",
-          "Hermes può assumere altri agenti Sokosumi per la ricerca.",
-          "Collega altri strumenti dopo dalle Impostazioni — Slack, Linear, Notion e altro.",
-          "Ogni mattina Hermes invierà un brief di ciò che richiede attenzione."
-        ],
+        "hints": {
+          "0": "Suggerimento: chiedi \"cosa è importante nella mia inbox oggi?\" una volta dentro.",
+          "1": "Il tuo assistente ricorda i tuoi progetti, i contatti, le preferenze.",
+          "2": "Prova: \"ogni giorno feriale alle 8, inviami il brief della inbox\".",
+          "3": "Il tuo assistente può assumere altri agenti Sokosumi per la ricerca.",
+          "4": "Collega altri strumenti dopo dalle Impostazioni — Slack, Linear, Notion e altro.",
+          "5": "Ogni mattina il tuo assistente invierà un brief di ciò che richiede attenzione."
+        },
         "previewSteps": {
           "save_details": "Salvataggio dei tuoi dettagli",
           "connect_integrations": "Connessione alle tue integrazioni",
@@ -2426,9 +2486,26 @@
           "intro_draft": "Redazione della tua intro"
         }
       },
+      "AutonomyPanel": {
+        "chip": "Autonomia",
+        "title": "Autonomia",
+        "subtitle": "Il tuo assistente lavora per te in background: esegue attività pianificate e agisce da solo. Scegli quanto può fare senza chiedere."
+      },
       "Settings": {
         "title": "Impostazioni Hermes",
         "subtitle": "La configurazione è per istanza. Salvare un segreto di strumento riavvia Hermes.",
+        "nameSection": "Nome",
+        "nameHelp": "Come si chiama il tuo assistente in tutta l'app.",
+        "namePlaceholder": "Dai un nome al tuo assistente",
+        "nameSave": "Salva",
+        "nameSavedToast": "Nome aggiornato.",
+        "nameSaveFailed": "Impossibile aggiornare il nome. Riprova.",
+        "lookSection": "Colore dell'orb",
+        "lookHelp": "L'aspetto del tuo assistente in tutta l'app. Le modifiche sono immediate.",
+        "lookSavedToast": "Colore dell'orb aggiornato.",
+        "lookSaveFailed": "Impossibile aggiornare il colore dell'orb. Riprova.",
+        "personalitySection": "Personalità",
+        "personalitySetupOnly": "Tono, dettaglio e stile si scelgono in fase di setup e non si possono cambiare qui. Distruggi e riattiva per scegliere una nuova personalità.",
         "modelSection": "Modello",
         "modelLabel": "Modello",
         "modelValue": "deepseek-4-flash",
@@ -2436,12 +2513,12 @@
         "modelProviderValue": "OpenRouter (gestito)",
         "modelManagedHelp": "La scelta del modello è gestita dall’orchestrator. Modificarla richiederà un aggiornamento da parte dell’admin.",
         "autonomySection": "Autonomia",
-        "autonomyHelp": "Quanta iniziativa può prendere Hermes. I livelli più bassi chiedono prima di agire.",
+        "autonomyHelp": "Quanta iniziativa può prendere il tuo assistente. I livelli più bassi chiedono prima di agire.",
         "autonomySaving": "Salvataggio…",
         "autonomySavedToast": "Autonomia aggiornata.",
         "autonomySaveFailed": "Impossibile aggiornare l'autonomia.",
         "integrationsSection": "Integrazioni",
-        "integrationsHelp": "Collega o scollega gli strumenti che Hermes può usare per tuo conto. Le modifiche riavviano Hermes.",
+        "integrationsHelp": "Collega o scollega gli strumenti che il tuo assistente può usare per tuo conto. Le modifiche riavviano il tuo assistente.",
         "integrationsEmpty": "Nessuna integrazione collegata.",
         "connectIntegration": "Collega",
         "connectingIntegration": "Connessione…",
@@ -2459,11 +2536,11 @@
         "secretSavedToast": "{key} salvato. Hermes si sta riavviando.",
         "secretSaveFailed": "Impossibile salvare il segreto.",
         "schedulesSection": "Attività programmate",
-        "schedulesHelp": "Job ricorrenti che Hermes esegue per tuo conto. Sincronizzazioni workspace, brief giornalieri, follow-up programmati dagli agenti.",
-        "schedulesEmpty": "Nessuna attività programmata. Chiedi a Hermes in chat di programmare qualcosa (es. \"ogni giorno feriale alle 8, inviami il brief della inbox\").",
+        "schedulesHelp": "Job ricorrenti che il tuo assistente esegue per tuo conto. Sincronizzazioni workspace, brief giornalieri, follow-up programmati dagli agenti.",
+        "schedulesEmpty": "Nessuna attività programmata. Chiedi al tuo assistente in chat di programmare qualcosa (es. \"ogni giorno feriale alle 8, inviami il brief della inbox\").",
         "schedulesLoading": "Caricamento programmazioni…",
         "schedulesSystemBadge": "Sistema",
-        "schedulesHermesBadge": "Hermes",
+        "schedulesHermesBadge": "Assistente personale",
         "schedulesKindUserBadge": "Creato da te",
         "schedulesKindSystemPromptBadge": "Creato automaticamente",
         "schedulesKindSystemSweepBadge": "Attività in background",
@@ -2474,7 +2551,7 @@
         "schedulesNextRun": "Prossima esecuzione",
         "schedulesNeverRan": "Non ancora eseguito",
         "syncSection": "Aggiornamento memoria",
-        "syncHelp": "Hermes mantiene la memoria aggiornata interrogando in background il workspace Sokosumi e le inbox / il calendario collegati.",
+        "syncHelp": "Il tuo assistente mantiene la memoria aggiornata interrogando in background il workspace Sokosumi e le inbox / il calendario collegati.",
         "syncWorkspaceLabel": "Workspace Sokosumi",
         "syncWorkspaceNever": "Non ancora sincronizzato. Si esegue al primo onboarding.",
         "syncInboxLabel": "Inbox e calendario",
@@ -2489,7 +2566,44 @@
       "Error": {
         "title": "Non siamo riusciti ad avviare Hermes",
         "description": "L’orchestrator ha restituito un errore. Riprova tra un minuto. Se persiste, contatta il supporto.",
-        "retry": "Riprova"
+        "retry": "Riprova",
+        "startOver": "Ricomincia"
+      },
+      "Skills": {
+        "title": "Skills",
+        "subtitle": "Give Hermes new know-how. Skills add instructions only — never code it runs.",
+        "searchPlaceholder": "Search skills…",
+        "recommendedHeading": "Recommended",
+        "popularHeading": "Popular",
+        "marketingHeading": "Popular marketing skills",
+        "disclaimer": "These are the most popular skills on skills.sh, an open community catalog. We don't verify who created them — review a skill before adding it to your agent.",
+        "includedHeading": "Included",
+        "includedHelp": "These ship with every Hermes agent and can't be removed.",
+        "includedBadge": "Included",
+        "installedHeading": "Installed",
+        "resultsHeading": "Results",
+        "addAction": "Add",
+        "addingAction": "Adding…",
+        "installedBadge": "Installed",
+        "pendingBadge": "Pending",
+        "pendingHelp": "Will be added when your agent next starts.",
+        "removeAction": "Remove",
+        "bySource": "by {source}",
+        "curatedBadge": "Official",
+        "blockedBadge": "Blocked",
+        "blockedHelp": "Blocked for safety — this skill failed its security audit.",
+        "emptyCatalog": "The skills catalog is unavailable right now.",
+        "emptyInstalled": "No skills installed yet.",
+        "noResults": "No skills found.",
+        "reviewTitle": "Review before adding",
+        "reviewBody": "Automated audits flagged this skill (risk: {risk}). Add it only if you trust the source.",
+        "reviewConfirm": "Add anyway",
+        "reviewCancel": "Cancel",
+        "addedToast": "{name} added — Hermes can use it on your next message.",
+        "pendingToast": "{name} will be added when your agent next starts.",
+        "removedToast": "{name} removed.",
+        "addFailed": "Couldn't add the skill.",
+        "removeFailed": "Couldn't remove the skill."
       }
     },
     "Error": {
@@ -2522,7 +2636,9 @@
           "filesAndOutputs": "File e output",
           "taskManager": "Attività",
           "projects": "Progetti",
-          "hermes": "Hermes",
+          "hermes": "Assistente personale",
+          "hermesNew": "Nuovo",
+          "hermesUnread": "{count} non letti",
           "history": "Cronologia",
           "admin": "Amministrazione",
           "settings": "Impostazioni",
@@ -2800,6 +2916,10 @@
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
           },
+          "orchestrators": {
+            "title": "Orchestrator",
+            "description": "Modifica i metadati di visualizzazione degli orchestrator proprietari."
+          },
           "freeCredits": {
             "title": "Crediti gratuiti",
             "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
@@ -3001,6 +3121,70 @@
           "personalWorkspace": "Spazio di lavoro personale"
         }
       },
+      "Orchestrators": {
+        "title": "Orchestrator",
+        "description": "Gestisci i metadati di visualizzazione degli orchestrator proprietari.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# orchestrator} other {# orchestrator}}",
+          "empty": "Nessun orchestrator trovato.",
+          "orchestrator": "Orchestrator",
+          "slug": "Slug",
+          "caption": "Didascalia",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "Modifica orchestrator",
+          "backToList": "Torna agli orchestrator"
+        },
+        "EditForm": {
+          "submit": "Salva modifiche",
+          "submitting": "Salvataggio…",
+          "image": {
+            "label": "Immagine",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
+            "upload": "Carica immagine",
+            "replace": "Sostituisci immagine",
+            "remove": "Rimuovi immagine",
+            "previewAlt": "Anteprima immagine orchestrator",
+            "fileTooLarge": "L'immagine deve essere di 2 MB o meno.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Carica un'immagine alla volta.",
+            "uploadError": "Impossibile elaborare l'immagine selezionata."
+          },
+          "fields": {
+            "name": {
+              "label": "Nome",
+              "description": "Mostrato ovunque compaia l'orchestrator."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Identificatore di sola lettura usato in URL e API."
+            },
+            "caption": {
+              "label": "Didascalia",
+              "description": "Breve riga sotto il nome. Lascia vuoto per cancellare."
+            },
+            "description": {
+              "label": "Descrizione",
+              "description": "Testo più lungo per le viste di dettaglio. Lascia vuoto per cancellare."
+            }
+          },
+          "validation": {
+            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+            "noChanges": "Nessuna modifica da salvare."
+          },
+          "success": {
+            "saved": "Orchestrator aggiornato.",
+            "imageSaved": "Immagine salvata.",
+            "imageRemoved": "Immagine rimossa."
+          },
+          "errors": {
+            "saveFailed": "Impossibile salvare l'orchestrator.",
+            "notFound": "Orchestrator non trovato.",
+            "imageSaveFailed": "Impossibile aggiornare l’immagine."
+          }
+        }
+      },
       "FreeCredits": {
         "title": "Crediti gratuiti",
         "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione. I crediti vengono applicati subito.",
@@ -3138,13 +3322,6 @@
         "unauthorizedOrganization": "Non sei autorizzato ad acquistare crediti per questa organizzazione",
         "unauthorizedPersonal": "Non sei autorizzato ad acquistare crediti",
         "unknownError": "Qualcosa è andato storto"
-      }
-    },
-    "Connections": {
-      "tabs": {
-        "connectedApps": "App connesse",
-        "apiKeys": "Chiavi API",
-        "mcp": "MCP"
       }
     },
     "MCP": {
@@ -3366,7 +3543,8 @@
           "namePattern": "Il nome della chiave API può contenere solo lettere, numeri, spazi, trattini e underscore",
           "keyIdRequired": "L’ID della chiave API è obbligatorio",
           "confirmNameRequired": "Conferma il nome della chiave API"
-        }
+        },
+        "retry": "Riprova"
       },
       "AuthorizedClients": {
         "title": "Applicazioni autorizzate",
@@ -3414,10 +3592,8 @@
       },
       "OAuthClients": {
         "title": "Client OAuth",
-        "description": "Gestisci i client OAuth che possono accedere al tuo account",
+        "description": "Crea e gestisci client OAuth per le applicazioni che sviluppi.",
         "createButton": "Crea client OAuth",
-        "createSuccess": "Client OAuth creato correttamente",
-        "createError": "Impossibile creare il client OAuth",
         "copy": "Copia",
         "copySuccess": "Copiato negli appunti",
         "CreateDialog": {
@@ -3427,7 +3603,7 @@
           "namePlaceholder": "es. La mia applicazione, Server di produzione",
           "redirectUrisLabel": "URI di reindirizzamento",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Inserisci un URI di reindirizzamento per riga. Ogni URI deve essere un URL valido.",
+          "redirectUrisHelp": "Una URI di reindirizzamento per riga. Usa HTTPS (HTTP solo per localhost/loopback), senza frammenti. Sono consentiti schemi app personalizzati.",
           "cancelButton": "Annulla",
           "createButton": "Crea client OAuth"
         },
@@ -3437,7 +3613,73 @@
           "clientIdLabel": "ID client",
           "clientSecretLabel": "Segreto del client",
           "clientSecretWarning": "Questo segreto verrà mostrato solo una volta. Assicurati di salvarlo in modo sicuro.",
-          "doneButton": "Fine"
+          "doneButton": "Fine",
+          "showSecret": "Mostra secret",
+          "hideSecret": "Nascondi secret"
+        },
+        "loading": "Caricamento client OAuth...",
+        "noClientsFound": "Crea il tuo primo client OAuth per iniziare.",
+        "retry": "Riprova",
+        "clientIdLabel": "ID client",
+        "redirectUrisLabel": "URI di reindirizzamento",
+        "created": "Creato: {date}",
+        "Status": {
+          "disabled": "Disabilitato"
+        },
+        "Actions": {
+          "editTooltip": "Modifica client OAuth",
+          "deleteTooltip": "Elimina client OAuth",
+          "rotateTooltip": "Ruota secret del client"
+        },
+        "EditDialog": {
+          "title": "Modifica client OAuth",
+          "description": "Aggiorna il nome o gli URI di reindirizzamento di questo client OAuth.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "es. La mia applicazione, Server di produzione",
+          "redirectUrisLabel": "URI di reindirizzamento",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Una URI di reindirizzamento per riga. Usa HTTPS (HTTP solo per localhost/loopback), senza frammenti. Sono consentiti schemi app personalizzati.",
+          "cancelButton": "Annulla",
+          "saveButton": "Salva modifiche"
+        },
+        "DeleteDialog": {
+          "title": "Elimina client OAuth",
+          "description": "Questa azione non può essere annullata. Eliminando \"{name}\" il client verrà rimosso definitivamente. Le applicazioni che usano queste credenziali non potranno più autenticarsi.",
+          "cancelButton": "Annulla",
+          "deleteButton": "Elimina client OAuth"
+        },
+        "Messages": {
+          "loadError": "Impossibile caricare i client OAuth",
+          "createSuccess": "Client OAuth creato con successo",
+          "createError": "Impossibile creare il client OAuth",
+          "updateSuccess": "Client OAuth aggiornato con successo",
+          "updateError": "Impossibile aggiornare il client OAuth",
+          "deleteSuccess": "Client OAuth eliminato con successo",
+          "deleteError": "Impossibile eliminare il client OAuth",
+          "copyError": "Copia negli appunti non riuscita",
+          "rotateSuccess": "Secret del client ruotato con successo",
+          "rotateError": "Impossibile ruotare il secret del client"
+        },
+        "Validation": {
+          "nameRequired": "Il nome è obbligatorio",
+          "nameMaxLength": "Il nome deve contenere meno di 100 caratteri",
+          "redirectUrisRequired": "È richiesto almeno un URI di reindirizzamento",
+          "redirectUrisInvalid": "Ogni URI di reindirizzamento deve essere un URL HTTPS valido (HTTP consentito per localhost), senza frammento."
+        },
+        "RotateDialog": {
+          "title": "Ruota secret del client",
+          "description": "Questo invalidirà il secret attuale di \"{name}\" e ne genererà uno nuovo. Le applicazioni che usano il secret precedente smetteranno di funzionare finché non le aggiorni.",
+          "cancelButton": "Annulla",
+          "confirmButton": "Ruota secret"
+        },
+        "RotatedSuccess": {
+          "title": "Secret del client ruotato",
+          "description": "Salva il nuovo secret in modo sicuro. Il secret precedente non funziona più.",
+          "clientSecretLabel": "Nuovo secret del client",
+          "clientSecretWarning": "Questo secret verrà mostrato una sola volta. Assicurati di salvarlo in modo sicuro.",
+          "doneButton": "Fatto",
+          "showSecret": "Mostra secret",
+          "hideSecret": "Nascondi secret"
         }
       },
       "OAuthCallback": {
@@ -3796,6 +4038,37 @@
       "discardDialogTitle": "Annullare le modifiche?",
       "discardDialogDescription": "Le modifiche andranno perse se esci senza salvare.",
       "discardConfirm": "Annulla modifiche"
+    },
+    "Developer": {
+      "tabs": {
+        "oauthClients": "Client OAuth",
+        "apiKeys": "Chiavi API",
+        "docs": "Documentazione"
+      },
+      "Docs": {
+        "title": "Documentazione per sviluppatori",
+        "description": "Guide e riferimenti per sviluppare su Sokosumi.",
+        "links": {
+          "gettingStarted": {
+            "title": "Per iniziare",
+            "description": "Scopri come integrarti con Sokosumi."
+          },
+          "apiReference": {
+            "title": "Riferimento API",
+            "description": "Esplora la documentazione OpenAPI di Sokosumi."
+          },
+          "mcp": {
+            "title": "Documentazione MCP",
+            "description": "Collega client AI a Sokosumi tramite MCP."
+          }
+        }
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "App connesse",
+        "mcp": "MCP"
+      }
     }
   },
   "Share": {

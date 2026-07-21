@@ -9,6 +9,10 @@ export const orchestratorSummarySchema = z
     }),
     name: z.string().openapi({ example: "Hermes" }),
     slug: z.string().openapi({ example: "hermes" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/hermes.png" }),
   })
   .openapi("OrchestratorSummary");
 
@@ -32,6 +36,10 @@ export const orchestratorSchema = z
       .string()
       .nullable()
       .openapi({ example: "First-party Hermes orchestrator" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/hermes.png" }),
   })
   .openapi("Orchestrator");
 

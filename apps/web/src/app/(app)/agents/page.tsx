@@ -28,11 +28,23 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+function logAgentsCatalogFetchFailure(scope: string, error: unknown): void {
+  console.warn(`[agents] ${scope} fetch failed`, {
+    message: error instanceof Error ? error.message : String(error),
+  });
+}
+
 export default async function GalleryPage() {
   const [coreAgents, categoriesResponse, coworkers, session] =
     await Promise.all([
-      getAllCoreAgents(),
-      coreClient.getCategories(),
+      getAllCoreAgents().catch((error) => {
+        logAgentsCatalogFetchFailure("agent catalog", error);
+        return [];
+      }),
+      coreClient.getCategories().catch((error) => {
+        logAgentsCatalogFetchFailure("categories", error);
+        return { data: [] };
+      }),
       coworkerService.listCoworkers("tasks").catch(() => []),
       getSession(),
     ]);

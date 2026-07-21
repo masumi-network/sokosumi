@@ -24,17 +24,25 @@ const {
   hermesPendingConnectionDeleteMock,
   hermesPendingConnectionFindUniqueMock,
   hermesPendingConnectionUpsertMock,
+  hermesInstanceUpsertMock,
   hermesMessageCreateMock,
   hermesMessageFindManyMock,
   hermesMessageUpsertMock,
   initiateConnectionMock,
   isReservedSecretKeyMock,
   isValidSecretKeyMock,
+  enterpriseContractFindFirstMock,
   memberFindFirstMock,
+  memberFindManyMock,
   organizationFindManyMock,
+  resolveActiveSubscriptionMock,
+  resolveOrganizationBillingPlanMock,
   orchestratorApiKeyFindUniqueMock,
+  patchInstanceMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
+  rejectConfirmationMock,
+  startInstanceOnboardingMock,
   syncHermesInboxForUserMock,
   userFindUniqueMock,
   waitUntilMock,
@@ -76,17 +84,25 @@ const {
     hermesPendingConnectionDeleteMock: vi.fn(),
     hermesPendingConnectionFindUniqueMock: vi.fn(),
     hermesPendingConnectionUpsertMock: vi.fn(),
+    hermesInstanceUpsertMock: vi.fn(),
     hermesMessageCreateMock: vi.fn(),
     hermesMessageFindManyMock: vi.fn(),
     hermesMessageUpsertMock: vi.fn(),
     initiateConnectionMock: vi.fn(),
     isReservedSecretKeyMock: vi.fn(),
     isValidSecretKeyMock: vi.fn(),
+    enterpriseContractFindFirstMock: vi.fn(),
     memberFindFirstMock: vi.fn(),
+    memberFindManyMock: vi.fn(),
     organizationFindManyMock: vi.fn(),
+    resolveActiveSubscriptionMock: vi.fn(),
+    resolveOrganizationBillingPlanMock: vi.fn(),
     orchestratorApiKeyFindUniqueMock: vi.fn(),
+    patchInstanceMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
+    rejectConfirmationMock: vi.fn(),
+    startInstanceOnboardingMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
     waitUntilMock: vi.fn(),
@@ -119,7 +135,7 @@ vi.mock("@/lib/db/prisma", () => ({
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findUnique: vi.fn().mockResolvedValue(null),
       update: vi.fn().mockResolvedValue(undefined),
-      upsert: vi.fn().mockResolvedValue(undefined),
+      upsert: hermesInstanceUpsertMock,
     },
     hermesMessage: {
       create: hermesMessageCreateMock,
@@ -137,8 +153,12 @@ vi.mock("@/lib/db/prisma", () => ({
       delete: hermesPendingConnectionDeleteMock,
       deleteMany: hermesPendingConnectionDeleteManyMock,
     },
+    enterpriseContract: {
+      findFirst: enterpriseContractFindFirstMock,
+    },
     member: {
       findFirst: memberFindFirstMock,
+      findMany: memberFindManyMock,
     },
     organization: {
       findMany: organizationFindManyMock,
@@ -151,6 +171,27 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    resolveOrganizationBillingPlan: resolveOrganizationBillingPlanMock,
+  };
+});
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    subscriptionRepository: {
+      ...actual.subscriptionRepository,
+      resolveActiveSubscriptionByReferenceId: resolveActiveSubscriptionMock,
+    },
+  };
+});
 
 vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
   const actual =
@@ -179,9 +220,12 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
     },
     isReservedSecretKey: isReservedSecretKeyMock,
     isValidSecretKey: isValidSecretKeyMock,
+    patchInstance: patchInstanceMock,
     provisionInstance: vi.fn(),
     proxyChatCompletions: proxyChatCompletionsMock,
+    rejectConfirmation: rejectConfirmationMock,
     setInstanceSecret: vi.fn(),
+    startInstanceOnboarding: startInstanceOnboardingMock,
   };
 });
 
@@ -217,6 +261,7 @@ import {
   destroyInstance,
   getInstance,
   HermesOrchestratorError,
+  provisionInstance,
 } from "@/clients/hermes-orchestrator.client";
 
 import hermesRouter from "./index";
@@ -252,6 +297,7 @@ describe("Hermes route contracts", () => {
     hermesMessageFindManyMock.mockResolvedValue([]);
     hermesMessageCreateMock.mockResolvedValue(undefined);
     hermesMessageUpsertMock.mockResolvedValue(undefined);
+    hermesInstanceUpsertMock.mockResolvedValue(undefined);
     ensureInstanceReadyMock.mockResolvedValue(undefined);
     syncHermesInboxForUserMock.mockResolvedValue({
       userId: "user_123",
@@ -259,6 +305,19 @@ describe("Hermes route contracts", () => {
     });
     coworkerFindManyMock.mockResolvedValue([]);
     memberFindFirstMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([]);
+    enterpriseContractFindFirstMock.mockResolvedValue(null);
+    // Default to paid coverage so use-path tests exercise business logic,
+    // not the subscription gate. Unpaid cases set this back to null.
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "free",
+      purchasedSeats: 0,
+      subscriptionId: null,
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
     organizationFindManyMock.mockResolvedValue([]);
     hermesPendingConnectionUpsertMock.mockResolvedValue(undefined);
     hermesPendingConnectionFindUniqueMock.mockResolvedValue(null);
@@ -280,6 +339,16 @@ describe("Hermes route contracts", () => {
       mode: "read",
     });
     disconnectInstanceIntegrationMock.mockResolvedValue(undefined);
+    patchInstanceMock.mockResolvedValue(undefined);
+    startInstanceOnboardingMock.mockResolvedValue(undefined);
+    // Deterministic default: earlier tests' getInstance implementations must
+    // not leak into the approve/reject snapshot path.
+    vi.mocked(getInstance).mockResolvedValue(null);
+    rejectConfirmationMock.mockResolvedValue({
+      status: "rejected",
+      result: null,
+      error: null,
+    });
     approveConfirmationMock.mockResolvedValue({
       status: "approved",
       result: null,
@@ -437,7 +506,12 @@ describe("Hermes route contracts", () => {
 
     expect(hermesMessageFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: "user_123" },
+        // Resolved-confirmation audit cards (kind confirmation_card) are UI
+        // artifacts and must stay out of the model's context window.
+        where: {
+          userId: "user_123",
+          OR: [{ kind: null }, { kind: { not: "confirmation_card" } }],
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 100,
         select: { role: true, content: true },
@@ -783,7 +857,7 @@ describe("Hermes route contracts", () => {
 
       expect(response.status).toBe(503);
       expect(body.error).toBe("ServiceUnavailable");
-      expect(body.message).toBe("Hermes is temporarily unavailable.");
+      expect(body.message).toBe("Your assistant is temporarily unavailable.");
       expect(captureExceptionMock).toHaveBeenCalledWith(
         expect.any(TypeError),
         expect.objectContaining({
@@ -887,7 +961,7 @@ describe("Hermes route contracts", () => {
 
       expect(response.status).toBe(503);
       expect(body.error).toBe("ServiceUnavailable");
-      expect(body.message).toBe("Hermes is temporarily unavailable.");
+      expect(body.message).toBe("Your assistant is temporarily unavailable.");
       expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
     },
   );
@@ -990,6 +1064,130 @@ describe("Hermes route contracts", () => {
     expect(conf.referencedOrganizations).toEqual([
       { id: orgId, name: "Sokosumi Inc", slug: "sokosumi" },
     ]);
+  });
+
+  it("does NOT delete local state when the orchestrator reports no instance", async () => {
+    // Regression coverage: an earlier iteration auto-purged the local
+    // mirror (chat history + instance metadata) whenever the orchestrator
+    // reported instance_not_found — meaning one wrong answer from the
+    // orchestrator irreversibly wiped real user data. Cleanup is now only
+    // ever explicit, via the orchestrator-only purge endpoint below.
+    vi.mocked(getInstance).mockResolvedValue(null);
+
+    const response = await createApp().request("/me/instance", {
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.hasInstance", false);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("purges local state for the orchestrator actor", async () => {
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue({
+      orchestratorId: "orch_123",
+      revokedAt: null,
+      expiresAt: null,
+      orchestrator: { archivedAt: null },
+    });
+
+    const response = await createApp().request("/instances/user_gone/purge", {
+      method: "POST",
+      headers: { Authorization: "Bearer orch_test_secret" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.ok", true);
+    expect(prismaTransactionMock).toHaveBeenCalledWith([
+      expect.any(Promise),
+      expect.any(Promise),
+      expect.any(Promise),
+    ]);
+    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_gone" },
+    });
+  });
+
+  it("persists a re-picked orb seed via PATCH /me/instance", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ avatarSeed: "orb:jewel-sky:user_123" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(hermesInstanceUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123" },
+        create: expect.objectContaining({
+          avatarSeed: "orb:jewel-sky:user_123",
+        }),
+        update: expect.objectContaining({
+          avatarSeed: "orb:jewel-sky:user_123",
+        }),
+      }),
+    );
+  });
+
+  it("still returns 200 when PATCH orch succeeds but local meta upsert fails", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    hermesInstanceUpsertMock.mockRejectedValueOnce(new Error("db down"));
+
+    const response = await createApp().request("/me/instance", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ avatarSeed: "orb:jewel-sky:user_123" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: { context: "hermes_patch_meta_persist" },
+      }),
+    );
+  });
+
+  it("resets the orb seed to the placeholder with an explicit null", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ avatarSeed: null }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(hermesInstanceUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ avatarSeed: null }),
+      }),
+    );
+  });
+
+  it("rejects the purge endpoint for regular user credentials", async () => {
+    const response = await createApp().request("/instances/user_123/purge", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe("Orchestrator authentication required");
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("persists the pending connection claim when initiating integration OAuth", async () => {
@@ -1175,7 +1373,7 @@ describe("Hermes route contracts", () => {
 
       expect(response.status).toBe(503);
       expect(body.error).toBe("ServiceUnavailable");
-      expect(body.message).toBe("Hermes is temporarily unavailable.");
+      expect(body.message).toBe("Your assistant is temporarily unavailable.");
     },
   );
 
@@ -1194,7 +1392,14 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(200);
     expect(body).toHaveProperty("data.ok", true);
     expect(destroyInstance).toHaveBeenCalledWith("user_123");
-    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(prismaTransactionMock).toHaveBeenCalledWith([
+      expect.any(Promise),
+      expect.any(Promise),
+      expect.any(Promise),
+    ]);
+    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_123" },
+    });
   });
 
   it("returns 503 and reports to Sentry when orchestrator destroy succeeds but DB cleanup fails", async () => {
@@ -1228,7 +1433,7 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe(
-      "Your Hermes instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+      "Your assistant instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
     );
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
@@ -1237,6 +1442,91 @@ describe("Hermes route contracts", () => {
         extra: { userId: "user_123" },
       }),
     );
+  });
+
+  it("returns 200 for POST /me/instance/onboard and forwards fields to the orchestrator", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assistantName: "Ada",
+        avatarSeed: "seed_1",
+        researchDepth: "deep",
+        autonomyLevel: "medium",
+        personality: { tone: 50, detail: 50, style: 50 },
+      }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.ok", true);
+    expect(patchInstanceMock).toHaveBeenCalledWith("user_123", {
+      autonomyLevel: "medium",
+    });
+    expect(startInstanceOnboardingMock).toHaveBeenCalledWith("user_123", {
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      role: undefined,
+      company: undefined,
+      researchDepth: "deep",
+      personality: { tone: 50, detail: 50, style: 50 },
+    });
+  });
+
+  it("returns 503 with orchestrator detail when starting onboarding fails with a 5xx", async () => {
+    startInstanceOnboardingMock.mockRejectedValue(
+      new HermesOrchestratorError(500, { title: "orchestrator db down" }),
+    );
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ researchDepth: "deep" }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(body.message).toBe(
+      "Failed to start assistant onboarding: orchestrator db down",
+    );
+  });
+
+  it("returns 503 with only the generic fallback when an unexpected (non-orchestrator) error is thrown", async () => {
+    // Regression coverage: any throw that ISN'T a HermesOrchestratorError
+    // (e.g. an unwrapped network exception, or a bug in a step before the
+    // orchestrator call) falls into mapOrchestratorError's catch-all and
+    // loses all detail — this is exactly the opaque "Failed to start
+    // assistant onboarding" toast users see with no diagnostic info.
+    startInstanceOnboardingMock.mockRejectedValue(
+      new Error("something unrelated to the orchestrator threw"),
+    );
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ researchDepth: "deep" }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Failed to start assistant onboarding");
   });
 
   it("documents the chat and instance-not-ready envelopes in OpenAPI", () => {
@@ -1344,5 +1634,585 @@ describe("Hermes route contracts", () => {
       "conf_1",
       undefined,
     );
+  });
+
+  function instanceWithPendingConfirmation(overrides?: {
+    organizationId?: string | null;
+    organizationName?: string | null;
+  }) {
+    return {
+      status: "ready" as const,
+      endpointUrl: null,
+      lastActivityAt: null,
+      onboardedAt: null,
+      autonomyLevel: "medium" as const,
+      integrations: [],
+      transitioning: false,
+      welcomeMessage: null,
+      welcomeKind: null,
+      lastSokosumiSyncAt: null,
+      lastInboxRefreshAt: null,
+      timezone: null,
+      pendingConfirmations: [
+        {
+          id: "conf_1",
+          toolName: "sokosumi_create_task",
+          summary: "Create task 'Weekly report' and assign it to Alex.",
+          createdAt: "2026-07-17T12:00:00.000Z",
+          referencedCoworkers: [],
+          referencedOrganizations: [],
+          organizationId:
+            overrides?.organizationId === undefined
+              ? "org_nmkr"
+              : overrides.organizationId,
+          organizationName:
+            overrides?.organizationName === undefined
+              ? "NMKR"
+              : overrides.organizationName,
+        },
+      ],
+    };
+  }
+
+  it("persists a confirmation_card message with Hermes' proposed workspace on approve", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { userId: string; role: string; kind: string; content: string };
+    };
+    expect(upsertArgs.create.userId).toBe("user_123");
+    expect(upsertArgs.create.role).toBe("assistant");
+    expect(upsertArgs.create.kind).toBe("confirmation_card");
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      toolName: "sokosumi_create_task",
+      summary: "Create task 'Weekly report' and assign it to Alex.",
+      status: "approved",
+      organizationId: "org_nmkr",
+      organizationName: "NMKR",
+    });
+  });
+
+  it("persists the override workspace on the confirmation card when the user rerouted it", async () => {
+    const orgId = "11111111-2222-3333-4444-555555555555";
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    memberFindFirstMock.mockResolvedValue({
+      id: "mem_1",
+      organization: { name: "Org One" },
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ overrides: { organizationId: orgId } }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      status: "approved",
+      organizationId: orgId,
+      organizationName: "Org One",
+    });
+  });
+
+  it("persists an audit card when the orchestrator reports already_resolved", async () => {
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    approveConfirmationMock.mockResolvedValue({
+      status: "already_resolved",
+      result: null,
+      error: null,
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      status: "already_resolved",
+      organizationId: "org_nmkr",
+      organizationName: "NMKR",
+    });
+  });
+
+  it("still approves without persisting when snapshot fails and no client fallback is sent", async () => {
+    vi.mocked(getInstance).mockRejectedValue(
+      new HermesOrchestratorError(503, { title: "edge restart" }),
+    );
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(approveConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      undefined,
+    );
+    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("persists a minimal audit card from client id when the orch snapshot is missing", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      pendingConfirmations: [],
+    });
+
+    const clientConfirmation = {
+      id: "conf_1",
+      toolName: "sokosumi_create_task",
+      summary: "Attacker-controlled summary that must not be persisted.",
+      createdAt: "2026-07-17T12:00:00.000Z",
+      referencedCoworkers: [],
+      referencedOrganizations: [],
+      organizationId: "org_nmkr",
+      organizationName: "NMKR",
+    };
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confirmation: clientConfirmation }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    const content = JSON.parse(upsertArgs.create.content) as {
+      confirmationId: string;
+      toolName: string;
+      summary: string;
+      status: string;
+      organizationId: string | null;
+      organizationName: string | null;
+    };
+    expect(content).toMatchObject({
+      confirmationId: "conf_1",
+      toolName: "gated_action",
+      summary: "Confirmation resolved",
+      status: "approved",
+      organizationId: null,
+      organizationName: null,
+    });
+    expect(content.summary).not.toContain("Attacker-controlled");
+    expect(content.toolName).not.toBe("sokosumi_create_task");
+  });
+
+  it("ignores a client confirmation whose id does not match the path param", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirmation: {
+            id: "conf_other",
+            toolName: "sokosumi_create_task",
+            summary: "Wrong id",
+            createdAt: "2026-07-17T12:00:00.000Z",
+            referencedCoworkers: [],
+            referencedOrganizations: [],
+            organizationId: null,
+            organizationName: null,
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("persists already_resolved as a minimal card when orch pending list is empty", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      pendingConfirmations: [],
+    });
+    approveConfirmationMock.mockResolvedValue({
+      status: "already_resolved",
+      result: null,
+      error: null,
+    });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirmation: {
+            id: "conf_1",
+            toolName: "sokosumi_create_job",
+            summary: "Run job for weekly report.",
+            createdAt: "2026-07-17T12:00:00.000Z",
+            referencedCoworkers: [],
+            referencedOrganizations: [],
+            organizationId: null,
+            organizationName: null,
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { content: string };
+    };
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      status: "already_resolved",
+      toolName: "gated_action",
+      summary: "Confirmation resolved",
+    });
+  });
+
+  it("blocks provisioning without paid coverage and never calls the orchestrator", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to use the personal assistant.",
+    );
+    expect(provisionInstance).not.toHaveBeenCalled();
+  });
+
+  it("blocks chat without paid coverage and never calls the orchestrator", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      status: "running",
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "hello" }),
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to use the personal assistant.",
+    );
+    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks chat/stream without paid coverage and never calls the orchestrator", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    vi.mocked(getInstance).mockResolvedValue({
+      ...instanceWithPendingConfirmation(),
+      status: "running",
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request("/chat/stream", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "hello" }),
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to use the personal assistant.",
+    );
+    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks onboarding without paid coverage", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+
+    const response = await createApp().request("/me/instance/onboard", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assistantName: "Ada",
+        avatarSeed: "seed_1",
+        researchDepth: "deep",
+        autonomyLevel: "medium",
+        personality: { tone: 50, detail: 50, style: 50 },
+      }),
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A paid subscription is required to use the personal assistant.",
+    );
+    expect(startInstanceOnboardingMock).not.toHaveBeenCalled();
+  });
+
+  it("provisions when the user has an active paid personal subscription", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalledWith(
+      "user_123",
+      expect.any(Object),
+    );
+    // Idempotent re-provision of a live instance must not wipe chat.
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("clears leftover local mirror when provisioning a fresh early instance", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        ...instanceWithPendingConfirmation(),
+        status: "provisioning",
+        pendingConfirmations: [],
+        onboardedAt: null,
+      });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).toHaveBeenCalledWith([
+      expect.any(Promise),
+      expect.any(Promise),
+      expect.any(Promise),
+    ]);
+    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_123" },
+    });
+    expect(hermesInstanceUpsertMock).toHaveBeenCalled();
+  });
+
+  it("does not wipe chat when pre-check is empty but post-provision is already ready", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        ...instanceWithPendingConfirmation(),
+        status: "ready",
+        onboardedAt: "2026-07-01T00:00:00.000Z",
+      });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+    // False instance_not_found + idempotent provision against a live orch
+    // instance must never delete hermesMessage history.
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(hermesPendingConnectionDeleteManyMock).not.toHaveBeenCalled();
+    expect(hermesInstanceUpsertMock).toHaveBeenCalled();
+  });
+
+  it("provisions when a member organization carries the paid plan", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([{ organizationId: "org_paid" }]);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "pro",
+      purchasedSeats: 3,
+      subscriptionId: "sub_1",
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+    expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledWith(
+      "org_paid",
+      expect.anything(),
+    );
+  });
+
+  it("provisions when a member organization has an active enterprise contract", async () => {
+    memberFindManyMock.mockResolvedValue([{ organizationId: "org_ent" }]);
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: true,
+      purchasedSeats: 10,
+      contractId: "contract_1",
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+    expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledWith(
+      "org_ent",
+      expect.anything(),
+    );
+  });
+
+  it("blocks provisioning when the enterprise contract is past its commercial term", async () => {
+    memberFindManyMock.mockResolvedValue([{ organizationId: "org_ent" }]);
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    // Status still "active" but past-term: the resolver reports the contract
+    // as not consumable, matching the seat/credit coverage checks.
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: false,
+      purchasedSeats: 10,
+      contractId: "contract_1",
+      endsAt: new Date("2026-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(403);
+    expect(provisionInstance).not.toHaveBeenCalled();
+  });
+
+  it("lets an admin provision without any subscription", async () => {
+    userFindUniqueMock.mockResolvedValue({ role: "admin" });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(resolveActiveSubscriptionMock).not.toHaveBeenCalled();
+    expect(provisionInstance).toHaveBeenCalled();
+  });
+
+  it("persists a rejected confirmation card on reject", async () => {
+    vi.mocked(getInstance).mockResolvedValue(
+      instanceWithPendingConfirmation({
+        organizationId: null,
+        organizationName: null,
+      }),
+    );
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/reject",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(rejectConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      undefined,
+    );
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertArgs = hermesMessageUpsertMock.mock.calls[0]![0] as {
+      create: { kind: string; content: string };
+    };
+    expect(upsertArgs.create.kind).toBe("confirmation_card");
+    expect(JSON.parse(upsertArgs.create.content)).toMatchObject({
+      confirmationId: "conf_1",
+      status: "rejected",
+      organizationId: null,
+      organizationName: null,
+    });
   });
 });

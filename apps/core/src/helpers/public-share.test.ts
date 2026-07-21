@@ -313,6 +313,7 @@ describe("getPublicSharedResourceByToken", () => {
               name: "Ops Agent",
               image: "https://example.com/coworker.png",
             },
+            orchestrator: null,
             transaction: {
               amount: -15000000000n,
             },
@@ -329,6 +330,7 @@ describe("getPublicSharedResourceByToken", () => {
               image: "https://example.com/user.png",
             },
             coworker: null,
+            orchestrator: null,
             transaction: null,
           },
           {
@@ -340,6 +342,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: null,
             user: null,
             coworker: null,
+            orchestrator: null,
             transaction: null,
           },
           {
@@ -351,6 +354,22 @@ describe("getPublicSharedResourceByToken", () => {
             comment: "   ",
             user: null,
             coworker: null,
+            orchestrator: null,
+            transaction: null,
+          },
+          {
+            id: "evt_orch",
+            createdAt: new Date("2026-03-30T10:09:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:09:00.000Z"),
+            channel: "SOKOSUMI",
+            status: "COMPLETED",
+            comment: "Done by Hermes",
+            user: null,
+            coworker: null,
+            orchestrator: {
+              name: "Hermes",
+              image: "https://example.com/hermes.png",
+            },
             transaction: null,
           },
         ],
@@ -424,6 +443,14 @@ describe("getPublicSharedResourceByToken", () => {
             actorName: null,
             actorImage: null,
           },
+          {
+            id: "evt_orch",
+            status: "COMPLETED",
+            comment: "Done by Hermes",
+            credits: null,
+            actorName: "Hermes",
+            actorImage: "https://example.com/hermes.png",
+          },
         ],
       },
     });
@@ -449,7 +476,7 @@ describe("getPublicSharedResourceByToken", () => {
     expect(resource.task.jobs[1]?.completedAt).toEqual(
       new Date("2026-03-30T10:08:00.000Z"),
     );
-    expect(resource.task.events).toHaveLength(3);
+    expect(resource.task.events).toHaveLength(4);
   });
 
   it("returns null for archived shared tasks", async () => {

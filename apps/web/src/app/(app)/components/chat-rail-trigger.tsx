@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageSquare } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,13 @@ import { useAppChatRail } from "@/contexts/app-chat-rail-context";
 
 export default function ChatRailTrigger() {
   const t = useTranslations("App.ChatRail");
+  const pathname = usePathname();
   const { closeRail, isMobile, open, openMobile, openNewChat } =
     useAppChatRail();
+
+  // The personal assistant IS a full-page chat — offering the floating chat
+  // rail on top of it is confusing (two chat surfaces, two composers).
+  if (pathname?.startsWith("/personal-assistant")) return null;
 
   function handleClick() {
     const isRailOpen = isMobile ? openMobile : open;
