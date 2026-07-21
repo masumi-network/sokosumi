@@ -34,7 +34,6 @@ interface UsageRecord {
   referenceId: string | null;
   orchestratorId: string;
   userId: string;
-  organizationId: string | null;
   cents: bigint;
   transactionId: string;
 }
@@ -48,7 +47,6 @@ function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
     referenceId: null,
     orchestratorId: ORCHESTRATOR_ID,
     userId: TARGET_USER_ID,
-    organizationId: null,
     cents: 25000000000n,
     transactionId: "txn_123",
     ...overrides,
@@ -101,9 +99,6 @@ function mockTxWithActiveOrchestrator(options?: {
         findUnique: usageFindUnique,
         create: usageCreate,
       },
-      member: {
-        findUnique: vi.fn(),
-      },
       transaction: {
         create: vi.fn().mockResolvedValue({ id: "txn_123" }),
       },
@@ -130,7 +125,6 @@ describe("POST /orchestrators/me/usage", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        organizationId: null,
         idempotencyKey: "usage_456",
         credits: 2.5,
       }),
@@ -149,7 +143,6 @@ describe("POST /orchestrators/me/usage", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: TARGET_USER_ID,
-        organizationId: null,
         idempotencyKey: "usage_456",
         credits: 2.5,
       }),
@@ -172,6 +165,13 @@ describe("POST /orchestrators/me/usage", () => {
         }),
       }),
     );
+
+    expect(prepareConsumptionMock).toHaveBeenCalledWith(
+      TARGET_USER_ID,
+      null,
+      expect.any(BigInt),
+      expect.anything(),
+    );
   });
 
   it("returns 404 when the user has no active orchestrator instance", async () => {
@@ -184,7 +184,6 @@ describe("POST /orchestrators/me/usage", () => {
           findUnique: vi.fn(),
           create: vi.fn(),
         },
-        member: { findUnique: vi.fn() },
         transaction: { create: vi.fn() },
       };
       return callback(tx);
@@ -196,7 +195,6 @@ describe("POST /orchestrators/me/usage", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: TARGET_USER_ID,
-        organizationId: null,
         idempotencyKey: "usage_456",
         credits: 2.5,
       }),

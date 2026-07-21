@@ -1909,7 +1909,7 @@ export const postCoworkersByIdUnarchive = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Create usage for the orchestrator instance of the user in the body
+ * Create personal-scope usage for the orchestrator instance of the user in the body. Always bills the user's personal credit buckets (PA is user-bound, not org-bound).
  */
 export const postOrchestratorsMeUsage = <ThrowOnError extends boolean = false>(options?: Options<PostOrchestratorsMeUsageData, ThrowOnError>): RequestResult<PostOrchestratorsMeUsageResponses, PostOrchestratorsMeUsageErrors, ThrowOnError> => (options?.client ?? client).post<PostOrchestratorsMeUsageResponses, PostOrchestratorsMeUsageErrors, ThrowOnError>({
     url: '/orchestrators/me/usage',

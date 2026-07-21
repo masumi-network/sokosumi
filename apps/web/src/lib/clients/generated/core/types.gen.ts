@@ -3074,7 +3074,6 @@ export type OrchestratorUsage = {
     referenceId: string | null;
     orchestratorId: string;
     userId: string;
-    organizationId: string | null;
     credits: number;
     transactionId: string;
 };
@@ -22242,7 +22241,6 @@ export type PostCoworkersByIdUnarchiveResponse = PostCoworkersByIdUnarchiveRespo
 export type PostOrchestratorsMeUsageData = {
     body?: {
         userId: string;
-        organizationId: string | null;
         idempotencyKey: string;
         credits: number;
         referenceId?: string;

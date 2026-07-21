@@ -10516,13 +10516,6 @@ export const OrchestratorUsageSchema = {
             type: 'string',
             example: 'user_123'
         },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'org_123'
-        },
         credits: {
             type: 'number',
             example: 2.5
@@ -10540,7 +10533,6 @@ export const OrchestratorUsageSchema = {
         'referenceId',
         'orchestratorId',
         'userId',
-        'organizationId',
         'credits',
         'transactionId'
     ]

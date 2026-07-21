@@ -15,7 +15,6 @@ export const orchestratorUsageSchema = z
       example: "01960001-0001-7001-8001-000000000099",
     }),
     userId: z.string().openapi({ example: "user_123" }),
-    organizationId: z.string().nullable().openapi({ example: "org_123" }),
     credits: z.number().openapi({ example: 2.5 }),
     transactionId: z.string().openapi({ example: "txn_123" }),
   })

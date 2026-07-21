@@ -21,7 +21,7 @@ const route = createRoute({
   method: "post",
   path: "/me/usage",
   description:
-    "Create usage for the orchestrator instance of the user in the body",
+    "Create personal-scope usage for the orchestrator instance of the user in the body. Always bills the user's personal credit buckets (PA is user-bound, not org-bound).",
   tags: ["Orchestrators"],
   request: {
     body: {
@@ -52,7 +52,6 @@ function serializeUsage(usage: {
   referenceId: string | null;
   orchestratorId: string;
   userId: string;
-  organizationId: string | null;
   cents: bigint;
   transactionId: string;
 }) {
@@ -64,15 +63,13 @@ function serializeUsage(usage: {
     referenceId: usage.referenceId,
     orchestratorId: usage.orchestratorId,
     userId: usage.userId,
-    organizationId: usage.organizationId,
     credits: convertCentsToCredits(usage.cents),
     transactionId: usage.transactionId,
   });
 }
 
-async function prepareConsumptions(
+async function preparePersonalConsumptions(
   userId: string,
-  organizationId: string | null,
   cents: bigint,
   tx: Prisma.TransactionClient,
 ): Promise<Consumption[]> {
@@ -83,7 +80,7 @@ async function prepareConsumptions(
   try {
     return await creditBucketRepository.prepareConsumption(
       userId,
-      organizationId,
+      null,
       cents,
       tx,
     );
@@ -98,7 +95,7 @@ async function prepareConsumptions(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireOrchestratorAuthContext(c.var.authContext);
-    const { credits, idempotencyKey, referenceId, userId, organizationId } =
+    const { credits, idempotencyKey, referenceId, userId } =
       c.req.valid("json");
 
     const result = await serializableTransaction(async (tx) => {
@@ -130,50 +127,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             "Idempotency key already used with different reference id",
           );
         }
-        if (existing.organizationId !== organizationId) {
-          throw conflict(
-            "Idempotency key already used with different organization id",
-          );
-        }
 
         return { usage: existing, created: false };
       }
 
-      if (organizationId !== null) {
-        const member = await tx.member.findUnique({
-          where: {
-            userId_organizationId: {
-              userId,
-              organizationId,
-            },
-          },
-          select: { userId: true },
-        });
-
-        if (!member) {
-          throw badRequest(
-            "User is not a member of the specified organization",
-          );
-        }
-      }
-
       const cents = convertCreditsToCents(credits);
-      const consumptions = await prepareConsumptions(
-        userId,
-        organizationId,
-        cents,
-        tx,
-      );
+      const consumptions = await preparePersonalConsumptions(userId, cents, tx);
 
       const transaction = await tx.transaction.create({
         data: {
           amount: cents * BigInt(-1),
           user: { connect: { id: userId } },
-          ...(organizationId
-            ? {
-                organization: { connect: { id: organizationId } },
-              }
-            : {}),
           creditConsumptions: {
             createMany: {
               data: consumptions.map((consumption) => ({
@@ -194,7 +158,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           referenceId: referenceId ?? null,
           orchestratorId,
           userId,
-          organizationId,
+          organizationId: null,
           cents,
           transactionId: transaction.id,
         },

@@ -56,14 +56,14 @@ Both require orchestrator service auth and identify the user in the **body**
 ```
 POST /v1/orchestrators/me/usage
 Authorization: Bearer <ORCHESTRATOR_SERVICE_TOKEN>
-{ "userId", "organizationId", "credits", "idempotencyKey", ... }
+{ "userId", "credits", "idempotencyKey", ... }
 
 POST /v1/orchestrators/me/purge
 Authorization: Bearer <ORCHESTRATOR_SERVICE_TOKEN>
 { "userId": "…" }
 ```
 
-Usage bills that user and attributes the usage row to **their** orchestrator.
+Usage bills that user's **personal** credit buckets and attributes the usage row to **their** orchestrator (PA is user-bound; no organizationId on usage).
 Purge is idempotent: deletes messages + pending connection claims, **archives**
 the orchestrator (clears poll state). Does not hard-delete the row while tasks
 may still reference `creatorOrchestratorId` (`onDelete: Restrict`).
