@@ -13,12 +13,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updateAdminOrchestratorDisplayAction } from "@/lib/actions/admin-orchestrators/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
+import {
+  ORCHESTRATOR_IMAGE_ACCEPT,
+  ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
+} from "@/lib/constants/orchestrator-image";
 import type {
   AdminOrchestratorItem,
   AdminOrchestratorPatchBody,
 } from "@/lib/services/admin-orchestrator.service";
 
 const MIN_NAME_LENGTH = 3;
+const MAX_CAPTION_LENGTH = 255;
 
 interface OrchestratorEditFormProps {
   orchestrator: AdminOrchestratorItem;
@@ -192,10 +197,12 @@ export function OrchestratorEditForm({
       <div className="space-y-2">
         <Label>{t("image.label")}</Label>
         <OrganizationLogoUploadField
+          accept={ORCHESTRATOR_IMAGE_ACCEPT}
           disabled={isSubmitting}
           isUploading={false}
           labels={imageLabels}
           logoValue={displayImageValue}
+          maxSize={ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES}
           onPendingLogoFilesChange={setPendingImageFiles}
           onRemove={handleRemoveImage}
           onUpload={handleImageSelect}
@@ -246,6 +253,7 @@ export function OrchestratorEditForm({
           onChange={(event) => setCaption(event.target.value)}
           disabled={isSubmitting}
           autoComplete="off"
+          maxLength={MAX_CAPTION_LENGTH}
         />
         <p className="text-muted-foreground text-sm">
           {t("fields.caption.description")}

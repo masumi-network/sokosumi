@@ -65,7 +65,7 @@ export function OrchestratorList({ orchestrators }: OrchestratorListProps) {
                     {orchestrator.slug}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {orchestrator.caption ?? "—"}
+                    {orchestrator.caption ?? t("emptyCaption")}
                   </TableCell>
                 </TableRow>
               ))}

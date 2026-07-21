@@ -3129,7 +3129,8 @@
           "empty": "未找到编排器。",
           "orchestrator": "编排器",
           "slug": "Slug",
-          "caption": "副标题"
+          "caption": "副标题",
+          "emptyCaption": "—"
         },
         "Detail": {
           "title": "编辑编排器",

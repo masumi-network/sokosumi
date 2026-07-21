@@ -3098,7 +3098,8 @@
           "empty": "No se encontraron orquestadores.",
           "orchestrator": "Orquestador",
           "slug": "Slug",
-          "caption": "Subtítulo"
+          "caption": "Subtítulo",
+          "emptyCaption": "—"
         },
         "Detail": {
           "title": "Editar orquestador",

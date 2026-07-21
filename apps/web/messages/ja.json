@@ -3129,7 +3129,8 @@
           "empty": "オーケストレーターが見つかりません。",
           "orchestrator": "オーケストレーター",
           "slug": "スラッグ",
-          "caption": "キャプション"
+          "caption": "キャプション",
+          "emptyCaption": "—"
         },
         "Detail": {
           "title": "オーケストレーターを編集",

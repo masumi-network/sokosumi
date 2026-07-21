@@ -3221,7 +3221,8 @@
           "empty": "No orchestrators found.",
           "orchestrator": "Orchestrator",
           "slug": "Slug",
-          "caption": "Caption"
+          "caption": "Caption",
+          "emptyCaption": "—"
         },
         "Detail": {
           "title": "Edit orchestrator",

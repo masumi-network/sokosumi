@@ -3129,7 +3129,8 @@
           "empty": "Nessun orchestrator trovato.",
           "orchestrator": "Orchestrator",
           "slug": "Slug",
-          "caption": "Didascalia"
+          "caption": "Didascalia",
+          "emptyCaption": "—"
         },
         "Detail": {
           "title": "Modifica orchestrator",

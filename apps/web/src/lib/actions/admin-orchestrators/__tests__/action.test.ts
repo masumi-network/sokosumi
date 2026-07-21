@@ -95,4 +95,36 @@ describe("updateAdminOrchestratorDisplayAction", () => {
       expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
     }
   });
+
+  it("strips slug from patch body before calling the service", async () => {
+    const payload = {
+      orchestrator: {
+        id: "orch_1",
+        name: "Hermes",
+        slug: "hermes",
+        caption: "Line",
+        description: null,
+        image: null,
+      },
+    };
+    updateDisplayMock.mockResolvedValue(payload);
+
+    const result = await updateAdminOrchestratorDisplayAction({
+      id: "orch_1",
+      patchBody: {
+        name: "Hermes",
+        caption: "Line",
+        slug: "renamed-slug",
+      },
+      imageIntent: "none",
+    });
+
+    expect(updateDisplayMock).toHaveBeenCalledWith({
+      id: "orch_1",
+      patchBody: { name: "Hermes", caption: "Line" },
+      imageIntent: "none",
+      imageFile: undefined,
+    });
+    expect(result).toEqual({ ok: true, data: payload });
+  });
 });

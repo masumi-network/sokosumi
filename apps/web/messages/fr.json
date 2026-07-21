@@ -3129,7 +3129,8 @@
           "empty": "Aucun orchestrateur trouvé.",
           "orchestrator": "Orchestrateur",
           "slug": "Slug",
-          "caption": "Légende"
+          "caption": "Légende",
+          "emptyCaption": "—"
         },
         "Detail": {
           "title": "Modifier l'orchestrateur",

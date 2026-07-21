@@ -23,11 +23,15 @@ export interface OrganizationLogoUploadLabels {
 }
 
 interface OrganizationLogoUploadFieldProps {
+  /** MIME accept list; defaults to organization logo types. */
+  accept?: string;
   disabled: boolean;
   isRemoving?: boolean;
   isUploading: boolean;
   labels: OrganizationLogoUploadLabels;
   logoValue: string;
+  /** Max bytes; defaults to organization logo limit. */
+  maxSize?: number;
   onPendingLogoFilesChange: (files: File[]) => void;
   onRemove?: () => void;
   onUpload: (files: File[]) => void | Promise<void>;
@@ -55,11 +59,13 @@ function translateFileRejectMessage(
 }
 
 export function OrganizationLogoUploadField({
+  accept = ORGANIZATION_LOGO_ACCEPT,
   disabled,
   isRemoving = false,
   isUploading,
   labels,
   logoValue,
+  maxSize = ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   onPendingLogoFilesChange,
   onRemove,
   onUpload,
@@ -71,9 +77,9 @@ export function OrganizationLogoUploadField({
       <FileUpload
         value={pendingLogoFiles}
         onValueChange={onPendingLogoFilesChange}
-        accept={ORGANIZATION_LOGO_ACCEPT}
+        accept={accept}
         maxFiles={1}
-        maxSize={ORGANIZATION_LOGO_MAX_SIZE_BYTES}
+        maxSize={maxSize}
         multiple={false}
         disabled={disabled}
         onAccept={onUpload}

@@ -44,6 +44,28 @@ interface UpdateAdminOrchestratorDisplayParameters
   imageFile?: File;
 }
 
+/** UI may only edit display fields — never slug. */
+function sanitizeDisplayPatchBody(
+  patchBody: AdminOrchestratorPatchBody | undefined,
+): AdminOrchestratorPatchBody | undefined {
+  if (!patchBody) {
+    return undefined;
+  }
+
+  const sanitized: AdminOrchestratorPatchBody = {};
+  if (patchBody.name !== undefined) {
+    sanitized.name = patchBody.name;
+  }
+  if (patchBody.caption !== undefined) {
+    sanitized.caption = patchBody.caption;
+  }
+  if (patchBody.description !== undefined) {
+    sanitized.description = patchBody.description;
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
 export const updateAdminOrchestratorDisplayAction = withSession<
   UpdateAdminOrchestratorDisplayParameters,
   Result<UpdateAdminOrchestratorDisplayResult, ActionError>
@@ -51,7 +73,8 @@ export const updateAdminOrchestratorDisplayAction = withSession<
   try {
     assertAdminSession(session);
 
-    const hasPatchBody = patchBody && Object.keys(patchBody).length > 0;
+    const safePatchBody = sanitizeDisplayPatchBody(patchBody);
+    const hasPatchBody = Boolean(safePatchBody);
     if (!hasPatchBody && imageIntent === "none") {
       return Err({
         code: CommonErrorCode.BAD_INPUT,
@@ -68,7 +91,7 @@ export const updateAdminOrchestratorDisplayAction = withSession<
 
     const result = await adminOrchestratorService.updateDisplay({
       id,
-      patchBody: hasPatchBody ? patchBody : undefined,
+      patchBody: safePatchBody,
       imageIntent,
       imageFile,
     });

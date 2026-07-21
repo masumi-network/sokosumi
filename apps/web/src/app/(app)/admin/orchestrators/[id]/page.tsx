@@ -50,7 +50,10 @@ export default async function AdminOrchestratorDetailPage({
             <CardTitle>{orchestrator.slug}</CardTitle>
           </CardHeader>
           <CardContent>
-            <OrchestratorEditForm orchestrator={orchestrator} />
+            <OrchestratorEditForm
+              key={orchestrator.id}
+              orchestrator={orchestrator}
+            />
           </CardContent>
         </Card>
       </div>
