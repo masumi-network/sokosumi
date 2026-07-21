@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "Administration",
-        "description": "Outils internes pour gérer les organisations et la facturation.",
+        "description": "Outils internes pour les comptes, la facturation, le catalogue et les opérations.",
+        "Groups": {
+          "accounts": "Comptes",
+          "billing": "Facturation et commercial",
+          "catalog": "Catalogue marketplace",
+          "operations": "Opérations"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Contrats entreprise",

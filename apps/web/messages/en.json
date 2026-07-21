@@ -3065,7 +3065,13 @@
       },
       "Overview": {
         "title": "Admin",
-        "description": "Internal tools for managing organizations and billing.",
+        "description": "Internal tools for accounts, billing, catalog, and operations.",
+        "Groups": {
+          "accounts": "Accounts",
+          "billing": "Billing & commercial",
+          "catalog": "Marketplace catalog",
+          "operations": "Operations"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Enterprise contracts",

@@ -2863,7 +2863,13 @@
       },
       "Overview": {
         "title": "Administración",
-        "description": "Herramientas internas para gestionar organizaciones y facturación.",
+        "description": "Herramientas internas para cuentas, facturación, catálogo y operaciones.",
+        "Groups": {
+          "accounts": "Cuentas",
+          "billing": "Facturación y comercial",
+          "catalog": "Catálogo del marketplace",
+          "operations": "Operaciones"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Contratos empresariales",

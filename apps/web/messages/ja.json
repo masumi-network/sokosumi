@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "管理",
-        "description": "組織と請求を管理するための内部ツール。",
+        "description": "アカウント、請求、カタログ、運用向けの内部ツール。",
+        "Groups": {
+          "accounts": "アカウント",
+          "billing": "請求と商用",
+          "catalog": "マーケットプレイスカタログ",
+          "operations": "運用"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "エンタープライズ契約",

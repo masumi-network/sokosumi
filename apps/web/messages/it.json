@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "Amministrazione",
-        "description": "Strumenti interni per gestire organizzazioni e fatturazione.",
+        "description": "Strumenti interni per account, fatturazione, catalogo e operazioni.",
+        "Groups": {
+          "accounts": "Account",
+          "billing": "Fatturazione e commerciale",
+          "catalog": "Catalogo marketplace",
+          "operations": "Operazioni"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Contratti enterprise",
