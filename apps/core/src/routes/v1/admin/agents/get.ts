@@ -73,7 +73,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return agent ? [agent] : [];
       });
 
-      const hasMore = orderedAgents.length === take + 1;
+      const hasMore = orderedIds.length === take + 1;
       const pageAgents = orderedAgents.slice(0, take);
       const items = pageAgents.map(mapAdminAgentListItem);
       const paginationMeta = createPaginationMeta(

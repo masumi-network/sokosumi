@@ -205,6 +205,13 @@ export function buildAdminAgentListOrderBy(
  * Prisma cannot `ORDER BY COALESCE(override.name, agent.name)` via relation
  * orderBy. Use SQL so displayName sort matches `getAgentName` (override ?? registry).
  */
+function escapeIlikeLiteral(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("%", "\\%")
+    .replaceAll("_", "\\_");
+}
+
 export async function findAdminAgentIdsOrderedByDisplayName(
   client: Pick<Prisma.TransactionClient, "$queryRawUnsafe">,
   options: {
@@ -216,7 +223,7 @@ export async function findAdminAgentIdsOrderedByDisplayName(
 ): Promise<string[]> {
   const direction = options.sortOrder === "asc" ? "ASC" : "DESC";
   const trimmed = options.q?.trim();
-  const searchPattern = trimmed ? `%${trimmed}%` : null;
+  const searchPattern = trimmed ? `%${escapeIlikeLiteral(trimmed)}%` : null;
 
   if (options.cursor) {
     const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
@@ -231,9 +238,9 @@ export async function findAdminAgentIdsOrderedByDisplayName(
         LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
         WHERE (
           $1::text IS NULL
-          OR a.name ILIKE $1
-          OR a."blockchainIdentifier" ILIKE $1
-          OR o.name ILIKE $1
+          OR a.name ILIKE $1 ESCAPE '\\'
+          OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
+          OR o.name ILIKE $1 ESCAPE '\\'
         )
       )
       SELECT id
@@ -256,9 +263,9 @@ export async function findAdminAgentIdsOrderedByDisplayName(
     LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
     WHERE (
       $1::text IS NULL
-      OR a.name ILIKE $1
-      OR a."blockchainIdentifier" ILIKE $1
-      OR o.name ILIKE $1
+      OR a.name ILIKE $1 ESCAPE '\\'
+      OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
+      OR o.name ILIKE $1 ESCAPE '\\'
     )
     ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
     LIMIT $2
