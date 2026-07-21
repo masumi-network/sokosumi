@@ -295,6 +295,7 @@ export async function uploadOrchestratorImage(params: {
   const pathname = buildOrchestratorImagePathname(
     params.orchestratorId,
     params.filename,
+    params.contentType,
   );
 
   try {

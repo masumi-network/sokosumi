@@ -337,6 +337,26 @@ describe("uploadOrchestratorImage", () => {
     );
   });
 
+  it("uses the content-type extension when the filename extension differs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/orchestrators/orch-1/image-logo-xyz.png",
+    });
+
+    await uploadOrchestratorImage({
+      orchestratorId: "orch-1",
+      bytes: Buffer.from("png-bytes"),
+      contentType: "image/png",
+      filename: "logo.jpg",
+    });
+
+    expect(putMock).toHaveBeenCalledWith(
+      "orchestrators/orch-1/image-logo.png",
+      Buffer.from("png-bytes"),
+      expect.objectContaining({ contentType: "image/png" }),
+    );
+  });
+
   it("returns null when blob storage is not configured", async () => {
     getEnvMock.mockReturnValue({});
 

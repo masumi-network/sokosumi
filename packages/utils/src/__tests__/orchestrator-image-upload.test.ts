@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOrchestratorImagePathname,
   buildOrchestratorImagePrefix,
+  extensionForOrchestratorImageMime,
   isOrchestratorImageAllowedContentType,
   isOwnedOrchestratorImageUrl,
   ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
@@ -31,16 +32,37 @@ describe("ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES", () => {
   });
 });
 
+describe("extensionForOrchestratorImageMime", () => {
+  it("maps allowed MIME types to file extensions", () => {
+    expect(extensionForOrchestratorImageMime("image/png")).toBe("png");
+    expect(extensionForOrchestratorImageMime("IMAGE/JPEG")).toBe("jpg");
+    expect(extensionForOrchestratorImageMime("image/webp")).toBe("webp");
+    expect(extensionForOrchestratorImageMime("image/gif")).toBe("gif");
+    expect(extensionForOrchestratorImageMime("image/svg+xml")).toBeNull();
+  });
+});
+
 describe("buildOrchestratorImagePathname", () => {
   it("builds a sanitized pathname under the orchestrator prefix", () => {
     expect(
       buildOrchestratorImagePathname(
         "01960001-0001-7001-8001-000000000099",
         " Hermes Logo (1).png ",
+        "image/png",
       ),
     ).toBe(
       "orchestrators/01960001-0001-7001-8001-000000000099/image-Hermes_Logo_1.png",
     );
+  });
+
+  it("uses the content-type extension when the filename extension differs", () => {
+    expect(
+      buildOrchestratorImagePathname(
+        "01960001-0001-7001-8001-000000000099",
+        "logo.jpg",
+        "image/png",
+      ),
+    ).toBe("orchestrators/01960001-0001-7001-8001-000000000099/image-logo.png");
   });
 
   it("falls back when the filename is empty after sanitizing", () => {
@@ -48,8 +70,11 @@ describe("buildOrchestratorImagePathname", () => {
       buildOrchestratorImagePathname(
         "01960001-0001-7001-8001-000000000099",
         "@@@",
+        "image/webp",
       ),
-    ).toBe("orchestrators/01960001-0001-7001-8001-000000000099/image-file");
+    ).toBe(
+      "orchestrators/01960001-0001-7001-8001-000000000099/image-file.webp",
+    );
   });
 });
 

@@ -116,6 +116,7 @@ export {
 export {
   buildOrchestratorImagePathname,
   buildOrchestratorImagePrefix,
+  extensionForOrchestratorImageMime,
   isOrchestratorImageAllowedContentType,
   isOwnedOrchestratorImageUrl,
   ORCHESTRATOR_IMAGE_ALLOWED_MIME_TYPES,

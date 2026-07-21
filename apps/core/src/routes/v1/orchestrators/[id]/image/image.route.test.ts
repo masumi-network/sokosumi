@@ -10,12 +10,12 @@ import mountPostOrchestratorImage from "./post";
 
 const {
   findFirstMock,
-  updateMock,
+  updateManyMock,
   uploadOrchestratorImageMock,
   deleteOrchestratorImageIfOwnedMock,
 } = vi.hoisted(() => ({
   findFirstMock: vi.fn(),
-  updateMock: vi.fn(),
+  updateManyMock: vi.fn(),
   uploadOrchestratorImageMock: vi.fn(),
   deleteOrchestratorImageIfOwnedMock: vi.fn(),
 }));
@@ -24,7 +24,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     orchestrator: {
       findFirst: findFirstMock,
-      update: updateMock,
+      updateMany: updateManyMock,
     },
   },
 }));
@@ -105,11 +105,11 @@ describe("POST /orchestrators/{id}/image", () => {
   });
 
   it("uploads an image, updates the orchestrator, and deletes the previous owned image", async () => {
-    findFirstMock.mockResolvedValue(
-      baseOrchestrator({ image: PREVIOUS_IMAGE }),
-    );
+    findFirstMock
+      .mockResolvedValueOnce(baseOrchestrator({ image: PREVIOUS_IMAGE }))
+      .mockResolvedValueOnce(baseOrchestrator({ image: NEW_IMAGE }));
     uploadOrchestratorImageMock.mockResolvedValue(NEW_IMAGE);
-    updateMock.mockResolvedValue(baseOrchestrator({ image: NEW_IMAGE }));
+    updateManyMock.mockResolvedValue({ count: 1 });
 
     const app = createApp();
     const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
@@ -128,8 +128,8 @@ describe("POST /orchestrators/{id}/image", () => {
         filename: "logo.png",
       }),
     );
-    expect(updateMock).toHaveBeenCalledWith({
-      where: { id: ORCHESTRATOR_ID },
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: ORCHESTRATOR_ID, archivedAt: null },
       data: { image: NEW_IMAGE },
     });
     expect(deleteOrchestratorImageIfOwnedMock).toHaveBeenCalledWith(
@@ -267,7 +267,7 @@ describe("POST /orchestrators/{id}/image", () => {
     });
 
     expect(response.status).toBe(503);
-    expect(updateMock).not.toHaveBeenCalled();
+    expect(updateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for non-admin users", async () => {
@@ -287,7 +287,7 @@ describe("POST /orchestrators/{id}/image", () => {
       baseOrchestrator({ image: PREVIOUS_IMAGE }),
     );
     uploadOrchestratorImageMock.mockResolvedValue(NEW_IMAGE);
-    updateMock.mockRejectedValue(new Error("db write failed"));
+    updateManyMock.mockRejectedValue(new Error("db write failed"));
 
     const app = createApp();
     const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
@@ -296,6 +296,30 @@ describe("POST /orchestrators/{id}/image", () => {
     });
 
     expect(response.status).toBe(500);
+    expect(deleteOrchestratorImageIfOwnedMock).toHaveBeenCalledWith(
+      NEW_IMAGE,
+      ORCHESTRATOR_ID,
+    );
+    expect(deleteOrchestratorImageIfOwnedMock).not.toHaveBeenCalledWith(
+      PREVIOUS_IMAGE,
+      ORCHESTRATOR_ID,
+    );
+  });
+
+  it("returns 404 and deletes the new blob when the orchestrator is archived during upload", async () => {
+    findFirstMock.mockResolvedValue(
+      baseOrchestrator({ image: PREVIOUS_IMAGE }),
+    );
+    uploadOrchestratorImageMock.mockResolvedValue(NEW_IMAGE);
+    updateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp();
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "POST",
+      body: pngFormData(),
+    });
+
+    expect(response.status).toBe(404);
     expect(deleteOrchestratorImageIfOwnedMock).toHaveBeenCalledWith(
       NEW_IMAGE,
       ORCHESTRATOR_ID,
@@ -318,10 +342,10 @@ describe("DELETE /orchestrators/{id}/image", () => {
   });
 
   it("clears the image and deletes the previous owned blob", async () => {
-    findFirstMock.mockResolvedValue(
-      baseOrchestrator({ image: PREVIOUS_IMAGE }),
-    );
-    updateMock.mockResolvedValue(baseOrchestrator({ image: null }));
+    findFirstMock
+      .mockResolvedValueOnce(baseOrchestrator({ image: PREVIOUS_IMAGE }))
+      .mockResolvedValueOnce(baseOrchestrator({ image: null }));
+    updateManyMock.mockResolvedValue({ count: 1 });
 
     const app = createApp();
     const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
@@ -332,8 +356,8 @@ describe("DELETE /orchestrators/{id}/image", () => {
     const body = await response.json();
     expect(body.data.image).toBeNull();
 
-    expect(updateMock).toHaveBeenCalledWith({
-      where: { id: ORCHESTRATOR_ID },
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: ORCHESTRATOR_ID, archivedAt: null },
       data: { image: null },
     });
     expect(deleteOrchestratorImageIfOwnedMock).toHaveBeenCalledWith(
@@ -351,7 +375,22 @@ describe("DELETE /orchestrators/{id}/image", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(updateMock).not.toHaveBeenCalled();
+    expect(updateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the orchestrator is archived during clear", async () => {
+    findFirstMock.mockResolvedValue(
+      baseOrchestrator({ image: PREVIOUS_IMAGE }),
+    );
+    updateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp();
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+    expect(deleteOrchestratorImageIfOwnedMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for non-admin users", async () => {
@@ -362,6 +401,6 @@ describe("DELETE /orchestrators/{id}/image", () => {
 
     expect(response.status).toBe(403);
     expect(findFirstMock).not.toHaveBeenCalled();
-    expect(updateMock).not.toHaveBeenCalled();
+    expect(updateManyMock).not.toHaveBeenCalled();
   });
 });

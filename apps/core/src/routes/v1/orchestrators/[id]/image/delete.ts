@@ -47,10 +47,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const previousImage = orchestrator.image;
 
-    const updated = await prisma.orchestrator.update({
-      where: { id },
+    // Atomic with archivedAt so a concurrent archive cannot clear image on an
+    // archived row (matches PATCH /orchestrators/{id}).
+    const updateResult = await prisma.orchestrator.updateMany({
+      where: {
+        id,
+        archivedAt: null,
+      },
       data: { image: null },
     });
+
+    if (updateResult.count === 0) {
+      throw notFound("Orchestrator not found");
+    }
+
+    const updated = await prisma.orchestrator.findFirst({
+      where: { id },
+    });
+
+    if (!updated) {
+      throw notFound("Orchestrator not found");
+    }
 
     await deleteOrchestratorImageIfOwned(previousImage, id);
 

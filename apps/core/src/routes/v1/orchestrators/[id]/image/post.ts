@@ -178,16 +178,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    let updated: Awaited<ReturnType<typeof prisma.orchestrator.update>>;
+    // Atomic with archivedAt so a concurrent archive cannot leave a new image
+    // on an archived row (matches PATCH /orchestrators/{id}).
+    let updateResult: { count: number };
     try {
-      updated = await prisma.orchestrator.update({
-        where: { id },
+      updateResult = await prisma.orchestrator.updateMany({
+        where: {
+          id,
+          archivedAt: null,
+        },
         data: { image: publicUrl },
       });
     } catch (error) {
       // Avoid orphaning the newly uploaded blob if the DB write fails.
       await deleteOrchestratorImageIfOwned(publicUrl, id);
       throw error;
+    }
+
+    if (updateResult.count === 0) {
+      // Orchestrator was archived/deleted after the pre-check — drop the blob.
+      await deleteOrchestratorImageIfOwned(publicUrl, id);
+      throw notFound("Orchestrator not found");
+    }
+
+    const updated = await prisma.orchestrator.findFirst({
+      where: { id },
+    });
+    if (!updated) {
+      throw notFound("Orchestrator not found");
     }
 
     await deleteOrchestratorImageIfOwned(previousImage, id);
