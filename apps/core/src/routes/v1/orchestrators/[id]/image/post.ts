@@ -1,0 +1,143 @@
+import { createRoute, z } from "@hono/zod-openapi";
+import {
+  isOrchestratorImageAllowedContentType,
+  ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
+  resolveUserUploadContentType,
+} from "@sokosumi/utils";
+
+import {
+  badRequest,
+  notFound,
+  payloadTooLarge,
+  serviceUnavailable,
+} from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { mapOrchestrator } from "@/helpers/orchestrator";
+import { ok } from "@/helpers/response";
+import {
+  deleteOrchestratorImageIfOwned,
+  uploadOrchestratorImage,
+} from "@/lib/blob";
+import prisma from "@/lib/db/prisma";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireAdminAuthContext } from "@/middleware/auth";
+import { orchestratorSchema } from "@/schemas/orchestrator.schema";
+
+import { paramsSchema } from "../../schema";
+
+const multipartBodySchema = z.object({
+  file: z.any().openapi({
+    type: "string",
+    format: "binary",
+    description: "Orchestrator image file (png, jpeg, webp, or gif; max 2 MB)",
+  }),
+});
+
+const route = createRoute({
+  method: "post",
+  path: "/{id}/image",
+  description:
+    "Upload an orchestrator image (admin only). Stores the file in Vercel Blob and sets orchestrator.image to the public URL. Replaces and deletes any previous owned image.",
+  tags: ["Orchestrators"],
+  request: {
+    params: paramsSchema,
+    body: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: multipartBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(orchestratorSchema, "Upload orchestrator image"),
+    400: jsonErrorResponse("Bad Request"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+    413: jsonErrorResponse("Payload Too Large"),
+    503: jsonErrorResponse("Service Unavailable"),
+  },
+});
+
+function isFileLike(value: unknown): value is File {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as File).arrayBuffer === "function" &&
+    typeof (value as File).size === "number" &&
+    typeof (value as File).type === "string" &&
+    typeof (value as File).name === "string"
+  );
+}
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    requireAdminAuthContext(c.var.authContext);
+    const { id } = c.req.valid("param");
+
+    const body = await c.req.parseBody({ all: true });
+    const fileField = body.file;
+    const file = Array.isArray(fileField) ? fileField[0] : fileField;
+
+    if (!isFileLike(file)) {
+      throw badRequest("file is required");
+    }
+
+    if (file.size <= 0) {
+      throw badRequest("file must not be empty");
+    }
+
+    if (file.size > ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES) {
+      throw payloadTooLarge(
+        `File is too large. Maximum size is ${ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES} bytes.`,
+      );
+    }
+
+    const resolvedContentType =
+      resolveUserUploadContentType(file.name, file.type) ??
+      file.type.trim().toLowerCase();
+
+    if (!isOrchestratorImageAllowedContentType(resolvedContentType)) {
+      throw badRequest(
+        "Unsupported content type. Allowed: image/png, image/jpeg, image/webp, image/gif.",
+      );
+    }
+
+    const orchestrator = await prisma.orchestrator.findFirst({
+      where: {
+        id,
+        archivedAt: null,
+      },
+    });
+
+    if (!orchestrator) {
+      throw notFound("Orchestrator not found");
+    }
+
+    const previousImage = orchestrator.image;
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const publicUrl = await uploadOrchestratorImage({
+      orchestratorId: id,
+      bytes,
+      contentType: resolvedContentType,
+      filename: file.name || "image",
+    });
+
+    if (!publicUrl) {
+      throw serviceUnavailable(
+        "Blob storage is not configured or upload failed",
+      );
+    }
+
+    const updated = await prisma.orchestrator.update({
+      where: { id },
+      data: { image: publicUrl },
+    });
+
+    await deleteOrchestratorImageIfOwned(previousImage, id);
+
+    return ok(c, mapOrchestrator(updated));
+  });
+}

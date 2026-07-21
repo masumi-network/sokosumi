@@ -544,6 +544,7 @@ describe("TaskActivitySection", () => {
           id: "orch-1",
           name: "Hermes",
           slug: "hermes",
+          image: "https://example.com/hermes.png",
         },
       }),
     ];
@@ -566,6 +567,7 @@ describe("TaskActivitySection", () => {
             id: "orch-1",
             name: "Hermes",
             slug: "hermes",
+            image: null,
           },
         },
         // Legacy dual FK: flat userId would have won the old coworker>user>orch order.
@@ -581,6 +583,7 @@ describe("TaskActivitySection", () => {
           id: "orch-1",
           name: "Hermes",
           slug: "hermes",
+          image: null,
         },
       }),
     ];

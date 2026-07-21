@@ -9,6 +9,7 @@ interface OrchestratorRow {
   name: string;
   caption: string | null;
   description: string | null;
+  image: string | null;
 }
 
 export function mapOrchestrator(orchestrator: OrchestratorRow) {

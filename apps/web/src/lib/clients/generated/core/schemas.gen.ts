@@ -1608,6 +1608,13 @@ export const OrchestratorSummarySchema = {
         slug: {
             type: 'string',
             example: 'hermes'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/hermes.png'
         }
     },
     required: [
@@ -1750,6 +1757,13 @@ export const TaskEventSchema = {
                 slug: {
                     type: 'string',
                     example: 'hermes'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/hermes.png'
                 }
             },
             required: [
@@ -9942,6 +9956,13 @@ export const OrchestratorSchema = {
                 'null'
             ],
             example: 'First-party Hermes orchestrator'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/hermes.png'
         }
     },
     required: [
@@ -9952,7 +9973,8 @@ export const OrchestratorSchema = {
         'slug',
         'name',
         'caption',
-        'description'
+        'description',
+        'image'
     ]
 } as const;
 

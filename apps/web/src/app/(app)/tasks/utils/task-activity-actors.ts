@@ -76,7 +76,9 @@ export function getEventActorInfo(
       case "orchestrator":
         return {
           name: event.actor.orchestrator.name,
-          image: null,
+          image: event.actor.orchestrator.image
+            ? resolveIpfsOrHttpUrl(event.actor.orchestrator.image)
+            : null,
         };
       default: {
         const _exhaustive: never = event.actor;
@@ -91,7 +93,9 @@ export function getEventActorInfo(
     if (event.orchestrator) {
       return {
         name: event.orchestrator.name,
-        image: null,
+        image: event.orchestrator.image
+          ? resolveIpfsOrHttpUrl(event.orchestrator.image)
+          : null,
       };
     }
 
@@ -237,10 +241,11 @@ function addOrchestratorActor(
   orchestrator: {
     id: string;
     name: string;
+    image?: string | null;
   },
 ) {
   orchestratorById[orchestrator.id] = {
     name: orchestrator.name,
-    image: null,
+    image: orchestrator.image ? resolveIpfsOrHttpUrl(orchestrator.image) : null,
   };
 }

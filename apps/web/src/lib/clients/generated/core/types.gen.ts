@@ -455,6 +455,7 @@ export type OrchestratorSummary = {
     id: string;
     name: string;
     slug: string;
+    image?: string | null;
 };
 
 export type TaskEvent = {
@@ -511,6 +512,7 @@ export type TaskEvent = {
         id: string;
         name: string;
         slug: string;
+        image?: string | null;
     } | null;
     transactionId?: string | null;
     credits?: number | null;
@@ -2962,6 +2964,7 @@ export type Orchestrator = {
     name: string;
     caption: string | null;
     description: string | null;
+    image: string | null;
 };
 
 export type OrchestratorApiKey = {
@@ -22557,6 +22560,197 @@ export type PatchOrchestratorsByIdApiKeysByKeyIdResponses = {
 };
 
 export type PatchOrchestratorsByIdApiKeysByKeyIdResponse = PatchOrchestratorsByIdApiKeysByKeyIdResponses[keyof PatchOrchestratorsByIdApiKeysByKeyIdResponses];
+
+export type DeleteOrchestratorsByIdImageData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/image';
+};
+
+export type DeleteOrchestratorsByIdImageErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdImageError = DeleteOrchestratorsByIdImageErrors[keyof DeleteOrchestratorsByIdImageErrors];
+
+export type DeleteOrchestratorsByIdImageResponses = {
+    /**
+     * Remove orchestrator image
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrchestratorsByIdImageResponse = DeleteOrchestratorsByIdImageResponses[keyof DeleteOrchestratorsByIdImageResponses];
+
+export type PostOrchestratorsByIdImageData = {
+    body: {
+        /**
+         * Orchestrator image file (png, jpeg, webp, or gif; max 2 MB)
+         */
+        file?: Blob | File;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/orchestrators/{id}/image';
+};
+
+export type PostOrchestratorsByIdImageErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrchestratorsByIdImageError = PostOrchestratorsByIdImageErrors[keyof PostOrchestratorsByIdImageErrors];
+
+export type PostOrchestratorsByIdImageResponses = {
+    /**
+     * Upload orchestrator image
+     */
+    200: {
+        data: Orchestrator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrchestratorsByIdImageResponse = PostOrchestratorsByIdImageResponses[keyof PostOrchestratorsByIdImageResponses];
 
 export type DeleteOrchestratorsByIdData = {
     body?: never;

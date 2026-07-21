@@ -2,21 +2,27 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createUserFileUploadSession,
+  deleteOrchestratorImageIfOwned,
   listUserUploads,
   uploadGeneratedChatImage,
+  uploadOrchestratorImage,
   uploadProfileImage,
 } from "./blob";
 
 const {
   listMock,
   putMock,
+  delMock,
   generateClientTokenFromReadWriteTokenMock,
   getEnvMock,
+  captureExceptionMock,
 } = vi.hoisted(() => ({
   listMock: vi.fn(),
   putMock: vi.fn(),
+  delMock: vi.fn(),
   generateClientTokenFromReadWriteTokenMock: vi.fn(),
   getEnvMock: vi.fn(() => ({})),
+  captureExceptionMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -26,6 +32,7 @@ vi.mock("@/config/env", () => ({
 vi.mock("@vercel/blob", () => ({
   put: putMock,
   list: listMock,
+  del: delMock,
 }));
 
 vi.mock("@vercel/blob/client", () => ({
@@ -34,7 +41,7 @@ vi.mock("@vercel/blob/client", () => ({
 }));
 
 vi.mock("@sentry/node", () => ({
-  captureException: vi.fn(),
+  captureException: captureExceptionMock,
 }));
 
 describe("createUserFileUploadSession", () => {
@@ -294,5 +301,100 @@ describe("uploadGeneratedChatImage", () => {
     expect(putMock.mock.calls[0]?.[2]).toEqual(
       expect.objectContaining({ contentType: "image/svg+xml" }),
     );
+  });
+});
+
+describe("uploadOrchestratorImage", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("uploads under the orchestrator prefix with a random suffix", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/orchestrators/orch-1/image-logo-xyz.png",
+    });
+
+    const url = await uploadOrchestratorImage({
+      orchestratorId: "orch-1",
+      bytes: Buffer.from("png-bytes"),
+      contentType: "image/png",
+      filename: "logo.png",
+    });
+
+    expect(url).toBe(
+      "https://blob.example/orchestrators/orch-1/image-logo-xyz.png",
+    );
+    expect(putMock).toHaveBeenCalledWith(
+      "orchestrators/orch-1/image-logo.png",
+      Buffer.from("png-bytes"),
+      expect.objectContaining({
+        access: "public",
+        contentType: "image/png",
+        token: "rw_token",
+        addRandomSuffix: true,
+      }),
+    );
+  });
+
+  it("returns null when blob storage is not configured", async () => {
+    getEnvMock.mockReturnValue({});
+
+    await expect(
+      uploadOrchestratorImage({
+        orchestratorId: "orch-1",
+        bytes: Buffer.from("png-bytes"),
+        contentType: "image/png",
+        filename: "logo.png",
+      }),
+    ).resolves.toBeNull();
+    expect(putMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteOrchestratorImageIfOwned", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("deletes owned orchestrator image URLs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockResolvedValue(undefined);
+
+    const url =
+      "https://abc.public.blob.vercel-storage.com/orchestrators/orch-1/image-logo-xyz.png";
+
+    await deleteOrchestratorImageIfOwned(url, "orch-1");
+
+    expect(delMock).toHaveBeenCalledWith(url, { token: "rw_token" });
+  });
+
+  it("ignores foreign or invalid URLs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+
+    await deleteOrchestratorImageIfOwned(
+      "https://example.com/evil.png",
+      "orch-1",
+    );
+    await deleteOrchestratorImageIfOwned(
+      "https://abc.public.blob.vercel-storage.com/orchestrators/other/image.png",
+      "orch-1",
+    );
+    await deleteOrchestratorImageIfOwned(null, "orch-1");
+
+    expect(delMock).not.toHaveBeenCalled();
+  });
+
+  it("captures delete failures without throwing", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockRejectedValue(new Error("blob delete failed"));
+
+    const url =
+      "https://abc.public.blob.vercel-storage.com/orchestrators/orch-1/image-logo-xyz.png";
+
+    await expect(
+      deleteOrchestratorImageIfOwned(url, "orch-1"),
+    ).resolves.toBeUndefined();
+    expect(captureExceptionMock).toHaveBeenCalled();
   });
 });

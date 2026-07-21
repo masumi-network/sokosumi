@@ -1244,6 +1244,7 @@ model Orchestrator {
   name        String
   caption     String?
   description String?
+  image       String?
 
   orchestratorApiKeys OrchestratorApiKey[]
   createdTasks        Task[] @relation("TaskCreatorOrchestrator")

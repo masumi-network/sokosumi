@@ -15,7 +15,12 @@ describe("resolveTaskEventActorKind", () => {
       actor: {
         type: "orchestrator",
         id: "orch-1",
-        orchestrator: { id: "orch-1", name: "Hermes", slug: "hermes" },
+        orchestrator: {
+          id: "orch-1",
+          name: "Hermes",
+          slug: "hermes",
+          image: "https://example.com/hermes.png",
+        },
       },
       userId: "user-1",
       coworkerId: "cow-1",
@@ -73,6 +78,26 @@ describe("getEventActorInfo", () => {
       image: resolveIpfsOrHttpUrl("ipfs://bafygrace"),
     });
   });
+
+  it("reads name and image from nested orchestrator actor", () => {
+    const event = {
+      actor: {
+        type: "orchestrator",
+        id: "orch-1",
+        orchestrator: {
+          id: "orch-1",
+          name: "Hermes",
+          slug: "hermes",
+          image: "https://example.com/hermes.png",
+        },
+      },
+    } as TaskEvent;
+
+    expect(getEventActorInfo(event)).toEqual({
+      name: "Hermes",
+      image: "https://example.com/hermes.png",
+    });
+  });
 });
 
 describe("buildTaskActivityActors", () => {
@@ -97,6 +122,7 @@ describe("buildTaskActivityActors", () => {
           id: "orch-1",
           name: "Hermes",
           slug: "hermes",
+          image: "https://example.com/hermes.png",
         },
       },
       events: [
@@ -178,6 +204,7 @@ describe("buildTaskActivityActors", () => {
               id: "orch-2",
               name: "Athena",
               slug: "athena",
+              image: null,
             },
           },
           userId: null,
@@ -189,6 +216,7 @@ describe("buildTaskActivityActors", () => {
             id: "orch-2",
             name: "Athena",
             slug: "athena",
+            image: null,
           },
           transactionId: null,
           credits: null,
@@ -226,7 +254,7 @@ describe("buildTaskActivityActors", () => {
     expect(result.orchestratorById).toMatchObject({
       "orch-1": {
         name: "Hermes",
-        image: null,
+        image: "https://example.com/hermes.png",
       },
       "orch-2": {
         name: "Athena",
