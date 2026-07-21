@@ -26,8 +26,10 @@ overrides:
   "ws@>=8.0.0 <8.21.0": "8.21.0"
   # form-data GHSA-hmw2-7cc7-3qxx (CRLF injection) — postmark > axios > form-data@4.0.5.
   "form-data@>=4.0.0 <4.0.6": "4.0.6"
-  # js-yaml GHSA-h67p-54hq-rp68 (DoS via merge keys) — @hey-api/openapi-ts dev chain.
-  "js-yaml@<4.2.0": "4.2.0"
+  # js-yaml GHSA-52cp-r559-cp3m (quadratic CPU via merge-key chains) — @hey-api/openapi-ts dev chain.
+  "js-yaml@<4.3.0": "4.3.0"
+  # brace-expansion GHSA-3jxr-9vmj-r5cp (DoS via {} groups) — lighthouse > @sentry/node > minimatch.
+  "brace-expansion@>=2.0.0 <2.1.2": "2.1.2"
   # @opentelemetry/core GHSA-8988-4f7v-96qf (unbounded baggage memory) — @sentry/* and
   # lighthouse dev chain. Pin to the patched 2.8 line.
   "@opentelemetry/core@<2.8.0": "2.8.0"
