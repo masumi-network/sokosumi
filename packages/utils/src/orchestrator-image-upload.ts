@@ -1,3 +1,5 @@
+import { sanitizeUserUploadFilename } from "./user-upload-path.js";
+
 /** Allowed MIME types for orchestrator image uploads (server-enforced). */
 export const ORCHESTRATOR_IMAGE_ALLOWED_MIME_TYPES = [
   "image/png",
@@ -27,13 +29,15 @@ export function buildOrchestratorImagePrefix(orchestratorId: string): string {
 /**
  * Base pathname before Vercel Blob applies a random suffix.
  * Example: `orchestrators/{id}/image-hermes.png`
+ *
+ * Filename sanitization reuses the linear-time user-upload sanitizer so we
+ * do not introduce ReDoS-prone leading/trailing-dot regexes.
  */
 export function buildOrchestratorImagePathname(
   orchestratorId: string,
   filename: string,
 ): string {
-  const sanitized = sanitizeOrchestratorImageFilename(filename);
-  return `${buildOrchestratorImagePrefix(orchestratorId)}image-${sanitized}`;
+  return `${buildOrchestratorImagePrefix(orchestratorId)}image-${sanitizeUserUploadFilename(filename)}`;
 }
 
 export function isOwnedOrchestratorImageUrl(
@@ -48,17 +52,4 @@ export function isOwnedOrchestratorImageUrl(
   } catch {
     return false;
   }
-}
-
-function sanitizeOrchestratorImageFilename(fileName: string): string {
-  const sanitized = fileName
-    .trim()
-    .replace(/[\\/]+/g, "_")
-    .replace(/\s+/g, "_")
-    .replace(/[^A-Za-z0-9._-]/g, "")
-    .replace(/_+/g, "_")
-    .replace(/^\.+/, "")
-    .replace(/\.+$/, "");
-
-  return sanitized.length > 0 ? sanitized : "image";
 }

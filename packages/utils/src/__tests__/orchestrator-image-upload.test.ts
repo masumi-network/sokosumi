@@ -49,7 +49,7 @@ describe("buildOrchestratorImagePathname", () => {
         "01960001-0001-7001-8001-000000000099",
         "@@@",
       ),
-    ).toBe("orchestrators/01960001-0001-7001-8001-000000000099/image-image");
+    ).toBe("orchestrators/01960001-0001-7001-8001-000000000099/image-file");
   });
 });
 
