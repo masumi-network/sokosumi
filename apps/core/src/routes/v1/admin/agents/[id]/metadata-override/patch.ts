@@ -79,6 +79,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     await prisma.$transaction(async (tx) => {
+      // Clear migrated capability leftovers — not on the admin write surface.
+      const capabilityClear = {
+        capabilityName: null,
+        capabilityVersion: null,
+      } as const;
+
       const override = await tx.agentMetadataOverride.upsert({
         where: { agentId: id },
         create: {
@@ -89,8 +95,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               value === undefined ? null : value,
             ]),
           ),
+          ...capabilityClear,
         },
-        update: scalarUpdate,
+        update: {
+          ...scalarUpdate,
+          ...capabilityClear,
+        },
         include: {
           tags: true,
           exampleOutputs: true,

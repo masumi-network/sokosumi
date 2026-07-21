@@ -62,6 +62,22 @@ describe("pruneEmptyMetadataOverride", () => {
     expect(deleteMock).not.toHaveBeenCalled();
   });
 
+  it("prunes when only capability leftovers remain", async () => {
+    findUniqueMock.mockResolvedValue(
+      emptyOverride({
+        capabilityName: "legacy-cap",
+        capabilityVersion: "1.0.0",
+      }),
+    );
+    deleteMock.mockResolvedValue({ id: "override_1" });
+
+    await expect(
+      pruneEmptyMetadataOverride(tx as never, "override_1"),
+    ).resolves.toBe(true);
+
+    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "override_1" } });
+  });
+
   it("keeps the row when tags remain", async () => {
     findUniqueMock.mockResolvedValue(
       emptyOverride({ tags: [{ id: "tag_1" }] }),

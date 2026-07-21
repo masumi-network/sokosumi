@@ -95,7 +95,15 @@ function parseExamples(
 
   const examples: AdminAgentMetadataOverrideExample[] = [];
   for (const line of lines) {
-    const [name, mimeType, url] = line.split("|").map((part) => part.trim());
+    // Split on the first two "|" only so URLs may contain "|".
+    const firstSep = line.indexOf("|");
+    const secondSep = firstSep === -1 ? -1 : line.indexOf("|", firstSep + 1);
+    if (firstSep === -1 || secondSep === -1) {
+      return null;
+    }
+    const name = line.slice(0, firstSep).trim();
+    const mimeType = line.slice(firstSep + 1, secondSep).trim();
+    const url = line.slice(secondSep + 1).trim();
     if (!name || !mimeType || !url) {
       return null;
     }
