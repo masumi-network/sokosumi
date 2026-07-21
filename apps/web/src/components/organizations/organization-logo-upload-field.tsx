@@ -1,6 +1,7 @@
 "use client";
 
 import { Building2, CloudUpload, Loader2, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +27,8 @@ interface OrganizationLogoUploadFieldProps {
   /** MIME accept list; defaults to organization logo types. */
   accept?: string;
   disabled: boolean;
+  /** Empty-state icon; defaults to Building2 for organization logos. */
+  fallbackIcon?: ReactNode;
   isRemoving?: boolean;
   isUploading: boolean;
   labels: OrganizationLogoUploadLabels;
@@ -61,6 +64,7 @@ function translateFileRejectMessage(
 export function OrganizationLogoUploadField({
   accept = ORGANIZATION_LOGO_ACCEPT,
   disabled,
+  fallbackIcon,
   isRemoving = false,
   isUploading,
   labels,
@@ -102,7 +106,7 @@ export function OrganizationLogoUploadField({
                   className="object-cover"
                 />
                 <AvatarFallback className="bg-muted text-muted-foreground rounded-none">
-                  <Building2 className="size-8" />
+                  {fallbackIcon ?? <Building2 className="size-8" />}
                 </AvatarFallback>
               </Avatar>
               <div

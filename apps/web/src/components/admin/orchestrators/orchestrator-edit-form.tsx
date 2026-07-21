@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Bot, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -14,16 +14,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { updateAdminOrchestratorDisplayAction } from "@/lib/actions/admin-orchestrators/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import {
+  ADMIN_ORCHESTRATOR_CAPTION_MAX_LENGTH,
+  ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH,
+} from "@/lib/constants/orchestrator-display";
+import {
   ORCHESTRATOR_IMAGE_ACCEPT,
   ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
 } from "@/lib/constants/orchestrator-image";
 import type {
+  AdminOrchestratorDisplayPatchBody,
   AdminOrchestratorItem,
-  AdminOrchestratorPatchBody,
 } from "@/lib/services/admin-orchestrator.service";
-
-const MIN_NAME_LENGTH = 3;
-const MAX_CAPTION_LENGTH = 255;
 
 interface OrchestratorEditFormProps {
   orchestrator: AdminOrchestratorItem;
@@ -41,8 +42,8 @@ function buildPatchBody(
     caption: string;
     description: string;
   },
-): AdminOrchestratorPatchBody | undefined {
-  const patchBody: AdminOrchestratorPatchBody = {};
+): AdminOrchestratorDisplayPatchBody | undefined {
+  const patchBody: AdminOrchestratorDisplayPatchBody = {};
 
   const nextName = values.name.trim();
   if (nextName !== orchestrator.name) {
@@ -175,8 +176,12 @@ export function OrchestratorEditForm({
     }
 
     const trimmedName = name.trim();
-    if (trimmedName.length < MIN_NAME_LENGTH) {
-      toast.error(t("validation.nameMinLength", { min: MIN_NAME_LENGTH }));
+    if (trimmedName.length < ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH) {
+      toast.error(
+        t("validation.nameMinLength", {
+          min: ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH,
+        }),
+      );
       return;
     }
 
@@ -224,6 +229,7 @@ export function OrchestratorEditForm({
         <OrganizationLogoUploadField
           accept={ORCHESTRATOR_IMAGE_ACCEPT}
           disabled={isBusy}
+          fallbackIcon={<Bot className="size-8" />}
           isRemoving={isRemovingImage}
           isUploading={isUploadingImage}
           labels={imageLabels}
@@ -279,7 +285,7 @@ export function OrchestratorEditForm({
           onChange={(event) => setCaption(event.target.value)}
           disabled={isBusy}
           autoComplete="off"
-          maxLength={MAX_CAPTION_LENGTH}
+          maxLength={ADMIN_ORCHESTRATOR_CAPTION_MAX_LENGTH}
         />
         <p className="text-muted-foreground text-sm">
           {t("fields.caption.description")}

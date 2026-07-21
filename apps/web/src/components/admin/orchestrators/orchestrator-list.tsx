@@ -1,8 +1,6 @@
-"use client";
-
 import { Bot } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -19,8 +17,10 @@ interface OrchestratorListProps {
   orchestrators: AdminOrchestratorItem[];
 }
 
-export function OrchestratorList({ orchestrators }: OrchestratorListProps) {
-  const t = useTranslations("App.Admin.Orchestrators.OrchestratorList");
+export async function OrchestratorList({
+  orchestrators,
+}: OrchestratorListProps) {
+  const t = await getTranslations("App.Admin.Orchestrators.OrchestratorList");
 
   return (
     <div className="space-y-4">

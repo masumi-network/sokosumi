@@ -2,7 +2,6 @@ import "server-only";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Orchestrator } from "@/lib/clients/generated/core";
-import type { PatchOrchestratorsByIdData } from "@/lib/clients/generated/core/types.gen";
 
 export interface AdminOrchestratorItem {
   id: string;
@@ -13,15 +12,18 @@ export interface AdminOrchestratorItem {
   image: string | null;
 }
 
-export type AdminOrchestratorPatchBody = NonNullable<
-  PatchOrchestratorsByIdData["body"]
->;
+/** Display fields only — never slug. */
+export interface AdminOrchestratorDisplayPatchBody {
+  name?: string;
+  caption?: string | null;
+  description?: string | null;
+}
 
 export type AdminOrchestratorImageIntent = "none" | "upload" | "remove";
 
 export interface UpdateAdminOrchestratorDisplayInput {
   id: string;
-  patchBody?: AdminOrchestratorPatchBody;
+  patchBody?: AdminOrchestratorDisplayPatchBody;
   imageIntent?: AdminOrchestratorImageIntent;
   imageFile?: File | Blob;
 }

@@ -7,8 +7,12 @@ import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import {
+  ADMIN_ORCHESTRATOR_CAPTION_MAX_LENGTH,
+  ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH,
+} from "@/lib/constants/orchestrator-display";
+import {
+  type AdminOrchestratorDisplayPatchBody,
   type AdminOrchestratorImageIntent,
-  type AdminOrchestratorPatchBody,
   adminOrchestratorService,
   type UpdateAdminOrchestratorDisplayResult,
 } from "@/lib/services/admin-orchestrator.service";
@@ -36,34 +40,64 @@ function mapError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
+/** Client payload may include non-display keys (e.g. slug); they are dropped. */
+interface UntrustedOrchestratorDisplayPatch {
+  name?: string;
+  caption?: string | null;
+  description?: string | null;
+  slug?: string;
+}
+
 interface UpdateAdminOrchestratorDisplayParameters
   extends AuthenticatedRequest {
   id: string;
-  patchBody?: AdminOrchestratorPatchBody;
+  patchBody?: UntrustedOrchestratorDisplayPatch;
   imageIntent?: AdminOrchestratorImageIntent;
   imageFile?: File;
 }
 
-/** UI may only edit display fields — never slug. */
+/**
+ * Pick display fields only — never slug — and validate name/caption.
+ * Returns Err when name or caption fail local rules.
+ */
 function sanitizeDisplayPatchBody(
-  patchBody: AdminOrchestratorPatchBody | undefined,
-): AdminOrchestratorPatchBody | undefined {
+  patchBody: UntrustedOrchestratorDisplayPatch | undefined,
+): Result<AdminOrchestratorDisplayPatchBody | undefined, ActionError> {
   if (!patchBody) {
-    return undefined;
+    return Ok(undefined);
   }
 
-  const sanitized: AdminOrchestratorPatchBody = {};
+  const sanitized: AdminOrchestratorDisplayPatchBody = {};
+
   if (patchBody.name !== undefined) {
-    sanitized.name = patchBody.name;
+    const name = patchBody.name.trim();
+    if (name.length < ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: `Name must be at least ${ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH} characters`,
+      });
+    }
+    sanitized.name = name;
   }
+
   if (patchBody.caption !== undefined) {
+    if (
+      patchBody.caption !== null &&
+      patchBody.caption.length > ADMIN_ORCHESTRATOR_CAPTION_MAX_LENGTH
+    ) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: `Caption must be at most ${ADMIN_ORCHESTRATOR_CAPTION_MAX_LENGTH} characters`,
+      });
+    }
     sanitized.caption = patchBody.caption;
   }
+
   if (patchBody.description !== undefined) {
     sanitized.description = patchBody.description;
   }
 
-  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+  return Ok(Object.keys(sanitized).length > 0 ? sanitized : undefined);
 }
 
 export const updateAdminOrchestratorDisplayAction = withSession<
@@ -73,7 +107,12 @@ export const updateAdminOrchestratorDisplayAction = withSession<
   try {
     assertAdminSession(session);
 
-    const safePatchBody = sanitizeDisplayPatchBody(patchBody);
+    const sanitizeResult = sanitizeDisplayPatchBody(patchBody);
+    if (!sanitizeResult.ok) {
+      return sanitizeResult;
+    }
+
+    const safePatchBody = sanitizeResult.data;
     const hasPatchBody = Boolean(safePatchBody);
     if (!hasPatchBody && imageIntent === "none") {
       return Err({

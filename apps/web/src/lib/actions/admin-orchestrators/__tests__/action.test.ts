@@ -29,6 +29,7 @@ vi.mock("@/lib/services/admin-orchestrator.service", () => ({
 
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
+import { ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH } from "@/lib/constants/orchestrator-display";
 
 import { updateAdminOrchestratorDisplayAction } from "../action";
 
@@ -126,5 +127,52 @@ describe("updateAdminOrchestratorDisplayAction", () => {
       imageFile: undefined,
     });
     expect(result).toEqual({ ok: true, data: payload });
+  });
+
+  it("rejects a slug-only patch body as empty after sanitize", async () => {
+    const result = await updateAdminOrchestratorDisplayAction({
+      id: "orch_1",
+      patchBody: {
+        slug: "renamed-slug",
+      },
+      imageIntent: "none",
+    });
+
+    expect(updateDisplayMock).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    }
+  });
+
+  it("rejects upload intent without an image file", async () => {
+    const result = await updateAdminOrchestratorDisplayAction({
+      id: "orch_1",
+      imageIntent: "upload",
+    });
+
+    expect(updateDisplayMock).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+      expect(result.error.message).toMatch(/image file/i);
+    }
+  });
+
+  it("rejects a name shorter than the minimum length", async () => {
+    const result = await updateAdminOrchestratorDisplayAction({
+      id: "orch_1",
+      patchBody: { name: "ab" },
+      imageIntent: "none",
+    });
+
+    expect(updateDisplayMock).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+      expect(result.error.message).toContain(
+        String(ADMIN_ORCHESTRATOR_NAME_MIN_LENGTH),
+      );
+    }
   });
 });

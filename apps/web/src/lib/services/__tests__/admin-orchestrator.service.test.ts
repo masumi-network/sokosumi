@@ -124,4 +124,44 @@ describe("adminOrchestratorService", () => {
     expect(result.orchestrator.name).toBe("Hermes Ops");
     expect(result.imageError).toBe("blob down");
   });
+
+  it("uploads image without a text patch", async () => {
+    uploadOrchestratorImageMock.mockResolvedValue({
+      data: {
+        ...orchestrator,
+        image: "https://example.com/new.png",
+      },
+    });
+
+    const file = new File(["x"], "new.png", { type: "image/png" });
+    const result = await adminOrchestratorService.updateDisplay({
+      id: "orch_1",
+      imageIntent: "upload",
+      imageFile: file,
+    });
+
+    expect(patchOrchestratorByIdMock).not.toHaveBeenCalled();
+    expect(uploadOrchestratorImageMock).toHaveBeenCalledWith("orch_1", file);
+    expect(result.orchestrator.image).toBe("https://example.com/new.png");
+    expect(result.imageError).toBeUndefined();
+  });
+
+  it("removes image without a text patch", async () => {
+    deleteOrchestratorImageMock.mockResolvedValue({
+      data: {
+        ...orchestrator,
+        image: null,
+      },
+    });
+
+    const result = await adminOrchestratorService.updateDisplay({
+      id: "orch_1",
+      imageIntent: "remove",
+    });
+
+    expect(patchOrchestratorByIdMock).not.toHaveBeenCalled();
+    expect(deleteOrchestratorImageMock).toHaveBeenCalledWith("orch_1");
+    expect(result.orchestrator.image).toBeNull();
+    expect(result.imageError).toBeUndefined();
+  });
 });
