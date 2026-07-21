@@ -2,6 +2,7 @@ import type { z } from "@hono/zod-openapi";
 import {
   type Agent,
   type AgentMetadataOverride,
+  type AgentStatus,
   agentExampleOutputInclude,
   agentTagsInclude,
   type Prisma,
@@ -193,6 +194,35 @@ export function buildAdminAgentSearchWhere(
       },
     ],
   };
+}
+
+export function buildAdminAgentListWhere({
+  q,
+  status,
+}: {
+  q?: string;
+  status?: AgentStatus;
+}): Prisma.AgentWhereInput | undefined {
+  const filters: Prisma.AgentWhereInput[] = [];
+
+  const searchWhere = buildAdminAgentSearchWhere(q);
+  if (searchWhere) {
+    filters.push(searchWhere);
+  }
+
+  if (status) {
+    filters.push({ status });
+  }
+
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  if (filters.length === 1) {
+    return filters[0];
+  }
+
+  return { AND: filters };
 }
 
 export async function resolveTagsByNames(

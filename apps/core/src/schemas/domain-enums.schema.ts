@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   AgentJobStatus,
+  AgentStatus,
   BlobStatus,
   Channel,
   InvitationStatus,
@@ -33,6 +34,8 @@ import type Stripe from "stripe";
  */
 
 export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
+
+export const agentStatusSchema = z.enum(AgentStatus).openapi("AgentStatus");
 
 export const agentJobStatusSchema = z
   .enum(AgentJobStatus)
