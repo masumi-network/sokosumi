@@ -50,6 +50,28 @@ export function useChatScroll({
     if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [streamingId, streamingContentLength]);
 
+  // Follow height changes the two effects above can't see: the reasoning
+  // line and tool-progress chips appear and grow during a turn without
+  // adding a message or lengthening the streamed text, and at turn end they
+  // collapse back into the message's step disclosure (content shrinks).
+  // A ResizeObserver on the scroller's content keeps the viewport pinned
+  // through all of that — but only while the user is already near the
+  // bottom, so scrolled-up readers are never hijacked. Re-attached when the
+  // scroller's child swaps between WelcomeBlock and ChatTimeline.
+  const hasMessages = messages.length > 0;
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const content = el.firstElementChild;
+    if (!content) return;
+    const observer = new ResizeObserver(() => {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+      if (nearBottom) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [hasMessages]);
+
   const handleScrollerScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const el = e.currentTarget;
