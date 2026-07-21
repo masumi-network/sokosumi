@@ -2916,6 +2916,10 @@
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
           },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Modifiez les noms, légendes, descriptions et images des coworkers actifs."
+          },
           "freeCredits": {
             "title": "Crédits gratuits",
             "description": "Accordez des crédits gratuits directement à un utilisateur ou une organisation sans facture Stripe."
@@ -3115,6 +3119,58 @@
         "TaskDetail": {
           "backToList": "Retour aux tâches",
           "personalWorkspace": "Espace de travail personnel"
+        }
+      },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Listez les coworkers actifs et modifiez leur présentation dans Sokosumi.",
+        "loadFailed": "Échec du chargement des coworkers.",
+        "backToList": "Retour à la liste",
+        "editTitle": "Modifier le coworker",
+        "editDescription": "Mettez à jour les champs affichés sur le marketplace et dans le produit.",
+        "Table": {
+          "name": "Nom",
+          "slug": "Slug",
+          "caption": "Légende",
+          "whitelist": "Liste blanche",
+          "whitelisted": "Sur liste blanche",
+          "notWhitelisted": "Hors liste blanche",
+          "priority": "Priorité",
+          "actions": "Actions",
+          "edit": "Modifier",
+          "empty": "Aucun coworker actif trouvé."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Nom"
+            },
+            "caption": {
+              "label": "Légende"
+            },
+            "description": {
+              "label": "Description"
+            },
+            "image": {
+              "label": "URL de l'image",
+              "placeholder": "https://example.com/avatar.png",
+              "helper": "URL publique de l'image de ce coworker."
+            }
+          },
+          "saveChanges": "Enregistrer",
+          "saving": "Enregistrement…",
+          "cancel": "Annuler",
+          "updateSuccess": "Coworker mis à jour",
+          "updateError": "Échec de la mise à jour du coworker"
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Fournisseur",
+          "priority": "Priorité",
+          "whitelist": "Liste blanche",
+          "whitelisted": "Sur liste blanche",
+          "notWhitelisted": "Hors liste blanche"
         }
       },
       "FreeCredits": {

@@ -1,0 +1,81 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { assertAdminSession } from "@/lib/auth/admin-access";
+import { isAdminAccessRequiredError } from "@/lib/auth/errors";
+import { toCoreApiActionError } from "@/lib/clients/core.client";
+import type { Coworker } from "@/lib/clients/generated/core/types.gen";
+import {
+  type AdminCoworkerUpdateBody,
+  adminCoworkerService,
+} from "@/lib/services/admin-coworker.service";
+import { Err, Ok, type Result } from "@/lib/ts-res";
+import {
+  type AuthenticatedRequest,
+  withSession,
+} from "@/middleware/auth-middleware";
+
+export interface UpdateAdminCoworkerInput {
+  name: string;
+  caption: string;
+  description: string;
+  image: string;
+}
+
+function mapCoreError(error: unknown): ActionError {
+  if (isAdminAccessRequiredError(error)) {
+    return {
+      code: CommonErrorCode.UNAUTHORIZED,
+      message: error.message,
+    };
+  }
+
+  return toCoreApiActionError(error);
+}
+
+function normalizeOptionalDisplayField(
+  value: string,
+): string | null | undefined {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toPatchBody(input: UpdateAdminCoworkerInput): AdminCoworkerUpdateBody {
+  return {
+    name: input.name.trim(),
+    caption: normalizeOptionalDisplayField(input.caption),
+    description: normalizeOptionalDisplayField(input.description),
+    image: normalizeOptionalDisplayField(input.image),
+  };
+}
+
+function revalidateAdminCoworkerRoutes(coworkerId?: string) {
+  revalidatePath("/admin/coworkers");
+  if (coworkerId) {
+    revalidatePath(`/admin/coworkers/${coworkerId}`);
+  }
+}
+
+interface UpdateAdminCoworkerParameters extends AuthenticatedRequest {
+  id: string;
+  input: UpdateAdminCoworkerInput;
+}
+
+export const updateAdminCoworkerAction = withSession<
+  UpdateAdminCoworkerParameters,
+  Result<Coworker, ActionError>
+>(async ({ session, id, input }) => {
+  try {
+    assertAdminSession(session);
+    const coworker = await adminCoworkerService.updateCoworkerDisplay(
+      id,
+      toPatchBody(input),
+    );
+    revalidateAdminCoworkerRoutes(id);
+    return Ok(coworker);
+  } catch (error) {
+    return Err(mapCoreError(error));
+  }
+});

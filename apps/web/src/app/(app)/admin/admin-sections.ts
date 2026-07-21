@@ -1,4 +1,5 @@
 import {
+  Bot,
   Building,
   Building2,
   Coins,
@@ -50,5 +51,10 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "tasks",
     href: "/admin/tasks",
     Icon: ListTodo,
+  },
+  {
+    key: "coworkers",
+    href: "/admin/coworkers",
+    Icon: Bot,
   },
 ];

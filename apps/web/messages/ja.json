@@ -2916,6 +2916,10 @@
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
           },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "アクティブな Coworker の表示名、キャプション、説明、画像を編集します。"
+          },
           "freeCredits": {
             "title": "無料クレジット",
             "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
@@ -3115,6 +3119,58 @@
         "TaskDetail": {
           "backToList": "タスク一覧に戻る",
           "personalWorkspace": "個人ワークスペース"
+        }
+      },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "アクティブな Coworker を一覧表示し、Sokosumi での表示を編集します。",
+        "loadFailed": "Coworker の読み込みに失敗しました。",
+        "backToList": "一覧に戻る",
+        "editTitle": "Coworker を編集",
+        "editDescription": "マーケットプレイスとプロダクトに表示される項目を更新します。",
+        "Table": {
+          "name": "名前",
+          "slug": "スラッグ",
+          "caption": "キャプション",
+          "whitelist": "ホワイトリスト",
+          "whitelisted": "ホワイトリスト済み",
+          "notWhitelisted": "未登録",
+          "priority": "優先度",
+          "actions": "操作",
+          "edit": "編集",
+          "empty": "アクティブな Coworker が見つかりません。"
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "名前"
+            },
+            "caption": {
+              "label": "キャプション"
+            },
+            "description": {
+              "label": "説明"
+            },
+            "image": {
+              "label": "画像 URL",
+              "placeholder": "https://example.com/avatar.png",
+              "helper": "この Coworker の公開画像 URL。"
+            }
+          },
+          "saveChanges": "変更を保存",
+          "saving": "保存中…",
+          "cancel": "キャンセル",
+          "updateSuccess": "Coworker を更新しました",
+          "updateError": "Coworker の更新に失敗しました"
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "スラッグ",
+          "vendor": "ベンダー",
+          "priority": "優先度",
+          "whitelist": "ホワイトリスト",
+          "whitelisted": "ホワイトリスト済み",
+          "notWhitelisted": "未登録"
         }
       },
       "FreeCredits": {

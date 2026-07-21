@@ -2916,6 +2916,10 @@
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
           },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "编辑活跃 Coworker 的显示名称、副标题、描述和图片。"
+          },
           "freeCredits": {
             "title": "免费积分",
             "description": "无需 Stripe 发票，直接向用户或组织发放免费积分。"
@@ -3115,6 +3119,58 @@
         "TaskDetail": {
           "backToList": "返回任务列表",
           "personalWorkspace": "个人工作区"
+        }
+      },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "列出活跃的 Coworker，并编辑它们在 Sokosumi 中的展示方式。",
+        "loadFailed": "加载 Coworker 失败。",
+        "backToList": "返回列表",
+        "editTitle": "编辑 Coworker",
+        "editDescription": "更新在市场和产品中显示的字段。",
+        "Table": {
+          "name": "名称",
+          "slug": "Slug",
+          "caption": "副标题",
+          "whitelist": "白名单",
+          "whitelisted": "已加入白名单",
+          "notWhitelisted": "未加入白名单",
+          "priority": "优先级",
+          "actions": "操作",
+          "edit": "编辑",
+          "empty": "未找到活跃的 Coworker。"
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "名称"
+            },
+            "caption": {
+              "label": "副标题"
+            },
+            "description": {
+              "label": "描述"
+            },
+            "image": {
+              "label": "图片 URL",
+              "placeholder": "https://example.com/avatar.png",
+              "helper": "此 Coworker 的公开图片 URL。"
+            }
+          },
+          "saveChanges": "保存更改",
+          "saving": "保存中…",
+          "cancel": "取消",
+          "updateSuccess": "Coworker 已更新",
+          "updateError": "更新 Coworker 失败"
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "供应商",
+          "priority": "优先级",
+          "whitelist": "白名单",
+          "whitelisted": "已加入白名单",
+          "notWhitelisted": "未加入白名单"
         }
       },
       "FreeCredits": {

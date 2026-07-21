@@ -33,6 +33,7 @@ import type {
   MarkHermesInboxSeenRequest,
   Notice,
   PaginationMetadata,
+  PatchCoworkersByIdData,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
@@ -94,6 +95,7 @@ import {
   getConversationsByIdWarmup as coreGetConversationsByIdWarmup,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
+  getCoworkersById as coreGetCoworkersById,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getEnterpriseContracts as coreGetEnterpriseContracts,
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
@@ -158,6 +160,7 @@ import {
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchCoworkersById as corePatchCoworkersById,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
@@ -2079,6 +2082,35 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getCoworkerById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkersById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch coworker",
+    );
+  }
+
+  async function patchCoworker(
+    id: string,
+    body: NonNullable<PatchCoworkersByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchCoworkersById({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update coworker",
+    );
+  }
+
   async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
     const response = await executeOperation(
       getClient,
@@ -2984,6 +3016,8 @@ export function createCoreClient(getClient: GetClient) {
     createAgentRating,
     getCategories,
     getCoworkers,
+    getCoworkerById,
+    patchCoworker,
     searchAdminUsers,
     listAdminUsers,
     listAdminTasks,

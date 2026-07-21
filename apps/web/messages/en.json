@@ -3090,6 +3090,10 @@
           "tasks": {
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Edit display names, captions, descriptions, and images for active coworkers."
           }
         }
       },
@@ -3207,6 +3211,58 @@
         "TaskDetail": {
           "backToList": "Back to tasks",
           "personalWorkspace": "Personal workspace"
+        }
+      },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "List active coworkers and edit how they appear in Sokosumi.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editTitle": "Edit coworker",
+        "editDescription": "Update display fields shown in the marketplace and product.",
+        "Table": {
+          "name": "Name",
+          "slug": "Slug",
+          "caption": "Caption",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "No active coworkers found."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Name"
+            },
+            "caption": {
+              "label": "Caption"
+            },
+            "description": {
+              "label": "Description"
+            },
+            "image": {
+              "label": "Image URL",
+              "placeholder": "https://example.com/avatar.png",
+              "helper": "Public image URL for this coworker."
+            }
+          },
+          "saveChanges": "Save changes",
+          "saving": "Saving…",
+          "cancel": "Cancel",
+          "updateSuccess": "Coworker updated",
+          "updateError": "Failed to update coworker"
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       }
     },
