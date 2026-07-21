@@ -24,6 +24,11 @@ export interface AdminSection {
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   {
+    key: "agents",
+    href: "/admin/agents",
+    Icon: Bot,
+  },
+  {
     key: "enterpriseContracts",
     href: "/admin/enterprise-contracts",
     Icon: Building2,

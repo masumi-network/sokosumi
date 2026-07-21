@@ -15,7 +15,7 @@ export const tagRepository = {
   getTags: async (tx: Prisma.TransactionClient): Promise<Tag[]> => {
     const tags = await tx.tag.findMany({
       where: {
-        OR: [{ agents: { some: {} } }, { agentsOverride: { some: {} } }],
+        OR: [{ agents: { some: {} } }, { metadataOverrides: { some: {} } }],
       },
       orderBy: {
         name: "asc",

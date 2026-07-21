@@ -101,7 +101,11 @@ export type JobWithRefundedTransaction = Prisma.JobGetPayload<{
 }>;
 
 export const jobWithAgent = {
-  agent: true,
+  agent: {
+    include: {
+      metadataOverride: true,
+    },
+  },
 } as const;
 
 export type JobWithAgent = Prisma.JobGetPayload<{

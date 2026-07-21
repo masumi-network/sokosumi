@@ -7,5 +7,7 @@ export interface Agent {
   name: string;
   blockchainIdentifier: string;
   apiBaseUrl: string;
-  overrideApiBaseUrl?: string | null;
+  metadataOverride?: {
+    apiBaseUrl?: string | null;
+  } | null;
 }

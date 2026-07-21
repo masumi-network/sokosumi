@@ -8,6 +8,7 @@ import {
 } from "@sokosumi/database/types/job";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
+import { getAgentName } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import { serializeJobDetails } from "@/types/job";
 
@@ -39,7 +40,11 @@ const publicTaskInclude = {
       ...jobWithPurchase,
       ...jobWithTransaction,
       ...jobWithShare,
-      agent: true,
+      agent: {
+        include: {
+          metadataOverride: true,
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   },
@@ -121,7 +126,7 @@ function mapPublicTaskJob(taskJob: PublicTaskWithRelations["jobs"][number]) {
     completedAt: job.completedAt,
     name: taskJob.name,
     status: job.status,
-    agentName: taskJob.agent.overrideName ?? taskJob.agent.name,
+    agentName: getAgentName(taskJob.agent),
     shareToken: taskJob.share?.token ?? null,
   };
 }

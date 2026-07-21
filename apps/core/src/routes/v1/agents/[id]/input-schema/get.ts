@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
-
+import { toMasumiAgent } from "@/helpers/agent";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -50,7 +50,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         name: true,
         blockchainIdentifier: true,
         apiBaseUrl: true,
-        overrideApiBaseUrl: true,
+        metadataOverride: {
+          select: {
+            apiBaseUrl: true,
+          },
+        },
       },
     });
 
@@ -58,8 +62,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Agent not found");
     }
 
-    const inputSchemaResult =
-      await createAgentClient().fetchAgentInputSchema(agent);
+    const inputSchemaResult = await createAgentClient().fetchAgentInputSchema(
+      toMasumiAgent(agent),
+    );
     if (inputSchemaResult.isErr()) {
       throw unprocessableEntity(inputSchemaResult.error);
     }

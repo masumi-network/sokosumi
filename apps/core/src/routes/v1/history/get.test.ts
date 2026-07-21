@@ -581,7 +581,7 @@ describe("GET /history", () => {
       {
         id: "agent_123",
         name: "Base Name",
-        overrideName: "Research Agent",
+        metadataOverride: { name: "Research Agent" },
         icon: "https://example.com/research.svg",
       },
     ]);
@@ -592,7 +592,12 @@ describe("GET /history", () => {
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith({
       where: { id: { in: ["agent_123"] } },
-      select: { id: true, name: true, overrideName: true, icon: true },
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        metadataOverride: { select: { name: true } },
+      },
     });
 
     const body = (await response.json()) as {

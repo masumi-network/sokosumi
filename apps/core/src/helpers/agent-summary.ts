@@ -1,4 +1,9 @@
-import type { CreditCost, Prisma } from "@sokosumi/database";
+import {
+  agentMetadataOverrideScalarsInclude,
+  agentPricingInclude,
+  type CreditCost,
+  type Prisma,
+} from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
@@ -18,17 +23,17 @@ import { mapCategoryForApi } from "@/schemas/category.schema";
 import type {
   agentCategoriesInclude,
   agentJobsCountInclude,
-  agentPricingInclude,
 } from "@/types/agent";
 
 /**
  * Agent row shape required to build a catalog-style agent summary: pricing,
- * job count and ordered categories.
+ * job count, ordered categories, and optional metadata overrides.
  */
 export type AgentSummaryRow = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude &
     typeof agentJobsCountInclude &
-    typeof agentCategoriesInclude;
+    typeof agentCategoriesInclude &
+    typeof agentMetadataOverrideScalarsInclude;
 }>;
 
 /**

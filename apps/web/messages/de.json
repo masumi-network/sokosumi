@@ -2896,6 +2896,10 @@
           "coworkers": {
             "title": "Coworkers",
             "description": "Fähigkeiten, Priorität, Whitelist, Archivstatus und Anzeigemetadaten für alle Coworker verwalten."
+          },
+          "agents": {
+            "title": "Agenten",
+            "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
           }
         }
       },
@@ -3311,6 +3315,65 @@
             "notFound": "Orchestrator nicht gefunden.",
             "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
           }
+        }
+      },
+      "Agents": {
+        "title": "Agenten",
+        "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten.",
+        "AgentList": {
+          "searchPlaceholder": "Nach Name oder Blockchain-Kennung suchen…",
+          "totalCount": "{count, plural, one {# Agent} other {# Agenten}}",
+          "empty": "Keine Agenten gefunden.",
+          "displayName": "Anzeigename",
+          "registryName": "Registry-Name",
+          "override": "Überschreibung",
+          "hasOverride": "Angepasst",
+          "noOverride": "Nur Registry",
+          "status": "Status",
+          "actions": "Aktionen",
+          "manage": "Verwalten",
+          "loadMore": "Mehr laden",
+          "loadError": "Agenten konnten nicht geladen werden."
+        },
+        "AgentDetail": {
+          "subtitle": "Registry-Felder sind schreibgeschützt. Override-Felder ändern die Marketplace-Anzeige.",
+          "backToList": "Zurück zu Agenten",
+          "registryTitle": "Registry (schreibgeschützt)",
+          "registryName": "Registry-Name",
+          "registryDescription": "Registry-Beschreibung",
+          "blockchainIdentifier": "Blockchain-Kennung",
+          "overrideTitle": "Sokosumi-Overrides",
+          "overrideDescription": "Leeres Feld = Registry-Wert. Speichern wendet Overrides an; Alle löschen entfernt die Override-Zeile.",
+          "resolvedTitle": "Aufgelöste Vorschau",
+          "emptyValue": "—",
+          "save": "Overrides speichern",
+          "saveSuccess": "Overrides gespeichert",
+          "saveError": "Overrides konnten nicht gespeichert werden",
+          "clearAll": "Alle Overrides löschen",
+          "clearSuccess": "Overrides gelöscht",
+          "clearError": "Overrides konnten nicht gelöscht werden",
+          "examplesInvalid": "Jede Beispielzeile muss name|mimeType|url sein",
+          "fields": {
+            "name": "Name",
+            "description": "Beschreibung",
+            "image": "Bild-URL",
+            "apiBaseUrl": "API-Basis-URL",
+            "tags": "Tags",
+            "tagsPlaceholder": "Tag-Namen, durch Komma getrennt",
+            "examples": "Beispielausgaben",
+            "examplesPlaceholder": "Eine pro Zeile: name|mimeType|url",
+            "authorName": "Autorname",
+            "authorImage": "Autor-Bild-URL",
+            "authorContactEmail": "Autor-Kontakt-E-Mail",
+            "authorContactOther": "Autor-Kontakt sonstiges",
+            "authorOrganization": "Autor-Organisation",
+            "legalPrivacyPolicy": "Datenschutz-URL",
+            "legalDpa": "AVV-URL",
+            "legalTerms": "AGB-URL",
+            "legalOther": "Sonstige Rechts-URL"
+          },
+          "hasOverride": "Überschreibungszeile vorhanden",
+          "noOverride": "Nur Registry-Werte"
         }
       }
     },

@@ -155,7 +155,10 @@ describe("GET /agents/{id}", () => {
           name: "research",
         },
       ],
-      overrideTags: [],
+      metadataOverride: {
+        tags: [],
+        exampleOutputs: [],
+      },
       exampleOutput: [
         {
           id: "example_123",
@@ -165,10 +168,9 @@ describe("GET /agents/{id}", () => {
           mimeType: "image/png",
           url: "https://example.com/output.png",
           agentId: "agent_123",
-          agentIdOverride: null,
+          metadataOverrideId: null,
         },
       ],
-      overrideExampleOutput: [],
     });
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({

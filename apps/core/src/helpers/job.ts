@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
+  agentMetadataOverrideScalarsInclude,
+  agentPricingInclude,
   JobType,
   PricingType,
   Prisma,
@@ -21,7 +23,6 @@ import type {
 } from "@sokosumi/masumi/schemas";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
-
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { requireCoworkerCapability } from "@/helpers/access-control";
@@ -29,13 +30,13 @@ import {
   buildAvailableAgentWhereClause,
   getAgentCost,
   getCreditCostsOrThrow,
+  toMasumiAgent,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
-import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
@@ -265,6 +266,7 @@ export async function createAgentJobForUser(
     },
     include: {
       ...agentPricingInclude,
+      ...agentMetadataOverrideScalarsInclude,
     },
   });
 
@@ -326,10 +328,12 @@ export async function createAgentJobForUser(
   let freeJobResult: StartFreeJobResponseSchemaType | null = null;
   let identifierFromPurchaser: string | null = null;
 
+  const masumiAgent = toMasumiAgent(agent);
+
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
       const startFreeJobResult = await createAgentClient().startFreeAgentJob(
-        agent,
+        masumiAgent,
         agentInput.inputData,
       );
 
@@ -347,13 +351,7 @@ export async function createAgentJobForUser(
       identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
 
       const startPaidJobResult = await createAgentClient().startPaidAgentJob(
-        {
-          id: agent.id,
-          name: agent.name,
-          blockchainIdentifier: agent.blockchainIdentifier,
-          apiBaseUrl: agent.apiBaseUrl,
-          overrideApiBaseUrl: agent.overrideApiBaseUrl,
-        },
+        masumiAgent,
         identifierFromPurchaser,
         agentInput.inputData,
       );

@@ -4,10 +4,19 @@ export type ClientOptions = {
     baseUrl: `${string}://openapi-core.snapshot.json` | (string & {});
 };
 
-export type AdminUserOption = {
+export type AdminAgentList = Array<AdminAgentListItem>;
+
+export type AdminAgentListItem = {
     id: string;
-    name: string;
-    email: string;
+    blockchainIdentifier: string;
+    registryName: string;
+    hasOverride: boolean;
+    displayName: string;
+    displayImage: string | null;
+    status: string;
+    isShown: boolean;
+    createdAt: Date;
+    updatedAt: Date;
 };
 
 export type PaginationMetadata = {
@@ -27,6 +36,103 @@ export type PaginationMetadata = {
      * Cursor for the next page
      */
     nextCursor: string | null;
+};
+
+export type AdminAgentDetail = {
+    registry: AdminAgentRegistry;
+    override: AdminAgentMetadataOverride;
+    resolved: {
+        name: string;
+        description: string | null;
+        image: string | null;
+        apiBaseUrl: string;
+        authorName: string | null;
+        authorImage: string | null;
+        authorContactEmail: string | null;
+        authorContactOther: string | null;
+        authorOrganization: string | null;
+        legalPrivacyPolicy: string | null;
+        legalDpa: string | null;
+        legalTerms: string | null;
+        legalOther: string | null;
+        tags: Array<string>;
+        exampleOutputs: Array<AdminAgentMetadataOverrideExample>;
+    };
+};
+
+export type AdminAgentRegistry = {
+    id: string;
+    blockchainIdentifier: string;
+    name: string;
+    description: string | null;
+    apiBaseUrl: string;
+    capabilityName: string | null;
+    capabilityVersion: string | null;
+    authorName: string | null;
+    authorImage: string | null;
+    authorContactEmail: string | null;
+    authorContactOther: string | null;
+    authorOrganization: string | null;
+    legalPrivacyPolicy: string | null;
+    legalDpa: string | null;
+    legalTerms: string | null;
+    legalOther: string | null;
+    image: string | null;
+    icon: string | null;
+    status: string;
+    isShown: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AdminAgentMetadataOverride = {
+    name: string | null;
+    description: string | null;
+    apiBaseUrl: string | null;
+    capabilityName: string | null;
+    capabilityVersion: string | null;
+    authorName: string | null;
+    authorImage: string | null;
+    authorContactEmail: string | null;
+    authorContactOther: string | null;
+    authorOrganization: string | null;
+    legalPrivacyPolicy: string | null;
+    legalDpa: string | null;
+    legalTerms: string | null;
+    legalOther: string | null;
+    image: string | null;
+    tags: Array<string>;
+    exampleOutputs: Array<AdminAgentMetadataOverrideExample>;
+} | null;
+
+export type AdminAgentMetadataOverrideExample = {
+    name: string;
+    mimeType: string;
+    url: string;
+};
+
+export type PatchAdminAgentMetadataOverrideBody = {
+    name?: string | null;
+    description?: string | null;
+    apiBaseUrl?: string | null;
+    authorName?: string | null;
+    authorImage?: string | null;
+    authorContactEmail?: string | null;
+    authorContactOther?: string | null;
+    authorOrganization?: string | null;
+    legalPrivacyPolicy?: string | null;
+    legalDpa?: string | null;
+    legalTerms?: string | null;
+    legalOther?: string | null;
+    image?: string | null;
+    tags?: Array<string>;
+    exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
+};
+
+export type AdminUserOption = {
+    id: string;
+    name: string;
+    email: string;
 };
 
 export type AdminOrganizationOption = {
@@ -3216,6 +3322,314 @@ export type ContextUserId = string;
  * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
  */
 export type ContextOrganizationId = string;
+
+export type ListAdminAgentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Optional search on registry name, blockchain identifier, or override name
+         */
+        q?: string;
+    };
+    url: '/admin/agents';
+};
+
+export type ListAdminAgentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminAgentsError = ListAdminAgentsErrors[keyof ListAdminAgentsErrors];
+
+export type ListAdminAgentsResponses = {
+    /**
+     * Paginated list of agents for the admin console
+     */
+    200: {
+        data: AdminAgentList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminAgentsResponse = ListAdminAgentsResponses[keyof ListAdminAgentsResponses];
+
+export type GetAdminAgentData = {
+    body?: never;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/agents/{id}';
+};
+
+export type GetAdminAgentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAgentError = GetAdminAgentErrors[keyof GetAdminAgentErrors];
+
+export type GetAdminAgentResponses = {
+    /**
+     * Admin agent detail with registry and override data
+     */
+    200: {
+        data: AdminAgentDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAgentResponse = GetAdminAgentResponses[keyof GetAdminAgentResponses];
+
+export type DeleteAdminAgentMetadataOverrideData = {
+    body?: never;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/agents/{id}/metadata-override';
+};
+
+export type DeleteAdminAgentMetadataOverrideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminAgentMetadataOverrideError = DeleteAdminAgentMetadataOverrideErrors[keyof DeleteAdminAgentMetadataOverrideErrors];
+
+export type DeleteAdminAgentMetadataOverrideResponses = {
+    /**
+     * Agent detail after metadata override removal (idempotent when already absent)
+     */
+    200: {
+        data: AdminAgentDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteAdminAgentMetadataOverrideResponse = DeleteAdminAgentMetadataOverrideResponses[keyof DeleteAdminAgentMetadataOverrideResponses];
+
+export type PatchAdminAgentMetadataOverrideData = {
+    body?: PatchAdminAgentMetadataOverrideBody;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/agents/{id}/metadata-override';
+};
+
+export type PatchAdminAgentMetadataOverrideErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchAdminAgentMetadataOverrideError = PatchAdminAgentMetadataOverrideErrors[keyof PatchAdminAgentMetadataOverrideErrors];
+
+export type PatchAdminAgentMetadataOverrideResponses = {
+    /**
+     * Updated agent detail with metadata override
+     */
+    200: {
+        data: AdminAgentDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchAdminAgentMetadataOverrideResponse = PatchAdminAgentMetadataOverrideResponses[keyof PatchAdminAgentMetadataOverrideResponses];
 
 export type SearchAdminUsersData = {
     body?: never;

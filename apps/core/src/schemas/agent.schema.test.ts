@@ -11,8 +11,17 @@ import {
   getAgentTagsFromAgent,
 } from "./agent.schema";
 
-function createMockAgent(overrides: Partial<Agent> = {}): Agent {
+function createMockAgent(
+  overrides: Partial<Agent> & {
+    metadataOverride?: {
+      legalDpa?: string | null;
+      description?: string | null;
+      name?: string | null;
+    } | null;
+  } = {},
+) {
   const now = new Date();
+  const { metadataOverride, ...agentOverrides } = overrides;
 
   return {
     id: `agent-${Math.random().toString(36).substring(7)}`,
@@ -20,38 +29,23 @@ function createMockAgent(overrides: Partial<Agent> = {}): Agent {
     updatedAt: now,
     blockchainIdentifier: `blockchain-${Math.random().toString(36).substring(7)}`,
     name: "Test Agent",
-    overrideName: null,
     description: "Test description",
-    overrideDescription: null,
     apiBaseUrl: "https://api.example.com",
-    overrideApiBaseUrl: null,
     capabilityName: "test-capability",
-    overrideCapabilityName: null,
     capabilityVersion: "1.0.0",
-    overrideCapabilityVersion: null,
     authorName: "Test Author",
-    overrideAuthorName: null,
     authorImage: null,
-    overrideAuthorImage: null,
     authorContactEmail: null,
-    overrideAuthorContactEmail: null,
     authorContactOther: null,
-    overrideAuthorContactOther: null,
     authorOrganization: null,
-    overrideAuthorOrganization: null,
     legalPrivacyPolicy: null,
-    overrideLegalPrivacyPolicy: null,
     legalDpa: null,
-    overrideLegalDpa: null,
     legalTerms: null,
-    overrideLegalTerms: null,
     legalOther: null,
-    overrideLegalOther: null,
     lastUptimeCheck: now,
     uptimeCount: 100,
     uptimeCheckCount: 100,
     image: "https://example.com/image.png",
-    overrideImage: null,
     icon: null,
     metadataVersion: 1,
     paymentType: "WEB3_CARDANO_V1",
@@ -60,7 +54,8 @@ function createMockAgent(overrides: Partial<Agent> = {}): Agent {
     isShown: true,
     riskClassification: "MINIMAL",
     summary: null,
-    ...overrides,
+    metadataOverride: metadataOverride ?? null,
+    ...agentOverrides,
   };
 }
 
@@ -88,7 +83,9 @@ describe("getAgentLegalFromAgent", () => {
       getAgentLegalFromAgent(
         createMockAgent({
           legalDpa: "https://example.com/dpa.pdf",
-          overrideLegalDpa: "https://example.com/override-dpa.pdf",
+          metadataOverride: {
+            legalDpa: "https://example.com/override-dpa.pdf",
+          },
         }),
       ),
     ).toEqual({
@@ -188,7 +185,9 @@ describe("getAgentTagsFromAgent", () => {
   it("prefers override tags when present", () => {
     const agent = {
       tags: [{ name: "base-tag" }],
-      overrideTags: [{ name: "override-tag" }],
+      metadataOverride: {
+        tags: [{ name: "override-tag" }],
+      },
     };
 
     expect(getAgentTagsFromAgent(agent)).toEqual(["override-tag"]);
@@ -197,7 +196,9 @@ describe("getAgentTagsFromAgent", () => {
   it("falls back to default tags when overrides are absent", () => {
     const agent = {
       tags: [{ name: "base-tag" }],
-      overrideTags: [],
+      metadataOverride: {
+        tags: [],
+      },
     };
 
     expect(getAgentTagsFromAgent(agent)).toEqual(["base-tag"]);
@@ -206,32 +207,23 @@ describe("getAgentTagsFromAgent", () => {
 
 describe("getAgentExampleOutputsFromAgent", () => {
   it("prefers override example outputs when present", () => {
-    const now = new Date("2026-03-17T10:00:00.000Z");
     const agent = {
       exampleOutput: [
         {
-          id: "example_base",
-          createdAt: now,
-          updatedAt: now,
           name: "Base output",
           mimeType: "image/png",
           url: "https://example.com/base.png",
-          agentId: "agent_123",
-          agentIdOverride: null,
         },
       ],
-      overrideExampleOutput: [
-        {
-          id: "example_override",
-          createdAt: now,
-          updatedAt: now,
-          name: "Override output",
-          mimeType: "image/png",
-          url: "https://example.com/override.png",
-          agentId: null,
-          agentIdOverride: "agent_123",
-        },
-      ],
+      metadataOverride: {
+        exampleOutputs: [
+          {
+            name: "Override output",
+            mimeType: "image/png",
+            url: "https://example.com/override.png",
+          },
+        ],
+      },
     };
 
     expect(getAgentExampleOutputsFromAgent(agent)).toEqual([

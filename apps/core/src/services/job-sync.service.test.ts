@@ -820,7 +820,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       agent: {
         id: "agent_1",
         name: "Planner",
-        overrideName: "Display Name",
+        metadataOverride: { name: "Display Name" },
         blockchainIdentifier: "agent-chain-1",
         authorContactEmail: null,
       },
@@ -909,7 +909,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       agent: {
         id: "agent_1",
         name: "Planner",
-        overrideName: "Display Name",
+        metadataOverride: { name: "Display Name" },
         blockchainIdentifier: "agent-chain-1",
         authorContactEmail: "author@example.com",
       },
@@ -982,7 +982,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       agent: {
         id: "agent_1",
         name: "Planner",
-        overrideName: "Display Name",
+        metadataOverride: { name: "Display Name" },
         blockchainIdentifier: "agent-chain-1",
         authorContactEmail: "author@example.com",
       },
@@ -1640,7 +1640,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       agent: {
         id: "agent_1",
         name: "Planner",
-        overrideName: "Display Name",
+        metadataOverride: { name: "Display Name" },
         blockchainIdentifier: "agent-chain-1",
         authorContactEmail: null,
       },

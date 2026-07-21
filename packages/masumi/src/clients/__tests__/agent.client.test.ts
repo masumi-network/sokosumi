@@ -18,7 +18,7 @@ function createAgent(overrides: Partial<Agent> = {}): Agent {
     name: "Test Agent",
     blockchainIdentifier: "blockchain-agent-1",
     apiBaseUrl: "https://agent.example.com",
-    overrideApiBaseUrl: null,
+    metadataOverride: null,
     ...overrides,
   };
 }

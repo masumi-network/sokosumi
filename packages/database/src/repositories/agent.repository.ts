@@ -150,7 +150,11 @@ export const agentRepository = {
   async getAvailableAgentsWithoutSummary(
     limit: number | null,
     tx: Prisma.TransactionClient,
-  ): Promise<Agent[]> {
+  ): Promise<
+    Prisma.AgentGetPayload<{
+      include: { metadataOverride: true };
+    }>[]
+  > {
     return await tx.agent.findMany({
       where: {
         status: "ONLINE",
@@ -158,8 +162,11 @@ export const agentRepository = {
         summary: null,
         OR: [
           { description: { not: null } },
-          { overrideDescription: { not: null } },
+          { metadataOverride: { description: { not: null } } },
         ],
+      },
+      include: {
+        metadataOverride: true,
       },
       take: limit ?? undefined,
     });

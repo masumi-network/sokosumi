@@ -407,7 +407,12 @@ export async function loadAgentPreviewsByIds(
   const agents = await prismaClient.agent
     .findMany({
       where: { id: { in: agentIds } },
-      select: { id: true, name: true, overrideName: true, icon: true },
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        metadataOverride: { select: { name: true } },
+      },
     })
     .catch((error) => {
       // Best-effort enrichment: degrade to null name/icon rather than failing

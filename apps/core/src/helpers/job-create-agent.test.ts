@@ -30,6 +30,21 @@ vi.mock("@/helpers/agent", () => ({
   buildAvailableAgentWhereClause: () => ({}),
   getAgentCost: getAgentCostMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+  toMasumiAgent: (agent: {
+    id: string;
+    name: string;
+    blockchainIdentifier: string;
+    apiBaseUrl: string;
+    metadataOverride?: { apiBaseUrl?: string | null } | null;
+  }) => ({
+    id: agent.id,
+    name: agent.name,
+    blockchainIdentifier: agent.blockchainIdentifier,
+    apiBaseUrl: agent.apiBaseUrl,
+    metadataOverride: agent.metadataOverride
+      ? { apiBaseUrl: agent.metadataOverride.apiBaseUrl }
+      : null,
+  }),
 }));
 
 vi.mock("@sokosumi/masumi", () => ({
@@ -79,7 +94,7 @@ function createAgentRecord() {
     name: "Agent One",
     description: "desc",
     apiBaseUrl: "https://agent.example.com",
-    overrideApiBaseUrl: null,
+    metadataOverride: null,
     blockchainIdentifier: "agent-chain",
     pricing: {
       pricingType: "FREE",
