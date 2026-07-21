@@ -40,7 +40,7 @@ interface ListAdminAgentsRequest
 export const listAdminAgentsAction = withSession<
   ListAdminAgentsRequest,
   Result<AdminAgentListPage, ActionError>
->(async ({ session, q, cursor, limit, sortBy, sortOrder }) => {
+>(async ({ session, q, cursor, limit, status, sortBy, sortOrder }) => {
   try {
     assertAdminSession(session);
     return Ok(
@@ -48,6 +48,7 @@ export const listAdminAgentsAction = withSession<
         q,
         cursor,
         limit,
+        status,
         sortBy,
         sortOrder,
       }),

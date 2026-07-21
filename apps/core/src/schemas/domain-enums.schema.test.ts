@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  AgentStatus,
   BlobStatus,
   Channel,
   InvitationStatus,
@@ -15,6 +16,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   agentJobStatusSchema,
+  agentStatusSchema,
   blobStatusSchema,
   channelSchema,
   INVITATION_DB_STATUS_VALUES,
@@ -41,6 +43,12 @@ describe("domain enum schemas", () => {
   it("named TaskStatus schema values match Prisma", () => {
     expect([...taskStatusSchema.options].sort()).toEqual(
       Object.values(TaskStatus).sort(),
+    );
+  });
+
+  it("named AgentStatus schema values match Prisma", () => {
+    expect([...agentStatusSchema.options].sort()).toEqual(
+      Object.values(AgentStatus).sort(),
     );
   });
 

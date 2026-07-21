@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { AgentStatus } from "@sokosumi/database";
 import { createMiddleware } from "hono/factory";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -210,6 +211,91 @@ describe("admin agents routes", () => {
       hasOverride: false,
       displayName: "Registry Name",
     });
+  });
+
+  it("filters agents by status query param", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?status=ONLINE");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: AgentStatus.ONLINE },
+      }),
+    );
+    expect(agentCountMock).toHaveBeenCalledWith({
+      where: { status: AgentStatus.ONLINE },
+    });
+  });
+
+  it("combines search and status filters in list where", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?q=research&status=OFFLINE",
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              OR: [
+                { name: { contains: "research", mode: "insensitive" } },
+                {
+                  blockchainIdentifier: {
+                    contains: "research",
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  metadataOverride: {
+                    is: {
+                      name: { contains: "research", mode: "insensitive" },
+                    },
+                  },
+                },
+              ],
+            },
+            { status: AgentStatus.OFFLINE },
+          ],
+        },
+      }),
+    );
+    expect(agentCountMock).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            OR: [
+              { name: { contains: "research", mode: "insensitive" } },
+              {
+                blockchainIdentifier: {
+                  contains: "research",
+                  mode: "insensitive",
+                },
+              },
+              {
+                metadataOverride: {
+                  is: {
+                    name: { contains: "research", mode: "insensitive" },
+                  },
+                },
+              },
+            ],
+          },
+          { status: AgentStatus.OFFLINE },
+        ],
+      },
+    });
+  });
+
+  it("rejects invalid status query param", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?status=UNKNOWN");
+
+    expect(response.status).toBe(422);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+    expect(agentCountMock).not.toHaveBeenCalled();
   });
 
   it("defaults list sort to createdAt desc with stable id tie-breaker", async () => {

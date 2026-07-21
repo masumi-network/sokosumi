@@ -2,6 +2,7 @@ import type { z } from "@hono/zod-openapi";
 import {
   type Agent,
   type AgentMetadataOverride,
+  type AgentStatus,
   agentExampleOutputInclude,
   agentTagsInclude,
   type Prisma,
@@ -219,11 +220,13 @@ export async function findAdminAgentIdsOrderedByDisplayName(
     take: number;
     cursor?: string;
     q?: string;
+    status?: AgentStatus;
   },
 ): Promise<string[]> {
   const direction = options.sortOrder === "asc" ? "ASC" : "DESC";
   const trimmed = options.q?.trim();
   const searchPattern = trimmed ? `%${escapeIlikeLiteral(trimmed)}%` : null;
+  const status = options.status ?? null;
 
   if (options.cursor) {
     const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
@@ -242,14 +245,16 @@ export async function findAdminAgentIdsOrderedByDisplayName(
           OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
           OR o.name ILIKE $1 ESCAPE '\\'
         )
+        AND ($2::"AgentStatus" IS NULL OR a.status = $2::"AgentStatus")
       )
       SELECT id
       FROM ordered
-      WHERE rn > (SELECT rn FROM ordered WHERE id = $2)
+      WHERE rn > (SELECT rn FROM ordered WHERE id = $3)
       ORDER BY rn
-      LIMIT $3
+      LIMIT $4
       `,
       searchPattern,
+      status,
       options.cursor,
       options.take,
     );
@@ -267,10 +272,12 @@ export async function findAdminAgentIdsOrderedByDisplayName(
       OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
       OR o.name ILIKE $1 ESCAPE '\\'
     )
+    AND ($2::"AgentStatus" IS NULL OR a.status = $2::"AgentStatus")
     ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
-    LIMIT $2
+    LIMIT $3
     `,
     searchPattern,
+    status,
     options.take,
   );
   return rows.map((row) => row.id);
@@ -297,6 +304,35 @@ export function buildAdminAgentSearchWhere(
       },
     ],
   };
+}
+
+export function buildAdminAgentListWhere({
+  q,
+  status,
+}: {
+  q?: string;
+  status?: AgentStatus;
+}): Prisma.AgentWhereInput | undefined {
+  const filters: Prisma.AgentWhereInput[] = [];
+
+  const searchWhere = buildAdminAgentSearchWhere(q);
+  if (searchWhere) {
+    filters.push(searchWhere);
+  }
+
+  if (status) {
+    filters.push({ status });
+  }
+
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  if (filters.length === 1) {
+    return filters[0];
+  }
+
+  return { AND: filters };
 }
 
 export async function resolveTagsByNames(

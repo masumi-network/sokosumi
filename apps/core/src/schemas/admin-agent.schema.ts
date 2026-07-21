@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { agentStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 export const adminAgentListSortBySchema = z
@@ -33,6 +34,11 @@ export const adminAgentListQuerySchema = cursorPaginationQuerySchema.extend({
         "Optional search on registry name, blockchain identifier, or override name",
       example: "research",
     }),
+  status: agentStatusSchema.optional().openapi({
+    param: { name: "status", in: "query" },
+    description: "Filter agents by registry status (omit for all)",
+    example: "ONLINE",
+  }),
   sortBy: adminAgentListSortBySchema,
   sortOrder: adminAgentListSortOrderSchema,
 });
@@ -96,7 +102,7 @@ export const adminAgentRegistrySchema = z
     legalOther: z.string().nullable(),
     image: z.string().nullable(),
     icon: z.string().nullable(),
-    status: z.string(),
+    status: agentStatusSchema,
     isShown: z.boolean(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
@@ -111,7 +117,7 @@ export const adminAgentListItemSchema = z
     hasOverride: z.boolean(),
     displayName: z.string(),
     displayImage: z.string().nullable(),
-    status: z.string(),
+    status: agentStatusSchema,
     isShown: z.boolean(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
