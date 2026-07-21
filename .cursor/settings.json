@@ -6,10 +6,10 @@
     "superpowers": {
       "enabled": true
     },
-    "cavekit-marketplace/ck": {
+    "docs-canvas": {
       "enabled": true
     },
-    "docs-canvas": {
+    "compound-engineering": {
       "enabled": true
     }
   }
