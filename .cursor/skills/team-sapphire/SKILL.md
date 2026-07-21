@@ -1,12 +1,16 @@
 ---
 name: team-sapphire
-description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), Reviewer — from requirement through PR with CI and Bugbot green. Use when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue has ## Requirement and they want the squad to implement it.
+description: >-
+  Sokosumi front door for one Linear issue — Investigator, Tech Lead, Coder,
+  Reviewer — through a green PR (CI + Bugbot). Use when the user says run
+  team-sapphire or Sapphire for SOK-XXX, or when a Linear issue has
+  ## Requirement and they want the squad to implement it.
 disable-model-invocation: true
 ---
 
 # Team Sapphire
 
-You are the **Sapphire orchestrator**. One Linear issue. Four phases. **Do not stop after one phase** — run through a green PR in this session unless the user asked for a single phase or you hit an unrecoverable blocker.
+You are the **Sapphire orchestrator** — Sokosumi front door for one Linear issue. Four phases. **Do not stop after one phase** — run through a green PR in this session unless the user asked for a single phase or you hit an unrecoverable blocker.
 
 ```mermaid
 flowchart LR
@@ -21,30 +25,38 @@ flowchart LR
 
 | Phase | Default runner | Subagent |
 |-------|----------------|----------|
-| Investigator | Orchestrator | — |
+| Investigator | Orchestrator | Prefer `cavecrew-investigator` for locate-only scouts |
 | Tech Lead | Orchestrator | Optional `sapphire-tech-lead` (inherits parent model) |
 | Coder | **Always** `sapphire-coder` | Required — pin `composer-2.5` |
 | Reviewer | Orchestrator | Optional `sapphire-reviewer` for UI-heavy `/goal` (inherits parent model) |
 
-**Models:** Only **Coder** pins a model (`composer-2.5` in agent frontmatter). Tech Lead / Reviewer omit `model` so Task inherits the orchestrator. When launching Coder via Task, always pass `model: composer-2.5`. Do **not** pass `model` for Tech Lead or Reviewer Tasks.
+**Models:** Only **Coder** pins `composer-2.5`. When launching Coder via Task, pass `model: composer-2.5`. Do **not** pass `model` for Tech Lead or Reviewer.
 
-**Orchestrator owns:** CI watch, Bugbot, PR readiness. Subagents never call Linear MCP.
+**Orchestrator owns:** CI watch, Bugbot 0 High, PR readiness. Subagents never call Linear MCP.
+
+**Default:** one coder, one PR. Sequential breakdown only when rubric score ≥ 2 (one branch). No parallel coder branches.
+
+## Token efficiency
+
+| Surface | Mode |
+|---------|------|
+| Chat → user | Caveman **full** |
+| Investigation | Path-first; caps in `ROLES.md` |
+| Spec | Lean tables — **not ultra** |
+| Returns | Structured keys; one-line `summary` |
+| Files | Load per phase only (table below) |
+
+**Do not:** Paste Investigation into PR; essay preambles; Spec on Linear; load `VISUAL-CAPTURE.md` unless UI in scope; load both `AGENTS.md` and `SKILL.md`.
 
 ## Linear — almost never
 
-The **pull request** is the report. Do **not** post phase comments, status tables, Investigation/Spec comments, or change issue state for a normal Sapphire run.
-
-**Write Linear only when the Requirement itself must change** (human-approved wording). Then `save_issue` / `save_comment` per `LINEAR.md`. Otherwise Linear is **read-only** (`get_issue` for `## Requirement`).
+PR is the report. **Write Linear only** when Requirement text must change (human-approved) — see `LINEAR.md`. Else read-only `get_issue` for `## Requirement`.
 
 ## Session artifacts
 
-Investigation and Spec stay **in this session** and pass phase to phase. Put a short Spec summary in the **PR body** (link the Linear issue). Do not write them to Linear.
+Investigation + Spec stay in session. PR body: issue link + Spec summary ≤8 lines.
 
 ## Subagent return shape
-
-Subagents return structured fields — **no** Linear MCP.
-
-**Coder / Reviewer:**
 
 ```text
 ok: true|false
@@ -56,75 +68,70 @@ summary: <one line>
 blocker: <text if ok false>
 ```
 
-**Tech Lead (optional):** `ok`, `spec` (full markdown), `summary`, `blocker`.
-
-Coder (sole): opens the PR; set `pushed: true` when the branch was pushed. Parallel: **push** named branch (no PR); orchestrator fetches and merges. Reviewer: `pushed: true` if commits landed on the PR branch.
+Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 ## Intake
 
-1. `get_issue` — require `## Requirement` (read-only).
-2. Start Investigator (or user’s explicit start phase). Resume from open PR / session context when continuing a run.
+1. `get_issue` — require `## Requirement`.
+2. Start Investigator (or user’s start phase). Resume from session / open PR when continuing.
 
 ## Resume
 
 | Condition | Action |
 |-----------|--------|
-| User asked for one phase only | Run that phase; stop |
-| Same session — investigation/spec already in context | Skip completed upstream phases |
-| New session — open PR for issue + user wants review only | Load Spec from PR body / re-run Tech Lead if missing; start Reviewer |
-| New session — no usable Spec | Re-run Investigator → Tech Lead before Coder |
-| PR open, CI/Bugbot incomplete | Finish quality gates, then Reviewer if needed |
-| Reviewer passed + CI green + Bugbot 0 High | Stop — await human merge |
-
-Then continue **all later phases** in this session.
+| One phase only | Run that phase; stop |
+| Same session — upstream done | Skip completed phases |
+| New session — review only + open PR | Spec from PR body / re-run Tech Lead if missing; Reviewer |
+| New session — no Spec | Investigator → Tech Lead → Coder |
+| PR open, gates incomplete | Finish CI + Bugbot, then Reviewer |
+| Reviewer pass + CI + Bugbot 0 High | Stop — await human merge |
 
 ## Phase 1 — Investigator
 
-1. Read `ROLES.md` (Investigator). Flag `BUGBOT-LEARNINGS.md` R1–R12 triggers.
-2. Keep investigation in session — pass to Tech Lead. **No Linear write.**
-3. Continue to Phase 2.
+1. `ROLES.md` (Investigator). Flag `BUGBOT-LEARNINGS.md` R1–R12.
+2. Session handoff → Tech Lead. No Linear write.
+3. Continue Phase 2.
 
 ## Phase 2 — Tech Lead
 
-1. Read `ROLES.md` (Tech Lead), `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`.
-2. Run on orchestrator (or optional `sapphire-tech-lead`). Full spec with **Data flow**. Default **one coder**.
-3. Keep Spec in session — pass to Coder/Reviewer. **No Linear write.**
-4. Continue to Phase 3.
+1. `ROLES.md` (Tech Lead), `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`.
+2. Spec with **Data flow**; enforce size caps. One coder default.
+3. Session handoff → Coder. No Linear write.
+4. Continue Phase 3.
 
 ## Phase 3 — Coder
 
-1. Read session Spec. Read `ROLES.md` (Coder) and `BUGBOT-LEARNINGS.md`.
-2. **Single coder (default):** Task `sapphire-coder` (`model: composer-2.5`) — implement, verify (exit 0), open **one PR** (body references issue id + short Spec summary).
-3. **Sequential multi-coder:** execution order on one branch; one PR at the end.
-4. **Parallel (`**Parallel:** true` + ownership table):** parallel Tasks — each pushes a named branch, no PR. Orchestrator fetch → merge → verify → one PR.
-5. **Quality gates (orchestrator):** CI green (`gh pr checks`) + Bugbot **0 High**. Fix High on branch; re-run until clear. Medium: note in PR body for human merge — do **not** post to Linear.
-6. Continue to Phase 4.
+1. Session Spec + `ROLES.md` (Coder) + `BUGBOT-LEARNINGS.md` self-check.
+2. Task `sapphire-coder` (`model: composer-2.5`) — implement, verify (exit 0), open **one PR**.
+3. Sequential multi-coder (rubric ≥ 2): same branch, one PR at end.
+4. **Gates (orchestrator):** CI green + Bugbot **0 High**. Medium → PR body only.
+5. Continue Phase 4.
 
 ## Phase 4 — Reviewer
 
-1. Entry: local verification exit 0, CI green, Bugbot 0 High — else return to Phase 3.
-2. Read session Spec + `ROLES.md` (Reviewer). UI: `VISUAL-CAPTURE.md`.
-3. `/goal` on orchestrator (or optional `sapphire-reviewer`). Fix on PR branch when needed.
-4. If Reviewer pushed: re-run Bugbot 0 High + confirm CI green.
-5. On pass: stop. Human merges the PR. **No Linear state change.** Do not mark issue **Done**.
+1. Entry: local verify exit 0, CI green, Bugbot 0 High — else Phase 3.
+2. Session Spec + `ROLES.md` (Reviewer). UI: `VISUAL-CAPTURE.md`.
+3. `/goal` until pass. Fix on PR branch when needed.
+4. If pushed: re-run Bugbot 0 High + CI green.
+5. Pass → stop. Human merges. No Linear state change.
 
 ## Stop early only when
 
-- User asked for a single phase
-- PR already ready (Reviewer pass + CI + Bugbot 0 High) — await merge
-- Unrecoverable blocker — report what finished, issue URL, PR URL if any
+- User asked for one phase
+- PR already ready — await merge
+- Unrecoverable blocker — report finished work + URLs
 
 ## Output to user
 
-Return issue id/URL, phases completed, **PR link**, CI/Bugbot summary. That is the handoff — not Linear comments.
+Issue id/URL, phases done, **PR link**, CI/Bugbot summary. Caveman full.
 
-## Supporting files (read when needed)
+## Supporting files
 
 | File | When |
 |------|------|
-| `ROLES.md` | Each phase |
-| `LINEAR.md` | Only if Requirement text must change |
+| `ROLES.md` | Each phase (that role only) |
+| `LINEAR.md` | Requirement text must change |
 | `SPEC-TEMPLATE.md` / `SUBAGENT-RUBRIC.md` | Tech Lead |
-| `BUGBOT-LEARNINGS.md` | Investigator flags; Bugbot gates |
-| `VISUAL-CAPTURE.md` | Reviewer UI evidence |
-| `CURSOR-AUTOMATION.md` | Optional Cloud trigger setup |
+| `BUGBOT-LEARNINGS.md` | Investigator flags; Coder self-check; Bugbot gates |
+| `VISUAL-CAPTURE.md` | Reviewer UI only |
+| `AGENTS.md` | Skip if `SKILL.md` loaded |

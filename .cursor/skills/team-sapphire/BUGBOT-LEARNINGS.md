@@ -1,12 +1,12 @@
 # Bugbot learnings (Sapphire quality rules)
 
-Distilled from high/medium Bugbot findings on `masumi-network/sokosumi` and local review sessions. Use these to prevent regressions before Reviewer runs.
+Distilled from high/medium Bugbot findings on `masumi-network/sokosumi`. Prevent regressions before Reviewer.
 
-**Mandatory gates (orchestrator after PR open — before Reviewer):** CI green + Bugbot 0 High. See `SKILL.md` Phase 3. Do **not** post Bugbot results to Linear — note Medium findings in the PR body for human merge.
+**Mandatory gates** (orchestrator after PR open — before Reviewer): CI green + Bugbot 0 High. See `SKILL.md` Phase 3. Do **not** post Bugbot to Linear — note Medium in PR body for human merge.
 
 ## Quality rules (R1–R12)
 
-Apply when the **trigger** matches the work. Investigator flags risks; Tech Lead encodes contracts; Coder implements; Reviewer verifies in `/goal`.
+Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder implements; Reviewer checks in `/goal`.
 
 ### R1 — Mutation order and atomicity
 
@@ -14,8 +14,8 @@ Apply when the **trigger** matches the work. Investigator flags risks; Tech Lead
 
 - **Investigator:** Map mutation order; flag partial-failure (orphan records, billing drift).
 - **Tech Lead:** **Mutation order** table — step, rollback on failure, user-visible error.
-- **Coder:** Dependent writes atomic or compensated; no success if a later step failed.
-- **Reviewer:** Failure-path check in `/goal` (e.g. schedule fails → no stray task).
+- **Coder:** Dependent writes atomic or compensated; no success if later step failed.
+- **Reviewer:** Failure-path in `/goal` (e.g. schedule fails → no stray task).
 
 ### R2 — Single source of truth for status
 
@@ -118,7 +118,7 @@ Apply when the **trigger** matches the work. Investigator flags risks; Tech Lead
 
 ## Mandatory Bugbot (before Reviewer)
 
-**Gate runner** (orchestrator in squad mode; standalone Coder when invoked alone) runs **one Bugbot review** per PR before Reviewer (after the PR exists). **Re-run** after Reviewer pushes commits — zero High required before declaring the PR ready. Launch a **Task** subagent — do not assume a repo-local skill file:
+**Gate runner** (orchestrator in squad mode; standalone Coder when alone) runs **one Bugbot review** per PR before Reviewer. **Re-run** after Reviewer pushes — zero High before PR ready. Launch Task subagent — do not assume repo-local skill file:
 
 | Field | Value |
 |-------|-------|
@@ -134,17 +134,17 @@ Full Repository Path: <absolute repository root>
 Diff: branch changes
 ```
 
-In Cursor IDE, `/review-bugbot` runs the same flow when the editor skill is installed — either path is valid. If the subagent cannot compute the diff, retry once with `Diff: natural language` and a per-file change description (see `review-bugbot` skill retry rules).
+In Cursor IDE, `/review-bugbot` same flow when editor skill installed. If subagent cannot compute diff, retry once with `Diff: natural language` + per-file change description (see `review-bugbot` skill retry rules).
 
 | Severity | Action |
 |----------|--------|
-| **High** | **Must fix** on the PR branch. Re-run Bugbot until **zero High** findings. |
-| **Medium** | **Do not block** Reviewer. Note in the **PR body** for human merge — not Linear. Fix in PR only if trivial and in scope. |
+| **High** | **Must fix** on PR branch. Re-run until **zero High**. |
+| **Medium** | **Do not block** Reviewer. Note in **PR body** for human merge — not Linear. Fix in PR only if trivial and in scope. |
 | **Low** | Optional note; no gate. |
 
 ### Medium findings — PR body only
 
-When Bugbot reports ≥1 Medium, add a short table to the **PR description** (or a PR comment). Do **not** post to Linear.
+When Bugbot reports ≥1 Medium, add short table to **PR description** (or PR comment). Do **not** post to Linear.
 
 ```markdown
 ### Bugbot medium (human review)
@@ -154,15 +154,15 @@ When Bugbot reports ≥1 Medium, add a short table to the **PR description** (or
 | `path:line` | … |
 ```
 
-Skip when there are no medium findings.
+Skip when no medium findings.
 
-If Bugbot cannot run (subagent failure after retry), **stop before Reviewer** and report the blocker.
+If Bugbot cannot run (subagent failure after retry), **stop before Reviewer** and report blocker.
 
 ## Coder self-check (before Bugbot)
 
-Answer for each triggered rule (R1–R12). Fix obvious gaps before opening or updating the PR.
+Answer each triggered rule (R1–R12). Fix obvious gaps before open/update PR.
 
-1. Multi-step writes — order and failure behavior defined and implemented?
+1. Multi-step writes — order + failure behavior defined and implemented?
 2. Status — one resolver; no stale toggle after schedule/status API?
 3. Updates — no blind re-PUT of unchanged schedule/metadata?
 4. Time — TZ documented and used consistently?

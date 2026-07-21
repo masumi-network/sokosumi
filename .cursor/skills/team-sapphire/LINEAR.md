@@ -1,10 +1,10 @@
 # Linear — Team Sapphire
 
-Linear is **read-only** for a normal Sapphire run. The **PR** is the report.
+Linear is **read-only** for a normal Sapphire run. The **PR** is the report. Load this file **only** when Requirement text must change.
 
 ## When to write
 
-Only when the **`## Requirement` text itself must change** (human-approved product wording).
+Only when **`## Requirement` text itself must change** (human-approved product wording).
 
 Then:
 
@@ -23,7 +23,7 @@ Then:
 
 ## Read
 
-`get_issue` for `## Requirement` at intake. If Linear MCP is missing and you only need the requirement from the user message, continue; if you cannot read the issue and have no Requirement text, stop:
+`get_issue` for `## Requirement` at intake. If Linear MCP missing and Requirement is in the user message, continue; if you cannot read the issue and have no Requirement text, stop:
 
 ```text
 Linear MCP is not loaded. Enable Linear MCP, or paste the ## Requirement into chat.
