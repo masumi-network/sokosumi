@@ -11,9 +11,9 @@ Add `Current state` / `Target architecture` when any true:
 - Changes data movement across layers (API, table, route, service, external)
 - Replaces/removes UX, endpoints, jobs, cron, or storage
 - User asked for architecture comparison
-- Meaningful before/after shape
+- Touches ≥2 layers with a before/after contract change
 
-Skip for: copy, UI polish, obvious local bugfix, tests-only, docs-only.
+Skip for: copy-only, CSS/layout-only polish, single-file bug fix with no API/schema change, tests-only, docs-only.
 
 ## Coder scoring
 
@@ -29,7 +29,7 @@ Skip for: copy, UI polish, obvious local bugfix, tests-only, docs-only.
 | Score | Output |
 |-------|--------|
 | 0–1 | **Single coder.** No breakdown. |
-| 2+ | **Coder breakdown** — **sequential** on one branch (foundations first). One PR at end. |
+| 2+ | **Coder breakdown** — **sequential** on one branch (foundations first). Orchestrator opens one PR after the last coder. |
 
 Do **not** use parallel coder branches.
 
