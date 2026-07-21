@@ -155,11 +155,24 @@ export default function RunningState({
     setMessages,
   });
 
+  // Derived before useChatScroll so the content ResizeObserver re-attaches
+  // when WelcomeBlock ↔ ChatTimeline swaps (cards alone can flip isEmpty).
+  const persistedResolvedIds = getPersistedResolvedIds(messages);
+  const pendingCards = getPendingCards(
+    instance?.pendingConfirmations,
+    mockConfirmations,
+    resolvedConfirmations,
+    persistedResolvedIds,
+  );
+  const resolvedCards = Array.from(resolvedConfirmations.values());
+  const isEmpty = isChatEmpty(messages, pendingCards, resolvedCards);
+
   const { scrollerRef, atBottom, handleScrollerScroll, scrollToBottom } =
     useChatScroll({
       messages,
       isReplying,
       streamingId,
+      isEmpty,
     });
 
   useEffect(() => {
@@ -218,16 +231,7 @@ export default function RunningState({
   );
 
   const firstName = userName?.split(" ")[0] ?? null;
-  const persistedResolvedIds = getPersistedResolvedIds(messages);
-  const pendingCards = getPendingCards(
-    instance?.pendingConfirmations,
-    mockConfirmations,
-    resolvedConfirmations,
-    persistedResolvedIds,
-  );
-  const resolvedCards = Array.from(resolvedConfirmations.values());
   const timeline = buildTimeline(messages, resolvedConfirmations);
-  const isEmpty = isChatEmpty(messages, pendingCards, resolvedCards);
   const orbMotion = personalityToOrbMotion(instance?.personality);
 
   return (

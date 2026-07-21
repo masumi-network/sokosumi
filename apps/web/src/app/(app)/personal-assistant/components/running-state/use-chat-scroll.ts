@@ -1,21 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { JUMP_TO_LATEST_PX, NEAR_BOTTOM_PX } from "./constants";
 import type { Message } from "./types";
 
 interface UseChatScrollOptions {
   messages: Message[];
   isReplying: boolean;
   streamingId: string | null;
+  /**
+   * True when the scroller shows WelcomeBlock instead of ChatTimeline.
+   * Used only to re-attach the content ResizeObserver when that child swaps.
+   */
+  isEmpty: boolean;
+}
+
+function distanceFromBottom(el: HTMLElement): number {
+  return el.scrollHeight - el.scrollTop - el.clientHeight;
 }
 
 export function useChatScroll({
   messages,
   isReplying,
   streamingId,
+  isEmpty,
 }: UseChatScrollOptions) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const prevMessagesLengthRef = useRef(0);
+  // Sticky flag measured *before* content grows — measuring after a large
+  // ResizeObserver jump can make the user look scrolled-up even when they
+  // were pinned, which would drop follow for that frame.
+  const stickToBottomRef = useRef(true);
 
   // Auto-scroll to bottom on new messages (or when typing indicator flips on).
   // Two exceptions:
@@ -33,21 +48,21 @@ export function useChatScroll({
     if (!el) return;
     const id = requestAnimationFrame(() => {
       el.scrollTop = el.scrollHeight;
+      stickToBottomRef.current = true;
     });
     return () => cancelAnimationFrame(id);
   }, [messages.length, isReplying]);
 
-  // Follow the answer as it streams in — but only if the user is already near
-  // the bottom, so scrolling up to re-read isn't hijacked mid-stream.
+  // Follow the answer as it streams in — but only if the user is already
+  // sticky near the bottom, so scrolling up to re-read isn't hijacked.
   const streamingContentLength = streamingId
     ? (messages.find((m) => m.id === streamingId)?.content.length ?? 0)
     : 0;
   useEffect(() => {
     if (!streamingId) return;
     const el = scrollerRef.current;
-    if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-    if (nearBottom) el.scrollTop = el.scrollHeight;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
   }, [streamingId, streamingContentLength]);
 
   // Follow height changes the two effects above can't see: the reasoning
@@ -55,27 +70,26 @@ export function useChatScroll({
   // adding a message or lengthening the streamed text, and at turn end they
   // collapse back into the message's step disclosure (content shrinks).
   // A ResizeObserver on the scroller's content keeps the viewport pinned
-  // through all of that — but only while the user is already near the
-  // bottom, so scrolled-up readers are never hijacked. Re-attached when the
-  // scroller's child swaps between WelcomeBlock and ChatTimeline.
-  const hasMessages = messages.length > 0;
+  // while the sticky flag is set. Re-attached when WelcomeBlock ↔
+  // ChatTimeline swaps (`isEmpty`).
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const content = el.firstElementChild;
     if (!content) return;
     const observer = new ResizeObserver(() => {
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-      if (nearBottom) el.scrollTop = el.scrollHeight;
+      if (stickToBottomRef.current) el.scrollTop = el.scrollHeight;
     });
     observer.observe(content);
     return () => observer.disconnect();
-  }, [hasMessages]);
+  }, [isEmpty]);
 
   const handleScrollerScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const el = e.currentTarget;
-      setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+      const distance = distanceFromBottom(el);
+      stickToBottomRef.current = distance < NEAR_BOTTOM_PX;
+      setAtBottom(distance < JUMP_TO_LATEST_PX);
     },
     [],
   );
@@ -84,6 +98,7 @@ export function useChatScroll({
     const el = scrollerRef.current;
     if (el) {
       el.scrollTop = el.scrollHeight;
+      stickToBottomRef.current = true;
       setAtBottom(true);
     }
   }, []);
