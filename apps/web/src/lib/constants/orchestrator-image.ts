@@ -1,0 +1,13 @@
+import {
+  ORCHESTRATOR_IMAGE_ALLOWED_MIME_TYPES,
+  ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
+} from "@sokosumi/utils";
+
+export {
+  ORCHESTRATOR_IMAGE_ALLOWED_MIME_TYPES,
+  ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
+};
+
+/** Comma-separated accept string for HTML file input / FileUpload. */
+export const ORCHESTRATOR_IMAGE_ACCEPT =
+  ORCHESTRATOR_IMAGE_ALLOWED_MIME_TYPES.join(",");

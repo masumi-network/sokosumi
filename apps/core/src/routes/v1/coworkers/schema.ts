@@ -26,10 +26,6 @@ const coworkerEditableFieldsSchema = z.object({
     .min(1)
     .nullish()
     .openapi({ example: "Ops helper" }),
-  image: z
-    .httpUrl()
-    .nullish()
-    .openapi({ example: "https://example.com/logo.png" }),
   priority: z.number().int().optional().openapi({
     example: 10,
     description: "Admin only. Higher numbers sort first in coworker lists.",
@@ -37,13 +33,15 @@ const coworkerEditableFieldsSchema = z.object({
   metadata: coworkerMetadataSchema.nullish(),
 });
 
-export const createCoworkerRequestSchema = coworkerEditableFieldsSchema.extend({
-  vendorId: z.string().min(1).openapi({
-    example: "01960001-0001-7001-8001-000000000001",
-    description: "Vendor that owns this coworker.",
-  }),
-  capabilities: coworkerCapabilitiesSchema.optional().default([]),
-});
+export const createCoworkerRequestSchema = coworkerEditableFieldsSchema
+  .extend({
+    vendorId: z.string().min(1).openapi({
+      example: "01960001-0001-7001-8001-000000000001",
+      description: "Vendor that owns this coworker.",
+    }),
+    capabilities: coworkerCapabilitiesSchema.optional().default([]),
+  })
+  .strict();
 
 export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
   .extend({
@@ -59,7 +57,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.baseURL !== undefined ||
       data.description !== undefined ||
       data.capabilities !== undefined ||
-      data.image !== undefined ||
       data.priority !== undefined ||
       data.metadata !== undefined,
     {
@@ -71,7 +68,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "baseURL",
         "description",
         "capabilities",
-        "image",
         "priority",
         "metadata",
       ],

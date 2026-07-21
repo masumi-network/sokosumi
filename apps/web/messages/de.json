@@ -2885,13 +2885,21 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
-          "agents": {
-            "title": "Agenten",
-            "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
+          "orchestrators": {
+            "title": "Orchestratoren",
+            "description": "Anzeigemetadaten für First-Party-Orchestratoren bearbeiten."
           },
           "freeCredits": {
             "title": "Kostenlose Credits",
             "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Anzeigenamen, Untertitel, Beschreibungen und Bilder aktiver Coworker bearbeiten."
+          },
+          "agents": {
+            "title": "Agenten",
+            "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
           }
         }
       },
@@ -3070,6 +3078,195 @@
           "openInStripe": "In Stripe öffnen"
         }
       },
+      "Tasks": {
+        "title": "Aufgaben",
+        "description": "Durchsuchbare Liste aller Aufgaben",
+        "TaskList": {
+          "searchPlaceholder": "Nach Aufgabe, Benutzer oder Organisation suchen…",
+          "totalCount": "{count, plural, one {# Aufgabe} other {# Aufgaben}}",
+          "empty": "Keine Aufgaben gefunden.",
+          "task": "Aufgabe",
+          "user": "Benutzer",
+          "organization": "Organisation",
+          "status": "Status",
+          "created": "Erstellt",
+          "loadMore": "Mehr laden",
+          "loadError": "Aufgaben konnten nicht geladen werden."
+        },
+        "TaskDetail": {
+          "backToList": "Zurück zu Aufgaben",
+          "personalWorkspace": "Persönlicher Workspace"
+        }
+      },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Aktive Coworkers auflisten und ihre Darstellung in Sokosumi bearbeiten.",
+        "loadFailed": "Coworkers konnten nicht geladen werden.",
+        "backToList": "Zurück zur Liste",
+        "editTitle": "Coworker bearbeiten",
+        "editDescription": "Anzeigefelder für Marktplatz und Produkt aktualisieren.",
+        "Table": {
+          "name": "Name",
+          "slug": "Slug",
+          "caption": "Untertitel",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Nicht whitelisted",
+          "priority": "Priorität",
+          "actions": "Aktionen",
+          "edit": "Bearbeiten",
+          "empty": "Keine aktiven Coworkers gefunden.",
+          "searchPlaceholder": "Nach Name, Slug, Bildunterschrift oder Vendor suchen…",
+          "totalCount": "{count, plural, one {# Coworker} other {# Coworker}}",
+          "filteredCount": "{shown} von {total} angezeigt",
+          "emptySearch": "Keine Coworker entsprechen der Suche."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Name"
+            },
+            "caption": {
+              "label": "Untertitel"
+            },
+            "description": {
+              "label": "Beschreibung"
+            }
+          },
+          "image": {
+            "label": "Bild",
+            "description": "PNG, JPEG, WebP oder GIF bis 2 MB.",
+            "upload": "Bild hochladen",
+            "replace": "Bild ersetzen",
+            "remove": "Bild entfernen",
+            "previewAlt": "Vorschau des Coworker-Bildes",
+            "fileTooLarge": "Das Bild darf höchstens 2 MB groß sein.",
+            "fileTypeNotAccepted": "Verwende PNG, JPEG, WebP oder GIF.",
+            "maxFilesExceeded": "Lade jeweils nur ein Bild hoch.",
+            "uploadError": "Das ausgewählte Bild konnte nicht verarbeitet werden."
+          },
+          "saveChanges": "Änderungen speichern",
+          "saving": "Speichern…",
+          "cancel": "Abbrechen",
+          "validation": {
+            "nameMinLength": "Der Name muss mindestens {min} Zeichen haben.",
+            "noChanges": "Keine Änderungen zum Speichern.",
+            "captionMaxLength": "Die Bildunterschrift darf höchstens {max} Zeichen lang sein."
+          },
+          "success": {
+            "saved": "Coworker aktualisiert.",
+            "imageSaved": "Bild gespeichert.",
+            "imageRemoved": "Bild entfernt."
+          },
+          "errors": {
+            "saveFailed": "Coworker konnte nicht gespeichert werden.",
+            "notFound": "Coworker nicht gefunden.",
+            "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Anbieter",
+          "priority": "Priorität",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Nicht whitelisted"
+        }
+      },
+      "FreeCredits": {
+        "title": "Kostenlose Credits",
+        "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren. Credits werden sofort gutgeschrieben.",
+        "backToAdmin": "Zurück zur Administration",
+        "Form": {
+          "Fields": {
+            "target": "Empfänger",
+            "credits": "Credits",
+            "expiryDays": "Ablauf (Tage)",
+            "referenceNote": "Referenznotiz"
+          },
+          "Tabs": {
+            "organization": "Organisation",
+            "user": "Benutzer"
+          },
+          "targetRequired": "Empfänger auswählen",
+          "creditsRequired": "Positive Anzahl von Credits eingeben",
+          "creditsHelper": "Anzahl der Credits, die dem Empfänger gewährt werden.",
+          "expiryHelper": "Optional. Tage bis zum Ablauf der Credits. Leer lassen für kein Ablaufdatum.",
+          "expiryPlaceholder": "Kein Ablauf",
+          "expiryInvalid": "Der Ablauf muss eine positive ganze Zahl von Tagen sein",
+          "referenceNoteHelper": "Optionale Notiz, die am Credit-Bucket zur internen Referenz gespeichert wird.",
+          "referenceNotePlaceholder": "z. B. Abrechnungsproblem, Kulanz",
+          "submit": "Credits gewähren",
+          "submitting": "Credits werden gewährt…",
+          "grantSuccess": "Kostenlose Credits gewährt",
+          "grantError": "Kostenlose Credits konnten nicht gewährt werden"
+        }
+      },
+      "Orchestrators": {
+        "title": "Orchestratoren",
+        "description": "Anzeigemetadaten für First-Party-Orchestratoren verwalten.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# Orchestrator} other {# Orchestratoren}}",
+          "empty": "Keine Orchestratoren gefunden.",
+          "orchestrator": "Orchestrator",
+          "slug": "Slug",
+          "caption": "Untertitel",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "Orchestrator bearbeiten",
+          "backToList": "Zurück zu Orchestratoren"
+        },
+        "EditForm": {
+          "submit": "Änderungen speichern",
+          "submitting": "Wird gespeichert…",
+          "image": {
+            "label": "Bild",
+            "description": "PNG, JPEG, WebP oder GIF bis 2 MB.",
+            "upload": "Bild hochladen",
+            "replace": "Bild ersetzen",
+            "remove": "Bild entfernen",
+            "previewAlt": "Vorschau des Orchestrator-Bildes",
+            "fileTooLarge": "Das Bild darf höchstens 2 MB groß sein.",
+            "fileTypeNotAccepted": "Verwende PNG, JPEG, WebP oder GIF.",
+            "maxFilesExceeded": "Lade jeweils nur ein Bild hoch.",
+            "uploadError": "Das ausgewählte Bild konnte nicht verarbeitet werden."
+          },
+          "fields": {
+            "name": {
+              "label": "Name",
+              "description": "Wird überall angezeigt, wo der Orchestrator aufgeführt ist."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Schreibgeschützte Kennung für URLs und APIs."
+            },
+            "caption": {
+              "label": "Untertitel",
+              "description": "Kurze Zeile unter dem Namen. Leer lassen zum Löschen."
+            },
+            "description": {
+              "label": "Beschreibung",
+              "description": "Längerer Text für Detailansichten. Leer lassen zum Löschen."
+            }
+          },
+          "validation": {
+            "nameMinLength": "Der Name muss mindestens {min} Zeichen haben.",
+            "noChanges": "Keine Änderungen zum Speichern."
+          },
+          "success": {
+            "saved": "Orchestrator aktualisiert.",
+            "imageSaved": "Bild gespeichert.",
+            "imageRemoved": "Bild entfernt."
+          },
+          "errors": {
+            "saveFailed": "Orchestrator konnte nicht gespeichert werden.",
+            "notFound": "Orchestrator nicht gefunden.",
+            "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
+          }
+        }
+      },
       "Agents": {
         "title": "Agenten",
         "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten.",
@@ -3129,55 +3326,6 @@
           },
           "hasOverride": "Überschreibungszeile vorhanden",
           "noOverride": "Nur Registry-Werte"
-        }
-      },
-      "Tasks": {
-        "title": "Aufgaben",
-        "description": "Durchsuchbare Liste aller Aufgaben",
-        "TaskList": {
-          "searchPlaceholder": "Nach Aufgabe, Benutzer oder Organisation suchen…",
-          "totalCount": "{count, plural, one {# Aufgabe} other {# Aufgaben}}",
-          "empty": "Keine Aufgaben gefunden.",
-          "task": "Aufgabe",
-          "user": "Benutzer",
-          "organization": "Organisation",
-          "status": "Status",
-          "created": "Erstellt",
-          "loadMore": "Mehr laden",
-          "loadError": "Aufgaben konnten nicht geladen werden."
-        },
-        "TaskDetail": {
-          "backToList": "Zurück zu Aufgaben",
-          "personalWorkspace": "Persönlicher Workspace"
-        }
-      },
-      "FreeCredits": {
-        "title": "Kostenlose Credits",
-        "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren. Credits werden sofort gutgeschrieben.",
-        "backToAdmin": "Zurück zur Administration",
-        "Form": {
-          "Fields": {
-            "target": "Empfänger",
-            "credits": "Credits",
-            "expiryDays": "Ablauf (Tage)",
-            "referenceNote": "Referenznotiz"
-          },
-          "Tabs": {
-            "organization": "Organisation",
-            "user": "Benutzer"
-          },
-          "targetRequired": "Empfänger auswählen",
-          "creditsRequired": "Positive Anzahl von Credits eingeben",
-          "creditsHelper": "Anzahl der Credits, die dem Empfänger gewährt werden.",
-          "expiryHelper": "Optional. Tage bis zum Ablauf der Credits. Leer lassen für kein Ablaufdatum.",
-          "expiryPlaceholder": "Kein Ablauf",
-          "expiryInvalid": "Der Ablauf muss eine positive ganze Zahl von Tagen sein",
-          "referenceNoteHelper": "Optionale Notiz, die am Credit-Bucket zur internen Referenz gespeichert wird.",
-          "referenceNotePlaceholder": "z. B. Abrechnungsproblem, Kulanz",
-          "submit": "Credits gewähren",
-          "submitting": "Credits werden gewährt…",
-          "grantSuccess": "Kostenlose Credits gewährt",
-          "grantError": "Kostenlose Credits konnten nicht gewährt werden"
         }
       }
     },

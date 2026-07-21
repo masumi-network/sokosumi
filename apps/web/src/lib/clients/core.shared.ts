@@ -33,9 +33,11 @@ import type {
   MarkHermesInboxSeenRequest,
   Notice,
   PaginationMetadata,
+  PatchCoworkersByIdData,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
+  PatchOrchestratorsByIdData,
   PatchProjectsByIdData,
   PatchTasksByIdData,
   PostAgentsByIdJobsData,
@@ -64,10 +66,12 @@ import {
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteOrchestratorsByIdImage as coreDeleteOrchestratorsByIdImage,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
@@ -96,6 +100,7 @@ import {
   getConversationsByIdWarmup as coreGetConversationsByIdWarmup,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
+  getCoworkersById as coreGetCoworkersById,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getEnterpriseContracts as coreGetEnterpriseContracts,
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
@@ -118,6 +123,8 @@ import {
   getJobsById as coreGetJobsById,
   getNotifications as coreGetNotifications,
   getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
+  getOrchestrators as coreGetOrchestrators,
+  getOrchestratorsById as coreGetOrchestratorsById,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
@@ -162,18 +169,21 @@ import {
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchCoworkersById as corePatchCoworkersById,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
+  patchOrchestratorsById as corePatchOrchestratorsById,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
+  postCoworkersByIdImage as corePostCoworkersByIdImage,
   postEnterpriseContracts as corePostEnterpriseContracts,
   postEnterpriseContractsByIdActivate as corePostEnterpriseContractsByIdActivate,
   postEnterpriseContractsByIdCancel as corePostEnterpriseContractsByIdCancel,
@@ -188,6 +198,7 @@ import {
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
+  postOrchestratorsByIdImage as corePostOrchestratorsByIdImage,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
   postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
@@ -985,6 +996,75 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to delete agent metadata override",
+    );
+  }
+
+  async function listOrchestrators() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrchestrators({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to list orchestrators",
+    );
+  }
+
+  async function getOrchestratorById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrchestratorsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch orchestrator",
+    );
+  }
+
+  async function patchOrchestratorById(
+    id: string,
+    body: NonNullable<PatchOrchestratorsByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchOrchestratorsById({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update orchestrator",
+    );
+  }
+
+  async function uploadOrchestratorImage(id: string, file: Blob | File) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrchestratorsByIdImage({
+          client,
+          path: { id },
+          body: { file },
+          cache: "no-store",
+        }),
+      "Failed to upload orchestrator image",
+    );
+  }
+
+  async function deleteOrchestratorImage(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteOrchestratorsByIdImage({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to remove orchestrator image",
     );
   }
 
@@ -2143,6 +2223,62 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getCoworkerById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkersById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch coworker",
+    );
+  }
+
+  async function patchCoworker(
+    id: string,
+    body: NonNullable<PatchCoworkersByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchCoworkersById({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update coworker",
+    );
+  }
+
+  async function uploadCoworkerImage(id: string, file: Blob | File) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostCoworkersByIdImage({
+          client,
+          path: { id },
+          body: { file },
+          cache: "no-store",
+        }),
+      "Failed to upload coworker image",
+    );
+  }
+
+  async function deleteCoworkerImage(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteCoworkersByIdImage({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to remove coworker image",
+    );
+  }
+
   async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
     const response = await executeOperation(
       getClient,
@@ -3048,12 +3184,21 @@ export function createCoreClient(getClient: GetClient) {
     createAgentRating,
     getCategories,
     getCoworkers,
+    getCoworkerById,
+    patchCoworker,
+    uploadCoworkerImage,
+    deleteCoworkerImage,
     searchAdminUsers,
     listAdminUsers,
     listAdminAgents,
     getAdminAgent,
     patchAdminAgentMetadataOverride,
     deleteAdminAgentMetadataOverride,
+    listOrchestrators,
+    getOrchestratorById,
+    patchOrchestratorById,
+    uploadOrchestratorImage,
+    deleteOrchestratorImage,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,

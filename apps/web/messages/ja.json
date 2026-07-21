@@ -2920,9 +2920,17 @@
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
           },
+          "orchestrators": {
+            "title": "オーケストレーター",
+            "description": "自社オーケストレーターの表示メタデータを編集します。"
+          },
           "freeCredits": {
             "title": "無料クレジット",
             "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "アクティブな Coworker の表示名、キャプション、説明、画像を編集します。"
           }
         }
       },
@@ -3182,6 +3190,82 @@
           "personalWorkspace": "個人ワークスペース"
         }
       },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "アクティブな Coworker を一覧表示し、Sokosumi での表示を編集します。",
+        "loadFailed": "Coworker の読み込みに失敗しました。",
+        "backToList": "一覧に戻る",
+        "editTitle": "Coworker を編集",
+        "editDescription": "マーケットプレイスとプロダクトに表示される項目を更新します。",
+        "Table": {
+          "name": "名前",
+          "slug": "スラッグ",
+          "caption": "キャプション",
+          "whitelist": "ホワイトリスト",
+          "whitelisted": "ホワイトリスト済み",
+          "notWhitelisted": "未登録",
+          "priority": "優先度",
+          "actions": "操作",
+          "edit": "編集",
+          "empty": "アクティブな Coworker が見つかりません。",
+          "searchPlaceholder": "名前、スラッグ、キャプション、ベンダーで検索…",
+          "totalCount": "{count} 件のコワーカー",
+          "filteredCount": "{total} 件中 {shown} 件を表示",
+          "emptySearch": "検索に一致するコワーカーはありません。"
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "名前"
+            },
+            "caption": {
+              "label": "キャプション"
+            },
+            "description": {
+              "label": "説明"
+            }
+          },
+          "image": {
+            "label": "画像",
+            "description": "PNG、JPEG、WebP、または GIF（最大 2 MB）。",
+            "upload": "画像をアップロード",
+            "replace": "画像を差し替え",
+            "remove": "画像を削除",
+            "previewAlt": "Coworker 画像のプレビュー",
+            "fileTooLarge": "画像は 2 MB 以下にしてください。",
+            "fileTypeNotAccepted": "PNG、JPEG、WebP、または GIF を使用してください。",
+            "maxFilesExceeded": "一度に 1 枚の画像をアップロードしてください。",
+            "uploadError": "選択した画像を処理できませんでした。"
+          },
+          "saveChanges": "変更を保存",
+          "saving": "保存中…",
+          "cancel": "キャンセル",
+          "validation": {
+            "nameMinLength": "名前は {min} 文字以上にしてください。",
+            "noChanges": "保存する変更はありません。",
+            "captionMaxLength": "キャプションは最大 {max} 文字です。"
+          },
+          "success": {
+            "saved": "Coworker を更新しました。",
+            "imageSaved": "画像を保存しました。",
+            "imageRemoved": "画像を削除しました。"
+          },
+          "errors": {
+            "saveFailed": "Coworker の保存に失敗しました。",
+            "notFound": "Coworker が見つかりません。",
+            "imageSaveFailed": "画像の更新に失敗しました。"
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "スラッグ",
+          "vendor": "ベンダー",
+          "priority": "優先度",
+          "whitelist": "ホワイトリスト",
+          "whitelisted": "ホワイトリスト済み",
+          "notWhitelisted": "未登録"
+        }
+      },
       "FreeCredits": {
         "title": "無料クレジット",
         "description": "ユーザーまたは組織に無料クレジットを直接付与します。クレジットは即時に反映されます。",
@@ -3209,6 +3293,70 @@
           "submitting": "クレジットを付与中…",
           "grantSuccess": "無料クレジットを付与しました",
           "grantError": "無料クレジットの付与に失敗しました"
+        }
+      },
+      "Orchestrators": {
+        "title": "オーケストレーター",
+        "description": "自社オーケストレーターの表示メタデータを管理します。",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, other {# 件のオーケストレーター}}",
+          "empty": "オーケストレーターが見つかりません。",
+          "orchestrator": "オーケストレーター",
+          "slug": "スラッグ",
+          "caption": "キャプション",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "オーケストレーターを編集",
+          "backToList": "オーケストレーター一覧に戻る"
+        },
+        "EditForm": {
+          "submit": "変更を保存",
+          "submitting": "保存中…",
+          "image": {
+            "label": "画像",
+            "description": "PNG / JPEG / WebP / GIF（最大 2 MB）。",
+            "upload": "画像をアップロード",
+            "replace": "画像を差し替え",
+            "remove": "画像を削除",
+            "previewAlt": "オーケストレーター画像のプレビュー",
+            "fileTooLarge": "画像は 2 MB 以下にしてください。",
+            "fileTypeNotAccepted": "PNG、JPEG、WebP、GIF を使用してください。",
+            "maxFilesExceeded": "一度に 1 枚だけアップロードできます。",
+            "uploadError": "選択した画像を処理できませんでした。"
+          },
+          "fields": {
+            "name": {
+              "label": "名前",
+              "description": "オーケストレーターが表示されるすべての場所に使われます。"
+            },
+            "slug": {
+              "label": "スラッグ",
+              "description": "URL や API で使う読み取り専用の識別子です。"
+            },
+            "caption": {
+              "label": "キャプション",
+              "description": "名前の下に表示する短い文言。空にすると削除されます。"
+            },
+            "description": {
+              "label": "説明",
+              "description": "詳細画面向けの長い説明文。空にすると削除されます。"
+            }
+          },
+          "validation": {
+            "nameMinLength": "名前は {min} 文字以上にしてください。",
+            "noChanges": "保存する変更がありません。"
+          },
+          "success": {
+            "saved": "オーケストレーターを更新しました。",
+            "imageSaved": "画像を保存しました。",
+            "imageRemoved": "画像を削除しました。"
+          },
+          "errors": {
+            "saveFailed": "オーケストレーターを保存できませんでした。",
+            "notFound": "オーケストレーターが見つかりません。",
+            "imageSaveFailed": "画像の更新に失敗しました。"
+          }
         }
       }
     },

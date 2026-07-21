@@ -2920,9 +2920,17 @@
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
           },
+          "orchestrators": {
+            "title": "Orchestrateurs",
+            "description": "Modifier les métadonnées d'affichage des orchestrateurs internes."
+          },
           "freeCredits": {
             "title": "Crédits gratuits",
             "description": "Accordez des crédits gratuits directement à un utilisateur ou une organisation sans facture Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Modifier les noms, légendes, descriptions et images des coworkers actifs."
           }
         }
       },
@@ -3182,6 +3190,82 @@
           "personalWorkspace": "Espace de travail personnel"
         }
       },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Listez les coworkers actifs et modifiez leur présentation dans Sokosumi.",
+        "loadFailed": "Échec du chargement des coworkers.",
+        "backToList": "Retour à la liste",
+        "editTitle": "Modifier le coworker",
+        "editDescription": "Mettez à jour les champs affichés sur le marketplace et dans le produit.",
+        "Table": {
+          "name": "Nom",
+          "slug": "Slug",
+          "caption": "Légende",
+          "whitelist": "Liste blanche",
+          "whitelisted": "Sur liste blanche",
+          "notWhitelisted": "Hors liste blanche",
+          "priority": "Priorité",
+          "actions": "Actions",
+          "edit": "Modifier",
+          "empty": "Aucun coworker actif trouvé.",
+          "searchPlaceholder": "Rechercher par nom, slug, légende ou vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Affichage de {shown} sur {total}",
+          "emptySearch": "Aucun coworker ne correspond à votre recherche."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Nom"
+            },
+            "caption": {
+              "label": "Légende"
+            },
+            "description": {
+              "label": "Description"
+            }
+          },
+          "image": {
+            "label": "Image",
+            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo.",
+            "upload": "Téléverser une image",
+            "replace": "Remplacer l’image",
+            "remove": "Supprimer l’image",
+            "previewAlt": "Aperçu de l’image du coworker",
+            "fileTooLarge": "L’image doit faire 2 Mo ou moins.",
+            "fileTypeNotAccepted": "Utilisez PNG, JPEG, WebP ou GIF.",
+            "maxFilesExceeded": "Téléversez une seule image à la fois.",
+            "uploadError": "Impossible de traiter l’image sélectionnée."
+          },
+          "saveChanges": "Enregistrer les modifications",
+          "saving": "Enregistrement…",
+          "cancel": "Annuler",
+          "validation": {
+            "nameMinLength": "Le nom doit contenir au moins {min} caractères.",
+            "noChanges": "Aucune modification à enregistrer.",
+            "captionMaxLength": "La légende doit comporter au maximum {max} caractères."
+          },
+          "success": {
+            "saved": "Coworker mis à jour.",
+            "imageSaved": "Image enregistrée.",
+            "imageRemoved": "Image supprimée."
+          },
+          "errors": {
+            "saveFailed": "Échec de l’enregistrement du coworker.",
+            "notFound": "Coworker introuvable.",
+            "imageSaveFailed": "Échec de la mise à jour de l’image."
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Fournisseur",
+          "priority": "Priorité",
+          "whitelist": "Liste blanche",
+          "whitelisted": "Sur liste blanche",
+          "notWhitelisted": "Hors liste blanche"
+        }
+      },
       "FreeCredits": {
         "title": "Crédits gratuits",
         "description": "Accordez des crédits gratuits directement à un utilisateur ou une organisation. Les crédits sont appliqués immédiatement.",
@@ -3209,6 +3293,70 @@
           "submitting": "Attribution des crédits…",
           "grantSuccess": "Crédits gratuits accordés",
           "grantError": "Impossible d'accorder les crédits gratuits"
+        }
+      },
+      "Orchestrators": {
+        "title": "Orchestrateurs",
+        "description": "Gérer les métadonnées d'affichage des orchestrateurs internes.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# orchestrateur} other {# orchestrateurs}}",
+          "empty": "Aucun orchestrateur trouvé.",
+          "orchestrator": "Orchestrateur",
+          "slug": "Slug",
+          "caption": "Légende",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "Modifier l'orchestrateur",
+          "backToList": "Retour aux orchestrateurs"
+        },
+        "EditForm": {
+          "submit": "Enregistrer les modifications",
+          "submitting": "Enregistrement…",
+          "image": {
+            "label": "Image",
+            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo.",
+            "upload": "Téléverser une image",
+            "replace": "Remplacer l'image",
+            "remove": "Supprimer l'image",
+            "previewAlt": "Aperçu de l'image de l'orchestrateur",
+            "fileTooLarge": "L'image doit faire 2 Mo ou moins.",
+            "fileTypeNotAccepted": "Utilisez PNG, JPEG, WebP ou GIF.",
+            "maxFilesExceeded": "Téléversez une image à la fois.",
+            "uploadError": "Impossible de traiter l'image sélectionnée."
+          },
+          "fields": {
+            "name": {
+              "label": "Nom",
+              "description": "Affiché partout où l'orchestrateur apparaît."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Identifiant en lecture seule utilisé dans les URL et les API."
+            },
+            "caption": {
+              "label": "Légende",
+              "description": "Courte ligne sous le nom. Laissez vide pour effacer."
+            },
+            "description": {
+              "label": "Description",
+              "description": "Texte plus long pour les vues détaillées. Laissez vide pour effacer."
+            }
+          },
+          "validation": {
+            "nameMinLength": "Le nom doit comporter au moins {min} caractères.",
+            "noChanges": "Aucune modification à enregistrer."
+          },
+          "success": {
+            "saved": "Orchestrateur mis à jour.",
+            "imageSaved": "Image enregistrée.",
+            "imageRemoved": "Image supprimée."
+          },
+          "errors": {
+            "saveFailed": "Impossible d'enregistrer l'orchestrateur.",
+            "notFound": "Orchestrateur introuvable.",
+            "imageSaveFailed": "Échec de la mise à jour de l’image."
+          }
         }
       }
     },

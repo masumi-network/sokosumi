@@ -2920,9 +2920,17 @@
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
           },
+          "orchestrators": {
+            "title": "Orchestrator",
+            "description": "Modifica i metadati di visualizzazione degli orchestrator proprietari."
+          },
           "freeCredits": {
             "title": "Crediti gratuiti",
             "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Modifica nomi, didascalie, descrizioni e immagini dei coworker attivi."
           }
         }
       },
@@ -3182,6 +3190,82 @@
           "personalWorkspace": "Spazio di lavoro personale"
         }
       },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Elenca i coworker attivi e modifica come appaiono in Sokosumi.",
+        "loadFailed": "Impossibile caricare i coworker.",
+        "backToList": "Torna all'elenco",
+        "editTitle": "Modifica coworker",
+        "editDescription": "Aggiorna i campi di presentazione nel marketplace e nel prodotto.",
+        "Table": {
+          "name": "Nome",
+          "slug": "Slug",
+          "caption": "Didascalia",
+          "whitelist": "Whitelist",
+          "whitelisted": "In whitelist",
+          "notWhitelisted": "Non in whitelist",
+          "priority": "Priorità",
+          "actions": "Azioni",
+          "edit": "Modifica",
+          "empty": "Nessun coworker attivo trovato.",
+          "searchPlaceholder": "Cerca per nome, slug, didascalia o vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworker}}",
+          "filteredCount": "Visualizzati {shown} di {total}",
+          "emptySearch": "Nessun coworker corrisponde alla ricerca."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Nome"
+            },
+            "caption": {
+              "label": "Didascalia"
+            },
+            "description": {
+              "label": "Descrizione"
+            }
+          },
+          "image": {
+            "label": "Immagine",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
+            "upload": "Carica immagine",
+            "replace": "Sostituisci immagine",
+            "remove": "Rimuovi immagine",
+            "previewAlt": "Anteprima immagine del coworker",
+            "fileTooLarge": "L’immagine deve essere di 2 MB o meno.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Carica un’immagine alla volta.",
+            "uploadError": "Impossibile elaborare l’immagine selezionata."
+          },
+          "saveChanges": "Salva modifiche",
+          "saving": "Salvataggio…",
+          "cancel": "Annulla",
+          "validation": {
+            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+            "noChanges": "Nessuna modifica da salvare.",
+            "captionMaxLength": "La didascalia deve contenere al massimo {max} caratteri."
+          },
+          "success": {
+            "saved": "Coworker aggiornato.",
+            "imageSaved": "Immagine salvata.",
+            "imageRemoved": "Immagine rimossa."
+          },
+          "errors": {
+            "saveFailed": "Salvataggio del coworker non riuscito.",
+            "notFound": "Coworker non trovato.",
+            "imageSaveFailed": "Aggiornamento dell’immagine non riuscito."
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Fornitore",
+          "priority": "Priorità",
+          "whitelist": "Whitelist",
+          "whitelisted": "In whitelist",
+          "notWhitelisted": "Non in whitelist"
+        }
+      },
       "FreeCredits": {
         "title": "Crediti gratuiti",
         "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione. I crediti vengono applicati subito.",
@@ -3209,6 +3293,70 @@
           "submitting": "Concessione crediti…",
           "grantSuccess": "Crediti gratuiti concessi",
           "grantError": "Impossibile concedere i crediti gratuiti"
+        }
+      },
+      "Orchestrators": {
+        "title": "Orchestrator",
+        "description": "Gestisci i metadati di visualizzazione degli orchestrator proprietari.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# orchestrator} other {# orchestrator}}",
+          "empty": "Nessun orchestrator trovato.",
+          "orchestrator": "Orchestrator",
+          "slug": "Slug",
+          "caption": "Didascalia",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "Modifica orchestrator",
+          "backToList": "Torna agli orchestrator"
+        },
+        "EditForm": {
+          "submit": "Salva modifiche",
+          "submitting": "Salvataggio…",
+          "image": {
+            "label": "Immagine",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
+            "upload": "Carica immagine",
+            "replace": "Sostituisci immagine",
+            "remove": "Rimuovi immagine",
+            "previewAlt": "Anteprima immagine orchestrator",
+            "fileTooLarge": "L'immagine deve essere di 2 MB o meno.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Carica un'immagine alla volta.",
+            "uploadError": "Impossibile elaborare l'immagine selezionata."
+          },
+          "fields": {
+            "name": {
+              "label": "Nome",
+              "description": "Mostrato ovunque compaia l'orchestrator."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Identificatore di sola lettura usato in URL e API."
+            },
+            "caption": {
+              "label": "Didascalia",
+              "description": "Breve riga sotto il nome. Lascia vuoto per cancellare."
+            },
+            "description": {
+              "label": "Descrizione",
+              "description": "Testo più lungo per le viste di dettaglio. Lascia vuoto per cancellare."
+            }
+          },
+          "validation": {
+            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+            "noChanges": "Nessuna modifica da salvare."
+          },
+          "success": {
+            "saved": "Orchestrator aggiornato.",
+            "imageSaved": "Immagine salvata.",
+            "imageRemoved": "Immagine rimossa."
+          },
+          "errors": {
+            "saveFailed": "Impossibile salvare l'orchestrator.",
+            "notFound": "Orchestrator non trovato.",
+            "imageSaveFailed": "Impossibile aggiornare l’immagine."
+          }
         }
       }
     },

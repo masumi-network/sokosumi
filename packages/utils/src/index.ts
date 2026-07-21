@@ -33,6 +33,15 @@ export {
   CORE_API_ERROR_KINDS,
   type CoreApiErrorKind,
 } from "./core-api-error-kind.js";
+export {
+  buildCoworkerImagePathname,
+  buildCoworkerImagePrefix,
+  COWORKER_IMAGE_ALLOWED_MIME_TYPES,
+  COWORKER_IMAGE_MAX_SIZE_BYTES,
+  extensionForCoworkerImageMime,
+  isCoworkerImageAllowedContentType,
+  isOwnedCoworkerImageUrl,
+} from "./coworker-image-upload.js";
 export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
 export {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,

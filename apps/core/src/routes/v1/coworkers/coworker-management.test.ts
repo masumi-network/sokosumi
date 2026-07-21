@@ -410,14 +410,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(body.data.metadata).toEqual(metadata);
   });
 
-  it("ignores request isWhitelisted and persists false by default", async () => {
-    const tx = createTransactionMock({
-      findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
-      create: coworkerCreateMock.mockResolvedValue(createCoworkerRecord()),
-    });
-
-    mockTransaction(tx);
-
+  it("rejects isWhitelisted on create (use whitelist endpoint)", async () => {
     const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -431,14 +424,8 @@ describe("coworker management CRUD endpoints", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
-    expect(coworkerCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          isWhitelisted: false,
-        }),
-      }),
-    );
+    expect(response.status).toBe(400);
+    expect(coworkerCreateMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when create hits a slug unique race (P2002)", async () => {
