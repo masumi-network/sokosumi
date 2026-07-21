@@ -66,7 +66,7 @@ describe("isOwnedOrchestratorImageUrl", () => {
     ).toBe(true);
   });
 
-  it("rejects other orchestrators, non-blob hosts, and invalid URLs", () => {
+  it("rejects other orchestrators, non-blob hosts, http, and invalid URLs", () => {
     expect(
       isOwnedOrchestratorImageUrl(
         `https://abc.public.blob.vercel-storage.com/orchestrators/other-id/image.png`,
@@ -83,6 +83,13 @@ describe("isOwnedOrchestratorImageUrl", () => {
     expect(
       isOwnedOrchestratorImageUrl(
         `https://evil.example.com/${prefix}image.png`,
+        orchestratorId,
+      ),
+    ).toBe(false);
+    // Host/path match but scheme is not HTTPS.
+    expect(
+      isOwnedOrchestratorImageUrl(
+        `http://abc.public.blob.vercel-storage.com/${prefix}image-hermes-Ab12.png`,
         orchestratorId,
       ),
     ).toBe(false);

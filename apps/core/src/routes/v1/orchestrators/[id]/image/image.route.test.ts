@@ -83,9 +83,14 @@ function createApp(options: AppOptions = {}) {
   return app;
 }
 
+/** Minimal PNG signature so magic-byte sniffing accepts the fixture. */
+const PNG_BYTES = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+]);
+
 function pngFormData(filename = "logo.png", type = "image/png") {
   const form = new FormData();
-  form.append("file", new File([Buffer.from("png-bytes")], filename, { type }));
+  form.append("file", new File([PNG_BYTES], filename, { type }));
   return form;
 }
 
@@ -158,6 +163,64 @@ describe("POST /orchestrators/{id}/image", () => {
     });
 
     expect(response.status).toBe(400);
+    expect(uploadOrchestratorImageMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when magic bytes are not a supported image", async () => {
+    findFirstMock.mockResolvedValue(baseOrchestrator());
+
+    const app = createApp();
+    const form = new FormData();
+    form.append(
+      "file",
+      new File([Buffer.from("not-an-image")], "logo.png", {
+        type: "image/png",
+      }),
+    );
+
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    expect(uploadOrchestratorImageMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when magic bytes conflict with the declared type", async () => {
+    findFirstMock.mockResolvedValue(baseOrchestrator());
+
+    const app = createApp();
+    // JPEG magic with a PNG declaration / extension.
+    const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    const form = new FormData();
+    form.append(
+      "file",
+      new File([jpegBytes], "logo.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    expect(uploadOrchestratorImageMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 413 when the request Content-Length exceeds the body limit", async () => {
+    const app = createApp();
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=----test",
+        "content-length": String(3 * 1024 * 1024),
+      },
+      body: "not-used-when-content-length-rejects",
+    });
+
+    expect(response.status).toBe(413);
+    expect(findFirstMock).not.toHaveBeenCalled();
     expect(uploadOrchestratorImageMock).not.toHaveBeenCalled();
   });
 

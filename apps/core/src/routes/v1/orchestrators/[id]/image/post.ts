@@ -3,7 +3,9 @@ import {
   isOrchestratorImageAllowedContentType,
   ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
   resolveUserUploadContentType,
+  sniffImageMimeFromBytes,
 } from "@sokosumi/utils";
+import { bodyLimit } from "hono/body-limit";
 
 import {
   badRequest,
@@ -24,6 +26,14 @@ import { requireAdminAuthContext } from "@/middleware/auth";
 import { orchestratorSchema } from "@/schemas/orchestrator.schema";
 
 import { paramsSchema } from "../../schema";
+
+/**
+ * Multipart framing + field headers sit on top of the raw file. Cap the whole
+ * request early (Content-Length / streaming) so oversized payloads never fully
+ * buffer before the file.size check.
+ */
+const ORCHESTRATOR_IMAGE_MAX_BODY_BYTES =
+  ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES + 256 * 1024;
 
 const multipartBodySchema = z.object({
   file: z.any().openapi({
@@ -73,6 +83,18 @@ function isFileLike(value: unknown): value is File {
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
+  app.use(
+    "/:id/image",
+    bodyLimit({
+      maxSize: ORCHESTRATOR_IMAGE_MAX_BODY_BYTES,
+      onError: () => {
+        throw payloadTooLarge(
+          `Request body is too large. Maximum file size is ${ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES} bytes.`,
+        );
+      },
+    }),
+  );
+
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
@@ -95,11 +117,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const resolvedContentType =
+    const declaredContentType =
       resolveUserUploadContentType(file.name, file.type) ??
       file.type.trim().toLowerCase();
 
-    if (!isOrchestratorImageAllowedContentType(resolvedContentType)) {
+    if (!isOrchestratorImageAllowedContentType(declaredContentType)) {
       throw badRequest(
         "Unsupported content type. Allowed: image/png, image/jpeg, image/webp, image/gif.",
       );
@@ -118,10 +140,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const previousImage = orchestrator.image;
     const bytes = Buffer.from(await file.arrayBuffer());
+
+    if (bytes.length > ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES) {
+      throw payloadTooLarge(
+        `File is too large. Maximum size is ${ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES} bytes.`,
+      );
+    }
+
+    const sniffedContentType = sniffImageMimeFromBytes(bytes);
+    if (
+      !sniffedContentType ||
+      !isOrchestratorImageAllowedContentType(sniffedContentType)
+    ) {
+      throw badRequest(
+        "File content is not a supported image. Allowed: image/png, image/jpeg, image/webp, image/gif.",
+      );
+    }
+
+    // Prefer magic-byte type for storage; reject when it conflicts with the
+    // declared type so a mislabeled payload cannot pass the allowlist alone.
+    if (sniffedContentType !== declaredContentType) {
+      throw badRequest(
+        `File content type (${sniffedContentType}) does not match declared type (${declaredContentType}).`,
+      );
+    }
+
     const publicUrl = await uploadOrchestratorImage({
       orchestratorId: id,
       bytes,
-      contentType: resolvedContentType,
+      contentType: sniffedContentType,
       filename: file.name || "image",
     });
 

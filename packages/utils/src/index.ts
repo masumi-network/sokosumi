@@ -64,6 +64,7 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   IPFS_GATEWAY_PREFIX,
   normalizeOrganizationLogo,

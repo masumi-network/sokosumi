@@ -53,8 +53,8 @@ function isVercelBlobPublicHost(hostname: string): boolean {
 
 /**
  * True when `url` is a public Vercel Blob URL under this orchestrator's
- * upload prefix (`/orchestrators/{id}/…`). Host + path both required so a
- * foreign host cannot spoof ownership via path alone.
+ * upload prefix (`/orchestrators/{id}/…`). Requires HTTPS, a Vercel public
+ * blob host, and the path prefix so foreign hosts cannot spoof ownership.
  */
 export function isOwnedOrchestratorImageUrl(
   url: string,
@@ -62,6 +62,9 @@ export function isOwnedOrchestratorImageUrl(
 ): boolean {
   try {
     const parsed = new URL(url);
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
     if (!isVercelBlobPublicHost(parsed.hostname)) {
       return false;
     }
