@@ -19,9 +19,13 @@ import { ok } from "@/helpers/response";
 import { deleteCoworkerImageIfOwned, uploadCoworkerImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { hasAdminRole } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
-import { requireCoworkerManagementAccess } from "../../coworker-management-access";
+import {
+  buildCoworkerMutationWhere,
+  requireCoworkerManagementAccess,
+} from "../../coworker-management-access";
 import { paramsSchema } from "../schema";
 
 /**
@@ -94,7 +98,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
-    await requireCoworkerManagementAccess(c.var.authContext, id);
+    const userAuth = await requireCoworkerManagementAccess(
+      c.var.authContext,
+      id,
+    );
+    const mutationWhere = buildCoworkerMutationWhere(
+      id,
+      hasAdminRole(userAuth.role),
+    );
 
     const body = await c.req.parseBody({ all: true });
     const fileField = body.file;
@@ -125,10 +136,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const coworker = await prisma.coworker.findFirst({
-      where: {
-        id,
-        archivedAt: null,
-      },
+      where: mutationWhere,
       select: {
         id: true,
         image: true,
@@ -180,10 +188,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let updateResult: { count: number };
     try {
       updateResult = await prisma.coworker.updateMany({
-        where: {
-          id,
-          archivedAt: null,
-        },
+        where: mutationWhere,
         data: { image: publicUrl },
       });
     } catch (error) {

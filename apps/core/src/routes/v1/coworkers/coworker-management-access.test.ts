@@ -1,8 +1,10 @@
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
-
-import { requireCoworkerManagementAccess } from "./coworker-management-access";
+import {
+  buildCoworkerMutationWhere,
+  requireCoworkerManagementAccess,
+} from "./coworker-management-access";
 
 const { coworkerFindFirstMock } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
@@ -15,6 +17,21 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+
+describe("buildCoworkerMutationWhere", () => {
+  it("requires active coworker when archived is not allowed", () => {
+    expect(buildCoworkerMutationWhere("cow_123", false)).toEqual({
+      id: "cow_123",
+      archivedAt: null,
+    });
+  });
+
+  it("allows archived coworker when admin bypass is enabled", () => {
+    expect(buildCoworkerMutationWhere("cow_123", true)).toEqual({
+      id: "cow_123",
+    });
+  });
+});
 
 describe("requireCoworkerManagementAccess", () => {
   beforeEach(() => {

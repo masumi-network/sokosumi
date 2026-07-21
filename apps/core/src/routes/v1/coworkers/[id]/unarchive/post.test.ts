@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountPatchCoworkerWhitelistById from "./patch";
+import mountPostCoworkerUnarchive from "./post";
 
 const { prismaTransactionMock, coworkerUpdateManyMock, coworkerFindFirstMock } =
   vi.hoisted(() => ({
@@ -38,7 +38,7 @@ const sampleVendor = {
   logoDark: null,
 };
 
-function createApp() {
+function createApp(role = "admin") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -49,13 +49,13 @@ function createApp() {
       actor: "user",
       userId: "admin_123",
       organizationId: null,
-      role: "admin",
+      role,
     });
 
     return await next();
   });
 
-  mountPatchCoworkerWhitelistById(app as unknown as OpenAPIHonoWithAuth);
+  mountPostCoworkerUnarchive(app as unknown as OpenAPIHonoWithAuth);
 
   return app;
 }
@@ -90,18 +90,18 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("PATCH /coworkers/{id}/whitelist", () => {
+describe("POST /coworkers/{id}/unarchive", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("updates whitelist status to true", async () => {
+  it("clears archivedAt for archived coworker", async () => {
     const tx: TransactionMock = {
       coworker: {
         updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
         findFirst: coworkerFindFirstMock.mockResolvedValue(
           createCoworkerRecord({
-            isWhitelisted: true,
+            archivedAt: null,
           }),
         ),
       },
@@ -109,103 +109,25 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
     mockTransaction(tx);
 
     const app = createApp();
-    const response = await app.request("http://localhost/cow_123/whitelist", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        isWhitelisted: true,
-      }),
+    const response = await app.request("http://localhost/cow_123/unarchive", {
+      method: "POST",
     });
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data.priority).toBe(0);
+    expect(body.data.archivedAt).toBeNull();
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
+        archivedAt: { not: null },
       },
       data: {
-        isWhitelisted: true,
+        archivedAt: null,
       },
     });
   });
 
-  it("updates whitelist status to false", async () => {
-    const tx: TransactionMock = {
-      coworker: {
-        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
-        findFirst: coworkerFindFirstMock.mockResolvedValue(
-          createCoworkerRecord({
-            isWhitelisted: false,
-          }),
-        ),
-      },
-    };
-    mockTransaction(tx);
-
-    const app = createApp();
-    const response = await app.request("http://localhost/cow_123/whitelist", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        isWhitelisted: false,
-      }),
-    });
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data.priority).toBe(0);
-    expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
-      where: {
-        id: "cow_123",
-      },
-      data: {
-        isWhitelisted: false,
-      },
-    });
-  });
-
-  it("updates whitelist status for archived coworker", async () => {
-    const tx: TransactionMock = {
-      coworker: {
-        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
-        findFirst: coworkerFindFirstMock.mockResolvedValue(
-          createCoworkerRecord({
-            archivedAt: new Date("2026-03-01T00:00:00.000Z"),
-            isWhitelisted: true,
-          }),
-        ),
-      },
-    };
-    mockTransaction(tx);
-
-    const app = createApp();
-    const response = await app.request("http://localhost/cow_123/whitelist", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        isWhitelisted: true,
-      }),
-    });
-
-    expect(response.status).toBe(200);
-    expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
-      where: {
-        id: "cow_123",
-      },
-      data: {
-        isWhitelisted: true,
-      },
-    });
-  });
-
-  it("returns 404 when coworker does not exist", async () => {
+  it("returns 404 when coworker is not archived", async () => {
     const tx: TransactionMock = {
       coworker: {
         updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 0 }),
@@ -215,17 +137,21 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
     mockTransaction(tx);
 
     const app = createApp();
-    const response = await app.request("http://localhost/cow_123/whitelist", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        isWhitelisted: true,
-      }),
+    const response = await app.request("http://localhost/cow_123/unarchive", {
+      method: "POST",
     });
 
     expect(response.status).toBe(404);
     expect(coworkerFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-admin callers", async () => {
+    const app = createApp("user");
+    const response = await app.request("http://localhost/cow_123/unarchive", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(403);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 });

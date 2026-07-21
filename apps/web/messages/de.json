@@ -2895,7 +2895,7 @@
           },
           "coworkers": {
             "title": "Coworkers",
-            "description": "Anzeigenamen, Untertitel, Beschreibungen und Bilder aktiver Coworker bearbeiten."
+            "description": "Fähigkeiten, Priorität, Whitelist, Archivstatus und Anzeigemetadaten für alle Coworker verwalten."
           }
         }
       },
@@ -3096,78 +3096,128 @@
       },
       "Coworkers": {
         "title": "Coworkers",
-        "description": "Aktive Coworkers auflisten und ihre Darstellung in Sokosumi bearbeiten.",
-        "loadFailed": "Coworkers konnten nicht geladen werden.",
-        "backToList": "Zurück zur Liste",
-        "editTitle": "Coworker bearbeiten",
-        "editDescription": "Anzeigefelder für Marktplatz und Produkt aktualisieren.",
+        "description": "Verwalten Sie Coworker-Fähigkeiten, Priorität, Whitelist, Archivstatus und Anzeigemetadaten.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editDescription": "Plattformsteuerung und Anzeigefelder für Marktplatz und Produkt aktualisieren.",
         "Table": {
           "name": "Name",
           "slug": "Slug",
-          "caption": "Untertitel",
+          "caption": "Caption",
+          "status": "Status",
+          "active": "Aktiv",
+          "archived": "Archiviert",
           "whitelist": "Whitelist",
           "whitelisted": "Whitelisted",
-          "notWhitelisted": "Nicht whitelisted",
-          "priority": "Priorität",
-          "actions": "Aktionen",
-          "edit": "Bearbeiten",
-          "empty": "Keine aktiven Coworkers gefunden.",
-          "searchPlaceholder": "Nach Name, Slug, Bildunterschrift oder Vendor suchen…",
-          "totalCount": "{count, plural, one {# Coworker} other {# Coworker}}",
-          "filteredCount": "{shown} von {total} angezeigt",
-          "emptySearch": "Keine Coworker entsprechen der Suche."
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "Keine Coworker gefunden.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "Status",
+          "filterAll": "Alle",
+          "filterActive": "Aktiv",
+          "filterArchived": "Archiviert",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "Keine Coworker entsprechen dem ausgewählten Filter."
         },
         "Form": {
+          "display": {
+            "title": "Anzeige",
+            "description": "Aktualisieren Sie, wie dieser Coworker in Sokosumi erscheint."
+          },
+          "controls": {
+            "title": "Plattformsteuerung",
+            "description": "Fähigkeiten, Priorität, Whitelist und Archivstatus verwalten.",
+            "save": "Steuerung speichern",
+            "saving": "Steuerung wird gespeichert…",
+            "archive": "Archivieren",
+            "archiving": "Wird archiviert…",
+            "archiveConfirmTitle": "Coworker archivieren?",
+            "archiveConfirmDescription": "Dadurch wird der Coworker archiviert und seine API-Schlüssel widerrufen. Sie können später wiederherstellen, aber API-Schlüssel bleiben widerrufen.",
+            "unarchive": "Wiederherstellen",
+            "unarchiving": "Wird wiederhergestellt…",
+            "capabilities": {
+              "label": "Fähigkeiten",
+              "chat": "Chat",
+              "tasks": "Aufgaben"
+            },
+            "priority": {
+              "label": "Priorität"
+            },
+            "whitelist": {
+              "label": "Whitelist",
+              "description": "Whitelistete Coworker sind im Standard-Marktplatz sichtbar."
+            }
+          },
           "Fields": {
             "name": {
               "label": "Name"
             },
             "caption": {
-              "label": "Untertitel"
+              "label": "Caption"
             },
             "description": {
-              "label": "Beschreibung"
+              "label": "Description"
             }
           },
           "image": {
-            "label": "Bild",
-            "description": "PNG, JPEG, WebP oder GIF bis 2 MB.",
-            "upload": "Bild hochladen",
-            "replace": "Bild ersetzen",
-            "remove": "Bild entfernen",
-            "previewAlt": "Vorschau des Coworker-Bildes",
-            "fileTooLarge": "Das Bild darf höchstens 2 MB groß sein.",
-            "fileTypeNotAccepted": "Verwende PNG, JPEG, WebP oder GIF.",
-            "maxFilesExceeded": "Lade jeweils nur ein Bild hoch.",
-            "uploadError": "Das ausgewählte Bild konnte nicht verarbeitet werden."
+            "label": "Image",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+            "upload": "Upload image",
+            "replace": "Replace image",
+            "remove": "Remove image",
+            "previewAlt": "Coworker image preview",
+            "fileTooLarge": "Image must be 2 MB or smaller.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+            "maxFilesExceeded": "Upload one image at a time.",
+            "uploadError": "Could not process the selected image."
           },
-          "saveChanges": "Änderungen speichern",
-          "saving": "Speichern…",
-          "cancel": "Abbrechen",
+          "saveChanges": "Anzeige speichern",
+          "saving": "Saving…",
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "Der Name muss mindestens {min} Zeichen haben.",
-            "noChanges": "Keine Änderungen zum Speichern.",
-            "captionMaxLength": "Die Bildunterschrift darf höchstens {max} Zeichen lang sein."
+            "nameMinLength": "Name must be at least {min} characters.",
+            "noChanges": "No changes to save.",
+            "captionMaxLength": "Caption must be at most {max} characters.",
+            "priorityInteger": "Priorität muss eine ganze Zahl sein.",
+            "noControlChanges": "Keine Steuerungsänderungen zum Speichern."
           },
           "success": {
-            "saved": "Coworker aktualisiert.",
-            "imageSaved": "Bild gespeichert.",
-            "imageRemoved": "Bild entfernt."
+            "saved": "Coworker-Anzeige aktualisiert.",
+            "controlsSaved": "Coworker-Steuerung aktualisiert.",
+            "whitelistSaved": "Whitelist-Status aktualisiert.",
+            "archived": "Coworker archiviert.",
+            "unarchived": "Coworker wiederhergestellt.",
+            "imageSaved": "Image saved.",
+            "imageRemoved": "Image removed."
           },
           "errors": {
-            "saveFailed": "Coworker konnte nicht gespeichert werden.",
-            "notFound": "Coworker nicht gefunden.",
-            "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
+            "saveFailed": "Coworker-Anzeige konnte nicht gespeichert werden.",
+            "controlsSaveFailed": "Coworker-Steuerung konnte nicht gespeichert werden.",
+            "whitelistSaveFailed": "Whitelist-Status konnte nicht aktualisiert werden.",
+            "archiveFailed": "Coworker konnte nicht archiviert werden.",
+            "unarchiveFailed": "Coworker konnte nicht wiederhergestellt werden.",
+            "notFound": "Coworker not found.",
+            "imageSaveFailed": "Failed to update image."
           }
         },
         "Context": {
+          "title": "Übersicht",
+          "description": "Identität und Archivstatus dieses Coworkers.",
           "id": "ID",
           "slug": "Slug",
-          "vendor": "Anbieter",
-          "priority": "Priorität",
+          "vendor": "Vendor",
+          "status": "Status",
+          "active": "Aktiv",
+          "archived": "Archiviert",
+          "priority": "Priority",
           "whitelist": "Whitelist",
           "whitelisted": "Whitelisted",
-          "notWhitelisted": "Nicht whitelisted"
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {

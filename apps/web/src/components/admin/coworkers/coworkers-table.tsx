@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -15,11 +16,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
 interface CoworkersTableProps {
   coworkers: Coworker[];
 }
+
+type ArchiveFilter = "all" | "active" | "archived";
 
 const CAPTION_MAX_LENGTH = 80;
 
@@ -33,6 +37,25 @@ function truncateCaption(caption: string | null | undefined): string {
   }
 
   return `${caption.slice(0, CAPTION_MAX_LENGTH - 1)}…`;
+}
+
+function isArchived(coworker: Coworker): boolean {
+  return coworker.archivedAt != null;
+}
+
+function matchesArchiveFilter(
+  coworker: Coworker,
+  archiveFilter: ArchiveFilter,
+): boolean {
+  if (archiveFilter === "all") {
+    return true;
+  }
+
+  if (archiveFilter === "archived") {
+    return isArchived(coworker);
+  }
+
+  return !isArchived(coworker);
 }
 
 function matchesSearch(coworker: Coworker, query: string): boolean {
@@ -56,36 +79,77 @@ function matchesSearch(coworker: Coworker, query: string): boolean {
 export function CoworkersTable({ coworkers }: CoworkersTableProps) {
   const t = useTranslations("App.Admin.Coworkers.Table");
   const [search, setSearch] = useState("");
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("all");
 
   const filtered = useMemo(
-    () => coworkers.filter((coworker) => matchesSearch(coworker, search)),
-    [coworkers, search],
+    () =>
+      coworkers.filter(
+        (coworker) =>
+          matchesArchiveFilter(coworker, archiveFilter) &&
+          matchesSearch(coworker, search),
+      ),
+    [archiveFilter, coworkers, search],
   );
+
+  const archiveFilterLabel =
+    archiveFilter === "all"
+      ? t("filterAll")
+      : archiveFilter === "active"
+        ? t("filterActive")
+        : t("filterArchived");
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Input
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={t("searchPlaceholder")}
-          className="max-w-sm"
-          aria-label={t("searchPlaceholder")}
-        />
-        <p className="text-muted-foreground text-sm tabular-nums">
-          {search.trim()
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <Input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t("searchPlaceholder")}
+            className="w-full min-w-[16rem] sm:max-w-sm"
+            aria-label={t("searchPlaceholder")}
+          />
+          <div className="space-y-2">
+            <Label id="coworker-archive-filter-label">
+              {t("archiveFilterLabel")}
+            </Label>
+            <Tabs
+              value={archiveFilter}
+              onValueChange={(value) => {
+                setArchiveFilter(value as ArchiveFilter);
+              }}
+            >
+              <TabsList aria-labelledby="coworker-archive-filter-label">
+                <TabsTrigger value="all">{t("filterAll")}</TabsTrigger>
+                <TabsTrigger value="active">{t("filterActive")}</TabsTrigger>
+                <TabsTrigger value="archived">
+                  {t("filterArchived")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+        <p className="text-muted-foreground text-sm tabular-nums sm:pb-2">
+          {search.trim() || archiveFilter !== "all"
             ? t("filteredCount", {
                 shown: filtered.length,
                 total: coworkers.length,
               })
             : t("totalCount", { count: coworkers.length })}
+          {archiveFilter !== "all" ? (
+            <span className="sr-only">{archiveFilterLabel}</span>
+          ) : null}
         </p>
       </div>
 
       {filtered.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          {coworkers.length === 0 ? t("empty") : t("emptySearch")}
+          {coworkers.length === 0
+            ? t("empty")
+            : search.trim()
+              ? t("emptySearch")
+              : t("emptyFilter")}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-md border">
@@ -95,6 +159,7 @@ export function CoworkersTable({ coworkers }: CoworkersTableProps) {
                 <TableHead>{t("name")}</TableHead>
                 <TableHead>{t("slug")}</TableHead>
                 <TableHead>{t("caption")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("whitelist")}</TableHead>
                 <TableHead className="text-right tabular-nums">
                   {t("priority")}
@@ -111,6 +176,13 @@ export function CoworkersTable({ coworkers }: CoworkersTableProps) {
                   </TableCell>
                   <TableCell className="text-muted-foreground max-w-xs truncate">
                     {truncateCaption(coworker.caption)}
+                  </TableCell>
+                  <TableCell>
+                    {isArchived(coworker) ? (
+                      <Badge variant="secondary">{t("archived")}</Badge>
+                    ) : (
+                      <Badge variant="outline">{t("active")}</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge
