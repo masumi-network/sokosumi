@@ -9,17 +9,38 @@ import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { updateAdminCoworkerDisplayAction } from "@/lib/actions/admin-coworkers/action";
+import {
+  archiveAdminCoworkerAction,
+  unarchiveAdminCoworkerAction,
+  updateAdminCoworkerControlsAction,
+  updateAdminCoworkerDisplayAction,
+  updateAdminCoworkerWhitelistAction,
+} from "@/lib/actions/admin-coworkers/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 import {
+  ADMIN_COWORKER_CAPABILITIES,
   ADMIN_COWORKER_CAPTION_MAX_LENGTH,
   ADMIN_COWORKER_NAME_MIN_LENGTH,
+  type AdminCoworkerCapability,
 } from "@/lib/constants/coworker-display";
 import {
   COWORKER_IMAGE_ACCEPT,
@@ -35,7 +56,6 @@ function toFieldValue(value: string | null | undefined): string {
   return value ?? "";
 }
 
-/** Resolve IPFS/CID values for preview only; storage remains the raw Core value. */
 function toImageDisplayValue(image: string | null | undefined): string {
   if (!image) {
     return "";
@@ -46,6 +66,18 @@ function toImageDisplayValue(image: string | null | undefined): string {
 function normalizeOptionalText(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isArchived(coworker: Coworker): boolean {
+  return coworker.archivedAt != null;
+}
+
+function normalizeCapabilities(
+  capabilities: Coworker["capabilities"],
+): AdminCoworkerCapability[] {
+  return ADMIN_COWORKER_CAPABILITIES.filter((capability) =>
+    capabilities.includes(capability),
+  );
 }
 
 function buildPatchBody(
@@ -76,6 +108,33 @@ function buildPatchBody(
   return Object.keys(patchBody).length > 0 ? patchBody : undefined;
 }
 
+function buildControlsPatchBody(
+  baseline: Coworker,
+  values: {
+    capabilities: AdminCoworkerCapability[];
+    priority: number;
+  },
+): { capabilities?: AdminCoworkerCapability[]; priority?: number } | undefined {
+  const patchBody: {
+    capabilities?: AdminCoworkerCapability[];
+    priority?: number;
+  } = {};
+
+  const nextCapabilities = [...values.capabilities].toSorted();
+  const baselineCapabilities = normalizeCapabilities(
+    baseline.capabilities,
+  ).toSorted();
+  if (nextCapabilities.join(",") !== baselineCapabilities.join(",")) {
+    patchBody.capabilities = nextCapabilities;
+  }
+
+  if (values.priority !== baseline.priority) {
+    patchBody.priority = values.priority;
+  }
+
+  return Object.keys(patchBody).length > 0 ? patchBody : undefined;
+}
+
 export function CoworkerForm({ coworker }: CoworkerFormProps) {
   const t = useTranslations("App.Admin.Coworkers.Form");
   const tContext = useTranslations("App.Admin.Coworkers.Context");
@@ -87,15 +146,32 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
   const [description, setDescription] = useState(
     toFieldValue(coworker.description),
   );
+  const [capabilities, setCapabilities] = useState<AdminCoworkerCapability[]>(
+    () => normalizeCapabilities(coworker.capabilities),
+  );
+  const [priority, setPriority] = useState(String(coworker.priority));
+  const [isWhitelisted, setIsWhitelisted] = useState(coworker.isWhitelisted);
   const [imageValue, setImageValue] = useState(
     toImageDisplayValue(coworker.image),
   );
   const [pendingImageFiles, setPendingImageFiles] = useState<File[]>([]);
   const [isSavingText, setIsSavingText] = useState(false);
+  const [isSavingControls, setIsSavingControls] = useState(false);
+  const [isUpdatingWhitelist, setIsUpdatingWhitelist] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isUnarchiving, setIsUnarchiving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isRemovingImage, setIsRemovingImage] = useState(false);
 
-  const isBusy = isSavingText || isUploadingImage || isRemovingImage;
+  const archived = isArchived(baseline);
+  const isBusy =
+    isSavingText ||
+    isSavingControls ||
+    isUpdatingWhitelist ||
+    isArchiving ||
+    isUnarchiving ||
+    isUploadingImage ||
+    isRemovingImage;
 
   const imageLabels = {
     fileTooLarge: t("image.fileTooLarge"),
@@ -113,12 +189,159 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
     setName(saved.name);
     setCaption(toFieldValue(saved.caption));
     setDescription(toFieldValue(saved.description));
+    setCapabilities(normalizeCapabilities(saved.capabilities));
+    setPriority(String(saved.priority));
+    setIsWhitelisted(saved.isWhitelisted);
     setImageValue(toImageDisplayValue(saved.image));
   }
 
   function handleNotFound() {
     toast.error(t("errors.notFound"));
     router.push("/admin/coworkers");
+  }
+
+  function handleCapabilityChange(
+    capability: AdminCoworkerCapability,
+    checked: boolean,
+  ) {
+    setCapabilities((current) => {
+      if (checked) {
+        return current.includes(capability)
+          ? current
+          : [...current, capability];
+      }
+      return current.filter((value) => value !== capability);
+    });
+  }
+
+  async function handleWhitelistChange(checked: boolean) {
+    if (isBusy) {
+      return;
+    }
+
+    const previousValue = isWhitelisted;
+    setIsWhitelisted(checked);
+    setIsUpdatingWhitelist(true);
+    try {
+      const result = await updateAdminCoworkerWhitelistAction({
+        id: baseline.id,
+        isWhitelisted: checked,
+      });
+
+      if (!result.ok) {
+        setIsWhitelisted(previousValue);
+        if (result.error.code === CommonErrorCode.NOT_FOUND) {
+          handleNotFound();
+          return;
+        }
+        toast.error(result.error.message ?? t("errors.whitelistSaveFailed"));
+        return;
+      }
+
+      applySavedCoworker(result.data.coworker);
+      toast.success(t("success.whitelistSaved"));
+      router.refresh();
+    } finally {
+      setIsUpdatingWhitelist(false);
+    }
+  }
+
+  async function handleArchive() {
+    if (isBusy || archived) {
+      return;
+    }
+
+    setIsArchiving(true);
+    try {
+      const result = await archiveAdminCoworkerAction({ id: baseline.id });
+
+      if (!result.ok) {
+        if (result.error.code === CommonErrorCode.NOT_FOUND) {
+          handleNotFound();
+          return;
+        }
+        toast.error(result.error.message ?? t("errors.archiveFailed"));
+        return;
+      }
+
+      applySavedCoworker(result.data.coworker);
+      toast.success(t("success.archived"));
+      router.refresh();
+    } finally {
+      setIsArchiving(false);
+    }
+  }
+
+  async function handleUnarchive() {
+    if (isBusy || !archived) {
+      return;
+    }
+
+    setIsUnarchiving(true);
+    try {
+      const result = await unarchiveAdminCoworkerAction({ id: baseline.id });
+
+      if (!result.ok) {
+        if (result.error.code === CommonErrorCode.NOT_FOUND) {
+          handleNotFound();
+          return;
+        }
+        toast.error(result.error.message ?? t("errors.unarchiveFailed"));
+        return;
+      }
+
+      applySavedCoworker(result.data.coworker);
+      toast.success(t("success.unarchived"));
+      router.refresh();
+    } finally {
+      setIsUnarchiving(false);
+    }
+  }
+
+  async function handleControlsSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isBusy) {
+      return;
+    }
+
+    const parsedPriority = Number(priority);
+    if (!Number.isInteger(parsedPriority)) {
+      toast.error(t("validation.priorityInteger"));
+      return;
+    }
+
+    const patchBody = buildControlsPatchBody(baseline, {
+      capabilities,
+      priority: parsedPriority,
+    });
+
+    if (!patchBody) {
+      toast.error(t("validation.noControlChanges"));
+      return;
+    }
+
+    setIsSavingControls(true);
+    try {
+      const result = await updateAdminCoworkerControlsAction({
+        id: baseline.id,
+        ...patchBody,
+      });
+
+      if (!result.ok) {
+        if (result.error.code === CommonErrorCode.NOT_FOUND) {
+          handleNotFound();
+          return;
+        }
+        toast.error(result.error.message ?? t("errors.controlsSaveFailed"));
+        return;
+      }
+
+      applySavedCoworker(result.data.coworker);
+      toast.success(t("success.controlsSaved"));
+      router.refresh();
+    } finally {
+      setIsSavingControls(false);
+    }
   }
 
   async function handleImageSelect(files: File[]) {
@@ -191,7 +414,7 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleDisplaySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isBusy) {
       return;
@@ -259,7 +482,7 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
   }
 
   return (
-    <form className="space-y-8" onSubmit={handleSubmit}>
+    <div className="space-y-8">
       <dl className="grid gap-4 rounded-md border p-4 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground">{tContext("id")}</dt>
@@ -274,96 +497,237 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
           <dd className="mt-1">{baseline.vendor.name}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">{tContext("priority")}</dt>
-          <dd className="mt-1 tabular-nums">{baseline.priority}</dd>
-        </div>
-        <div className="sm:col-span-2">
-          <dt className="text-muted-foreground">{tContext("whitelist")}</dt>
+          <dt className="text-muted-foreground">{tContext("status")}</dt>
           <dd className="mt-2">
-            <Badge variant={baseline.isWhitelisted ? "default" : "secondary"}>
-              {baseline.isWhitelisted
-                ? tContext("whitelisted")
-                : tContext("notWhitelisted")}
-            </Badge>
+            {archived ? (
+              <Badge variant="secondary">{tContext("archived")}</Badge>
+            ) : (
+              <Badge variant="outline">{tContext("active")}</Badge>
+            )}
           </dd>
         </div>
       </dl>
 
-      <div className="space-y-2">
-        <Label>{t("image.label")}</Label>
-        <OrganizationLogoUploadField
-          accept={COWORKER_IMAGE_ACCEPT}
-          disabled={isBusy}
-          fallbackIcon={<Bot className="size-8" />}
-          isRemoving={isRemovingImage}
-          isUploading={isUploadingImage}
-          labels={imageLabels}
-          logoValue={imageValue}
-          maxSize={COWORKER_IMAGE_MAX_SIZE_BYTES}
-          onPendingLogoFilesChange={setPendingImageFiles}
-          onRemove={handleRemoveImage}
-          onUpload={handleImageSelect}
-          pendingLogoFiles={pendingImageFiles}
-          showRemoveButton={Boolean(imageValue)}
-        />
-        <p className="text-muted-foreground text-sm">
-          {t("image.description")}
-        </p>
-      </div>
+      <form
+        className="space-y-6 rounded-md border p-4"
+        onSubmit={handleControlsSubmit}
+      >
+        <div className="space-y-1">
+          <h2 className="text-lg font-medium">{t("controls.title")}</h2>
+          <p className="text-muted-foreground text-sm">
+            {t("controls.description")}
+          </p>
+        </div>
 
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="coworker-name">{t("Fields.name.label")}</Label>
-          <Input
-            id="coworker-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            disabled={isBusy}
-            required
-            minLength={ADMIN_COWORKER_NAME_MIN_LENGTH}
-          />
+        <div className="space-y-3">
+          <Label>{t("controls.capabilities.label")}</Label>
+          <div className="flex flex-wrap gap-4">
+            {ADMIN_COWORKER_CAPABILITIES.map((capability) => (
+              <label
+                key={capability}
+                className="flex items-center gap-2 text-sm"
+                htmlFor={`capability-${capability}`}
+              >
+                <Checkbox
+                  id={`capability-${capability}`}
+                  checked={capabilities.includes(capability)}
+                  disabled={isBusy}
+                  onCheckedChange={(checked) =>
+                    handleCapabilityChange(capability, checked === true)
+                  }
+                />
+                {t(`controls.capabilities.${capability}`)}
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="coworker-caption">{t("Fields.caption.label")}</Label>
-          <Input
-            id="coworker-caption"
-            value={caption}
-            onChange={(event) => setCaption(event.target.value)}
-            disabled={isBusy}
-            maxLength={ADMIN_COWORKER_CAPTION_MAX_LENGTH}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="coworker-description">
-            {t("Fields.description.label")}
+          <Label htmlFor="coworker-priority">
+            {t("controls.priority.label")}
           </Label>
-          <Textarea
-            id="coworker-description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
+          <Input
+            id="coworker-priority"
+            type="number"
+            inputMode="numeric"
+            value={priority}
+            onChange={(event) => setPriority(event.target.value)}
             disabled={isBusy}
-            rows={4}
           />
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={isBusy}>
-          {isSavingText ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              {t("saving")}
-            </>
+        <div className="flex items-center justify-between gap-4 rounded-md border p-4">
+          <div className="space-y-1">
+            <Label htmlFor="coworker-whitelist">
+              {t("controls.whitelist.label")}
+            </Label>
+            <p className="text-muted-foreground text-sm">
+              {t("controls.whitelist.description")}
+            </p>
+          </div>
+          <Switch
+            id="coworker-whitelist"
+            checked={isWhitelisted}
+            disabled={isBusy}
+            onCheckedChange={handleWhitelistChange}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={isBusy}>
+            {isSavingControls ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                {t("controls.saving")}
+              </>
+            ) : (
+              t("controls.save")
+            )}
+          </Button>
+
+          {archived ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isBusy}
+              onClick={handleUnarchive}
+            >
+              {isUnarchiving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  {t("controls.unarchiving")}
+                </>
+              ) : (
+                t("controls.unarchive")
+              )}
+            </Button>
           ) : (
-            t("saveChanges")
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive" disabled={isBusy}>
+                  {t("controls.archive")}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t("controls.archiveConfirmTitle")}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("controls.archiveConfirmDescription")}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isArchiving}>
+                    {t("cancel")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleArchive}
+                    disabled={isArchiving}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isArchiving ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        {t("controls.archiving")}
+                      </>
+                    ) : (
+                      t("controls.archive")
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
-        </Button>
-        <Button type="button" variant="outline" asChild disabled={isBusy}>
-          <Link href="/admin/coworkers">{t("cancel")}</Link>
-        </Button>
-      </div>
-    </form>
+        </div>
+      </form>
+
+      <form className="space-y-8" onSubmit={handleDisplaySubmit}>
+        <div className="space-y-1">
+          <h2 className="text-lg font-medium">{t("display.title")}</h2>
+          <p className="text-muted-foreground text-sm">
+            {t("display.description")}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label>{t("image.label")}</Label>
+          <OrganizationLogoUploadField
+            accept={COWORKER_IMAGE_ACCEPT}
+            disabled={isBusy}
+            fallbackIcon={<Bot className="size-8" />}
+            isRemoving={isRemovingImage}
+            isUploading={isUploadingImage}
+            labels={imageLabels}
+            logoValue={imageValue}
+            maxSize={COWORKER_IMAGE_MAX_SIZE_BYTES}
+            onPendingLogoFilesChange={setPendingImageFiles}
+            onRemove={handleRemoveImage}
+            onUpload={handleImageSelect}
+            pendingLogoFiles={pendingImageFiles}
+            showRemoveButton={Boolean(imageValue)}
+          />
+          <p className="text-muted-foreground text-sm">
+            {t("image.description")}
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="coworker-name">{t("Fields.name.label")}</Label>
+            <Input
+              id="coworker-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={isBusy}
+              required
+              minLength={ADMIN_COWORKER_NAME_MIN_LENGTH}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="coworker-caption">
+              {t("Fields.caption.label")}
+            </Label>
+            <Input
+              id="coworker-caption"
+              value={caption}
+              onChange={(event) => setCaption(event.target.value)}
+              disabled={isBusy}
+              maxLength={ADMIN_COWORKER_CAPTION_MAX_LENGTH}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="coworker-description">
+              {t("Fields.description.label")}
+            </Label>
+            <Textarea
+              id="coworker-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={isBusy}
+              rows={4}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={isBusy}>
+            {isSavingText ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("saveChanges")
+            )}
+          </Button>
+          <Button type="button" variant="outline" asChild disabled={isBusy}>
+            <Link href="/admin/coworkers">{t("cancel")}</Link>
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }

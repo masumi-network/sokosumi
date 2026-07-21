@@ -2,11 +2,17 @@ import "server-only";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
+import type { AdminCoworkerCapability } from "@/lib/constants/coworker-display";
 
 export interface AdminCoworkerDisplayPatchBody {
   name?: string;
   caption?: string | null;
   description?: string | null;
+}
+
+export interface AdminCoworkerControlsPatchBody {
+  capabilities?: AdminCoworkerCapability[];
+  priority?: number;
 }
 
 export type AdminCoworkerImageIntent = "none" | "upload" | "remove";
@@ -23,10 +29,34 @@ export interface UpdateAdminCoworkerDisplayResult {
   imageError?: string;
 }
 
+function sortCoworkers(coworkers: Coworker[]): Coworker[] {
+  return coworkers.toSorted((left, right) =>
+    left.name.localeCompare(right.name),
+  );
+}
+
+function mergeCoworkerLists(
+  active: Coworker[],
+  archived: Coworker[],
+): Coworker[] {
+  const byId = new Map<string, Coworker>();
+  for (const coworker of [...active, ...archived]) {
+    byId.set(coworker.id, coworker);
+  }
+  return sortCoworkers([...byId.values()]);
+}
+
 export const adminCoworkerService = (() => {
   async function listCoworkers(): Promise<Coworker[]> {
-    const response = await coreClient.getCoworkers({ scope: "all" });
-    return response.data ?? [];
+    const [activeResponse, archivedResponse] = await Promise.all([
+      coreClient.getCoworkers({ scope: "all" }),
+      coreClient.getCoworkers({ scope: "archived" }),
+    ]);
+
+    return mergeCoworkerLists(
+      activeResponse.data ?? [],
+      archivedResponse.data ?? [],
+    );
   }
 
   async function getCoworkerById(id: string): Promise<Coworker | null> {
@@ -99,9 +129,53 @@ export const adminCoworkerService = (() => {
     return { coworker };
   }
 
+  async function updateControls(
+    id: string,
+    patchBody: AdminCoworkerControlsPatchBody,
+  ): Promise<Coworker> {
+    const result = await coreClient.patchCoworker(id, patchBody);
+    if (!result.data) {
+      throw new Error("Coworker update did not return data");
+    }
+    return result.data;
+  }
+
+  async function updateWhitelist(
+    id: string,
+    isWhitelisted: boolean,
+  ): Promise<Coworker> {
+    const result = await coreClient.patchCoworkerWhitelist(id, {
+      isWhitelisted,
+    });
+    if (!result.data) {
+      throw new Error("Coworker whitelist update did not return data");
+    }
+    return result.data;
+  }
+
+  async function archiveCoworker(id: string): Promise<Coworker> {
+    const result = await coreClient.archiveCoworker(id);
+    if (!result.data) {
+      throw new Error("Coworker archive did not return data");
+    }
+    return result.data;
+  }
+
+  async function unarchiveCoworker(id: string): Promise<Coworker> {
+    const result = await coreClient.unarchiveCoworker(id);
+    if (!result.data) {
+      throw new Error("Coworker unarchive did not return data");
+    }
+    return result.data;
+  }
+
   return {
     listCoworkers,
     getCoworkerById,
     updateDisplay,
+    updateControls,
+    updateWhitelist,
+    archiveCoworker,
+    unarchiveCoworker,
   };
 })();

@@ -2926,7 +2926,7 @@
           },
           "coworkers": {
             "title": "Coworkers",
-            "description": "编辑活跃 coworker 的显示名称、说明、描述和图片。"
+            "description": "管理所有同事的能力、优先级、白名单、归档和显示元数据。"
           }
         }
       },
@@ -3127,78 +3127,127 @@
       },
       "Coworkers": {
         "title": "Coworkers",
-        "description": "列出活跃的 Coworker，并编辑它们在 Sokosumi 中的展示方式。",
-        "loadFailed": "加载 Coworker 失败。",
-        "backToList": "返回列表",
-        "editTitle": "编辑 Coworker",
-        "editDescription": "更新在市场和产品中显示的字段。",
+        "description": "管理同事的能力、优先级、白名单、归档状态和显示元数据。",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editTitle": "Edit coworker",
+        "editDescription": "更新平台控制项以及在市场和产品中的显示字段。",
         "Table": {
-          "name": "名称",
+          "name": "Name",
           "slug": "Slug",
-          "caption": "副标题",
-          "whitelist": "白名单",
-          "whitelisted": "已加入白名单",
-          "notWhitelisted": "未加入白名单",
-          "priority": "优先级",
-          "actions": "操作",
-          "edit": "编辑",
-          "empty": "未找到活跃的 Coworker。",
-          "searchPlaceholder": "按名称、slug、说明或供应商搜索…",
-          "totalCount": "{count} 个同事智能体",
-          "filteredCount": "显示 {shown} / {total}",
-          "emptySearch": "没有与搜索匹配的同事智能体。"
+          "caption": "Caption",
+          "status": "状态",
+          "active": "活跃",
+          "archived": "已归档",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "未找到同事。",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "归档状态筛选",
+          "filterAll": "全部",
+          "filterActive": "活跃",
+          "filterArchived": "已归档",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "没有同事符合所选筛选条件。"
         },
         "Form": {
+          "display": {
+            "title": "显示",
+            "description": "更新此同事在 Sokosumi 中的展示方式。"
+          },
+          "controls": {
+            "title": "平台控制",
+            "description": "管理能力、优先级、白名单和归档状态。",
+            "save": "保存控制项",
+            "saving": "正在保存控制项…",
+            "archive": "归档",
+            "archiving": "正在归档…",
+            "archiveConfirmTitle": "归档此同事？",
+            "archiveConfirmDescription": "这将归档该同事并吊销其 API 密钥。之后可以取消归档，但 API 密钥仍会保持吊销状态。",
+            "unarchive": "取消归档",
+            "unarchiving": "正在取消归档…",
+            "capabilities": {
+              "label": "能力",
+              "chat": "聊天",
+              "tasks": "任务"
+            },
+            "priority": {
+              "label": "优先级"
+            },
+            "whitelist": {
+              "label": "白名单",
+              "description": "列入白名单的同事会在默认市场范围内显示。"
+            }
+          },
           "Fields": {
             "name": {
-              "label": "名称"
+              "label": "Name"
             },
             "caption": {
-              "label": "说明"
+              "label": "Caption"
             },
             "description": {
-              "label": "描述"
+              "label": "Description"
             }
           },
           "image": {
-            "label": "图片",
-            "description": "PNG、JPEG、WebP 或 GIF，最大 2 MB。",
-            "upload": "上传图片",
-            "replace": "替换图片",
-            "remove": "移除图片",
-            "previewAlt": "Coworker 图片预览",
-            "fileTooLarge": "图片大小不得超过 2 MB。",
-            "fileTypeNotAccepted": "请使用 PNG、JPEG、WebP 或 GIF。",
-            "maxFilesExceeded": "一次只能上传一张图片。",
-            "uploadError": "无法处理所选图片。"
+            "label": "Image",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+            "upload": "Upload image",
+            "replace": "Replace image",
+            "remove": "Remove image",
+            "previewAlt": "Coworker image preview",
+            "fileTooLarge": "Image must be 2 MB or smaller.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+            "maxFilesExceeded": "Upload one image at a time.",
+            "uploadError": "Could not process the selected image."
           },
-          "saveChanges": "保存更改",
-          "saving": "保存中…",
-          "cancel": "取消",
+          "saveChanges": "保存显示",
+          "saving": "Saving…",
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "名称至少需要 {min} 个字符。",
-            "noChanges": "没有可保存的更改。",
-            "captionMaxLength": "说明文字最多 {max} 个字符。"
+            "nameMinLength": "Name must be at least {min} characters.",
+            "noChanges": "No changes to save.",
+            "captionMaxLength": "Caption must be at most {max} characters.",
+            "priorityInteger": "优先级必须是整数。",
+            "noControlChanges": "没有可保存的控制项更改。"
           },
           "success": {
-            "saved": "已更新 coworker。",
-            "imageSaved": "图片已保存。",
-            "imageRemoved": "图片已移除。"
+            "saved": "已更新同事显示。",
+            "controlsSaved": "已更新同事控制项。",
+            "whitelistSaved": "已更新白名单状态。",
+            "archived": "已归档同事。",
+            "unarchived": "已取消归档同事。",
+            "imageSaved": "Image saved.",
+            "imageRemoved": "Image removed."
           },
           "errors": {
-            "saveFailed": "保存 coworker 失败。",
-            "notFound": "未找到 coworker。",
-            "imageSaveFailed": "更新图片失败。"
+            "saveFailed": "无法保存同事显示。",
+            "controlsSaveFailed": "无法保存同事控制项。",
+            "whitelistSaveFailed": "无法更新白名单状态。",
+            "archiveFailed": "无法归档同事。",
+            "unarchiveFailed": "无法取消归档同事。",
+            "notFound": "Coworker not found.",
+            "imageSaveFailed": "Failed to update image."
           }
         },
         "Context": {
           "id": "ID",
           "slug": "Slug",
-          "vendor": "供应商",
-          "priority": "优先级",
-          "whitelist": "白名单",
-          "whitelisted": "已加入白名单",
-          "notWhitelisted": "未加入白名单"
+          "vendor": "Vendor",
+          "status": "状态",
+          "active": "活跃",
+          "archived": "已归档",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {

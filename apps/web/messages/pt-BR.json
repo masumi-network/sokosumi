@@ -2926,7 +2926,7 @@
           },
           "coworkers": {
             "title": "Coworkers",
-            "description": "Edite nomes, legendas, descrições e imagens de coworkers ativos."
+            "description": "Gerencie capacidades, prioridade, lista de permissão, arquivamento e metadados de exibição de todos os coworkers."
           }
         }
       },
@@ -3127,78 +3127,127 @@
       },
       "Coworkers": {
         "title": "Coworkers",
-        "description": "Liste coworkers ativos e edite como eles aparecem no Sokosumi.",
-        "loadFailed": "Falha ao carregar coworkers.",
-        "backToList": "Voltar à lista",
-        "editTitle": "Editar coworker",
-        "editDescription": "Atualize os campos de exibição no marketplace e no produto.",
+        "description": "Gerencie capacidades, prioridade, lista de permissão, estado de arquivamento e metadados de exibição dos coworkers.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editTitle": "Edit coworker",
+        "editDescription": "Atualize controles de plataforma e campos de exibição no marketplace e no produto.",
         "Table": {
-          "name": "Nome",
+          "name": "Name",
           "slug": "Slug",
-          "caption": "Legenda",
-          "whitelist": "Lista de permissão",
-          "whitelisted": "Na lista de permissão",
-          "notWhitelisted": "Fora da lista de permissão",
-          "priority": "Prioridade",
-          "actions": "Ações",
-          "edit": "Editar",
-          "empty": "Nenhum coworker ativo encontrado.",
-          "searchPlaceholder": "Pesquisar por nome, slug, legenda ou vendor…",
+          "caption": "Caption",
+          "status": "Status",
+          "active": "Ativo",
+          "archived": "Arquivado",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "Nenhum coworker encontrado.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "Filtro de status de arquivamento",
+          "filterAll": "Todos",
+          "filterActive": "Ativos",
+          "filterArchived": "Arquivados",
           "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
-          "filteredCount": "Mostrando {shown} de {total}",
-          "emptySearch": "Nenhum coworker corresponde à pesquisa."
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "Nenhum coworker corresponde ao filtro selecionado."
         },
         "Form": {
+          "display": {
+            "title": "Exibição",
+            "description": "Atualize como este coworker aparece no Sokosumi."
+          },
+          "controls": {
+            "title": "Controles de plataforma",
+            "description": "Gerencie capacidades, prioridade, lista de permissão e estado de arquivamento.",
+            "save": "Salvar controles",
+            "saving": "Salvando controles…",
+            "archive": "Arquivar",
+            "archiving": "Arquivando…",
+            "archiveConfirmTitle": "Arquivar coworker?",
+            "archiveConfirmDescription": "Isso arquiva o coworker e revoga suas chaves de API. Você pode desarquivar depois, mas as chaves de API permanecem revogadas.",
+            "unarchive": "Desarquivar",
+            "unarchiving": "Desarquivando…",
+            "capabilities": {
+              "label": "Capacidades",
+              "chat": "Chat",
+              "tasks": "Tarefas"
+            },
+            "priority": {
+              "label": "Prioridade"
+            },
+            "whitelist": {
+              "label": "Lista de permissão",
+              "description": "Coworkers na lista de permissão ficam visíveis no escopo padrão do marketplace."
+            }
+          },
           "Fields": {
             "name": {
-              "label": "Nome"
+              "label": "Name"
             },
             "caption": {
-              "label": "Legenda"
+              "label": "Caption"
             },
             "description": {
-              "label": "Descrição"
+              "label": "Description"
             }
           },
           "image": {
-            "label": "Imagem",
-            "description": "PNG, JPEG, WebP ou GIF de até 2 MB.",
-            "upload": "Enviar imagem",
-            "replace": "Substituir imagem",
-            "remove": "Remover imagem",
-            "previewAlt": "Prévia da imagem do coworker",
-            "fileTooLarge": "A imagem deve ter 2 MB ou menos.",
-            "fileTypeNotAccepted": "Use PNG, JPEG, WebP ou GIF.",
-            "maxFilesExceeded": "Envie uma imagem por vez.",
-            "uploadError": "Não foi possível processar a imagem selecionada."
+            "label": "Image",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+            "upload": "Upload image",
+            "replace": "Replace image",
+            "remove": "Remove image",
+            "previewAlt": "Coworker image preview",
+            "fileTooLarge": "Image must be 2 MB or smaller.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+            "maxFilesExceeded": "Upload one image at a time.",
+            "uploadError": "Could not process the selected image."
           },
-          "saveChanges": "Salvar alterações",
-          "saving": "Salvando…",
-          "cancel": "Cancelar",
+          "saveChanges": "Salvar exibição",
+          "saving": "Saving…",
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "O nome deve ter pelo menos {min} caracteres.",
-            "noChanges": "Não há alterações para salvar.",
-            "captionMaxLength": "A legenda deve ter no máximo {max} caracteres."
+            "nameMinLength": "Name must be at least {min} characters.",
+            "noChanges": "No changes to save.",
+            "captionMaxLength": "Caption must be at most {max} characters.",
+            "priorityInteger": "A prioridade deve ser um número inteiro.",
+            "noControlChanges": "Nenhuma alteração de controle para salvar."
           },
           "success": {
-            "saved": "Coworker atualizado.",
-            "imageSaved": "Imagem salva.",
-            "imageRemoved": "Imagem removida."
+            "saved": "Exibição do coworker atualizada.",
+            "controlsSaved": "Controles do coworker atualizados.",
+            "whitelistSaved": "Status da lista de permissão atualizado.",
+            "archived": "Coworker arquivado.",
+            "unarchived": "Coworker desarquivado.",
+            "imageSaved": "Image saved.",
+            "imageRemoved": "Image removed."
           },
           "errors": {
-            "saveFailed": "Falha ao salvar o coworker.",
-            "notFound": "Coworker não encontrado.",
-            "imageSaveFailed": "Falha ao atualizar a imagem."
+            "saveFailed": "Não foi possível salvar a exibição do coworker.",
+            "controlsSaveFailed": "Não foi possível salvar os controles do coworker.",
+            "whitelistSaveFailed": "Não foi possível atualizar o status da lista de permissão.",
+            "archiveFailed": "Não foi possível arquivar o coworker.",
+            "unarchiveFailed": "Não foi possível desarquivar o coworker.",
+            "notFound": "Coworker not found.",
+            "imageSaveFailed": "Failed to update image."
           }
         },
         "Context": {
           "id": "ID",
           "slug": "Slug",
-          "vendor": "Fornecedor",
-          "priority": "Prioridade",
-          "whitelist": "Lista de permissão",
-          "whitelisted": "Na lista de permissão",
-          "notWhitelisted": "Fora da lista de permissão"
+          "vendor": "Vendor",
+          "status": "Status",
+          "active": "Ativo",
+          "archived": "Arquivado",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {

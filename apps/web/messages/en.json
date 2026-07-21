@@ -3097,7 +3097,7 @@
           },
           "coworkers": {
             "title": "Coworkers",
-            "description": "Edit display names, captions, descriptions, and images for active coworkers."
+            "description": "Manage capabilities, priority, whitelist, archive state, and display metadata for all coworkers."
           }
         }
       },
@@ -3219,28 +3219,64 @@
       },
       "Coworkers": {
         "title": "Coworkers",
-        "description": "List active coworkers and edit how they appear in Sokosumi.",
+        "description": "Manage coworker capabilities, priority, whitelist, archive state, and display metadata.",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
         "editTitle": "Edit coworker",
-        "editDescription": "Update display fields shown in the marketplace and product.",
+        "editDescription": "Update platform controls and display fields shown in the marketplace and product.",
         "Table": {
           "name": "Name",
           "slug": "Slug",
           "caption": "Caption",
+          "status": "Status",
+          "active": "Active",
+          "archived": "Archived",
           "whitelist": "Whitelist",
           "whitelisted": "Whitelisted",
           "notWhitelisted": "Not whitelisted",
           "priority": "Priority",
           "actions": "Actions",
           "edit": "Edit",
-          "empty": "No active coworkers found.",
+          "empty": "No coworkers found.",
           "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "Archive status filter",
+          "filterAll": "All",
+          "filterActive": "Active",
+          "filterArchived": "Archived",
           "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
           "filteredCount": "Showing {shown} of {total}",
-          "emptySearch": "No coworkers match your search."
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "No coworkers match the selected filter."
         },
         "Form": {
+          "display": {
+            "title": "Display",
+            "description": "Update how this coworker appears in Sokosumi."
+          },
+          "controls": {
+            "title": "Platform controls",
+            "description": "Manage capabilities, priority, whitelist, and archive state.",
+            "save": "Save controls",
+            "saving": "Saving controls…",
+            "archive": "Archive",
+            "archiving": "Archiving…",
+            "archiveConfirmTitle": "Archive coworker?",
+            "archiveConfirmDescription": "This archives the coworker and revokes its API keys. You can unarchive later, but API keys stay revoked.",
+            "unarchive": "Unarchive",
+            "unarchiving": "Unarchiving…",
+            "capabilities": {
+              "label": "Capabilities",
+              "chat": "Chat",
+              "tasks": "Tasks"
+            },
+            "priority": {
+              "label": "Priority"
+            },
+            "whitelist": {
+              "label": "Whitelist",
+              "description": "Whitelisted coworkers are visible in the default marketplace scope."
+            }
+          },
           "Fields": {
             "name": {
               "label": "Name"
@@ -3264,21 +3300,31 @@
             "maxFilesExceeded": "Upload one image at a time.",
             "uploadError": "Could not process the selected image."
           },
-          "saveChanges": "Save changes",
+          "saveChanges": "Save display",
           "saving": "Saving…",
           "cancel": "Cancel",
           "validation": {
             "nameMinLength": "Name must be at least {min} characters.",
             "noChanges": "No changes to save.",
-            "captionMaxLength": "Caption must be at most {max} characters."
+            "captionMaxLength": "Caption must be at most {max} characters.",
+            "priorityInteger": "Priority must be a whole number.",
+            "noControlChanges": "No control changes to save."
           },
           "success": {
-            "saved": "Coworker updated.",
+            "saved": "Coworker display updated.",
+            "controlsSaved": "Coworker controls updated.",
+            "whitelistSaved": "Whitelist status updated.",
+            "archived": "Coworker archived.",
+            "unarchived": "Coworker unarchived.",
             "imageSaved": "Image saved.",
             "imageRemoved": "Image removed."
           },
           "errors": {
-            "saveFailed": "Failed to save coworker.",
+            "saveFailed": "Failed to save coworker display.",
+            "controlsSaveFailed": "Failed to save coworker controls.",
+            "whitelistSaveFailed": "Failed to update whitelist status.",
+            "archiveFailed": "Failed to archive coworker.",
+            "unarchiveFailed": "Failed to unarchive coworker.",
             "notFound": "Coworker not found.",
             "imageSaveFailed": "Failed to update image."
           }
@@ -3287,6 +3333,9 @@
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",
+          "status": "Status",
+          "active": "Active",
+          "archived": "Archived",
           "priority": "Priority",
           "whitelist": "Whitelist",
           "whitelisted": "Whitelisted",
