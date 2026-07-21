@@ -3146,7 +3146,7 @@
           "edit": "Edit",
           "empty": "コワーカーが見つかりません。",
           "searchPlaceholder": "Search by name, slug, caption, or vendor…",
-          "archiveFilterLabel": "アーカイブ状態フィルター",
+          "archiveFilterLabel": "ステータス",
           "filterAll": "すべて",
           "filterActive": "有効",
           "filterArchived": "アーカイブ済み",

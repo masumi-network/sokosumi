@@ -3146,7 +3146,7 @@
           "edit": "Edit",
           "empty": "Nenhum coworker encontrado.",
           "searchPlaceholder": "Search by name, slug, caption, or vendor…",
-          "archiveFilterLabel": "Filtro de status de arquivamento",
+          "archiveFilterLabel": "Status",
           "filterAll": "Todos",
           "filterActive": "Ativos",
           "filterArchived": "Arquivados",

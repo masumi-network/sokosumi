@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -15,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
 interface CoworkersTableProps {
@@ -99,38 +100,37 @@ export function CoworkersTable({ coworkers }: CoworkersTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <Input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("searchPlaceholder")}
-            className="max-w-sm"
+            className="w-full min-w-[16rem] sm:max-w-sm"
             aria-label={t("searchPlaceholder")}
           />
-          <ToggleGroup
-            type="single"
-            value={archiveFilter}
-            onValueChange={(value) => {
-              if (value) {
+          <div className="space-y-2">
+            <Label id="coworker-archive-filter-label">
+              {t("archiveFilterLabel")}
+            </Label>
+            <Tabs
+              value={archiveFilter}
+              onValueChange={(value) => {
                 setArchiveFilter(value as ArchiveFilter);
-              }
-            }}
-            aria-label={t("archiveFilterLabel")}
-          >
-            <ToggleGroupItem value="all" aria-label={t("filterAll")}>
-              {t("filterAll")}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="active" aria-label={t("filterActive")}>
-              {t("filterActive")}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="archived" aria-label={t("filterArchived")}>
-              {t("filterArchived")}
-            </ToggleGroupItem>
-          </ToggleGroup>
+              }}
+            >
+              <TabsList aria-labelledby="coworker-archive-filter-label">
+                <TabsTrigger value="all">{t("filterAll")}</TabsTrigger>
+                <TabsTrigger value="active">{t("filterActive")}</TabsTrigger>
+                <TabsTrigger value="archived">
+                  {t("filterArchived")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
-        <p className="text-muted-foreground text-sm tabular-nums">
+        <p className="text-muted-foreground text-sm tabular-nums sm:pb-2">
           {search.trim() || archiveFilter !== "all"
             ? t("filteredCount", {
                 shown: filtered.length,
