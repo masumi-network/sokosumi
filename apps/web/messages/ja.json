@@ -2923,6 +2923,10 @@
           "freeCredits": {
             "title": "無料クレジット",
             "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "アクティブな Coworker の表示名、キャプション、説明、画像を編集します。"
           }
         }
       },
@@ -3121,6 +3125,111 @@
           "personalWorkspace": "個人ワークスペース"
         }
       },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "アクティブな Coworker を一覧表示し、Sokosumi での表示を編集します。",
+        "loadFailed": "Coworker の読み込みに失敗しました。",
+        "backToList": "一覧に戻る",
+        "editTitle": "Coworker を編集",
+        "editDescription": "マーケットプレイスとプロダクトに表示される項目を更新します。",
+        "Table": {
+          "name": "名前",
+          "slug": "スラッグ",
+          "caption": "キャプション",
+          "whitelist": "ホワイトリスト",
+          "whitelisted": "ホワイトリスト済み",
+          "notWhitelisted": "未登録",
+          "priority": "優先度",
+          "actions": "操作",
+          "edit": "編集",
+          "empty": "アクティブな Coworker が見つかりません。",
+          "searchPlaceholder": "名前、スラッグ、キャプション、ベンダーで検索…",
+          "totalCount": "{count} 件のコワーカー",
+          "filteredCount": "{total} 件中 {shown} 件を表示",
+          "emptySearch": "検索に一致するコワーカーはありません。"
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "名前"
+            },
+            "caption": {
+              "label": "キャプション"
+            },
+            "description": {
+              "label": "説明"
+            }
+          },
+          "image": {
+            "label": "画像",
+            "description": "PNG、JPEG、WebP、または GIF（最大 2 MB）。",
+            "upload": "画像をアップロード",
+            "replace": "画像を差し替え",
+            "remove": "画像を削除",
+            "previewAlt": "Coworker 画像のプレビュー",
+            "fileTooLarge": "画像は 2 MB 以下にしてください。",
+            "fileTypeNotAccepted": "PNG、JPEG、WebP、または GIF を使用してください。",
+            "maxFilesExceeded": "一度に 1 枚の画像をアップロードしてください。",
+            "uploadError": "選択した画像を処理できませんでした。"
+          },
+          "saveChanges": "変更を保存",
+          "saving": "保存中…",
+          "cancel": "キャンセル",
+          "validation": {
+            "nameMinLength": "名前は {min} 文字以上にしてください。",
+            "noChanges": "保存する変更はありません。",
+            "captionMaxLength": "キャプションは最大 {max} 文字です。"
+          },
+          "success": {
+            "saved": "Coworker を更新しました。",
+            "imageSaved": "画像を保存しました。",
+            "imageRemoved": "画像を削除しました。"
+          },
+          "errors": {
+            "saveFailed": "Coworker の保存に失敗しました。",
+            "notFound": "Coworker が見つかりません。",
+            "imageSaveFailed": "画像の更新に失敗しました。"
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "スラッグ",
+          "vendor": "ベンダー",
+          "priority": "優先度",
+          "whitelist": "ホワイトリスト",
+          "whitelisted": "ホワイトリスト済み",
+          "notWhitelisted": "未登録"
+        }
+      },
+      "FreeCredits": {
+        "title": "無料クレジット",
+        "description": "ユーザーまたは組織に無料クレジットを直接付与します。クレジットは即時に反映されます。",
+        "backToAdmin": "管理画面に戻る",
+        "Form": {
+          "Fields": {
+            "target": "付与先",
+            "credits": "クレジット",
+            "expiryDays": "有効期限（日）",
+            "referenceNote": "参照メモ"
+          },
+          "Tabs": {
+            "organization": "組織",
+            "user": "ユーザー"
+          },
+          "targetRequired": "付与先を選択してください",
+          "creditsRequired": "正のクレジット数を入力してください",
+          "creditsHelper": "付与先に付与するクレジット数です。",
+          "expiryHelper": "任意。クレジットの有効期限までの日数。無期限の場合は空欄のままにしてください。",
+          "expiryPlaceholder": "無期限",
+          "expiryInvalid": "有効期限は正の整数（日数）である必要があります",
+          "referenceNoteHelper": "内部参照用にクレジットバケットへ保存する任意のメモです。",
+          "referenceNotePlaceholder": "例: 請求の問題、 goodwill 措置",
+          "submit": "クレジットを付与",
+          "submitting": "クレジットを付与中…",
+          "grantSuccess": "無料クレジットを付与しました",
+          "grantError": "無料クレジットの付与に失敗しました"
+        }
+      },
       "Orchestrators": {
         "title": "オーケストレーター",
         "description": "自社オーケストレーターの表示メタデータを管理します。",
@@ -3183,35 +3292,6 @@
             "notFound": "オーケストレーターが見つかりません。",
             "imageSaveFailed": "画像の更新に失敗しました。"
           }
-        }
-      },
-      "FreeCredits": {
-        "title": "無料クレジット",
-        "description": "ユーザーまたは組織に無料クレジットを直接付与します。クレジットは即時に反映されます。",
-        "backToAdmin": "管理画面に戻る",
-        "Form": {
-          "Fields": {
-            "target": "付与先",
-            "credits": "クレジット",
-            "expiryDays": "有効期限（日）",
-            "referenceNote": "参照メモ"
-          },
-          "Tabs": {
-            "organization": "組織",
-            "user": "ユーザー"
-          },
-          "targetRequired": "付与先を選択してください",
-          "creditsRequired": "正のクレジット数を入力してください",
-          "creditsHelper": "付与先に付与するクレジット数です。",
-          "expiryHelper": "任意。クレジットの有効期限までの日数。無期限の場合は空欄のままにしてください。",
-          "expiryPlaceholder": "無期限",
-          "expiryInvalid": "有効期限は正の整数（日数）である必要があります",
-          "referenceNoteHelper": "内部参照用にクレジットバケットへ保存する任意のメモです。",
-          "referenceNotePlaceholder": "例: 請求の問題、 goodwill 措置",
-          "submit": "クレジットを付与",
-          "submitting": "クレジットを付与中…",
-          "grantSuccess": "無料クレジットを付与しました",
-          "grantError": "無料クレジットの付与に失敗しました"
         }
       }
     },

@@ -20716,7 +20716,6 @@ export type PostCoworkersData = {
          */
         baseURL?: string | null;
         description?: string | null;
-        image?: string | null;
         /**
          * Admin only. Higher numbers sort first in coworker lists.
          */
@@ -21499,7 +21498,6 @@ export type PatchCoworkersByIdData = {
          */
         baseURL?: string | null;
         description?: string | null;
-        image?: string | null;
         /**
          * Admin only. Higher numbers sort first in coworker lists.
          */
@@ -21579,6 +21577,197 @@ export type PatchCoworkersByIdResponses = {
 };
 
 export type PatchCoworkersByIdResponse = PatchCoworkersByIdResponses[keyof PatchCoworkersByIdResponses];
+
+export type DeleteCoworkersByIdImageData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/image';
+};
+
+export type DeleteCoworkersByIdImageErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteCoworkersByIdImageError = DeleteCoworkersByIdImageErrors[keyof DeleteCoworkersByIdImageErrors];
+
+export type DeleteCoworkersByIdImageResponses = {
+    /**
+     * Remove coworker image
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteCoworkersByIdImageResponse = DeleteCoworkersByIdImageResponses[keyof DeleteCoworkersByIdImageResponses];
+
+export type PostCoworkersByIdImageData = {
+    body: {
+        /**
+         * Coworker image file (png, jpeg, webp, or gif; max 2 MB)
+         */
+        file?: Blob | File;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/image';
+};
+
+export type PostCoworkersByIdImageErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostCoworkersByIdImageError = PostCoworkersByIdImageErrors[keyof PostCoworkersByIdImageErrors];
+
+export type PostCoworkersByIdImageResponses = {
+    /**
+     * Upload coworker image
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostCoworkersByIdImageResponse = PostCoworkersByIdImageResponses[keyof PostCoworkersByIdImageResponses];
 
 export type PatchCoworkersByIdWhitelistData = {
     body?: {

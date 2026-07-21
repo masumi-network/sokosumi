@@ -3094,6 +3094,10 @@
           "orchestrators": {
             "title": "Orchestrators",
             "description": "Edit display metadata for first-party orchestrators."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Edit display names, captions, descriptions, and images for active coworkers."
           }
         }
       },
@@ -3211,6 +3215,82 @@
         "TaskDetail": {
           "backToList": "Back to tasks",
           "personalWorkspace": "Personal workspace"
+        }
+      },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "List active coworkers and edit how they appear in Sokosumi.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editTitle": "Edit coworker",
+        "editDescription": "Update display fields shown in the marketplace and product.",
+        "Table": {
+          "name": "Name",
+          "slug": "Slug",
+          "caption": "Caption",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "No active coworkers found.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Name"
+            },
+            "caption": {
+              "label": "Caption"
+            },
+            "description": {
+              "label": "Description"
+            }
+          },
+          "image": {
+            "label": "Image",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+            "upload": "Upload image",
+            "replace": "Replace image",
+            "remove": "Remove image",
+            "previewAlt": "Coworker image preview",
+            "fileTooLarge": "Image must be 2 MB or smaller.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+            "maxFilesExceeded": "Upload one image at a time.",
+            "uploadError": "Could not process the selected image."
+          },
+          "saveChanges": "Save changes",
+          "saving": "Saving…",
+          "cancel": "Cancel",
+          "validation": {
+            "nameMinLength": "Name must be at least {min} characters.",
+            "noChanges": "No changes to save.",
+            "captionMaxLength": "Caption must be at most {max} characters."
+          },
+          "success": {
+            "saved": "Coworker updated.",
+            "imageSaved": "Image saved.",
+            "imageRemoved": "Image removed."
+          },
+          "errors": {
+            "saveFailed": "Failed to save coworker.",
+            "notFound": "Coworker not found.",
+            "imageSaveFailed": "Failed to update image."
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "Orchestrators": {

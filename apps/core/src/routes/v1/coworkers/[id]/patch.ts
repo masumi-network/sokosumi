@@ -89,7 +89,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           baseURL: body.baseURL,
           description: body.description,
           capabilities: body.capabilities,
-          image: body.image,
           priority: body.priority,
           metadata,
         },

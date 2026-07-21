@@ -2923,6 +2923,10 @@
           "freeCredits": {
             "title": "Créditos gratuitos",
             "description": "Conceda créditos gratuitos diretamente a um utilizador ou organização sem fatura Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Edite nomes, legendas, descrições e imagens de coworkers ativos."
           }
         }
       },
@@ -3121,6 +3125,111 @@
           "personalWorkspace": "Espaço de trabalho pessoal"
         }
       },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Liste coworkers ativos e edite a forma como aparecem no Sokosumi.",
+        "loadFailed": "Falha ao carregar coworkers.",
+        "backToList": "Voltar à lista",
+        "editTitle": "Editar coworker",
+        "editDescription": "Atualize os campos de apresentação no marketplace e no produto.",
+        "Table": {
+          "name": "Nome",
+          "slug": "Slug",
+          "caption": "Legenda",
+          "whitelist": "Lista branca",
+          "whitelisted": "Na lista branca",
+          "notWhitelisted": "Fora da lista branca",
+          "priority": "Prioridade",
+          "actions": "Ações",
+          "edit": "Editar",
+          "empty": "Nenhum coworker ativo encontrado.",
+          "searchPlaceholder": "Pesquisar por nome, slug, legenda ou vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "A mostrar {shown} de {total}",
+          "emptySearch": "Nenhum coworker corresponde à pesquisa."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Nome"
+            },
+            "caption": {
+              "label": "Legenda"
+            },
+            "description": {
+              "label": "Descrição"
+            }
+          },
+          "image": {
+            "label": "Imagem",
+            "description": "PNG, JPEG, WebP ou GIF até 2 MB.",
+            "upload": "Carregar imagem",
+            "replace": "Substituir imagem",
+            "remove": "Remover imagem",
+            "previewAlt": "Pré-visualização da imagem do coworker",
+            "fileTooLarge": "A imagem deve ter 2 MB ou menos.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP ou GIF.",
+            "maxFilesExceeded": "Carregue uma imagem de cada vez.",
+            "uploadError": "Não foi possível processar a imagem selecionada."
+          },
+          "saveChanges": "Guardar alterações",
+          "saving": "A guardar…",
+          "cancel": "Cancelar",
+          "validation": {
+            "nameMinLength": "O nome deve ter pelo menos {min} caracteres.",
+            "noChanges": "Não há alterações para guardar.",
+            "captionMaxLength": "A legenda deve ter no máximo {max} caracteres."
+          },
+          "success": {
+            "saved": "Coworker atualizado.",
+            "imageSaved": "Imagem guardada.",
+            "imageRemoved": "Imagem removida."
+          },
+          "errors": {
+            "saveFailed": "Falha ao guardar o coworker.",
+            "notFound": "Coworker não encontrado.",
+            "imageSaveFailed": "Falha ao atualizar a imagem."
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Fornecedor",
+          "priority": "Prioridade",
+          "whitelist": "Lista branca",
+          "whitelisted": "Na lista branca",
+          "notWhitelisted": "Fora da lista branca"
+        }
+      },
+      "FreeCredits": {
+        "title": "Créditos gratuitos",
+        "description": "Conceda créditos gratuitos diretamente a um utilizador ou organização. Os créditos são aplicados de imediato.",
+        "backToAdmin": "Voltar à administração",
+        "Form": {
+          "Fields": {
+            "target": "Destinatário",
+            "credits": "Créditos",
+            "expiryDays": "Validade (dias)",
+            "referenceNote": "Nota de referência"
+          },
+          "Tabs": {
+            "organization": "Organização",
+            "user": "Utilizador"
+          },
+          "targetRequired": "Selecione um destinatário",
+          "creditsRequired": "Introduza um número positivo de créditos",
+          "creditsHelper": "Número de créditos a conceder ao destinatário.",
+          "expiryHelper": "Opcional. Dias até os créditos expirarem. Deixe em branco para sem validade.",
+          "expiryPlaceholder": "Sem validade",
+          "expiryInvalid": "A validade deve ser um número inteiro positivo de dias",
+          "referenceNoteHelper": "Nota opcional guardada no bucket de créditos para referência interna.",
+          "referenceNotePlaceholder": "p. ex. Problema de faturação, gesto de cortesia",
+          "submit": "Conceder créditos",
+          "submitting": "A conceder créditos…",
+          "grantSuccess": "Créditos gratuitos concedidos",
+          "grantError": "Falha ao conceder créditos gratuitos"
+        }
+      },
       "Orchestrators": {
         "title": "Orquestradores",
         "description": "Gerir metadados de apresentação de orquestradores próprios.",
@@ -3183,35 +3292,6 @@
             "notFound": "Orquestrador não encontrado.",
             "imageSaveFailed": "Falha ao atualizar a imagem."
           }
-        }
-      },
-      "FreeCredits": {
-        "title": "Créditos gratuitos",
-        "description": "Conceda créditos gratuitos diretamente a um utilizador ou organização. Os créditos são aplicados de imediato.",
-        "backToAdmin": "Voltar à administração",
-        "Form": {
-          "Fields": {
-            "target": "Destinatário",
-            "credits": "Créditos",
-            "expiryDays": "Validade (dias)",
-            "referenceNote": "Nota de referência"
-          },
-          "Tabs": {
-            "organization": "Organização",
-            "user": "Utilizador"
-          },
-          "targetRequired": "Selecione um destinatário",
-          "creditsRequired": "Introduza um número positivo de créditos",
-          "creditsHelper": "Número de créditos a conceder ao destinatário.",
-          "expiryHelper": "Opcional. Dias até os créditos expirarem. Deixe em branco para sem validade.",
-          "expiryPlaceholder": "Sem validade",
-          "expiryInvalid": "A validade deve ser um número inteiro positivo de dias",
-          "referenceNoteHelper": "Nota opcional guardada no bucket de créditos para referência interna.",
-          "referenceNotePlaceholder": "p. ex. Problema de faturação, gesto de cortesia",
-          "submit": "Conceder créditos",
-          "submitting": "A conceder créditos…",
-          "grantSuccess": "Créditos gratuitos concedidos",
-          "grantError": "Falha ao conceder créditos gratuitos"
         }
       }
     },

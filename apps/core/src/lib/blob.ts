@@ -2,9 +2,11 @@ import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
 import {
+  buildCoworkerImagePathname,
   buildOrchestratorImagePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
+  isOwnedCoworkerImageUrl,
   isOwnedOrchestratorImageUrl,
 } from "@sokosumi/utils";
 import { del, list, put } from "@vercel/blob";
@@ -343,6 +345,81 @@ export async function deleteOrchestratorImageIfOwned(
       },
       extra: {
         orchestratorId,
+        url,
+      },
+    });
+  }
+}
+
+/**
+ * Upload a coworker image to Vercel Blob (public, random suffix).
+ * Returns the public URL, or null when blob storage is not configured / put fails.
+ */
+export async function uploadCoworkerImage(params: {
+  coworkerId: string;
+  bytes: ArrayBuffer | Buffer | Blob;
+  contentType: string;
+  filename: string;
+}): Promise<string | null> {
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    console.warn(
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping coworker image upload",
+    );
+    return null;
+  }
+
+  const pathname = buildCoworkerImagePathname(
+    params.coworkerId,
+    params.filename,
+    params.contentType,
+  );
+
+  try {
+    const blob = await put(pathname, params.bytes, {
+      access: "public",
+      contentType: params.contentType,
+      token: env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: true,
+    });
+    return blob.url;
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadCoworkerImage",
+      },
+    });
+    return null;
+  }
+}
+
+/**
+ * Best-effort delete of a previous coworker image when the URL is owned by
+ * that coworker (pathname under `coworkers/{id}/`). Foreign / invalid URLs are
+ * ignored.
+ */
+export async function deleteCoworkerImageIfOwned(
+  url: string | null | undefined,
+  coworkerId: string,
+): Promise<void> {
+  if (!url || !isOwnedCoworkerImageUrl(url, coworkerId)) {
+    return;
+  }
+
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    return;
+  }
+
+  try {
+    await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "deleteCoworkerImageIfOwned",
+      },
+      extra: {
+        coworkerId,
         url,
       },
     });

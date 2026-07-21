@@ -2923,6 +2923,10 @@
           "freeCredits": {
             "title": "Crediti gratuiti",
             "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Modifica nomi, didascalie, descrizioni e immagini dei coworker attivi."
           }
         }
       },
@@ -3121,6 +3125,111 @@
           "personalWorkspace": "Spazio di lavoro personale"
         }
       },
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Elenca i coworker attivi e modifica come appaiono in Sokosumi.",
+        "loadFailed": "Impossibile caricare i coworker.",
+        "backToList": "Torna all'elenco",
+        "editTitle": "Modifica coworker",
+        "editDescription": "Aggiorna i campi di presentazione nel marketplace e nel prodotto.",
+        "Table": {
+          "name": "Nome",
+          "slug": "Slug",
+          "caption": "Didascalia",
+          "whitelist": "Whitelist",
+          "whitelisted": "In whitelist",
+          "notWhitelisted": "Non in whitelist",
+          "priority": "Priorità",
+          "actions": "Azioni",
+          "edit": "Modifica",
+          "empty": "Nessun coworker attivo trovato.",
+          "searchPlaceholder": "Cerca per nome, slug, didascalia o vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworker}}",
+          "filteredCount": "Visualizzati {shown} di {total}",
+          "emptySearch": "Nessun coworker corrisponde alla ricerca."
+        },
+        "Form": {
+          "Fields": {
+            "name": {
+              "label": "Nome"
+            },
+            "caption": {
+              "label": "Didascalia"
+            },
+            "description": {
+              "label": "Descrizione"
+            }
+          },
+          "image": {
+            "label": "Immagine",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
+            "upload": "Carica immagine",
+            "replace": "Sostituisci immagine",
+            "remove": "Rimuovi immagine",
+            "previewAlt": "Anteprima immagine del coworker",
+            "fileTooLarge": "L’immagine deve essere di 2 MB o meno.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Carica un’immagine alla volta.",
+            "uploadError": "Impossibile elaborare l’immagine selezionata."
+          },
+          "saveChanges": "Salva modifiche",
+          "saving": "Salvataggio…",
+          "cancel": "Annulla",
+          "validation": {
+            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+            "noChanges": "Nessuna modifica da salvare.",
+            "captionMaxLength": "La didascalia deve contenere al massimo {max} caratteri."
+          },
+          "success": {
+            "saved": "Coworker aggiornato.",
+            "imageSaved": "Immagine salvata.",
+            "imageRemoved": "Immagine rimossa."
+          },
+          "errors": {
+            "saveFailed": "Salvataggio del coworker non riuscito.",
+            "notFound": "Coworker non trovato.",
+            "imageSaveFailed": "Aggiornamento dell’immagine non riuscito."
+          }
+        },
+        "Context": {
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Fornitore",
+          "priority": "Priorità",
+          "whitelist": "Whitelist",
+          "whitelisted": "In whitelist",
+          "notWhitelisted": "Non in whitelist"
+        }
+      },
+      "FreeCredits": {
+        "title": "Crediti gratuiti",
+        "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione. I crediti vengono applicati subito.",
+        "backToAdmin": "Torna all'amministrazione",
+        "Form": {
+          "Fields": {
+            "target": "Destinatario",
+            "credits": "Crediti",
+            "expiryDays": "Scadenza (giorni)",
+            "referenceNote": "Nota di riferimento"
+          },
+          "Tabs": {
+            "organization": "Organizzazione",
+            "user": "Utente"
+          },
+          "targetRequired": "Seleziona un destinatario",
+          "creditsRequired": "Inserisci un numero positivo di crediti",
+          "creditsHelper": "Numero di crediti da concedere al destinatario.",
+          "expiryHelper": "Opzionale. Giorni fino alla scadenza dei crediti. Lascia vuoto per nessuna scadenza.",
+          "expiryPlaceholder": "Nessuna scadenza",
+          "expiryInvalid": "La scadenza deve essere un numero intero positivo di giorni",
+          "referenceNoteHelper": "Nota opzionale salvata sul bucket di crediti per riferimento interno.",
+          "referenceNotePlaceholder": "es. Problema di fatturazione, gesto di cortesia",
+          "submit": "Concedi crediti",
+          "submitting": "Concessione crediti…",
+          "grantSuccess": "Crediti gratuiti concessi",
+          "grantError": "Impossibile concedere i crediti gratuiti"
+        }
+      },
       "Orchestrators": {
         "title": "Orchestrator",
         "description": "Gestisci i metadati di visualizzazione degli orchestrator proprietari.",
@@ -3183,35 +3292,6 @@
             "notFound": "Orchestrator non trovato.",
             "imageSaveFailed": "Impossibile aggiornare l’immagine."
           }
-        }
-      },
-      "FreeCredits": {
-        "title": "Crediti gratuiti",
-        "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione. I crediti vengono applicati subito.",
-        "backToAdmin": "Torna all'amministrazione",
-        "Form": {
-          "Fields": {
-            "target": "Destinatario",
-            "credits": "Crediti",
-            "expiryDays": "Scadenza (giorni)",
-            "referenceNote": "Nota di riferimento"
-          },
-          "Tabs": {
-            "organization": "Organizzazione",
-            "user": "Utente"
-          },
-          "targetRequired": "Seleziona un destinatario",
-          "creditsRequired": "Inserisci un numero positivo di crediti",
-          "creditsHelper": "Numero di crediti da concedere al destinatario.",
-          "expiryHelper": "Opzionale. Giorni fino alla scadenza dei crediti. Lascia vuoto per nessuna scadenza.",
-          "expiryPlaceholder": "Nessuna scadenza",
-          "expiryInvalid": "La scadenza deve essere un numero intero positivo di giorni",
-          "referenceNoteHelper": "Nota opzionale salvata sul bucket di crediti per riferimento interno.",
-          "referenceNotePlaceholder": "es. Problema di fatturazione, gesto di cortesia",
-          "submit": "Concedi crediti",
-          "submitting": "Concessione crediti…",
-          "grantSuccess": "Crediti gratuiti concessi",
-          "grantError": "Impossibile concedere i crediti gratuiti"
         }
       }
     },
