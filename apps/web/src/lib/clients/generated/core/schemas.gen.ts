@@ -1608,12 +1608,20 @@ export const OrchestratorSummarySchema = {
         slug: {
             type: 'string',
             example: 'hermes'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/hermes.png'
         }
     },
     required: [
         'id',
         'name',
-        'slug'
+        'slug',
+        'image'
     ]
 } as const;
 
@@ -1750,12 +1758,20 @@ export const TaskEventSchema = {
                 slug: {
                     type: 'string',
                     example: 'hermes'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/hermes.png'
                 }
             },
             required: [
                 'id',
                 'name',
-                'slug'
+                'slug',
+                'image'
             ],
             deprecated: true,
             description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
@@ -9942,6 +9958,13 @@ export const OrchestratorSchema = {
                 'null'
             ],
             example: 'First-party Hermes orchestrator'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/hermes.png'
         }
     },
     required: [
@@ -9952,7 +9975,8 @@ export const OrchestratorSchema = {
         'slug',
         'name',
         'caption',
-        'description'
+        'description',
+        'image'
     ]
 } as const;
 

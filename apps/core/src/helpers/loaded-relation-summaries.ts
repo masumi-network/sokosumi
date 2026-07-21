@@ -96,6 +96,7 @@ interface OrchestratorSummaryFields {
   id: string;
   name: string;
   slug: string;
+  image: string | null;
 }
 
 /**
@@ -121,5 +122,6 @@ export function orchestratorSummaryFromLoadedRelation(
     id: orchestrator.id,
     name: orchestrator.name,
     slug: orchestrator.slug,
+    image: orchestrator.image,
   };
 }
