@@ -3110,7 +3110,7 @@
           "submitting": "Wird gespeichert…",
           "image": {
             "label": "Bild",
-            "description": "PNG, JPEG, WebP oder GIF bis 2 MB. Wird beim Absenden des Formulars gespeichert.",
+            "description": "PNG, JPEG, WebP oder GIF bis 2 MB. Uploads und Entfernen werden sofort gespeichert.",
             "upload": "Bild hochladen",
             "replace": "Bild ersetzen",
             "remove": "Bild entfernen",
@@ -3144,11 +3144,13 @@
           },
           "success": {
             "saved": "Orchestrator aktualisiert.",
-            "textSavedImageFailed": "Text gespeichert, aber das Bild konnte nicht aktualisiert werden."
+            "imageSaved": "Bild gespeichert.",
+            "imageRemoved": "Bild entfernt."
           },
           "errors": {
             "saveFailed": "Orchestrator konnte nicht gespeichert werden.",
-            "notFound": "Orchestrator nicht gefunden."
+            "notFound": "Orchestrator nicht gefunden.",
+            "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
           }
         }
       },

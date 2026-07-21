@@ -3141,7 +3141,7 @@
           "submitting": "Salvando…",
           "image": {
             "label": "Imagem",
-            "description": "PNG, JPEG, WebP ou GIF de até 2 MB. Salva ao enviar o formulário.",
+            "description": "PNG, JPEG, WebP ou GIF de até 2 MB. Envios e remoções são salvos imediatamente.",
             "upload": "Enviar imagem",
             "replace": "Substituir imagem",
             "remove": "Remover imagem",
@@ -3175,11 +3175,13 @@
           },
           "success": {
             "saved": "Orquestrador atualizado.",
-            "textSavedImageFailed": "Texto salvo, mas a imagem não pôde ser atualizada."
+            "imageSaved": "Imagem salva.",
+            "imageRemoved": "Imagem removida."
           },
           "errors": {
             "saveFailed": "Não foi possível salvar o orquestrador.",
-            "notFound": "Orquestrador não encontrado."
+            "notFound": "Orquestrador não encontrado.",
+            "imageSaveFailed": "Falha ao atualizar a imagem."
           }
         }
       },

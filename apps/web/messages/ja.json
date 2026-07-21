@@ -3141,7 +3141,7 @@
           "submitting": "保存中…",
           "image": {
             "label": "画像",
-            "description": "PNG、JPEG、WebP、GIF（最大 2 MB）。フォーム送信時に保存されます。",
+            "description": "PNG / JPEG / WebP / GIF（最大 2 MB）。アップロードと削除はすぐに保存されます。",
             "upload": "画像をアップロード",
             "replace": "画像を差し替え",
             "remove": "画像を削除",
@@ -3175,11 +3175,13 @@
           },
           "success": {
             "saved": "オーケストレーターを更新しました。",
-            "textSavedImageFailed": "テキストは保存されましたが、画像を更新できませんでした。"
+            "imageSaved": "画像を保存しました。",
+            "imageRemoved": "画像を削除しました。"
           },
           "errors": {
             "saveFailed": "オーケストレーターを保存できませんでした。",
-            "notFound": "オーケストレーターが見つかりません。"
+            "notFound": "オーケストレーターが見つかりません。",
+            "imageSaveFailed": "画像の更新に失敗しました。"
           }
         }
       },

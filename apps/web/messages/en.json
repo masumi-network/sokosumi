@@ -3233,7 +3233,7 @@
           "submitting": "Saving…",
           "image": {
             "label": "Image",
-            "description": "PNG, JPEG, WebP, or GIF up to 2 MB. Saved when you submit the form.",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB. Uploads and removals save immediately.",
             "upload": "Upload image",
             "replace": "Replace image",
             "remove": "Remove image",
@@ -3267,11 +3267,13 @@
           },
           "success": {
             "saved": "Orchestrator updated.",
-            "textSavedImageFailed": "Text saved, but the image could not be updated."
+            "imageSaved": "Image saved.",
+            "imageRemoved": "Image removed."
           },
           "errors": {
             "saveFailed": "Failed to save orchestrator.",
-            "notFound": "Orchestrator not found."
+            "notFound": "Orchestrator not found.",
+            "imageSaveFailed": "Failed to update image."
           }
         }
       }

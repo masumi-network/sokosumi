@@ -3141,7 +3141,7 @@
           "submitting": "Enregistrement…",
           "image": {
             "label": "Image",
-            "description": "PNG, JPEG, WebP ou GIF jusqu'à 2 Mo. Enregistrée lors de l'envoi du formulaire.",
+            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo. Les ajouts et suppressions sont enregistrés immédiatement.",
             "upload": "Téléverser une image",
             "replace": "Remplacer l'image",
             "remove": "Supprimer l'image",
@@ -3175,11 +3175,13 @@
           },
           "success": {
             "saved": "Orchestrateur mis à jour.",
-            "textSavedImageFailed": "Texte enregistré, mais l'image n'a pas pu être mise à jour."
+            "imageSaved": "Image enregistrée.",
+            "imageRemoved": "Image supprimée."
           },
           "errors": {
             "saveFailed": "Impossible d'enregistrer l'orchestrateur.",
-            "notFound": "Orchestrateur introuvable."
+            "notFound": "Orchestrateur introuvable.",
+            "imageSaveFailed": "Échec de la mise à jour de l’image."
           }
         }
       },

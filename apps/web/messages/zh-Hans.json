@@ -3141,7 +3141,7 @@
           "submitting": "正在保存…",
           "image": {
             "label": "图片",
-            "description": "支持 PNG、JPEG、WebP 或 GIF，最大 2 MB。提交表单时保存。",
+            "description": "PNG、JPEG、WebP 或 GIF，最大 2 MB。上传和删除会立即保存。",
             "upload": "上传图片",
             "replace": "替换图片",
             "remove": "移除图片",
@@ -3175,11 +3175,13 @@
           },
           "success": {
             "saved": "编排器已更新。",
-            "textSavedImageFailed": "文本已保存，但图片未能更新。"
+            "imageSaved": "图片已保存。",
+            "imageRemoved": "图片已删除。"
           },
           "errors": {
             "saveFailed": "保存编排器失败。",
-            "notFound": "未找到编排器。"
+            "notFound": "未找到编排器。",
+            "imageSaveFailed": "更新图片失败。"
           }
         }
       },

@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
@@ -76,28 +76,11 @@ export function OrchestratorEditForm({
   );
   const [imageValue, setImageValue] = useState(orchestrator.image ?? "");
   const [pendingImageFiles, setPendingImageFiles] = useState<File[]>([]);
-  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
-  const [removeImage, setRemoveImage] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingText, setIsSavingText] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isRemovingImage, setIsRemovingImage] = useState(false);
 
-  const pendingPreviewUrl = useMemo(() => {
-    if (!pendingImageFile) {
-      return null;
-    }
-    return URL.createObjectURL(pendingImageFile);
-  }, [pendingImageFile]);
-
-  useEffect(() => {
-    return () => {
-      if (pendingPreviewUrl) {
-        URL.revokeObjectURL(pendingPreviewUrl);
-      }
-    };
-  }, [pendingPreviewUrl]);
-
-  const displayImageValue = removeImage
-    ? ""
-    : (pendingPreviewUrl ?? imageValue);
+  const isBusy = isSavingText || isUploadingImage || isRemovingImage;
 
   const imageLabels = {
     fileTooLarge: t("image.fileTooLarge"),
@@ -110,30 +93,86 @@ export function OrchestratorEditForm({
     uploadError: t("image.uploadError"),
   };
 
-  function handleImageSelect(files: File[]) {
-    const file = files[0];
-    if (!file) {
-      return;
-    }
-
-    setPendingImageFile(file);
-    setPendingImageFiles(files);
-    setRemoveImage(false);
+  function applySavedOrchestrator(saved: AdminOrchestratorItem) {
+    setBaseline(saved);
+    setName(saved.name);
+    setCaption(saved.caption ?? "");
+    setDescription(saved.description ?? "");
+    setImageValue(saved.image ?? "");
   }
 
-  function handleRemoveImage() {
-    // Pending pick: clear selection only — do not mark stored image for delete.
-    if (pendingImageFile) {
-      setPendingImageFile(null);
-      setPendingImageFiles([]);
+  function handleNotFound() {
+    toast.error(t("errors.notFound"));
+    router.push("/admin/orchestrators");
+  }
+
+  async function handleImageSelect(files: File[]) {
+    const file = files[0];
+    if (!file || isBusy) {
       return;
     }
 
-    setRemoveImage(true);
+    setPendingImageFiles(files);
+    setIsUploadingImage(true);
+    try {
+      const result = await updateAdminOrchestratorDisplayAction({
+        id: baseline.id,
+        imageIntent: "upload",
+        imageFile: file,
+      });
+
+      if (!result.ok) {
+        if (result.error.code === CommonErrorCode.NOT_FOUND) {
+          handleNotFound();
+          return;
+        }
+        toast.error(result.error.message ?? t("errors.imageSaveFailed"));
+        return;
+      }
+
+      applySavedOrchestrator(result.data.orchestrator);
+      toast.success(t("success.imageSaved"));
+      router.refresh();
+    } finally {
+      setPendingImageFiles([]);
+      setIsUploadingImage(false);
+    }
+  }
+
+  async function handleRemoveImage() {
+    if (!imageValue || isBusy) {
+      return;
+    }
+
+    setIsRemovingImage(true);
+    try {
+      const result = await updateAdminOrchestratorDisplayAction({
+        id: baseline.id,
+        imageIntent: "remove",
+      });
+
+      if (!result.ok) {
+        if (result.error.code === CommonErrorCode.NOT_FOUND) {
+          handleNotFound();
+          return;
+        }
+        toast.error(result.error.message ?? t("errors.imageSaveFailed"));
+        return;
+      }
+
+      applySavedOrchestrator(result.data.orchestrator);
+      toast.success(t("success.imageRemoved"));
+      router.refresh();
+    } finally {
+      setIsRemovingImage(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isBusy) {
+      return;
+    }
 
     const trimmedName = name.trim();
     if (trimmedName.length < MIN_NAME_LENGTH) {
@@ -146,30 +185,23 @@ export function OrchestratorEditForm({
       caption,
       description,
     });
-    const imageIntent = removeImage
-      ? "remove"
-      : pendingImageFile
-        ? "upload"
-        : "none";
 
-    if (!patchBody && imageIntent === "none") {
+    if (!patchBody) {
       toast.error(t("validation.noChanges"));
       return;
     }
 
-    setIsSubmitting(true);
+    setIsSavingText(true);
     try {
       const result = await updateAdminOrchestratorDisplayAction({
         id: baseline.id,
         patchBody,
-        imageIntent,
-        imageFile: pendingImageFile ?? undefined,
+        imageIntent: "none",
       });
 
       if (!result.ok) {
         if (result.error.code === CommonErrorCode.NOT_FOUND) {
-          toast.error(t("errors.notFound"));
-          router.push("/admin/orchestrators");
+          handleNotFound();
           return;
         }
 
@@ -177,25 +209,11 @@ export function OrchestratorEditForm({
         return;
       }
 
-      const saved = result.data.orchestrator;
-      setBaseline(saved);
-      setName(saved.name);
-      setCaption(saved.caption ?? "");
-      setDescription(saved.description ?? "");
-      setImageValue(saved.image ?? "");
-      setPendingImageFile(null);
-      setPendingImageFiles([]);
-      setRemoveImage(false);
-
-      if (result.data.imageError) {
-        toast.error(t("success.textSavedImageFailed"));
-      } else {
-        toast.success(t("success.saved"));
-      }
-
+      applySavedOrchestrator(result.data.orchestrator);
+      toast.success(t("success.saved"));
       router.refresh();
     } finally {
-      setIsSubmitting(false);
+      setIsSavingText(false);
     }
   }
 
@@ -205,16 +223,17 @@ export function OrchestratorEditForm({
         <Label>{t("image.label")}</Label>
         <OrganizationLogoUploadField
           accept={ORCHESTRATOR_IMAGE_ACCEPT}
-          disabled={isSubmitting}
-          isUploading={false}
+          disabled={isBusy}
+          isRemoving={isRemovingImage}
+          isUploading={isUploadingImage}
           labels={imageLabels}
-          logoValue={displayImageValue}
+          logoValue={imageValue}
           maxSize={ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES}
           onPendingLogoFilesChange={setPendingImageFiles}
           onRemove={handleRemoveImage}
           onUpload={handleImageSelect}
           pendingLogoFiles={pendingImageFiles}
-          showRemoveButton={Boolean(displayImageValue)}
+          showRemoveButton={Boolean(imageValue)}
         />
         <p className="text-muted-foreground text-sm">
           {t("image.description")}
@@ -228,7 +247,7 @@ export function OrchestratorEditForm({
             id="orchestrator-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            disabled={isSubmitting}
+            disabled={isBusy}
             autoComplete="off"
           />
           <p className="text-muted-foreground text-sm">
@@ -258,7 +277,7 @@ export function OrchestratorEditForm({
           id="orchestrator-caption"
           value={caption}
           onChange={(event) => setCaption(event.target.value)}
-          disabled={isSubmitting}
+          disabled={isBusy}
           autoComplete="off"
           maxLength={MAX_CAPTION_LENGTH}
         />
@@ -275,7 +294,7 @@ export function OrchestratorEditForm({
           id="orchestrator-description"
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          disabled={isSubmitting}
+          disabled={isBusy}
           rows={5}
         />
         <p className="text-muted-foreground text-sm">
@@ -283,8 +302,8 @@ export function OrchestratorEditForm({
         </p>
       </div>
 
-      <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? (
+      <Button type="submit" disabled={isBusy}>
+        {isSavingText ? (
           <>
             <Loader2 className="mr-2 size-4 animate-spin" />
             {t("submitting")}

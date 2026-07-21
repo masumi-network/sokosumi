@@ -3141,7 +3141,7 @@
           "submitting": "Salvataggio…",
           "image": {
             "label": "Immagine",
-            "description": "PNG, JPEG, WebP o GIF fino a 2 MB. Salvata quando invii il modulo.",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB. Caricamenti e rimozioni vengono salvati subito.",
             "upload": "Carica immagine",
             "replace": "Sostituisci immagine",
             "remove": "Rimuovi immagine",
@@ -3175,11 +3175,13 @@
           },
           "success": {
             "saved": "Orchestrator aggiornato.",
-            "textSavedImageFailed": "Testo salvato, ma l'immagine non è stata aggiornata."
+            "imageSaved": "Immagine salvata.",
+            "imageRemoved": "Immagine rimossa."
           },
           "errors": {
             "saveFailed": "Impossibile salvare l'orchestrator.",
-            "notFound": "Orchestrator non trovato."
+            "notFound": "Orchestrator non trovato.",
+            "imageSaveFailed": "Impossibile aggiornare l’immagine."
           }
         }
       },
