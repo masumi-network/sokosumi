@@ -214,7 +214,7 @@ export function OrchestratorEditForm({
           onRemove={handleRemoveImage}
           onUpload={handleImageSelect}
           pendingLogoFiles={pendingImageFiles}
-          showRemoveButton={Boolean(displayImageValue) || removeImage}
+          showRemoveButton={Boolean(displayImageValue)}
         />
         <p className="text-muted-foreground text-sm">
           {t("image.description")}
