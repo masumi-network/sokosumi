@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "Administração",
-        "description": "Ferramentas internas para gerenciar organizações e cobrança.",
+        "description": "Ferramentas internas para contas, cobrança, catálogo e suporte.",
+        "Groups": {
+          "accounts": "Contas",
+          "billing": "Cobrança e comercial",
+          "catalog": "Catálogo do marketplace",
+          "operations": "Operações"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Contratos empresariais",

@@ -2863,7 +2863,13 @@
       },
       "Overview": {
         "title": "Administration",
-        "description": "Interne Tools zur Verwaltung von Organisationen und Abrechnung.",
+        "description": "Interne Tools für Konten, Abrechnung, Katalog und Support.",
+        "Groups": {
+          "accounts": "Konten",
+          "billing": "Abrechnung & Vertrieb",
+          "catalog": "Marketplace-Katalog",
+          "operations": "Betrieb"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Enterprise-Verträge",

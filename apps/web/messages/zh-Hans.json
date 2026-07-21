@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "管理",
-        "description": "用于管理组织和计费的内部工具。",
+        "description": "用于账户、计费、目录与支持的内部工具。",
+        "Groups": {
+          "accounts": "账户",
+          "billing": "计费与商务",
+          "catalog": "市场目录",
+          "operations": "运营"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "企业合同",
