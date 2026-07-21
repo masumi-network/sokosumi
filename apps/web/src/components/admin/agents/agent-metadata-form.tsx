@@ -44,23 +44,23 @@ interface OverrideFormState {
   examples: string;
 }
 
-const SCALAR_FIELDS = [
-  "name",
-  "description",
-  "image",
-  "apiBaseUrl",
-  "capabilityName",
-  "capabilityVersion",
-  "authorName",
-  "authorImage",
-  "authorContactEmail",
-  "authorContactOther",
-  "authorOrganization",
-  "legalPrivacyPolicy",
-  "legalDpa",
-  "legalTerms",
-  "legalOther",
-] as const;
+type ScalarField = Exclude<keyof OverrideFormState, "tags" | "examples">;
+
+/** Two-column pairs keep the grid even; full-width fields use col-span-2. */
+const OVERRIDE_FIELD_LAYOUT: Array<
+  | { kind: "full"; field: ScalarField }
+  | { kind: "pair"; fields: [ScalarField, ScalarField] }
+> = [
+  { kind: "full", field: "name" },
+  { kind: "full", field: "description" },
+  { kind: "pair", fields: ["image", "apiBaseUrl"] },
+  { kind: "pair", fields: ["capabilityName", "capabilityVersion"] },
+  { kind: "pair", fields: ["authorName", "authorImage"] },
+  { kind: "pair", fields: ["authorContactEmail", "authorContactOther"] },
+  { kind: "full", field: "authorOrganization" },
+  { kind: "pair", fields: ["legalPrivacyPolicy", "legalDpa"] },
+  { kind: "pair", fields: ["legalTerms", "legalOther"] },
+];
 
 function toFormState(detail: AdminAgentDetail): OverrideFormState {
   const override = detail.override;
@@ -196,20 +196,46 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
     });
   }
 
+  function renderScalarField(field: ScalarField) {
+    return (
+      <div key={field} className="space-y-2">
+        <Label htmlFor={field}>{t(`fields.${field}`)}</Label>
+        {field === "description" ? (
+          <Textarea
+            id={field}
+            value={form[field]}
+            onChange={(event) => updateField(field, event.target.value)}
+            disabled={isPending}
+            rows={4}
+          />
+        ) : (
+          <Input
+            id={field}
+            value={form[field]}
+            onChange={(event) => updateField(field, event.target.value)}
+            disabled={isPending}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">{t("registryTitle")}</h2>
-        <div className="bg-muted/40 grid gap-3 rounded-md border p-4 text-sm md:grid-cols-2">
-          <div>
+        <div className="bg-muted/40 grid gap-4 rounded-md border p-4 text-sm sm:grid-cols-2">
+          <div className="space-y-1">
             <p className="text-muted-foreground">{t("registryName")}</p>
             <p>{detail.registry.name}</p>
           </div>
-          <div>
+          <div className="space-y-1">
             <p className="text-muted-foreground">{t("blockchainIdentifier")}</p>
-            <p className="break-all">{detail.registry.blockchainIdentifier}</p>
+            <p className="break-all font-mono text-xs">
+              {detail.registry.blockchainIdentifier}
+            </p>
           </div>
-          <div className="md:col-span-2">
+          <div className="space-y-1 sm:col-span-2">
             <p className="text-muted-foreground">{t("registryDescription")}</p>
             <p>{detail.registry.description ?? t("emptyValue")}</p>
           </div>
@@ -217,8 +243,8 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
       </section>
 
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1">
             <h2 className="text-lg font-semibold">{t("overrideTitle")}</h2>
             <p className="text-muted-foreground text-sm">
               {t("overrideDescription")}
@@ -229,90 +255,79 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {SCALAR_FIELDS.map((field) => (
-            <div
-              key={field}
-              className={
-                field === "description" || field.startsWith("legal")
-                  ? "md:col-span-2"
-                  : undefined
+        <div className="space-y-4 rounded-md border p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {OVERRIDE_FIELD_LAYOUT.flatMap((row) => {
+              if (row.kind === "full") {
+                return [
+                  <div key={row.field} className="sm:col-span-2">
+                    {renderScalarField(row.field)}
+                  </div>,
+                ];
               }
-            >
-              <Label htmlFor={field}>{t(`fields.${field}`)}</Label>
-              {field === "description" ? (
-                <Textarea
-                  id={field}
-                  value={form[field]}
-                  onChange={(event) => updateField(field, event.target.value)}
-                  disabled={isPending}
-                />
-              ) : (
-                <Input
-                  id={field}
-                  value={form[field]}
-                  onChange={(event) => updateField(field, event.target.value)}
-                  disabled={isPending}
-                />
-              )}
-            </div>
-          ))}
-          <div className="md:col-span-2">
-            <Label htmlFor="tags">{t("fields.tags")}</Label>
-            <Input
-              id="tags"
-              value={form.tags}
-              placeholder={t("fields.tagsPlaceholder")}
-              onChange={(event) => updateField("tags", event.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label htmlFor="examples">{t("fields.examples")}</Label>
-            <Textarea
-              id="examples"
-              value={form.examples}
-              placeholder={t("fields.examplesPlaceholder")}
-              onChange={(event) => updateField("examples", event.target.value)}
-              disabled={isPending}
-            />
-          </div>
-        </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={handleSave} disabled={isPending}>
-            {t("save")}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleClearAll}
-            disabled={isPending || !hasOverride}
-          >
-            {t("clearAll")}
-          </Button>
+              return row.fields.map((field) => renderScalarField(field));
+            })}
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="tags">{t("fields.tags")}</Label>
+              <Input
+                id="tags"
+                value={form.tags}
+                placeholder={t("fields.tagsPlaceholder")}
+                onChange={(event) => updateField("tags", event.target.value)}
+                disabled={isPending}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="examples">{t("fields.examples")}</Label>
+              <Textarea
+                id="examples"
+                value={form.examples}
+                placeholder={t("fields.examplesPlaceholder")}
+                onChange={(event) =>
+                  updateField("examples", event.target.value)
+                }
+                disabled={isPending}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 border-t pt-4">
+            <Button onClick={handleSave} disabled={isPending}>
+              {t("save")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleClearAll}
+              disabled={isPending || !hasOverride}
+            >
+              {t("clearAll")}
+            </Button>
+          </div>
         </div>
       </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">{t("resolvedTitle")}</h2>
-        <div className="grid gap-3 rounded-md border p-4 text-sm md:grid-cols-2">
-          <div>
+        <div className="grid gap-4 rounded-md border p-4 text-sm sm:grid-cols-2">
+          <div className="space-y-1">
             <p className="text-muted-foreground">{t("fields.name")}</p>
             <p>{resolved.name}</p>
           </div>
-          <div>
+          <div className="space-y-1">
             <p className="text-muted-foreground">{t("fields.apiBaseUrl")}</p>
             <p className="break-all">{resolved.apiBaseUrl}</p>
           </div>
-          <div className="md:col-span-2">
+          <div className="space-y-1 sm:col-span-2">
             <p className="text-muted-foreground">{t("fields.description")}</p>
             <p>{resolved.description ?? t("emptyValue")}</p>
           </div>
-          <div>
+          <div className="space-y-1">
             <p className="text-muted-foreground">{t("fields.image")}</p>
             <p className="break-all">{resolved.image ?? t("emptyValue")}</p>
           </div>
-          <div>
+          <div className="space-y-1">
             <p className="text-muted-foreground">{t("fields.tags")}</p>
             <p>
               {resolved.tags.length > 0
