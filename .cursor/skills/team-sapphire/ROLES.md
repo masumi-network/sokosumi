@@ -12,11 +12,11 @@ Contracts for Investigator, Tech Lead, Coder, Reviewer. **No Linear phase report
 
 **Goal:** Codebase facts for Tech Lead — not a final Spec.
 
-**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated files, i18n); flag `BUGBOT-LEARNINGS.md` R1–R12; similar paths; open questions. Prefer `cavecrew-investigator` for locate-only scouts.
+**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated files, i18n); flag `BUGBOT-LEARNINGS.md` R1–R12; similar paths; open questions. Task `cavecrew-investigator` **only** when the question is symbol locate (where defined / what calls / list uses). Broader codebase grounding stays on the orchestrator.
 
-**Do not:** Contract tables, file-change lists, verification commands, target mermaid (unless tiny diagram prevents confusion), implement, rewrite Requirement, write Linear. Do not load `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, or `VISUAL-CAPTURE.md`.
+**Do not:** Contract tables, file-change lists, verification commands, mermaid (Data flow is Tech Lead’s job), implement, rewrite Requirement, write Linear. Do not load `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, or `VISUAL-CAPTURE.md`.
 
-**Caps:** ≤12 patterns · ≤8 pitfalls · ≤5 recommend · ≤8 open · ≤5 related. ≤15 words after path/id per bullet.
+**Caps:** ≤12 patterns · ≤8 pitfalls · ≤5 recommend · ≤8 open · ≤5 related. ≤15 words per bullet (leading `path:line` / issue id / `` `symbol` `` do not count toward the 15).
 
 **Output** (session → Tech Lead):
 
@@ -66,7 +66,7 @@ Omit empty sections. No essay preamble.
 | PR Spec summary | 8 lines |
 | Prose outside tables/lists | Forbidden |
 
-Keep Data flow + Verification + Out of scope. Smallest useful mermaid.
+Keep Data flow + Verification + Out of scope. **Mermaid:** Data flow ≤8 nodes. Add Execution-order mermaid only when **Coders:** ≥2. No other diagrams.
 
 ---
 
@@ -120,7 +120,7 @@ Gates yourself (verify → PR → **CI green** per `SKILL.md` → Bugbot 0 High)
 
 **Goal:** PR vs Spec. `/goal` until pass. Human merges.
 
-**`/goal`:** Loop until the PR matches Spec (Contract / Verification / Out of scope), allowlisted verify exits 0, and UI evidence exists when **UI in scope** — or stop on a true blocker.
+**`/goal`:** Loop until the PR matches Spec (Contract / Verification / Out of scope), allowlisted verify exits 0, and UI evidence exists when **UI in scope** — or stop on an **unrecoverable blocker** (same list as `SKILL.md` Stop early).
 
 **UI in scope:** Spec Verification lists ≥1 path-only route. If none, skip visuals. Do **not** spawn `sapphire-reviewer` unless the user asks (Reviewer stays on orchestrator by default).
 

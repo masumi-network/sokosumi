@@ -139,7 +139,7 @@ In Cursor IDE, `/review-bugbot` same flow when editor skill installed. If subage
 | Severity | Action |
 |----------|--------|
 | **High** | **Must fix** on PR branch. Re-run until **zero High**. |
-| **Medium** | **Do not block** Reviewer. Note in **PR body** for human merge — not Linear. Fix in PR only if trivial and in scope. |
+| **Medium** | **Do not block** Reviewer. Note in the **PR body** for human merge — not Linear. Do **not** fix Medium during Sapphire unless the user asks in this chat. |
 | **Low** | Optional note; no gate. |
 
 ### Medium findings — PR body only

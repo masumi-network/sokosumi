@@ -4,7 +4,7 @@ Linear is **read-only** for a normal Sapphire run. The **PR** is the report. Loa
 
 ## When to write
 
-Only when **`## Requirement` text itself must change** (human-approved product wording).
+Only when **`## Requirement` text itself must change** — and only after the user **explicitly confirms the exact new wording in this chat**.
 
 Then:
 

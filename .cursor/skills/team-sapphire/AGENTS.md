@@ -20,7 +20,7 @@ Sokosumi front door: Investigator → Tech Lead → Coder → Reviewer → PR (C
 | Coder | Always | `sapphire-coder` | `composer-2.5` |
 | Tech Lead | Only if user asks | `sapphire-tech-lead` | Inherit |
 | Reviewer | Only if user asks | `sapphire-reviewer` | Inherit |
-| Locate scout | Locate-only | `cavecrew-investigator` | Inherit |
+| Locate scout | Symbol locate only (defs/callers/uses) | `cavecrew-investigator` | Inherit |
 
 ## Rules
 

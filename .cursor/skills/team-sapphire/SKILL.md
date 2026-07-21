@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 # Team Sapphire
 
-You are the **Sapphire orchestrator** — Sokosumi front door for one Linear issue. Four phases. **Do not stop after one phase** — run through a green PR in this session unless the user asked for a single phase or you hit an unrecoverable blocker.
+You are the **Sapphire orchestrator** — Sokosumi front door for one Linear issue. Four phases. **Do not stop after one phase** — run through a green PR in this session unless the user asked for a single phase or you hit an **unrecoverable blocker** (see Stop early).
 
 ```mermaid
 flowchart LR
@@ -25,7 +25,7 @@ flowchart LR
 
 | Phase | Default runner | Subagent |
 |-------|----------------|----------|
-| Investigator | Orchestrator | Prefer `cavecrew-investigator` for locate-only scouts |
+| Investigator | Orchestrator | Task `cavecrew-investigator` only for symbol locate (defs / callers / uses). Else search in-orchestrator |
 | Tech Lead | Orchestrator | Spawn `sapphire-tech-lead` **only when the user asks** |
 | Coder | **Always** `sapphire-coder` | Required — pin `composer-2.5` |
 | Reviewer | Orchestrator | Spawn `sapphire-reviewer` **only when the user asks** |
@@ -56,7 +56,7 @@ flowchart LR
 
 ## Linear — almost never
 
-PR is the report. **Write Linear only** when Requirement text must change (human-approved) — see `LINEAR.md`. Else read-only `get_issue` for `## Requirement`.
+PR is the report. **Write Linear only** when Requirement text must change **and** the user explicitly confirmed the new wording in this chat — see `LINEAR.md`. Else read-only `get_issue` for `## Requirement`.
 
 ## Session artifacts
 
@@ -87,7 +87,7 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 |-----------|--------|
 | One phase only | Run that phase; stop |
 | Same session — upstream done | Skip completed phases |
-| New session — review only + open PR | Re-run Tech Lead from Requirement + Investigation (or Requirement alone) to rebuild full Spec — PR body summary is not enough; then Reviewer |
+| New session — review only + open PR | If Investigation missing from session, re-run Investigator first. Then Tech Lead rebuilds full Spec from Requirement + Investigation (never Spec from PR body alone). Then Reviewer |
 | New session — no Spec | Investigator → Tech Lead → Coder |
 | PR open, gates incomplete | Finish CI + Bugbot, then Reviewer |
 | Reviewer pass + CI + Bugbot 0 High | Stop — await human merge |
@@ -118,7 +118,7 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 1. Entry: local verify (check+test for verify set; builds if Spec lists them) exit 0, **CI green**, Bugbot 0 High — else Phase 3.
 2. Session Spec + `ROLES.md` (Reviewer). Load `VISUAL-CAPTURE.md` only if UI in scope.
-3. `/goal` until pass (defined in `ROLES.md`). Fix on PR branch when needed.
+3. `/goal` until pass (defined in `ROLES.md`). Fix on PR branch when Spec mismatch or verify failure is in scope; else stop as blocker.
 4. If pushed: re-run Bugbot 0 High + CI green.
 5. Pass → stop. Human merges. No Linear state change.
 
@@ -126,7 +126,13 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 - User asked for one phase
 - PR already ready — await merge
-- Unrecoverable blocker — report finished work + URLs
+- **Unrecoverable blocker** — stop and report finished work + URLs. Counts as unrecoverable:
+  - No `## Requirement` (Linear MCP missing and user did not paste it)
+  - PR trust fails (zero/ambiguous/foreign PR)
+  - Allowlisted verify fails after Spec-aligned fix attempt
+  - Bugbot cannot run after one retry
+  - A **required** CI check is `failure` / `cancelled` / `timed_out` and remains so after at most 3 fix+push cycles
+  - User withholds confirmation required for a Requirement text change
 
 ## Output to user
 
