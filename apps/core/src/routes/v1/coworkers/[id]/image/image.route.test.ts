@@ -219,6 +219,77 @@ describe("POST /coworkers/{id}/image", () => {
     expect(response.status).toBe(503);
     expect(updateManyMock).not.toHaveBeenCalled();
   });
+
+  it("allows the coworker owner to upload an image", async () => {
+    findFirstMock
+      // requireCoworkerManagementAccess ownership check
+      .mockResolvedValueOnce({ id: COWORKER_ID, userId: "user_owner" })
+      // route loads current image
+      .mockResolvedValueOnce({ id: COWORKER_ID, image: PREVIOUS_IMAGE })
+      // route reloads coworker after update
+      .mockResolvedValueOnce(baseCoworker({ image: NEW_IMAGE }));
+    uploadCoworkerImageMock.mockResolvedValue(NEW_IMAGE);
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    const app = createApp({ role: "user", userId: "user_owner" });
+    const response = await app.request(`/${COWORKER_ID}/image`, {
+      method: "POST",
+      body: pngFormData(),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.image).toBe(NEW_IMAGE);
+    expect(uploadCoworkerImageMock).toHaveBeenCalled();
+    expect(deleteCoworkerImageIfOwnedMock).toHaveBeenCalledWith(
+      PREVIOUS_IMAGE,
+      COWORKER_ID,
+    );
+  });
+
+  it("deletes the new blob when the DB update fails after upload", async () => {
+    findFirstMock.mockResolvedValue({ id: COWORKER_ID, image: PREVIOUS_IMAGE });
+    uploadCoworkerImageMock.mockResolvedValue(NEW_IMAGE);
+    updateManyMock.mockRejectedValue(new Error("db write failed"));
+
+    const app = createApp();
+    const response = await app.request(`/${COWORKER_ID}/image`, {
+      method: "POST",
+      body: pngFormData(),
+    });
+
+    expect(response.status).toBe(500);
+    expect(deleteCoworkerImageIfOwnedMock).toHaveBeenCalledWith(
+      NEW_IMAGE,
+      COWORKER_ID,
+    );
+    expect(deleteCoworkerImageIfOwnedMock).not.toHaveBeenCalledWith(
+      PREVIOUS_IMAGE,
+      COWORKER_ID,
+    );
+  });
+
+  it("returns 404 and deletes the new blob when the coworker is archived during upload", async () => {
+    findFirstMock.mockResolvedValue({ id: COWORKER_ID, image: PREVIOUS_IMAGE });
+    uploadCoworkerImageMock.mockResolvedValue(NEW_IMAGE);
+    updateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp();
+    const response = await app.request(`/${COWORKER_ID}/image`, {
+      method: "POST",
+      body: pngFormData(),
+    });
+
+    expect(response.status).toBe(404);
+    expect(deleteCoworkerImageIfOwnedMock).toHaveBeenCalledWith(
+      NEW_IMAGE,
+      COWORKER_ID,
+    );
+    expect(deleteCoworkerImageIfOwnedMock).not.toHaveBeenCalledWith(
+      PREVIOUS_IMAGE,
+      COWORKER_ID,
+    );
+  });
 });
 
 describe("DELETE /coworkers/{id}/image", () => {
@@ -250,6 +321,27 @@ describe("DELETE /coworkers/{id}/image", () => {
       where: { id: COWORKER_ID, archivedAt: null },
       data: { image: null },
     });
+    expect(deleteCoworkerImageIfOwnedMock).toHaveBeenCalledWith(
+      PREVIOUS_IMAGE,
+      COWORKER_ID,
+    );
+  });
+
+  it("allows the coworker owner to remove an image", async () => {
+    findFirstMock
+      .mockResolvedValueOnce({ id: COWORKER_ID, userId: "user_owner" })
+      .mockResolvedValueOnce({ id: COWORKER_ID, image: PREVIOUS_IMAGE })
+      .mockResolvedValueOnce(baseCoworker({ image: null }));
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    const app = createApp({ role: "user", userId: "user_owner" });
+    const response = await app.request(`/${COWORKER_ID}/image`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.image).toBeNull();
     expect(deleteCoworkerImageIfOwnedMock).toHaveBeenCalledWith(
       PREVIOUS_IMAGE,
       COWORKER_ID,

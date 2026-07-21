@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Bot, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,14 @@ interface CoworkerFormProps {
 
 function toFieldValue(value: string | null | undefined): string {
   return value ?? "";
+}
+
+/** Resolve IPFS/CID values for preview only; storage remains the raw Core value. */
+function toImageDisplayValue(image: string | null | undefined): string {
+  if (!image) {
+    return "";
+  }
+  return resolveIpfsOrHttpUrl(image);
 }
 
 function normalizeOptionalText(value: string): string | null {
@@ -75,7 +84,9 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
   const [description, setDescription] = useState(
     toFieldValue(coworker.description),
   );
-  const [imageValue, setImageValue] = useState(toFieldValue(coworker.image));
+  const [imageValue, setImageValue] = useState(
+    toImageDisplayValue(coworker.image),
+  );
   const [pendingImageFiles, setPendingImageFiles] = useState<File[]>([]);
   const [isSavingText, setIsSavingText] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -99,7 +110,7 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
     setName(saved.name);
     setCaption(toFieldValue(saved.caption));
     setDescription(toFieldValue(saved.description));
-    setImageValue(toFieldValue(saved.image));
+    setImageValue(toImageDisplayValue(saved.image));
   }
 
   function handleNotFound() {
