@@ -29,8 +29,6 @@ interface OverrideFormState {
   description: string;
   apiBaseUrl: string;
   image: string;
-  capabilityName: string;
-  capabilityVersion: string;
   authorName: string;
   authorImage: string;
   authorContactEmail: string;
@@ -54,7 +52,6 @@ const OVERRIDE_FIELD_LAYOUT: Array<
   { kind: "full", field: "name" },
   { kind: "full", field: "description" },
   { kind: "pair", fields: ["image", "apiBaseUrl"] },
-  { kind: "pair", fields: ["capabilityName", "capabilityVersion"] },
   { kind: "pair", fields: ["authorName", "authorImage"] },
   { kind: "pair", fields: ["authorContactEmail", "authorContactOther"] },
   { kind: "full", field: "authorOrganization" },
@@ -69,8 +66,6 @@ function toFormState(detail: AdminAgentDetail): OverrideFormState {
     description: override?.description ?? "",
     apiBaseUrl: override?.apiBaseUrl ?? "",
     image: override?.image ?? "",
-    capabilityName: override?.capabilityName ?? "",
-    capabilityVersion: override?.capabilityVersion ?? "",
     authorName: override?.authorName ?? "",
     authorImage: override?.authorImage ?? "",
     authorContactEmail: override?.authorContactEmail ?? "",
@@ -123,8 +118,6 @@ function buildPatchBody(
     description: optionalField(form.description),
     apiBaseUrl: optionalField(form.apiBaseUrl),
     image: optionalField(form.image),
-    capabilityName: optionalField(form.capabilityName),
-    capabilityVersion: optionalField(form.capabilityVersion),
     authorName: optionalField(form.authorName),
     authorImage: optionalField(form.authorImage),
     authorContactEmail: optionalField(form.authorContactEmail),

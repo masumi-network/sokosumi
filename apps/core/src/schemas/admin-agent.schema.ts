@@ -131,13 +131,53 @@ const nullableStringField = z
     return trimmed === "" ? null : trimmed;
   });
 
+/**
+ * Same rules as Masumi agent client (`getAgentApiBaseUrl`): http(s), no query,
+ * no hash. Empty / null clears the override.
+ */
+const nullableApiBaseUrlField = nullableStringField.superRefine(
+  (value, ctx) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "API base URL must be a valid absolute URL",
+      });
+      return;
+    }
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "API base URL must be HTTP or HTTPS",
+      });
+    }
+    if (url.search !== "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "API base URL must not have a query string",
+      });
+    }
+    if (url.hash !== "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "API base URL must not have a hash",
+      });
+    }
+  },
+);
+
 export const patchAdminAgentMetadataOverrideBodySchema = z
   .object({
     name: nullableStringField,
     description: nullableStringField,
-    apiBaseUrl: nullableStringField,
-    capabilityName: nullableStringField,
-    capabilityVersion: nullableStringField,
+    apiBaseUrl: nullableApiBaseUrlField,
     authorName: nullableStringField,
     authorImage: nullableStringField,
     authorContactEmail: nullableStringField,

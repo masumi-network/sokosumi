@@ -478,18 +478,6 @@ export const PatchAdminAgentMetadataOverrideBodySchema = {
                 'null'
             ]
         },
-        capabilityName: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        capabilityVersion: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
         authorName: {
             type: [
                 'string',

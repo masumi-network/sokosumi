@@ -266,6 +266,163 @@ describe("admin agents routes", () => {
     expect(body.data.resolved.name).toBe("Display Name");
   });
 
+  it("rejects invalid apiBaseUrl overrides", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/agent_1/metadata-override",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          apiBaseUrl: "https://agent.example.com/path?token=1",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(422);
+    expect(agentMetadataOverrideUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("replaces tags and example outputs on patch", async () => {
+    agentFindUniqueMock
+      .mockResolvedValueOnce(createRegistryAgent())
+      .mockResolvedValueOnce(
+        createRegistryAgent({
+          metadataOverride: {
+            id: "override_1",
+            createdAt: now,
+            updatedAt: now,
+            agentId: "agent_1",
+            name: null,
+            description: null,
+            apiBaseUrl: null,
+            capabilityName: null,
+            capabilityVersion: null,
+            authorName: null,
+            authorImage: null,
+            authorContactEmail: null,
+            authorContactOther: null,
+            authorOrganization: null,
+            legalPrivacyPolicy: null,
+            legalDpa: null,
+            legalTerms: null,
+            legalOther: null,
+            image: null,
+            tags: [{ id: "tag_1", name: "research" }],
+            exampleOutputs: [
+              {
+                id: "ex_1",
+                name: "Sample",
+                mimeType: "image/png",
+                url: "https://example.com/out.png",
+              },
+            ],
+          },
+          tags: [],
+          exampleOutput: [],
+        }),
+      );
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/agent_1/metadata-override",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          tags: ["research"],
+          exampleOutputs: [
+            {
+              name: "Sample",
+              mimeType: "image/png",
+              url: "https://example.com/out.png",
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(tagUpsertMock).toHaveBeenCalledWith({
+      where: { name: "research" },
+      create: { name: "research" },
+      update: {},
+    });
+    expect(agentMetadataOverrideUpdateMock).toHaveBeenCalledWith({
+      where: { id: "override_1" },
+      data: {
+        tags: {
+          set: [{ id: "tag_1" }],
+        },
+      },
+    });
+    expect(exampleOutputDeleteManyMock).toHaveBeenCalledWith({
+      where: { metadataOverrideId: "override_1" },
+    });
+    expect(exampleOutputCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        {
+          metadataOverrideId: "override_1",
+          name: "Sample",
+          mimeType: "image/png",
+          url: "https://example.com/out.png",
+        },
+      ],
+    });
+    const body = await response.json();
+    expect(body.data.resolved.tags).toEqual(["research"]);
+    expect(body.data.resolved.exampleOutputs).toEqual([
+      {
+        name: "Sample",
+        mimeType: "image/png",
+        url: "https://example.com/out.png",
+      },
+    ]);
+  });
+
+  it("prunes an empty override after clearing collections", async () => {
+    agentMetadataOverrideFindUniqueMock.mockResolvedValue({
+      id: "override_1",
+      name: null,
+      description: null,
+      apiBaseUrl: null,
+      capabilityName: null,
+      capabilityVersion: null,
+      authorName: null,
+      authorImage: null,
+      authorContactEmail: null,
+      authorContactOther: null,
+      authorOrganization: null,
+      legalPrivacyPolicy: null,
+      legalDpa: null,
+      legalTerms: null,
+      legalOther: null,
+      image: null,
+      tags: [],
+      exampleOutputs: [],
+    });
+    agentFindUniqueMock
+      .mockResolvedValueOnce(createRegistryAgent())
+      .mockResolvedValueOnce(createRegistryAgent());
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/agent_1/metadata-override",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tags: [], exampleOutputs: [] }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentMetadataOverrideDeleteMock).toHaveBeenCalledWith({
+      where: { id: "override_1" },
+    });
+    const body = await response.json();
+    expect(body.data.override).toBeNull();
+  });
+
   it("deletes metadata override idempotently", async () => {
     agentFindUniqueMock
       .mockResolvedValueOnce(createRegistryAgent())

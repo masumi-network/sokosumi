@@ -106,8 +106,6 @@ export type PatchAdminAgentMetadataOverrideBody = {
     name?: string | null;
     description?: string | null;
     apiBaseUrl?: string | null;
-    capabilityName?: string | null;
-    capabilityVersion?: string | null;
     authorName?: string | null;
     authorImage?: string | null;
     authorContactEmail?: string | null;
