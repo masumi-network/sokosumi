@@ -177,6 +177,47 @@ describe("POST /coworkers/{id}/image", () => {
     expect(uploadCoworkerImageMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when magic bytes are not a supported image", async () => {
+    findFirstMock.mockResolvedValue({ id: COWORKER_ID, image: null });
+
+    const app = createApp();
+    const form = new FormData();
+    form.append(
+      "file",
+      new File([Buffer.from("not-an-image")], "logo.png", {
+        type: "image/png",
+      }),
+    );
+
+    const response = await app.request(`/${COWORKER_ID}/image`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    expect(uploadCoworkerImageMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when magic bytes conflict with the declared type", async () => {
+    findFirstMock.mockResolvedValue({ id: COWORKER_ID, image: null });
+
+    const app = createApp();
+    const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    const form = new FormData();
+    form.append(
+      "file",
+      new File([jpegBytes], "logo.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(`/${COWORKER_ID}/image`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    expect(uploadCoworkerImageMock).not.toHaveBeenCalled();
+  });
+
   it("returns 403 for non-admin non-owner", async () => {
     findFirstMock.mockResolvedValue({
       id: COWORKER_ID,

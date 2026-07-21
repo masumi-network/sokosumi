@@ -33,13 +33,15 @@ const coworkerEditableFieldsSchema = z.object({
   metadata: coworkerMetadataSchema.nullish(),
 });
 
-export const createCoworkerRequestSchema = coworkerEditableFieldsSchema.extend({
-  vendorId: z.string().min(1).openapi({
-    example: "01960001-0001-7001-8001-000000000001",
-    description: "Vendor that owns this coworker.",
-  }),
-  capabilities: coworkerCapabilitiesSchema.optional().default([]),
-});
+export const createCoworkerRequestSchema = coworkerEditableFieldsSchema
+  .extend({
+    vendorId: z.string().min(1).openapi({
+      example: "01960001-0001-7001-8001-000000000001",
+      description: "Vendor that owns this coworker.",
+    }),
+    capabilities: coworkerCapabilitiesSchema.optional().default([]),
+  })
+  .strict();
 
 export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
   .extend({

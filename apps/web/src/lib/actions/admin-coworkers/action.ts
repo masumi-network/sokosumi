@@ -76,20 +76,30 @@ function sanitizeDisplayPatchBody(
   }
 
   if (patchBody.caption !== undefined) {
-    if (
-      patchBody.caption !== null &&
-      patchBody.caption.length > ADMIN_COWORKER_CAPTION_MAX_LENGTH
-    ) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: `Caption must be at most ${ADMIN_COWORKER_CAPTION_MAX_LENGTH} characters`,
-      });
+    if (patchBody.caption === null) {
+      sanitized.caption = null;
+    } else {
+      const caption = patchBody.caption.trim();
+      if (caption.length === 0) {
+        sanitized.caption = null;
+      } else if (caption.length > ADMIN_COWORKER_CAPTION_MAX_LENGTH) {
+        return Err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: `Caption must be at most ${ADMIN_COWORKER_CAPTION_MAX_LENGTH} characters`,
+        });
+      } else {
+        sanitized.caption = caption;
+      }
     }
-    sanitized.caption = patchBody.caption;
   }
 
   if (patchBody.description !== undefined) {
-    sanitized.description = patchBody.description;
+    if (patchBody.description === null) {
+      sanitized.description = null;
+    } else {
+      const description = patchBody.description.trim();
+      sanitized.description = description.length > 0 ? description : null;
+    }
   }
 
   return Ok(Object.keys(sanitized).length > 0 ? sanitized : undefined);
