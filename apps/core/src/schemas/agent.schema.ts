@@ -1,7 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import type { Agent } from "@sokosumi/database";
+import type { Agent, AgentMetadataOverride } from "@sokosumi/database";
 import { RiskClassification } from "@sokosumi/database";
-import type { AgentWithMetadataOverride } from "@sokosumi/database/types/agent";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { getAgentAuthorImage } from "@/helpers/agent";
@@ -9,9 +8,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { categorySchema } from "@/schemas/category.schema";
 import { riskClassificationSchema } from "@/schemas/domain-enums.schema";
 
-type AgentMetadataOverrideScalars = NonNullable<
-  AgentWithMetadataOverride["metadataOverride"]
->;
+type AgentMetadataOverrideScalars = AgentMetadataOverride;
 
 export const executionMetricsSchema = z
   .object({
@@ -93,13 +90,15 @@ export const getAuthorFromAgent = (
     | "authorContactOther"
     | "authorImage"
   > & {
-    metadataOverride?: Pick<
-      AgentMetadataOverrideScalars,
-      | "authorName"
-      | "authorOrganization"
-      | "authorContactEmail"
-      | "authorContactOther"
-      | "authorImage"
+    metadataOverride?: Partial<
+      Pick<
+        AgentMetadataOverrideScalars,
+        | "authorName"
+        | "authorOrganization"
+        | "authorContactEmail"
+        | "authorContactOther"
+        | "authorImage"
+      >
     > | null;
   },
 ) => {
@@ -128,9 +127,11 @@ export const getAgentLegalFromAgent = (
     Agent,
     "legalPrivacyPolicy" | "legalTerms" | "legalDpa" | "legalOther"
   > & {
-    metadataOverride?: Pick<
-      AgentMetadataOverrideScalars,
-      "legalPrivacyPolicy" | "legalTerms" | "legalDpa" | "legalOther"
+    metadataOverride?: Partial<
+      Pick<
+        AgentMetadataOverrideScalars,
+        "legalPrivacyPolicy" | "legalTerms" | "legalDpa" | "legalOther"
+      >
     > | null;
   },
 ) => {

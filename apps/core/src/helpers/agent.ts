@@ -1,11 +1,11 @@
 import {
   type Agent,
+  type AgentMetadataOverride,
   AgentStatus,
   type CreditCost,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import type { AgentWithMetadataOverride } from "@sokosumi/database/types/agent";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
@@ -23,9 +23,7 @@ import type { AgentWithPricing } from "@/types/agent";
 
 import { internalServerError, notFound, unprocessableEntity } from "./error";
 
-type AgentMetadataOverrideScalars = NonNullable<
-  AgentWithMetadataOverride["metadataOverride"]
->;
+type AgentMetadataOverrideScalars = AgentMetadataOverride;
 
 export const getAgentImage = (
   agent: Pick<Agent, "image"> & {
@@ -64,7 +62,9 @@ export const getAgentDescription = (
 
 export const getAgentAuthorImage = (
   agent: Pick<Agent, "authorImage"> & {
-    metadataOverride?: Pick<AgentMetadataOverrideScalars, "authorImage"> | null;
+    metadataOverride?: Partial<
+      Pick<AgentMetadataOverrideScalars, "authorImage">
+    > | null;
   },
 ): string | null => {
   const image = agent.metadataOverride?.authorImage ?? agent.authorImage;
@@ -99,9 +99,17 @@ export interface JobDetailsAgentOverrideFields {
   overrideLegalOther: string | null;
 }
 
-export function getJobDetailsAgentOverrideFields(
-  agent: AgentWithMetadataOverride,
-): JobDetailsAgentOverrideFields {
+export function getJobDetailsAgentOverrideFields(agent: {
+  metadataOverride?: Pick<
+    AgentMetadataOverrideScalars,
+    | "name"
+    | "image"
+    | "legalPrivacyPolicy"
+    | "legalTerms"
+    | "legalDpa"
+    | "legalOther"
+  > | null;
+}): JobDetailsAgentOverrideFields {
   const override = agent.metadataOverride;
   return {
     overrideName: override?.name ?? null,

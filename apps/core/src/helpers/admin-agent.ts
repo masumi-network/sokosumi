@@ -5,7 +5,7 @@ import {
   getAgentImage,
   getAgentName,
 } from "@/helpers/agent";
-import type {
+import {
   adminAgentDetailSchema,
   adminAgentListItemSchema,
   adminAgentMetadataOverrideSchema,
@@ -59,7 +59,7 @@ export type AdminAgentDetailRecord = Prisma.AgentGetPayload<{
 }>;
 
 export function mapAdminAgentRegistry(agent: Agent): AdminAgentRegistry {
-  return {
+  return adminAgentRegistrySchema.parse({
     id: agent.id,
     blockchainIdentifier: agent.blockchainIdentifier,
     name: agent.name,
@@ -82,7 +82,7 @@ export function mapAdminAgentRegistry(agent: Agent): AdminAgentRegistry {
     isShown: agent.isShown,
     createdAt: agent.createdAt,
     updatedAt: agent.updatedAt,
-  };
+  });
 }
 
 export function mapAdminAgentMetadataOverride(
@@ -101,7 +101,7 @@ export function mapAdminAgentMetadataOverride(
     return null;
   }
 
-  return {
+  return adminAgentMetadataOverrideSchema.parse({
     name: override.name,
     description: override.description,
     apiBaseUrl: override.apiBaseUrl,
@@ -123,13 +123,13 @@ export function mapAdminAgentMetadataOverride(
       mimeType: example.mimeType,
       url: example.url,
     })),
-  };
+  });
 }
 
 export function mapAdminAgentListItem(
   agent: AdminAgentListRecord,
 ): AdminAgentListItem {
-  return {
+  return adminAgentListItemSchema.parse({
     id: agent.id,
     blockchainIdentifier: agent.blockchainIdentifier,
     registryName: agent.name,
@@ -140,7 +140,7 @@ export function mapAdminAgentListItem(
     isShown: agent.isShown,
     createdAt: agent.createdAt,
     updatedAt: agent.updatedAt,
-  };
+  });
 }
 
 export function mapAdminAgentDetail(
@@ -153,7 +153,7 @@ export function mapAdminAgentDetail(
     tags: Array<{ name: string }>;
   },
 ): AdminAgentDetail {
-  return {
+  return adminAgentDetailSchema.parse({
     registry: mapAdminAgentRegistry(agent),
     override: mapAdminAgentMetadataOverride(agent.metadataOverride),
     resolved: {
@@ -164,7 +164,7 @@ export function mapAdminAgentDetail(
       tags: getAgentTagsFromAgent(agent),
       exampleOutputs: getAgentExampleOutputsFromAgent(agent),
     },
-  };
+  });
 }
 
 export function buildAdminAgentSearchWhere(

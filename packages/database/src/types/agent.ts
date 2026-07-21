@@ -30,17 +30,27 @@ export const agentRatingInclude = {
   userAgentRating: true,
 } as const;
 
-export const agentTagsInclude = {
-  tags: {
-    orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
-  },
+export const agentMetadataOverrideRelationsInclude = {
   metadataOverride: {
     include: {
       tags: {
         orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
       },
+      exampleOutputs: {
+        orderBy: [
+          { createdAt: "asc" },
+          { id: "asc" },
+        ] as Prisma.ExampleOutputOrderByWithRelationInput[],
+      },
     },
   },
+} as const;
+
+export const agentTagsInclude = {
+  tags: {
+    orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
+  },
+  ...agentMetadataOverrideRelationsInclude,
 } as const;
 
 export const agentCategoriesInclude = {
@@ -54,16 +64,7 @@ export const agentExampleOutputInclude = {
       { id: "asc" },
     ] as Prisma.ExampleOutputOrderByWithRelationInput[],
   },
-  metadataOverride: {
-    include: {
-      exampleOutputs: {
-        orderBy: [
-          { createdAt: "asc" },
-          { id: "asc" },
-        ] as Prisma.ExampleOutputOrderByWithRelationInput[],
-      },
-    },
-  },
+  ...agentMetadataOverrideRelationsInclude,
 } as const;
 
 export const agentJobsInclude = {
