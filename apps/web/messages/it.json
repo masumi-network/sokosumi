@@ -2912,6 +2912,10 @@
             "title": "Organizzazioni",
             "description": "Panoramica ricercabile delle organizzazioni con membri, fatturazione e crediti."
           },
+          "agents": {
+            "title": "Agenti",
+            "description": "Sfoglia tutti gli agenti del marketplace e gestisci gli override dei metadati di visualizzazione Sokosumi."
+          },
           "tasks": {
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
@@ -3095,6 +3099,54 @@
           "paidSuccess": "Crediti assegnati",
           "paidError": "Impossibile contrassegnare la fattura come pagata",
           "openInStripe": "Apri in Stripe"
+        }
+      },
+      "Agents": {
+        "title": "Agenti",
+        "description": "Sfoglia tutti gli agenti del marketplace e gestisci gli override dei metadati di visualizzazione Sokosumi.",
+        "AgentList": {
+          "searchPlaceholder": "Cerca per nome o identificatore blockchain…",
+          "totalCount": "{count, plural, one {# agente} other {# agenti}}",
+          "empty": "Nessun agente trovato.",
+          "displayName": "Nome visualizzato",
+          "registryName": "Nome registro",
+          "override": "Override",
+          "hasOverride": "Personalizzato",
+          "noOverride": "Solo registro",
+          "status": "Stato",
+          "actions": "Azioni",
+          "manage": "Gestisci",
+          "loadMore": "Carica altri",
+          "loadError": "Impossibile caricare gli agenti."
+        },
+        "AgentDetail": {
+          "subtitle": "I campi del registro sono in sola lettura. Gli override modificano la visualizzazione nel marketplace.",
+          "backToList": "Torna agli agenti",
+          "registryTitle": "Registro (sola lettura)",
+          "registryName": "Nome registro",
+          "registryDescription": "Descrizione registro",
+          "blockchainIdentifier": "Identificatore blockchain",
+          "overrideTitle": "Override Sokosumi",
+          "overrideDescription": "Lascia un campo vuoto per usare il valore del registro. Salva applica gli override; Cancella tutto rimuove la riga di override.",
+          "resolvedTitle": "Anteprima risolta",
+          "emptyValue": "—",
+          "save": "Salva override",
+          "saveSuccess": "Override salvati",
+          "saveError": "Impossibile salvare gli override",
+          "clearAll": "Cancella tutti gli override",
+          "clearSuccess": "Override eliminati",
+          "clearError": "Impossibile eliminare gli override",
+          "examplesInvalid": "Ogni riga di esempio deve essere nome|mimeType|url",
+          "fields": {
+            "name": "Nome",
+            "description": "Descrizione",
+            "image": "URL immagine",
+            "apiBaseUrl": "URL base API",
+            "tags": "Tag",
+            "tagsPlaceholder": "Nomi tag separati da virgola",
+            "examples": "Output di esempio",
+            "examplesPlaceholder": "Uno per riga: nome|mimeType|url"
+          }
         }
       },
       "Tasks": {

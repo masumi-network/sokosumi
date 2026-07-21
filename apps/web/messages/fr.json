@@ -2912,6 +2912,10 @@
             "title": "Organisations",
             "description": "Vue d'ensemble consultable des organisations avec membres, facturation et crédits."
           },
+          "agents": {
+            "title": "Agents",
+            "description": "Parcourez tous les agents du marketplace et gérez les remplacements de métadonnées d'affichage Sokosumi."
+          },
           "tasks": {
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
@@ -3095,6 +3099,54 @@
           "paidSuccess": "Crédits accordés",
           "paidError": "Échec du marquage de la facture comme payée",
           "openInStripe": "Ouvrir dans Stripe"
+        }
+      },
+      "Agents": {
+        "title": "Agents",
+        "description": "Parcourez tous les agents du marketplace et gérez les remplacements de métadonnées d'affichage Sokosumi.",
+        "AgentList": {
+          "searchPlaceholder": "Rechercher par nom ou identifiant blockchain…",
+          "totalCount": "{count, plural, one {# agent} other {# agents}}",
+          "empty": "Aucun agent trouvé.",
+          "displayName": "Nom affiché",
+          "registryName": "Nom du registre",
+          "override": "Remplacement",
+          "hasOverride": "Personnalisé",
+          "noOverride": "Registre uniquement",
+          "status": "Statut",
+          "actions": "Actions",
+          "manage": "Gérer",
+          "loadMore": "Charger plus",
+          "loadError": "Échec du chargement des agents."
+        },
+        "AgentDetail": {
+          "subtitle": "Les champs du registre sont en lecture seule. Les remplacements modifient l'affichage sur le marketplace.",
+          "backToList": "Retour aux agents",
+          "registryTitle": "Registre (lecture seule)",
+          "registryName": "Nom du registre",
+          "registryDescription": "Description du registre",
+          "blockchainIdentifier": "Identifiant blockchain",
+          "overrideTitle": "Remplacements Sokosumi",
+          "overrideDescription": "Laissez un champ vide pour utiliser la valeur du registre. Enregistrer applique les remplacements ; Tout effacer supprime la ligne de remplacement.",
+          "resolvedTitle": "Aperçu résolu",
+          "emptyValue": "—",
+          "save": "Enregistrer les remplacements",
+          "saveSuccess": "Remplacements enregistrés",
+          "saveError": "Échec de l'enregistrement des remplacements",
+          "clearAll": "Effacer tous les remplacements",
+          "clearSuccess": "Remplacements supprimés",
+          "clearError": "Échec de la suppression des remplacements",
+          "examplesInvalid": "Chaque ligne d'exemple doit être nom|mimeType|url",
+          "fields": {
+            "name": "Nom",
+            "description": "Description",
+            "image": "URL de l'image",
+            "apiBaseUrl": "URL de base de l'API",
+            "tags": "Tags",
+            "tagsPlaceholder": "Noms de tags séparés par des virgules",
+            "examples": "Exemples de sorties",
+            "examplesPlaceholder": "Un par ligne : nom|mimeType|url"
+          }
         }
       },
       "Tasks": {

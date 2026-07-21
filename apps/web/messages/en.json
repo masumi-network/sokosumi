@@ -3090,6 +3090,10 @@
           "tasks": {
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
+          },
+          "agents": {
+            "title": "Agents",
+            "description": "Browse all marketplace agents and manage Sokosumi display metadata overrides."
           }
         }
       },
@@ -3187,6 +3191,54 @@
           "seatAssignSuccess": "Seat assigned.",
           "seatUnassignSuccess": "Seat unassigned.",
           "removeSuccess": "Member removed."
+        }
+      },
+      "Agents": {
+        "title": "Agents",
+        "description": "Browse all marketplace agents and manage Sokosumi display metadata overrides.",
+        "AgentList": {
+          "searchPlaceholder": "Search by name or blockchain identifier…",
+          "totalCount": "{count, plural, one {# agent} other {# agents}}",
+          "empty": "No agents found.",
+          "displayName": "Display name",
+          "registryName": "Registry name",
+          "override": "Override",
+          "hasOverride": "Customized",
+          "noOverride": "Registry only",
+          "status": "Status",
+          "actions": "Actions",
+          "manage": "Manage",
+          "loadMore": "Load more",
+          "loadError": "Failed to load agents."
+        },
+        "AgentDetail": {
+          "subtitle": "Registry fields are read-only. Override fields change marketplace display.",
+          "backToList": "Back to agents",
+          "registryTitle": "Registry (read-only)",
+          "registryName": "Registry name",
+          "registryDescription": "Registry description",
+          "blockchainIdentifier": "Blockchain identifier",
+          "overrideTitle": "Sokosumi overrides",
+          "overrideDescription": "Leave a field empty to fall back to the registry value. Save applies overrides; Clear all removes the override row.",
+          "resolvedTitle": "Resolved preview",
+          "emptyValue": "—",
+          "save": "Save overrides",
+          "saveSuccess": "Overrides saved",
+          "saveError": "Failed to save overrides",
+          "clearAll": "Clear all overrides",
+          "clearSuccess": "Overrides cleared",
+          "clearError": "Failed to clear overrides",
+          "examplesInvalid": "Each example line must be name|mimeType|url",
+          "fields": {
+            "name": "Name",
+            "description": "Description",
+            "image": "Image URL",
+            "apiBaseUrl": "API base URL",
+            "tags": "Tags",
+            "tagsPlaceholder": "Comma-separated tag names",
+            "examples": "Example outputs",
+            "examplesPlaceholder": "One per line: name|mimeType|url"
+          }
         }
       },
       "Tasks": {

@@ -2885,6 +2885,10 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
+          "agents": {
+            "title": "Agenten",
+            "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
+          },
           "freeCredits": {
             "title": "Kostenlose Credits",
             "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
@@ -3064,6 +3068,54 @@
           "paidSuccess": "Credits gewährt",
           "paidError": "Rechnung konnte nicht als bezahlt markiert werden",
           "openInStripe": "In Stripe öffnen"
+        }
+      },
+      "Agents": {
+        "title": "Agenten",
+        "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten.",
+        "AgentList": {
+          "searchPlaceholder": "Nach Name oder Blockchain-Kennung suchen…",
+          "totalCount": "{count, plural, one {# Agent} other {# Agenten}}",
+          "empty": "Keine Agenten gefunden.",
+          "displayName": "Anzeigename",
+          "registryName": "Registry-Name",
+          "override": "Override",
+          "hasOverride": "Angepasst",
+          "noOverride": "Nur Registry",
+          "status": "Status",
+          "actions": "Aktionen",
+          "manage": "Verwalten",
+          "loadMore": "Mehr laden",
+          "loadError": "Agenten konnten nicht geladen werden."
+        },
+        "AgentDetail": {
+          "subtitle": "Registry-Felder sind schreibgeschützt. Override-Felder ändern die Marketplace-Anzeige.",
+          "backToList": "Zurück zu Agenten",
+          "registryTitle": "Registry (schreibgeschützt)",
+          "registryName": "Registry-Name",
+          "registryDescription": "Registry-Beschreibung",
+          "blockchainIdentifier": "Blockchain-Kennung",
+          "overrideTitle": "Sokosumi-Overrides",
+          "overrideDescription": "Leeres Feld = Registry-Wert. Speichern wendet Overrides an; Alle löschen entfernt die Override-Zeile.",
+          "resolvedTitle": "Aufgelöste Vorschau",
+          "emptyValue": "—",
+          "save": "Overrides speichern",
+          "saveSuccess": "Overrides gespeichert",
+          "saveError": "Overrides konnten nicht gespeichert werden",
+          "clearAll": "Alle Overrides löschen",
+          "clearSuccess": "Overrides gelöscht",
+          "clearError": "Overrides konnten nicht gelöscht werden",
+          "examplesInvalid": "Jede Beispielzeile muss name|mimeType|url sein",
+          "fields": {
+            "name": "Name",
+            "description": "Beschreibung",
+            "image": "Bild-URL",
+            "apiBaseUrl": "API-Basis-URL",
+            "tags": "Tags",
+            "tagsPlaceholder": "Tag-Namen, durch Komma getrennt",
+            "examples": "Beispielausgaben",
+            "examplesPlaceholder": "Eine pro Zeile: name|mimeType|url"
+          }
         }
       },
       "Tasks": {

@@ -2912,6 +2912,10 @@
             "title": "Organizações",
             "description": "Visão geral pesquisável das organizações com membros, faturação e créditos."
           },
+          "agents": {
+            "title": "Agentes",
+            "description": "Navegue por todos os agentes do marketplace e gira as substituições de metadados de apresentação Sokosumi."
+          },
           "tasks": {
             "title": "Tarefas",
             "description": "Lista pesquisável de todas as tarefas entre utilizadores e organizações."
@@ -3095,6 +3099,54 @@
           "paidSuccess": "Créditos concedidos",
           "paidError": "Falha ao marcar a fatura como paga",
           "openInStripe": "Abrir no Stripe"
+        }
+      },
+      "Agents": {
+        "title": "Agentes",
+        "description": "Navegue por todos os agentes do marketplace e gira as substituições de metadados de apresentação Sokosumi.",
+        "AgentList": {
+          "searchPlaceholder": "Pesquisar por nome ou identificador blockchain…",
+          "totalCount": "{count, plural, one {# agente} other {# agentes}}",
+          "empty": "Nenhum agente encontrado.",
+          "displayName": "Nome apresentado",
+          "registryName": "Nome do registo",
+          "override": "Substituição",
+          "hasOverride": "Personalizado",
+          "noOverride": "Apenas registo",
+          "status": "Estado",
+          "actions": "Ações",
+          "manage": "Gerir",
+          "loadMore": "Carregar mais",
+          "loadError": "Falha ao carregar agentes."
+        },
+        "AgentDetail": {
+          "subtitle": "Os campos do registo são só de leitura. As substituições alteram a apresentação no marketplace.",
+          "backToList": "Voltar aos agentes",
+          "registryTitle": "Registo (só de leitura)",
+          "registryName": "Nome do registo",
+          "registryDescription": "Descrição do registo",
+          "blockchainIdentifier": "Identificador blockchain",
+          "overrideTitle": "Substituições Sokosumi",
+          "overrideDescription": "Deixe um campo vazio para usar o valor do registo. Guardar aplica as substituições; Limpar tudo remove a linha de substituição.",
+          "resolvedTitle": "Pré-visualização resolvida",
+          "emptyValue": "—",
+          "save": "Guardar substituições",
+          "saveSuccess": "Substituições guardadas",
+          "saveError": "Falha ao guardar substituições",
+          "clearAll": "Limpar todas as substituições",
+          "clearSuccess": "Substituições eliminadas",
+          "clearError": "Falha ao eliminar substituições",
+          "examplesInvalid": "Cada linha de exemplo deve ser nome|mimeType|url",
+          "fields": {
+            "name": "Nome",
+            "description": "Descrição",
+            "image": "URL da imagem",
+            "apiBaseUrl": "URL base da API",
+            "tags": "Etiquetas",
+            "tagsPlaceholder": "Nomes de etiquetas separados por vírgulas",
+            "examples": "Saídas de exemplo",
+            "examplesPlaceholder": "Uma por linha: nome|mimeType|url"
+          }
         }
       },
       "Tasks": {

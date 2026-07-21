@@ -2912,6 +2912,10 @@
             "title": "组织",
             "description": "可搜索的组织概览，包含成员、计费和积分。"
           },
+          "agents": {
+            "title": "智能体",
+            "description": "浏览所有市场智能体并管理 Sokosumi 显示元数据覆盖。"
+          },
           "tasks": {
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
@@ -3095,6 +3099,54 @@
           "paidSuccess": "积分已授予",
           "paidError": "无法将发票标记为已支付",
           "openInStripe": "在 Stripe 中打开"
+        }
+      },
+      "Agents": {
+        "title": "智能体",
+        "description": "浏览所有市场智能体并管理 Sokosumi 显示元数据覆盖。",
+        "AgentList": {
+          "searchPlaceholder": "按名称或区块链标识符搜索…",
+          "totalCount": "{count, plural, other {# 个智能体}}",
+          "empty": "未找到智能体。",
+          "displayName": "显示名称",
+          "registryName": "注册表名称",
+          "override": "覆盖",
+          "hasOverride": "已自定义",
+          "noOverride": "仅注册表",
+          "status": "状态",
+          "actions": "操作",
+          "manage": "管理",
+          "loadMore": "加载更多",
+          "loadError": "加载智能体失败。"
+        },
+        "AgentDetail": {
+          "subtitle": "注册表字段为只读。覆盖字段会更改市场显示。",
+          "backToList": "返回智能体列表",
+          "registryTitle": "注册表（只读）",
+          "registryName": "注册表名称",
+          "registryDescription": "注册表描述",
+          "blockchainIdentifier": "区块链标识符",
+          "overrideTitle": "Sokosumi 覆盖",
+          "overrideDescription": "将字段留空以回退到注册表值。保存应用覆盖；全部清除会删除覆盖行。",
+          "resolvedTitle": "解析预览",
+          "emptyValue": "—",
+          "save": "保存覆盖",
+          "saveSuccess": "覆盖已保存",
+          "saveError": "保存覆盖失败",
+          "clearAll": "清除所有覆盖",
+          "clearSuccess": "覆盖已清除",
+          "clearError": "清除覆盖失败",
+          "examplesInvalid": "每行示例必须为 name|mimeType|url",
+          "fields": {
+            "name": "名称",
+            "description": "描述",
+            "image": "图片 URL",
+            "apiBaseUrl": "API 基础 URL",
+            "tags": "标签",
+            "tagsPlaceholder": "逗号分隔的标签名称",
+            "examples": "示例输出",
+            "examplesPlaceholder": "每行一条：name|mimeType|url"
+          }
         }
       },
       "Tasks": {

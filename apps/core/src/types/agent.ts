@@ -54,8 +54,12 @@ export const agentTagsInclude = {
   tags: {
     orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
   },
-  overrideTags: {
-    orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
+  metadataOverride: {
+    include: {
+      tags: {
+        orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
+      },
+    },
   },
 } as const;
 
@@ -70,11 +74,15 @@ export const agentExampleOutputInclude = {
       { id: "asc" },
     ] as Prisma.ExampleOutputOrderByWithRelationInput[],
   },
-  overrideExampleOutput: {
-    orderBy: [
-      { createdAt: "asc" },
-      { id: "asc" },
-    ] as Prisma.ExampleOutputOrderByWithRelationInput[],
+  metadataOverride: {
+    include: {
+      exampleOutputs: {
+        orderBy: [
+          { createdAt: "asc" },
+          { id: "asc" },
+        ] as Prisma.ExampleOutputOrderByWithRelationInput[],
+      },
+    },
   },
 } as const;
 

@@ -158,7 +158,7 @@ export const agentRepository = {
         summary: null,
         OR: [
           { description: { not: null } },
-          { overrideDescription: { not: null } },
+          { metadataOverride: { description: { not: null } } },
         ],
       },
       take: limit ?? undefined,

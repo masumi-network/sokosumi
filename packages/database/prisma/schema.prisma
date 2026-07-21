@@ -521,10 +521,11 @@ model ExampleOutput {
   mimeType  String
   url       String
 
-  agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
-  agentId         String?
-  agentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
-  agentIdOverride String?
+  agent   Agent? @relation("ExampleOutputAgent", fields: [agentId], references: [id])
+  agentId String?
+
+  metadataOverride   AgentMetadataOverride? @relation(fields: [metadataOverrideId], references: [id], onDelete: Cascade)
+  metadataOverrideId String?
 }
 
 model UserAgentRating {
@@ -552,55 +553,31 @@ model Agent {
 
   blockchainIdentifier String @unique
 
-  name         String
-  overrideName String?
+  name        String
+  description String?
 
-  description         String?
-  overrideDescription String?
+  apiBaseUrl String
 
-  apiBaseUrl         String
-  overrideApiBaseUrl String?
-
-  capabilityName         String?
-  overrideCapabilityName String?
-
-  capabilityVersion         String?
-  overrideCapabilityVersion String?
+  capabilityName    String?
+  capabilityVersion String?
 
   authorName         String?
-  overrideAuthorName String?
+  authorImage        String?
+  authorContactEmail String?
+  authorContactOther String?
+  authorOrganization String?
 
-  authorImage         String?
-  overrideAuthorImage String?
-
-  authorContactEmail         String?
-  overrideAuthorContactEmail String?
-
-  authorContactOther         String?
-  overrideAuthorContactOther String?
-
-  authorOrganization         String?
-  overrideAuthorOrganization String?
-
-  legalPrivacyPolicy         String?
-  overrideLegalPrivacyPolicy String?
-
-  legalDpa         String?
-  overrideLegalDpa String?
-
+  legalPrivacyPolicy String?
+  legalDpa           String?
   legalTerms         String?
-  overrideLegalTerms String?
-
   legalOther         String?
-  overrideLegalOther String?
 
   lastUptimeCheck  DateTime
   uptimeCount      Int
   uptimeCheckCount Int
 
-  image         String?
-  overrideImage String?
-  icon          String?
+  image String?
+  icon  String?
 
   metadataVersion Int @default(1)
 
@@ -613,18 +590,51 @@ model Agent {
   isShown            Boolean
   riskClassification RiskClassification @default(MINIMAL)
 
-  exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
-  overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
+  exampleOutput ExampleOutput[] @relation("ExampleOutputAgent")
 
   userAgentRating UserAgentRating[]
   jobs            Job[]
 
-  tags         Tag[]      @relation("AgentTag")
-  overrideTags Tag[]      @relation("AgentTagOverride")
-  categories   Category[] @relation("AgentCategory")
+  tags       Tag[]      @relation("AgentTag")
+  categories Category[] @relation("AgentCategory")
+
+  metadataOverride AgentMetadataOverride?
 
   // Summary
   summary String?
+}
+
+model AgentMetadataOverride {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agentId String @unique
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  name        String?
+  description String?
+
+  apiBaseUrl String?
+
+  capabilityName    String?
+  capabilityVersion String?
+
+  authorName         String?
+  authorImage        String?
+  authorContactEmail String?
+  authorContactOther String?
+  authorOrganization String?
+
+  legalPrivacyPolicy String?
+  legalDpa           String?
+  legalTerms         String?
+  legalOther         String?
+
+  image String?
+
+  tags           Tag[]
+  exampleOutputs ExampleOutput[]
 }
 
 model Category {
@@ -675,8 +685,8 @@ model Tag {
   updatedAt DateTime @updatedAt
   name      String   @unique
 
-  agents         Agent[] @relation("AgentTag")
-  agentsOverride Agent[] @relation("AgentTagOverride")
+  agents            Agent[]                 @relation("AgentTag")
+  metadataOverrides AgentMetadataOverride[]
 }
 
 model SyncMetadata {

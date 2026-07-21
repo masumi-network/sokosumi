@@ -62,6 +62,7 @@ import {
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
+  deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
@@ -76,6 +77,7 @@ import {
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
+  getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminTask as coreGetAdminTask,
@@ -148,6 +150,7 @@ import {
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
@@ -156,6 +159,7 @@ import {
   listCreditPrices as coreListCreditPrices,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
+  patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -921,6 +925,66 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to list users",
+    );
+  }
+
+  async function listAdminAgents(query: {
+    q?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminAgents({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list agents",
+    );
+  }
+
+  async function getAdminAgent(agentId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAdminAgent({
+          client,
+          path: { id: agentId },
+          cache: "no-store",
+        }),
+      "Failed to fetch admin agent",
+    );
+  }
+
+  async function patchAdminAgentMetadataOverride(
+    agentId: string,
+    body: Parameters<typeof corePatchAdminAgentMetadataOverride>[0]["body"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchAdminAgentMetadataOverride({
+          client,
+          path: { id: agentId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update agent metadata override",
+    );
+  }
+
+  async function deleteAdminAgentMetadataOverride(agentId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteAdminAgentMetadataOverride({
+          client,
+          path: { id: agentId },
+          cache: "no-store",
+        }),
+      "Failed to delete agent metadata override",
     );
   }
 
@@ -2986,6 +3050,10 @@ export function createCoreClient(getClient: GetClient) {
     getCoworkers,
     searchAdminUsers,
     listAdminUsers,
+    listAdminAgents,
+    getAdminAgent,
+    patchAdminAgentMetadataOverride,
+    deleteAdminAgentMetadataOverride,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,

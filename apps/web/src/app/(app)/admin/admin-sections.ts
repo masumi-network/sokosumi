@@ -1,4 +1,5 @@
 import {
+  Bot,
   Building,
   Building2,
   Coins,
@@ -21,6 +22,11 @@ export interface AdminSection {
  * translations) to have it appear on the hub.
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
+  {
+    key: "agents",
+    href: "/admin/agents",
+    Icon: Bot,
+  },
   {
     key: "enterpriseContracts",
     href: "/admin/enterprise-contracts",

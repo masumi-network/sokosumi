@@ -75,7 +75,7 @@ export function createAgentClient(config?: AgentClientConfig) {
     // at connect time by `ssrfSafeFetch` (which resolves and filters the host),
     // so it also covers public hostnames that resolve to internal IPs.
 
-    const usedUrl = agent.overrideApiBaseUrl ?? agent.apiBaseUrl;
+    const usedUrl = agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl;
     const overrideUrl = new URL(usedUrl);
 
     // Also validate override URL if present

@@ -5,6 +5,8 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import type { AgentWithMetadataOverride } from "@sokosumi/database/types/agent";
+import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
@@ -21,8 +23,16 @@ import type { AgentWithPricing } from "@/types/agent";
 
 import { internalServerError, notFound, unprocessableEntity } from "./error";
 
-export const getAgentImage = (agent: Agent): string | null => {
-  const image = agent.overrideImage ?? agent.image;
+type AgentMetadataOverrideScalars = NonNullable<
+  AgentWithMetadataOverride["metadataOverride"]
+>;
+
+export const getAgentImage = (
+  agent: Pick<Agent, "image"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "image"> | null;
+  },
+): string | null => {
+  const image = agent.metadataOverride?.image ?? agent.image;
   if (!image) {
     return null;
   }
@@ -37,22 +47,71 @@ export const getAgentIcon = (agent: Pick<Agent, "icon">): string | null => {
 };
 
 export const getAgentName = (
-  agent: Pick<Agent, "name" | "overrideName">,
+  agent: Pick<Agent, "name"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "name"> | null;
+  },
 ): string => {
-  return agent.overrideName ?? agent.name;
+  return agent.metadataOverride?.name ?? agent.name;
 };
 
-export const getAgentDescription = (agent: Agent): string | null => {
-  return agent.overrideDescription ?? agent.description;
+export const getAgentDescription = (
+  agent: Pick<Agent, "description"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "description"> | null;
+  },
+): string | null => {
+  return agent.metadataOverride?.description ?? agent.description;
 };
 
-export const getAgentAuthorImage = (agent: Agent): string | null => {
-  const image = agent.overrideAuthorImage ?? agent.authorImage;
+export const getAgentAuthorImage = (
+  agent: Pick<Agent, "authorImage"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "authorImage"> | null;
+  },
+): string | null => {
+  const image = agent.metadataOverride?.authorImage ?? agent.authorImage;
   if (!image) {
     return null;
   }
   return resolveIpfsOrHttpUrl(image);
 };
+
+export function toMasumiAgent(
+  agent: Pick<Agent, "id" | "name" | "blockchainIdentifier" | "apiBaseUrl"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
+  },
+): MasumiAgent {
+  return {
+    id: agent.id,
+    name: agent.name,
+    blockchainIdentifier: agent.blockchainIdentifier,
+    apiBaseUrl: agent.apiBaseUrl,
+    metadataOverride: agent.metadataOverride
+      ? { apiBaseUrl: agent.metadataOverride.apiBaseUrl }
+      : null,
+  };
+}
+
+export interface JobDetailsAgentOverrideFields {
+  overrideName: string | null;
+  overrideImage: string | null;
+  overrideLegalPrivacyPolicy: string | null;
+  overrideLegalTerms: string | null;
+  overrideLegalDpa: string | null;
+  overrideLegalOther: string | null;
+}
+
+export function getJobDetailsAgentOverrideFields(
+  agent: AgentWithMetadataOverride,
+): JobDetailsAgentOverrideFields {
+  const override = agent.metadataOverride;
+  return {
+    overrideName: override?.name ?? null,
+    overrideImage: override?.image ?? null,
+    overrideLegalPrivacyPolicy: override?.legalPrivacyPolicy ?? null,
+    overrideLegalTerms: override?.legalTerms ?? null,
+    overrideLegalDpa: override?.legalDpa ?? null,
+    overrideLegalOther: override?.legalOther ?? null,
+  };
+}
 
 /**
  * Retrieves credit costs used for agent availability and pricing checks.

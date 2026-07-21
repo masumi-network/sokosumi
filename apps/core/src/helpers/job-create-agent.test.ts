@@ -79,7 +79,7 @@ function createAgentRecord() {
     name: "Agent One",
     description: "desc",
     apiBaseUrl: "https://agent.example.com",
-    overrideApiBaseUrl: null,
+    metadataOverride: null,
     blockchainIdentifier: "agent-chain",
     pricing: {
       pricingType: "FREE",

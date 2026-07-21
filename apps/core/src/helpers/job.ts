@@ -29,6 +29,7 @@ import {
   buildAvailableAgentWhereClause,
   getAgentCost,
   getCreditCostsOrThrow,
+  toMasumiAgent,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -347,13 +348,7 @@ export async function createAgentJobForUser(
       identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
 
       const startPaidJobResult = await createAgentClient().startPaidAgentJob(
-        {
-          id: agent.id,
-          name: agent.name,
-          blockchainIdentifier: agent.blockchainIdentifier,
-          apiBaseUrl: agent.apiBaseUrl,
-          overrideApiBaseUrl: agent.overrideApiBaseUrl,
-        },
+        toMasumiAgent(agent),
         identifierFromPurchaser,
         agentInput.inputData,
       );

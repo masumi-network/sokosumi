@@ -313,7 +313,7 @@ async function syncAgentSummaries(
       summary: null,
       OR: [
         { description: { not: null } },
-        { overrideDescription: { not: null } },
+        { metadataOverride: { description: { not: null } } },
       ],
     },
     take: AGENT_SUMMARY_SYNC_LIMIT,
