@@ -1,8 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import {
-  agentExampleOutputInclude,
-  agentTagsInclude,
-} from "@sokosumi/database";
+
 import {
   adminAgentDetailInclude,
   mapAdminAgentDetail,
@@ -57,11 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const updatedAgent = await prisma.agent.findUnique({
       where: { id },
-      include: {
-        ...adminAgentDetailInclude,
-        ...agentTagsInclude,
-        ...agentExampleOutputInclude,
-      },
+      include: adminAgentDetailInclude,
     });
 
     if (!updatedAgent) {

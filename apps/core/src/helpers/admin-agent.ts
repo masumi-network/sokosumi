@@ -1,5 +1,11 @@
 import type { z } from "@hono/zod-openapi";
-import type { Agent, AgentMetadataOverride, Prisma } from "@sokosumi/database";
+import {
+  type Agent,
+  type AgentMetadataOverride,
+  agentExampleOutputInclude,
+  agentTagsInclude,
+  type Prisma,
+} from "@sokosumi/database";
 
 import {
   getAgentDescription,
@@ -26,18 +32,6 @@ type AdminAgentMetadataOverride = z.infer<
 >;
 type AdminAgentDetail = z.infer<typeof adminAgentDetailSchema>;
 
-const adminAgentMetadataOverrideInclude = {
-  tags: {
-    orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
-  },
-  exampleOutputs: {
-    orderBy: [
-      { createdAt: "asc" },
-      { id: "asc" },
-    ] as Prisma.ExampleOutputOrderByWithRelationInput[],
-  },
-} as const;
-
 export const adminAgentListInclude = {
   metadataOverride: {
     select: {
@@ -51,10 +45,13 @@ export type AdminAgentListRecord = Prisma.AgentGetPayload<{
   include: typeof adminAgentListInclude;
 }>;
 
+/**
+ * Registry tags/examples plus override relations (tags + exampleOutputs).
+ * Both shared includes embed `agentMetadataOverrideRelationsInclude`.
+ */
 export const adminAgentDetailInclude = {
-  metadataOverride: {
-    include: adminAgentMetadataOverrideInclude,
-  },
+  ...agentTagsInclude,
+  ...agentExampleOutputInclude,
 } as const;
 
 export type AdminAgentDetailRecord = Prisma.AgentGetPayload<{
@@ -147,14 +144,7 @@ export function mapAdminAgentListItem(
 }
 
 export function mapAdminAgentDetail(
-  agent: AdminAgentDetailRecord & {
-    exampleOutput: Array<{
-      name: string;
-      mimeType: string;
-      url: string;
-    }>;
-    tags: Array<{ name: string }>;
-  },
+  agent: AdminAgentDetailRecord,
 ): AdminAgentDetail {
   const author = getAuthorFromAgent(agent);
   const legal = getAgentLegalFromAgent(agent);

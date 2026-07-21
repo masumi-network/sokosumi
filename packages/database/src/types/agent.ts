@@ -4,22 +4,6 @@ export const agentMetadataOverrideScalarsInclude = {
   metadataOverride: true,
 } as const;
 
-export const agentMetadataOverrideDetailInclude = {
-  metadataOverride: {
-    include: {
-      tags: {
-        orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
-      },
-      exampleOutputs: {
-        orderBy: [
-          { createdAt: "asc" },
-          { id: "asc" },
-        ] as Prisma.ExampleOutputOrderByWithRelationInput[],
-      },
-    },
-  },
-} as const;
-
 export const agentPricingInclude = {
   pricing: {
     include: { fixedPricing: { include: { amounts: true } } },
@@ -30,6 +14,7 @@ export const agentRatingInclude = {
   userAgentRating: true,
 } as const;
 
+/** Override row with tags + exampleOutputs (order matches marketplace merge). */
 export const agentMetadataOverrideRelationsInclude = {
   metadataOverride: {
     include: {
@@ -135,5 +120,5 @@ export type AgentWithMetadataOverride = Prisma.AgentGetPayload<{
 }>;
 
 export type AgentWithMetadataOverrideDetail = Prisma.AgentGetPayload<{
-  include: typeof agentMetadataOverrideDetailInclude;
+  include: typeof agentMetadataOverrideRelationsInclude;
 }>;

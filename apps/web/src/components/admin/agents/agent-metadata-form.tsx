@@ -336,6 +336,19 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
                 : t("emptyValue")}
             </p>
           </div>
+          <div className="space-y-1 sm:col-span-2">
+            <p className="text-muted-foreground">{t("fields.examples")}</p>
+            <p className="whitespace-pre-wrap break-all">
+              {resolved.exampleOutputs.length > 0
+                ? resolved.exampleOutputs
+                    .map(
+                      (example) =>
+                        `${example.name}|${example.mimeType}|${example.url}`,
+                    )
+                    .join("\n")
+                : t("emptyValue")}
+            </p>
+          </div>
           <div className="space-y-1">
             <p className="text-muted-foreground">{t("fields.authorName")}</p>
             <p>{resolved.authorName ?? t("emptyValue")}</p>
