@@ -182,7 +182,7 @@ export type AdminAgentListSortBy =
 export type AdminAgentListSortOrder = "asc" | "desc";
 
 export function buildAdminAgentListOrderBy(
-  sortBy: AdminAgentListSortBy,
+  sortBy: Exclude<AdminAgentListSortBy, "displayName">,
   sortOrder: AdminAgentListSortOrder,
 ): Prisma.AgentOrderByWithRelationInput[] {
   switch (sortBy) {
@@ -192,16 +192,6 @@ export function buildAdminAgentListOrderBy(
       return [{ status: sortOrder }, { id: sortOrder }];
     case "registryName":
       return [{ name: sortOrder }, { id: sortOrder }];
-    case "displayName":
-      return [
-        {
-          metadataOverride: {
-            name: { sort: sortOrder, nulls: "last" },
-          },
-        },
-        { name: sortOrder },
-        { id: sortOrder },
-      ];
     case "hasOverride":
       return [{ metadataOverride: { id: sortOrder } }, { id: sortOrder }];
     default: {
@@ -209,6 +199,74 @@ export function buildAdminAgentListOrderBy(
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Prisma cannot `ORDER BY COALESCE(override.name, agent.name)` via relation
+ * orderBy. Use SQL so displayName sort matches `getAgentName` (override ?? registry).
+ */
+export async function findAdminAgentIdsOrderedByDisplayName(
+  client: Pick<Prisma.TransactionClient, "$queryRawUnsafe">,
+  options: {
+    sortOrder: AdminAgentListSortOrder;
+    take: number;
+    cursor?: string;
+    q?: string;
+  },
+): Promise<string[]> {
+  const direction = options.sortOrder === "asc" ? "ASC" : "DESC";
+  const trimmed = options.q?.trim();
+  const searchPattern = trimmed ? `%${trimmed}%` : null;
+
+  if (options.cursor) {
+    const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
+      `
+      WITH ordered AS (
+        SELECT
+          a.id,
+          ROW_NUMBER() OVER (
+            ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
+          ) AS rn
+        FROM "Agent" a
+        LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
+        WHERE (
+          $1::text IS NULL
+          OR a.name ILIKE $1
+          OR a."blockchainIdentifier" ILIKE $1
+          OR o.name ILIKE $1
+        )
+      )
+      SELECT id
+      FROM ordered
+      WHERE rn > (SELECT rn FROM ordered WHERE id = $2)
+      ORDER BY rn
+      LIMIT $3
+      `,
+      searchPattern,
+      options.cursor,
+      options.take,
+    );
+    return rows.map((row) => row.id);
+  }
+
+  const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
+    `
+    SELECT a.id
+    FROM "Agent" a
+    LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
+    WHERE (
+      $1::text IS NULL
+      OR a.name ILIKE $1
+      OR a."blockchainIdentifier" ILIKE $1
+      OR o.name ILIKE $1
+    )
+    ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
+    LIMIT $2
+    `,
+    searchPattern,
+    options.take,
+  );
+  return rows.map((row) => row.id);
 }
 
 export function buildAdminAgentSearchWhere(
