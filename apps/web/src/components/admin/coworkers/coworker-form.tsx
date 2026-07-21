@@ -304,11 +304,12 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
       return;
     }
 
-    const parsedPriority = Number(priority);
-    if (!Number.isInteger(parsedPriority)) {
+    const trimmedPriority = priority.trim();
+    if (!/^-?\d+$/.test(trimmedPriority)) {
       toast.error(t("validation.priorityInteger"));
       return;
     }
+    const parsedPriority = Number.parseInt(trimmedPriority, 10);
 
     const patchBody = buildControlsPatchBody(baseline, {
       capabilities,

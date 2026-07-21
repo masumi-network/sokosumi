@@ -140,7 +140,7 @@ describe("POST /coworkers/{id}/image", () => {
       }),
     );
     expect(updateManyMock).toHaveBeenCalledWith({
-      where: { id: COWORKER_ID, archivedAt: null },
+      where: { id: COWORKER_ID },
       data: { image: NEW_IMAGE },
     });
     expect(deleteCoworkerImageIfOwnedMock).toHaveBeenCalledWith(
@@ -359,7 +359,7 @@ describe("DELETE /coworkers/{id}/image", () => {
     expect(body.data.image).toBeNull();
 
     expect(updateManyMock).toHaveBeenCalledWith({
-      where: { id: COWORKER_ID, archivedAt: null },
+      where: { id: COWORKER_ID },
       data: { image: null },
     });
     expect(deleteCoworkerImageIfOwnedMock).toHaveBeenCalledWith(
