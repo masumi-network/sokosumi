@@ -3246,7 +3246,7 @@
             "image": {
               "label": "Image URL",
               "placeholder": "https://example.com/avatar.png",
-              "helper": "Public image URL for this coworker."
+              "helper": "Public HTTP(S) image URL. IPFS values are converted to the gateway on save."
             }
           },
           "saveChanges": "Save changes",

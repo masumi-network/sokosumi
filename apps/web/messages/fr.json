@@ -3154,7 +3154,7 @@
             "image": {
               "label": "URL de l'image",
               "placeholder": "https://example.com/avatar.png",
-              "helper": "URL publique de l'image de ce coworker."
+              "helper": "URL d’image HTTP(S) publique. Les valeurs IPFS sont converties vers la passerelle à l’enregistrement."
             }
           },
           "saveChanges": "Enregistrer",

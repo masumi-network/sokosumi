@@ -3123,7 +3123,7 @@
             "image": {
               "label": "URL de imagen",
               "placeholder": "https://example.com/avatar.png",
-              "helper": "URL pública de la imagen de este coworker."
+              "helper": "URL de imagen HTTP(S) pública. Los valores IPFS se convierten a la puerta de enlace al guardar."
             }
           },
           "saveChanges": "Guardar cambios",

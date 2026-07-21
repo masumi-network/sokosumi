@@ -3123,7 +3123,7 @@
             "image": {
               "label": "Bild-URL",
               "placeholder": "https://example.com/avatar.png",
-              "helper": "Öffentliche Bild-URL für diesen Coworker."
+              "helper": "Öffentliche HTTP(S)-Bild-URL. IPFS-Werte werden beim Speichern in die Gateway-URL umgewandelt."
             }
           },
           "saveChanges": "Änderungen speichern",

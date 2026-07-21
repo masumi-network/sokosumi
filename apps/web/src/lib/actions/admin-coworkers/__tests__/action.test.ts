@@ -106,4 +106,56 @@ describe("admin coworker actions", () => {
       image: "https://example.com/logo.png",
     });
   });
+
+  it("resolves ipfs image URLs before patching", async () => {
+    const { updateAdminCoworkerAction } = await import("../action");
+
+    updateCoworkerDisplayMock.mockResolvedValue({
+      id: "cow_123",
+      name: "Ops Agent",
+    });
+
+    const result = await updateAdminCoworkerAction({
+      session: adminSession,
+      id: "cow_123",
+      input: {
+        name: "Ops Agent",
+        caption: "",
+        description: "",
+        image: "ipfs://QmExampleCID",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(updateCoworkerDisplayMock).toHaveBeenCalledWith("cow_123", {
+      name: "Ops Agent",
+      caption: null,
+      description: null,
+      image: "https://c-ipfs-gw.nmkr.io/ipfs/QmExampleCID",
+    });
+  });
+
+  it("rejects names shorter than three characters", async () => {
+    const { updateAdminCoworkerAction } = await import("../action");
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+
+    const result = await updateAdminCoworkerAction({
+      session: adminSession,
+      id: "cow_123",
+      input: {
+        name: "ab",
+        caption: "",
+        description: "",
+        image: "",
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    expect(updateCoworkerDisplayMock).not.toHaveBeenCalled();
+  });
 });

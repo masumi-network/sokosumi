@@ -48,24 +48,27 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
     }
 
     setIsSubmitting(true);
-    const result = await updateAdminCoworkerAction({
-      id: coworker.id,
-      input: {
-        name,
-        caption,
-        description,
-        image,
-      },
-    });
-    setIsSubmitting(false);
+    try {
+      const result = await updateAdminCoworkerAction({
+        id: coworker.id,
+        input: {
+          name,
+          caption,
+          description,
+          image,
+        },
+      });
 
-    if (!result.ok) {
-      toast.error(result.error.message ?? t("updateError"));
-      return;
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("updateError"));
+        return;
+      }
+
+      toast.success(t("updateSuccess"));
+      router.refresh();
+    } finally {
+      setIsSubmitting(false);
     }
-
-    toast.success(t("updateSuccess"));
-    router.refresh();
   }
 
   return (
@@ -136,7 +139,7 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
           <Label htmlFor="coworker-image">{t("Fields.image.label")}</Label>
           <Input
             id="coworker-image"
-            type="url"
+            type="text"
             value={image}
             onChange={(event) => setImage(event.target.value)}
             placeholder={t("Fields.image.placeholder")}

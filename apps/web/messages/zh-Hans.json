@@ -3154,7 +3154,7 @@
             "image": {
               "label": "图片 URL",
               "placeholder": "https://example.com/avatar.png",
-              "helper": "此 Coworker 的公开图片 URL。"
+              "helper": "公开的 HTTP(S) 图片 URL。IPFS 值在保存时会转换为网关地址。"
             }
           },
           "saveChanges": "保存更改",

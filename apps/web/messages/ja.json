@@ -3154,7 +3154,7 @@
             "image": {
               "label": "画像 URL",
               "placeholder": "https://example.com/avatar.png",
-              "helper": "この Coworker の公開画像 URL。"
+              "helper": "公開の HTTP(S) 画像 URL。IPFS の値は保存時にゲートウェイ URL へ変換されます。"
             }
           },
           "saveChanges": "変更を保存",

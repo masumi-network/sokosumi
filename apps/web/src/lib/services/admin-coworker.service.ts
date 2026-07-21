@@ -6,9 +6,14 @@ import type {
   PatchCoworkersByIdData,
 } from "@/lib/clients/generated/core/types.gen";
 
-export type AdminCoworkerUpdateBody = NonNullable<
-  PatchCoworkersByIdData["body"]
->;
+type CoworkerPatchBody = NonNullable<PatchCoworkersByIdData["body"]>;
+
+export interface AdminCoworkerDisplayUpdateBody {
+  name: string;
+  caption: string | null;
+  description: string | null;
+  image: string | null;
+}
 
 export const adminCoworkerService = (() => {
   async function listCoworkers(): Promise<Coworker[]> {
@@ -30,9 +35,10 @@ export const adminCoworkerService = (() => {
 
   async function updateCoworkerDisplay(
     id: string,
-    body: AdminCoworkerUpdateBody,
+    body: AdminCoworkerDisplayUpdateBody,
   ): Promise<Coworker> {
-    const response = await coreClient.patchCoworker(id, body);
+    const patchBody: CoworkerPatchBody = body;
+    const response = await coreClient.patchCoworker(id, patchBody);
     return response.data;
   }
 

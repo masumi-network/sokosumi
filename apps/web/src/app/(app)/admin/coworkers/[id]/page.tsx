@@ -42,7 +42,7 @@ export default async function AdminCoworkerDetailPage({
     );
   }
 
-  if (!coworker) {
+  if (!coworker || coworker.archivedAt != null) {
     notFound();
   }
 
