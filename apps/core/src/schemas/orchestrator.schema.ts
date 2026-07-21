@@ -11,7 +11,7 @@ export const orchestratorSummarySchema = z
     slug: z.string().openapi({ example: "hermes" }),
     image: z
       .string()
-      .nullish()
+      .nullable()
       .openapi({ example: "https://example.com/hermes.png" }),
   })
   .openapi("OrchestratorSummary");

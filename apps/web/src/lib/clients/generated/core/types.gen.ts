@@ -455,7 +455,7 @@ export type OrchestratorSummary = {
     id: string;
     name: string;
     slug: string;
-    image?: string | null;
+    image: string | null;
 };
 
 export type TaskEvent = {
@@ -512,7 +512,7 @@ export type TaskEvent = {
         id: string;
         name: string;
         slug: string;
-        image?: string | null;
+        image: string | null;
     } | null;
     transactionId?: string | null;
     credits?: number | null;

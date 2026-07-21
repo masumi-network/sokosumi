@@ -1620,7 +1620,8 @@ export const OrchestratorSummarySchema = {
     required: [
         'id',
         'name',
-        'slug'
+        'slug',
+        'image'
     ]
 } as const;
 
@@ -1769,7 +1770,8 @@ export const TaskEventSchema = {
             required: [
                 'id',
                 'name',
-                'slug'
+                'slug',
+                'image'
             ],
             deprecated: true,
             description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
