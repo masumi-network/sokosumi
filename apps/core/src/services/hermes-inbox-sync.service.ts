@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import type { HermesInstance, Prisma } from "@sokosumi/database";
+import type { Orchestrator, Prisma } from "@sokosumi/database";
 import { v5 as uuidv5 } from "uuid";
 
 import {
@@ -136,7 +136,7 @@ function markPolled(args: {
   resetErrors?: boolean;
   incrementErrors?: boolean;
 }): Promise<void> {
-  const data: Prisma.HermesInstanceUpdateInput = {
+  const data: Prisma.OrchestratorUpdateInput = {
     lastPolledAt: new Date(),
   };
 
@@ -152,17 +152,18 @@ function markPolled(args: {
     data.consecutivePollErrors = { increment: 1 };
   }
 
-  return prisma.hermesInstance
-    .update({
-      where: { userId: args.userId },
+  return prisma.orchestrator
+    .updateMany({
+      where: { userId: args.userId, archivedAt: null },
       data,
     })
     .then(() => undefined);
 }
 
-async function findDueForPoll(nowMs: number): Promise<HermesInstance[]> {
-  return await prisma.hermesInstance.findMany({
+async function findDueForPoll(nowMs: number): Promise<Orchestrator[]> {
+  return await prisma.orchestrator.findMany({
     where: {
+      archivedAt: null,
       OR: [
         {
           lastInboxMessageAt: { gt: new Date(nowMs - HOT_LOOKBACK_MS) },
@@ -226,7 +227,7 @@ async function persistInboxMessages(
 }
 
 async function pollOne(
-  instance: HermesInstance,
+  instance: Orchestrator,
   options: SyncOptions,
 ): Promise<PollOutcome> {
   const sinceIso = inboxSinceIso(instance.lastInboxMessageAt);
@@ -266,8 +267,17 @@ async function pollOne(
   }
 
   if (result.kind === "instance_missing") {
-    await prisma.hermesInstance
-      .delete({ where: { userId: instance.userId } })
+    // Do not wipe chat history from a poll signal — only archive so the
+    // instance stops being polled. Explicit purge is POST /orchestrators/me/purge.
+    await prisma.orchestrator
+      .updateMany({
+        where: { userId: instance.userId, archivedAt: null },
+        data: {
+          archivedAt: new Date(),
+          lastPolledAt: null,
+          consecutivePollErrors: 0,
+        },
+      })
       .catch(() => undefined);
     return { userId: instance.userId, outcome: "skipped_instance_missing" };
   }
@@ -343,8 +353,8 @@ export async function syncHermesInboxForUser(
   userId: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<PollOutcome> {
-  const instance = await prisma.hermesInstance.findUnique({
-    where: { userId },
+  const instance = await prisma.orchestrator.findFirst({
+    where: { userId, archivedAt: null },
   });
   if (!instance) return { userId, outcome: "skipped_instance_missing" };
 
@@ -369,7 +379,7 @@ async function pollInboxes(
     };
   }
 
-  let due: HermesInstance[];
+  let due: Orchestrator[];
   try {
     due = await findDueForPoll(Date.now());
   } catch (error) {

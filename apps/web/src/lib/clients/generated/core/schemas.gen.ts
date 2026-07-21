@@ -2179,26 +2179,16 @@ export const OrchestratorSummarySchema = {
             example: '01960001-0001-7001-8001-000000000099'
         },
         name: {
-            type: 'string',
-            example: 'Hermes'
-        },
-        slug: {
-            type: 'string',
-            example: 'hermes'
-        },
-        image: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'https://example.com/hermes.png'
+            example: 'Atlas'
         }
     },
     required: [
         'id',
-        'name',
-        'slug',
-        'image'
+        'name'
     ]
 } as const;
 
@@ -2329,26 +2319,16 @@ export const TaskEventSchema = {
                     example: '01960001-0001-7001-8001-000000000099'
                 },
                 name: {
-                    type: 'string',
-                    example: 'Hermes'
-                },
-                slug: {
-                    type: 'string',
-                    example: 'hermes'
-                },
-                image: {
                     type: [
                         'string',
                         'null'
                     ],
-                    example: 'https://example.com/hermes.png'
+                    example: 'Atlas'
                 }
             },
             required: [
                 'id',
-                'name',
-                'slug',
-                'image'
+                'name'
             ],
             deprecated: true,
             description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
@@ -10488,174 +10468,6 @@ export const CreateCoworkerApiKeyResponseSchema = {
     ]
 } as const;
 
-export const OrchestratorSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        archivedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        slug: {
-            type: 'string',
-            example: 'hermes'
-        },
-        name: {
-            type: 'string',
-            example: 'Hermes'
-        },
-        caption: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Sokosumi orchestrator'
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'First-party Hermes orchestrator'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/hermes.png'
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'archivedAt',
-        'slug',
-        'name',
-        'caption',
-        'description',
-        'image'
-    ]
-} as const;
-
-export const OrchestratorApiKeySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-0000000000aa'
-        },
-        orchestratorId: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Production key'
-        },
-        keyStart: {
-            type: 'string',
-            example: 'orch_abcdefgh'
-        },
-        expiresAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2026-12-31T23:59:59.000Z'
-        },
-        revokedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: null
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'orchestratorId',
-        'name',
-        'keyStart',
-        'expiresAt',
-        'revokedAt',
-        'createdAt',
-        'updatedAt'
-    ]
-} as const;
-
-export const CreateOrchestratorApiKeyResponseSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-0000000000aa'
-        },
-        token: {
-            type: 'string',
-            example: 'orch_very_secret_value'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Production key'
-        },
-        expiresAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2026-12-31T23:59:59.000Z'
-        }
-    },
-    required: [
-        'id',
-        'token',
-        'name',
-        'expiresAt'
-    ]
-} as const;
-
 export const OrchestratorUsageSchema = {
     type: 'object',
     properties: {
@@ -10722,6 +10534,40 @@ export const OrchestratorUsageSchema = {
         'credits',
         'transactionId'
     ]
+} as const;
+
+export const OrchestratorPurgeResponseSchema = {
+    type: 'object',
+    properties: {
+        purged: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        userId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'purged',
+        'userId'
+    ]
+} as const;
+
+export const OrchestratorPurgeRequestSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            example: 'user_123'
+        }
+    },
+    required: [
+        'userId'
+    ],
+    additionalProperties: false
 } as const;
 
 export const TaskListItemSchema = {

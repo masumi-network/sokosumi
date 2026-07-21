@@ -4,7 +4,6 @@ import { badRequest } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthEnv,
-  type CoworkerAuthenticationContext,
   isCoworkerAuthContext,
   isOrchestratorAuthContext,
   type OrchestratorAuthenticationContext,
@@ -112,20 +111,30 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
       organizationId: organizationIdTrimmed ? organizationIdTrimmed : null,
     };
 
-    const nextAuthContext:
-      | CoworkerAuthenticationContext
-      | OrchestratorAuthenticationContext = isCoworkerAuthContext(authContext)
-      ? {
+    if (isCoworkerAuthContext(authContext)) {
+      setAuthContext(c, {
+        isAuthenticated,
+        authContext: {
           actor: "coworker",
           coworkerId: authContext.coworkerId,
           vendorId: authContext.vendorId,
           context,
-        }
-      : {
-          actor: "orchestrator",
-          orchestratorId: authContext.orchestratorId,
-          context,
-        };
+        },
+      });
+      return await next();
+    }
+
+    // Bind per-user orchestrator id from context user (active instance only).
+    const orchestrator = await prisma.orchestrator.findFirst({
+      where: { userId, archivedAt: null },
+      select: { id: true },
+    });
+
+    const nextAuthContext: OrchestratorAuthenticationContext = {
+      actor: "orchestrator",
+      orchestratorId: orchestrator?.id,
+      context,
+    };
 
     setAuthContext(c, {
       isAuthenticated,

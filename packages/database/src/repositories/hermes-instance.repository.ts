@@ -1,16 +1,18 @@
-import type { HermesInstance, Prisma } from "../generated/prisma/client.js";
+import type { Orchestrator, Prisma } from "../generated/prisma/client.js";
 
 /**
- * Sokosumi-side metadata about each user's Hermes instance. The orchestrator
- * owns instance lifecycle; this table only tracks polling metadata used by
- * the inbox cron.
+ * Per-user Hermes orchestrator instance (local mirror + poll metadata).
+ * Kept under the historical module name for import stability; the table is
+ * `orchestrator`.
  */
 export const hermesInstanceRepository = {
   async getByUserId(
     userId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<HermesInstance | null> {
-    return tx.hermesInstance.findUnique({ where: { userId } });
+  ): Promise<Orchestrator | null> {
+    return tx.orchestrator.findFirst({
+      where: { userId, archivedAt: null },
+    });
   },
 
   /**
@@ -20,37 +22,44 @@ export const hermesInstanceRepository = {
   async upsertForUser(
     userId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<HermesInstance> {
-    return tx.hermesInstance.upsert({
-      where: { userId },
-      create: { userId },
-      update: {},
-    });
+  ): Promise<Orchestrator> {
+    const existing = await tx.orchestrator.findUnique({ where: { userId } });
+    if (!existing) {
+      return tx.orchestrator.create({ data: { userId } });
+    }
+    if (existing.archivedAt != null) {
+      return tx.orchestrator.update({
+        where: { userId },
+        data: {
+          archivedAt: null,
+          consecutivePollErrors: 0,
+          lastPolledAt: null,
+          lastInboxMessageAt: null,
+          lastSeenInboxAt: null,
+        },
+      });
+    }
+    return existing;
   },
 
   /**
-   * Find instances due for polling now, ordered oldest-polled first to give
-   * fair coverage when the cron only processes a slice per tick.
-   *
-   * Tier interval thresholds are computed by the caller and passed in — the
-   * repo just executes the query. This keeps tier policy in one place
-   * (the cron) and avoids hardcoding intervals in two locations.
+   * Find active instances due for polling now, ordered oldest-polled first.
    */
   async findDueForPoll(
     args: {
-      hotCutoff: Date; // lastInboxMessageAt > this → instance is hot
-      warmCutoff: Date; // lastInboxMessageAt > this (and not hot) → warm
-      hotMaxLastPolledAt: Date; // poll if lastPolledAt < this when hot
+      hotCutoff: Date;
+      warmCutoff: Date;
+      hotMaxLastPolledAt: Date;
       warmMaxLastPolledAt: Date;
       coldMaxLastPolledAt: Date;
       limit: number;
     },
     tx: Prisma.TransactionClient,
-  ): Promise<HermesInstance[]> {
-    return tx.hermesInstance.findMany({
+  ): Promise<Orchestrator[]> {
+    return tx.orchestrator.findMany({
       where: {
+        archivedAt: null,
         OR: [
-          // Hot: recent message AND due for hot-tier poll
           {
             lastInboxMessageAt: { gt: args.hotCutoff },
             OR: [
@@ -58,7 +67,6 @@ export const hermesInstanceRepository = {
               { lastPolledAt: { lt: args.hotMaxLastPolledAt } },
             ],
           },
-          // Warm: somewhat recent message AND due for warm-tier poll
           {
             lastInboxMessageAt: {
               gt: args.warmCutoff,
@@ -69,7 +77,6 @@ export const hermesInstanceRepository = {
               { lastPolledAt: { lt: args.warmMaxLastPolledAt } },
             ],
           },
-          // Cold: no recent message AND due for cold-tier poll
           {
             OR: [
               { lastInboxMessageAt: null },
@@ -98,7 +105,7 @@ export const hermesInstanceRepository = {
     },
     tx: Prisma.TransactionClient,
   ): Promise<void> {
-    const data: Prisma.HermesInstanceUpdateInput = {
+    const data: Prisma.OrchestratorUpdateInput = {
       lastPolledAt: new Date(),
     };
     if (args.lastInboxMessageAt !== undefined) {
@@ -110,8 +117,8 @@ export const hermesInstanceRepository = {
     if (args.incrementErrors) {
       data.consecutivePollErrors = { increment: 1 };
     }
-    await tx.hermesInstance.update({
-      where: { userId: args.userId },
+    await tx.orchestrator.updateMany({
+      where: { userId: args.userId, archivedAt: null },
       data,
     });
   },
@@ -120,21 +127,25 @@ export const hermesInstanceRepository = {
     userId: string,
     tx: Prisma.TransactionClient,
   ): Promise<void> {
-    await tx.hermesInstance
-      .delete({ where: { userId } })
-      .catch(() => undefined);
+    // Soft-archive (task creator FKs are Restrict).
+    await tx.orchestrator.updateMany({
+      where: { userId, archivedAt: null },
+      data: {
+        archivedAt: new Date(),
+        lastPolledAt: null,
+        lastInboxMessageAt: null,
+        lastSeenInboxAt: null,
+        consecutivePollErrors: 0,
+      },
+    });
   },
 
-  /**
-   * Count agent-initiated push messages (kind != null) the user hasn't seen
-   * yet. Drives the sidebar unread badge.
-   */
   async countUnreadInbox(
     userId: string,
     tx: Prisma.TransactionClient,
   ): Promise<number> {
-    const inst = await tx.hermesInstance.findUnique({
-      where: { userId },
+    const inst = await tx.orchestrator.findFirst({
+      where: { userId, archivedAt: null },
       select: { lastSeenInboxAt: true },
     });
     if (!inst) return 0;
@@ -149,23 +160,19 @@ export const hermesInstanceRepository = {
     });
   },
 
-  /**
-   * Mark all inbox-kind messages up to `asOf` as seen. Called when the user
-   * is actively viewing the chat. Monotonic — never moves the cursor backward.
-   */
   async markInboxSeen(
     args: { userId: string; asOf?: Date | null },
     tx: Prisma.TransactionClient,
   ): Promise<void> {
     const target = args.asOf ?? new Date();
-    const inst = await tx.hermesInstance.findUnique({
-      where: { userId: args.userId },
+    const inst = await tx.orchestrator.findFirst({
+      where: { userId: args.userId, archivedAt: null },
       select: { lastSeenInboxAt: true },
     });
     if (!inst) return;
     if (inst.lastSeenInboxAt && inst.lastSeenInboxAt >= target) return;
-    await tx.hermesInstance.update({
-      where: { userId: args.userId },
+    await tx.orchestrator.updateMany({
+      where: { userId: args.userId, archivedAt: null },
       data: { lastSeenInboxAt: target },
     });
   },

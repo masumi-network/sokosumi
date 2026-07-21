@@ -7,12 +7,7 @@ export const orchestratorSummarySchema = z
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
-    name: z.string().openapi({ example: "Hermes" }),
-    slug: z.string().openapi({ example: "hermes" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/hermes.png" }),
+    name: z.string().nullable().openapi({ example: "Atlas" }),
   })
   .openapi("OrchestratorSummary");
 
@@ -26,20 +21,16 @@ export const orchestratorSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     archivedAt: dateTimeSchema.nullable(),
-    slug: z.string().openapi({ example: "hermes" }),
-    name: z.string().openapi({ example: "Hermes" }),
-    caption: z
-      .string()
-      .nullable()
-      .openapi({ example: "Sokosumi orchestrator" }),
-    description: z
-      .string()
-      .nullable()
-      .openapi({ example: "First-party Hermes orchestrator" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/hermes.png" }),
+    userId: z.string().openapi({ example: "user_123" }),
+    name: z.string().nullable().openapi({ example: "Atlas" }),
+    avatarSeed: z.string().nullable().openapi({ example: "orb-seed-1" }),
+    personalityTone: z.number().int().nullable().openapi({ example: 50 }),
+    personalityDetail: z.number().int().nullable().openapi({ example: 50 }),
+    personalityStyle: z.number().int().nullable().openapi({ example: 50 }),
+    lastPolledAt: dateTimeSchema.nullable(),
+    lastInboxMessageAt: dateTimeSchema.nullable(),
+    lastSeenInboxAt: dateTimeSchema.nullable(),
+    consecutivePollErrors: z.number().int().openapi({ example: 0 }),
   })
   .openapi("Orchestrator");
 

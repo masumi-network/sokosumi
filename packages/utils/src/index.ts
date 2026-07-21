@@ -123,15 +123,6 @@ export {
   parseReactEnvelopeBuffer,
 } from "./openrouter-react-image-envelope.js";
 export {
-  buildOrchestratorImagePathname,
-  buildOrchestratorImagePrefix,
-  extensionForOrchestratorImageMime,
-  isOrchestratorImageAllowedContentType,
-  isOwnedOrchestratorImageUrl,
-  ORCHESTRATOR_IMAGE_ALLOWED_MIME_TYPES,
-  ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES,
-} from "./orchestrator-image-upload.js";
-export {
   FREE_SUBSCRIPTION_MONTHLY_CREDITS,
   type OrganizationBillingPlanName,
   type PaidSubscriptionPlanName,

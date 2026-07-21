@@ -86,13 +86,16 @@ const envSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
-  // Hermes Orchestrator
+  // Hermes Orchestrator (Core → Hermes outbound)
   HERMES_ORCH_BASE_URL: z.url(),
   HERMES_ORCH_TOKEN: z.string().min(1),
   HERMES_INBOX_POLLING_ENABLED: z
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
+
+  // Hermes → Core service auth (shared secret; not a per-user DB key)
+  ORCHESTRATOR_SERVICE_TOKEN: z.string().min(1),
 
   // skills.sh marketplace (browse/search/audit for Hermes skills). The OIDC
   // token is injected by the Vercel runtime; optional so local/non-Vercel

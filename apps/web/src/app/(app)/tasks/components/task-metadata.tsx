@@ -78,10 +78,8 @@ function resolveTaskCreatorDisplay(
       }
 
       return {
-        name: orchestrator.name,
-        image: orchestrator.image
-          ? resolveIpfsOrHttpUrl(orchestrator.image)
-          : null,
+        name: orchestrator.name ?? "Assistant",
+        image: null,
       };
     }
     default: {

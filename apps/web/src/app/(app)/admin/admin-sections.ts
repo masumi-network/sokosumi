@@ -87,12 +87,6 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "catalog",
   },
   {
-    key: "orchestrators",
-    href: "/admin/orchestrators",
-    Icon: Bot,
-    group: "catalog",
-  },
-  {
     key: "tasks",
     href: "/admin/tasks",
     Icon: ListTodo,

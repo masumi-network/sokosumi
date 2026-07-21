@@ -18,8 +18,6 @@ describe("resolveTaskEventActorKind", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
-          slug: "hermes",
-          image: "https://example.com/hermes.png",
         },
       },
       userId: "user-1",
@@ -87,15 +85,13 @@ describe("getEventActorInfo", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
-          slug: "hermes",
-          image: "https://example.com/hermes.png",
         },
       },
     } as TaskEvent;
 
     expect(getEventActorInfo(event)).toEqual({
       name: "Hermes",
-      image: "https://example.com/hermes.png",
+      image: null,
     });
   });
 });
@@ -121,8 +117,6 @@ describe("buildTaskActivityActors", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
-          slug: "hermes",
-          image: "https://example.com/hermes.png",
         },
       },
       events: [
@@ -203,8 +197,6 @@ describe("buildTaskActivityActors", () => {
             orchestrator: {
               id: "orch-2",
               name: "Athena",
-              slug: "athena",
-              image: null,
             },
           },
           userId: null,
@@ -215,8 +207,6 @@ describe("buildTaskActivityActors", () => {
           orchestrator: {
             id: "orch-2",
             name: "Athena",
-            slug: "athena",
-            image: null,
           },
           transactionId: null,
           credits: null,
@@ -254,7 +244,7 @@ describe("buildTaskActivityActors", () => {
     expect(result.orchestratorById).toMatchObject({
       "orch-1": {
         name: "Hermes",
-        image: "https://example.com/hermes.png",
+        image: null,
       },
       "orch-2": {
         name: "Athena",

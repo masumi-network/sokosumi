@@ -281,7 +281,7 @@ Useful for design iteration.
 `DELETE /v1/instances/:userId` on the orchestrator (mirror also clears
 `hermesInstance` + `hermesMessage` + `hermesPendingConnection` in our DB via
 the destroy route). Orchestrator-side deletes must also
-`POST /v1/hermes/instances/{userId}/purge`. For a hard local-only reset, drop
+`POST /v1/orchestrators/me/purge (body userId)`. For a hard local-only reset, drop
 those rows directly.
 
 ---

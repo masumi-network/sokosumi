@@ -5,11 +5,16 @@ interface OrchestratorRow {
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
-  slug: string;
-  name: string;
-  caption: string | null;
-  description: string | null;
-  image: string | null;
+  userId: string;
+  name: string | null;
+  avatarSeed: string | null;
+  personalityTone: number | null;
+  personalityDetail: number | null;
+  personalityStyle: number | null;
+  lastPolledAt: Date | null;
+  lastInboxMessageAt: Date | null;
+  lastSeenInboxAt: Date | null;
+  consecutivePollErrors: number;
 }
 
 export function mapOrchestrator(orchestrator: OrchestratorRow) {

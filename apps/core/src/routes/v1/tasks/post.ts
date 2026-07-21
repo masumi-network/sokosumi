@@ -9,7 +9,7 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
-import { errorResponseSchema, notFound } from "@/helpers/error";
+import { badRequest, errorResponseSchema, notFound } from "@/helpers/error";
 import {
   jsonContent,
   jsonErrorResponse,
@@ -163,6 +163,11 @@ function resolveTaskCreatorFields(
   ownerId: string,
 ) {
   if (isOrchestratorAuthContext(authContext)) {
+    if (!authContext.orchestratorId) {
+      throw badRequest(
+        "Active orchestrator instance required (bind X-Context-User-Id)",
+      );
+    }
     return {
       creatorOrchestratorId: authContext.orchestratorId,
       creatorUserId: null,
@@ -190,6 +195,11 @@ function resolveInitialTaskEventActor(
   ownerId: string,
 ) {
   if (isOrchestratorAuthContext(authContext)) {
+    if (!authContext.orchestratorId) {
+      throw badRequest(
+        "Active orchestrator instance required (bind X-Context-User-Id)",
+      );
+    }
     return {
       userId: null,
       coworkerId: null,

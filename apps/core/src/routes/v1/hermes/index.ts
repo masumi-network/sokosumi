@@ -85,6 +85,10 @@ import {
   jsonSuccessResponse,
 } from "@/helpers/openapi";
 import {
+  archiveOrchestratorForUser,
+  ensureOrchestratorForUser,
+} from "@/helpers/orchestrator-instance";
+import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
@@ -93,11 +97,7 @@ import { conflictWithData, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { isTransientFetchError } from "@/lib/external-service-errors";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
-import {
-  hasAdminRole,
-  requireOrchestratorAuthContext,
-  requireUserAuthContext,
-} from "@/middleware/auth";
+import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import {
   hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
@@ -562,29 +562,24 @@ async function upsertHermesInstanceForUser(
   userId: string,
   data?: { assistantName?: string; avatarSeed?: string | null },
 ): Promise<void> {
-  const patch: { assistantName?: string; avatarSeed?: string | null } = {};
-  if (data?.assistantName !== undefined)
-    patch.assistantName = data.assistantName;
-  if (data?.avatarSeed !== undefined) patch.avatarSeed = data.avatarSeed;
-  await prisma.hermesInstance.upsert({
-    where: { userId },
-    create: { userId, ...patch },
-    update: patch,
+  await ensureOrchestratorForUser(userId, {
+    ...(data?.assistantName !== undefined ? { name: data.assistantName } : {}),
+    ...(data?.avatarSeed !== undefined ? { avatarSeed: data.avatarSeed } : {}),
   });
 }
 
 /**
- * Wipe Sokosumi's per-user Hermes mirror: chat history, instance metadata
- * (name / orb / poll cursors), and any in-flight integration OAuth claims.
- * Used by user destroy, orchestrator purge, and a verified fresh provision
- * (pre-check empty + post-provision still early / not onboarded). Idempotent.
+ * Wipe Sokosumi's per-user Hermes mirror: chat history, pending OAuth claims,
+ * and archive the per-user orchestrator (poll cursors cleared). Used by user
+ * destroy and verified fresh provision. Orchestrator-side destroy uses
+ * POST /v1/orchestrators/me/purge. Idempotent.
  */
 async function clearHermesLocalMirror(userId: string): Promise<void> {
-  await prisma.$transaction([
-    prisma.hermesMessage.deleteMany({ where: { userId } }),
-    prisma.hermesPendingConnection.deleteMany({ where: { userId } }),
-    prisma.hermesInstance.deleteMany({ where: { userId } }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.hermesMessage.deleteMany({ where: { userId } });
+    await tx.hermesPendingConnection.deleteMany({ where: { userId } });
+    await archiveOrchestratorForUser(userId, tx);
+  });
 }
 
 /** Statuses that mean the orch instance was just created, not a live agent. */
@@ -626,12 +621,12 @@ async function readHermesInstanceMeta(
   userId: string,
 ): Promise<HermesInstanceMeta> {
   try {
-    const row = await prisma.hermesInstance.findUnique({
-      where: { userId },
-      select: { assistantName: true, avatarSeed: true },
+    const row = await prisma.orchestrator.findFirst({
+      where: { userId, archivedAt: null },
+      select: { name: true, avatarSeed: true },
     });
     return {
-      assistantName: row?.assistantName ?? null,
+      assistantName: row?.name ?? null,
       avatarSeed: row?.avatarSeed ?? null,
     };
   } catch (error) {
@@ -665,10 +660,10 @@ async function persistHermesPersonality(
     personalityStyle: personality.style,
   };
   try {
-    await prisma.hermesInstance.upsert({
-      where: { userId },
-      create: { userId, ...patch },
-      update: patch,
+    await ensureOrchestratorForUser(userId, {
+      personalityTone: patch.personalityTone,
+      personalityDetail: patch.personalityDetail,
+      personalityStyle: patch.personalityStyle,
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -688,8 +683,8 @@ async function readHermesInstancePersonality(
   userId: string,
 ): Promise<HermesPersonalityValues | null> {
   try {
-    const row = await prisma.hermesInstance.findUnique({
-      where: { userId },
+    const row = await prisma.orchestrator.findFirst({
+      where: { userId, archivedAt: null },
       select: {
         personalityTone: true,
         personalityDetail: true,
@@ -1187,30 +1182,6 @@ const destroyInstanceRoute = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       503: jsonErrorResponse("Service Unavailable"),
-    },
-  }),
-);
-
-const purgeInstanceStateRoute = withGlobalHeaderParameters(
-  createRoute({
-    method: "post",
-    path: "/instances/{userId}/purge",
-    description:
-      "Orchestrator-only: delete Sokosumi's local mirror state (chat history, instance metadata, and pending integration OAuth claims) for a user whose orchestrator-side instance was destroyed. Idempotent — purging a user with no local state is a no-op. Authenticated with an orchestrator API key (orch_); user sessions and coworker keys are rejected.",
-    tags: TAGS,
-    request: {
-      params: z.object({
-        userId: z.string().min(1).openapi({ example: "usr_123" }),
-      }),
-    },
-    responses: {
-      200: jsonSuccessResponse(
-        hermesEmptyResponseSchema,
-        "local assistant state purged",
-      ),
-      401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
-      500: jsonErrorResponse("Internal Server Error"),
     },
   }),
 );
@@ -2278,30 +2249,6 @@ app.openapi(destroyInstanceRoute, async (c) => {
   return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
 });
 
-app.openapi(purgeInstanceStateRoute, async (c) => {
-  // Orchestrator actor only — this is the explicit replacement for the
-  // removed GET /me/instance auto-cleanup: when an instance is destroyed on
-  // the orchestrator side, the orchestrator tells us to drop the local
-  // mirror rather than us inferring it from a 404 (where one wrong
-  // instance_not_found would irreversibly wipe real user data).
-  requireOrchestratorAuthContext(c.var.authContext);
-  const { userId } = c.req.valid("param");
-
-  try {
-    await clearHermesLocalMirror(userId);
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: { context: "hermes_purge_instance_state" },
-      extra: { userId },
-    });
-    throw internalServerError(
-      "Failed to purge local assistant state. Retrying is safe.",
-    );
-  }
-
-  return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
-});
-
 app.openapi(listMessagesRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
   const queryParams = c.req.valid("query");
@@ -2351,8 +2298,8 @@ app.openapi(getUnreadCountRoute, async (c) => {
   const { avatarSeed, assistantName } = await readHermesInstanceMeta(
     userContext.userId,
   );
-  const instance = await prisma.hermesInstance.findUnique({
-    where: { userId: userContext.userId },
+  const instance = await prisma.orchestrator.findFirst({
+    where: { userId: userContext.userId, archivedAt: null },
     select: { lastSeenInboxAt: true },
   });
 
@@ -2398,8 +2345,8 @@ app.openapi(markInboxSeenRoute, async (c) => {
     throw unprocessableEntity("asOfIso must be a valid ISO datetime.");
   }
 
-  const instance = await prisma.hermesInstance.findUnique({
-    where: { userId: userContext.userId },
+  const instance = await prisma.orchestrator.findFirst({
+    where: { userId: userContext.userId, archivedAt: null },
     select: { lastSeenInboxAt: true },
   });
 
@@ -2410,8 +2357,8 @@ app.openapi(markInboxSeenRoute, async (c) => {
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   }
 
-  await prisma.hermesInstance.update({
-    where: { userId: userContext.userId },
+  await prisma.orchestrator.updateMany({
+    where: { userId: userContext.userId, archivedAt: null },
     data: { lastSeenInboxAt: target },
   });
 

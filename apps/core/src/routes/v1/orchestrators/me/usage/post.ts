@@ -8,6 +8,7 @@ import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 
 import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireActiveOrchestratorForUser } from "@/helpers/orchestrator-instance";
 import { created, ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -19,7 +20,8 @@ import { createOrchestratorUsageRequestSchema } from "./schema";
 const route = createRoute({
   method: "post",
   path: "/me/usage",
-  description: "Create usage for the current orchestrator",
+  description:
+    "Create usage for the orchestrator instance of the user in the body",
   tags: ["Orchestrators"],
   request: {
     body: {
@@ -36,6 +38,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
@@ -86,12 +89,14 @@ async function prepareConsumptions(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireOrchestratorAuthContext(c.var.authContext);
+    requireOrchestratorAuthContext(c.var.authContext);
     const { credits, idempotencyKey, referenceId, userId, organizationId } =
       c.req.valid("json");
-    const orchestratorId = authContext.orchestratorId;
 
     const result = await serializableTransaction(async (tx) => {
+      const orchestrator = await requireActiveOrchestratorForUser(userId, tx);
+      const orchestratorId = orchestrator.id;
+
       const existing = await tx.orchestratorUsage.findUnique({
         where: {
           orchestratorId_idempotencyKey: {
@@ -179,27 +184,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           idempotencyKey,
           referenceId: referenceId ?? null,
+          orchestratorId,
+          userId,
+          organizationId,
           cents,
-          orchestrator: { connect: { id: orchestratorId } },
-          user: { connect: { id: userId } },
-          ...(organizationId
-            ? {
-                organization: { connect: { id: organizationId } },
-              }
-            : {}),
-          transaction: { connect: { id: transaction.id } },
+          transactionId: transaction.id,
         },
       });
 
       return { usage, created: true };
     }, "Usage recording conflicted with a concurrent request. Please retry.");
 
-    const response = serializeUsage(result.usage);
-
     if (result.created) {
-      return created(c, orchestratorUsageSchema.parse(response));
+      return created(c, serializeUsage(result.usage));
     }
-
-    return ok(c, orchestratorUsageSchema.parse(response));
+    return ok(c, serializeUsage(result.usage));
   });
 }

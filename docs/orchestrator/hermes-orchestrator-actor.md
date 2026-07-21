@@ -1,16 +1,39 @@
 # Orchestrator actor (Hermes)
 
-First-party Sokosumi **orchestrator** identity for Hermes and similar internal
-agents. Not a marketplace coworker: no vendor, grants, whitelist, or assignee
-role.
+First-party Sokosumi **orchestrator** identity for Hermes. Not a marketplace
+coworker: no vendor, grants, whitelist, or assignee role.
 
-- **Auth:** bearer API keys with prefix `orch_`
-- **Context:** same `X-Context-User-Id` / `X-Context-Organization-Id` headers as
-  coworkers for workspace-scoped routes
-- **Routes:** `/v1/orchestrators/*` (admin CRUD + keys; self `/me`, `/me/api-keys`,
-  `/me/usage`)
-- **Hermes product chat:** `/v1/hermes/*` stays **user session only** — not `orch_`
-  (even with context headers)
+Each Hermes user has **one** `Orchestrator` row — that row *is* their instance
+(task/event/usage attribution **and** local assistant mirror: name, avatar seed,
+personality, poll cursors). There is no global product orchestrator profile
+(no image, caption, description, or slug).
+
+## Auth
+
+- **Service credential:** shared env secret `ORCHESTRATOR_SERVICE_TOKEN` on Core
+  (configure the same value on Hermes). Bearer match → `actor: orchestrator`.
+- **Not** DB-minted `orch_` API keys (removed).
+- **Per-user scope:** `orchestratorId` is never implied by the secret. Resolve
+  the row by user id (context headers for workspace routes, or body `userId` for
+  service “act on user U” routes).
+
+## Context headers
+
+Same as coworkers for workspace-scoped routes:
+
+- `X-Context-User-Id` / `X-Context-Organization-Id`
+
+After context is validated, Core binds `orchestratorId` to that user’s **active**
+(`archivedAt` null) orchestrator row when present.
+
+## Product vs service routes
+
+| Concern | User session | Orchestrator service token |
+| --- | --- | --- |
+| Hermes product chat | `/v1/hermes/*` only | **403** (use hermes user session) |
+| Usage billing | — | `POST /v1/orchestrators/me/usage` body `userId` |
+| Mirror purge after orch destroy | — | `POST /v1/orchestrators/me/purge` body `userId` |
+| Task create / events | as user | with context user; creator = **that user’s** orchestrator |
 
 ## Access vs coworker
 
@@ -22,58 +45,57 @@ role.
 | `POST /v1/tasks/{id}/jobs` | Assigned coworker | **403** (coworker only) |
 | Marketplace chat / conversations | User or assigned coworker | **403** (use `/v1/hermes/*`) |
 | Task assignee (`assigneeId`) | Marketplace coworker | Never the orchestrator |
-| Task creator | `creator.type = "coworker"` when coworker creates | `creator.type = "orchestrator"` when orchestrator creates |
-| Event attribution | `coworkerId` on events | `orchestratorId` on events |
+| Task creator | `creator.type = "coworker"` | `creator.type = "orchestrator"` → **user’s** orchestrator row |
+| Event attribution | `coworkerId` on events | `orchestratorId` on events (per-user row) |
 
-## Admin vs self
+## Service routes (`/v1/orchestrators/me/*`)
 
-| Who | Routes |
+Both require orchestrator service auth and identify the user in the **body**
+(same pattern):
+
+```
+POST /v1/orchestrators/me/usage
+Authorization: Bearer <ORCHESTRATOR_SERVICE_TOKEN>
+{ "userId", "organizationId", "credits", "idempotencyKey", ... }
+
+POST /v1/orchestrators/me/purge
+Authorization: Bearer <ORCHESTRATOR_SERVICE_TOKEN>
+{ "userId": "…" }
+```
+
+Usage bills that user and attributes the usage row to **their** orchestrator.
+Purge is idempotent: deletes messages + pending connection claims, **archives**
+the orchestrator (clears poll state). Does not hard-delete the row while tasks
+may still reference `creatorOrchestratorId` (`onDelete: Restrict`).
+
+**Removed:** `POST /v1/hermes/instances/{userId}/purge` (call purge above instead).
+
+## Instance lifecycle
+
+| Event | Behavior |
 | --- | --- |
-| Admin session | `GET/POST /v1/orchestrators`, `GET/PATCH/DELETE /v1/orchestrators/{id}`, `…/{id}/api-keys` |
-| Orchestrator key | `GET /v1/orchestrators/me`, `…/me/api-keys`, `POST …/me/usage` |
+| User activates Hermes | Upsert/unarchive `Orchestrator` for `userId` |
+| User destroy (`DELETE /v1/hermes/me/instance`) | Clear messages/pending; archive orchestrator |
+| Hermes service purge | `POST /orchestrators/me/purge` |
+| Re-activate | Unarchive same `userId` row (or create if missing) |
+| Active instance | Row exists and `archivedAt IS NULL` |
 
-Usage bills from body `userId` / `organizationId` (no context headers on that
-route), matching coworker usage.
+Sokosumi’s local mirror is **never auto-deleted** from a bare `instance_not_found`
+on GET — only explicit purge/destroy (or a verified fresh provision path).
 
-## Instance lifecycle: purging Sokosumi's local mirror
+## Deploy coordination
 
-Sokosumi keeps a local mirror of each Hermes instance (chat history in
-`hermesMessage`, display metadata + poll cursors in `hermesInstance`, and
-short-lived integration OAuth claims in `hermesPendingConnection`). This
-mirror is **never auto-deleted** from polling signals — a spurious
-`instance_not_found` must not wipe user data. When the orchestrator destroys
-an instance outside Sokosumi's own `DELETE /v1/hermes/me/instance` flow, it
-must tell Sokosumi explicitly:
+1. Set `ORCHESTRATOR_SERVICE_TOKEN` on Core and deploy.
+2. Point Hermes at that secret; switch purge to
+   `POST /v1/orchestrators/me/usage` path’s sibling
+   `POST /v1/orchestrators/me/purge` with body `{ userId }`.
+3. Deploy web (admin orchestrator UI removed).
 
-```
-POST /v1/hermes/instances/{userId}/purge
-Authorization: Bearer orch_…
-```
-
-Orchestrator keys only (user sessions and coworker keys get 403). No body,
-no context headers. Idempotent: purging a user with no local state is a
-no-op, and retrying after a 500 is safe. Purge deletes messages, instance
-metadata, and pending connection claims together.
-
-Fresh user activate (`POST /v1/hermes/me/instance`) also clears any leftover
-local mirror when the orchestrator currently has no instance — so re-activating
-after an orch-side destroy that missed purge does not resurrect old chat.
+Hard cut: Core no longer accepts DB `orch_` keys.
 
 ## Migration note
 
-Migration `20260717070000_add_orchestrator_actor` creates orchestrator tables
-and, when a coworker with `slug = hermes` exists, moves its task events and
-usage onto a new orchestrator row (copying `name` / `slug` / `caption` /
-`description`), then hard-deletes the Hermes coworker. It **fails** if any
-`task.assigneeId` or `history.coworkerId` still points at Hermes. Empty DBs
-without that coworker skip the data step.
-
-Task role columns were later renamed in
-`20260717093000_task_owner_creator_assignee` (`userId`→`ownerId`,
-`coworkerId`→`assigneeId`, polymorphic creator FKs).
-
-After a successful migrate, **mint new `orch_` keys** via admin
-`POST /v1/orchestrators/{id}/api-keys` (or orchestrator
-`POST /v1/orchestrators/me/api-keys`). Old coworker keys are deleted, not
-converted. If migrate fails on history attribution, clear or remap
-`history.coworkerId` for that Hermes coworker row, then re-run.
+Migration `20260721140000_per_user_orchestrator_instance` folds
+`hermesInstance` into `orchestrator`, remaps creator/event/usage FKs from the
+old global product orchestrator to per-user rows, drops `orchestrator_api_key`
+and product profile columns (`slug`, `caption`, `description`, `image`).

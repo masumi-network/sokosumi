@@ -46,9 +46,7 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
   orchestratorId?: string | null;
   orchestrator?: {
     id: string;
-    name: string;
-    slug: string;
-    image: string | null;
+    name: string | null;
   } | null;
 };
 
