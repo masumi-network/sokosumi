@@ -65,10 +65,11 @@ WHERE NOT EXISTS (
 );
 
 -- 3) Stub orchestrators for users with usage/tasks but no hermesInstance row
+-- Stubs are archived: they exist only for historical FK remap, not live instances.
 INSERT INTO "orchestrator" (
-  "id", "createdAt", "updatedAt", "slug", "name", "userId", "consecutivePollErrors"
+  "id", "createdAt", "updatedAt", "archivedAt", "slug", "name", "userId", "consecutivePollErrors"
 )
-SELECT gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL, NULL, u."userId", 0
+SELECT gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL, NULL, u."userId", 0
 FROM (
   SELECT DISTINCT ou."userId" AS "userId" FROM "orchestrator_usage" ou
   UNION
