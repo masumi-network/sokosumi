@@ -2885,6 +2885,10 @@
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           },
+          "orchestrators": {
+            "title": "Orquestadores",
+            "description": "Editar metadatos de presentación de orquestadores propios."
+          },
           "freeCredits": {
             "title": "Créditos gratuitos",
             "description": "Otorga créditos gratuitos directamente a un usuario u organización sin factura de Stripe."
@@ -3084,6 +3088,67 @@
         "TaskDetail": {
           "backToList": "Volver a tareas",
           "personalWorkspace": "Espacio de trabajo personal"
+        }
+      },
+      "Orchestrators": {
+        "title": "Orquestadores",
+        "description": "Gestionar metadatos de presentación de orquestadores propios.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# orquestador} other {# orquestadores}}",
+          "empty": "No se encontraron orquestadores.",
+          "orchestrator": "Orquestador",
+          "slug": "Slug",
+          "caption": "Subtítulo"
+        },
+        "Detail": {
+          "title": "Editar orquestador",
+          "backToList": "Volver a orquestadores"
+        },
+        "EditForm": {
+          "submit": "Guardar cambios",
+          "submitting": "Guardando…",
+          "image": {
+            "label": "Imagen",
+            "description": "PNG, JPEG, WebP o GIF de hasta 2 MB. Se guarda al enviar el formulario.",
+            "upload": "Subir imagen",
+            "replace": "Reemplazar imagen",
+            "remove": "Eliminar imagen",
+            "previewAlt": "Vista previa de la imagen del orquestador",
+            "fileTooLarge": "La imagen debe pesar 2 MB o menos.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Sube una imagen a la vez.",
+            "uploadError": "No se pudo procesar la imagen seleccionada."
+          },
+          "fields": {
+            "name": {
+              "label": "Nombre",
+              "description": "Se muestra dondequiera que aparezca el orquestador."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Identificador de solo lectura usado en URLs y APIs."
+            },
+            "caption": {
+              "label": "Subtítulo",
+              "description": "Línea breve bajo el nombre. Déjalo vacío para borrarlo."
+            },
+            "description": {
+              "label": "Descripción",
+              "description": "Texto más largo para vistas de detalle. Déjalo vacío para borrarlo."
+            }
+          },
+          "validation": {
+            "nameMinLength": "El nombre debe tener al menos {min} caracteres.",
+            "noChanges": "No hay cambios que guardar."
+          },
+          "success": {
+            "saved": "Orquestador actualizado.",
+            "textSavedImageFailed": "Texto guardado, pero no se pudo actualizar la imagen."
+          },
+          "errors": {
+            "saveFailed": "No se pudo guardar el orquestador.",
+            "notFound": "Orquestador no encontrado."
+          }
         }
       },
       "FreeCredits": {

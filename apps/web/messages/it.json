@@ -2916,6 +2916,10 @@
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
           },
+          "orchestrators": {
+            "title": "Orchestrator",
+            "description": "Modifica i metadati di visualizzazione degli orchestrator proprietari."
+          },
           "freeCredits": {
             "title": "Crediti gratuiti",
             "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
@@ -3115,6 +3119,67 @@
         "TaskDetail": {
           "backToList": "Torna alle attività",
           "personalWorkspace": "Spazio di lavoro personale"
+        }
+      },
+      "Orchestrators": {
+        "title": "Orchestrator",
+        "description": "Gestisci i metadati di visualizzazione degli orchestrator proprietari.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# orchestrator} other {# orchestrator}}",
+          "empty": "Nessun orchestrator trovato.",
+          "orchestrator": "Orchestrator",
+          "slug": "Slug",
+          "caption": "Didascalia"
+        },
+        "Detail": {
+          "title": "Modifica orchestrator",
+          "backToList": "Torna agli orchestrator"
+        },
+        "EditForm": {
+          "submit": "Salva modifiche",
+          "submitting": "Salvataggio…",
+          "image": {
+            "label": "Immagine",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB. Salvata quando invii il modulo.",
+            "upload": "Carica immagine",
+            "replace": "Sostituisci immagine",
+            "remove": "Rimuovi immagine",
+            "previewAlt": "Anteprima immagine orchestrator",
+            "fileTooLarge": "L'immagine deve essere di 2 MB o meno.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Carica un'immagine alla volta.",
+            "uploadError": "Impossibile elaborare l'immagine selezionata."
+          },
+          "fields": {
+            "name": {
+              "label": "Nome",
+              "description": "Mostrato ovunque compaia l'orchestrator."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Identificatore di sola lettura usato in URL e API."
+            },
+            "caption": {
+              "label": "Didascalia",
+              "description": "Breve riga sotto il nome. Lascia vuoto per cancellare."
+            },
+            "description": {
+              "label": "Descrizione",
+              "description": "Testo più lungo per le viste di dettaglio. Lascia vuoto per cancellare."
+            }
+          },
+          "validation": {
+            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+            "noChanges": "Nessuna modifica da salvare."
+          },
+          "success": {
+            "saved": "Orchestrator aggiornato.",
+            "textSavedImageFailed": "Testo salvato, ma l'immagine non è stata aggiornata."
+          },
+          "errors": {
+            "saveFailed": "Impossibile salvare l'orchestrator.",
+            "notFound": "Orchestrator non trovato."
+          }
         }
       },
       "FreeCredits": {
