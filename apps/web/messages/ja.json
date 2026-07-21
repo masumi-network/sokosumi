@@ -2894,7 +2894,7 @@
       },
       "Overview": {
         "title": "管理",
-        "description": "アカウント、請求、カタログ、サポート向けの内部ツール。",
+        "description": "アカウント、請求、カタログ、運用向けの内部ツール。",
         "Groups": {
           "accounts": "アカウント",
           "billing": "請求と商用",

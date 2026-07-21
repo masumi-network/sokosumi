@@ -39,7 +39,9 @@ export const ADMIN_SECTION_GROUPS: AdminSectionGroup[] = [
 /**
  * Single source of truth for the admin tools surfaced on the `/admin` overview
  * hub. Add a new admin tool here (plus its `App.Admin.Overview.Sections.<key>`
- * translations) to have it appear on the hub.
+ * translations) to have it appear on the hub. If you introduce a new
+ * `AdminSectionGroup` value, also append it to `ADMIN_SECTION_GROUPS` or the
+ * section will not render.
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   {

@@ -2894,7 +2894,7 @@
       },
       "Overview": {
         "title": "Administração",
-        "description": "Ferramentas internas para contas, cobrança, catálogo e suporte.",
+        "description": "Ferramentas internas para contas, cobrança, catálogo e operações.",
         "Groups": {
           "accounts": "Contas",
           "billing": "Cobrança e comercial",

@@ -2894,7 +2894,7 @@
       },
       "Overview": {
         "title": "Administration",
-        "description": "Outils internes pour les comptes, la facturation, le catalogue et le support.",
+        "description": "Outils internes pour les comptes, la facturation, le catalogue et les opérations.",
         "Groups": {
           "accounts": "Comptes",
           "billing": "Facturation et commercial",

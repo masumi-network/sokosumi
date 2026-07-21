@@ -18,7 +18,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Admin",
-  description: "Internal admin console",
+  description: "Internal tools for accounts, billing, catalog, and operations.",
 };
 
 function sectionsByGroup(group: AdminSectionGroup): AdminSection[] {

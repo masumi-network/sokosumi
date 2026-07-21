@@ -2863,7 +2863,7 @@
       },
       "Overview": {
         "title": "Administration",
-        "description": "Interne Tools für Konten, Abrechnung, Katalog und Support.",
+        "description": "Interne Tools für Konten, Abrechnung, Katalog und Betrieb.",
         "Groups": {
           "accounts": "Konten",
           "billing": "Abrechnung & Vertrieb",

@@ -3065,7 +3065,7 @@
       },
       "Overview": {
         "title": "Admin",
-        "description": "Internal tools for accounts, billing, catalog, and support.",
+        "description": "Internal tools for accounts, billing, catalog, and operations.",
         "Groups": {
           "accounts": "Accounts",
           "billing": "Billing & commercial",

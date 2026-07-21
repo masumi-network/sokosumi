@@ -2894,7 +2894,7 @@
       },
       "Overview": {
         "title": "Amministrazione",
-        "description": "Strumenti interni per account, fatturazione, catalogo e supporto.",
+        "description": "Strumenti interni per account, fatturazione, catalogo e operazioni.",
         "Groups": {
           "accounts": "Account",
           "billing": "Fatturazione e commerciale",

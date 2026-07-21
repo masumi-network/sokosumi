@@ -2863,7 +2863,7 @@
       },
       "Overview": {
         "title": "Administración",
-        "description": "Herramientas internas para cuentas, facturación, catálogo y soporte.",
+        "description": "Herramientas internas para cuentas, facturación, catálogo y operaciones.",
         "Groups": {
           "accounts": "Cuentas",
           "billing": "Facturación y comercial",
