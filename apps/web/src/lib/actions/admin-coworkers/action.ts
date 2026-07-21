@@ -6,7 +6,10 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
-import { ADMIN_COWORKER_NAME_MIN_LENGTH } from "@/lib/constants/coworker-display";
+import {
+  ADMIN_COWORKER_CAPTION_MAX_LENGTH,
+  ADMIN_COWORKER_NAME_MIN_LENGTH,
+} from "@/lib/constants/coworker-display";
 import {
   type AdminCoworkerDisplayPatchBody,
   type AdminCoworkerImageIntent,
@@ -73,6 +76,15 @@ function sanitizeDisplayPatchBody(
   }
 
   if (patchBody.caption !== undefined) {
+    if (
+      patchBody.caption !== null &&
+      patchBody.caption.length > ADMIN_COWORKER_CAPTION_MAX_LENGTH
+    ) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: `Caption must be at most ${ADMIN_COWORKER_CAPTION_MAX_LENGTH} characters`,
+      });
+    }
     sanitized.caption = patchBody.caption;
   }
 

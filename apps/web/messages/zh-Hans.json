@@ -3142,7 +3142,11 @@
           "priority": "优先级",
           "actions": "操作",
           "edit": "编辑",
-          "empty": "未找到活跃的 Coworker。"
+          "empty": "未找到活跃的 Coworker。",
+          "searchPlaceholder": "按名称、slug、说明或供应商搜索…",
+          "totalCount": "{count} 个同事智能体",
+          "filteredCount": "显示 {shown} / {total}",
+          "emptySearch": "没有与搜索匹配的同事智能体。"
         },
         "Form": {
           "Fields": {
@@ -3173,7 +3177,8 @@
           "cancel": "取消",
           "validation": {
             "nameMinLength": "名称至少需要 {min} 个字符。",
-            "noChanges": "没有可保存的更改。"
+            "noChanges": "没有可保存的更改。",
+            "captionMaxLength": "说明文字最多 {max} 个字符。"
           },
           "success": {
             "saved": "已更新 coworker。",

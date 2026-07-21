@@ -159,4 +159,27 @@ describe("admin coworker actions", () => {
     expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
     expect(updateDisplayMock).not.toHaveBeenCalled();
   });
+
+  it("rejects captions longer than 255 characters", async () => {
+    const { updateAdminCoworkerDisplayAction } = await import("../action");
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+
+    const result = await updateAdminCoworkerDisplayAction({
+      session: adminSession,
+      id: "cow_123",
+      patchBody: {
+        caption: "x".repeat(256),
+      },
+      imageIntent: "none",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    expect(result.error.message).toMatch(/caption/i);
+    expect(updateDisplayMock).not.toHaveBeenCalled();
+  });
 });

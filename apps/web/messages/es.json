@@ -3111,7 +3111,11 @@
           "priority": "Prioridad",
           "actions": "Acciones",
           "edit": "Editar",
-          "empty": "No se encontraron coworkers activos."
+          "empty": "No se encontraron coworkers activos.",
+          "searchPlaceholder": "Buscar por nombre, slug, pie de foto o vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Mostrando {shown} de {total}",
+          "emptySearch": "Ningún coworker coincide con la búsqueda."
         },
         "Form": {
           "Fields": {
@@ -3142,7 +3146,8 @@
           "cancel": "Cancelar",
           "validation": {
             "nameMinLength": "El nombre debe tener al menos {min} caracteres.",
-            "noChanges": "No hay cambios que guardar."
+            "noChanges": "No hay cambios que guardar.",
+            "captionMaxLength": "El pie de foto debe tener como máximo {max} caracteres."
           },
           "success": {
             "saved": "Coworker actualizado.",

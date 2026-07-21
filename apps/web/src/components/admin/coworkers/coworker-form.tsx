@@ -17,7 +17,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { updateAdminCoworkerDisplayAction } from "@/lib/actions/admin-coworkers/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
-import { ADMIN_COWORKER_NAME_MIN_LENGTH } from "@/lib/constants/coworker-display";
+import {
+  ADMIN_COWORKER_CAPTION_MAX_LENGTH,
+  ADMIN_COWORKER_NAME_MIN_LENGTH,
+} from "@/lib/constants/coworker-display";
 import {
   COWORKER_IMAGE_ACCEPT,
   COWORKER_IMAGE_MAX_SIZE_BYTES,
@@ -143,7 +146,11 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
       }
 
       applySavedCoworker(result.data.coworker);
-      toast.success(t("success.imageSaved"));
+      if (result.data.imageError) {
+        toast.error(result.data.imageError);
+      } else {
+        toast.success(t("success.imageSaved"));
+      }
       router.refresh();
     } finally {
       setPendingImageFiles([]);
@@ -173,7 +180,11 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
       }
 
       applySavedCoworker(result.data.coworker);
-      toast.success(t("success.imageRemoved"));
+      if (result.data.imageError) {
+        toast.error(result.data.imageError);
+      } else {
+        toast.success(t("success.imageRemoved"));
+      }
       router.refresh();
     } finally {
       setIsRemovingImage(false);
@@ -191,6 +202,15 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
       toast.error(
         t("validation.nameMinLength", {
           min: ADMIN_COWORKER_NAME_MIN_LENGTH,
+        }),
+      );
+      return;
+    }
+
+    if (caption.trim().length > ADMIN_COWORKER_CAPTION_MAX_LENGTH) {
+      toast.error(
+        t("validation.captionMaxLength", {
+          max: ADMIN_COWORKER_CAPTION_MAX_LENGTH,
         }),
       );
       return;
@@ -226,7 +246,12 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
       }
 
       applySavedCoworker(result.data.coworker);
-      toast.success(t("success.saved"));
+      if (result.data.imageError) {
+        toast.success(t("success.saved"));
+        toast.error(result.data.imageError);
+      } else {
+        toast.success(t("success.saved"));
+      }
       router.refresh();
     } finally {
       setIsSavingText(false);
@@ -306,6 +331,7 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
             value={caption}
             onChange={(event) => setCaption(event.target.value)}
             disabled={isBusy}
+            maxLength={ADMIN_COWORKER_CAPTION_MAX_LENGTH}
           />
         </div>
 

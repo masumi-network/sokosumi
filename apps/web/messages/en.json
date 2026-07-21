@@ -3234,7 +3234,11 @@
           "priority": "Priority",
           "actions": "Actions",
           "edit": "Edit",
-          "empty": "No active coworkers found."
+          "empty": "No active coworkers found.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search."
         },
         "Form": {
           "Fields": {
@@ -3265,7 +3269,8 @@
           "cancel": "Cancel",
           "validation": {
             "nameMinLength": "Name must be at least {min} characters.",
-            "noChanges": "No changes to save."
+            "noChanges": "No changes to save.",
+            "captionMaxLength": "Caption must be at most {max} characters."
           },
           "success": {
             "saved": "Coworker updated.",

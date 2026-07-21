@@ -3142,7 +3142,11 @@
           "priority": "優先度",
           "actions": "操作",
           "edit": "編集",
-          "empty": "アクティブな Coworker が見つかりません。"
+          "empty": "アクティブな Coworker が見つかりません。",
+          "searchPlaceholder": "名前、スラッグ、キャプション、ベンダーで検索…",
+          "totalCount": "{count} 件のコワーカー",
+          "filteredCount": "{total} 件中 {shown} 件を表示",
+          "emptySearch": "検索に一致するコワーカーはありません。"
         },
         "Form": {
           "Fields": {
@@ -3173,7 +3177,8 @@
           "cancel": "キャンセル",
           "validation": {
             "nameMinLength": "名前は {min} 文字以上にしてください。",
-            "noChanges": "保存する変更はありません。"
+            "noChanges": "保存する変更はありません。",
+            "captionMaxLength": "キャプションは最大 {max} 文字です。"
           },
           "success": {
             "saved": "Coworker を更新しました。",

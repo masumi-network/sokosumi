@@ -3142,7 +3142,11 @@
           "priority": "Priorità",
           "actions": "Azioni",
           "edit": "Modifica",
-          "empty": "Nessun coworker attivo trovato."
+          "empty": "Nessun coworker attivo trovato.",
+          "searchPlaceholder": "Cerca per nome, slug, didascalia o vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworker}}",
+          "filteredCount": "Visualizzati {shown} di {total}",
+          "emptySearch": "Nessun coworker corrisponde alla ricerca."
         },
         "Form": {
           "Fields": {
@@ -3173,7 +3177,8 @@
           "cancel": "Annulla",
           "validation": {
             "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
-            "noChanges": "Nessuna modifica da salvare."
+            "noChanges": "Nessuna modifica da salvare.",
+            "captionMaxLength": "La didascalia deve contenere al massimo {max} caratteri."
           },
           "success": {
             "saved": "Coworker aggiornato.",

@@ -105,6 +105,19 @@ describe("createCoworkerRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("strips image on create (use POST /coworkers/{id}/image)", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      vendorId,
+      image: "https://example.com/logo.png",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty("image");
+    }
+  });
+
   it("strips isWhitelisted when provided", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
@@ -227,6 +240,23 @@ describe("patchCoworkerRequestSchema", () => {
   it("rejects non-integer priority updates", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       priority: 2.5,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects image on patch (use POST/DELETE /coworkers/{id}/image)", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      image: "https://example.com/logo.png",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects image even when other valid fields are present", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      image: "https://example.com/logo.png",
     });
 
     expect(result.success).toBe(false);

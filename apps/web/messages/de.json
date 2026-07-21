@@ -3111,7 +3111,11 @@
           "priority": "Priorität",
           "actions": "Aktionen",
           "edit": "Bearbeiten",
-          "empty": "Keine aktiven Coworkers gefunden."
+          "empty": "Keine aktiven Coworkers gefunden.",
+          "searchPlaceholder": "Nach Name, Slug, Bildunterschrift oder Vendor suchen…",
+          "totalCount": "{count, plural, one {# Coworker} other {# Coworker}}",
+          "filteredCount": "{shown} von {total} angezeigt",
+          "emptySearch": "Keine Coworker entsprechen der Suche."
         },
         "Form": {
           "Fields": {
@@ -3142,7 +3146,8 @@
           "cancel": "Abbrechen",
           "validation": {
             "nameMinLength": "Der Name muss mindestens {min} Zeichen haben.",
-            "noChanges": "Keine Änderungen zum Speichern."
+            "noChanges": "Keine Änderungen zum Speichern.",
+            "captionMaxLength": "Die Bildunterschrift darf höchstens {max} Zeichen lang sein."
           },
           "success": {
             "saved": "Coworker aktualisiert.",

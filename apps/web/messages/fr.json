@@ -3142,7 +3142,11 @@
           "priority": "Priorité",
           "actions": "Actions",
           "edit": "Modifier",
-          "empty": "Aucun coworker actif trouvé."
+          "empty": "Aucun coworker actif trouvé.",
+          "searchPlaceholder": "Rechercher par nom, slug, légende ou vendor…",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Affichage de {shown} sur {total}",
+          "emptySearch": "Aucun coworker ne correspond à votre recherche."
         },
         "Form": {
           "Fields": {
@@ -3173,7 +3177,8 @@
           "cancel": "Annuler",
           "validation": {
             "nameMinLength": "Le nom doit contenir au moins {min} caractères.",
-            "noChanges": "Aucune modification à enregistrer."
+            "noChanges": "Aucune modification à enregistrer.",
+            "captionMaxLength": "La légende doit comporter au maximum {max} caractères."
           },
           "success": {
             "saved": "Coworker mis à jour.",
