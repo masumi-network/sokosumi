@@ -103,7 +103,4 @@ export const STORAGE = {
 
   /** Directory for stored DESIGN.md documents */
   DESIGN_MD_UPLOAD_DIR: "design-md",
-
-  /** Root directory for orchestrator image uploads */
-  ORCHESTRATOR_IMAGES_DIR: "orchestrators",
 } as const;

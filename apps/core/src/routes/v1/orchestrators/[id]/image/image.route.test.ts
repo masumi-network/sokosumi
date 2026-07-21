@@ -55,7 +55,12 @@ function baseOrchestrator(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createApp() {
+interface AppOptions {
+  role?: string;
+}
+
+function createApp(options: AppOptions = {}) {
+  const { role = "admin" } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables & RequestIdVariables;
   }>();
@@ -65,9 +70,9 @@ function createApp() {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
-      userId: "admin_1",
+      userId: role === "admin" ? "admin_1" : "user_1",
       organizationId: null,
-      role: "admin",
+      role,
     });
     return await next();
   });
@@ -201,6 +206,42 @@ describe("POST /orchestrators/{id}/image", () => {
     expect(response.status).toBe(503);
     expect(updateMock).not.toHaveBeenCalled();
   });
+
+  it("returns 403 for non-admin users", async () => {
+    const app = createApp({ role: "user" });
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "POST",
+      body: pngFormData(),
+    });
+
+    expect(response.status).toBe(403);
+    expect(findFirstMock).not.toHaveBeenCalled();
+    expect(uploadOrchestratorImageMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes the new blob when the DB update fails after upload", async () => {
+    findFirstMock.mockResolvedValue(
+      baseOrchestrator({ image: PREVIOUS_IMAGE }),
+    );
+    uploadOrchestratorImageMock.mockResolvedValue(NEW_IMAGE);
+    updateMock.mockRejectedValue(new Error("db write failed"));
+
+    const app = createApp();
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "POST",
+      body: pngFormData(),
+    });
+
+    expect(response.status).toBe(500);
+    expect(deleteOrchestratorImageIfOwnedMock).toHaveBeenCalledWith(
+      NEW_IMAGE,
+      ORCHESTRATOR_ID,
+    );
+    expect(deleteOrchestratorImageIfOwnedMock).not.toHaveBeenCalledWith(
+      PREVIOUS_IMAGE,
+      ORCHESTRATOR_ID,
+    );
+  });
 });
 
 describe("DELETE /orchestrators/{id}/image", () => {
@@ -247,6 +288,17 @@ describe("DELETE /orchestrators/{id}/image", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for non-admin users", async () => {
+    const app = createApp({ role: "user" });
+    const response = await app.request(`/${ORCHESTRATOR_ID}/image`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(403);
+    expect(findFirstMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
   });
 });

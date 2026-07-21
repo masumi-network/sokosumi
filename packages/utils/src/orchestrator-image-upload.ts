@@ -13,6 +13,9 @@ export const ORCHESTRATOR_IMAGE_MAX_SIZE_BYTES = 2 * 1024 * 1024;
 
 const ORCHESTRATOR_IMAGES_DIR = "orchestrators";
 
+/** Public Vercel Blob host suffix (any store id under this domain). */
+const VERCEL_BLOB_PUBLIC_HOST_SUFFIX = ".public.blob.vercel-storage.com";
+
 export function isOrchestratorImageAllowedContentType(
   contentType: string,
 ): boolean {
@@ -40,13 +43,30 @@ export function buildOrchestratorImagePathname(
   return `${buildOrchestratorImagePrefix(orchestratorId)}image-${sanitizeUserUploadFilename(filename)}`;
 }
 
+function isVercelBlobPublicHost(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === "public.blob.vercel-storage.com" ||
+    normalized.endsWith(VERCEL_BLOB_PUBLIC_HOST_SUFFIX)
+  );
+}
+
+/**
+ * True when `url` is a public Vercel Blob URL under this orchestrator's
+ * upload prefix (`/orchestrators/{id}/…`). Host + path both required so a
+ * foreign host cannot spoof ownership via path alone.
+ */
 export function isOwnedOrchestratorImageUrl(
   url: string,
   orchestratorId: string,
 ): boolean {
   try {
-    const pathname = decodeURIComponent(new URL(url).pathname);
+    const parsed = new URL(url);
+    if (!isVercelBlobPublicHost(parsed.hostname)) {
+      return false;
+    }
     // Vercel Blob pathnames look like `/orchestrators/{id}/image-….png`.
+    const pathname = decodeURIComponent(parsed.pathname);
     const prefix = `/${buildOrchestratorImagePrefix(orchestratorId)}`;
     return pathname.startsWith(prefix);
   } catch {

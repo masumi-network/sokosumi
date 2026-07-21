@@ -131,10 +131,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const updated = await prisma.orchestrator.update({
-      where: { id },
-      data: { image: publicUrl },
-    });
+    let updated: Awaited<ReturnType<typeof prisma.orchestrator.update>>;
+    try {
+      updated = await prisma.orchestrator.update({
+        where: { id },
+        data: { image: publicUrl },
+      });
+    } catch (error) {
+      // Avoid orphaning the newly uploaded blob if the DB write fails.
+      await deleteOrchestratorImageIfOwned(publicUrl, id);
+      throw error;
+    }
 
     await deleteOrchestratorImageIfOwned(previousImage, id);
 

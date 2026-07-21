@@ -57,7 +57,7 @@ describe("isOwnedOrchestratorImageUrl", () => {
   const orchestratorId = "01960001-0001-7001-8001-000000000099";
   const prefix = buildOrchestratorImagePrefix(orchestratorId);
 
-  it("accepts blob URLs under the orchestrator prefix", () => {
+  it("accepts public Vercel Blob URLs under the orchestrator prefix", () => {
     expect(
       isOwnedOrchestratorImageUrl(
         `https://abc.public.blob.vercel-storage.com/${prefix}image-hermes-Ab12.png`,
@@ -66,7 +66,7 @@ describe("isOwnedOrchestratorImageUrl", () => {
     ).toBe(true);
   });
 
-  it("rejects other orchestrators and foreign hosts with wrong path", () => {
+  it("rejects other orchestrators, non-blob hosts, and invalid URLs", () => {
     expect(
       isOwnedOrchestratorImageUrl(
         `https://abc.public.blob.vercel-storage.com/orchestrators/other-id/image.png`,
@@ -76,6 +76,13 @@ describe("isOwnedOrchestratorImageUrl", () => {
     expect(
       isOwnedOrchestratorImageUrl(
         "https://example.com/evil.png",
+        orchestratorId,
+      ),
+    ).toBe(false);
+    // Path matches ownership prefix but host is not Vercel Blob public storage.
+    expect(
+      isOwnedOrchestratorImageUrl(
+        `https://evil.example.com/${prefix}image.png`,
         orchestratorId,
       ),
     ).toBe(false);
