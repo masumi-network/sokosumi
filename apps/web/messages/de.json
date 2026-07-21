@@ -3099,7 +3099,6 @@
         "description": "Verwalten Sie Coworker-Fähigkeiten, Priorität, Whitelist, Archivstatus und Anzeigemetadaten.",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
-        "editTitle": "Edit coworker",
         "editDescription": "Plattformsteuerung und Anzeigefelder für Marktplatz und Produkt aktualisieren.",
         "Table": {
           "name": "Name",
@@ -3207,6 +3206,8 @@
           }
         },
         "Context": {
+          "title": "Übersicht",
+          "description": "Identität und Archivstatus dieses Coworkers.",
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",

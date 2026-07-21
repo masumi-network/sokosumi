@@ -3130,7 +3130,6 @@
         "description": "Gestisci capacità, priorità, whitelist, stato di archivio e metadati di visualizzazione dei coworker.",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
-        "editTitle": "Edit coworker",
         "editDescription": "Aggiorna i controlli di piattaforma e i campi di visualizzazione per marketplace e prodotto.",
         "Table": {
           "name": "Name",
@@ -3238,6 +3237,8 @@
           }
         },
         "Context": {
+          "title": "Panoramica",
+          "description": "Identità e stato di archiviazione di questo coworker.",
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",

@@ -3099,7 +3099,6 @@
         "description": "Gestiona capacidades, prioridad, lista blanca, estado de archivo y metadatos de visualización de los coworkers.",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
-        "editTitle": "Edit coworker",
         "editDescription": "Actualiza los controles de plataforma y los campos de visualización del marketplace y el producto.",
         "Table": {
           "name": "Name",
@@ -3207,6 +3206,8 @@
           }
         },
         "Context": {
+          "title": "Resumen",
+          "description": "Identidad y estado de archivo de este coworker.",
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",

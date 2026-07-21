@@ -22,6 +22,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -483,252 +490,265 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
   }
 
   return (
-    <div className="space-y-8">
-      <dl className="grid gap-4 rounded-md border p-4 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground">{tContext("id")}</dt>
-          <dd className="mt-1 font-mono text-xs">{baseline.id}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{tContext("slug")}</dt>
-          <dd className="mt-1">{baseline.slug}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{tContext("vendor")}</dt>
-          <dd className="mt-1">{baseline.vendor.name}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{tContext("status")}</dt>
-          <dd className="mt-2">
-            {archived ? (
-              <Badge variant="secondary">{tContext("archived")}</Badge>
-            ) : (
-              <Badge variant="outline">{tContext("active")}</Badge>
-            )}
-          </dd>
-        </div>
-      </dl>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{tContext("title")}</CardTitle>
+          <CardDescription>{tContext("description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-muted-foreground">{tContext("id")}</dt>
+              <dd className="mt-1 font-mono text-xs break-all">
+                {baseline.id}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{tContext("slug")}</dt>
+              <dd className="mt-1">{baseline.slug}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{tContext("vendor")}</dt>
+              <dd className="mt-1">{baseline.vendor.name}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{tContext("status")}</dt>
+              <dd className="mt-2">
+                {archived ? (
+                  <Badge variant="secondary">{tContext("archived")}</Badge>
+                ) : (
+                  <Badge variant="outline">{tContext("active")}</Badge>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
 
-      <form
-        className="space-y-6 rounded-md border p-4"
-        onSubmit={handleControlsSubmit}
-      >
-        <div className="space-y-1">
-          <h2 className="text-lg font-medium">{t("controls.title")}</h2>
-          <p className="text-muted-foreground text-sm">
-            {t("controls.description")}
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <Label>{t("controls.capabilities.label")}</Label>
-          <div className="flex flex-wrap gap-4">
-            {ADMIN_COWORKER_CAPABILITIES.map((capability) => (
-              <label
-                key={capability}
-                className="flex items-center gap-2 text-sm"
-                htmlFor={`capability-${capability}`}
-              >
-                <Checkbox
-                  id={`capability-${capability}`}
-                  checked={capabilities.includes(capability)}
-                  disabled={isBusy}
-                  onCheckedChange={(checked) =>
-                    handleCapabilityChange(capability, checked === true)
-                  }
-                />
-                {t(`controls.capabilities.${capability}`)}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="coworker-priority">
-            {t("controls.priority.label")}
-          </Label>
-          <Input
-            id="coworker-priority"
-            type="number"
-            inputMode="numeric"
-            value={priority}
-            onChange={(event) => setPriority(event.target.value)}
-            disabled={isBusy}
-          />
-        </div>
-
-        <div className="flex items-center justify-between gap-4 rounded-md border p-4">
-          <div className="space-y-1">
-            <Label htmlFor="coworker-whitelist">
-              {t("controls.whitelist.label")}
-            </Label>
-            <p className="text-muted-foreground text-sm">
-              {t("controls.whitelist.description")}
-            </p>
-          </div>
-          <Switch
-            id="coworker-whitelist"
-            checked={isWhitelisted}
-            disabled={isBusy}
-            onCheckedChange={handleWhitelistChange}
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={isBusy}>
-            {isSavingControls ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                {t("controls.saving")}
-              </>
-            ) : (
-              t("controls.save")
-            )}
-          </Button>
-
-          {archived ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isBusy}
-              onClick={handleUnarchive}
-            >
-              {isUnarchiving ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  {t("controls.unarchiving")}
-                </>
-              ) : (
-                t("controls.unarchive")
-              )}
-            </Button>
-          ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="destructive" disabled={isBusy}>
-                  {t("controls.archive")}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t("controls.archiveConfirmTitle")}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("controls.archiveConfirmDescription")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isArchiving}>
-                    {t("cancel")}
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleArchive}
-                    disabled={isArchiving}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("controls.title")}</CardTitle>
+          <CardDescription>{t("controls.description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-6" onSubmit={handleControlsSubmit}>
+            <div className="space-y-3">
+              <Label>{t("controls.capabilities.label")}</Label>
+              <div className="flex flex-wrap gap-4">
+                {ADMIN_COWORKER_CAPABILITIES.map((capability) => (
+                  <label
+                    key={capability}
+                    className="flex items-center gap-2 text-sm"
+                    htmlFor={`capability-${capability}`}
                   >
-                    {isArchiving ? (
-                      <>
-                        <Loader2 className="mr-2 size-4 animate-spin" />
-                        {t("controls.archiving")}
-                      </>
-                    ) : (
-                      t("controls.archive")
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-      </form>
+                    <Checkbox
+                      id={`capability-${capability}`}
+                      checked={capabilities.includes(capability)}
+                      disabled={isBusy}
+                      onCheckedChange={(checked) =>
+                        handleCapabilityChange(capability, checked === true)
+                      }
+                    />
+                    {t(`controls.capabilities.${capability}`)}
+                  </label>
+                ))}
+              </div>
+            </div>
 
-      <form className="space-y-8" onSubmit={handleDisplaySubmit}>
-        <div className="space-y-1">
-          <h2 className="text-lg font-medium">{t("display.title")}</h2>
-          <p className="text-muted-foreground text-sm">
-            {t("display.description")}
-          </p>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="coworker-priority">
+                {t("controls.priority.label")}
+              </Label>
+              <Input
+                id="coworker-priority"
+                type="number"
+                inputMode="numeric"
+                value={priority}
+                onChange={(event) => setPriority(event.target.value)}
+                disabled={isBusy}
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label>{t("image.label")}</Label>
-          <OrganizationLogoUploadField
-            accept={COWORKER_IMAGE_ACCEPT}
-            disabled={isBusy}
-            fallbackIcon={<Bot className="size-8" />}
-            isRemoving={isRemovingImage}
-            isUploading={isUploadingImage}
-            labels={imageLabels}
-            logoValue={imageValue}
-            maxSize={COWORKER_IMAGE_MAX_SIZE_BYTES}
-            onPendingLogoFilesChange={setPendingImageFiles}
-            onRemove={handleRemoveImage}
-            onUpload={handleImageSelect}
-            pendingLogoFiles={pendingImageFiles}
-            showRemoveButton={Boolean(imageValue)}
-          />
-          <p className="text-muted-foreground text-sm">
-            {t("image.description")}
-          </p>
-        </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="coworker-whitelist">
+                  {t("controls.whitelist.label")}
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  {t("controls.whitelist.description")}
+                </p>
+              </div>
+              <Switch
+                id="coworker-whitelist"
+                checked={isWhitelisted}
+                disabled={isBusy}
+                onCheckedChange={handleWhitelistChange}
+              />
+            </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="coworker-name">{t("Fields.name.label")}</Label>
-            <Input
-              id="coworker-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              disabled={isBusy}
-              required
-              minLength={ADMIN_COWORKER_NAME_MIN_LENGTH}
-            />
-          </div>
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={isBusy}>
+                {isSavingControls ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    {t("controls.saving")}
+                  </>
+                ) : (
+                  t("controls.save")
+                )}
+              </Button>
 
-          <div className="space-y-2">
-            <Label htmlFor="coworker-caption">
-              {t("Fields.caption.label")}
-            </Label>
-            <Input
-              id="coworker-caption"
-              value={caption}
-              onChange={(event) => setCaption(event.target.value)}
-              disabled={isBusy}
-              maxLength={ADMIN_COWORKER_CAPTION_MAX_LENGTH}
-            />
-          </div>
+              {archived ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isBusy}
+                  onClick={handleUnarchive}
+                >
+                  {isUnarchiving ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      {t("controls.unarchiving")}
+                    </>
+                  ) : (
+                    t("controls.unarchive")
+                  )}
+                </Button>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={isBusy}
+                    >
+                      {t("controls.archive")}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {t("controls.archiveConfirmTitle")}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t("controls.archiveConfirmDescription")}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isArchiving}>
+                        {t("cancel")}
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleArchive}
+                        disabled={isArchiving}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {isArchiving ? (
+                          <>
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                            {t("controls.archiving")}
+                          </>
+                        ) : (
+                          t("controls.archive")
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="coworker-description">
-              {t("Fields.description.label")}
-            </Label>
-            <Textarea
-              id="coworker-description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              disabled={isBusy}
-              rows={4}
-            />
-          </div>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("display.title")}</CardTitle>
+          <CardDescription>{t("display.description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-6" onSubmit={handleDisplaySubmit}>
+            <div className="space-y-2">
+              <Label>{t("image.label")}</Label>
+              <OrganizationLogoUploadField
+                accept={COWORKER_IMAGE_ACCEPT}
+                disabled={isBusy}
+                fallbackIcon={<Bot className="size-8" />}
+                isRemoving={isRemovingImage}
+                isUploading={isUploadingImage}
+                labels={imageLabels}
+                logoValue={imageValue}
+                maxSize={COWORKER_IMAGE_MAX_SIZE_BYTES}
+                onPendingLogoFilesChange={setPendingImageFiles}
+                onRemove={handleRemoveImage}
+                onUpload={handleImageSelect}
+                pendingLogoFiles={pendingImageFiles}
+                showRemoveButton={Boolean(imageValue)}
+              />
+              <p className="text-muted-foreground text-sm">
+                {t("image.description")}
+              </p>
+            </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={isBusy}>
-            {isSavingText ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                {t("saving")}
-              </>
-            ) : (
-              t("saveChanges")
-            )}
-          </Button>
-          <Button type="button" variant="outline" asChild disabled={isBusy}>
-            <Link href="/admin/coworkers">{t("cancel")}</Link>
-          </Button>
-        </div>
-      </form>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="coworker-name">{t("Fields.name.label")}</Label>
+                <Input
+                  id="coworker-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  disabled={isBusy}
+                  required
+                  minLength={ADMIN_COWORKER_NAME_MIN_LENGTH}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="coworker-caption">
+                  {t("Fields.caption.label")}
+                </Label>
+                <Input
+                  id="coworker-caption"
+                  value={caption}
+                  onChange={(event) => setCaption(event.target.value)}
+                  disabled={isBusy}
+                  maxLength={ADMIN_COWORKER_CAPTION_MAX_LENGTH}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="coworker-description">
+                  {t("Fields.description.label")}
+                </Label>
+                <Textarea
+                  id="coworker-description"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  disabled={isBusy}
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={isBusy}>
+                {isSavingText ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    {t("saving")}
+                  </>
+                ) : (
+                  t("saveChanges")
+                )}
+              </Button>
+              <Button type="button" variant="outline" asChild disabled={isBusy}>
+                <Link href="/admin/coworkers">{t("cancel")}</Link>
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

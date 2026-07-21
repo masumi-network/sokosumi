@@ -3222,7 +3222,6 @@
         "description": "Manage coworker capabilities, priority, whitelist, archive state, and display metadata.",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
-        "editTitle": "Edit coworker",
         "editDescription": "Update platform controls and display fields shown in the marketplace and product.",
         "Table": {
           "name": "Name",
@@ -3330,6 +3329,8 @@
           }
         },
         "Context": {
+          "title": "Overview",
+          "description": "Identity and archive status for this coworker.",
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",

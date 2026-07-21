@@ -3130,7 +3130,6 @@
         "description": "管理同事的能力、优先级、白名单、归档状态和显示元数据。",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
-        "editTitle": "Edit coworker",
         "editDescription": "更新平台控制项以及在市场和产品中的显示字段。",
         "Table": {
           "name": "Name",
@@ -3238,6 +3237,8 @@
           }
         },
         "Context": {
+          "title": "概览",
+          "description": "此同事的身份信息与归档状态。",
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",

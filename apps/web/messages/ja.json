@@ -3130,7 +3130,6 @@
         "description": "コワーカーの機能、優先度、ホワイトリスト、アーカイブ状態、表示メタデータを管理します。",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
-        "editTitle": "Edit coworker",
         "editDescription": "プラットフォーム制御とマーケットプレイス／プロダクトの表示項目を更新します。",
         "Table": {
           "name": "Name",
@@ -3238,6 +3237,8 @@
           }
         },
         "Context": {
+          "title": "概要",
+          "description": "このコワーカーの識別情報とアーカイブ状態です。",
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",

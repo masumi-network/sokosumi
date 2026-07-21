@@ -3130,7 +3130,6 @@
         "description": "Gérez les capacités, la priorité, la liste blanche, l’archivage et les métadonnées d’affichage des coworkers.",
         "loadFailed": "Failed to load coworkers.",
         "backToList": "Back to list",
-        "editTitle": "Edit coworker",
         "editDescription": "Mettez à jour les contrôles plateforme et les champs d’affichage pour le marketplace et le produit.",
         "Table": {
           "name": "Name",
@@ -3238,6 +3237,8 @@
           }
         },
         "Context": {
+          "title": "Aperçu",
+          "description": "Identité et état d’archivage de ce coworker.",
           "id": "ID",
           "slug": "Slug",
           "vendor": "Vendor",
