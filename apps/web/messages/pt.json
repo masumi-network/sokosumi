@@ -2916,6 +2916,10 @@
             "title": "Tarefas",
             "description": "Lista pesquisável de todas as tarefas entre utilizadores e organizações."
           },
+          "orchestrators": {
+            "title": "Orquestradores",
+            "description": "Editar metadados de apresentação de orquestradores próprios."
+          },
           "freeCredits": {
             "title": "Créditos gratuitos",
             "description": "Conceda créditos gratuitos diretamente a um utilizador ou organização sem fatura Stripe."
@@ -3115,6 +3119,70 @@
         "TaskDetail": {
           "backToList": "Voltar às tarefas",
           "personalWorkspace": "Espaço de trabalho pessoal"
+        }
+      },
+      "Orchestrators": {
+        "title": "Orquestradores",
+        "description": "Gerir metadados de apresentação de orquestradores próprios.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# orquestrador} other {# orquestradores}}",
+          "empty": "Nenhum orquestrador encontrado.",
+          "orchestrator": "Orquestrador",
+          "slug": "Slug",
+          "caption": "Legenda",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "Editar orquestrador",
+          "backToList": "Voltar aos orquestradores"
+        },
+        "EditForm": {
+          "submit": "Guardar alterações",
+          "submitting": "A guardar…",
+          "image": {
+            "label": "Imagem",
+            "description": "PNG, JPEG, WebP ou GIF até 2 MB.",
+            "upload": "Carregar imagem",
+            "replace": "Substituir imagem",
+            "remove": "Remover imagem",
+            "previewAlt": "Pré-visualização da imagem do orquestrador",
+            "fileTooLarge": "A imagem deve ter 2 MB ou menos.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP ou GIF.",
+            "maxFilesExceeded": "Carregue uma imagem de cada vez.",
+            "uploadError": "Não foi possível processar a imagem selecionada."
+          },
+          "fields": {
+            "name": {
+              "label": "Nome",
+              "description": "Mostrado onde o orquestrador é listado."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Identificador só de leitura usado em URLs e APIs."
+            },
+            "caption": {
+              "label": "Legenda",
+              "description": "Linha curta sob o nome. Deixe vazio para limpar."
+            },
+            "description": {
+              "label": "Descrição",
+              "description": "Texto mais longo para vistas de detalhe. Deixe vazio para limpar."
+            }
+          },
+          "validation": {
+            "nameMinLength": "O nome deve ter pelo menos {min} caracteres.",
+            "noChanges": "Sem alterações para guardar."
+          },
+          "success": {
+            "saved": "Orquestrador atualizado.",
+            "imageSaved": "Imagem guardada.",
+            "imageRemoved": "Imagem removida."
+          },
+          "errors": {
+            "saveFailed": "Não foi possível guardar o orquestrador.",
+            "notFound": "Orquestrador não encontrado.",
+            "imageSaveFailed": "Falha ao atualizar a imagem."
+          }
         }
       },
       "FreeCredits": {
