@@ -70,6 +70,7 @@ const archivedCoworker = {
   id: "cow_2",
   name: "Archived Agent",
   slug: "archived-agent",
+  createdAt: new Date("2025-02-01T00:00:00.000Z"),
   archivedAt: new Date("2025-02-01T00:00:00.000Z"),
 };
 

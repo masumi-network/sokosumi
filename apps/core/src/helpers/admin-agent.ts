@@ -173,6 +173,116 @@ export function mapAdminAgentDetail(
   });
 }
 
+export type AdminAgentListSortBy =
+  | "displayName"
+  | "registryName"
+  | "hasOverride"
+  | "status"
+  | "createdAt";
+
+export type AdminAgentListSortOrder = "asc" | "desc";
+
+export function buildAdminAgentListOrderBy(
+  sortBy: Exclude<AdminAgentListSortBy, "displayName">,
+  sortOrder: AdminAgentListSortOrder,
+): Prisma.AgentOrderByWithRelationInput[] {
+  switch (sortBy) {
+    case "createdAt":
+      return [{ createdAt: sortOrder }, { id: sortOrder }];
+    case "status":
+      return [{ status: sortOrder }, { id: sortOrder }];
+    case "registryName":
+      return [{ name: sortOrder }, { id: sortOrder }];
+    case "hasOverride":
+      return [{ metadataOverride: { id: sortOrder } }, { id: sortOrder }];
+    default: {
+      const _exhaustive: never = sortBy;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * Prisma cannot `ORDER BY COALESCE(override.name, agent.name)` via relation
+ * orderBy. Use SQL so displayName sort matches `getAgentName` (override ?? registry).
+ */
+function escapeIlikeLiteral(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("%", "\\%")
+    .replaceAll("_", "\\_");
+}
+
+export async function findAdminAgentIdsOrderedByDisplayName(
+  client: Pick<Prisma.TransactionClient, "$queryRawUnsafe">,
+  options: {
+    sortOrder: AdminAgentListSortOrder;
+    take: number;
+    cursor?: string;
+    q?: string;
+    status?: AgentStatus;
+  },
+): Promise<string[]> {
+  const direction = options.sortOrder === "asc" ? "ASC" : "DESC";
+  const trimmed = options.q?.trim();
+  const searchPattern = trimmed ? `%${escapeIlikeLiteral(trimmed)}%` : null;
+  const status = options.status ?? null;
+
+  if (options.cursor) {
+    const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
+      `
+      WITH ordered AS (
+        SELECT
+          a.id,
+          ROW_NUMBER() OVER (
+            ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
+          ) AS rn
+        FROM "Agent" a
+        LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
+        WHERE (
+          $1::text IS NULL
+          OR a.name ILIKE $1 ESCAPE '\\'
+          OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
+          OR o.name ILIKE $1 ESCAPE '\\'
+        )
+        AND ($2::"AgentStatus" IS NULL OR a.status = $2::"AgentStatus")
+      )
+      SELECT id
+      FROM ordered
+      WHERE rn > (SELECT rn FROM ordered WHERE id = $3)
+      ORDER BY rn
+      LIMIT $4
+      `,
+      searchPattern,
+      status,
+      options.cursor,
+      options.take,
+    );
+    return rows.map((row) => row.id);
+  }
+
+  const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
+    `
+    SELECT a.id
+    FROM "Agent" a
+    LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
+    WHERE (
+      $1::text IS NULL
+      OR a.name ILIKE $1 ESCAPE '\\'
+      OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
+      OR o.name ILIKE $1 ESCAPE '\\'
+    )
+    AND ($2::"AgentStatus" IS NULL OR a.status = $2::"AgentStatus")
+    ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
+    LIMIT $3
+    `,
+    searchPattern,
+    status,
+    options.take,
+  );
+  return rows.map((row) => row.id);
+}
+
 export function buildAdminAgentSearchWhere(
   query?: string,
 ): Prisma.AgentWhereInput | undefined {

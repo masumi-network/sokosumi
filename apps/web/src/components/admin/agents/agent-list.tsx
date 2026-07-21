@@ -1,23 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { useRef, useState, useTransition } from "react";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import { useFormatter, useTranslations } from "next-intl";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 
-import { Badge } from "@/components/ui/badge";
+import { getAgentListColumns } from "@/components/admin/agents/agent-list-columns";
+import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { listAdminAgentsAction } from "@/lib/actions/admin-agents/action";
@@ -36,10 +29,43 @@ type StatusFilter = "all" | AgentStatus;
 interface FetchPageOptions {
   cursor?: string;
   status?: StatusFilter;
+  sortState?: SortingState;
+}
+
+const DEFAULT_SORTING: SortingState = [{ id: "createdAt", desc: true }];
+
+const SORT_COLUMN_TO_API = {
+  displayName: "displayName",
+  registryName: "registryName",
+  hasOverride: "hasOverride",
+  status: "status",
+  createdAt: "createdAt",
+} as const satisfies Record<
+  string,
+  NonNullable<ListAdminAgentsParams["sortBy"]>
+>;
+
+function sortingToParams(
+  sorting: SortingState,
+): Pick<ListAdminAgentsParams, "sortBy" | "sortOrder"> {
+  const activeSort = sorting[0];
+  if (!activeSort) {
+    return { sortBy: "createdAt", sortOrder: "desc" };
+  }
+
+  const sortBy =
+    SORT_COLUMN_TO_API[activeSort.id as keyof typeof SORT_COLUMN_TO_API] ??
+    "createdAt";
+
+  return {
+    sortBy,
+    sortOrder: activeSort.desc ? "desc" : "asc",
+  };
 }
 
 export function AgentList({ initialPage }: AgentListProps) {
   const t = useTranslations("App.Admin.Agents.AgentList");
+  const formatter = useFormatter();
   const [agents, setAgents] = useState(initialPage.agents);
   const [total, setTotal] = useState(initialPage.total);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
@@ -47,29 +73,49 @@ export function AgentList({ initialPage }: AgentListProps) {
   const [activeQuery, setActiveQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [activeStatus, setActiveStatus] = useState<StatusFilter>("all");
+  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
   const [isPending, startTransition] = useTransition();
   const latestRequestId = useRef(0);
+  const sortingRef = useRef(sorting);
+  sortingRef.current = sorting;
+
+  const columns = useMemo(
+    () => getAgentListColumns(t, formatter),
+    [formatter, t],
+  );
 
   function fetchPage(query: string, options: FetchPageOptions = {}) {
     const requestId = ++latestRequestId.current;
-    const { cursor, status = statusFilter } = options;
+    const {
+      cursor,
+      status = statusFilter,
+      sortState = sortingRef.current,
+    } = options;
     if (!cursor) {
       setActiveQuery(query);
       setActiveStatus(status);
     }
+
+    const { sortBy, sortOrder } = sortingToParams(sortState);
+
     startTransition(async () => {
       const result = await listAdminAgentsAction({
         q: query.trim() || undefined,
         cursor,
         status: status === "all" ? undefined : status,
+        sortBy,
+        sortOrder,
       } satisfies ListAdminAgentsParams);
+
       if (requestId !== latestRequestId.current) {
         return;
       }
+
       if (!result.ok) {
         toast.error(result.error.message ?? t("loadError"));
         return;
       }
+
       setAgents((current) =>
         cursor ? [...current, ...result.data.agents] : result.data.agents,
       );
@@ -101,6 +147,16 @@ export function AgentList({ initialPage }: AgentListProps) {
     }
     fetchPage(activeQuery, { cursor: nextCursor, status: activeStatus });
   }
+
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    const nextSorting =
+      typeof updater === "function" ? updater(sorting) : updater;
+    setSorting(nextSorting);
+    fetchPage(activeQuery, {
+      status: activeStatus,
+      sortState: nextSorting,
+    });
+  };
 
   const hasActiveFilter =
     activeQuery.trim().length > 0 || activeStatus !== "all";
@@ -170,46 +226,18 @@ export function AgentList({ initialPage }: AgentListProps) {
         </p>
       ) : (
         <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("displayName")}</TableHead>
-                <TableHead>{t("registryName")}</TableHead>
-                <TableHead>{t("override")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead className="text-right">{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {agents.map((agent) => (
-                <TableRow key={agent.id}>
-                  <TableCell className="font-medium">
-                    {agent.displayName}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {agent.registryName}
-                  </TableCell>
-                  <TableCell>
-                    {agent.hasOverride ? (
-                      <Badge variant="secondary">{t("hasOverride")}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">
-                        {t("noOverride")}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>{agent.status}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/admin/agents/${agent.id}`}>
-                        {t("manage")}
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={agents}
+            containerClassName="space-y-0"
+            tableHeaderClassName="bg-muted/50"
+            showPagination={false}
+            enableRowSelection={false}
+            disableHover
+            manualSorting
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+          />
         </div>
       )}
 

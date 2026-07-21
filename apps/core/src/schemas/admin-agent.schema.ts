@@ -4,6 +4,24 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { agentStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
+export const adminAgentListSortBySchema = z
+  .enum(["displayName", "registryName", "hasOverride", "status", "createdAt"])
+  .default("createdAt")
+  .openapi({
+    param: { name: "sortBy", in: "query" },
+    description: "Column to sort the admin agent list by",
+    example: "createdAt",
+  });
+
+export const adminAgentListSortOrderSchema = z
+  .enum(["asc", "desc"])
+  .default("desc")
+  .openapi({
+    param: { name: "sortOrder", in: "query" },
+    description: "Sort direction for the admin agent list",
+    example: "desc",
+  });
+
 export const adminAgentListQuerySchema = cursorPaginationQuerySchema.extend({
   q: z
     .string()
@@ -21,6 +39,8 @@ export const adminAgentListQuerySchema = cursorPaginationQuerySchema.extend({
     description: "Filter agents by registry status (omit for all)",
     example: "ONLINE",
   }),
+  sortBy: adminAgentListSortBySchema,
+  sortOrder: adminAgentListSortOrderSchema,
 });
 
 export const adminAgentIdParamSchema = z.object({

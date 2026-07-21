@@ -27,6 +27,7 @@ const {
   exampleOutputDeleteManyMock,
   tagUpsertMock,
   transactionMock,
+  queryRawMock,
 } = vi.hoisted(() => ({
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
@@ -40,6 +41,7 @@ const {
   exampleOutputDeleteManyMock: vi.fn(),
   tagUpsertMock: vi.fn(),
   transactionMock: vi.fn(),
+  queryRawMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -64,6 +66,7 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: tagUpsertMock,
     },
     $transaction: transactionMock,
+    $queryRawUnsafe: queryRawMock,
   },
 }));
 
@@ -139,6 +142,7 @@ function createApp() {
 describe("admin agents routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryRawMock.mockResolvedValue([]);
     transactionMock.mockImplementation(async (arg) => {
       if (Array.isArray(arg)) {
         return Promise.all(arg);
@@ -292,6 +296,75 @@ describe("admin agents routes", () => {
     expect(response.status).toBe(422);
     expect(agentFindManyMock).not.toHaveBeenCalled();
     expect(agentCountMock).not.toHaveBeenCalled();
+  });
+
+  it("defaults list sort to createdAt desc with stable id tie-breaker", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    );
+  });
+
+  it("applies alternate sortBy and sortOrder query params", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?sortBy=registryName&sortOrder=asc",
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+      }),
+    );
+  });
+
+  it("sorts displayName via coalesce SQL then hydrates agents in that order", async () => {
+    queryRawMock.mockResolvedValue([{ id: "agent_2" }, { id: "agent_1" }]);
+    agentFindManyMock.mockResolvedValue([
+      createRegistryAgent({ id: "agent_1", name: "Zebra" }),
+      createRegistryAgent({
+        id: "agent_2",
+        name: "Registry",
+        metadataOverride: { name: "Alpha", image: null },
+      }),
+    ]);
+    agentCountMock.mockResolvedValue(2);
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?sortBy=displayName&sortOrder=asc",
+    );
+
+    expect(response.status).toBe(200);
+    expect(queryRawMock).toHaveBeenCalled();
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["agent_2", "agent_1"] } },
+      }),
+    );
+    const body = await response.json();
+    expect(body.data.map((agent: { id: string }) => agent.id)).toEqual([
+      "agent_2",
+      "agent_1",
+    ]);
+    expect(body.data[0].displayName).toBe("Alpha");
+    expect(body.data[1].displayName).toBe("Zebra");
+  });
+
+  it("returns 422 for invalid sortBy", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?sortBy=invalidColumn",
+    );
+
+    expect(response.status).toBe(422);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
   });
 
   it("returns agent detail with registry and resolved preview", async () => {

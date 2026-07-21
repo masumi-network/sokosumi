@@ -19,6 +19,13 @@ export interface ListAdminAgentsParams {
   cursor?: string;
   limit?: number;
   status?: AgentStatus;
+  sortBy?:
+    | "displayName"
+    | "registryName"
+    | "hasOverride"
+    | "status"
+    | "createdAt";
+  sortOrder?: "asc" | "desc";
 }
 
 export const adminAgentService = {

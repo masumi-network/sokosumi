@@ -3136,6 +3136,7 @@
           "hasOverride": "Personalizzato",
           "noOverride": "Solo registro",
           "status": "Stato",
+          "created": "Creato",
           "actions": "Azioni",
           "manage": "Gestisci",
           "loadMore": "Carica altri",
@@ -3211,7 +3212,6 @@
         "Table": {
           "name": "Name",
           "slug": "Slug",
-          "caption": "Caption",
           "status": "Stato",
           "active": "Attivo",
           "archived": "Archiviato",
@@ -3219,6 +3219,7 @@
           "whitelisted": "Whitelisted",
           "notWhitelisted": "Not whitelisted",
           "priority": "Priority",
+          "created": "Creato",
           "actions": "Actions",
           "edit": "Edit",
           "empty": "Nessun coworker trovato.",

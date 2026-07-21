@@ -3352,6 +3352,14 @@ export type ListAdminAgentsData = {
          * Filter agents by registry status (omit for all)
          */
         status?: AgentStatus & unknown;
+        /**
+         * Column to sort the admin agent list by
+         */
+        sortBy?: 'displayName' | 'registryName' | 'hasOverride' | 'status' | 'createdAt';
+        /**
+         * Sort direction for the admin agent list
+         */
+        sortOrder?: 'asc' | 'desc';
     };
     url: '/admin/agents';
 };

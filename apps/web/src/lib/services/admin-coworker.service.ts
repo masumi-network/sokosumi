@@ -30,9 +30,14 @@ export interface UpdateAdminCoworkerDisplayResult {
 }
 
 function sortCoworkers(coworkers: Coworker[]): Coworker[] {
-  return coworkers.toSorted((left, right) =>
-    left.name.localeCompare(right.name),
-  );
+  return coworkers.toSorted((left, right) => {
+    const createdAtDiff = right.createdAt.getTime() - left.createdAt.getTime();
+    if (createdAtDiff !== 0) {
+      return createdAtDiff;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
 }
 
 function mergeCoworkerLists(

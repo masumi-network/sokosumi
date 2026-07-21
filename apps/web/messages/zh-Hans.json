@@ -3136,6 +3136,7 @@
           "hasOverride": "已自定义",
           "noOverride": "仅注册表",
           "status": "状态",
+          "created": "创建时间",
           "actions": "操作",
           "manage": "管理",
           "loadMore": "加载更多",
@@ -3211,7 +3212,6 @@
         "Table": {
           "name": "Name",
           "slug": "Slug",
-          "caption": "Caption",
           "status": "状态",
           "active": "活跃",
           "archived": "已归档",
@@ -3219,6 +3219,7 @@
           "whitelisted": "Whitelisted",
           "notWhitelisted": "Not whitelisted",
           "priority": "Priority",
+          "created": "创建时间",
           "actions": "Actions",
           "edit": "Edit",
           "empty": "未找到同事。",
