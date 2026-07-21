@@ -172,6 +172,45 @@ export function mapAdminAgentDetail(
   });
 }
 
+export type AdminAgentListSortBy =
+  | "displayName"
+  | "registryName"
+  | "hasOverride"
+  | "status"
+  | "createdAt";
+
+export type AdminAgentListSortOrder = "asc" | "desc";
+
+export function buildAdminAgentListOrderBy(
+  sortBy: AdminAgentListSortBy,
+  sortOrder: AdminAgentListSortOrder,
+): Prisma.AgentOrderByWithRelationInput[] {
+  switch (sortBy) {
+    case "createdAt":
+      return [{ createdAt: sortOrder }, { id: sortOrder }];
+    case "status":
+      return [{ status: sortOrder }, { id: sortOrder }];
+    case "registryName":
+      return [{ name: sortOrder }, { id: sortOrder }];
+    case "displayName":
+      return [
+        {
+          metadataOverride: {
+            name: { sort: sortOrder, nulls: "last" },
+          },
+        },
+        { name: sortOrder },
+        { id: sortOrder },
+      ];
+    case "hasOverride":
+      return [{ metadataOverride: { id: sortOrder } }, { id: sortOrder }];
+    default: {
+      const _exhaustive: never = sortBy;
+      return _exhaustive;
+    }
+  }
+}
+
 export function buildAdminAgentSearchWhere(
   query?: string,
 ): Prisma.AgentWhereInput | undefined {

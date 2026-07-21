@@ -208,6 +208,42 @@ describe("admin agents routes", () => {
     });
   });
 
+  it("defaults list sort to createdAt desc with stable id tie-breaker", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    );
+  });
+
+  it("applies alternate sortBy and sortOrder query params", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?sortBy=registryName&sortOrder=asc",
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+      }),
+    );
+  });
+
+  it("returns 422 for invalid sortBy", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?sortBy=invalidColumn",
+    );
+
+    expect(response.status).toBe(422);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("returns agent detail with registry and resolved preview", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/agent_1");

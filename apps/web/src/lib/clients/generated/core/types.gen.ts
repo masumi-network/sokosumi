@@ -3339,6 +3339,14 @@ export type ListAdminAgentsData = {
          * Optional search on registry name, blockchain identifier, or override name
          */
         q?: string;
+        /**
+         * Column to sort the admin agent list by
+         */
+        sortBy?: 'displayName' | 'registryName' | 'hasOverride' | 'status' | 'createdAt';
+        /**
+         * Sort direction for the admin agent list
+         */
+        sortOrder?: 'asc' | 'desc';
     };
     url: '/admin/agents';
 };
