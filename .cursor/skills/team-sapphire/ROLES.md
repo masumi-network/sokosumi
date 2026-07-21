@@ -47,11 +47,11 @@ Omit empty sections. No essay preamble.
 
 **Goal:** Implementable Spec from Requirement + Investigation.
 
-**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; BUGBOT optional sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. If the change is user-visible, list ≥1 path-only route under Verification (defines **UI in scope**).
+**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; BUGBOT optional sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only route under Verification **iff** Spec deliverables include `apps/web` page/layout/component files (not only generated Core client under `src/lib/clients/`). That list defines **UI in scope**.
 
 **Do not:** Implement; wait for human PRD approval; child issues; Spec on Linear. Do not load `VISUAL-CAPTURE.md`.
 
-**Default:** one coder. Breakdown only when rubric ≥ 2 — **sequential** on one branch. No parallel coder branches.
+**Default:** one coder. Breakdown only when rubric ≥ 2 — **sequential** on one branch, Tasks one-at-a-time in Execution order. No parallel coder branches.
 
 **Spec size caps:**
 
@@ -92,7 +92,9 @@ Reject `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`, `npx`, `node
 | `packages/<name>` | `pnpm --filter <name> check` | `pnpm --filter <name> test` | `pnpm --filter <name> build` |
 | Repo-wide | `pnpm check` | `pnpm test` | `pnpm build` |
 
-**Must pass (exit 0):** for every workspace touched by the Spec, run that scope’s **check** and **test**.
+**Must pass (exit 0):** for every workspace in the **verify set**, run that scope’s **check** and **test**.
+
+**Verify set:** package roots from Spec **Deliverables** paths, **plus** any workspace the coder actually edited. Map path → workspace (`apps/web`, `apps/core`, `packages/<name>`). Deduplicate. If edits span the whole monorepo tooling only, use Repo-wide scripts.
 
 **Build:** run only when Spec Verification lists a build script for that scope.
 
@@ -100,9 +102,9 @@ Reject `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`, `npx`, `node
 
 ### Subagent mode (`sapphire-coder`)
 
-**Sole (`mode: sole`):** Implement on branch from prompt → allowlisted verify → **open one PR** → push → return. Do **not** watch CI, run Bugbot, or call Linear.
+**Sole (`mode: sole`):** Prompt includes branch name. If local branch missing, create it from up-to-date `main` (`git fetch origin main` then `git checkout -b <branch> origin/main`). Implement → allowlisted verify → **open one PR** → push → return. Do **not** watch CI, run Bugbot, or call Linear.
 
-**Sequential (`mode: sequential`):** Implement owned block only on the **shared branch named in the prompt** → verify → commit → **push that branch** → return with `prUrl` empty and `pushed: true`. Do **not** open a PR.
+**Sequential (`mode: sequential`):** Prompt includes shared branch name. If local branch missing, create/check out from `origin/<branch>` if it exists on remote, else from `origin/main`. Implement owned block only → verify → commit → **push that branch** → return with `prUrl` empty and `pushed: true`. Do **not** open a PR.
 
 **Orchestrator after sequential chain:** After the last coder returns `ok`, open the **one PR** from the shared branch (issue id + Spec summary ≤8 lines), then CI + Bugbot.
 
@@ -110,7 +112,7 @@ Reject `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`, `npx`, `node
 
 ### Standalone Coder
 
-Gates yourself (verify → PR → CI green → Bugbot 0 High). No Linear unless Requirement must change.
+Gates yourself (verify → PR → **CI green** per `SKILL.md` → Bugbot 0 High). No Linear unless Requirement must change.
 
 ---
 
@@ -120,11 +122,9 @@ Gates yourself (verify → PR → CI green → Bugbot 0 High). No Linear unless 
 
 **`/goal`:** Loop until the PR matches Spec (Contract / Verification / Out of scope), allowlisted verify exits 0, and UI evidence exists when **UI in scope** — or stop on a true blocker.
 
-**UI in scope:** Spec Verification lists ≥1 path-only route. If none, skip visuals and do not spawn `sapphire-reviewer` unless the user asks. Tech Lead must list those routes when the change is user-visible.
+**UI in scope:** Spec Verification lists ≥1 path-only route. If none, skip visuals. Do **not** spawn `sapphire-reviewer` unless the user asks (Reviewer stays on orchestrator by default).
 
-**Optional `sapphire-reviewer`:** Only when UI in scope **and** (multi-step UI flow in Spec **or** user asks). Otherwise Reviewer stays on the orchestrator.
-
-**Entry:** Local verify exit 0, CI green, Bugbot 0 High.
+**Entry:** Local verify exit 0, **CI green** (see `SKILL.md`), Bugbot 0 High.
 
 ### `/goal` loop
 

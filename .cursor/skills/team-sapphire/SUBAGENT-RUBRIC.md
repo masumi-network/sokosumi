@@ -29,7 +29,7 @@ Skip for: copy-only, CSS/layout-only polish, single-file bug fix with no API/sch
 | Score | Output |
 |-------|--------|
 | 0–1 | **Single coder.** No breakdown. |
-| 2+ | **Coder breakdown** — **sequential** on one branch (foundations first). Orchestrator opens one PR after the last coder. |
+| 2+ | **Coder breakdown** — **sequential** on one branch (foundations first). Orchestrator runs Tasks **one at a time** in Execution order; opens one PR after the last coder. |
 
 Do **not** use parallel coder branches.
 

@@ -26,19 +26,21 @@ flowchart LR
 | Phase | Default runner | Subagent |
 |-------|----------------|----------|
 | Investigator | Orchestrator | Prefer `cavecrew-investigator` for locate-only scouts |
-| Tech Lead | Orchestrator | Optional `sapphire-tech-lead` (inherits parent model) |
+| Tech Lead | Orchestrator | Spawn `sapphire-tech-lead` **only when the user asks** |
 | Coder | **Always** `sapphire-coder` | Required — pin `composer-2.5` |
-| Reviewer | Orchestrator | Optional `sapphire-reviewer` only when UI in scope and multi-step UI / user asks |
+| Reviewer | Orchestrator | Spawn `sapphire-reviewer` **only when the user asks** |
 
 **Models:** Only **Coder** pins `composer-2.5`. When launching Coder via Task, pass `model: composer-2.5`. Do **not** pass `model` for Tech Lead or Reviewer.
 
-**Optional Tech Lead / Reviewer subagents:** Default = orchestrator. Spawn `sapphire-tech-lead` / `sapphire-reviewer` only when the user asks or the orchestrator needs a separate model/context.
+**Branch name (orchestrator sets before Coder):** Prefer Linear issue `gitBranchName` when present. Else `{issue-id-lower}-{short-kebab}` from Goal (e.g. `sok-555-mute-notifications`). Pass that name in every Coder prompt.
 
-**Orchestrator owns:** Shared branch name for sequential coders, opening the single PR after a sequential chain, CI watch, Bugbot 0 High, PR readiness. Subagents never call Linear MCP.
+**Orchestrator owns:** Branch name, opening the single PR after a sequential chain, CI watch, Bugbot 0 High, PR readiness. Subagents never call Linear MCP.
 
-**Default:** one coder (`mode: sole`), one PR. Sequential breakdown only when rubric score ≥ 2 — one shared branch; each coder `mode: sequential` (push, no PR); orchestrator opens the PR after the last coder. No parallel coder branches.
+**Default:** one coder (`mode: sole`), one PR. Sequential breakdown only when rubric score ≥ 2 — one shared branch; run coder Tasks **one at a time** in Spec **Execution order** (wait for `ok` before the next); each `mode: sequential` (push, no PR); orchestrator opens the PR after the last coder. No parallel coder branches.
 
 **UI in scope:** Spec Verification lists ≥1 path-only route (see `ROLES.md`).
+
+**CI green:** `gh pr checks` — every **required** check is `success`. Wait/retry while any required check is `pending`. Ignore non-required checks. Fail the gate if any required check is `failure` / `cancelled` / `timed_out`.
 
 ## Token efficiency
 
@@ -106,14 +108,15 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 ## Phase 3 — Coder
 
 1. Session Spec + `ROLES.md` (Coder) + `BUGBOT-LEARNINGS.md` self-check.
-2. **Sole (default):** Task `sapphire-coder` (`model: composer-2.5`, `mode: sole`) — implement, check+test exit 0, open **one PR**.
-3. **Sequential (rubric ≥ 2):** Orchestrator picks one shared branch name. Each coder Task gets `mode: sequential` + that branch — implement owned block, check+test, commit, **push**, no PR. After last `ok`, orchestrator opens **one PR**.
-4. **Gates (orchestrator):** CI green + Bugbot **0 High**. Medium → PR body only.
-5. Continue Phase 4.
+2. Set **branch name** (rule above). Include it in every Coder prompt.
+3. **Sole (default):** Task `sapphire-coder` (`model: composer-2.5`, `mode: sole`, branch name) — implement, check+test exit 0, open **one PR**.
+4. **Sequential (rubric ≥ 2):** Same shared branch. Launch coder Tasks **serially** in Spec Execution order — wait for each `ok` before the next. Each gets `mode: sequential` + branch — implement owned block, check+test, commit, **push**, no PR. After last `ok`, orchestrator opens **one PR**.
+5. **Gates (orchestrator):** **CI green** (definition above) + Bugbot **0 High**. Medium → PR body only.
+6. Continue Phase 4.
 
 ## Phase 4 — Reviewer
 
-1. Entry: local verify (check+test; builds if Spec lists them) exit 0, CI green, Bugbot 0 High — else Phase 3.
+1. Entry: local verify (check+test for verify set; builds if Spec lists them) exit 0, **CI green**, Bugbot 0 High — else Phase 3.
 2. Session Spec + `ROLES.md` (Reviewer). Load `VISUAL-CAPTURE.md` only if UI in scope.
 3. `/goal` until pass (defined in `ROLES.md`). Fix on PR branch when needed.
 4. If pushed: re-run Bugbot 0 High + CI green.

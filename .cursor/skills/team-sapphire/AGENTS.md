@@ -18,14 +18,16 @@ Sokosumi front door: Investigator → Tech Lead → Coder → Reviewer → PR (C
 | Role | When | Agent | Model |
 |------|------|-------|-------|
 | Coder | Always | `sapphire-coder` | `composer-2.5` |
-| Tech Lead | Optional | `sapphire-tech-lead` | Inherit |
-| Reviewer | Optional UI `/goal` | `sapphire-reviewer` | Inherit |
+| Tech Lead | Only if user asks | `sapphire-tech-lead` | Inherit |
+| Reviewer | Only if user asks | `sapphire-reviewer` | Inherit |
 | Locate scout | Locate-only | `cavecrew-investigator` | Inherit |
 
 ## Rules
 
 - Investigation: path-first; Spec: lean caps — not ultra prose
-- One coder / one PR default; sequential = shared branch, orchestrator opens PR
-- Verify: check+test required; build only if Spec lists it
-- UI in scope: Spec Verification has ≥1 path-only route
+- Branch: Linear `gitBranchName` or `sok-NNN-short-kebab`
+- One coder / one PR default; sequential = serial Tasks, orchestrator opens PR
+- Verify set: deliverable package roots ∪ packages edited; check+test; build if listed
+- UI in scope: Spec Verification has ≥1 path-only route (web page/component deliverables)
+- CI green: required `gh pr checks` all `success`
 - No Linear phase reporting; human merges

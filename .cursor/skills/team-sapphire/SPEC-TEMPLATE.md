@@ -72,7 +72,7 @@ flowchart LR
 
 ## Verification
 
-Allowlisted scripts from `ROLES.md`. **Required:** check + test per touched scope. List **build** only when needed. **UI in scope:** list ≥1 path-only route here (else Reviewer skips visuals).
+Allowlisted scripts from `ROLES.md`. **Required:** check + test for the **verify set** (deliverable package roots ∪ packages edited). List **build** only when you want Coder/Reviewer to run it. **UI routes:** list ≥1 path-only route **iff** Deliverables include `apps/web` page/layout/component files (not only generated client) — else omit Routes and Reviewer skips visuals.
 
 - Scope: `apps/web` — web:check, web:test
 - Routes (UI): `/example-path`
