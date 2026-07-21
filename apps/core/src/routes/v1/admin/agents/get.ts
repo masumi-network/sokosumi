@@ -2,7 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 
 import {
   adminAgentListInclude,
-  buildAdminAgentSearchWhere,
+  buildAdminAgentListWhere,
   mapAdminAgentListItem,
 } from "@/helpers/admin-agent";
 import {
@@ -45,18 +45,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
-    const searchWhere = buildAdminAgentSearchWhere(queryParams.q);
+    const listWhere = buildAdminAgentListWhere({
+      q: queryParams.q,
+      status: queryParams.status,
+    });
 
     const [agents, total] = await prisma.$transaction([
       prisma.agent.findMany({
-        where: searchWhere,
+        where: listWhere,
         include: adminAgentListInclude,
         take: take + 1,
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
-      prisma.agent.count({ where: searchWhere }),
+      prisma.agent.count({ where: listWhere }),
     ]);
 
     const hasMore = agents.length === take + 1;
