@@ -20,6 +20,7 @@ describe("coworkers routes OpenAPI contract", () => {
     expect(paths).toContain("/me/usage");
     expect(paths).toContain("/{id}");
     expect(paths).toContain("/{id}/whitelist");
+    expect(paths).toContain("/{id}/unarchive");
     expect(paths).toContain("/{id}/api-keys");
     expect(paths).toContain("/{id}/api-keys/{keyId}");
     expect(paths).not.toContain("/{id}/events");

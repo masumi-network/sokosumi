@@ -9,6 +9,7 @@ import mountGetCoworkerById from "./[id]/get.js";
 import mountDeleteCoworkerImage from "./[id]/image/delete.js";
 import mountPostCoworkerImage from "./[id]/image/post.js";
 import mountPatchCoworkerById from "./[id]/patch.js";
+import mountPostCoworkerUnarchive from "./[id]/unarchive/post.js";
 import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch.js";
 import mountGetCoworkers from "./get.js";
 import mountGetCoworkerMeEvents from "./me/events/get.js";
@@ -32,6 +33,7 @@ mountPostCoworkerImage(app);
 mountDeleteCoworkerImage(app);
 mountPatchCoworkerById(app);
 mountPatchCoworkerWhitelistById(app);
+mountPostCoworkerUnarchive(app);
 mountDeleteCoworkerById(app);
 
 export default app;

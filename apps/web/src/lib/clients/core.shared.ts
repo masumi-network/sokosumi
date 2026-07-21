@@ -34,6 +34,7 @@ import type {
   Notice,
   PaginationMetadata,
   PatchCoworkersByIdData,
+  PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
@@ -66,6 +67,7 @@ import {
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
@@ -170,6 +172,7 @@ import {
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchCoworkersById as corePatchCoworkersById,
+  patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
@@ -184,6 +187,7 @@ import {
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
+  postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
   postEnterpriseContractsByIdActivate as corePostEnterpriseContractsByIdActivate,
   postEnterpriseContractsByIdCancel as corePostEnterpriseContractsByIdCancel,
@@ -2279,6 +2283,46 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function patchCoworkerWhitelist(
+    id: string,
+    body: NonNullable<PatchCoworkersByIdWhitelistData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchCoworkersByIdWhitelist({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update coworker whitelist",
+    );
+  }
+
+  async function archiveCoworker(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteCoworkersById({
+          client,
+          path: { id },
+        }),
+      "Failed to archive coworker",
+    );
+  }
+
+  async function unarchiveCoworker(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostCoworkersByIdUnarchive({
+          client,
+          path: { id },
+        }),
+      "Failed to unarchive coworker",
+    );
+  }
+
   async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
     const response = await executeOperation(
       getClient,
@@ -3186,6 +3230,9 @@ export function createCoreClient(getClient: GetClient) {
     getCoworkers,
     getCoworkerById,
     patchCoworker,
+    patchCoworkerWhitelist,
+    archiveCoworker,
+    unarchiveCoworker,
     uploadCoworkerImage,
     deleteCoworkerImage,
     searchAdminUsers,

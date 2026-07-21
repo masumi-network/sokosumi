@@ -9,30 +9,18 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
-import { buildCoworkerMutationWhere } from "../../coworker-management-access";
-import { patchCoworkerWhitelistRequestSchema } from "../../schema";
 import { paramsSchema } from "../schema";
 
 const route = createRoute({
-  method: "patch",
-  path: "/{id}/whitelist",
-  description: "Update coworker whitelist status (admin only)",
+  method: "post",
+  path: "/{id}/unarchive",
+  description: "Unarchive coworker (admin only)",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
-    body: {
-      content: {
-        "application/json": {
-          schema: patchCoworkerWhitelistRequestSchema,
-        },
-      },
-    },
   },
   responses: {
-    200: jsonSuccessResponse(
-      coworkerSchema,
-      "Update coworker whitelist status",
-    ),
+    200: jsonSuccessResponse(coworkerSchema, "Unarchive coworker"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -43,14 +31,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    const { isWhitelisted } = c.req.valid("json");
-    const mutationWhere = buildCoworkerMutationWhere(id, true);
 
     const coworker = await prisma.$transaction(async (tx) => {
       const updatedCount = await tx.coworker.updateMany({
-        where: mutationWhere,
+        where: {
+          id,
+          archivedAt: { not: null },
+        },
         data: {
-          isWhitelisted,
+          archivedAt: null,
         },
       });
 
@@ -59,7 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const updatedCoworker = await tx.coworker.findFirst({
-        where: mutationWhere,
+        where: { id },
         include: coworkerInclude,
       });
 

@@ -5,6 +5,9 @@ vi.mock("server-only", () => ({}));
 const getCoworkersMock = vi.fn();
 const getCoworkerByIdMock = vi.fn();
 const patchCoworkerMock = vi.fn();
+const patchCoworkerWhitelistMock = vi.fn();
+const archiveCoworkerMock = vi.fn();
+const unarchiveCoworkerMock = vi.fn();
 const uploadCoworkerImageMock = vi.fn();
 const deleteCoworkerImageMock = vi.fn();
 
@@ -22,6 +25,10 @@ vi.mock("@/lib/clients/core.client", () => ({
     getCoworkers: (...args: unknown[]) => getCoworkersMock(...args),
     getCoworkerById: (...args: unknown[]) => getCoworkerByIdMock(...args),
     patchCoworker: (...args: unknown[]) => patchCoworkerMock(...args),
+    patchCoworkerWhitelist: (...args: unknown[]) =>
+      patchCoworkerWhitelistMock(...args),
+    archiveCoworker: (...args: unknown[]) => archiveCoworkerMock(...args),
+    unarchiveCoworker: (...args: unknown[]) => unarchiveCoworkerMock(...args),
     uploadCoworkerImage: (...args: unknown[]) =>
       uploadCoworkerImageMock(...args),
     deleteCoworkerImage: (...args: unknown[]) =>
@@ -58,18 +65,29 @@ const coworker = {
   },
 };
 
+const archivedCoworker = {
+  ...coworker,
+  id: "cow_2",
+  name: "Archived Agent",
+  slug: "archived-agent",
+  archivedAt: new Date("2025-02-01T00:00:00.000Z"),
+};
+
 describe("adminCoworkerService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("lists coworkers with scope=all", async () => {
-    getCoworkersMock.mockResolvedValue({ data: [coworker] });
+  it("lists active and archived coworkers merged", async () => {
+    getCoworkersMock
+      .mockResolvedValueOnce({ data: [coworker] })
+      .mockResolvedValueOnce({ data: [archivedCoworker] });
 
     const result = await adminCoworkerService.listCoworkers();
 
-    expect(getCoworkersMock).toHaveBeenCalledWith({ scope: "all" });
-    expect(result).toEqual([coworker]);
+    expect(getCoworkersMock).toHaveBeenNthCalledWith(1, { scope: "all" });
+    expect(getCoworkersMock).toHaveBeenNthCalledWith(2, { scope: "archived" });
+    expect(result).toEqual([archivedCoworker, coworker]);
   });
 
   it("returns null when coworker is missing", async () => {
@@ -80,6 +98,58 @@ describe("adminCoworkerService", () => {
     const result = await adminCoworkerService.getCoworkerById("cow_1");
 
     expect(result).toBeNull();
+  });
+
+  it("updates controls via patch", async () => {
+    patchCoworkerMock.mockResolvedValue({
+      data: { ...coworker, priority: 5, capabilities: ["chat", "tasks"] },
+    });
+
+    const result = await adminCoworkerService.updateControls("cow_1", {
+      priority: 5,
+      capabilities: ["chat", "tasks"],
+    });
+
+    expect(patchCoworkerMock).toHaveBeenCalledWith("cow_1", {
+      priority: 5,
+      capabilities: ["chat", "tasks"],
+    });
+    expect(result.priority).toBe(5);
+  });
+
+  it("updates whitelist via whitelist endpoint", async () => {
+    patchCoworkerWhitelistMock.mockResolvedValue({
+      data: { ...coworker, isWhitelisted: true },
+    });
+
+    const result = await adminCoworkerService.updateWhitelist("cow_1", true);
+
+    expect(patchCoworkerWhitelistMock).toHaveBeenCalledWith("cow_1", {
+      isWhitelisted: true,
+    });
+    expect(result.isWhitelisted).toBe(true);
+  });
+
+  it("archives coworker via delete endpoint", async () => {
+    archiveCoworkerMock.mockResolvedValue({
+      data: archivedCoworker,
+    });
+
+    const result = await adminCoworkerService.archiveCoworker("cow_2");
+
+    expect(archiveCoworkerMock).toHaveBeenCalledWith("cow_2");
+    expect(result.archivedAt).not.toBeNull();
+  });
+
+  it("unarchives coworker via unarchive endpoint", async () => {
+    unarchiveCoworkerMock.mockResolvedValue({
+      data: coworker,
+    });
+
+    const result = await adminCoworkerService.unarchiveCoworker("cow_2");
+
+    expect(unarchiveCoworkerMock).toHaveBeenCalledWith("cow_2");
+    expect(result.archivedAt).toBeNull();
   });
 
   it("patches text before uploading image", async () => {

@@ -2930,7 +2930,7 @@
           },
           "coworkers": {
             "title": "Coworkers",
-            "description": "アクティブな Coworker の表示名、キャプション、説明、画像を編集します。"
+            "description": "すべてのコワーカーの機能、優先度、ホワイトリスト、アーカイブ、表示メタデータを管理します。"
           }
         }
       },
@@ -3192,78 +3192,128 @@
       },
       "Coworkers": {
         "title": "Coworkers",
-        "description": "アクティブな Coworker を一覧表示し、Sokosumi での表示を編集します。",
-        "loadFailed": "Coworker の読み込みに失敗しました。",
-        "backToList": "一覧に戻る",
-        "editTitle": "Coworker を編集",
-        "editDescription": "マーケットプレイスとプロダクトに表示される項目を更新します。",
+        "description": "コワーカーの機能、優先度、ホワイトリスト、アーカイブ状態、表示メタデータを管理します。",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editDescription": "プラットフォーム制御とマーケットプレイス／プロダクトの表示項目を更新します。",
         "Table": {
-          "name": "名前",
-          "slug": "スラッグ",
-          "caption": "キャプション",
-          "whitelist": "ホワイトリスト",
-          "whitelisted": "ホワイトリスト済み",
-          "notWhitelisted": "未登録",
-          "priority": "優先度",
-          "actions": "操作",
-          "edit": "編集",
-          "empty": "アクティブな Coworker が見つかりません。",
-          "searchPlaceholder": "名前、スラッグ、キャプション、ベンダーで検索…",
-          "totalCount": "{count} 件のコワーカー",
-          "filteredCount": "{total} 件中 {shown} 件を表示",
-          "emptySearch": "検索に一致するコワーカーはありません。"
+          "name": "Name",
+          "slug": "Slug",
+          "caption": "Caption",
+          "status": "ステータス",
+          "active": "有効",
+          "archived": "アーカイブ済み",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "コワーカーが見つかりません。",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "ステータス",
+          "filterAll": "すべて",
+          "filterActive": "有効",
+          "filterArchived": "アーカイブ済み",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "選択したフィルターに一致するコワーカーはありません。"
         },
         "Form": {
+          "display": {
+            "title": "表示",
+            "description": "Sokosumi でのこのコワーカーの表示を更新します。"
+          },
+          "controls": {
+            "title": "プラットフォーム制御",
+            "description": "機能、優先度、ホワイトリスト、アーカイブ状態を管理します。",
+            "save": "制御を保存",
+            "saving": "制御を保存中…",
+            "archive": "アーカイブ",
+            "archiving": "アーカイブ中…",
+            "archiveConfirmTitle": "コワーカーをアーカイブしますか？",
+            "archiveConfirmDescription": "コワーカーがアーカイブされ、API キーが失効します。後で復元できますが、API キーは失効したままです。",
+            "unarchive": "復元",
+            "unarchiving": "復元中…",
+            "capabilities": {
+              "label": "機能",
+              "chat": "チャット",
+              "tasks": "タスク"
+            },
+            "priority": {
+              "label": "優先度"
+            },
+            "whitelist": {
+              "label": "ホワイトリスト",
+              "description": "ホワイトリスト登録のコワーカーは既定のマーケットプレイス範囲に表示されます。"
+            }
+          },
           "Fields": {
             "name": {
-              "label": "名前"
+              "label": "Name"
             },
             "caption": {
-              "label": "キャプション"
+              "label": "Caption"
             },
             "description": {
-              "label": "説明"
+              "label": "Description"
             }
           },
           "image": {
-            "label": "画像",
-            "description": "PNG、JPEG、WebP、または GIF（最大 2 MB）。",
-            "upload": "画像をアップロード",
-            "replace": "画像を差し替え",
-            "remove": "画像を削除",
-            "previewAlt": "Coworker 画像のプレビュー",
-            "fileTooLarge": "画像は 2 MB 以下にしてください。",
-            "fileTypeNotAccepted": "PNG、JPEG、WebP、または GIF を使用してください。",
-            "maxFilesExceeded": "一度に 1 枚の画像をアップロードしてください。",
-            "uploadError": "選択した画像を処理できませんでした。"
+            "label": "Image",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+            "upload": "Upload image",
+            "replace": "Replace image",
+            "remove": "Remove image",
+            "previewAlt": "Coworker image preview",
+            "fileTooLarge": "Image must be 2 MB or smaller.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+            "maxFilesExceeded": "Upload one image at a time.",
+            "uploadError": "Could not process the selected image."
           },
-          "saveChanges": "変更を保存",
-          "saving": "保存中…",
-          "cancel": "キャンセル",
+          "saveChanges": "表示を保存",
+          "saving": "Saving…",
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "名前は {min} 文字以上にしてください。",
-            "noChanges": "保存する変更はありません。",
-            "captionMaxLength": "キャプションは最大 {max} 文字です。"
+            "nameMinLength": "Name must be at least {min} characters.",
+            "noChanges": "No changes to save.",
+            "captionMaxLength": "Caption must be at most {max} characters.",
+            "priorityInteger": "優先度は整数である必要があります。",
+            "noControlChanges": "保存する制御の変更がありません。"
           },
           "success": {
-            "saved": "Coworker を更新しました。",
-            "imageSaved": "画像を保存しました。",
-            "imageRemoved": "画像を削除しました。"
+            "saved": "コワーカーの表示を更新しました。",
+            "controlsSaved": "コワーカーの制御を更新しました。",
+            "whitelistSaved": "ホワイトリスト状態を更新しました。",
+            "archived": "コワーカーをアーカイブしました。",
+            "unarchived": "コワーカーを復元しました。",
+            "imageSaved": "Image saved.",
+            "imageRemoved": "Image removed."
           },
           "errors": {
-            "saveFailed": "Coworker の保存に失敗しました。",
-            "notFound": "Coworker が見つかりません。",
-            "imageSaveFailed": "画像の更新に失敗しました。"
+            "saveFailed": "コワーカーの表示を保存できませんでした。",
+            "controlsSaveFailed": "コワーカーの制御を保存できませんでした。",
+            "whitelistSaveFailed": "ホワイトリスト状態を更新できませんでした。",
+            "archiveFailed": "コワーカーをアーカイブできませんでした。",
+            "unarchiveFailed": "コワーカーを復元できませんでした。",
+            "notFound": "Coworker not found.",
+            "imageSaveFailed": "Failed to update image."
           }
         },
         "Context": {
+          "title": "概要",
+          "description": "このコワーカーの識別情報とアーカイブ状態です。",
           "id": "ID",
-          "slug": "スラッグ",
-          "vendor": "ベンダー",
-          "priority": "優先度",
-          "whitelist": "ホワイトリスト",
-          "whitelisted": "ホワイトリスト済み",
-          "notWhitelisted": "未登録"
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "status": "ステータス",
+          "active": "有効",
+          "archived": "アーカイブ済み",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {

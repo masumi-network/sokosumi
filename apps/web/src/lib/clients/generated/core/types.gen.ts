@@ -22250,6 +22250,78 @@ export type PatchCoworkersByIdWhitelistResponses = {
 
 export type PatchCoworkersByIdWhitelistResponse = PatchCoworkersByIdWhitelistResponses[keyof PatchCoworkersByIdWhitelistResponses];
 
+export type PostCoworkersByIdUnarchiveData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/unarchive';
+};
+
+export type PostCoworkersByIdUnarchiveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostCoworkersByIdUnarchiveError = PostCoworkersByIdUnarchiveErrors[keyof PostCoworkersByIdUnarchiveErrors];
+
+export type PostCoworkersByIdUnarchiveResponses = {
+    /**
+     * Unarchive coworker
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostCoworkersByIdUnarchiveResponse = PostCoworkersByIdUnarchiveResponses[keyof PostCoworkersByIdUnarchiveResponses];
+
 export type GetOrchestratorsData = {
     body?: never;
     path?: never;
