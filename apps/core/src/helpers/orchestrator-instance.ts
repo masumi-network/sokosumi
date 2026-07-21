@@ -139,3 +139,18 @@ export async function archiveOrchestratorForUser(
     },
   });
 }
+
+/**
+ * Wipe Sokosumi's per-user Hermes mirror: chat history, pending OAuth claims,
+ * and archive the orchestrator (poll cursors cleared). Idempotent. Used by
+ * user destroy, fresh provision cleanup, and POST /orchestrators/me/purge.
+ */
+export async function clearHermesLocalMirrorForUser(
+  userId: string,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.hermesMessage.deleteMany({ where: { userId } });
+    await tx.hermesPendingConnection.deleteMany({ where: { userId } });
+    await archiveOrchestratorForUser(userId, tx);
+  });
+}

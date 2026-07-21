@@ -85,7 +85,7 @@ import {
   jsonSuccessResponse,
 } from "@/helpers/openapi";
 import {
-  archiveOrchestratorForUser,
+  clearHermesLocalMirrorForUser,
   ensureOrchestratorForUser,
 } from "@/helpers/orchestrator-instance";
 import {
@@ -565,20 +565,6 @@ async function upsertHermesInstanceForUser(
   await ensureOrchestratorForUser(userId, {
     ...(data?.assistantName !== undefined ? { name: data.assistantName } : {}),
     ...(data?.avatarSeed !== undefined ? { avatarSeed: data.avatarSeed } : {}),
-  });
-}
-
-/**
- * Wipe Sokosumi's per-user Hermes mirror: chat history, pending OAuth claims,
- * and archive the per-user orchestrator (poll cursors cleared). Used by user
- * destroy and verified fresh provision. Orchestrator-side destroy uses
- * POST /v1/orchestrators/me/purge. Idempotent.
- */
-async function clearHermesLocalMirror(userId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.hermesMessage.deleteMany({ where: { userId } });
-    await tx.hermesPendingConnection.deleteMany({ where: { userId } });
-    await archiveOrchestratorForUser(userId, tx);
   });
 }
 
@@ -2052,7 +2038,7 @@ app.openapi(getInstanceRoute, async (c) => {
     // cleanup here: auto-deleting the mirror rows (chat history, assistant
     // name, orb seed) on this signal means one wrong instance_not_found from
     // the orchestrator irreversibly wipes real user data. Orchestrator-side
-    // deletions instead call POST /instances/{userId}/purge explicitly.
+    // deletions instead call POST /orchestrators/me/purge explicitly.
     return ok(c, hermesGetInstanceEnvelopeSchema.parse({ hasInstance: false }));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to fetch assistant instance");
@@ -2155,7 +2141,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
     }
 
     if (!hadOrchestratorInstance && isFreshProvisionInstance(instance)) {
-      await clearHermesLocalMirror(userContext.userId).catch((error) => {
+      await clearHermesLocalMirrorForUser(userContext.userId).catch((error) => {
         Sentry.captureException(error, {
           tags: { context: "hermes_provision_clear_stale_mirror" },
           extra: { userId: userContext.userId },
@@ -2235,7 +2221,7 @@ app.openapi(destroyInstanceRoute, async (c) => {
   }
 
   try {
-    await clearHermesLocalMirror(userContext.userId);
+    await clearHermesLocalMirrorForUser(userContext.userId);
   } catch (error) {
     Sentry.captureException(error, {
       tags: { context: "hermes_destroy_db_cleanup" },

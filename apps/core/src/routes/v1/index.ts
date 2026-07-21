@@ -36,7 +36,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   scheme: "bearer",
   bearerFormat: "JWT",
   description:
-    "Authentication required for all endpoints. Supports Better Auth user credentials, dedicated coworker bearer API keys (`coworker_`), and orchestrator bearer API keys (`orch_`).",
+    "Authentication required for all endpoints. Supports Better Auth user credentials, dedicated coworker bearer API keys (`coworker_`), and the orchestrator service bearer (`ORCHESTRATOR_SERVICE_TOKEN`).",
 });
 
 app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {

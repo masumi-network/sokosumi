@@ -56,10 +56,18 @@ function serializeUsage(usage: {
   cents: bigint;
   transactionId: string;
 }) {
-  return {
-    ...usage,
+  return orchestratorUsageSchema.parse({
+    id: usage.id,
+    createdAt: usage.createdAt,
+    updatedAt: usage.updatedAt,
+    idempotencyKey: usage.idempotencyKey,
+    referenceId: usage.referenceId,
+    orchestratorId: usage.orchestratorId,
+    userId: usage.userId,
+    organizationId: usage.organizationId,
     credits: convertCentsToCredits(usage.cents),
-  };
+    transactionId: usage.transactionId,
+  });
 }
 
 async function prepareConsumptions(

@@ -1,0 +1,99 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthVariables } from "@/middleware/auth";
+
+import mountPostOrchestratorMePurge from "./post";
+
+const { clearHermesLocalMirrorForUserMock } = vi.hoisted(() => ({
+  clearHermesLocalMirrorForUserMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/orchestrator-instance", () => ({
+  clearHermesLocalMirrorForUser: (...args: unknown[]) =>
+    clearHermesLocalMirrorForUserMock(...args),
+}));
+
+function createApp(actor: "orchestrator" | "user" = "orchestrator") {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables;
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    if (actor === "orchestrator") {
+      c.set("authContext", { actor: "orchestrator" });
+    } else {
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      });
+    }
+    return await next();
+  });
+
+  mountPostOrchestratorMePurge(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
+
+describe("POST /orchestrators/me/purge", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearHermesLocalMirrorForUserMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 403 for user session credentials", async () => {
+    const response = await createApp("user").request("/me/purge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "user_gone" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(clearHermesLocalMirrorForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when userId is missing", async () => {
+    const response = await createApp().request("/me/purge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(response.status).toBe(400);
+    expect(clearHermesLocalMirrorForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("purges local state for the body userId", async () => {
+    const response = await createApp().request("/me/purge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "user_gone" }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ purged: true, userId: "user_gone" });
+    expect(clearHermesLocalMirrorForUserMock).toHaveBeenCalledWith("user_gone");
+  });
+
+  it("is idempotent on a second purge", async () => {
+    const app = createApp();
+    for (let i = 0; i < 2; i++) {
+      const response = await app.request("/me/purge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "user_gone" }),
+      });
+      expect(response.status).toBe(200);
+    }
+    expect(clearHermesLocalMirrorForUserMock).toHaveBeenCalledTimes(2);
+  });
+});

@@ -5,7 +5,7 @@ manage grants via org/user vendor-grant routes; coworkers interact with grants
 implicitly through task and job endpoints.
 
 > **Hermes / first-party orchestrators** do **not** use this grant model. They
-> authenticate as `actor: orchestrator` (`orch_` keys) and skip vendor grants /
+> authenticate as `actor: orchestrator` (shared `ORCHESTRATOR_SERVICE_TOKEN`) and skip vendor grants /
 > whitelist. See [`docs/orchestrator/hermes-orchestrator-actor.md`](../orchestrator/hermes-orchestrator-actor.md).
 
 - **Source of truth (behavior):** `apps/core/src/helpers/access-control.ts`,

@@ -55,7 +55,7 @@ function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
   };
 }
 
-function createApp() {
+function createApp(authOverrides: { orchestratorId?: string } = {}) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -64,7 +64,8 @@ function createApp() {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "orchestrator",
-      orchestratorId: ORCHESTRATOR_ID,
+      // Service token alone does not bind orchestratorId; usage resolves from body.
+      ...authOverrides,
     });
 
     return await next();
@@ -73,6 +74,44 @@ function createApp() {
   mountPostOrchestratorMeUsage(app as unknown as OpenAPIHonoWithAuth);
 
   return app;
+}
+
+function mockTxWithActiveOrchestrator(options?: {
+  existingUsage?: UsageRecord | null;
+  createUsage?: UsageRecord;
+}) {
+  const findFirst = vi.fn().mockResolvedValue({
+    id: ORCHESTRATOR_ID,
+    userId: TARGET_USER_ID,
+    archivedAt: null,
+  });
+  const usageCreate = vi
+    .fn()
+    .mockResolvedValue(options?.createUsage ?? createUsage());
+  const usageFindUnique = vi
+    .fn()
+    .mockResolvedValue(options?.existingUsage ?? null);
+
+  serializableTransactionMock.mockImplementation(async (callback) => {
+    const tx = {
+      orchestrator: {
+        findFirst,
+      },
+      orchestratorUsage: {
+        findUnique: usageFindUnique,
+        create: usageCreate,
+      },
+      member: {
+        findUnique: vi.fn(),
+      },
+      transaction: {
+        create: vi.fn().mockResolvedValue({ id: "txn_123" }),
+      },
+    };
+    return callback(tx);
+  });
+
+  return { findFirst, usageCreate, usageFindUnique };
 }
 
 describe("POST /orchestrators/me/usage", () => {
@@ -101,23 +140,8 @@ describe("POST /orchestrators/me/usage", () => {
     expect(serializableTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("creates usage and bills the request userId", async () => {
-    const usage = createUsage();
-    serializableTransactionMock.mockImplementation(async (callback) => {
-      const tx = {
-        orchestratorUsage: {
-          findUnique: vi.fn().mockResolvedValue(null),
-          create: vi.fn().mockResolvedValue(usage),
-        },
-        member: {
-          findUnique: vi.fn(),
-        },
-        transaction: {
-          create: vi.fn().mockResolvedValue({ id: "txn_123" }),
-        },
-      };
-      return callback(tx);
-    });
+  it("creates usage and bills the request userId using that user's orchestrator", async () => {
+    const { findFirst, usageCreate } = mockTxWithActiveOrchestrator();
 
     const app = createApp();
     const response = await app.request("/me/usage", {
@@ -136,5 +160,48 @@ describe("POST /orchestrators/me/usage", () => {
     expect(body.data.userId).toBe(TARGET_USER_ID);
     expect(body.data.orchestratorId).toBe(ORCHESTRATOR_ID);
     expect(body.data.credits).toBe(2.5);
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { userId: TARGET_USER_ID, archivedAt: null },
+    });
+    expect(usageCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          orchestratorId: ORCHESTRATOR_ID,
+          userId: TARGET_USER_ID,
+        }),
+      }),
+    );
+  });
+
+  it("returns 404 when the user has no active orchestrator instance", async () => {
+    serializableTransactionMock.mockImplementation(async (callback) => {
+      const tx = {
+        orchestrator: {
+          findFirst: vi.fn().mockResolvedValue(null),
+        },
+        orchestratorUsage: {
+          findUnique: vi.fn(),
+          create: vi.fn(),
+        },
+        member: { findUnique: vi.fn() },
+        transaction: { create: vi.fn() },
+      };
+      return callback(tx);
+    });
+
+    const app = createApp();
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        organizationId: null,
+        idempotencyKey: "usage_456",
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(404);
   });
 });
