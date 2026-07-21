@@ -139,15 +139,7 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
         examples: "",
       });
       setHasOverride(false);
-      setResolved({
-        ...resolved,
-        name: detail.registry.name,
-        description: detail.registry.description,
-        image: detail.registry.image,
-        apiBaseUrl: detail.registry.apiBaseUrl,
-        tags: [],
-        exampleOutputs: [],
-      });
+      setResolved(result.data.resolved);
       toast.success(t("clearSuccess"));
     });
   }

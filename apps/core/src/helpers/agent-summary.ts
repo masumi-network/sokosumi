@@ -18,17 +18,19 @@ import { mapCategoryForApi } from "@/schemas/category.schema";
 import type {
   agentCategoriesInclude,
   agentJobsCountInclude,
+  agentMetadataOverrideScalarsInclude,
   agentPricingInclude,
 } from "@/types/agent";
 
 /**
  * Agent row shape required to build a catalog-style agent summary: pricing,
- * job count and ordered categories.
+ * job count, ordered categories, and optional metadata overrides.
  */
 export type AgentSummaryRow = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude &
     typeof agentJobsCountInclude &
-    typeof agentCategoriesInclude;
+    typeof agentCategoriesInclude &
+    typeof agentMetadataOverrideScalarsInclude;
 }>;
 
 /**

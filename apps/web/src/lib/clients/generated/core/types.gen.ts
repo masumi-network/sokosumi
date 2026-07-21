@@ -122,10 +122,6 @@ export type PatchAdminAgentMetadataOverrideBody = {
     exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
 };
 
-export type DeleteAdminAgentMetadataOverrideResponse = {
-    override: null;
-};
-
 export type AdminUserOption = {
     id: string;
     name: string;
@@ -3525,10 +3521,10 @@ export type DeleteAdminAgentMetadataOverrideError = DeleteAdminAgentMetadataOver
 
 export type DeleteAdminAgentMetadataOverrideResponses = {
     /**
-     * Metadata override removed (idempotent when already absent)
+     * Agent detail after metadata override removal (idempotent when already absent)
      */
     200: {
-        data: DeleteAdminAgentMetadataOverrideResponse;
+        data: AdminAgentDetail;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3537,7 +3533,7 @@ export type DeleteAdminAgentMetadataOverrideResponses = {
     };
 };
 
-export type DeleteAdminAgentMetadataOverrideResponse2 = DeleteAdminAgentMetadataOverrideResponses[keyof DeleteAdminAgentMetadataOverrideResponses];
+export type DeleteAdminAgentMetadataOverrideResponse = DeleteAdminAgentMetadataOverrideResponses[keyof DeleteAdminAgentMetadataOverrideResponses];
 
 export type PatchAdminAgentMetadataOverrideData = {
     body?: PatchAdminAgentMetadataOverrideBody;

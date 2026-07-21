@@ -1,14 +1,19 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import {
+  adminAgentDetailInclude,
+  mapAdminAgentDetail,
+} from "@/helpers/admin-agent";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  adminAgentDetailSchema,
   adminAgentIdParamSchema,
-  deleteAdminAgentMetadataOverrideResponseSchema,
 } from "@/schemas/admin-agent.schema";
+import { agentExampleOutputInclude, agentTagsInclude } from "@/types/agent";
 
 const route = createRoute({
   method: "delete",
@@ -22,8 +27,8 @@ const route = createRoute({
   },
   responses: {
     200: jsonSuccessResponse(
-      deleteAdminAgentMetadataOverrideResponseSchema,
-      "Metadata override removed (idempotent when already absent)",
+      adminAgentDetailSchema,
+      "Agent detail after metadata override removal (idempotent when already absent)",
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -48,9 +53,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { agentId: id },
     });
 
+    const updatedAgent = await prisma.agent.findUnique({
+      where: { id },
+      include: {
+        ...adminAgentDetailInclude,
+        ...agentTagsInclude,
+        ...agentExampleOutputInclude,
+      },
+    });
+
+    if (!updatedAgent) {
+      throw notFound("Agent not found");
+    }
+
     return ok(
       c,
-      deleteAdminAgentMetadataOverrideResponseSchema.parse({ override: null }),
+      adminAgentDetailSchema.parse(mapAdminAgentDetail(updatedAgent)),
     );
   });
 }

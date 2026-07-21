@@ -152,9 +152,3 @@ export const patchAdminAgentMetadataOverrideBodySchema = z
     exampleOutputs: z.array(adminAgentMetadataOverrideExampleSchema).optional(),
   })
   .openapi("PatchAdminAgentMetadataOverrideBody");
-
-export const deleteAdminAgentMetadataOverrideResponseSchema = z
-  .object({
-    override: z.null(),
-  })
-  .openapi("DeleteAdminAgentMetadataOverrideResponse");

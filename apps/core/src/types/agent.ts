@@ -50,6 +50,10 @@ export type AgentWithCategories = Prisma.AgentGetPayload<{
   include: typeof agentCategoriesInclude;
 }>;
 
+export const agentMetadataOverrideScalarsInclude = {
+  metadataOverride: true,
+} as const;
+
 export const agentMetadataOverrideRelationsInclude = {
   metadataOverride: {
     include: {

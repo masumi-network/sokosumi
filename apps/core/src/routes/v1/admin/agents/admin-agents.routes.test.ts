@@ -18,8 +18,10 @@ const {
   agentFindManyMock,
   agentFindUniqueMock,
   agentMetadataOverrideDeleteManyMock,
+  agentMetadataOverrideFindUniqueMock,
   agentMetadataOverrideUpsertMock,
   agentMetadataOverrideUpdateMock,
+  agentMetadataOverrideDeleteMock,
   exampleOutputCreateManyMock,
   exampleOutputDeleteManyMock,
   tagUpsertMock,
@@ -29,8 +31,10 @@ const {
   agentFindManyMock: vi.fn(),
   agentFindUniqueMock: vi.fn(),
   agentMetadataOverrideDeleteManyMock: vi.fn(),
+  agentMetadataOverrideFindUniqueMock: vi.fn(),
   agentMetadataOverrideUpsertMock: vi.fn(),
   agentMetadataOverrideUpdateMock: vi.fn(),
+  agentMetadataOverrideDeleteMock: vi.fn(),
   exampleOutputCreateManyMock: vi.fn(),
   exampleOutputDeleteManyMock: vi.fn(),
   tagUpsertMock: vi.fn(),
@@ -48,6 +52,8 @@ vi.mock("@/lib/db/prisma", () => ({
       deleteMany: agentMetadataOverrideDeleteManyMock,
       upsert: agentMetadataOverrideUpsertMock,
       update: agentMetadataOverrideUpdateMock,
+      findUnique: agentMetadataOverrideFindUniqueMock,
+      delete: agentMetadataOverrideDeleteMock,
     },
     exampleOutput: {
       createMany: exampleOutputCreateManyMock,
@@ -140,6 +146,8 @@ describe("admin agents routes", () => {
         agentMetadataOverride: {
           upsert: agentMetadataOverrideUpsertMock,
           update: agentMetadataOverrideUpdateMock,
+          findUnique: agentMetadataOverrideFindUniqueMock,
+          delete: agentMetadataOverrideDeleteMock,
         },
         exampleOutput: {
           createMany: exampleOutputCreateManyMock,
@@ -158,7 +166,28 @@ describe("admin agents routes", () => {
       tags: [],
       exampleOutputs: [],
     });
+    agentMetadataOverrideFindUniqueMock.mockResolvedValue({
+      id: "override_1",
+      name: "Display Name",
+      description: null,
+      apiBaseUrl: null,
+      capabilityName: null,
+      capabilityVersion: null,
+      authorName: null,
+      authorImage: null,
+      authorContactEmail: null,
+      authorContactOther: null,
+      authorOrganization: null,
+      legalPrivacyPolicy: null,
+      legalDpa: null,
+      legalTerms: null,
+      legalOther: null,
+      image: null,
+      tags: [],
+      exampleOutputs: [],
+    });
     agentMetadataOverrideUpdateMock.mockResolvedValue({ id: "override_1" });
+    agentMetadataOverrideDeleteMock.mockResolvedValue({ id: "override_1" });
     tagUpsertMock.mockResolvedValue({ id: "tag_1", name: "research" });
     exampleOutputDeleteManyMock.mockResolvedValue({ count: 0 });
     exampleOutputCreateManyMock.mockResolvedValue({ count: 1 });
@@ -238,6 +267,9 @@ describe("admin agents routes", () => {
   });
 
   it("deletes metadata override idempotently", async () => {
+    agentFindUniqueMock
+      .mockResolvedValueOnce(createRegistryAgent())
+      .mockResolvedValueOnce(createRegistryAgent());
     const app = createApp();
     const response = await app.request(
       "http://localhost/agent_1/metadata-override",
@@ -252,6 +284,8 @@ describe("admin agents routes", () => {
     });
     const body = await response.json();
     expect(body.data.override).toBeNull();
+    expect(body.data.resolved.name).toBe("Registry Name");
+    expect(body.data.resolved.tags).toEqual([]);
   });
 
   it("returns 404 when agent is missing", async () => {

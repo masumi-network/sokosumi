@@ -28,6 +28,7 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   agentCategoriesInclude,
   agentJobsCountInclude,
+  agentMetadataOverrideScalarsInclude,
   agentOrderBy,
   agentPricingInclude,
 } from "@/types/agent";
@@ -155,6 +156,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...agentPricingInclude,
           ...agentJobsCountInclude,
           ...agentCategoriesInclude,
+          ...agentMetadataOverrideScalarsInclude,
         },
       });
       const count = await tx.agent.count({ where });

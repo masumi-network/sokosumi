@@ -365,6 +365,9 @@ describe("agentSyncService.syncAgentSummaries", () => {
           { metadataOverride: { description: { not: null } } },
         ],
       },
+      include: {
+        metadataOverride: true,
+      },
       take: 20,
     });
 

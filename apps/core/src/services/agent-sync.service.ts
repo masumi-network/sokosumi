@@ -316,6 +316,9 @@ async function syncAgentSummaries(
         { metadataOverride: { description: { not: null } } },
       ],
     },
+    include: {
+      metadataOverride: true,
+    },
     take: AGENT_SUMMARY_SYNC_LIMIT,
   });
   console.info(

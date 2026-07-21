@@ -72,12 +72,14 @@ interface DeleteAdminAgentMetadataOverrideRequest extends AuthenticatedRequest {
 
 export const deleteAdminAgentMetadataOverrideAction = withSession<
   DeleteAdminAgentMetadataOverrideRequest,
-  Result<void, ActionError>
+  Result<
+    Awaited<ReturnType<typeof adminAgentService.deleteMetadataOverride>>,
+    ActionError
+  >
 >(async ({ session, agentId }) => {
   try {
     assertAdminSession(session);
-    await adminAgentService.deleteMetadataOverride(agentId);
-    return Ok(undefined);
+    return Ok(await adminAgentService.deleteMetadataOverride(agentId));
   } catch (error) {
     return Err(mapError(error));
   }

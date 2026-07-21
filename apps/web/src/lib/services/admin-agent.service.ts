@@ -55,7 +55,8 @@ export const adminAgentService = {
     return result.data;
   },
 
-  async deleteMetadataOverride(agentId: string): Promise<void> {
-    await coreClient.deleteAdminAgentMetadataOverride(agentId);
+  async deleteMetadataOverride(agentId: string): Promise<AdminAgentDetail> {
+    const result = await coreClient.deleteAdminAgentMetadataOverride(agentId);
+    return result.data;
   },
 };

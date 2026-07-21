@@ -566,18 +566,6 @@ export const PatchAdminAgentMetadataOverrideBodySchema = {
     }
 } as const;
 
-export const DeleteAdminAgentMetadataOverrideResponseSchema = {
-    type: 'object',
-    properties: {
-        override: {
-            type: 'null'
-        }
-    },
-    required: [
-        'override'
-    ]
-} as const;
-
 export const AdminUserOptionSchema = {
     type: 'object',
     properties: {

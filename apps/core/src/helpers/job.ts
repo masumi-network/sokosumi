@@ -36,7 +36,10 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
-import { agentPricingInclude } from "@/types/agent";
+import {
+  agentMetadataOverrideScalarsInclude,
+  agentPricingInclude,
+} from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
@@ -266,6 +269,7 @@ export async function createAgentJobForUser(
     },
     include: {
       ...agentPricingInclude,
+      ...agentMetadataOverrideScalarsInclude,
     },
   });
 
@@ -327,10 +331,12 @@ export async function createAgentJobForUser(
   let freeJobResult: StartFreeJobResponseSchemaType | null = null;
   let identifierFromPurchaser: string | null = null;
 
+  const masumiAgent = toMasumiAgent(agent);
+
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
       const startFreeJobResult = await createAgentClient().startFreeAgentJob(
-        agent,
+        toMasumiAgent(agent),
         agentInput.inputData,
       );
 
@@ -348,7 +354,7 @@ export async function createAgentJobForUser(
       identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
 
       const startPaidJobResult = await createAgentClient().startPaidAgentJob(
-        toMasumiAgent(agent),
+        masumiAgent,
         identifierFromPurchaser,
         agentInput.inputData,
       );

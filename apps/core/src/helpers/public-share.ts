@@ -40,7 +40,11 @@ const publicTaskInclude = {
       ...jobWithPurchase,
       ...jobWithTransaction,
       ...jobWithShare,
-      agent: true,
+      agent: {
+        include: {
+          metadataOverride: true,
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   },

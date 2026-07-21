@@ -6,6 +6,7 @@ import {
   mapAdminAgentDetail,
   resolveTagsByNames,
 } from "@/helpers/admin-agent";
+import { pruneEmptyMetadataOverride } from "@/helpers/admin-agent-override";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -126,6 +127,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
       }
+
+      await pruneEmptyMetadataOverride(tx, override.id);
     });
 
     const updatedAgent = await prisma.agent.findUnique({
