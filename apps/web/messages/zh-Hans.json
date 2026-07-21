@@ -3145,8 +3145,21 @@
             "tags": "标签",
             "tagsPlaceholder": "逗号分隔的标签名称",
             "examples": "示例输出",
-            "examplesPlaceholder": "每行一条：name|mimeType|url"
-          }
+            "examplesPlaceholder": "每行一条：name|mimeType|url",
+            "capabilityName": "能力名称",
+            "capabilityVersion": "能力版本",
+            "authorName": "作者姓名",
+            "authorImage": "作者图片 URL",
+            "authorContactEmail": "作者联系邮箱",
+            "authorContactOther": "作者其他联系方式",
+            "authorOrganization": "作者组织",
+            "legalPrivacyPolicy": "隐私政策 URL",
+            "legalDpa": "DPA URL",
+            "legalTerms": "条款 URL",
+            "legalOther": "其他法律 URL"
+          },
+          "hasOverride": "已有覆盖行",
+          "noOverride": "仅使用注册表值"
         }
       },
       "Tasks": {

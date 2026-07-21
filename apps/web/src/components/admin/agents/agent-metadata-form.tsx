@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -28,9 +29,38 @@ interface OverrideFormState {
   description: string;
   apiBaseUrl: string;
   image: string;
+  capabilityName: string;
+  capabilityVersion: string;
+  authorName: string;
+  authorImage: string;
+  authorContactEmail: string;
+  authorContactOther: string;
+  authorOrganization: string;
+  legalPrivacyPolicy: string;
+  legalDpa: string;
+  legalTerms: string;
+  legalOther: string;
   tags: string;
   examples: string;
 }
+
+const SCALAR_FIELDS = [
+  "name",
+  "description",
+  "image",
+  "apiBaseUrl",
+  "capabilityName",
+  "capabilityVersion",
+  "authorName",
+  "authorImage",
+  "authorContactEmail",
+  "authorContactOther",
+  "authorOrganization",
+  "legalPrivacyPolicy",
+  "legalDpa",
+  "legalTerms",
+  "legalOther",
+] as const;
 
 function toFormState(detail: AdminAgentDetail): OverrideFormState {
   const override = detail.override;
@@ -39,6 +69,17 @@ function toFormState(detail: AdminAgentDetail): OverrideFormState {
     description: override?.description ?? "",
     apiBaseUrl: override?.apiBaseUrl ?? "",
     image: override?.image ?? "",
+    capabilityName: override?.capabilityName ?? "",
+    capabilityVersion: override?.capabilityVersion ?? "",
+    authorName: override?.authorName ?? "",
+    authorImage: override?.authorImage ?? "",
+    authorContactEmail: override?.authorContactEmail ?? "",
+    authorContactOther: override?.authorContactOther ?? "",
+    authorOrganization: override?.authorOrganization ?? "",
+    legalPrivacyPolicy: override?.legalPrivacyPolicy ?? "",
+    legalDpa: override?.legalDpa ?? "",
+    legalTerms: override?.legalTerms ?? "",
+    legalOther: override?.legalOther ?? "",
     tags: override?.tags.join(", ") ?? "",
     examples: (override?.exampleOutputs ?? [])
       .map((example) => `${example.name}|${example.mimeType}|${example.url}`)
@@ -68,16 +109,31 @@ function parseExamples(
   return examples;
 }
 
+function optionalField(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
 function buildPatchBody(
   form: OverrideFormState,
 ): PatchAdminAgentMetadataOverrideBody {
   const examples = parseExamples(form.examples);
   return {
-    name: form.name.trim() === "" ? null : form.name.trim(),
-    description:
-      form.description.trim() === "" ? null : form.description.trim(),
-    apiBaseUrl: form.apiBaseUrl.trim() === "" ? null : form.apiBaseUrl.trim(),
-    image: form.image.trim() === "" ? null : form.image.trim(),
+    name: optionalField(form.name),
+    description: optionalField(form.description),
+    apiBaseUrl: optionalField(form.apiBaseUrl),
+    image: optionalField(form.image),
+    capabilityName: optionalField(form.capabilityName),
+    capabilityVersion: optionalField(form.capabilityVersion),
+    authorName: optionalField(form.authorName),
+    authorImage: optionalField(form.authorImage),
+    authorContactEmail: optionalField(form.authorContactEmail),
+    authorContactOther: optionalField(form.authorContactOther),
+    authorOrganization: optionalField(form.authorOrganization),
+    legalPrivacyPolicy: optionalField(form.legalPrivacyPolicy),
+    legalDpa: optionalField(form.legalDpa),
+    legalTerms: optionalField(form.legalTerms),
+    legalOther: optionalField(form.legalOther),
     tags: form.tags
       .split(",")
       .map((tag) => tag.trim())
@@ -88,6 +144,7 @@ function buildPatchBody(
 
 export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
   const t = useTranslations("App.Admin.Agents.AgentDetail");
+  const router = useRouter();
   const [form, setForm] = useState(() => toFormState(detail));
   const [resolved, setResolved] = useState(detail.resolved);
   const [hasOverride, setHasOverride] = useState(detail.override !== null);
@@ -120,6 +177,7 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
       setResolved(result.data.resolved);
       setHasOverride(result.data.override !== null);
       toast.success(t("saveSuccess"));
+      router.refresh();
     });
   }
 
@@ -130,17 +188,11 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
         toast.error(result.error.message ?? t("clearError"));
         return;
       }
-      setForm({
-        name: "",
-        description: "",
-        apiBaseUrl: "",
-        image: "",
-        tags: "",
-        examples: "",
-      });
+      setForm(toFormState(result.data));
       setHasOverride(false);
       setResolved(result.data.resolved);
       toast.success(t("clearSuccess"));
+      router.refresh();
     });
   }
 
@@ -172,86 +224,78 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
               {t("overrideDescription")}
             </p>
           </div>
-          {hasOverride ? (
-            <Button
-              variant="destructive"
-              onClick={handleClearAll}
-              disabled={isPending}
-            >
-              {t("clearAll")}
-            </Button>
-          ) : null}
+          <p className="text-muted-foreground text-sm">
+            {hasOverride ? t("hasOverride") : t("noOverride")}
+          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="override-name">{t("fields.name")}</Label>
-            <Input
-              id="override-name"
-              value={form.name}
-              onChange={(event) => updateField("name", event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="override-image">{t("fields.image")}</Label>
-            <Input
-              id="override-image"
-              value={form.image}
-              onChange={(event) => updateField("image", event.target.value)}
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="override-description">
-              {t("fields.description")}
-            </Label>
-            <Textarea
-              id="override-description"
-              value={form.description}
-              onChange={(event) =>
-                updateField("description", event.target.value)
+          {SCALAR_FIELDS.map((field) => (
+            <div
+              key={field}
+              className={
+                field === "description" || field.startsWith("legal")
+                  ? "md:col-span-2"
+                  : undefined
               }
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="override-api-base-url">
-              {t("fields.apiBaseUrl")}
-            </Label>
+            >
+              <Label htmlFor={field}>{t(`fields.${field}`)}</Label>
+              {field === "description" ? (
+                <Textarea
+                  id={field}
+                  value={form[field]}
+                  onChange={(event) => updateField(field, event.target.value)}
+                  disabled={isPending}
+                />
+              ) : (
+                <Input
+                  id={field}
+                  value={form[field]}
+                  onChange={(event) => updateField(field, event.target.value)}
+                  disabled={isPending}
+                />
+              )}
+            </div>
+          ))}
+          <div className="md:col-span-2">
+            <Label htmlFor="tags">{t("fields.tags")}</Label>
             <Input
-              id="override-api-base-url"
-              value={form.apiBaseUrl}
-              onChange={(event) =>
-                updateField("apiBaseUrl", event.target.value)
-              }
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="override-tags">{t("fields.tags")}</Label>
-            <Input
-              id="override-tags"
+              id="tags"
               value={form.tags}
-              onChange={(event) => updateField("tags", event.target.value)}
               placeholder={t("fields.tagsPlaceholder")}
+              onChange={(event) => updateField("tags", event.target.value)}
+              disabled={isPending}
             />
           </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="override-examples">{t("fields.examples")}</Label>
+          <div className="md:col-span-2">
+            <Label htmlFor="examples">{t("fields.examples")}</Label>
             <Textarea
-              id="override-examples"
+              id="examples"
               value={form.examples}
-              onChange={(event) => updateField("examples", event.target.value)}
               placeholder={t("fields.examplesPlaceholder")}
+              onChange={(event) => updateField("examples", event.target.value)}
+              disabled={isPending}
             />
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={isPending}>
-          {t("save")}
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={handleSave} disabled={isPending}>
+            {t("save")}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleClearAll}
+            disabled={isPending || !hasOverride}
+          >
+            {t("clearAll")}
+          </Button>
+        </div>
       </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">{t("resolvedTitle")}</h2>
-        <div className="bg-muted/40 grid gap-3 rounded-md border p-4 text-sm md:grid-cols-2">
+        <div className="grid gap-3 rounded-md border p-4 text-sm md:grid-cols-2">
           <div>
             <p className="text-muted-foreground">{t("fields.name")}</p>
             <p>{resolved.name}</p>
@@ -264,9 +308,17 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
             <p className="text-muted-foreground">{t("fields.description")}</p>
             <p>{resolved.description ?? t("emptyValue")}</p>
           </div>
-          <div className="md:col-span-2">
+          <div>
+            <p className="text-muted-foreground">{t("fields.image")}</p>
+            <p className="break-all">{resolved.image ?? t("emptyValue")}</p>
+          </div>
+          <div>
             <p className="text-muted-foreground">{t("fields.tags")}</p>
-            <p>{resolved.tags.join(", ") || t("emptyValue")}</p>
+            <p>
+              {resolved.tags.length > 0
+                ? resolved.tags.join(", ")
+                : t("emptyValue")}
+            </p>
           </div>
         </div>
       </section>

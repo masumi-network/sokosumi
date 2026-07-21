@@ -1,6 +1,9 @@
 "use server";
 
+import { updateTag } from "next/cache";
+
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { AGENTS_CACHE_TAG } from "@/lib/agents/core-loaders";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import type { PatchAdminAgentMetadataOverrideBody } from "@/lib/clients/generated/core";
@@ -60,7 +63,9 @@ export const patchAdminAgentMetadataOverrideAction = withSession<
 >(async ({ session, agentId, body }) => {
   try {
     assertAdminSession(session);
-    return Ok(await adminAgentService.patchMetadataOverride(agentId, body));
+    const detail = await adminAgentService.patchMetadataOverride(agentId, body);
+    updateTag(AGENTS_CACHE_TAG);
+    return Ok(detail);
   } catch (error) {
     return Err(mapError(error));
   }
@@ -79,7 +84,9 @@ export const deleteAdminAgentMetadataOverrideAction = withSession<
 >(async ({ session, agentId }) => {
   try {
     assertAdminSession(session);
-    return Ok(await adminAgentService.deleteMetadataOverride(agentId));
+    const detail = await adminAgentService.deleteMetadataOverride(agentId);
+    updateTag(AGENTS_CACHE_TAG);
+    return Ok(detail);
   } catch (error) {
     return Err(mapError(error));
   }

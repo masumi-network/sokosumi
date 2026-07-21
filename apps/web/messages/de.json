@@ -3114,8 +3114,21 @@
             "tags": "Tags",
             "tagsPlaceholder": "Tag-Namen, durch Komma getrennt",
             "examples": "Beispielausgaben",
-            "examplesPlaceholder": "Eine pro Zeile: name|mimeType|url"
-          }
+            "examplesPlaceholder": "Eine pro Zeile: name|mimeType|url",
+            "capabilityName": "Capability-Name",
+            "capabilityVersion": "Capability-Version",
+            "authorName": "Autorname",
+            "authorImage": "Autor-Bild-URL",
+            "authorContactEmail": "Autor-Kontakt-E-Mail",
+            "authorContactOther": "Autor-Kontakt sonstiges",
+            "authorOrganization": "Autor-Organisation",
+            "legalPrivacyPolicy": "Datenschutz-URL",
+            "legalDpa": "AVV-URL",
+            "legalTerms": "AGB-URL",
+            "legalOther": "Sonstige Rechts-URL"
+          },
+          "hasOverride": "Überschreibungszeile vorhanden",
+          "noOverride": "Nur Registry-Werte"
         }
       },
       "Tasks": {

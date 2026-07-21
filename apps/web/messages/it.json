@@ -3145,8 +3145,21 @@
             "tags": "Tag",
             "tagsPlaceholder": "Nomi tag separati da virgola",
             "examples": "Output di esempio",
-            "examplesPlaceholder": "Uno per riga: nome|mimeType|url"
-          }
+            "examplesPlaceholder": "Uno per riga: nome|mimeType|url",
+            "capabilityName": "Nome capability",
+            "capabilityVersion": "Versione capability",
+            "authorName": "Nome autore",
+            "authorImage": "URL immagine autore",
+            "authorContactEmail": "Email di contatto autore",
+            "authorContactOther": "Altro contatto autore",
+            "authorOrganization": "Organizzazione autore",
+            "legalPrivacyPolicy": "URL privacy",
+            "legalDpa": "URL DPA",
+            "legalTerms": "URL termini",
+            "legalOther": "Altra URL legale"
+          },
+          "hasOverride": "Riga di override presente",
+          "noOverride": "Solo valori del registro"
         }
       },
       "Tasks": {

@@ -3145,8 +3145,21 @@
             "tags": "Etiquetas",
             "tagsPlaceholder": "Nomes de etiquetas separados por vírgulas",
             "examples": "Saídas de exemplo",
-            "examplesPlaceholder": "Uma por linha: nome|mimeType|url"
-          }
+            "examplesPlaceholder": "Uma por linha: nome|mimeType|url",
+            "capabilityName": "Nome da capacidade",
+            "capabilityVersion": "Versão da capacidade",
+            "authorName": "Nome do autor",
+            "authorImage": "URL da imagem do autor",
+            "authorContactEmail": "E-mail de contacto do autor",
+            "authorContactOther": "Outro contacto do autor",
+            "authorOrganization": "Organização do autor",
+            "legalPrivacyPolicy": "URL da privacidade",
+            "legalDpa": "URL do DPA",
+            "legalTerms": "URL dos termos",
+            "legalOther": "Outra URL legal"
+          },
+          "hasOverride": "Linha de substituição presente",
+          "noOverride": "Apenas valores do registo"
         }
       },
       "Tasks": {
