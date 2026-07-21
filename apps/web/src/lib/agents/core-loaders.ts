@@ -14,8 +14,8 @@ const AGENTS_PAGE_SIZE = 100;
 // caching, every page that needs agents re-paginates the whole catalog over
 // HTTP (React `cache()` only dedupes within a single request). Cache the
 // underlying fetches with a short TTL + tag so the catalog is fetched at most
-// once per window across all requests; call `revalidateTag(AGENTS_CACHE_TAG)`
-// to invalidate on demand (e.g. after an agent sync).
+// once per window across all requests; call `updateTag(AGENTS_CACHE_TAG)` from
+// a Server Action to invalidate on demand (e.g. after admin overwrite edits).
 const AGENTS_CACHE_REVALIDATE_SECONDS = 60;
 export const AGENTS_CACHE_TAG = "core-agents-catalog";
 
