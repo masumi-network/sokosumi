@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -145,6 +146,7 @@ function buildPatchBody(
 
 export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
   const t = useTranslations("App.Admin.Agents.AgentDetail");
+  const tExpand = useTranslations("App.Tasks.Detail");
   const router = useRouter();
   const [form, setForm] = useState(() => toFormState(detail));
   const [resolved, setResolved] = useState(detail.resolved);
@@ -238,7 +240,17 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
           </div>
           <div className="space-y-1 sm:col-span-2">
             <p className="text-muted-foreground">{t("registryDescription")}</p>
-            <p>{detail.registry.description ?? t("emptyValue")}</p>
+            {detail.registry.description ? (
+              <ExpandableMarkdown
+                content={detail.registry.description}
+                className="text-foreground/80"
+                expandLabel={tExpand("expand")}
+                collapseLabel={tExpand("collapse")}
+                fadeClassName="to-background"
+              />
+            ) : (
+              <p>{t("emptyValue")}</p>
+            )}
           </div>
         </div>
       </section>
@@ -322,7 +334,17 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
           </div>
           <div className="space-y-1 sm:col-span-2">
             <p className="text-muted-foreground">{t("fields.description")}</p>
-            <p>{resolved.description ?? t("emptyValue")}</p>
+            {resolved.description ? (
+              <ExpandableMarkdown
+                content={resolved.description}
+                className="text-foreground/80"
+                expandLabel={tExpand("expand")}
+                collapseLabel={tExpand("collapse")}
+                fadeClassName="to-background"
+              />
+            ) : (
+              <p>{t("emptyValue")}</p>
+            )}
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground">{t("fields.image")}</p>
