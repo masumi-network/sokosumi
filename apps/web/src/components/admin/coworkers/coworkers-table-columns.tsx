@@ -9,26 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
-const CAPTION_MAX_LENGTH = 80;
-
 const dateTimeOptions = {
   dateStyle: "medium",
   timeStyle: "short",
 } as const;
 
 const columnHelper = createColumnHelper<Coworker>();
-
-function truncateCaption(caption: string | null | undefined): string {
-  if (!caption) {
-    return "—";
-  }
-
-  if (caption.length <= CAPTION_MAX_LENGTH) {
-    return caption;
-  }
-
-  return `${caption.slice(0, CAPTION_MAX_LENGTH - 1)}…`;
-}
 
 function isArchived(coworker: Coworker): boolean {
   return coworker.archivedAt != null;
@@ -60,22 +46,6 @@ export function getCoworkersTableColumns(
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.slug}</span>
-      ),
-      enableSorting: true,
-      enableHiding: false,
-    }) as ColumnDef<Coworker>,
-
-    columnHelper.accessor((row) => row.caption ?? "", {
-      id: "caption",
-      minSize: 140,
-      size: 180,
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("caption")} />
-      ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground max-w-xs truncate">
-          {truncateCaption(row.original.caption)}
-        </span>
       ),
       enableSorting: true,
       enableHiding: false,

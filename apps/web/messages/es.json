@@ -3173,7 +3173,6 @@
         "Table": {
           "name": "Name",
           "slug": "Slug",
-          "caption": "Caption",
           "status": "Estado",
           "active": "Activo",
           "archived": "Archivado",

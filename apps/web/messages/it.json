@@ -3204,7 +3204,6 @@
         "Table": {
           "name": "Name",
           "slug": "Slug",
-          "caption": "Caption",
           "status": "Stato",
           "active": "Attivo",
           "archived": "Archiviato",

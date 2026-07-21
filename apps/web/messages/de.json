@@ -3113,7 +3113,6 @@
         "Table": {
           "name": "Name",
           "slug": "Slug",
-          "caption": "Caption",
           "status": "Status",
           "active": "Aktiv",
           "archived": "Archiviert",
