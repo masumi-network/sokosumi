@@ -6,12 +6,14 @@ Sokosumi front door: Investigator → Tech Lead → Coder → Reviewer → PR (C
 
 ## Load order
 
-1. `SKILL.md` — orchestrator
-2. `ROLES.md` — current phase
-3. `BUGBOT-LEARNINGS.md` — flags / self-check / Bugbot gates
-4. `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md` — Tech Lead
-5. `VISUAL-CAPTURE.md` — Reviewer UI only
-6. `LINEAR.md` — Requirement text must change
+1. `SKILL.md` — orchestrator (always)
+2. `ROLES.md` — current phase role only
+3. `PHASE-CODER.md` — Phase 3 only
+4. `PHASE-REVIEWER.md` — Phase 4 only
+5. `BUGBOT-LEARNINGS.md` — flags / self-check / Bugbot gate
+6. `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md` — Tech Lead
+7. `VISUAL-CAPTURE.md` — Reviewer + UI in scope
+8. `LINEAR.md` — Requirement text must change
 
 ## Subagents
 
@@ -20,14 +22,11 @@ Sokosumi front door: Investigator → Tech Lead → Coder → Reviewer → PR (C
 | Coder | Always | `sapphire-coder` | `composer-2.5` |
 | Tech Lead | Only if user asks | `sapphire-tech-lead` | Inherit |
 | Reviewer | Only if user asks | `sapphire-reviewer` | Inherit |
-| Locate scout | Symbol locate only (defs/callers/uses) | `cavecrew-investigator` | Inherit |
+| Locate scout | Symbol locate only | `cavecrew-investigator` | Inherit |
 
 ## Rules
 
-- Investigation: path-first; Spec: lean caps — not ultra prose
-- Branch: Linear `gitBranchName` or `sok-NNN-short-kebab` (≤6 segments)
-- One coder / one **draft** PR default; title = primary commit subject; sequential = serial Tasks
-- Verify set: deliverable package roots ∪ packages edited; check+test; build if listed
-- UI in scope: Spec Verification has ≥1 path-only route (page/layout/component/messages deliverables)
-- CI green: all `gh pr checks` pass unless named in Spec Out of scope
+- Phase-gate file loads (above)
+- Spec/Investigation caps in `ROLES.md`
+- Draft PR; title = primary commit subject
 - No Linear phase reporting; human merges
