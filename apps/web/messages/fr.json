@@ -2926,7 +2926,7 @@
           },
           "coworkers": {
             "title": "Coworkers",
-            "description": "Modifiez les noms, légendes, descriptions et images des coworkers actifs."
+            "description": "Modifier les noms, légendes, descriptions et images des coworkers actifs."
           }
         }
       },
@@ -3154,18 +3154,37 @@
             },
             "description": {
               "label": "Description"
-            },
-            "image": {
-              "label": "URL de l'image",
-              "placeholder": "https://example.com/avatar.png",
-              "helper": "URL d’image HTTP(S) publique. Les valeurs IPFS sont converties vers la passerelle à l’enregistrement."
             }
           },
-          "saveChanges": "Enregistrer",
+          "image": {
+            "label": "Image",
+            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo.",
+            "upload": "Téléverser une image",
+            "replace": "Remplacer l’image",
+            "remove": "Supprimer l’image",
+            "previewAlt": "Aperçu de l’image du coworker",
+            "fileTooLarge": "L’image doit faire 2 Mo ou moins.",
+            "fileTypeNotAccepted": "Utilisez PNG, JPEG, WebP ou GIF.",
+            "maxFilesExceeded": "Téléversez une seule image à la fois.",
+            "uploadError": "Impossible de traiter l’image sélectionnée."
+          },
+          "saveChanges": "Enregistrer les modifications",
           "saving": "Enregistrement…",
           "cancel": "Annuler",
-          "updateSuccess": "Coworker mis à jour",
-          "updateError": "Échec de la mise à jour du coworker"
+          "validation": {
+            "nameMinLength": "Le nom doit contenir au moins {min} caractères.",
+            "noChanges": "Aucune modification à enregistrer."
+          },
+          "success": {
+            "saved": "Coworker mis à jour.",
+            "imageSaved": "Image enregistrée.",
+            "imageRemoved": "Image supprimée."
+          },
+          "errors": {
+            "saveFailed": "Échec de l’enregistrement du coworker.",
+            "notFound": "Coworker introuvable.",
+            "imageSaveFailed": "Échec de la mise à jour de l’image."
+          }
         },
         "Context": {
           "id": "ID",

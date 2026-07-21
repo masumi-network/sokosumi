@@ -26,10 +26,6 @@ const coworkerEditableFieldsSchema = z.object({
     .min(1)
     .nullish()
     .openapi({ example: "Ops helper" }),
-  image: z
-    .httpUrl()
-    .nullish()
-    .openapi({ example: "https://example.com/logo.png" }),
   priority: z.number().int().optional().openapi({
     example: 10,
     description: "Admin only. Higher numbers sort first in coworker lists.",
@@ -59,7 +55,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.baseURL !== undefined ||
       data.description !== undefined ||
       data.capabilities !== undefined ||
-      data.image !== undefined ||
       data.priority !== undefined ||
       data.metadata !== undefined,
     {
@@ -71,7 +66,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "baseURL",
         "description",
         "capabilities",
-        "image",
         "priority",
         "metadata",
       ],

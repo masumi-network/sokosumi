@@ -3246,18 +3246,37 @@
             },
             "description": {
               "label": "Description"
-            },
-            "image": {
-              "label": "Image URL",
-              "placeholder": "https://example.com/avatar.png",
-              "helper": "Public HTTP(S) image URL. IPFS values are converted to the gateway on save."
             }
+          },
+          "image": {
+            "label": "Image",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+            "upload": "Upload image",
+            "replace": "Replace image",
+            "remove": "Remove image",
+            "previewAlt": "Coworker image preview",
+            "fileTooLarge": "Image must be 2 MB or smaller.",
+            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+            "maxFilesExceeded": "Upload one image at a time.",
+            "uploadError": "Could not process the selected image."
           },
           "saveChanges": "Save changes",
           "saving": "Saving…",
           "cancel": "Cancel",
-          "updateSuccess": "Coworker updated",
-          "updateError": "Failed to update coworker"
+          "validation": {
+            "nameMinLength": "Name must be at least {min} characters.",
+            "noChanges": "No changes to save."
+          },
+          "success": {
+            "saved": "Coworker updated.",
+            "imageSaved": "Image saved.",
+            "imageRemoved": "Image removed."
+          },
+          "errors": {
+            "saveFailed": "Failed to save coworker.",
+            "notFound": "Coworker not found.",
+            "imageSaveFailed": "Failed to update image."
+          }
         },
         "Context": {
           "id": "ID",

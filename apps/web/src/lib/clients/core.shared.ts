@@ -65,6 +65,7 @@ import {
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
@@ -178,6 +179,7 @@ import {
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
+  postCoworkersByIdImage as corePostCoworkersByIdImage,
   postEnterpriseContracts as corePostEnterpriseContracts,
   postEnterpriseContractsByIdActivate as corePostEnterpriseContractsByIdActivate,
   postEnterpriseContractsByIdCancel as corePostEnterpriseContractsByIdCancel,
@@ -2186,6 +2188,33 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function uploadCoworkerImage(id: string, file: Blob | File) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostCoworkersByIdImage({
+          client,
+          path: { id },
+          body: { file },
+          cache: "no-store",
+        }),
+      "Failed to upload coworker image",
+    );
+  }
+
+  async function deleteCoworkerImage(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteCoworkersByIdImage({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to remove coworker image",
+    );
+  }
+
   async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
     const response = await executeOperation(
       getClient,
@@ -3093,6 +3122,8 @@ export function createCoreClient(getClient: GetClient) {
     getCoworkers,
     getCoworkerById,
     patchCoworker,
+    uploadCoworkerImage,
+    deleteCoworkerImage,
     searchAdminUsers,
     listAdminUsers,
     listOrchestrators,

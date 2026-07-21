@@ -2895,7 +2895,7 @@
           },
           "coworkers": {
             "title": "Coworkers",
-            "description": "Anzeigenamen, Untertitel, Beschreibungen und Bilder aktiver Coworkers bearbeiten."
+            "description": "Anzeigenamen, Untertitel, Beschreibungen und Bilder aktiver Coworker bearbeiten."
           }
         }
       },
@@ -3123,18 +3123,37 @@
             },
             "description": {
               "label": "Beschreibung"
-            },
-            "image": {
-              "label": "Bild-URL",
-              "placeholder": "https://example.com/avatar.png",
-              "helper": "Öffentliche HTTP(S)-Bild-URL. IPFS-Werte werden beim Speichern in die Gateway-URL umgewandelt."
             }
           },
+          "image": {
+            "label": "Bild",
+            "description": "PNG, JPEG, WebP oder GIF bis 2 MB.",
+            "upload": "Bild hochladen",
+            "replace": "Bild ersetzen",
+            "remove": "Bild entfernen",
+            "previewAlt": "Vorschau des Coworker-Bildes",
+            "fileTooLarge": "Das Bild darf höchstens 2 MB groß sein.",
+            "fileTypeNotAccepted": "Verwende PNG, JPEG, WebP oder GIF.",
+            "maxFilesExceeded": "Lade jeweils nur ein Bild hoch.",
+            "uploadError": "Das ausgewählte Bild konnte nicht verarbeitet werden."
+          },
           "saveChanges": "Änderungen speichern",
-          "saving": "Wird gespeichert…",
+          "saving": "Speichern…",
           "cancel": "Abbrechen",
-          "updateSuccess": "Coworker aktualisiert",
-          "updateError": "Coworker konnte nicht aktualisiert werden"
+          "validation": {
+            "nameMinLength": "Der Name muss mindestens {min} Zeichen haben.",
+            "noChanges": "Keine Änderungen zum Speichern."
+          },
+          "success": {
+            "saved": "Coworker aktualisiert.",
+            "imageSaved": "Bild gespeichert.",
+            "imageRemoved": "Bild entfernt."
+          },
+          "errors": {
+            "saveFailed": "Coworker konnte nicht gespeichert werden.",
+            "notFound": "Coworker nicht gefunden.",
+            "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
+          }
         },
         "Context": {
           "id": "ID",

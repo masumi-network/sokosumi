@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 
 export {};
 
-const updateCoworkerDisplayMock = vi.fn();
+const updateDisplayMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
 
 vi.mock("next/cache", () => ({
@@ -25,8 +25,7 @@ vi.mock("@/lib/clients/core.client", () => ({
 
 vi.mock("@/lib/services/admin-coworker.service", () => ({
   adminCoworkerService: {
-    updateCoworkerDisplay: (...args: unknown[]) =>
-      updateCoworkerDisplayMock(...args),
+    updateDisplay: (...args: unknown[]) => updateDisplayMock(...args),
   },
 }));
 
@@ -54,18 +53,16 @@ describe("admin coworker actions", () => {
   });
 
   it("returns UNAUTHORIZED when a signed-in non-admin invokes update action", async () => {
-    const { updateAdminCoworkerAction } = await import("../action");
+    const { updateAdminCoworkerDisplayAction } = await import("../action");
     const { CommonErrorCode } = await import("@/lib/actions/errors");
 
-    const result = await updateAdminCoworkerAction({
+    const result = await updateAdminCoworkerDisplayAction({
       session: memberSession,
       id: "cow_123",
-      input: {
+      patchBody: {
         name: "Ops Agent",
-        caption: "",
-        description: "",
-        image: "",
       },
+      imageIntent: "none",
     });
 
     expect(result.ok).toBe(false);
@@ -75,79 +72,83 @@ describe("admin coworker actions", () => {
 
     expect(result.error.code).toBe(CommonErrorCode.UNAUTHORIZED);
     expect(result.error.message).toBe("Admin access required");
-    expect(updateCoworkerDisplayMock).not.toHaveBeenCalled();
+    expect(updateDisplayMock).not.toHaveBeenCalled();
     expect(toCoreApiActionErrorMock).not.toHaveBeenCalled();
   });
 
   it("updates display fields for admin sessions", async () => {
-    const { updateAdminCoworkerAction } = await import("../action");
+    const { updateAdminCoworkerDisplayAction } = await import("../action");
 
-    updateCoworkerDisplayMock.mockResolvedValue({
-      id: "cow_123",
-      name: "Ops Agent",
-    });
-
-    const result = await updateAdminCoworkerAction({
-      session: adminSession,
-      id: "cow_123",
-      input: {
+    updateDisplayMock.mockResolvedValue({
+      coworker: {
+        id: "cow_123",
         name: "Ops Agent",
-        caption: "Partner",
-        description: "",
-        image: "https://example.com/logo.png",
       },
     });
 
+    const result = await updateAdminCoworkerDisplayAction({
+      session: adminSession,
+      id: "cow_123",
+      patchBody: {
+        name: "Ops Agent",
+        caption: "Partner",
+        description: null,
+      },
+      imageIntent: "none",
+    });
+
     expect(result.ok).toBe(true);
-    expect(updateCoworkerDisplayMock).toHaveBeenCalledWith("cow_123", {
-      name: "Ops Agent",
-      caption: "Partner",
-      description: null,
-      image: "https://example.com/logo.png",
+    expect(updateDisplayMock).toHaveBeenCalledWith({
+      id: "cow_123",
+      patchBody: {
+        name: "Ops Agent",
+        caption: "Partner",
+        description: null,
+      },
+      imageIntent: "none",
+      imageFile: undefined,
     });
   });
 
-  it("resolves ipfs image URLs before patching", async () => {
-    const { updateAdminCoworkerAction } = await import("../action");
+  it("uploads an image for admin sessions", async () => {
+    const { updateAdminCoworkerDisplayAction } = await import("../action");
+    const file = new File(["png"], "logo.png", { type: "image/png" });
 
-    updateCoworkerDisplayMock.mockResolvedValue({
-      id: "cow_123",
-      name: "Ops Agent",
-    });
-
-    const result = await updateAdminCoworkerAction({
-      session: adminSession,
-      id: "cow_123",
-      input: {
+    updateDisplayMock.mockResolvedValue({
+      coworker: {
+        id: "cow_123",
         name: "Ops Agent",
-        caption: "",
-        description: "",
-        image: "ipfs://QmExampleCID",
+        image: "https://blob.example/logo.png",
       },
     });
 
+    const result = await updateAdminCoworkerDisplayAction({
+      session: adminSession,
+      id: "cow_123",
+      imageIntent: "upload",
+      imageFile: file,
+    });
+
     expect(result.ok).toBe(true);
-    expect(updateCoworkerDisplayMock).toHaveBeenCalledWith("cow_123", {
-      name: "Ops Agent",
-      caption: null,
-      description: null,
-      image: "https://c-ipfs-gw.nmkr.io/ipfs/QmExampleCID",
+    expect(updateDisplayMock).toHaveBeenCalledWith({
+      id: "cow_123",
+      patchBody: undefined,
+      imageIntent: "upload",
+      imageFile: file,
     });
   });
 
   it("rejects names shorter than three characters", async () => {
-    const { updateAdminCoworkerAction } = await import("../action");
+    const { updateAdminCoworkerDisplayAction } = await import("../action");
     const { CommonErrorCode } = await import("@/lib/actions/errors");
 
-    const result = await updateAdminCoworkerAction({
+    const result = await updateAdminCoworkerDisplayAction({
       session: adminSession,
       id: "cow_123",
-      input: {
+      patchBody: {
         name: "ab",
-        caption: "",
-        description: "",
-        image: "",
       },
+      imageIntent: "none",
     });
 
     expect(result.ok).toBe(false);
@@ -156,6 +157,6 @@ describe("admin coworker actions", () => {
     }
 
     expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
-    expect(updateCoworkerDisplayMock).not.toHaveBeenCalled();
+    expect(updateDisplayMock).not.toHaveBeenCalled();
   });
 });

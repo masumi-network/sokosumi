@@ -1,16 +1,17 @@
 "use server";
 
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
+import { ADMIN_COWORKER_NAME_MIN_LENGTH } from "@/lib/constants/coworker-display";
 import {
-  type AdminCoworkerDisplayUpdateBody,
+  type AdminCoworkerDisplayPatchBody,
+  type AdminCoworkerImageIntent,
   adminCoworkerService,
+  type UpdateAdminCoworkerDisplayResult,
 } from "@/lib/services/admin-coworker.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -18,13 +19,11 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-const MIN_NAME_LENGTH = 3;
-
-export interface UpdateAdminCoworkerInput {
-  name: string;
-  caption: string;
-  description: string;
-  image: string;
+function revalidateAdminCoworkerRoutes(coworkerId?: string) {
+  revalidatePath("/admin/coworkers");
+  if (coworkerId) {
+    revalidatePath(`/admin/coworkers/${coworkerId}`);
+  }
 }
 
 function mapCoreError(error: unknown): ActionError {
@@ -38,63 +37,89 @@ function mapCoreError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
-function normalizeOptionalDisplayField(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+/** Client payload may include non-display keys; they are dropped. */
+interface UntrustedCoworkerDisplayPatch {
+  name?: string;
+  caption?: string | null;
+  description?: string | null;
+  image?: string | null;
 }
 
-function normalizeImageField(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return null;
-  }
-  return resolveIpfsOrHttpUrl(trimmed);
-}
-
-function toPatchBody(
-  input: UpdateAdminCoworkerInput,
-): AdminCoworkerDisplayUpdateBody {
-  return {
-    name: input.name.trim(),
-    caption: normalizeOptionalDisplayField(input.caption),
-    description: normalizeOptionalDisplayField(input.description),
-    image: normalizeImageField(input.image),
-  };
-}
-
-function revalidateAdminCoworkerRoutes(coworkerId?: string) {
-  revalidatePath("/admin/coworkers");
-  if (coworkerId) {
-    revalidatePath(`/admin/coworkers/${coworkerId}`);
-  }
-}
-
-interface UpdateAdminCoworkerParameters extends AuthenticatedRequest {
+interface UpdateAdminCoworkerDisplayParameters extends AuthenticatedRequest {
   id: string;
-  input: UpdateAdminCoworkerInput;
+  patchBody?: UntrustedCoworkerDisplayPatch;
+  imageIntent?: AdminCoworkerImageIntent;
+  imageFile?: File;
 }
 
-export const updateAdminCoworkerAction = withSession<
-  UpdateAdminCoworkerParameters,
-  Result<Coworker, ActionError>
->(async ({ session, id, input }) => {
+function sanitizeDisplayPatchBody(
+  patchBody: UntrustedCoworkerDisplayPatch | undefined,
+): Result<AdminCoworkerDisplayPatchBody | undefined, ActionError> {
+  if (!patchBody) {
+    return Ok(undefined);
+  }
+
+  const sanitized: AdminCoworkerDisplayPatchBody = {};
+
+  if (patchBody.name !== undefined) {
+    const name = patchBody.name.trim();
+    if (name.length < ADMIN_COWORKER_NAME_MIN_LENGTH) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: `Name must be at least ${ADMIN_COWORKER_NAME_MIN_LENGTH} characters`,
+      });
+    }
+    sanitized.name = name;
+  }
+
+  if (patchBody.caption !== undefined) {
+    sanitized.caption = patchBody.caption;
+  }
+
+  if (patchBody.description !== undefined) {
+    sanitized.description = patchBody.description;
+  }
+
+  return Ok(Object.keys(sanitized).length > 0 ? sanitized : undefined);
+}
+
+export const updateAdminCoworkerDisplayAction = withSession<
+  UpdateAdminCoworkerDisplayParameters,
+  Result<UpdateAdminCoworkerDisplayResult, ActionError>
+>(async ({ session, id, patchBody, imageIntent = "none", imageFile }) => {
   try {
     assertAdminSession(session);
 
-    const name = input.name.trim();
-    if (name.length < MIN_NAME_LENGTH) {
+    const sanitizeResult = sanitizeDisplayPatchBody(patchBody);
+    if (!sanitizeResult.ok) {
+      return sanitizeResult;
+    }
+
+    const safePatchBody = sanitizeResult.data;
+    const hasPatchBody = Boolean(safePatchBody);
+    if (!hasPatchBody && imageIntent === "none") {
       return Err({
         code: CommonErrorCode.BAD_INPUT,
-        message: `Name must be at least ${MIN_NAME_LENGTH} characters`,
+        message: "No coworker changes to save",
       });
     }
 
-    const coworker = await adminCoworkerService.updateCoworkerDisplay(
+    if (imageIntent === "upload" && !imageFile) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Image file is required for upload",
+      });
+    }
+
+    const result = await adminCoworkerService.updateDisplay({
       id,
-      toPatchBody({ ...input, name }),
-    );
+      patchBody: safePatchBody,
+      imageIntent,
+      imageFile,
+    });
+
     revalidateAdminCoworkerRoutes(id);
-    return Ok(coworker);
+    return Ok(result);
   } catch (error) {
     return Err(mapCoreError(error));
   }

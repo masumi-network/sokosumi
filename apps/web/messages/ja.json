@@ -3154,18 +3154,37 @@
             },
             "description": {
               "label": "説明"
-            },
-            "image": {
-              "label": "画像 URL",
-              "placeholder": "https://example.com/avatar.png",
-              "helper": "公開の HTTP(S) 画像 URL。IPFS の値は保存時にゲートウェイ URL へ変換されます。"
             }
+          },
+          "image": {
+            "label": "画像",
+            "description": "PNG、JPEG、WebP、または GIF（最大 2 MB）。",
+            "upload": "画像をアップロード",
+            "replace": "画像を差し替え",
+            "remove": "画像を削除",
+            "previewAlt": "Coworker 画像のプレビュー",
+            "fileTooLarge": "画像は 2 MB 以下にしてください。",
+            "fileTypeNotAccepted": "PNG、JPEG、WebP、または GIF を使用してください。",
+            "maxFilesExceeded": "一度に 1 枚の画像をアップロードしてください。",
+            "uploadError": "選択した画像を処理できませんでした。"
           },
           "saveChanges": "変更を保存",
           "saving": "保存中…",
           "cancel": "キャンセル",
-          "updateSuccess": "Coworker を更新しました",
-          "updateError": "Coworker の更新に失敗しました"
+          "validation": {
+            "nameMinLength": "名前は {min} 文字以上にしてください。",
+            "noChanges": "保存する変更はありません。"
+          },
+          "success": {
+            "saved": "Coworker を更新しました。",
+            "imageSaved": "画像を保存しました。",
+            "imageRemoved": "画像を削除しました。"
+          },
+          "errors": {
+            "saveFailed": "Coworker の保存に失敗しました。",
+            "notFound": "Coworker が見つかりません。",
+            "imageSaveFailed": "画像の更新に失敗しました。"
+          }
         },
         "Context": {
           "id": "ID",

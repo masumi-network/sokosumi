@@ -3154,18 +3154,37 @@
             },
             "description": {
               "label": "Descrizione"
-            },
-            "image": {
-              "label": "URL immagine",
-              "placeholder": "https://example.com/avatar.png",
-              "helper": "URL immagine HTTP(S) pubblica. I valori IPFS vengono convertiti nel gateway al salvataggio."
             }
+          },
+          "image": {
+            "label": "Immagine",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
+            "upload": "Carica immagine",
+            "replace": "Sostituisci immagine",
+            "remove": "Rimuovi immagine",
+            "previewAlt": "Anteprima immagine del coworker",
+            "fileTooLarge": "L’immagine deve essere di 2 MB o meno.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Carica un’immagine alla volta.",
+            "uploadError": "Impossibile elaborare l’immagine selezionata."
           },
           "saveChanges": "Salva modifiche",
           "saving": "Salvataggio…",
           "cancel": "Annulla",
-          "updateSuccess": "Coworker aggiornato",
-          "updateError": "Impossibile aggiornare il coworker"
+          "validation": {
+            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+            "noChanges": "Nessuna modifica da salvare."
+          },
+          "success": {
+            "saved": "Coworker aggiornato.",
+            "imageSaved": "Immagine salvata.",
+            "imageRemoved": "Immagine rimossa."
+          },
+          "errors": {
+            "saveFailed": "Salvataggio del coworker non riuscito.",
+            "notFound": "Coworker non trovato.",
+            "imageSaveFailed": "Aggiornamento dell’immagine non riuscito."
+          }
         },
         "Context": {
           "id": "ID",
