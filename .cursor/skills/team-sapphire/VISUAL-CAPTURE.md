@@ -5,7 +5,7 @@
 ## Do
 
 1. Use only those Spec routes (no inventing URLs).
-2. Capture happy path via Browser Automation MCP (`browser_take_screenshot`) or Cloud Agent computer-use artifacts on the PR.
+2. Capture the happy path via Browser Automation MCP (`browser_take_screenshot`) or Cloud Agent computer-use artifacts on the PR. Capture extra states (dark / empty / error) **only** when Spec Verification lists them.
 3. Sign-in and selectors: `apps/web/AGENTS.md` → **Browser Automation**.
 4. Cloud runtime notes (ports, env): root `AGENTS.md` → **Cursor Cloud specific instructions**.
 

@@ -32,7 +32,7 @@ flowchart LR
 
 **Models:** Only **Coder** pins `composer-2.5`. When launching Coder via Task, pass `model: composer-2.5`. Do **not** pass `model` for Tech Lead or Reviewer.
 
-**Branch name (orchestrator sets before Coder):** Prefer Linear issue `gitBranchName` when present. Else `{issue-id-lower}-{short-kebab}` from Goal (e.g. `sok-555-mute-notifications`). Pass that name in every Coder prompt.
+**Branch name (orchestrator sets before Coder):** Prefer Linear issue `gitBranchName` when present. Else `{issue-id-lower}-{short-kebab}` from Goal (≤6 kebab segments, e.g. `sok-555-mute-notifications`). Pass that name in every Coder prompt.
 
 **Orchestrator owns:** Branch name, opening the single PR after a sequential chain, CI watch, Bugbot 0 High, PR readiness. Subagents never call Linear MCP.
 
@@ -40,7 +40,9 @@ flowchart LR
 
 **UI in scope:** Spec Verification lists ≥1 path-only route (see `ROLES.md`).
 
-**CI green:** `gh pr checks` — every **required** check is `success`. Wait/retry while any required check is `pending`. Ignore non-required checks. Fail the gate if any required check is `failure` / `cancelled` / `timed_out`.
+**CI green:** Run `gh pr checks`. Every listed check must be `pass` / `success`. Wait/retry while any is `pending`. Fail the gate if any is `fail` / `failure` / `cancelled` / `timed_out`. Skip a check **only** if Spec **Out of scope** names that check exactly.
+
+**PR open (Coder sole or orchestrator after sequential):** Open as **draft** unless the user asked for ready-for-review. **Title** = primary commit subject line verbatim (Conventional Commit). Body: Linear issue link + Spec summary ≤8 lines.
 
 ## Token efficiency
 
@@ -109,8 +111,8 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 1. Session Spec + `ROLES.md` (Coder) + `BUGBOT-LEARNINGS.md` self-check.
 2. Set **branch name** (rule above). Include it in every Coder prompt.
-3. **Sole (default):** Task `sapphire-coder` (`model: composer-2.5`, `mode: sole`, branch name) — implement, check+test exit 0, open **one PR**.
-4. **Sequential (rubric ≥ 2):** Same shared branch. Launch coder Tasks **serially** in Spec Execution order — wait for each `ok` before the next. Each gets `mode: sequential` + branch — implement owned block, check+test, commit, **push**, no PR. After last `ok`, orchestrator opens **one PR**.
+3. **Sole (default):** Task `sapphire-coder` (`model: composer-2.5`, `mode: sole`, branch name) — implement, check+test exit 0, open **one draft PR** (title = primary commit subject).
+4. **Sequential (rubric ≥ 2):** Same shared branch. Launch coder Tasks **serially** in Spec Execution order — wait for each `ok` before the next. Each gets `mode: sequential` + branch — implement owned block, check+test, commit, **push**, no PR. After last `ok`, orchestrator opens **one draft PR**.
 5. **Gates (orchestrator):** **CI green** (definition above) + Bugbot **0 High**. Medium → PR body only.
 6. Continue Phase 4.
 
@@ -118,8 +120,8 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 1. Entry: local verify (check+test for verify set; builds if Spec lists them) exit 0, **CI green**, Bugbot 0 High — else Phase 3.
 2. Session Spec + `ROLES.md` (Reviewer). Load `VISUAL-CAPTURE.md` only if UI in scope.
-3. `/goal` until pass (defined in `ROLES.md`). Fix on PR branch when Spec mismatch or verify failure is in scope; else stop as blocker.
-4. If pushed: re-run Bugbot 0 High + CI green.
+3. `/goal` until pass (defined in `ROLES.md`). **Fixable** = Spec mismatch or verify failure that can be corrected without expanding Out of scope or changing Requirement. At most **one** fix→push→re-verify cycle; if still failing, unrecoverable blocker.
+4. If pushed: re-run Bugbot 0 High + CI green before declaring ready (Reviewer `ok: true` alone is not enough after a push).
 5. Pass → stop. Human merges. No Linear state change.
 
 ## Stop early only when
@@ -129,10 +131,11 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 - **Unrecoverable blocker** — stop and report finished work + URLs. Counts as unrecoverable:
   - No `## Requirement` (Linear MCP missing and user did not paste it)
   - PR trust fails (zero/ambiguous/foreign PR)
-  - Allowlisted verify fails after Spec-aligned fix attempt
+  - Allowlisted verify still failing after **one** Spec-aligned fix→re-verify cycle
   - Bugbot cannot run after one retry
-  - A **required** CI check is `failure` / `cancelled` / `timed_out` and remains so after at most 3 fix+push cycles
+  - A CI check is `fail` / `failure` / `cancelled` / `timed_out` and remains so after at most 3 fix+push cycles (unless that check is named in Spec Out of scope)
   - User withholds confirmation required for a Requirement text change
+  - Reviewer `/goal` still failing after one fixable fix→push→re-verify cycle
 
 ## Output to user
 

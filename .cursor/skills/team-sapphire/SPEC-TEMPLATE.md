@@ -33,7 +33,7 @@ flowchart TB
 
 ## Target architecture
 
-(Include when SUBAGENT-RUBRIC says so. Bullets or tiny mermaid.)
+(Include when SUBAGENT-RUBRIC says so. Bullets only — no mermaid.)
 
 ## Contract / behavior
 
@@ -72,7 +72,7 @@ flowchart LR
 
 ## Verification
 
-Allowlisted scripts from `ROLES.md`. **Required:** check + test for the **verify set** (deliverable package roots ∪ packages edited). List **build** only when you want Coder/Reviewer to run it. **UI routes:** list ≥1 path-only route **iff** Deliverables include `apps/web` page/layout/component files (not only generated client) — else omit Routes and Reviewer skips visuals.
+Allowlisted scripts from `ROLES.md`. **Required:** check + test for the **verify set** (deliverable package roots ∪ packages edited). List **build** only when you want Coder/Reviewer to run it. **UI routes:** list ≥1 path-only route **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**` — else omit Routes and Reviewer skips visuals.
 
 - Scope: `apps/web` — web:check, web:test
 - Routes (UI): `/example-path`

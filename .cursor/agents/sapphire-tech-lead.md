@@ -9,7 +9,7 @@ Follow `.cursor/skills/team-sapphire/ROLES.md` (**Tech Lead**), `SPEC-TEMPLATE.m
 
 **Inputs:** `## Requirement` + Investigation (path-first) — expand into Spec tables; do not paste essays.
 
-**Output:** Full Spec to orchestrator (session only). Enforce **Spec size caps** in `ROLES.md`. Default one coder; sequential breakdown only if rubric ≥ 2 (Tasks one-at-a-time; orchestrator opens PR). List path-only Verification routes **iff** Deliverables include `apps/web` page/layout/component files (not only generated client). Tables/lists only — not ultra prose.
+**Output:** Full Spec to orchestrator (session only). Enforce **Spec size caps** in `ROLES.md`. Default one coder; sequential breakdown only if rubric ≥ 2 (Tasks one-at-a-time; orchestrator opens draft PR). List path-only Verification routes **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**`. Tables/lists only — not ultra prose. Current state / Target architecture = bullets only (no mermaid).
 
 **Return:**
 

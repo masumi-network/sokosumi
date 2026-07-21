@@ -47,7 +47,7 @@ Omit empty sections. No essay preamble.
 
 **Goal:** Implementable Spec from Requirement + Investigation.
 
-**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; BUGBOT optional sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only route under Verification **iff** Spec deliverables include `apps/web` page/layout/component files (not only generated Core client under `src/lib/clients/`). That list defines **UI in scope**.
+**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; BUGBOT optional sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only route under Verification **iff** Spec deliverables include any of: `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**`. Do **not** list routes for generated Core client only (`apps/web/src/lib/clients/**`). That list defines **UI in scope**.
 
 **Do not:** Implement; wait for human PRD approval; child issues; Spec on Linear. Do not load `VISUAL-CAPTURE.md`.
 
@@ -66,7 +66,7 @@ Omit empty sections. No essay preamble.
 | PR Spec summary | 8 lines |
 | Prose outside tables/lists | Forbidden |
 
-Keep Data flow + Verification + Out of scope. **Mermaid:** Data flow ≤8 nodes. Add Execution-order mermaid only when **Coders:** ≥2. No other diagrams.
+Keep Data flow + Verification + Out of scope. **Mermaid:** Data flow ≤8 nodes. Add Execution-order mermaid only when **Coders:** ≥2. No other diagrams (Current state / Target architecture = bullets only).
 
 ---
 
@@ -102,17 +102,17 @@ Reject `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`, `npx`, `node
 
 ### Subagent mode (`sapphire-coder`)
 
-**Sole (`mode: sole`):** Prompt includes branch name. If local branch missing, create it from up-to-date `main` (`git fetch origin main` then `git checkout -b <branch> origin/main`). Implement → allowlisted verify → **open one PR** → push → return. Do **not** watch CI, run Bugbot, or call Linear.
+**Sole (`mode: sole`):** Prompt includes branch name. If local branch missing, create it from up-to-date `main` (`git fetch origin main` then `git checkout -b <branch> origin/main`). Implement → allowlisted verify → open **one draft PR** (title = primary commit subject; body: issue link + Spec summary ≤8 lines) → push → return. Do **not** watch CI, run Bugbot, or call Linear.
 
-**Sequential (`mode: sequential`):** Prompt includes shared branch name. If local branch missing, create/check out from `origin/<branch>` if it exists on remote, else from `origin/main`. Implement owned block only → verify → commit → **push that branch** → return with `prUrl` empty and `pushed: true`. Do **not** open a PR.
+**Sequential (`mode: sequential`):** Prompt includes shared branch name. `git fetch origin`. If `origin/<branch>` exists, `git checkout <branch>` and `git pull --ff-only`. Else create from `origin/main`. Implement owned block only → verify → commit → **push that branch** → return with `prUrl` empty and `pushed: true`. Do **not** open a PR.
 
-**Orchestrator after sequential chain:** After the last coder returns `ok`, open the **one PR** from the shared branch (issue id + Spec summary ≤8 lines), then CI + Bugbot.
+**Orchestrator after sequential chain:** After the last coder returns `ok`, open the **one draft PR** from the shared branch (title = primary commit subject; body: issue link + Spec summary ≤8 lines), then CI + Bugbot.
 
 **Return keys:** `ok`, `prUrl`, `branch`, `verification`, `pushed`, `summary` (one line), `blocker`.
 
 ### Standalone Coder
 
-Gates yourself (verify → PR → **CI green** per `SKILL.md` → Bugbot 0 High). No Linear unless Requirement must change.
+Gates yourself (verify → draft PR → **CI green** per `SKILL.md` → Bugbot 0 High). Linear writes only per `LINEAR.md` (chat-confirmed Requirement wording).
 
 ---
 
@@ -124,6 +124,8 @@ Gates yourself (verify → PR → **CI green** per `SKILL.md` → Bugbot 0 High)
 
 **UI in scope:** Spec Verification lists ≥1 path-only route. If none, skip visuals. Do **not** spawn `sapphire-reviewer` unless the user asks (Reviewer stays on orchestrator by default).
 
+**Fixable:** Spec mismatch or verify failure correctable without expanding Out of scope or changing Requirement. At most **one** fix→push→re-verify cycle per Reviewer run; then blocker if still failing.
+
 **Entry:** Local verify exit 0, **CI green** (see `SKILL.md`), Bugbot 0 High.
 
 ### `/goal` loop
@@ -133,8 +135,10 @@ Gates yourself (verify → PR → **CI green** per `SKILL.md` → Bugbot 0 High)
 3. Compare Contract / Verification / Out of scope.
 4. Allowlisted verify only (check+test; builds if listed).
 5. UI in scope → `VISUAL-CAPTURE.md`. Else skip visuals.
-6. Fix on PR branch; push; re-verify until pass or blocker.
-7. If pushed: orchestrator re-runs Bugbot 0 High + CI green.
+6. If fixable: one fix→push→re-verify. Else stop as blocker.
+7. If you pushed: return `pushed: true` — orchestrator re-runs Bugbot 0 High + CI green before ready.
+
+**`ok: true`:** `/goal` criteria met and local verify exit 0. Does **not** skip orchestrator re-gates after a push.
 
 ### PR trust
 

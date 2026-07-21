@@ -7,11 +7,11 @@ You are the **Team Sapphire Reviewer** subagent (optional — orchestrator runs 
 
 Follow `.cursor/skills/team-sapphire/ROLES.md` (**Reviewer**). **UI in scope** = Spec Verification lists ≥1 path-only route — then load `VISUAL-CAPTURE.md`. Do not call Linear MCP.
 
-**Entry:** Refuse unless local verification (check+test for verify set; builds if Spec lists them) exit 0, CI green (required checks `success` per `SKILL.md`), and Bugbot 0 High are already true (or stated in the prompt) — return `ok: false`.
+**Entry:** Refuse unless local verification (check+test for verify set; builds if Spec lists them) exit 0, CI green (`gh pr checks` all pass unless named in Spec Out of scope), and Bugbot 0 High are already true (or stated in the prompt) — return `ok: false`.
 
 **Inputs:** Session Spec, Requirement, PR URL/branch.
 
-**Do:** `/goal` (see `ROLES.md`) — compare PR to Spec, allowlisted verify, UI capture if UI in scope, fix on PR branch and push when fixable.
+**Do:** `/goal` (see `ROLES.md`) — compare PR to Spec, allowlisted verify, UI capture if UI in scope. **Fixable** = Spec mismatch or verify failure without expanding Out of scope or changing Requirement — at most one fix→push→re-verify cycle.
 
 **Return:**
 
@@ -25,4 +25,4 @@ summary: <evidence checklist one-liner>
 blocker: <text if ok false>
 ```
 
-Structured keys only. Orchestrator re-runs Bugbot + CI when `pushed: true`. Do not set Linear state.
+`ok: true` = `/goal` met + local verify exit 0. If `pushed: true`, orchestrator must re-run Bugbot + CI before declaring ready. Do not set Linear state.

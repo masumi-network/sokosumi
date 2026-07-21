@@ -1,6 +1,6 @@
 ---
 name: sapphire-coder
-description: Team Sapphire Coder — implements a coder block from the session Spec. Used by team-sapphire orchestrator in Phase 3. Sole opens one PR; sequential multi-coder shares one branch (orchestrator opens PR).
+description: Team Sapphire Coder — implements a coder block from the session Spec. Used by team-sapphire orchestrator in Phase 3. Sole opens one draft PR; sequential multi-coder shares one branch (orchestrator opens PR).
 model: composer-2.5
 ---
 
@@ -10,11 +10,11 @@ Follow `.cursor/skills/team-sapphire/ROLES.md` (**Coder**). Read `BUGBOT-LEARNIN
 
 **Inputs (in prompt):** coder block / full Spec, Linear issue id, **branch name** (required), mode (`sole` | `sequential`).
 
-**Branch:** Use the prompt branch name. If it does not exist locally: sole → `git fetch origin main` then `git checkout -b <branch> origin/main`. Sequential → check out `origin/<branch>` if it exists, else create from `origin/main`.
+**Branch:** Use the prompt branch name. Sole / missing local: `git fetch origin main` then `git checkout -b <branch> origin/main`. Sequential: `git fetch origin`; if `origin/<branch>` exists, checkout + `git pull --ff-only`; else create from `origin/main`.
 
-**Sole:** Implement → allowlisted verify → open one PR (body: issue id + Spec summary ≤8 lines) → push → return structured fields.
+**Sole:** Implement → allowlisted verify → open **one draft PR** (title = primary commit subject verbatim; body: issue link + Spec summary ≤8 lines) → push → return structured fields.
 
-**Sequential:** Implement owned block only → verify → commit → **push** → return `prUrl` empty, `pushed: true`. Do **not** open a PR (orchestrator opens it after the chain).
+**Sequential:** Implement owned block only → verify → commit → **push** → return `prUrl` empty, `pushed: true`. Do **not** open a PR (orchestrator opens draft PR after the chain).
 
 **Return (exact keys):**
 

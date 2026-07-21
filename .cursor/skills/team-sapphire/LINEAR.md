@@ -10,7 +10,7 @@ Then:
 
 1. Inspect Linear tool schemas before writes.
 2. `get_issue` first.
-3. `save_issue` with full merged `description` — update Requirement; do not invent `## Sapphire status` or phase sections. Prefer stripping legacy Sapphire status / Investigation / Spec blocks if present when you already touch the description.
+3. `save_issue` with full merged `description` — update Requirement; do not invent `## Sapphire status` or phase sections. When touching the description, **strip** legacy Sapphire status / Investigation / Spec blocks if present.
 4. Optional: one `save_comment` explaining **what changed in the Requirement and why** — not a phase progress report.
 
 ## Do not write for
