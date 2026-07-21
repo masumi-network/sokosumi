@@ -6,14 +6,14 @@ Tech Lead uses this before architecture sections or **Coder breakdown**.
 
 Always include `Data flow`.
 
-Add `Current state` / `Target architecture` when any is true:
+Add `Current state` / `Target architecture` when any true:
 
 - Changes data movement across layers (API, table, route, service, external)
 - Replaces/removes UX, endpoints, jobs, cron, or storage
 - User asked for architecture comparison
-- Meaningful before/after shape
+- Touches ≥2 layers with a before/after contract change
 
-Skip for: copy, UI polish, obvious local bugfix, tests-only, docs-only.
+Skip for: copy-only, CSS/layout-only polish, single-file bug fix with no API/schema change, tests-only, docs-only.
 
 ## Coder scoring
 
@@ -29,17 +29,9 @@ Skip for: copy, UI polish, obvious local bugfix, tests-only, docs-only.
 | Score | Output |
 |-------|--------|
 | 0–1 | **Single coder.** No breakdown. |
-| 2+ | **Coder breakdown** — default **sequential** (foundations first). |
+| 2+ | **Coder breakdown** — **sequential** on one branch (foundations first). Orchestrator runs Tasks **one at a time** in Execution order; opens one PR after the last coder. |
 
-## Parallel (rare)
-
-Set `**Parallel:** true` in the spec **only when**:
-
-- Score ≥ 2, **and**
-- File ownership is disjoint, **and**
-- No merge-order dependency between parallel blocks
-
-Otherwise keep `**Parallel:** false` and use **Execution order** mermaid for sequential work on one branch.
+Do **not** use parallel coder branches.
 
 ## Coder block format
 
@@ -57,18 +49,11 @@ Otherwise keep `**Parallel:** false` and use **Execution order** mermaid for seq
 **Do not:** Boundaries.
 ```
 
-## Ownership table (required for Parallel)
-
-```markdown
-| Coder | Owns | Do not edit |
-|-------|------|-------------|
-| A | [`path/a.ts`](path/a.ts) | `path/b.ts` |
-| B | [`path/b.ts`](path/b.ts) | `path/a.ts` |
-```
+Context ≤5 bullets. Deliverables = paths only.
 
 ## Boundaries
 
-- Do not split just to look parallel.
-- Keep tightly coupled files together.
+- Do not split when a single coder can own the whole Spec under score 0–1.
+- Keep tightly coupled files in one coder block.
 - Keep generated files with the coder that owns generation.
 - Prefer schema → contract → service → UI → cleanup.
