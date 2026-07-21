@@ -3141,7 +3141,7 @@
           "submitting": "Enregistrement…",
           "image": {
             "label": "Image",
-            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo. Les ajouts et suppressions sont enregistrés immédiatement.",
+            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo.",
             "upload": "Téléverser une image",
             "replace": "Remplacer l'image",
             "remove": "Supprimer l'image",

@@ -3110,7 +3110,7 @@
           "submitting": "Wird gespeichert…",
           "image": {
             "label": "Bild",
-            "description": "PNG, JPEG, WebP oder GIF bis 2 MB. Uploads und Entfernen werden sofort gespeichert.",
+            "description": "PNG, JPEG, WebP oder GIF bis 2 MB.",
             "upload": "Bild hochladen",
             "replace": "Bild ersetzen",
             "remove": "Bild entfernen",

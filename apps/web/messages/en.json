@@ -3233,7 +3233,7 @@
           "submitting": "Saving…",
           "image": {
             "label": "Image",
-            "description": "PNG, JPEG, WebP, or GIF up to 2 MB. Uploads and removals save immediately.",
+            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
             "upload": "Upload image",
             "replace": "Replace image",
             "remove": "Remove image",

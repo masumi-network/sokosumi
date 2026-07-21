@@ -3141,7 +3141,7 @@
           "submitting": "A guardar…",
           "image": {
             "label": "Imagem",
-            "description": "PNG, JPEG, WebP ou GIF até 2 MB. Envios e remoções são guardados de imediato.",
+            "description": "PNG, JPEG, WebP ou GIF até 2 MB.",
             "upload": "Carregar imagem",
             "replace": "Substituir imagem",
             "remove": "Remover imagem",

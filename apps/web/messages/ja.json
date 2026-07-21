@@ -3141,7 +3141,7 @@
           "submitting": "保存中…",
           "image": {
             "label": "画像",
-            "description": "PNG / JPEG / WebP / GIF（最大 2 MB）。アップロードと削除はすぐに保存されます。",
+            "description": "PNG / JPEG / WebP / GIF（最大 2 MB）。",
             "upload": "画像をアップロード",
             "replace": "画像を差し替え",
             "remove": "画像を削除",
