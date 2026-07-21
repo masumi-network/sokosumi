@@ -57,4 +57,9 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     href: "/admin/coworkers",
     Icon: Bot,
   },
+  {
+    key: "orchestrators",
+    href: "/admin/orchestrators",
+    Icon: Bot,
+  },
 ];

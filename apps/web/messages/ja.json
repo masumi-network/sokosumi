@@ -2916,13 +2916,17 @@
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
           },
-          "coworkers": {
-            "title": "Coworkers",
-            "description": "アクティブな Coworker の表示名、キャプション、説明、画像を編集します。"
+          "orchestrators": {
+            "title": "オーケストレーター",
+            "description": "自社オーケストレーターの表示メタデータを編集します。"
           },
           "freeCredits": {
             "title": "無料クレジット",
             "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "アクティブな Coworker の表示名、キャプション、説明、画像を編集します。"
           }
         }
       },
@@ -3200,6 +3204,70 @@
           "submitting": "クレジットを付与中…",
           "grantSuccess": "無料クレジットを付与しました",
           "grantError": "無料クレジットの付与に失敗しました"
+        }
+      },
+      "Orchestrators": {
+        "title": "オーケストレーター",
+        "description": "自社オーケストレーターの表示メタデータを管理します。",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, other {# 件のオーケストレーター}}",
+          "empty": "オーケストレーターが見つかりません。",
+          "orchestrator": "オーケストレーター",
+          "slug": "スラッグ",
+          "caption": "キャプション",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "オーケストレーターを編集",
+          "backToList": "オーケストレーター一覧に戻る"
+        },
+        "EditForm": {
+          "submit": "変更を保存",
+          "submitting": "保存中…",
+          "image": {
+            "label": "画像",
+            "description": "PNG / JPEG / WebP / GIF（最大 2 MB）。",
+            "upload": "画像をアップロード",
+            "replace": "画像を差し替え",
+            "remove": "画像を削除",
+            "previewAlt": "オーケストレーター画像のプレビュー",
+            "fileTooLarge": "画像は 2 MB 以下にしてください。",
+            "fileTypeNotAccepted": "PNG、JPEG、WebP、GIF を使用してください。",
+            "maxFilesExceeded": "一度に 1 枚だけアップロードできます。",
+            "uploadError": "選択した画像を処理できませんでした。"
+          },
+          "fields": {
+            "name": {
+              "label": "名前",
+              "description": "オーケストレーターが表示されるすべての場所に使われます。"
+            },
+            "slug": {
+              "label": "スラッグ",
+              "description": "URL や API で使う読み取り専用の識別子です。"
+            },
+            "caption": {
+              "label": "キャプション",
+              "description": "名前の下に表示する短い文言。空にすると削除されます。"
+            },
+            "description": {
+              "label": "説明",
+              "description": "詳細画面向けの長い説明文。空にすると削除されます。"
+            }
+          },
+          "validation": {
+            "nameMinLength": "名前は {min} 文字以上にしてください。",
+            "noChanges": "保存する変更がありません。"
+          },
+          "success": {
+            "saved": "オーケストレーターを更新しました。",
+            "imageSaved": "画像を保存しました。",
+            "imageRemoved": "画像を削除しました。"
+          },
+          "errors": {
+            "saveFailed": "オーケストレーターを保存できませんでした。",
+            "notFound": "オーケストレーターが見つかりません。",
+            "imageSaveFailed": "画像の更新に失敗しました。"
+          }
         }
       }
     },

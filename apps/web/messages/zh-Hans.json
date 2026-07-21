@@ -2916,13 +2916,17 @@
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
           },
-          "coworkers": {
-            "title": "Coworkers",
-            "description": "编辑活跃 Coworker 的显示名称、副标题、描述和图片。"
+          "orchestrators": {
+            "title": "编排器",
+            "description": "编辑自有编排器的展示元数据。"
           },
           "freeCredits": {
             "title": "免费积分",
             "description": "无需 Stripe 发票，直接向用户或组织发放免费积分。"
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "编辑活跃 Coworker 的显示名称、副标题、描述和图片。"
           }
         }
       },
@@ -3200,6 +3204,70 @@
           "submitting": "正在发放积分…",
           "grantSuccess": "免费积分已发放",
           "grantError": "发放免费积分失败"
+        }
+      },
+      "Orchestrators": {
+        "title": "编排器",
+        "description": "管理自有编排器的展示元数据。",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, other {# 个编排器}}",
+          "empty": "未找到编排器。",
+          "orchestrator": "编排器",
+          "slug": "Slug",
+          "caption": "副标题",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "编辑编排器",
+          "backToList": "返回编排器列表"
+        },
+        "EditForm": {
+          "submit": "保存更改",
+          "submitting": "正在保存…",
+          "image": {
+            "label": "图片",
+            "description": "PNG、JPEG、WebP 或 GIF，最大 2 MB。",
+            "upload": "上传图片",
+            "replace": "替换图片",
+            "remove": "移除图片",
+            "previewAlt": "编排器图片预览",
+            "fileTooLarge": "图片大小不能超过 2 MB。",
+            "fileTypeNotAccepted": "请使用 PNG、JPEG、WebP 或 GIF。",
+            "maxFilesExceeded": "一次只能上传一张图片。",
+            "uploadError": "无法处理所选图片。"
+          },
+          "fields": {
+            "name": {
+              "label": "名称",
+              "description": "在展示编排器的所有位置显示。"
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "用于 URL 和 API 的只读标识符。"
+            },
+            "caption": {
+              "label": "副标题",
+              "description": "显示在名称下方的简短文字。留空即清除。"
+            },
+            "description": {
+              "label": "描述",
+              "description": "用于详情页的较长文案。留空即清除。"
+            }
+          },
+          "validation": {
+            "nameMinLength": "名称至少需要 {min} 个字符。",
+            "noChanges": "没有可保存的更改。"
+          },
+          "success": {
+            "saved": "编排器已更新。",
+            "imageSaved": "图片已保存。",
+            "imageRemoved": "图片已删除。"
+          },
+          "errors": {
+            "saveFailed": "保存编排器失败。",
+            "notFound": "未找到编排器。",
+            "imageSaveFailed": "更新图片失败。"
+          }
         }
       }
     },

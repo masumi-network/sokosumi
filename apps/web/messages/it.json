@@ -2916,13 +2916,17 @@
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
           },
-          "coworkers": {
-            "title": "Coworkers",
-            "description": "Modifica nomi, didascalie, descrizioni e immagini dei coworker attivi."
+          "orchestrators": {
+            "title": "Orchestrator",
+            "description": "Modifica i metadati di visualizzazione degli orchestrator proprietari."
           },
           "freeCredits": {
             "title": "Crediti gratuiti",
             "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Modifica nomi, didascalie, descrizioni e immagini dei coworker attivi."
           }
         }
       },
@@ -3200,6 +3204,70 @@
           "submitting": "Concessione crediti…",
           "grantSuccess": "Crediti gratuiti concessi",
           "grantError": "Impossibile concedere i crediti gratuiti"
+        }
+      },
+      "Orchestrators": {
+        "title": "Orchestrator",
+        "description": "Gestisci i metadati di visualizzazione degli orchestrator proprietari.",
+        "OrchestratorList": {
+          "totalCount": "{count, plural, one {# orchestrator} other {# orchestrator}}",
+          "empty": "Nessun orchestrator trovato.",
+          "orchestrator": "Orchestrator",
+          "slug": "Slug",
+          "caption": "Didascalia",
+          "emptyCaption": "—"
+        },
+        "Detail": {
+          "title": "Modifica orchestrator",
+          "backToList": "Torna agli orchestrator"
+        },
+        "EditForm": {
+          "submit": "Salva modifiche",
+          "submitting": "Salvataggio…",
+          "image": {
+            "label": "Immagine",
+            "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
+            "upload": "Carica immagine",
+            "replace": "Sostituisci immagine",
+            "remove": "Rimuovi immagine",
+            "previewAlt": "Anteprima immagine orchestrator",
+            "fileTooLarge": "L'immagine deve essere di 2 MB o meno.",
+            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+            "maxFilesExceeded": "Carica un'immagine alla volta.",
+            "uploadError": "Impossibile elaborare l'immagine selezionata."
+          },
+          "fields": {
+            "name": {
+              "label": "Nome",
+              "description": "Mostrato ovunque compaia l'orchestrator."
+            },
+            "slug": {
+              "label": "Slug",
+              "description": "Identificatore di sola lettura usato in URL e API."
+            },
+            "caption": {
+              "label": "Didascalia",
+              "description": "Breve riga sotto il nome. Lascia vuoto per cancellare."
+            },
+            "description": {
+              "label": "Descrizione",
+              "description": "Testo più lungo per le viste di dettaglio. Lascia vuoto per cancellare."
+            }
+          },
+          "validation": {
+            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+            "noChanges": "Nessuna modifica da salvare."
+          },
+          "success": {
+            "saved": "Orchestrator aggiornato.",
+            "imageSaved": "Immagine salvata.",
+            "imageRemoved": "Immagine rimossa."
+          },
+          "errors": {
+            "saveFailed": "Impossibile salvare l'orchestrator.",
+            "notFound": "Orchestrator non trovato.",
+            "imageSaveFailed": "Impossibile aggiornare l’immagine."
+          }
         }
       }
     },
