@@ -2,6 +2,7 @@ import {
   type Agent,
   type AgentMetadataOverride,
   AgentStatus,
+  type AgentWithPricing,
   type CreditCost,
   PricingType,
   type Prisma,
@@ -19,7 +20,6 @@ import {
   type RatingDistribution,
   type RatingMetrics,
 } from "@/schemas/agent.schema";
-import type { AgentWithPricing } from "@/types/agent";
 
 import { internalServerError, notFound, unprocessableEntity } from "./error";
 

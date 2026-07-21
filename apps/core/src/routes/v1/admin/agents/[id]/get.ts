@@ -1,5 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
-
+import {
+  agentExampleOutputInclude,
+  agentTagsInclude,
+} from "@sokosumi/database";
 import {
   adminAgentDetailInclude,
   mapAdminAgentDetail,
@@ -13,7 +16,6 @@ import {
   adminAgentDetailSchema,
   adminAgentIdParamSchema,
 } from "@/schemas/admin-agent.schema";
-import { agentExampleOutputInclude, agentTagsInclude } from "@/types/agent";
 
 const route = createRoute({
   method: "get",

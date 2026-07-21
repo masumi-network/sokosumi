@@ -336,6 +336,60 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
                 : t("emptyValue")}
             </p>
           </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">{t("fields.authorName")}</p>
+            <p>{resolved.authorName ?? t("emptyValue")}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">{t("fields.authorImage")}</p>
+            <p className="break-all">
+              {resolved.authorImage ?? t("emptyValue")}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">
+              {t("fields.authorContactEmail")}
+            </p>
+            <p className="break-all">
+              {resolved.authorContactEmail ?? t("emptyValue")}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">
+              {t("fields.authorContactOther")}
+            </p>
+            <p>{resolved.authorContactOther ?? t("emptyValue")}</p>
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <p className="text-muted-foreground">
+              {t("fields.authorOrganization")}
+            </p>
+            <p>{resolved.authorOrganization ?? t("emptyValue")}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">
+              {t("fields.legalPrivacyPolicy")}
+            </p>
+            <p className="break-all">
+              {resolved.legalPrivacyPolicy ?? t("emptyValue")}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">{t("fields.legalDpa")}</p>
+            <p className="break-all">{resolved.legalDpa ?? t("emptyValue")}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">{t("fields.legalTerms")}</p>
+            <p className="break-all">
+              {resolved.legalTerms ?? t("emptyValue")}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">{t("fields.legalOther")}</p>
+            <p className="break-all">
+              {resolved.legalOther ?? t("emptyValue")}
+            </p>
+          </div>
         </div>
       </section>
     </div>

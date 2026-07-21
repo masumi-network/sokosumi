@@ -132,6 +132,60 @@ export const AdminAgentDetailSchema = {
                 apiBaseUrl: {
                     type: 'string'
                 },
+                authorName: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                authorImage: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                authorContactEmail: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                authorContactOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                authorOrganization: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                legalPrivacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                legalDpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                legalTerms: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                legalOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
                 tags: {
                     type: 'array',
                     items: {
@@ -150,6 +204,15 @@ export const AdminAgentDetailSchema = {
                 'description',
                 'image',
                 'apiBaseUrl',
+                'authorName',
+                'authorImage',
+                'authorContactEmail',
+                'authorContactOther',
+                'authorOrganization',
+                'legalPrivacyPolicy',
+                'legalDpa',
+                'legalTerms',
+                'legalOther',
                 'tags',
                 'exampleOutputs'
             ]

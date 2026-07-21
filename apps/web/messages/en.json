@@ -3454,8 +3454,6 @@
             "description": "Description",
             "image": "Image URL",
             "apiBaseUrl": "API base URL",
-            "capabilityName": "Capability name",
-            "capabilityVersion": "Capability version",
             "authorName": "Author name",
             "authorImage": "Author image URL",
             "authorContactEmail": "Author contact email",

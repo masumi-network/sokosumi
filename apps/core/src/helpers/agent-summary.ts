@@ -1,4 +1,9 @@
-import type { CreditCost, Prisma } from "@sokosumi/database";
+import {
+  agentMetadataOverrideScalarsInclude,
+  agentPricingInclude,
+  type CreditCost,
+  type Prisma,
+} from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
@@ -18,8 +23,6 @@ import { mapCategoryForApi } from "@/schemas/category.schema";
 import type {
   agentCategoriesInclude,
   agentJobsCountInclude,
-  agentMetadataOverrideScalarsInclude,
-  agentPricingInclude,
 } from "@/types/agent";
 
 /**

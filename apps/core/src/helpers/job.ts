@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
+  agentMetadataOverrideScalarsInclude,
+  agentPricingInclude,
   JobType,
   PricingType,
   Prisma,
@@ -21,7 +23,6 @@ import type {
 } from "@sokosumi/masumi/schemas";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
-
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { requireCoworkerCapability } from "@/helpers/access-control";
@@ -36,10 +37,6 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
-import {
-  agentMetadataOverrideScalarsInclude,
-  agentPricingInclude,
-} from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
@@ -336,7 +333,7 @@ export async function createAgentJobForUser(
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
       const startFreeJobResult = await createAgentClient().startFreeAgentJob(
-        toMasumiAgent(agent),
+        masumiAgent,
         agentInput.inputData,
       );
 

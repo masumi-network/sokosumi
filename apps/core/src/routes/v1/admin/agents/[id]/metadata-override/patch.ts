@@ -1,5 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
-
+import {
+  agentExampleOutputInclude,
+  agentTagsInclude,
+} from "@sokosumi/database";
 import {
   adminAgentDetailInclude,
   buildMetadataOverrideScalarUpdate,
@@ -17,7 +20,6 @@ import {
   adminAgentIdParamSchema,
   patchAdminAgentMetadataOverrideBodySchema,
 } from "@/schemas/admin-agent.schema";
-import { agentExampleOutputInclude, agentTagsInclude } from "@/types/agent";
 
 const route = createRoute({
   method: "patch",

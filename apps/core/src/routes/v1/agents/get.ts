@@ -1,5 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import type { Prisma } from "@sokosumi/database";
+import {
+  agentMetadataOverrideScalarsInclude,
+  agentOrderBy,
+  agentPricingInclude,
+  type Prisma,
+} from "@sokosumi/database";
 import {
   buildAvailableAgentWhereClause,
   getCreditCostsOrThrow,
@@ -25,13 +30,7 @@ import {
 } from "@/lib/hono";
 import { agentsSummarySchema } from "@/schemas/agent.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import {
-  agentCategoriesInclude,
-  agentJobsCountInclude,
-  agentMetadataOverrideScalarsInclude,
-  agentOrderBy,
-  agentPricingInclude,
-} from "@/types/agent";
+import { agentCategoriesInclude, agentJobsCountInclude } from "@/types/agent";
 
 const UNCATEGORIZED_CATEGORY_FILTER = "uncategorized";
 

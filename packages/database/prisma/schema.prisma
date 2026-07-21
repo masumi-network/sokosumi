@@ -526,6 +526,9 @@ model ExampleOutput {
 
   metadataOverride   AgentMetadataOverride? @relation(fields: [metadataOverrideId], references: [id], onDelete: Cascade)
   metadataOverrideId String?
+
+  @@index([agentId])
+  @@index([metadataOverrideId])
 }
 
 model UserAgentRating {

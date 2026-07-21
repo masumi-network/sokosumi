@@ -3154,8 +3154,6 @@
             "tagsPlaceholder": "Nomes de tags separados por vírgulas",
             "examples": "Saídas de exemplo",
             "examplesPlaceholder": "Uma por linha: nome|mimeType|url",
-            "capabilityName": "Nome da capacidade",
-            "capabilityVersion": "Versão da capacidade",
             "authorName": "Nome do autor",
             "authorImage": "URL da imagem do autor",
             "authorContactEmail": "E-mail de contato do autor",

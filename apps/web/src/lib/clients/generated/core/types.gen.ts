@@ -46,6 +46,15 @@ export type AdminAgentDetail = {
         description: string | null;
         image: string | null;
         apiBaseUrl: string;
+        authorName: string | null;
+        authorImage: string | null;
+        authorContactEmail: string | null;
+        authorContactOther: string | null;
+        authorOrganization: string | null;
+        legalPrivacyPolicy: string | null;
+        legalDpa: string | null;
+        legalTerms: string | null;
+        legalOther: string | null;
         tags: Array<string>;
         exampleOutputs: Array<AdminAgentMetadataOverrideExample>;
     };

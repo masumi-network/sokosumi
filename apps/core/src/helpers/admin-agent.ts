@@ -1,5 +1,6 @@
 import type { z } from "@hono/zod-openapi";
 import type { Agent, AgentMetadataOverride, Prisma } from "@sokosumi/database";
+
 import {
   getAgentDescription,
   getAgentImage,
@@ -13,7 +14,9 @@ import {
 } from "@/schemas/admin-agent.schema";
 import {
   getAgentExampleOutputsFromAgent,
+  getAgentLegalFromAgent,
   getAgentTagsFromAgent,
+  getAuthorFromAgent,
 } from "@/schemas/agent.schema";
 
 type AdminAgentListItem = z.infer<typeof adminAgentListItemSchema>;
@@ -153,6 +156,9 @@ export function mapAdminAgentDetail(
     tags: Array<{ name: string }>;
   },
 ): AdminAgentDetail {
+  const author = getAuthorFromAgent(agent);
+  const legal = getAgentLegalFromAgent(agent);
+
   return adminAgentDetailSchema.parse({
     registry: mapAdminAgentRegistry(agent),
     override: mapAdminAgentMetadataOverride(agent.metadataOverride),
@@ -161,6 +167,15 @@ export function mapAdminAgentDetail(
       description: getAgentDescription(agent),
       image: getAgentImage(agent),
       apiBaseUrl: agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl,
+      authorName: author.name,
+      authorImage: author.image,
+      authorContactEmail: author.email,
+      authorContactOther: author.other,
+      authorOrganization: author.organization,
+      legalPrivacyPolicy: legal.privacyPolicy,
+      legalDpa: legal.dpa,
+      legalTerms: legal.terms,
+      legalOther: legal.other,
       tags: getAgentTagsFromAgent(agent),
       exampleOutputs: getAgentExampleOutputsFromAgent(agent),
     },

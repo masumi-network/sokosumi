@@ -3154,8 +3154,6 @@
             "tagsPlaceholder": "逗号分隔的标签名称",
             "examples": "示例输出",
             "examplesPlaceholder": "每行一条：name|mimeType|url",
-            "capabilityName": "能力名称",
-            "capabilityVersion": "能力版本",
             "authorName": "作者姓名",
             "authorImage": "作者图片 URL",
             "authorContactEmail": "作者联系邮箱",
