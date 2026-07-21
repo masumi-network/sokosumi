@@ -32,7 +32,7 @@ export const AdminAgentListItemSchema = {
             ]
         },
         status: {
-            type: 'string'
+            $ref: '#/components/schemas/AgentStatus'
         },
         isShown: {
             type: 'boolean'
@@ -59,6 +59,16 @@ export const AdminAgentListItemSchema = {
         'isShown',
         'createdAt',
         'updatedAt'
+    ]
+} as const;
+
+export const AgentStatusSchema = {
+    type: 'string',
+    enum: [
+        'ONLINE',
+        'OFFLINE',
+        'DEREGISTERED',
+        'INVALID'
     ]
 } as const;
 
@@ -325,7 +335,7 @@ export const AdminAgentRegistrySchema = {
             ]
         },
         status: {
-            type: 'string'
+            $ref: '#/components/schemas/AgentStatus'
         },
         isShown: {
             type: 'boolean'

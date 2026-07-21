@@ -13,11 +13,20 @@ export type AdminAgentListItem = {
     hasOverride: boolean;
     displayName: string;
     displayImage: string | null;
-    status: string;
+    status: AgentStatus;
     isShown: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
+
+export const AgentStatus = {
+    ONLINE: 'ONLINE',
+    OFFLINE: 'OFFLINE',
+    DEREGISTERED: 'DEREGISTERED',
+    INVALID: 'INVALID'
+} as const;
+
+export type AgentStatus = typeof AgentStatus[keyof typeof AgentStatus];
 
 export type PaginationMetadata = {
     /**
@@ -79,7 +88,7 @@ export type AdminAgentRegistry = {
     legalOther: string | null;
     image: string | null;
     icon: string | null;
-    status: string;
+    status: AgentStatus;
     isShown: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -3314,6 +3323,18 @@ export type ListAdminAgentsData = {
          * Optional search on registry name, blockchain identifier, or override name
          */
         q?: string;
+        /**
+         * Filter agents by registry status (omit for all)
+         */
+        status?: AgentStatus & unknown;
+        /**
+         * Column to sort the admin agent list by
+         */
+        sortBy?: 'displayName' | 'registryName' | 'hasOverride' | 'status' | 'createdAt';
+        /**
+         * Sort direction for the admin agent list
+         */
+        sortOrder?: 'asc' | 'desc';
     };
     url: '/admin/agents';
 };

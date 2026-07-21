@@ -4,6 +4,7 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AdminAgentDetail,
   AdminAgentListItem,
+  AgentStatus,
   PatchAdminAgentMetadataOverrideBody,
 } from "@/lib/clients/generated/core";
 
@@ -17,6 +18,14 @@ export interface ListAdminAgentsParams {
   q?: string;
   cursor?: string;
   limit?: number;
+  status?: AgentStatus;
+  sortBy?:
+    | "displayName"
+    | "registryName"
+    | "hasOverride"
+    | "status"
+    | "createdAt";
+  sortOrder?: "asc" | "desc";
 }
 
 export const adminAgentService = {

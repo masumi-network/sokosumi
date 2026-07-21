@@ -1,21 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { getCoworkersTableColumns } from "@/components/admin/coworkers/coworkers-table-columns";
+import { DataTable } from "@/components/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
@@ -24,20 +15,6 @@ interface CoworkersTableProps {
 }
 
 type ArchiveFilter = "all" | "active" | "archived";
-
-const CAPTION_MAX_LENGTH = 80;
-
-function truncateCaption(caption: string | null | undefined): string {
-  if (!caption) {
-    return "—";
-  }
-
-  if (caption.length <= CAPTION_MAX_LENGTH) {
-    return caption;
-  }
-
-  return `${caption.slice(0, CAPTION_MAX_LENGTH - 1)}…`;
-}
 
 function isArchived(coworker: Coworker): boolean {
   return coworker.archivedAt != null;
@@ -78,6 +55,7 @@ function matchesSearch(coworker: Coworker, query: string): boolean {
 
 export function CoworkersTable({ coworkers }: CoworkersTableProps) {
   const t = useTranslations("App.Admin.Coworkers.Table");
+  const formatter = useFormatter();
   const [search, setSearch] = useState("");
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("all");
 
@@ -89,6 +67,11 @@ export function CoworkersTable({ coworkers }: CoworkersTableProps) {
           matchesSearch(coworker, search),
       ),
     [archiveFilter, coworkers, search],
+  );
+
+  const columns = useMemo(
+    () => getCoworkersTableColumns(t, formatter),
+    [formatter, t],
   );
 
   const archiveFilterLabel =
@@ -153,60 +136,16 @@ export function CoworkersTable({ coworkers }: CoworkersTableProps) {
         </p>
       ) : (
         <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("slug")}</TableHead>
-                <TableHead>{t("caption")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("whitelist")}</TableHead>
-                <TableHead className="text-right tabular-nums">
-                  {t("priority")}
-                </TableHead>
-                <TableHead className="text-right">{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((coworker) => (
-                <TableRow key={coworker.id}>
-                  <TableCell className="font-medium">{coworker.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {coworker.slug}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-xs truncate">
-                    {truncateCaption(coworker.caption)}
-                  </TableCell>
-                  <TableCell>
-                    {isArchived(coworker) ? (
-                      <Badge variant="secondary">{t("archived")}</Badge>
-                    ) : (
-                      <Badge variant="outline">{t("active")}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={coworker.isWhitelisted ? "default" : "secondary"}
-                    >
-                      {coworker.isWhitelisted
-                        ? t("whitelisted")
-                        : t("notWhitelisted")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {coworker.priority}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/admin/coworkers/${coworker.id}`}>
-                        {t("edit")}
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            containerClassName="space-y-0"
+            tableHeaderClassName="bg-muted/50"
+            showPagination={false}
+            enableRowSelection={false}
+            disableHover
+            defaultSort={[{ id: "createdAt", desc: true }]}
+          />
         </div>
       )}
     </div>

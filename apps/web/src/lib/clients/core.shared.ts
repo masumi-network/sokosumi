@@ -2,6 +2,7 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
   ActivateEnterpriseContractRequest,
+  AgentStatus,
   CreateConversationMessageRequest,
   CreateEnterpriseContractRequest,
   DeleteHermesMeInstanceIntegrationsByProviderData,
@@ -941,6 +942,14 @@ export function createCoreClient(getClient: GetClient) {
     q?: string;
     cursor?: string;
     limit?: number;
+    status?: AgentStatus;
+    sortBy?:
+      | "displayName"
+      | "registryName"
+      | "hasOverride"
+      | "status"
+      | "createdAt";
+    sortOrder?: "asc" | "desc";
   }) {
     return executeOperation(
       getClient,
