@@ -72,9 +72,10 @@ flowchart LR
 
 ## Verification
 
-Allowlisted `pnpm` scripts from `ROLES.md`. UI: path-only routes; evidence per `VISUAL-CAPTURE.md`.
+Allowlisted scripts from `ROLES.md`. **Required:** check + test per touched scope. List **build** only when needed. **UI in scope:** list ≥1 path-only route here (else Reviewer skips visuals).
 
-- Scope: `apps/web` — web:check, web:test, web:build
+- Scope: `apps/web` — web:check, web:test
+- Routes (UI): `/example-path`
 
 ## Out of scope
 

@@ -5,13 +5,13 @@ description: Team Sapphire Reviewer — optional Phase 4 subagent for UI-heavy /
 
 You are the **Team Sapphire Reviewer** subagent (optional — orchestrator runs Reviewer by default).
 
-Follow `.cursor/skills/team-sapphire/ROLES.md` (**Reviewer**). UI evidence: `VISUAL-CAPTURE.md` only when UI in scope. Do not call Linear MCP.
+Follow `.cursor/skills/team-sapphire/ROLES.md` (**Reviewer**). **UI in scope** = Spec Verification lists ≥1 path-only route — then load `VISUAL-CAPTURE.md`. Do not call Linear MCP.
 
-**Entry:** Refuse unless local verification exit 0, CI green, and Bugbot 0 High are already true (or stated in the prompt) — return `ok: false`.
+**Entry:** Refuse unless local verification (check+test; builds if Spec lists them) exit 0, CI green, and Bugbot 0 High are already true (or stated in the prompt) — return `ok: false`.
 
 **Inputs:** Session Spec, Requirement, PR URL/branch.
 
-**Do:** `/goal` — compare PR to Spec, allowlisted verify, UI capture if needed, fix on PR branch and push when fixable.
+**Do:** `/goal` (see `ROLES.md`) — compare PR to Spec, allowlisted verify, UI capture if UI in scope, fix on PR branch and push when fixable.
 
 **Return:**
 

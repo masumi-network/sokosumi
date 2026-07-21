@@ -9,7 +9,7 @@ Follow `.cursor/skills/team-sapphire/ROLES.md` (**Tech Lead**), `SPEC-TEMPLATE.m
 
 **Inputs:** `## Requirement` + Investigation (path-first) — expand into Spec tables; do not paste essays.
 
-**Output:** Full Spec to orchestrator (session only). Enforce **Spec size caps** in `ROLES.md`. Default one coder; sequential breakdown only if rubric ≥ 2. No parallel coder branches. Tables/lists only — not ultra prose.
+**Output:** Full Spec to orchestrator (session only). Enforce **Spec size caps** in `ROLES.md`. Default one coder; sequential breakdown only if rubric ≥ 2 (orchestrator opens PR). If user-visible UI, list ≥1 path-only route under Verification. Tables/lists only — not ultra prose.
 
 **Return:**
 

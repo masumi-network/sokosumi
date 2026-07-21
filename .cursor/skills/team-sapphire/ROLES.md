@@ -47,7 +47,7 @@ Omit empty sections. No essay preamble.
 
 **Goal:** Implementable Spec from Requirement + Investigation.
 
-**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; BUGBOT optional sections when triggers fire; `[repo=masumi-network/sokosumi]` at top.
+**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; BUGBOT optional sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. If the change is user-visible, list ≥1 path-only route under Verification (defines **UI in scope**).
 
 **Do not:** Implement; wait for human PRD approval; child issues; Spec on Linear. Do not load `VISUAL-CAPTURE.md`.
 
@@ -89,14 +89,22 @@ Reject `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`, `npx`, `node
 |-------|-------|------|-------|
 | `apps/web` | `pnpm web:check` | `pnpm web:test` | `pnpm web:build` |
 | `apps/core` | `pnpm --filter core check` | `pnpm core:test` | `pnpm core:build` |
-| `packages/*` | package `check`/`test` | same | `pnpm build` |
+| `packages/<name>` | `pnpm --filter <name> check` | `pnpm --filter <name> test` | `pnpm --filter <name> build` |
 | Repo-wide | `pnpm check` | `pnpm test` | `pnpm build` |
+
+**Must pass (exit 0):** for every workspace touched by the Spec, run that scope’s **check** and **test**.
+
+**Build:** run only when Spec Verification lists a build script for that scope.
+
+**Local verify** (Reviewer entry / Coder handoff) = the same check+test set (and listed builds).
 
 ### Subagent mode (`sapphire-coder`)
 
-Implement → allowlisted verify (exit 0) → open one PR → structured return. Do **not** watch CI, run Bugbot, or call Linear.
+**Sole (`mode: sole`):** Implement on branch from prompt → allowlisted verify → **open one PR** → push → return. Do **not** watch CI, run Bugbot, or call Linear.
 
-Sequential multi-coder: own block only on shared branch; last coder (or orchestrator) opens the single PR after verify.
+**Sequential (`mode: sequential`):** Implement owned block only on the **shared branch named in the prompt** → verify → commit → **push that branch** → return with `prUrl` empty and `pushed: true`. Do **not** open a PR.
+
+**Orchestrator after sequential chain:** After the last coder returns `ok`, open the **one PR** from the shared branch (issue id + Spec summary ≤8 lines), then CI + Bugbot.
 
 **Return keys:** `ok`, `prUrl`, `branch`, `verification`, `pushed`, `summary` (one line), `blocker`.
 
@@ -110,6 +118,12 @@ Gates yourself (verify → PR → CI green → Bugbot 0 High). No Linear unless 
 
 **Goal:** PR vs Spec. `/goal` until pass. Human merges.
 
+**`/goal`:** Loop until the PR matches Spec (Contract / Verification / Out of scope), allowlisted verify exits 0, and UI evidence exists when **UI in scope** — or stop on a true blocker.
+
+**UI in scope:** Spec Verification lists ≥1 path-only route. If none, skip visuals and do not spawn `sapphire-reviewer` unless the user asks. Tech Lead must list those routes when the change is user-visible.
+
+**Optional `sapphire-reviewer`:** Only when UI in scope **and** (multi-step UI flow in Spec **or** user asks). Otherwise Reviewer stays on the orchestrator.
+
 **Entry:** Local verify exit 0, CI green, Bugbot 0 High.
 
 ### `/goal` loop
@@ -117,8 +131,8 @@ Gates yourself (verify → PR → CI green → Bugbot 0 High). No Linear unless 
 1. Session Spec + Requirement (Linear read-only).
 2. **PR trust** (below).
 3. Compare Contract / Verification / Out of scope.
-4. Allowlisted verify only.
-5. UI in scope → `VISUAL-CAPTURE.md` (short). Else skip visuals.
+4. Allowlisted verify only (check+test; builds if listed).
+5. UI in scope → `VISUAL-CAPTURE.md`. Else skip visuals.
 6. Fix on PR branch; push; re-verify until pass or blocker.
 7. If pushed: orchestrator re-runs Bugbot 0 High + CI green.
 

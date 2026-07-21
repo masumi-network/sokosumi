@@ -53,7 +53,7 @@ Context ≤5 bullets. Deliverables = paths only.
 
 ## Boundaries
 
-- Do not split for show.
-- Keep tightly coupled files together.
+- Do not split when a single coder can own the whole Spec under score 0–1.
+- Keep tightly coupled files in one coder block.
 - Keep generated files with the coder that owns generation.
 - Prefer schema → contract → service → UI → cleanup.

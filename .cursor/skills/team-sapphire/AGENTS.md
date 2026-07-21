@@ -25,5 +25,7 @@ Sokosumi front door: Investigator → Tech Lead → Coder → Reviewer → PR (C
 ## Rules
 
 - Investigation: path-first; Spec: lean caps — not ultra prose
-- One coder / one PR default; sequential breakdown only if rubric ≥ 2
+- One coder / one PR default; sequential = shared branch, orchestrator opens PR
+- Verify: check+test required; build only if Spec lists it
+- UI in scope: Spec Verification has ≥1 path-only route
 - No Linear phase reporting; human merges
