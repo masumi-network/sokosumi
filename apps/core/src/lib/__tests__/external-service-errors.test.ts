@@ -118,6 +118,17 @@ describe("isSchemaDriftPrismaError", () => {
       ),
     ).toBe(true);
   });
+
+  it("detects enum-value schema drift during deploy windows", () => {
+    expect(
+      isSchemaDriftPrismaError(
+        Object.assign(
+          new Error("Value 'CANCEL_REQUESTED' not found in enum 'TaskStatus'"),
+          { code: "P2006" },
+        ),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("shouldSuppressSentryForExternalError", () => {
