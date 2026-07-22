@@ -2,7 +2,7 @@
 name: team-sapphire
 description: >-
   Sokosumi front door for one Linear issue — Investigator, Tech Lead, Coder,
-  Reviewer — through a green PR (CI + Bugbot). Use when the user says run
+  Reviewer — through a green PR (CI + full Reviewer). Use when the user says run
   team-sapphire or Sapphire for SOK-XXX, or when a Linear issue has
   ## Requirement and they want the squad to implement it.
 disable-model-invocation: true
@@ -16,8 +16,8 @@ You are the **Sapphire orchestrator** — one Linear issue, four phases, green d
 flowchart LR
   inv[Investigator] --> lead[Tech Lead]
   lead --> code[Coder]
-  code --> gates[CI + Bugbot]
-  gates --> rev[Reviewer]
+  code --> ci[CI green]
+  ci --> rev[Reviewer]
   rev --> pr[PR ready]
 ```
 
@@ -40,7 +40,7 @@ flowchart LR
 
 **PR open:** draft unless user asked ready-for-review. Title = primary commit subject. Body: issue link + Spec summary ≤8 lines. Details: `PHASE-CODER.md`.
 
-**Orchestrator owns:** branch name, post-sequential PR, CI, Bugbot 0 High, readiness. Subagents never call Linear MCP.
+**Orchestrator owns:** branch name, post-sequential PR, CI, Reviewer readiness. Subagents never call Linear MCP. Do **not** launch `bugbot` or a separate quality-rules-only review — Reviewer does **one full review**.
 
 ## Token efficiency
 
@@ -75,28 +75,28 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 | Same session — upstream done | Skip completed |
 | New session — review only + open PR | Investigator if missing → Tech Lead rebuild Spec → Reviewer |
 | New session — no Spec | Investigator → Tech Lead → Coder |
-| PR open, gates incomplete | CI + Bugbot, then Reviewer |
-| Reviewer pass + CI + Bugbot 0 High | Stop — await human merge |
+| PR open, CI incomplete | Wait CI, then Reviewer |
+| Reviewer pass + CI green | Stop — await human merge |
 
 ## Phases
 
-**1 Investigator:** `ROLES.md` (Investigator); flag `BUGBOT-LEARNINGS.md` R1–R12; session → Tech Lead.
+**1 Investigator:** `ROLES.md` (Investigator); flag `QUALITY-RULES.md` R1–R12; session → Tech Lead.
 
 **2 Tech Lead:** `ROLES.md` (Tech Lead) + `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md`; Spec + Data flow; session → Coder.
 
-**3 Coder:** Load `PHASE-CODER.md` + `ROLES.md` (Coder) + Bugbot self-check. Sole Task or serial sequential Tasks (rules above). Gates: CI green + Bugbot 0 High (Medium → PR body).
+**3 Coder:** Load `PHASE-CODER.md` + `ROLES.md` (Coder) + `QUALITY-RULES.md` self-check. Sole Task or serial sequential Tasks (rules above). After PR: **CI green**, then Phase 4.
 
-**4 Reviewer:** Load `PHASE-REVIEWER.md` + `ROLES.md` (Reviewer). Entry: verify + CI green + Bugbot 0 High. `/goal` per phase file. If pushed → re-run Bugbot + CI before ready. Human merges.
+**4 Reviewer:** Load `PHASE-REVIEWER.md` + `ROLES.md` (Reviewer) + `QUALITY-RULES.md`. Entry: verify + CI green. **One full review** — Spec, verify, UI when in scope, and triggered R1–R12. Not a Bugbot substitute. If pushed → re-check CI before ready. Human merges.
 
 ## Stop early
 
 - User asked for one phase
 - PR already ready — await merge
-- **Unrecoverable:** no Requirement; PR trust fail; verify fail after one fix cycle; Bugbot fail after one retry; CI fail after ≤3 fix+push (unless Out of scope); user withholds Requirement confirm; Reviewer `/goal` fail after one fixable cycle
+- **Unrecoverable:** no Requirement; PR trust fail; verify fail after one fix cycle; CI fail after ≤3 fix+push (unless Out of scope); user withholds Requirement confirm; Reviewer `/goal` fail after one fixable cycle
 
 ## Output
 
-Issue id/URL, phases done, **PR link**, CI/Bugbot summary. Caveman full.
+Issue id/URL, phases done, **PR link**, CI + Reviewer summary. Caveman full.
 
 ## Supporting files
 
@@ -106,7 +106,7 @@ Issue id/URL, phases done, **PR link**, CI/Bugbot summary. Caveman full.
 | `PHASE-CODER.md` | Phase 3 / standalone Coder |
 | `PHASE-REVIEWER.md` | Phase 4 / Reviewer |
 | `SPEC-TEMPLATE.md` / `SUBAGENT-RUBRIC.md` | Tech Lead |
-| `BUGBOT-LEARNINGS.md` | Flags / self-check / Bugbot gate |
+| `QUALITY-RULES.md` | R1–R12 flags, Coder self-check, Reviewer full-review checklist |
 | `VISUAL-CAPTURE.md` | Reviewer + UI in scope |
 | `LINEAR.md` | Requirement text must change |
 | `AGENTS.md` | Skip if `SKILL.md` loaded |

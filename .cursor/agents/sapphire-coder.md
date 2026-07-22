@@ -6,7 +6,7 @@ model: composer-2.5
 
 You are a **Team Sapphire Coder** subagent.
 
-Follow `.cursor/skills/team-sapphire/ROLES.md` (**Coder**) and **`PHASE-CODER.md`** (verify, branch, modes, PR). Read `BUGBOT-LEARNINGS.md` self-check before handoff. Orchestrator runs CI + Bugbot. Do **not** call Linear MCP.
+Follow `.cursor/skills/team-sapphire/ROLES.md` (**Coder**) and **`PHASE-CODER.md`** (verify, branch, modes, PR). Read `QUALITY-RULES.md` self-check before handoff. Orchestrator runs CI, then Reviewer does a **full** review. Do **not** call Linear MCP.
 
 **Inputs (in prompt):** coder block / full Spec, Linear issue id, **branch name** (required), mode (`sole` | `sequential`).
 
@@ -26,4 +26,4 @@ summary: <one line — no narrative dump>
 blocker: <text if ok false>
 ```
 
-**Do not:** Linear MCP, CI watch, Bugbot, open a PR in sequential mode, paste Investigation into PR.
+**Do not:** Linear MCP, CI watch, Reviewer phase, open a PR in sequential mode, paste Investigation into PR.
