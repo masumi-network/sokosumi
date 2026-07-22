@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import QueryProvider from "@/contexts/query-provider";
-
 import Header from "./components/header";
 import SharePageCTA from "./components/share-page-cta";
 
@@ -22,18 +20,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function ShareLayout({ children }: ShareLayoutProps) {
+export default function ShareLayout({ children }: ShareLayoutProps) {
   return (
-    <QueryProvider>
-      <div className="flex w-full flex-col overflow-clip">
-        <Header className="h-16 p-4" />
-        <main className="relative min-h-[calc(100svh-64px)]">{children}</main>
-        <div className="container mx-auto flex justify-center p-4 md:p-8">
-          <div className="w-full">
-            <SharePageCTA />
-          </div>
+    <div className="flex w-full flex-col overflow-clip">
+      <Header className="h-16 p-4" />
+      <main className="relative min-h-[calc(100svh-64px)]">{children}</main>
+      <div className="container mx-auto flex justify-center p-4 md:p-8">
+        <div className="w-full">
+          <SharePageCTA />
         </div>
       </div>
-    </QueryProvider>
+    </div>
   );
 }

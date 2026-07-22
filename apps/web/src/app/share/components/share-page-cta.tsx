@@ -21,6 +21,9 @@ export default function SharePageCTA({ className }: SharePageCTAProps) {
           alt=""
           fill
           className="object-cover"
+          sizes="100vw"
+          loading="lazy"
+          decoding="async"
           priority={false}
         />
         <div className="absolute inset-0 bg-black/20" />
