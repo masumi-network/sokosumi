@@ -64,8 +64,11 @@ WHERE NOT EXISTS (
   SELECT 1 FROM "orchestrator" o WHERE o."userId" = hi."userId"
 );
 
--- 3) Stub orchestrators for users with usage/tasks but no hermesInstance row
+-- 3) Stub orchestrators for users with usage/tasks/events but no hermesInstance row
 -- Stubs are archived: they exist only for historical FK remap, not live instances.
+-- Event remap joins via task.ownerId (orchestrator events usually set userId null),
+-- so stub owners of tasks that still have events on a global product orchestrator —
+-- including after purge deleted hermesInstance.
 INSERT INTO "orchestrator" (
   "id", "createdAt", "updatedAt", "archivedAt", "slug", "name", "userId", "consecutivePollErrors"
 )
@@ -76,8 +79,18 @@ FROM (
   SELECT DISTINCT t."ownerId" AS "userId" FROM "task" t
     WHERE t."creatorOrchestratorId" IS NOT NULL
   UNION
+  -- Dual-FK historical rows (if any)
   SELECT DISTINCT te."userId" AS "userId" FROM "taskEvent" te
     WHERE te."orchestratorId" IS NOT NULL AND te."userId" IS NOT NULL
+  UNION
+  -- Dual of event remap: owners of tasks with events still on a global orchestrator
+  SELECT DISTINCT t."ownerId" AS "userId"
+  FROM "task" t
+  JOIN "taskEvent" te ON te."taskId" = t."id"
+  WHERE te."orchestratorId" IS NOT NULL
+    AND te."orchestratorId" IN (
+      SELECT id FROM "orchestrator" WHERE "userId" IS NULL
+    )
 ) u
 WHERE u."userId" IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM "orchestrator" o WHERE o."userId" = u."userId");
