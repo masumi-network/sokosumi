@@ -85,8 +85,9 @@ on GET — only explicit purge/destroy (or a verified fresh provision path).
 
 ## Deploy coordination
 
-1. Set `ORCHESTRATOR_SERVICE_TOKEN` on Core (required for boot) and deploy Core
-   with migration `20260721140000_per_user_orchestrator_instance`.
+1. Set `ORCHESTRATOR_SERVICE_TOKEN` on Core (required for boot; min 32 chars,
+   e.g. `openssl rand -hex 16`) and deploy Core with migration
+   `20260721140000_per_user_orchestrator_instance`.
 2. Point Hermes at the **same** secret. Switch Hermes to:
    - `Authorization: Bearer <ORCHESTRATOR_SERVICE_TOKEN>` (no DB `orch_` keys)
    - `POST /v1/orchestrators/me/usage` with body `{ userId, credits, idempotencyKey, … }`

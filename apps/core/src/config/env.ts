@@ -94,8 +94,9 @@ const envSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
-  // Hermes → Core service auth (shared secret; not a per-user DB key)
-  ORCHESTRATOR_SERVICE_TOKEN: z.string().min(1),
+  // Hermes → Core service auth (shared secret; not a per-user DB key).
+  // Min 32 matches `openssl rand -hex 16` (16 bytes → 32 hex chars).
+  ORCHESTRATOR_SERVICE_TOKEN: z.string().min(32),
 
   // skills.sh marketplace (browse/search/audit for Hermes skills). The OIDC
   // token is injected by the Vercel runtime; optional so local/non-Vercel

@@ -133,7 +133,7 @@ describe("authMiddleware", () => {
     const app = createApp();
     const response = await app.request("http://localhost/", {
       headers: {
-        authorization: "Bearer test-orchestrator-service-token",
+        authorization: "Bearer test-orchestrator-service-token0",
       },
     });
 

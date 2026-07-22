@@ -138,7 +138,7 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
-    ORCHESTRATOR_SERVICE_TOKEN: "orch_service_token",
+    ORCHESTRATOR_SERVICE_TOKEN: "test-orchestrator-service-token0",
     HERMES_ORCH_BASE_URL: "https://hermes.example",
     HERMES_ORCH_TOKEN: "token",
     HERMES_INBOX_POLLING_ENABLED: false,
@@ -487,7 +487,7 @@ describe("Hermes route contracts", () => {
 
       const response = await createApp().request("/me/instance", {
         headers: {
-          Authorization: "Bearer orch_service_token",
+          Authorization: "Bearer test-orchestrator-service-token0",
           ...contextHeaders,
         },
       });
