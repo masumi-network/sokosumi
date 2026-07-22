@@ -21,20 +21,17 @@ import {
   CHAT_RAIL_READY_POLL_MS,
   CHAT_RAIL_READY_TIMEOUT_MS,
 } from "@/lib/constants/chat-rail-ready";
-import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
 
 interface ChatRailProps {
   organizationSlug: string | null;
   userImageUrl: string;
   userName?: string;
-  initialDesignMdAttachment?: TaskDesignMdAttachmentSeed | null;
 }
 
 export default function ChatRail({
   organizationSlug,
   userImageUrl,
   userName,
-  initialDesignMdAttachment = null,
 }: ChatRailProps) {
   const pathname = usePathname();
   const tChat = useTranslations("App.Chat.Chat");
@@ -213,7 +210,6 @@ export default function ChatRail({
           userImageUrl={userImageUrl}
           userName={userName}
           showGreetingAndSuggestions={false}
-          initialDesignMdAttachment={initialDesignMdAttachment}
         />
       </div>
     </div>

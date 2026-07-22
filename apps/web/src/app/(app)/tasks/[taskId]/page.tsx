@@ -17,6 +17,9 @@ export default async function TaskDetailPage({
 }) {
   const { taskId } = await params;
 
+  // Start the full task read immediately so the happy path (same workspace)
+  // does not wait for a second Core round-trip after the workspace check.
+  const taskPromise = taskService.getTaskById(taskId);
   const [taskWorkspace, session] = await Promise.all([
     taskService.getTaskWorkspace(taskId),
     getSession(),
@@ -66,7 +69,7 @@ export default async function TaskDetailPage({
     );
   }
 
-  const task = await taskService.getTaskById(taskId);
+  const task = await taskPromise;
 
   if (!task) {
     return notFound();

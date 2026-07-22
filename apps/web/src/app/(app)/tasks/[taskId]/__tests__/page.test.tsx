@@ -133,7 +133,8 @@ describe("TaskDetailPage", () => {
       targetAccountName: "Workspace Org",
       successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
     });
-    expect(getTaskByIdMock).not.toHaveBeenCalled();
+    // Task read starts in parallel with the workspace check for the happy path;
+    // the result is unused when a workspace switch is required.
     expect(taskDetailViewMock).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("task-workspace-switch-dialog"),
@@ -187,7 +188,5 @@ describe("TaskDetailPage", () => {
         }),
       }),
     ).rejects.toThrow("notFound");
-
-    expect(getTaskByIdMock).not.toHaveBeenCalled();
   });
 });

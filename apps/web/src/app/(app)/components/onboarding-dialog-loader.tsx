@@ -64,9 +64,10 @@ export async function OnboardingDialogLoader({
   subscriptionOnly = false,
 }: OnboardingDialogLoaderProps) {
   if (subscriptionOnly) {
-    // Defense-in-depth: layout already skips mounting this loader when coverage
-    // is true (and React cache() dedupes). Keep the check so direct callers and
-    // tests still suppress the hint without relying on layout wiring.
+    // Defense-in-depth: layout mounts this loader for free-plan users and lets
+    // us suppress the gate when coverage exists (React cache() dedupes). Keep
+    // the check so direct callers and tests still suppress the hint without
+    // relying on layout wiring.
     const hasPaidOrEnterpriseCoverage = await userHasPaidOrEnterpriseCoverage();
     if (hasPaidOrEnterpriseCoverage) {
       return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;

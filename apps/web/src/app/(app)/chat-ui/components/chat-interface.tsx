@@ -84,7 +84,6 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
-import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
 import { isCoworkerWarmupReadyForWelcomeSend } from "../utils/welcome-send-warmup";
 import MessageList from "./message-list";
 
@@ -261,7 +260,6 @@ interface ChatInterfaceProps {
   navigationMode?: "route" | "controlled";
   controlledConversationId?: string | null;
   onConversationCreated?: (conversationId: string) => void;
-  initialDesignMdAttachment?: TaskDesignMdAttachmentSeed | null;
 }
 
 export default function ChatInterface({
@@ -273,7 +271,6 @@ export default function ChatInterface({
   navigationMode = "route",
   controlledConversationId = null,
   onConversationCreated,
-  initialDesignMdAttachment = null,
 }: ChatInterfaceProps) {
   const t = useTranslations("App.Chat.Chat");
   const params = useParams<{ conversationId?: string }>();

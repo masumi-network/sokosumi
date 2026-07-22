@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog";
@@ -24,21 +25,18 @@ import type {
   Notice,
 } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
-import { userHasPaidOrEnterpriseCoverage, userService } from "@/lib/services";
+import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { designMdService } from "@/lib/services/design-md.service";
 import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
-import { resolveSubscriptionOnboardingGateDecision } from "@/lib/subscription-onboarding-gate-decision";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 import { resolveAccountNotice } from "./components/account-notice-state";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
 import Header from "./components/header";
 import { LoginAccountNoticeToast } from "./components/login-account-notice-toast.client";
-import { MarkSubscriptionOnboardingGateSeen } from "./components/mark-subscription-onboarding-gate-seen";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
 import { NotificationToaster } from "./components/notification-toaster.client";
@@ -79,20 +77,21 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultChatRailOpen =
     cookieStore.get("chat_sidebar_state")?.value === "true";
 
+  // Critical shared data only. design.md is unused by chat UI and was blocking
+  // LCP on every (app) route. Coverage checks run inside OnboardingDialogLoader
+  // (Suspense) so paid-user Stripe work does not delay page paint.
   const [
     shouldShowOnboarding,
     pendingNoticesResult,
     activeOrganization,
     creditsResultRaw,
     coworkersResult,
-    initialDesignMdAttachment,
   ] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
     userService.getActiveOrganization(),
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers().catch(() => []),
-    designMdService.resolveEffectiveDesignMd(),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
@@ -131,23 +130,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       subscriptionOnboardingGateCookie,
       session.session.id,
     );
-  // Credits can report "free" while the user still has personal/org paid
-  // coverage or an enterprise contract — check before mounting the gate.
-  const shouldResolveCoverage =
-    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed;
-  const hasPaidOrEnterpriseCoverage = shouldResolveCoverage
-    ? await userHasPaidOrEnterpriseCoverage()
-    : false;
-  const subscriptionOnboardingGateDecision =
-    resolveSubscriptionOnboardingGateDecision({
-      alreadyServed: subscriptionOnboardingGateAlreadyServed,
-      hasPaidOrEnterpriseCoverage,
-      shouldShowFreeSubscriptionGate,
-    });
   const shouldLoadSubscriptionOnboarding =
-    subscriptionOnboardingGateDecision === "load";
-  const shouldMarkSubscriptionOnboardingGateSeen =
-    subscriptionOnboardingGateDecision === "mark-seen";
+    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed;
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
@@ -206,7 +190,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                 organizationSlug={activeOrganization?.slug ?? null}
                 userImageUrl={userImageUrl}
                 userName={session.user.name ?? undefined}
-                initialDesignMdAttachment={initialDesignMdAttachment}
               />
             </div>
           </AppChatRailProvider>
@@ -231,21 +214,21 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               <CoworkersProvider initialCoworkers={coworkers}>
                 {content}
                 {shouldShowOnboarding ? (
-                  <OnboardingDialogLoader
-                    activeOrganization={activeOrganization}
-                    loginId={session.session.id}
-                    subscriptionOnly={false}
-                  />
+                  <Suspense fallback={null}>
+                    <OnboardingDialogLoader
+                      activeOrganization={activeOrganization}
+                      loginId={session.session.id}
+                      subscriptionOnly={false}
+                    />
+                  </Suspense>
                 ) : shouldLoadSubscriptionOnboarding ? (
-                  <OnboardingDialogLoader
-                    activeOrganization={activeOrganization}
-                    loginId={session.session.id}
-                    subscriptionOnly
-                  />
-                ) : shouldMarkSubscriptionOnboardingGateSeen ? (
-                  <MarkSubscriptionOnboardingGateSeen
-                    loginId={session.session.id}
-                  />
+                  <Suspense fallback={null}>
+                    <OnboardingDialogLoader
+                      activeOrganization={activeOrganization}
+                      loginId={session.session.id}
+                      subscriptionOnly
+                    />
+                  </Suspense>
                 ) : null}
               </CoworkersProvider>
             </AccountNoticeProvider>
