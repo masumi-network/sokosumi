@@ -6,12 +6,18 @@ import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type DeveloperTabValue = "oauth-clients" | "api-keys" | "coworkers" | "docs";
+type DeveloperTabValue =
+  | "oauth-clients"
+  | "api-keys"
+  | "coworkers"
+  | "tasks"
+  | "docs";
 
 interface DeveloperTabsProps {
   oauthClientsContent: ReactNode;
   apiKeysContent: ReactNode;
   coworkersContent: ReactNode;
+  tasksContent: ReactNode;
   docsContent: ReactNode;
 }
 
@@ -19,6 +25,7 @@ const ENABLED_TABS: DeveloperTabValue[] = [
   "oauth-clients",
   "api-keys",
   "coworkers",
+  "tasks",
   "docs",
 ];
 
@@ -29,6 +36,7 @@ export function DeveloperTabs({
   oauthClientsContent,
   apiKeysContent,
   coworkersContent,
+  tasksContent,
   docsContent,
 }: DeveloperTabsProps) {
   const t = useTranslations("App.Developer");
@@ -64,6 +72,9 @@ export function DeveloperTabs({
         <TabsTrigger value="coworkers" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.coworkers")}
         </TabsTrigger>
+        <TabsTrigger value="tasks" className={TAB_TRIGGER_CLASS_NAME}>
+          {t("tabs.tasks")}
+        </TabsTrigger>
         <TabsTrigger value="docs" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.docs")}
         </TabsTrigger>
@@ -72,6 +83,7 @@ export function DeveloperTabs({
       <TabsContent value="oauth-clients">{oauthClientsContent}</TabsContent>
       <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
       <TabsContent value="coworkers">{coworkersContent}</TabsContent>
+      <TabsContent value="tasks">{tasksContent}</TabsContent>
       <TabsContent value="docs">{docsContent}</TabsContent>
     </Tabs>
   );

@@ -4938,6 +4938,184 @@ export const PatchCreditCostRequestSchema = {
     ]
 } as const;
 
+export const DeveloperTaskListItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '0195b9f4-7d35-7a4e-b14e-111111111111'
+        },
+        name: {
+            type: 'string',
+            example: 'Quarterly report'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        assignee: {
+            $ref: '#/components/schemas/DeveloperCoworkerRef'
+        },
+        creatorCoworker: {
+            $ref: '#/components/schemas/DeveloperCoworkerRef'
+        },
+        owner: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                email: {
+                    type: 'string',
+                    example: 'ada@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Corp'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-corp'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'createdAt',
+        'updatedAt',
+        'assignee',
+        'creatorCoworker',
+        'owner',
+        'organization'
+    ]
+} as const;
+
+export const DeveloperCoworkerRefSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ops Agent'
+        },
+        slug: {
+            type: 'string',
+            example: 'ops-agent'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const DeveloperTaskDetailSchema = {
+    type: 'object',
+    properties: {
+        task: {
+            $ref: '#/components/schemas/Task'
+        },
+        owner: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                email: {
+                    type: 'string',
+                    example: 'ada@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Corp'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-corp'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'task',
+        'owner',
+        'organization'
+    ]
+} as const;
+
 export const EnterpriseContractSchema = {
     type: 'object',
     properties: {
