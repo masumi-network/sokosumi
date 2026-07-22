@@ -568,6 +568,115 @@ describe("POST /tasks", () => {
   });
 });
 
+describe("POST /tasks orchestrator create", () => {
+  function createOrchestratorApp(options?: {
+    orchestratorId?: string;
+    withContext?: boolean;
+  }) {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "orchestrator" as const,
+        ...(options?.orchestratorId
+          ? { orchestratorId: options.orchestratorId }
+          : {}),
+        ...(options?.withContext !== false
+          ? {
+              context: {
+                userId: "user_123",
+                organizationId: "org_123" as string | null,
+              },
+            }
+          : {}),
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: "user_123",
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountPostTask(app as unknown as OpenAPIHonoWithAuth);
+
+    return app;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    generateTaskNameMock.mockResolvedValue("Generated name");
+    taskCreateMock.mockResolvedValue({ id: "tsk_orch" });
+    mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => {
+        return await callback({
+          project: {
+            findFirst: projectFindFirstMock,
+          },
+          task: {
+            create: taskCreateMock,
+          },
+        });
+      },
+    );
+  });
+
+  it("rejects create when orchestrator has context but no active orchestratorId", async () => {
+    const app = createOrchestratorApp({ withContext: true });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Orch task",
+        description: null,
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "No active orchestrator instance for context user",
+    );
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("creates with creatorOrchestratorId when bound", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    const app = createOrchestratorApp({ orchestratorId, withContext: true });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Orch task",
+        description: null,
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          creatorOrchestratorId: orchestratorId,
+          creatorUserId: null,
+          creatorCoworkerId: null,
+        }),
+      }),
+    );
+  });
+});
+
 describe("POST /tasks delegated coworker create grant", () => {
   function createDelegatedCoworkerApp() {
     const app = new OpenAPIHono<{

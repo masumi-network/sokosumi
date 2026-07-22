@@ -2291,7 +2291,6 @@ app.openapi(listMessagesRoute, async (c) => {
 
 app.openapi(getUnreadCountRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  // Read the orb seed + name resiliently (tolerates the pending migrations).
   const { avatarSeed, assistantName } = await readHermesInstanceMeta(
     userContext.userId,
   );

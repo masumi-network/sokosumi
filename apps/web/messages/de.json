@@ -2891,10 +2891,6 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
-          "orchestrators": {
-            "title": "Orchestratoren",
-            "description": "Anzeigemetadaten für First-Party-Orchestratoren bearbeiten."
-          },
           "freeCredits": {
             "title": "Kostenlose Credits",
             "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
@@ -3257,70 +3253,6 @@
           "submitting": "Credits werden gewährt…",
           "grantSuccess": "Kostenlose Credits gewährt",
           "grantError": "Kostenlose Credits konnten nicht gewährt werden"
-        }
-      },
-      "Orchestrators": {
-        "title": "Orchestratoren",
-        "description": "Anzeigemetadaten für First-Party-Orchestratoren verwalten.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# Orchestrator} other {# Orchestratoren}}",
-          "empty": "Keine Orchestratoren gefunden.",
-          "orchestrator": "Orchestrator",
-          "slug": "Slug",
-          "caption": "Untertitel",
-          "emptyCaption": "—"
-        },
-        "Detail": {
-          "title": "Orchestrator bearbeiten",
-          "backToList": "Zurück zu Orchestratoren"
-        },
-        "EditForm": {
-          "submit": "Änderungen speichern",
-          "submitting": "Wird gespeichert…",
-          "image": {
-            "label": "Bild",
-            "description": "PNG, JPEG, WebP oder GIF bis 2 MB.",
-            "upload": "Bild hochladen",
-            "replace": "Bild ersetzen",
-            "remove": "Bild entfernen",
-            "previewAlt": "Vorschau des Orchestrator-Bildes",
-            "fileTooLarge": "Das Bild darf höchstens 2 MB groß sein.",
-            "fileTypeNotAccepted": "Verwende PNG, JPEG, WebP oder GIF.",
-            "maxFilesExceeded": "Lade jeweils nur ein Bild hoch.",
-            "uploadError": "Das ausgewählte Bild konnte nicht verarbeitet werden."
-          },
-          "fields": {
-            "name": {
-              "label": "Name",
-              "description": "Wird überall angezeigt, wo der Orchestrator aufgeführt ist."
-            },
-            "slug": {
-              "label": "Slug",
-              "description": "Schreibgeschützte Kennung für URLs und APIs."
-            },
-            "caption": {
-              "label": "Untertitel",
-              "description": "Kurze Zeile unter dem Namen. Leer lassen zum Löschen."
-            },
-            "description": {
-              "label": "Beschreibung",
-              "description": "Längerer Text für Detailansichten. Leer lassen zum Löschen."
-            }
-          },
-          "validation": {
-            "nameMinLength": "Der Name muss mindestens {min} Zeichen haben.",
-            "noChanges": "Keine Änderungen zum Speichern."
-          },
-          "success": {
-            "saved": "Orchestrator aktualisiert.",
-            "imageSaved": "Bild gespeichert.",
-            "imageRemoved": "Bild entfernt."
-          },
-          "errors": {
-            "saveFailed": "Orchestrator konnte nicht gespeichert werden.",
-            "notFound": "Orchestrator nicht gefunden.",
-            "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
-          }
         }
       },
       "Agents": {

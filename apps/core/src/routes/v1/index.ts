@@ -54,7 +54,7 @@ app.openAPIRegistry.registerComponent("parameters", "ContextUserId", {
   name: "X-Context-User-Id",
   in: "header",
   description:
-    "Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.",
+    "Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.",
   required: false,
   schema: {
     type: "string",
@@ -66,7 +66,7 @@ app.openAPIRegistry.registerComponent("parameters", "ContextOrganizationId", {
   name: "X-Context-Organization-Id",
   in: "header",
   description:
-    "Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.",
+    "Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.",
   required: false,
   schema: {
     type: "string",

@@ -86,15 +86,21 @@ function createApp(
   return app;
 }
 
-function mockTxWithActiveOrchestrator(options?: {
+function mockTxWithOrchestrator(options?: {
   existingUsage?: UsageRecord | null;
   createUsage?: UsageRecord;
+  archivedAt?: Date | null;
+  orchestrator?: null;
 }) {
-  const findFirst = vi.fn().mockResolvedValue({
-    id: ORCHESTRATOR_ID,
-    userId: TARGET_USER_ID,
-    archivedAt: null,
-  });
+  const findUnique = vi.fn().mockResolvedValue(
+    options?.orchestrator === null
+      ? null
+      : {
+          id: ORCHESTRATOR_ID,
+          userId: TARGET_USER_ID,
+          archivedAt: options?.archivedAt ?? null,
+        },
+  );
   const usageCreate = vi
     .fn()
     .mockResolvedValue(options?.createUsage ?? createUsage());
@@ -105,7 +111,7 @@ function mockTxWithActiveOrchestrator(options?: {
   serializableTransactionMock.mockImplementation(async (callback) => {
     const tx = {
       orchestrator: {
-        findFirst,
+        findUnique,
       },
       orchestratorUsage: {
         findUnique: usageFindUnique,
@@ -118,7 +124,7 @@ function mockTxWithActiveOrchestrator(options?: {
     return callback(tx);
   });
 
-  return { findFirst, usageCreate, usageFindUnique };
+  return { findUnique, usageCreate, usageFindUnique };
 }
 
 describe("POST /orchestrators/me/usage", () => {
@@ -162,7 +168,7 @@ describe("POST /orchestrators/me/usage", () => {
   });
 
   it("creates usage and bills the request userId using that user's orchestrator", async () => {
-    const { findFirst, usageCreate } = mockTxWithActiveOrchestrator();
+    const { findUnique, usageCreate } = mockTxWithOrchestrator();
 
     const app = createApp();
     const response = await app.request("/me/usage", {
@@ -181,8 +187,8 @@ describe("POST /orchestrators/me/usage", () => {
     expect(body.data.orchestratorId).toBe(ORCHESTRATOR_ID);
     expect(body.data.credits).toBe(2.5);
 
-    expect(findFirst).toHaveBeenCalledWith({
-      where: { userId: TARGET_USER_ID, archivedAt: null },
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { userId: TARGET_USER_ID },
     });
     expect(usageCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -201,20 +207,8 @@ describe("POST /orchestrators/me/usage", () => {
     );
   });
 
-  it("returns 404 when the user has no active orchestrator instance", async () => {
-    serializableTransactionMock.mockImplementation(async (callback) => {
-      const tx = {
-        orchestrator: {
-          findFirst: vi.fn().mockResolvedValue(null),
-        },
-        orchestratorUsage: {
-          findUnique: vi.fn(),
-          create: vi.fn(),
-        },
-        transaction: { create: vi.fn() },
-      };
-      return callback(tx);
-    });
+  it("returns 404 when the user has no orchestrator row", async () => {
+    mockTxWithOrchestrator({ orchestrator: null });
 
     const app = createApp();
     const response = await app.request("/me/usage", {
@@ -228,5 +222,52 @@ describe("POST /orchestrators/me/usage", () => {
     });
 
     expect(response.status).toBe(404);
+  });
+
+  it("returns 404 for new usage when the orchestrator is archived", async () => {
+    const { usageCreate } = mockTxWithOrchestrator({
+      archivedAt: new Date("2026-07-01T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: "usage_new",
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(usageCreate).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
+  });
+
+  it("replays existing usage after archive (idempotent retry)", async () => {
+    const existing = createUsage();
+    const { usageCreate } = mockTxWithOrchestrator({
+      archivedAt: new Date("2026-07-01T00:00:00.000Z"),
+      existingUsage: existing,
+    });
+
+    const app = createApp();
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: existing.idempotencyKey,
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.id).toBe(existing.id);
+    expect(body.data.credits).toBe(2.5);
+    expect(usageCreate).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
   });
 });

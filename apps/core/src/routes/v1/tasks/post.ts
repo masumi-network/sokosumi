@@ -158,18 +158,28 @@ async function assertTaskProjectInWorkspace(
   }
 }
 
+function requireOrchestratorIdForAttribution(
+  authContext: Extract<AuthenticationContext, { actor: "orchestrator" }>,
+): string {
+  if (authContext.orchestratorId) {
+    return authContext.orchestratorId;
+  }
+  // Context present but unbound ⇒ user has no active (non-archived) instance.
+  if (authContext.context) {
+    throw badRequest("No active orchestrator instance for context user");
+  }
+  throw badRequest(
+    "Active orchestrator instance required (bind X-Context-User-Id)",
+  );
+}
+
 function resolveTaskCreatorFields(
   authContext: AuthenticationContext,
   ownerId: string,
 ) {
   if (isOrchestratorAuthContext(authContext)) {
-    if (!authContext.orchestratorId) {
-      throw badRequest(
-        "Active orchestrator instance required (bind X-Context-User-Id)",
-      );
-    }
     return {
-      creatorOrchestratorId: authContext.orchestratorId,
+      creatorOrchestratorId: requireOrchestratorIdForAttribution(authContext),
       creatorUserId: null,
       creatorCoworkerId: null,
     };
@@ -195,15 +205,10 @@ function resolveInitialTaskEventActor(
   ownerId: string,
 ) {
   if (isOrchestratorAuthContext(authContext)) {
-    if (!authContext.orchestratorId) {
-      throw badRequest(
-        "Active orchestrator instance required (bind X-Context-User-Id)",
-      );
-    }
     return {
       userId: null,
       coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
+      orchestratorId: requireOrchestratorIdForAttribution(authContext),
     };
   }
 

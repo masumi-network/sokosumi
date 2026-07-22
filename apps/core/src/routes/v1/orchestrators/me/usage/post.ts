@@ -6,9 +6,9 @@ import {
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 
-import { badRequest, conflict } from "@/helpers/error";
+import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireActiveOrchestratorForUser } from "@/helpers/orchestrator-instance";
+import { findOrchestratorForUser } from "@/helpers/orchestrator-instance";
 import { created, ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -99,7 +99,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.req.valid("json");
 
     const result = await serializableTransaction(async (tx) => {
-      const orchestrator = await requireActiveOrchestratorForUser(userId, tx);
+      // Include archived rows so idempotent retries still resolve after purge
+      // (one orchestrator row per userId; archive does not change the id).
+      const orchestrator = await findOrchestratorForUser(userId, tx);
+      if (!orchestrator) {
+        throw notFound("Orchestrator instance not found for user");
+      }
       const orchestratorId = orchestrator.id;
 
       const existing = await tx.orchestratorUsage.findUnique({
@@ -129,6 +134,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         return { usage: existing, created: false };
+      }
+
+      // New charges require a live instance.
+      if (orchestrator.archivedAt != null) {
+        throw notFound("Orchestrator instance not found for user");
       }
 
       const cents = convertCreditsToCents(credits);

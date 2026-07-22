@@ -69,17 +69,28 @@ const paramsSchema = z.object({
  * (same rule as task create).
  */
 function getOrchestratorEventActorData(authContext: AuthenticationContext) {
-  if (!isOrchestratorAuthContext(authContext) || !authContext.orchestratorId) {
+  if (!isOrchestratorAuthContext(authContext)) {
     throw badRequest(
       "Active orchestrator instance required (bind X-Context-User-Id)",
     );
   }
 
-  return {
-    userId: null,
-    coworkerId: null,
-    orchestratorId: authContext.orchestratorId,
-  };
+  if (authContext.orchestratorId) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.orchestratorId,
+    };
+  }
+
+  // Context present but unbound ⇒ user has no active (non-archived) instance.
+  if (authContext.context) {
+    throw badRequest("No active orchestrator instance for context user");
+  }
+
+  throw badRequest(
+    "Active orchestrator instance required (bind X-Context-User-Id)",
+  );
 }
 
 function getStatusEventActorData(authContext: AuthenticationContext) {

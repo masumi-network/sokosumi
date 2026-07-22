@@ -1319,7 +1319,7 @@ describe("POST /{id}/events", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe(
-      "Active orchestrator instance required (bind X-Context-User-Id)",
+      "No active orchestrator instance for context user",
     );
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
@@ -1358,7 +1358,7 @@ describe("POST /{id}/events", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe(
-      "Active orchestrator instance required (bind X-Context-User-Id)",
+      "No active orchestrator instance for context user",
     );
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });

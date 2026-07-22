@@ -20,8 +20,8 @@ export interface UserAuthenticationContext {
 }
 
 /**
- * Optional user/org workspace scope for coworker/orchestrator API keys via
- * `X-Context-*` headers. Shared by both actors — not coworker-specific.
+ * Optional user/org workspace scope for coworker keys / orchestrator service
+ * token via `X-Context-*` headers. Shared by both actors — not coworker-specific.
  */
 export interface WorkspaceActorRequestContext {
   userId: string;
@@ -151,9 +151,9 @@ export function isCoworkerAgentContext(
 
 /**
  * Effective user context for a handler: either a Better Auth session (`source: "session"`)
- * or a coworker/orchestrator API key with context headers (`source: "context"`). Use
- * {@link requireUserAuthContext} when the operation must not run under coworker
- * context (PII, session-bound consent, etc.).
+ * or a coworker key / orchestrator service token with context headers
+ * (`source: "context"`). Use {@link requireUserAuthContext} when the operation
+ * must not run under coworker context (PII, session-bound consent, etc.).
  */
 export type UserContext =
   | ({ source: "session" } & UserAuthenticationContext)
