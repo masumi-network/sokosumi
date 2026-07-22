@@ -21081,7 +21081,7 @@ export type GetCoworkersData = {
     path?: never;
     query?: {
         /**
-         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers owned by the authenticated user (session only; admins see only their own).
+         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers owned by the authenticated user (user-authenticated only; admins see only their own).
          */
         scope?: 'all' | 'whitelisted' | 'archived' | 'owned';
         /**
