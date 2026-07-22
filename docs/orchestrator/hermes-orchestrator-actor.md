@@ -89,13 +89,16 @@ Do not treat these as interchangeable in Hermes clients.
 | Re-activate | Unarchive same `userId` row (or create if missing) |
 | Active instance | Row exists and `archivedAt IS NULL` |
 
-Sokosumi’s local mirror is **never auto-deleted** from a bare `instance_not_found`
-on GET — only explicit purge/destroy (or a verified fresh provision path).
+Sokosumi’s local mirror is **never auto-archived or wiped** from a bare
+`instance_not_found` on GET or inbox poll — only explicit purge/destroy (or a
+verified fresh provision path). Poll advances `lastPolledAt` so missing
+instances are rate-limited, not treated as destroyed.
 
 ## Deploy coordination
 
 1. Set `ORCHESTRATOR_SERVICE_TOKEN` on Core (required for boot; min 32 chars,
-   e.g. `openssl rand -hex 16`) and deploy Core with migration
+   e.g. `openssl rand -hex 16`; must not start with `coworker_` or `orch_`)
+   and deploy Core with migration
    `20260721140000_per_user_orchestrator_instance`.
 2. Point Hermes at the **same** secret. Switch Hermes to:
    - `Authorization: Bearer <ORCHESTRATOR_SERVICE_TOKEN>` (no DB `orch_` keys)

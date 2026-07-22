@@ -350,6 +350,39 @@ describe("hermesInboxSyncService", () => {
     );
   });
 
+  it("does not archive on instance_missing (fail-open like GET /me/instance)", async () => {
+    orchestratorFindManyMock.mockResolvedValue([
+      {
+        userId: "user-missing",
+        lastInboxMessageAt: null,
+        lastPolledAt: null,
+      },
+    ]);
+    getInstanceInboxMock.mockResolvedValue({ kind: "instance_missing" });
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(summary.breakdown.skipped_instance_missing).toBe(1);
+    expect(orchestratorUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-missing", archivedAt: null },
+        data: expect.objectContaining({
+          lastPolledAt: expect.any(Date),
+          consecutivePollErrors: 0,
+        }),
+      }),
+    );
+    const archiveCalls = orchestratorUpdateManyMock.mock.calls.filter(
+      ([args]) =>
+        (args as { data?: { archivedAt?: unknown } }).data?.archivedAt != null,
+    );
+    expect(archiveCalls).toHaveLength(0);
+  });
+
   it("does not alert when a transient failure is isolated among healthy polls", async () => {
     const instances = Array.from({ length: 6 }, (_, i) => ({
       userId: `user-blip-${i}`,

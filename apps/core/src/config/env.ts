@@ -96,7 +96,15 @@ const envSchema = z.object({
 
   // Hermes → Core service auth (shared secret; not a per-user DB key).
   // Min 32 matches `openssl rand -hex 16` (16 bytes → 32 hex chars).
-  ORCHESTRATOR_SERVICE_TOKEN: z.string().min(32),
+  // Must not use coworker_/orch_ prefixes: bearer middleware routes those
+  // to coworker API-key verification and never reaches the orch compare.
+  ORCHESTRATOR_SERVICE_TOKEN: z
+    .string()
+    .min(32)
+    .refine(
+      (v) => !v.startsWith("coworker_") && !v.startsWith("orch_"),
+      "must not start with coworker_ or orch_ (reserved bearer prefixes)",
+    ),
 
   // skills.sh marketplace (browse/search/audit for Hermes skills). The OIDC
   // token is injected by the Vercel runtime; optional so local/non-Vercel

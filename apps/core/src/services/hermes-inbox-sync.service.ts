@@ -267,18 +267,14 @@ async function pollOne(
   }
 
   if (result.kind === "instance_missing") {
-    // Do not wipe chat history from a poll signal — only archive so the
-    // instance stops being polled. Explicit purge is POST /orchestrators/me/purge.
-    await prisma.orchestrator
-      .updateMany({
-        where: { userId: instance.userId, archivedAt: null },
-        data: {
-          archivedAt: new Date(),
-          lastPolledAt: null,
-          consecutivePollErrors: 0,
-        },
-      })
-      .catch(() => undefined);
+    // Fail-open, same as GET /me/instance: do not archive or wipe on a
+    // poll-side instance_not_found. One flaky missing must not disable
+    // usage attribution or task create. Explicit purge/destroy archives.
+    // Advance lastPolledAt so this user is not re-polled until the next
+    // interval (hot/warm/cold from lastInboxMessageAt).
+    await markPolled({ userId: instance.userId, resetErrors: true }).catch(
+      () => undefined,
+    );
     return { userId: instance.userId, outcome: "skipped_instance_missing" };
   }
 
