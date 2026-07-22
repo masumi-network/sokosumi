@@ -43,6 +43,7 @@ const {
   proxyChatCompletionsMock,
   rejectConfirmationMock,
   startInstanceOnboardingMock,
+  getInstanceOnboardingProgressMock,
   syncHermesInboxForUserMock,
   userFindUniqueMock,
   waitUntilMock,
@@ -103,6 +104,7 @@ const {
     proxyChatCompletionsMock: vi.fn(),
     rejectConfirmationMock: vi.fn(),
     startInstanceOnboardingMock: vi.fn(),
+    getInstanceOnboardingProgressMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
     waitUntilMock: vi.fn(),
@@ -226,6 +228,7 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
     rejectConfirmation: rejectConfirmationMock,
     setInstanceSecret: vi.fn(),
     startInstanceOnboarding: startInstanceOnboardingMock,
+    getInstanceOnboardingProgress: getInstanceOnboardingProgressMock,
   };
 });
 
@@ -1502,6 +1505,34 @@ describe("Hermes route contracts", () => {
     expect(body.message).toBe(
       "Failed to start assistant onboarding: orchestrator db down",
     );
+    expect(captureExceptionMock).toHaveBeenCalled();
+  });
+
+  it("does not report transient orchestrator outages to Sentry for onboarding progress", async () => {
+    getInstanceOnboardingProgressMock.mockRejectedValue(
+      new HermesOrchestratorError(503, {
+        code: "HERMES_ORCH_UNREACHABLE",
+        title: "Could not reach the assistant orchestrator: fetch failed",
+      }),
+    );
+
+    const response = await createApp().request(
+      "/me/instance/onboarding-progress",
+      {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer test_api_key",
+        },
+      },
+    );
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(body.message).toBe(
+      "Failed to fetch onboarding progress: Could not reach the assistant orchestrator: fetch failed",
+    );
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("returns 503 with only the generic fallback when an unexpected (non-orchestrator) error is thrown", async () => {

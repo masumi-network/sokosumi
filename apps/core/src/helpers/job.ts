@@ -432,7 +432,13 @@ export async function createAgentJobForUser(
           Sentry.captureException(error);
         });
     } else {
-      Sentry.captureException(createPurchaseResult.error);
+      // Job already exists; purchase registration is retried by job sync. A
+      // transient Masumi payment outage should not page Sentry (SOKOSUMI-CORE-2N).
+      console.warn("[createAgentJobForUser] purchase registration failed", {
+        jobId: job.id,
+        agentId: agentInput.agentId,
+        error: createPurchaseResult.error,
+      });
     }
   }
 
