@@ -1,5 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 
+import { serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { clearHermesLocalMirrorForUser } from "@/helpers/orchestrator-instance";
 import { ok } from "@/helpers/response";
@@ -42,6 +44,8 @@ const route = createRoute({
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    500: jsonErrorResponse("Internal Server Error"),
+    503: jsonErrorResponse("Service Unavailable"),
   },
 });
 
@@ -50,7 +54,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireOrchestratorAuthContext(c.var.authContext);
     const { userId } = c.req.valid("json");
 
-    await clearHermesLocalMirrorForUser(userId);
+    try {
+      await clearHermesLocalMirrorForUser(userId);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { context: "orchestrator_purge" },
+        extra: { userId },
+      });
+      throw serviceUnavailable(
+        "Failed to purge local assistant state. Retrying is safe.",
+      );
+    }
 
     return ok(c, { purged: true as const, userId });
   });

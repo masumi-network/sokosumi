@@ -53,18 +53,30 @@ function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
   };
 }
 
-function createApp(authOverrides: { orchestratorId?: string } = {}) {
+function createApp(
+  actor: "orchestrator" | "user" = "orchestrator",
+  authOverrides: { orchestratorId?: string } = {},
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "orchestrator",
-      // Service token alone does not bind orchestratorId; usage resolves from body.
-      ...authOverrides,
-    });
+    if (actor === "orchestrator") {
+      c.set("authContext", {
+        actor: "orchestrator",
+        // Service token alone does not bind orchestratorId; usage resolves from body.
+        ...authOverrides,
+      });
+    } else {
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      });
+    }
 
     return await next();
   });
@@ -117,6 +129,21 @@ describe("POST /orchestrators/me/usage", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("returns 403 for user session credentials", async () => {
+    const response = await createApp("user").request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: "usage_456",
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(serializableTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when userId is missing", async () => {

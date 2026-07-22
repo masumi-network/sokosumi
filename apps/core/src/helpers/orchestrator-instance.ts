@@ -1,6 +1,7 @@
 import type { Orchestrator, Prisma } from "@sokosumi/database";
 
 import { notFound } from "@/helpers/error";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 export type OrchestratorInstance = Orchestrator;
@@ -73,30 +74,11 @@ function patchData(
   return data;
 }
 
-/**
- * Create or unarchive the user's orchestrator instance. Resets poll state
- * only when re-activating an archived row.
- */
-export async function ensureOrchestratorForUser(
-  userId: string,
-  patch: EnsureOrchestratorPatch = {},
-  tx: Prisma.TransactionClient | typeof prisma = prisma,
+async function applyEnsureOnExisting(
+  existing: OrchestratorInstance,
+  patch: EnsureOrchestratorPatch,
+  tx: Prisma.TransactionClient | typeof prisma,
 ): Promise<OrchestratorInstance> {
-  const existing = await findOrchestratorForUser(userId, tx);
-
-  if (!existing) {
-    return tx.orchestrator.create({
-      data: {
-        userId,
-        name: patch.name ?? null,
-        avatarSeed: patch.avatarSeed ?? null,
-        personalityTone: patch.personalityTone ?? null,
-        personalityDetail: patch.personalityDetail ?? null,
-        personalityStyle: patch.personalityStyle ?? null,
-      },
-    });
-  }
-
   if (existing.archivedAt == null) {
     if (Object.keys(patch).length === 0) {
       return existing;
@@ -107,6 +89,8 @@ export async function ensureOrchestratorForUser(
     });
   }
 
+  // Re-activate: unarchive and reset poll cursors so a fresh instance does not
+  // inherit stale inbox/poll state.
   return tx.orchestrator.update({
     where: { id: existing.id },
     data: {
@@ -118,6 +102,47 @@ export async function ensureOrchestratorForUser(
       ...patchData(patch),
     },
   });
+}
+
+/**
+ * Create or unarchive the user's orchestrator instance. Resets poll state
+ * only when re-activating an archived row.
+ *
+ * Concurrent creates race on unique `userId`: on P2002, re-read and apply
+ * the update/unarchive path (same end state as a lone winner).
+ */
+export async function ensureOrchestratorForUser(
+  userId: string,
+  patch: EnsureOrchestratorPatch = {},
+  tx: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<OrchestratorInstance> {
+  const existing = await findOrchestratorForUser(userId, tx);
+
+  if (existing) {
+    return applyEnsureOnExisting(existing, patch, tx);
+  }
+
+  try {
+    return await tx.orchestrator.create({
+      data: {
+        userId,
+        name: patch.name ?? null,
+        avatarSeed: patch.avatarSeed ?? null,
+        personalityTone: patch.personalityTone ?? null,
+        personalityDetail: patch.personalityDetail ?? null,
+        personalityStyle: patch.personalityStyle ?? null,
+      },
+    });
+  } catch (error) {
+    if (!isPrismaUniqueViolation(error)) {
+      throw error;
+    }
+    const raced = await findOrchestratorForUser(userId, tx);
+    if (!raced) {
+      throw error;
+    }
+    return applyEnsureOnExisting(raced, patch, tx);
+  }
 }
 
 /**

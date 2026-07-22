@@ -85,13 +85,16 @@ on GET — only explicit purge/destroy (or a verified fresh provision path).
 
 ## Deploy coordination
 
-1. Set `ORCHESTRATOR_SERVICE_TOKEN` on Core and deploy.
-2. Point Hermes at that secret; switch purge to
-   `POST /v1/orchestrators/me/usage` path’s sibling
-   `POST /v1/orchestrators/me/purge` with body `{ userId }`.
+1. Set `ORCHESTRATOR_SERVICE_TOKEN` on Core (required for boot) and deploy Core
+   with migration `20260721140000_per_user_orchestrator_instance`.
+2. Point Hermes at the **same** secret. Switch Hermes to:
+   - `Authorization: Bearer <ORCHESTRATOR_SERVICE_TOKEN>` (no DB `orch_` keys)
+   - `POST /v1/orchestrators/me/usage` with body `{ userId, credits, idempotencyKey, … }`
+   - `POST /v1/orchestrators/me/purge` with body `{ userId }` (replaces hermes instance purge)
 3. Deploy web (admin orchestrator UI removed).
 
-Hard cut: Core no longer accepts DB `orch_` keys.
+Hard cut: Core no longer accepts DB `orch_` keys. Deploy Core+token and Hermes
+auth/purge cutover together (or Hermes immediately after Core).
 
 ## Migration note
 

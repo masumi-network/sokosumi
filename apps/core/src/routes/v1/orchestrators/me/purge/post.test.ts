@@ -96,4 +96,21 @@ describe("POST /orchestrators/me/purge", () => {
     }
     expect(clearHermesLocalMirrorForUserMock).toHaveBeenCalledTimes(2);
   });
+
+  it("returns 503 with a retry-safe message when purge fails", async () => {
+    clearHermesLocalMirrorForUserMock.mockRejectedValueOnce(
+      new Error("db down"),
+    );
+
+    const response = await createApp().request("/me/purge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "user_gone" }),
+    });
+
+    expect(response.status).toBe(503);
+    expect(await response.text()).toBe(
+      "Failed to purge local assistant state. Retrying is safe.",
+    );
+  });
 });
