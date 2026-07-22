@@ -162,6 +162,24 @@ describe("authMiddleware", () => {
     expect(verifyApiKeyMock).toHaveBeenCalled();
   });
 
+  it("never authenticates legacy orch_ API keys as the orchestrator actor", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: false,
+      key: null,
+    });
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        // Pre-hard-cut DB-minted keys; table and verify path are gone.
+        authorization: "Bearer orch_deadbeefcafebabedeadbeefcafebabe",
+      },
+    });
+
+    // Hard cut: must not become actor orchestrator (falls through → 401).
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).toHaveBeenCalled();
+  });
+
   it("returns 401 for revoked dedicated coworker API key", async () => {
     coworkerApiKeyFindUniqueMock.mockResolvedValue({
       coworkerId: "cow_123",

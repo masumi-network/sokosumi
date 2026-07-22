@@ -2160,11 +2160,20 @@ app.openapi(provisionInstanceRoute, async (c) => {
       });
     }
 
-    await upsertHermesInstanceForUser(userContext.userId).catch((error) => {
+    // Fail closed: remote instance without a local active orchestrator row
+    // breaks task/event attribution and usage. Client should retry provision
+    // (idempotent on Hermes). GET instance may still backfill best-effort.
+    try {
+      await upsertHermesInstanceForUser(userContext.userId);
+    } catch (error) {
       Sentry.captureException(error, {
         tags: { context: "hermes_instance_upsert" },
+        extra: { userId: userContext.userId },
       });
-    });
+      throw serviceUnavailable(
+        "Assistant was provisioned remotely but the local orchestrator instance could not be activated. Retry provision.",
+      );
+    }
 
     const meta = await readHermesInstanceDisplay(userContext.userId);
     return ok(c, hermesInstanceSchema.parse({ ...instance, ...meta }));

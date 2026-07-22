@@ -2062,6 +2062,24 @@ describe("Hermes route contracts", () => {
     );
     // Idempotent re-provision of a live instance must not wipe chat.
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(orchestratorCreateMock).toHaveBeenCalled();
+  });
+
+  it("returns 503 when remote provision succeeds but local orchestrator ensure fails", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    orchestratorCreateMock.mockRejectedValueOnce(new Error("db unavailable"));
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(String(body.message)).toMatch(/local orchestrator instance/i);
+    expect(provisionInstance).toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalled();
   });
 
   it("clears leftover local mirror when provisioning a fresh early instance", async () => {

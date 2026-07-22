@@ -110,6 +110,11 @@ async function applyEnsureOnExisting(
  *
  * Concurrent creates race on unique `userId`: on P2002, re-read and apply
  * the update/unarchive path (same end state as a lone winner).
+ *
+ * `tx` may be an interactive transaction for the pre-existing-row path
+ * (update/unarchive). Do **not** rely on P2002 recovery inside that same
+ * interactive transaction: a failed `create` aborts the Postgres tx, so
+ * recovery always re-reads and updates on the root `prisma` client.
  */
 export async function ensureOrchestratorForUser(
   userId: string,
@@ -137,11 +142,12 @@ export async function ensureOrchestratorForUser(
     if (!isPrismaUniqueViolation(error)) {
       throw error;
     }
-    const raced = await findOrchestratorForUser(userId, tx);
+    // Root client: interactive `tx` is aborted after the failed create.
+    const raced = await findOrchestratorForUser(userId, prisma);
     if (!raced) {
       throw error;
     }
-    return applyEnsureOnExisting(raced, patch, tx);
+    return applyEnsureOnExisting(raced, patch, prisma);
   }
 }
 

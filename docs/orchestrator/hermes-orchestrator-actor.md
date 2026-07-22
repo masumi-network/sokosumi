@@ -68,13 +68,22 @@ Purge is idempotent: deletes messages + pending connection claims, **archives**
 the orchestrator (clears poll state). Does not hard-delete the row while tasks
 may still reference `creatorOrchestratorId` (`onDelete: Restrict`).
 
+**No active instance — status codes (intentional):**
+
+| Surface | Status | Meaning |
+| --- | --- | --- |
+| `POST /v1/tasks` / task events (orchestrator + context) | **400** | Context user is not bound to an active orchestrator for this operation |
+| `POST /v1/orchestrators/me/usage` | **404** | No orchestrator instance resource for body `userId` (missing or archived for a *new* charge) |
+
+Do not treat these as interchangeable in Hermes clients.
+
 **Removed:** `POST /v1/hermes/instances/{userId}/purge` (call purge above instead).
 
 ## Instance lifecycle
 
 | Event | Behavior |
 | --- | --- |
-| User activates Hermes | Upsert/unarchive `Orchestrator` for `userId` |
+| User activates Hermes | Upsert/unarchive `Orchestrator` for `userId` (**fail closed**: if local ensure fails after remote provision, return **503** — retry provision) |
 | User destroy (`DELETE /v1/hermes/me/instance`) | Clear messages/pending; archive orchestrator |
 | Hermes service purge | `POST /orchestrators/me/purge` |
 | Re-activate | Unarchive same `userId` row (or create if missing) |
