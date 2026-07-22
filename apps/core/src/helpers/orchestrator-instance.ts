@@ -1,8 +1,9 @@
 import type { Orchestrator, Prisma } from "@sokosumi/database";
 
-import { notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import type { OrchestratorAuthenticationContext } from "@/middleware/auth";
 
 export type OrchestratorInstance = Orchestrator;
 
@@ -42,6 +43,30 @@ export async function requireActiveOrchestratorForUser(
     throw notFound("Orchestrator instance not found for user");
   }
   return orchestrator;
+}
+
+/**
+ * Resolve per-user orchestrator id for task/event attribution at write time.
+ *
+ * Re-reads the active row from context user scope so a concurrent purge
+ * cannot attribute using an archived id snapshotted in context middleware.
+ * Keeps the task/event 400 contract (not 404 usage).
+ */
+export async function requireOrchestratorIdForAttribution(
+  authContext: OrchestratorAuthenticationContext,
+): Promise<string> {
+  const contextUserId = authContext.context?.userId;
+  if (contextUserId) {
+    const active = await findActiveOrchestratorForUser(contextUserId);
+    if (active) {
+      return active.id;
+    }
+    throw badRequest("No active orchestrator instance for context user");
+  }
+
+  throw badRequest(
+    "Active orchestrator instance required (bind X-Context-User-Id)",
+  );
 }
 
 export interface EnsureOrchestratorPatch {

@@ -9,12 +9,13 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
-import { badRequest, errorResponseSchema, notFound } from "@/helpers/error";
+import { errorResponseSchema, notFound } from "@/helpers/error";
 import {
   jsonContent,
   jsonErrorResponse,
   jsonSuccessResponse,
 } from "@/helpers/openapi";
+import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -158,28 +159,14 @@ async function assertTaskProjectInWorkspace(
   }
 }
 
-function requireOrchestratorIdForAttribution(
-  authContext: Extract<AuthenticationContext, { actor: "orchestrator" }>,
-): string {
-  if (authContext.orchestratorId) {
-    return authContext.orchestratorId;
-  }
-  // Context present but unbound ⇒ user has no active (non-archived) instance.
-  if (authContext.context) {
-    throw badRequest("No active orchestrator instance for context user");
-  }
-  throw badRequest(
-    "Active orchestrator instance required (bind X-Context-User-Id)",
-  );
-}
-
-function resolveTaskCreatorFields(
+async function resolveTaskCreatorFields(
   authContext: AuthenticationContext,
   ownerId: string,
 ) {
   if (isOrchestratorAuthContext(authContext)) {
     return {
-      creatorOrchestratorId: requireOrchestratorIdForAttribution(authContext),
+      creatorOrchestratorId:
+        await requireOrchestratorIdForAttribution(authContext),
       creatorUserId: null,
       creatorCoworkerId: null,
     };
@@ -200,7 +187,7 @@ function resolveTaskCreatorFields(
   };
 }
 
-function resolveInitialTaskEventActor(
+async function resolveInitialTaskEventActor(
   authContext: AuthenticationContext,
   ownerId: string,
 ) {
@@ -208,7 +195,7 @@ function resolveInitialTaskEventActor(
     return {
       userId: null,
       coworkerId: null,
-      orchestratorId: requireOrchestratorIdForAttribution(authContext),
+      orchestratorId: await requireOrchestratorIdForAttribution(authContext),
     };
   }
 
@@ -256,6 +243,11 @@ async function createTaskRecord(
   const isGrantPending = pendingVendorGrantId != null;
   const status = isGrantPending ? TaskStatus.GRANT_PENDING : body.status;
   const initialEventStatus = status;
+  const creatorFields = await resolveTaskCreatorFields(authContext, ownerId);
+  const initialEventActor = await resolveInitialTaskEventActor(
+    authContext,
+    ownerId,
+  );
 
   return tx.task.create({
     data: {
@@ -266,7 +258,7 @@ async function createTaskRecord(
       name: resolvedName,
       description: body.description ?? null,
       assigneeId: body.assigneeId ?? null,
-      ...resolveTaskCreatorFields(authContext, ownerId),
+      ...creatorFields,
       status,
       grantResumeStatus: isGrantPending ? grantResumeStatus : null,
       metadata: null,
@@ -277,7 +269,7 @@ async function createTaskRecord(
           status: initialEventStatus,
           comment: null,
           channel: body.channel,
-          ...resolveInitialTaskEventActor(authContext, ownerId),
+          ...initialEventActor,
         },
       },
     },

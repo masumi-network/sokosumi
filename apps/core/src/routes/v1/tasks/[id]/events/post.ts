@@ -29,6 +29,7 @@ import {
 } from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   mapTaskEvent,
@@ -66,34 +67,26 @@ const paramsSchema = z.object({
  * Orchestrator status/comment attribution uses only `orchestratorId`.
  * Context userId is workspace scope, not a second actor FK.
  * Fail closed when the service token has context but no active instance
- * (same rule as task create).
+ * (same rule as task create). Re-reads at write time so concurrent purge
+ * cannot attribute via a stale middleware snapshot.
  */
-function getOrchestratorEventActorData(authContext: AuthenticationContext) {
+async function getOrchestratorEventActorData(
+  authContext: AuthenticationContext,
+) {
   if (!isOrchestratorAuthContext(authContext)) {
     throw badRequest(
       "Active orchestrator instance required (bind X-Context-User-Id)",
     );
   }
 
-  if (authContext.orchestratorId) {
-    return {
-      userId: null,
-      coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
-    };
-  }
-
-  // Context present but unbound ⇒ user has no active (non-archived) instance.
-  if (authContext.context) {
-    throw badRequest("No active orchestrator instance for context user");
-  }
-
-  throw badRequest(
-    "Active orchestrator instance required (bind X-Context-User-Id)",
-  );
+  return {
+    userId: null,
+    coworkerId: null,
+    orchestratorId: await requireOrchestratorIdForAttribution(authContext),
+  };
 }
 
-function getStatusEventActorData(authContext: AuthenticationContext) {
+async function getStatusEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
@@ -115,7 +108,7 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
   };
 }
 
-function getCommentEventActorData(authContext: AuthenticationContext) {
+async function getCommentEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
@@ -545,10 +538,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         const actorData =
           status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
-            ? getStatusEventActorData(authContext)
+            ? await getStatusEventActorData(authContext)
             : credits != null || masumiPayment != null
               ? getCoworkerActorData(authContext)
-              : getCommentEventActorData(authContext);
+              : await getCommentEventActorData(authContext);
 
         const createdEvent = await tx.taskEvent.create({
           data: {

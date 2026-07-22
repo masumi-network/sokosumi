@@ -6,8 +6,15 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountPostOrchestratorMePurge from "./post";
 
-const { clearHermesLocalMirrorForUserMock } = vi.hoisted(() => ({
-  clearHermesLocalMirrorForUserMock: vi.fn(),
+const { captureExceptionMock, clearHermesLocalMirrorForUserMock } = vi.hoisted(
+  () => ({
+    captureExceptionMock: vi.fn(),
+    clearHermesLocalMirrorForUserMock: vi.fn(),
+  }),
+);
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
 vi.mock("@/helpers/orchestrator-instance", () => ({
@@ -98,9 +105,8 @@ describe("POST /orchestrators/me/purge", () => {
   });
 
   it("returns 503 with a retry-safe message when purge fails", async () => {
-    clearHermesLocalMirrorForUserMock.mockRejectedValueOnce(
-      new Error("db down"),
-    );
+    const failure = new Error("db down");
+    clearHermesLocalMirrorForUserMock.mockRejectedValueOnce(failure);
 
     const response = await createApp().request("/me/purge", {
       method: "POST",
@@ -112,5 +118,9 @@ describe("POST /orchestrators/me/purge", () => {
     expect(await response.text()).toBe(
       "Failed to purge local assistant state. Retrying is safe.",
     );
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      tags: { context: "orchestrator_purge" },
+      extra: { userId: "user_gone" },
+    });
   });
 });

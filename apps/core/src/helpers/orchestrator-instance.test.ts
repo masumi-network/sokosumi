@@ -6,6 +6,7 @@ import {
   findActiveOrchestratorForUser,
   findOrchestratorForUser,
   requireActiveOrchestratorForUser,
+  requireOrchestratorIdForAttribution,
 } from "./orchestrator-instance";
 
 const {
@@ -184,6 +185,53 @@ describe("orchestrator-instance helpers", () => {
       });
     });
 
+    it("on P2002 inside interactive tx, recovers via root prisma not aborted tx", async () => {
+      const txFindUnique = vi.fn().mockResolvedValue(null);
+      const txCreate = vi.fn().mockRejectedValue({ code: "P2002" });
+      const txUpdate = vi.fn();
+      const tx = {
+        orchestrator: {
+          findUnique: txFindUnique,
+          create: txCreate,
+          update: txUpdate,
+        },
+      };
+
+      findUniqueMock.mockResolvedValue(
+        activeRow({
+          archivedAt: new Date("2026-01-01T00:00:00.000Z"),
+        }),
+      );
+      updateMock.mockResolvedValue(activeRow({ name: "Recovered" }));
+
+      const result = await ensureOrchestratorForUser(
+        USER_ID,
+        { name: "Recovered" },
+        // Interactive transaction client whose create aborts the Postgres tx.
+        tx as never,
+      );
+
+      expect(result.name).toBe("Recovered");
+      expect(txFindUnique).toHaveBeenCalledOnce();
+      expect(txCreate).toHaveBeenCalledOnce();
+      expect(txUpdate).not.toHaveBeenCalled();
+      // Recovery must use root client after the interactive tx aborted.
+      expect(findUniqueMock).toHaveBeenCalledWith({
+        where: { userId: USER_ID },
+      });
+      expect(updateMock).toHaveBeenCalledWith({
+        where: { id: ORCHESTRATOR_ID },
+        data: {
+          archivedAt: null,
+          consecutivePollErrors: 0,
+          lastPolledAt: null,
+          lastInboxMessageAt: null,
+          lastSeenInboxAt: null,
+          name: "Recovered",
+        },
+      });
+    });
+
     it("rethrows non-unique create failures", async () => {
       findUniqueMock.mockResolvedValue(null);
       createMock.mockRejectedValue({ code: "P2003" });
@@ -191,6 +239,42 @@ describe("orchestrator-instance helpers", () => {
       await expect(ensureOrchestratorForUser(USER_ID)).rejects.toEqual({
         code: "P2003",
       });
+    });
+  });
+
+  describe("requireOrchestratorIdForAttribution", () => {
+    it("returns active id for context user", async () => {
+      findFirstMock.mockResolvedValue(activeRow());
+
+      const id = await requireOrchestratorIdForAttribution({
+        actor: "orchestrator",
+        orchestratorId: "stale-snapshot-id",
+        context: { userId: USER_ID, organizationId: null },
+      });
+
+      expect(id).toBe(ORCHESTRATOR_ID);
+      expect(findFirstMock).toHaveBeenCalledWith({
+        where: { userId: USER_ID, archivedAt: null },
+      });
+    });
+
+    it("rejects when context user has no active instance (ignores stale snapshot)", async () => {
+      findFirstMock.mockResolvedValue(null);
+
+      await expect(
+        requireOrchestratorIdForAttribution({
+          actor: "orchestrator",
+          orchestratorId: ORCHESTRATOR_ID,
+          context: { userId: USER_ID, organizationId: null },
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("rejects when context is missing", async () => {
+      await expect(
+        requireOrchestratorIdForAttribution({ actor: "orchestrator" }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(findFirstMock).not.toHaveBeenCalled();
     });
   });
 

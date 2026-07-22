@@ -12,6 +12,7 @@ const {
   generateTaskNameMock,
   mapTaskMock,
   notifyWorkspaceApproversOfPendingGrantMock,
+  orchestratorFindFirstMock,
   projectFindFirstMock,
   prismaTransactionMock,
   requestWorkspaceGrantMock,
@@ -22,6 +23,7 @@ const {
   generateTaskNameMock: vi.fn(),
   mapTaskMock: vi.fn(),
   notifyWorkspaceApproversOfPendingGrantMock: vi.fn(),
+  orchestratorFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requestWorkspaceGrantMock: vi.fn(),
@@ -145,6 +147,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     workspace: {
       findUnique: workspaceFindUniqueMock,
+    },
+    orchestrator: {
+      findFirst: orchestratorFindFirstMock,
     },
   },
 }));
@@ -612,6 +617,7 @@ describe("POST /tasks orchestrator create", () => {
     generateTaskNameMock.mockResolvedValue("Generated name");
     taskCreateMock.mockResolvedValue({ id: "tsk_orch" });
     mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
+    orchestratorFindFirstMock.mockResolvedValue(null);
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
@@ -648,9 +654,42 @@ describe("POST /tasks orchestrator create", () => {
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
+  it("rejects create when middleware snapshot is stale after purge", async () => {
+    // Auth still carries a snapshotted orchestratorId, but the active-row
+    // re-check at write time finds nothing (archived mid-request).
+    const app = createOrchestratorApp({
+      orchestratorId: "01960001-0001-7001-8001-000000000099",
+      withContext: true,
+    });
+    orchestratorFindFirstMock.mockResolvedValue(null);
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Orch task",
+        description: null,
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "No active orchestrator instance for context user",
+    );
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
   it("creates with creatorOrchestratorId when bound", async () => {
     const orchestratorId = "01960001-0001-7001-8001-000000000099";
     const app = createOrchestratorApp({ orchestratorId, withContext: true });
+    orchestratorFindFirstMock.mockResolvedValue({
+      id: orchestratorId,
+      userId: "user_123",
+      archivedAt: null,
+    });
 
     const response = await app.request("http://localhost/", {
       method: "POST",
