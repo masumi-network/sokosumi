@@ -1284,6 +1284,85 @@ describe("POST /{id}/events", () => {
     });
   });
 
+  it("rejects orchestrator status events when orchestratorId is unbound", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.DRAFT }),
+    );
+
+    // Service token + context user, but no active per-user instance bound
+    // (archived / never activated). Same fail-closed rule as task create.
+    const app = createApp({
+      actor: "orchestrator",
+      context: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.READY,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "Active orchestrator instance required (bind X-Context-User-Id)",
+    );
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects orchestrator comment events when orchestratorId is unbound", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCommentAccessMock.mockResolvedValue(
+      createTask({ status: TaskStatus.DRAFT }),
+    );
+
+    const app = createApp({
+      actor: "orchestrator",
+      context: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "still trying after purge",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "Active orchestrator instance required (bind X-Context-User-Id)",
+    );
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
   it("rejects agent COMPLETED → READY (agent reopen is to RUNNING only)", async () => {
     const tx: TransactionMock = {
       taskEvent: {

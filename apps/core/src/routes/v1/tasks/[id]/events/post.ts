@@ -22,6 +22,7 @@ import {
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import {
+  badRequest,
   conflict,
   errorResponseWithExtensionsSchema,
   unprocessableEntity,
@@ -61,6 +62,26 @@ const paramsSchema = z.object({
   }),
 });
 
+/**
+ * Orchestrator status/comment attribution uses only `orchestratorId`.
+ * Context userId is workspace scope, not a second actor FK.
+ * Fail closed when the service token has context but no active instance
+ * (same rule as task create).
+ */
+function getOrchestratorEventActorData(authContext: AuthenticationContext) {
+  if (!isOrchestratorAuthContext(authContext) || !authContext.orchestratorId) {
+    throw badRequest(
+      "Active orchestrator instance required (bind X-Context-User-Id)",
+    );
+  }
+
+  return {
+    userId: null,
+    coworkerId: null,
+    orchestratorId: authContext.orchestratorId,
+  };
+}
+
 function getStatusEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
@@ -71,14 +92,7 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
   }
 
   if (isOrchestratorAuthContext(authContext)) {
-    // Attribute status events to the orchestrator only. Context userId is
-    // workspace context, not a second actor FK — keep a single FK so nested
-    // `actor` and deprecated flat summaries stay unambiguous.
-    return {
-      userId: null,
-      coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
-    };
+    return getOrchestratorEventActorData(authContext);
   }
 
   // Status transitions from a delegated coworker are attributed to the acting
@@ -100,11 +114,7 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
   }
 
   if (isOrchestratorAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
-    };
+    return getOrchestratorEventActorData(authContext);
   }
 
   // Coworker comments are shown by coworkerId in the UI; userId is not used.
