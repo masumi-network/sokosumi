@@ -22,6 +22,41 @@ interface NotificationsPageContentProps {
   userId: string;
 }
 
+function markNotificationReadLocally(
+  notifications: NotificationItem[],
+  notificationId: string,
+): NotificationItem[] {
+  let changed = false;
+  const readAt = new Date();
+  const next = notifications.map((notification) => {
+    if (notification.id !== notificationId || notification.isRead) {
+      return notification;
+    }
+
+    changed = true;
+    return { ...notification, isRead: true, readAt };
+  });
+
+  return changed ? next : notifications;
+}
+
+function markAllNotificationsReadLocally(
+  notifications: NotificationItem[],
+): NotificationItem[] {
+  let changed = false;
+  const readAt = new Date();
+  const next = notifications.map((notification) => {
+    if (notification.isRead) {
+      return notification;
+    }
+
+    changed = true;
+    return { ...notification, isRead: true, readAt };
+  });
+
+  return changed ? next : notifications;
+}
+
 export function NotificationsPageContent({
   userId: _userId,
 }: NotificationsPageContentProps) {
@@ -43,6 +78,9 @@ export function NotificationsPageContent({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+  const [pendingNotificationId, setPendingNotificationId] = useState<
+    string | null
+  >(null);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasFetchError, setHasFetchError] = useState(false);
@@ -139,48 +177,47 @@ export function NotificationsPageContent({
     });
   }, [providerNotifications]);
 
-  const handleNotificationClick = async (notification: NotificationItem) => {
-    if (!notification.isRead) {
-      try {
-        await markRead(notification.id);
+  const handleNotificationClick = (notification: NotificationItem) => {
+    // Immediate paint: pending state + optimistic read. Network/navigation
+    // stay off the interaction's critical path for INP.
+    setPendingNotificationId(notification.id);
 
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === notification.id ? { ...n, isRead: true } : n,
-          ),
-        );
-      } catch (error) {
+    if (!notification.isRead) {
+      setNotifications((prev) =>
+        markNotificationReadLocally(prev, notification.id),
+      );
+      void markRead(notification.id).catch((error) => {
         console.error("Failed to mark notification as read:", error);
-      }
+      });
     }
 
-    await handleNotificationNavigation(
+    void handleNotificationNavigation(
       notification,
       activeOrganizationId,
       router,
       handleSelectWorkspace,
       tDetail,
-    );
+    ).finally(() => {
+      setPendingNotificationId((current) =>
+        current === notification.id ? null : current,
+      );
+    });
   };
 
-  const handleMarkAllRead = async () => {
+  const handleMarkAllRead = () => {
     if (isMarkingAllRead) return;
 
     setIsMarkingAllRead(true);
-    try {
-      await markAllRead();
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.isRead
-            ? notification
-            : { ...notification, isRead: true, readAt: new Date() },
-        ),
-      );
-    } catch {
-      toast.error(tCenter("markAllReadError"));
-    } finally {
-      setIsMarkingAllRead(false);
-    }
+    setNotifications(markAllNotificationsReadLocally);
+
+    void markAllRead()
+      .catch(() => {
+        toast.error(tCenter("markAllReadError"));
+        void fetchNotifications();
+      })
+      .finally(() => {
+        setIsMarkingAllRead(false);
+      });
   };
 
   const handleLoadMore = () => {
@@ -196,7 +233,7 @@ export function NotificationsPageContent({
             type="button"
             size="sm"
             className="self-start"
-            onClick={() => void handleMarkAllRead()}
+            onClick={handleMarkAllRead}
             disabled={isMarkingAllRead}
           >
             {isMarkingAllRead ? tCenter("loading") : tCenter("markAllRead")}
@@ -239,48 +276,19 @@ export function NotificationsPageContent({
         <>
           <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
             <div className="divide-border/50 divide-y">
-              {notifications.map((notification) => {
-                const message = formatMessage(
-                  notification.messageKey,
-                  notification.messageParams ?? {},
-                );
-
-                return (
-                  <button
-                    key={notification.id}
-                    type="button"
-                    className={cn(
-                      "hover:bg-accent flex w-full cursor-pointer p-4 text-left transition-colors",
-                      !notification.isRead && "bg-accent/50",
-                    )}
-                    onClick={() => handleNotificationClick(notification)}
-                  >
-                    <div className="flex w-full items-start gap-3">
-                      <Bell
-                        className={cn(
-                          "mt-0.5 size-4 shrink-0",
-                          notification.isRead
-                            ? "text-muted-foreground"
-                            : "text-primary",
-                        )}
-                      />
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
-                        <p
-                          className={cn(
-                            "text-sm",
-                            !notification.isRead && "font-medium",
-                          )}
-                        >
-                          {message}
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          {formatTime(notification.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+              {notifications.map((notification) => (
+                <NotificationRow
+                  key={notification.id}
+                  notification={notification}
+                  isPending={pendingNotificationId === notification.id}
+                  message={formatMessage(
+                    notification.messageKey,
+                    notification.messageParams ?? {},
+                  )}
+                  timeLabel={formatTime(notification.createdAt)}
+                  onClick={handleNotificationClick}
+                />
+              ))}
             </div>
           </div>
           {hasMore ? (
@@ -297,5 +305,48 @@ export function NotificationsPageContent({
         </>
       ) : null}
     </div>
+  );
+}
+
+interface NotificationRowProps {
+  notification: NotificationItem;
+  isPending: boolean;
+  message: string;
+  timeLabel: string;
+  onClick: (notification: NotificationItem) => void;
+}
+
+function NotificationRow({
+  notification,
+  isPending,
+  message,
+  timeLabel,
+  onClick,
+}: NotificationRowProps) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "hover:bg-accent flex w-full cursor-pointer p-4 text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+        !notification.isRead && "bg-accent/50",
+        isPending && "bg-accent opacity-80",
+      )}
+      onClick={() => onClick(notification)}
+    >
+      <div className="flex w-full items-start gap-3">
+        <Bell
+          className={cn(
+            "mt-0.5 size-4 shrink-0",
+            notification.isRead ? "text-muted-foreground" : "text-primary",
+          )}
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className={cn("text-sm", !notification.isRead && "font-medium")}>
+            {message}
+          </p>
+          <p className="text-muted-foreground text-xs">{timeLabel}</p>
+        </div>
+      </div>
+    </button>
   );
 }

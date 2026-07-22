@@ -2,7 +2,13 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createContext, useCallback, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useTransition,
+} from "react";
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 
@@ -37,11 +43,16 @@ export function CreateProjectModalProvider({
 }: CreateProjectModalProviderProps) {
   const [open, setOpen] = useState(initialOpen);
   const [formInstanceKey, setFormInstanceKey] = useState(0);
+  const [, startOpenTransition] = useTransition();
 
   const handleOpen = useCallback(() => {
-    setFormInstanceKey((key) => key + 1);
-    setOpen(true);
-  }, []);
+    // Keep the click's next paint cheap: button feedback first, modal mount
+    // as a transition so Interaction to Next Paint stays responsive.
+    startOpenTransition(() => {
+      setFormInstanceKey((key) => key + 1);
+      setOpen(true);
+    });
+  }, [startOpenTransition]);
 
   const handleClose = useCallback(() => {
     setOpen(false);
@@ -67,6 +78,12 @@ export function CreateProjectModal() {
   const pathname = usePathname();
   const t = useTranslations("App.Projects");
   const [isDismissDisabled, setIsDismissDisabled] = useState(false);
+  // Mount form only after first open so idle /projects stays light.
+  const [hasOpened, setHasOpened] = useState(open);
+
+  if (open && !hasOpened) {
+    setHasOpened(true);
+  }
 
   const stripCreateProjectSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -94,6 +111,10 @@ export function CreateProjectModal() {
     router.refresh();
   }
 
+  if (!hasOpened) {
+    return null;
+  }
+
   return (
     <TaskFormModal
       open={open}
@@ -102,27 +123,29 @@ export function CreateProjectModal() {
       cancelLabel={t("NewProject.cancel")}
       isDismissDisabled={isDismissDisabled}
     >
-      <ProjectForm
-        key={formInstanceKey}
-        mode="create"
-        variant="modal"
-        creationSource="projects_page"
-        showCancel={false}
-        labels={{
-          details: t("NewProject.details"),
-          detailsDescription: t("NewProject.detailsDescription"),
-          name: t("NewProject.name"),
-          namePlaceholder: t("NewProject.namePlaceholder"),
-          description: t("NewProject.description"),
-          descriptionPlaceholder: t("NewProject.descriptionPlaceholder"),
-          submit: t("NewProject.createProject"),
-          cancel: t("NewProject.cancel"),
-          error: t("Detail.errors.create"),
-        }}
-        onCancel={handleDismiss}
-        onSubmittingChange={setIsDismissDisabled}
-        onSuccess={handleSuccess}
-      />
+      {open ? (
+        <ProjectForm
+          key={formInstanceKey}
+          mode="create"
+          variant="modal"
+          creationSource="projects_page"
+          showCancel={false}
+          labels={{
+            details: t("NewProject.details"),
+            detailsDescription: t("NewProject.detailsDescription"),
+            name: t("NewProject.name"),
+            namePlaceholder: t("NewProject.namePlaceholder"),
+            description: t("NewProject.description"),
+            descriptionPlaceholder: t("NewProject.descriptionPlaceholder"),
+            submit: t("NewProject.createProject"),
+            cancel: t("NewProject.cancel"),
+            error: t("Detail.errors.create"),
+          }}
+          onCancel={handleDismiss}
+          onSubmittingChange={setIsDismissDisabled}
+          onSuccess={handleSuccess}
+        />
+      ) : null}
     </TaskFormModal>
   );
 }
