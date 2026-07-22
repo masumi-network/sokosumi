@@ -1,0 +1,127 @@
+# Cloud agent database via `DATABASE_URL`
+
+Each Cursor Cloud agent run can get an **ephemeral Neon branch** forked from
+production (`main` by default), injected as `DATABASE_URL` /
+`DATABASE_URL_UNPOOLED`. The branch already has real schema and data — **no
+seed step**. Pending Prisma migrations apply on provision when the git branch
+is ahead of production schema.
+
+## Secrets (required)
+
+Set these on the **Cursor Cloud environment** (Runtime Secrets) and as
+**GitHub Actions secrets** for teardown:
+
+| Name | Where | Purpose |
+| --- | --- | --- |
+| `NEON_API_KEY` | Cursor secret + `NEON_API_KEY` Actions secret | Neon API auth |
+| `NEON_PROJECT_ID` | Cursor secret / env + Actions secret | Neon project |
+
+Optional:
+
+| Name | Default | Purpose |
+| --- | --- | --- |
+| `NEON_PARENT_BRANCH` | `main` | Production parent branch to fork from |
+| `NEON_DATABASE_NAME` | `neondb` | Database name on the branch |
+| `NEON_ROLE_NAME` | `neondb_owner` | Role for connection URIs |
+
+**Do not** set a static production `DATABASE_URL` in Cursor secrets. Agents must
+never write to the live production parent. Provision always forks a child
+branch named `cloud-agent-<run-id>`.
+
+## Provision (how agents get the URL)
+
+`.cursor/environment.json` runs provision after `pnpm install`:
+
+```bash
+pnpm install && node scripts/cloud-agent-db/provision.mjs
+```
+
+When `CURSOR_AGENT=1` and Neon secrets are present, provision:
+
+1. Resolves the agent run id (`CURSOR_CONVERSATION_ID`, e.g. `bc-…`)
+2. Reuses `cloud-agent-<run-id>` if it already exists (resume); otherwise creates
+   it from `NEON_PARENT_BRANCH` (never from another agent branch)
+3. Sets Neon `expires_at` to **now + 72 hours** (idle TTL)
+4. Writes:
+   - `.cursor/cloud-agent-db.env` (shell-sourceable)
+   - `.cursor/cloud-agent-db.urls.json` (for `with-db.mjs`)
+   - `.cursor/cloud-agent-db.state.json` (branch metadata)
+   - patches `apps/core/.env` and `apps/web/.env` when present
+   - injects a source block into `~/.bashrc` / `~/.profile`
+5. Runs `pnpm prisma:migrate:deploy` with `DATABASE_URL_UNPOOLED`
+
+If connection setup fails after create, provision **deletes the orphan branch**.
+
+Manual / forced local dry-run:
+
+```bash
+CLOUD_AGENT_DB_FORCE=1 \
+CLOUD_AGENT_RUN_ID=bc-00000000-0000-0000-0000-000000000001 \
+NEON_API_KEY=… NEON_PROJECT_ID=… \
+node scripts/cloud-agent-db/provision.mjs
+```
+
+## Using the database in agent commands
+
+Prefer the override wrapper so ambient/stale `DATABASE_URL` cannot win:
+
+```bash
+node scripts/cloud-agent-db/with-db.mjs -- pnpm core:dev
+node scripts/cloud-agent-db/with-db.mjs -- pnpm prisma:migrate:deploy
+```
+
+`environment.json` `start` already uses `with-db.mjs` for `pnpm dev`.
+
+Login shells also pick up `.cursor/cloud-agent-db.env` via bashrc/profile.
+
+## Teardown
+
+Teardown **only** deletes branches named `cloud-agent-*`. It never deletes the
+production / `main` parent (or any non-agent branch).
+
+| Trigger | Mechanism |
+| --- | --- |
+| PR merged | GitHub Action `cloud-agent-db-teardown.yml` on `pull_request` closed; extracts `bc-…` ids from PR body (Cursor agent links) |
+| PR closed without merge | Same workflow |
+| Agent finishes with **no PR** | Agent runs `node scripts/cloud-agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`) |
+| Agent archived | Same explicit teardown when possible; otherwise idle TTL |
+| Idle **72h** | Neon `expires_at` on create/resume **and** scheduled Action `--idle-gc` every 6h as backup |
+
+Manual:
+
+```bash
+node scripts/cloud-agent-db/teardown.mjs
+node scripts/cloud-agent-db/teardown.mjs --agent-id bc-…
+node scripts/cloud-agent-db/teardown.mjs --from-text "$(gh pr view 123 --json body -q .body)"
+node scripts/cloud-agent-db/teardown.mjs --idle-gc
+```
+
+### PR body convention
+
+Agent-opened PRs should keep the Cursor agent URL in the body (default
+ManagePullRequest footer includes `https://cursor.com/agents/bc-…`). Teardown
+parses those ids. If you strip the footer, add:
+
+```text
+Cloud-Agent-Run: bc-<run-id>
+```
+
+## Safety
+
+- Parent is always `NEON_PARENT_BRANCH` (production baseline), never another
+  agent or arbitrary preview branch
+- Child branches are disposable and TTL-bound
+- Failed provision cleans up orphans
+- Teardown refuses `default` / `protected` branches and any name not prefixed
+  `cloud-agent-`
+
+## Local Postgres (unchanged)
+
+Laptop / snapshot local Postgres remains available when Neon secrets are absent.
+Provision skips cleanly and prints a warning. See root `AGENTS.md`.
+
+## Tests
+
+```bash
+node --test scripts/cloud-agent-db/__tests__/cloud-agent-db.test.mjs
+```

@@ -1,0 +1,56 @@
+name: Cloud agent database teardown
+
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    # Backup for Neon expires_at (72h idle TTL). Runs every 6 hours.
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      agent_id:
+        description: Cloud agent run id (bc-…)
+        required: false
+        type: string
+      idle_gc:
+        description: Delete agent branches older than 72h
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  teardown:
+    name: Tear down agent Neon branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Teardown from closed pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/cloud-agent-db/teardown.mjs --from-text "$PR_BODY"
+
+      - name: Idle GC (72h)
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.idle_gc) }}
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
+        run: node scripts/cloud-agent-db/teardown.mjs --idle-gc
+
+      - name: Teardown explicit agent id
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.agent_id != '' }}
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
+        run: node scripts/cloud-agent-db/teardown.mjs --agent-id "${{ inputs.agent_id }}"
