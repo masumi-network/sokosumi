@@ -29,18 +29,20 @@ export default async function AuthLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getSession({ refresh: true });
+  // Pathname from proxy (`x-pathname`). Callback/OAuth pages never redirect
+  // away on an existing session, so skip the Core session read entirely.
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "";
+  const shouldSkipSessionCheck =
+    pathname.startsWith("/auth/callback/") || pathname.startsWith("/oauth");
 
-  if (session) {
-    // Get pathname from middleware header
-    const headersList = await headers();
-    const pathname = headersList.get("x-pathname") || "";
-
-    // Skip redirect for OAuth and auth callback routes
-    const shouldSkipRedirect =
-      pathname.startsWith("/auth/callback/") || pathname.startsWith("/oauth");
-
-    if (!shouldSkipRedirect) {
+  if (!shouldSkipSessionCheck) {
+    // Cookie-cache session is enough for "already signed in → leave auth UI".
+    // `refresh: true` forced a Core DB hit on every signin/signup visit and
+    // dominated TTFB for anonymous users (now also short-circuited in
+    // getSession when no session cookie is present).
+    const session = await getSession();
+    if (session) {
       redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
     }
   }
