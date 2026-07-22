@@ -4148,7 +4148,8 @@
         "oauthClients": "OAuth-Clients",
         "apiKeys": "API-Keys",
         "docs": "Dokumentation",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "tasks": "Aufgaben"
       },
       "Docs": {
         "title": "Entwicklerdokumentation",
@@ -4185,6 +4186,27 @@
         "Metadata": {
           "title": "Coworker bearbeiten",
           "description": "Anzeigefelder Ihrer Coworkers bearbeiten"
+        }
+      },
+      "Tasks": {
+        "title": "Aufgaben eigener Coworkers",
+        "description": "Schreibgeschützte Ansicht von Aufgaben, bei denen Ihre Coworkers Bearbeiter oder Ersteller sind.",
+        "loadFailed": "Aufgaben konnten nicht geladen werden.",
+        "List": {
+          "totalCount": "{count, plural, one {# Aufgabe} other {# Aufgaben}}",
+          "empty": "Für Ihre Coworkers wurden noch keine Aufgaben gefunden.",
+          "task": "Aufgabe",
+          "status": "Status",
+          "coworkers": "Coworkers",
+          "owner": "Inhaber",
+          "updated": "Aktualisiert",
+          "loadMore": "Mehr laden",
+          "loadFailed": "Aufgaben konnten nicht geladen werden.",
+          "personalWorkspace": "Persönlicher Arbeitsbereich"
+        },
+        "TaskDetail": {
+          "backToList": "Zurück zu Aufgaben",
+          "personalWorkspace": "Persönlicher Arbeitsbereich"
         }
       }
     },

@@ -1372,6 +1372,46 @@ export type PatchCreditCostRequest = {
     creditsPerUnit: number;
 };
 
+export type DeveloperTaskListItem = {
+    id: string;
+    name: string;
+    status: TaskStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    assignee: DeveloperCoworkerRef;
+    creatorCoworker: DeveloperCoworkerRef;
+    owner: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
+};
+
+export type DeveloperCoworkerRef = {
+    id: string;
+    name: string;
+    slug: string;
+} | null;
+
+export type DeveloperTaskDetail = {
+    task: Task;
+    owner: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
+};
+
 export type EnterpriseContract = {
     id: string;
     createdAt: Date;
@@ -10239,6 +10279,161 @@ export type PatchCreditCostsByIdResponses = {
 };
 
 export type PatchCreditCostsByIdResponse = PatchCreditCostsByIdResponses[keyof PatchCreditCostsByIdResponses];
+
+export type ListDeveloperOwnedCoworkerTasksData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional filter to tasks where this owned coworker is assignee or creator. Must be owned by the caller.
+         */
+        coworkerId?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/developer/tasks';
+};
+
+export type ListDeveloperOwnedCoworkerTasksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListDeveloperOwnedCoworkerTasksError = ListDeveloperOwnedCoworkerTasksErrors[keyof ListDeveloperOwnedCoworkerTasksErrors];
+
+export type ListDeveloperOwnedCoworkerTasksResponses = {
+    /**
+     * Paginated list of tasks for owned coworkers
+     */
+    200: {
+        data: Array<DeveloperTaskListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListDeveloperOwnedCoworkerTasksResponse = ListDeveloperOwnedCoworkerTasksResponses[keyof ListDeveloperOwnedCoworkerTasksResponses];
+
+export type GetDeveloperOwnedCoworkerTaskData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/developer/tasks/{id}';
+};
+
+export type GetDeveloperOwnedCoworkerTaskErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDeveloperOwnedCoworkerTaskError = GetDeveloperOwnedCoworkerTaskErrors[keyof GetDeveloperOwnedCoworkerTaskErrors];
+
+export type GetDeveloperOwnedCoworkerTaskResponses = {
+    /**
+     * Task detail for developer-owned coworker tasks
+     */
+    200: {
+        data: DeveloperTaskDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDeveloperOwnedCoworkerTaskResponse = GetDeveloperOwnedCoworkerTaskResponses[keyof GetDeveloperOwnedCoworkerTaskResponses];
 
 export type GetEnterpriseContractsData = {
     body?: never;

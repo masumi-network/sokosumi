@@ -4148,7 +4148,8 @@
         "oauthClients": "Client OAuth",
         "apiKeys": "Chiavi API",
         "docs": "Documentazione",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "tasks": "Attività"
       },
       "Docs": {
         "title": "Documentazione per sviluppatori",
@@ -4185,6 +4186,27 @@
         "Metadata": {
           "title": "Modifica coworker",
           "description": "Modifica i campi di visualizzazione dei tuoi coworker"
+        }
+      },
+      "Tasks": {
+        "title": "Attività dei coworker di tua proprietà",
+        "description": "Vista di sola lettura delle attività in cui i tuoi coworker sono assegnatari o creatori.",
+        "loadFailed": "Impossibile caricare le attività.",
+        "List": {
+          "totalCount": "{count, plural, one {# attività} other {# attività}}",
+          "empty": "Nessuna attività trovata per i tuoi coworker.",
+          "task": "Attività",
+          "status": "Stato",
+          "coworkers": "Coworkers",
+          "owner": "Proprietario",
+          "updated": "Aggiornato",
+          "loadMore": "Carica altro",
+          "loadFailed": "Impossibile caricare le attività.",
+          "personalWorkspace": "Area di lavoro personale"
+        },
+        "TaskDetail": {
+          "backToList": "Torna alle attività",
+          "personalWorkspace": "Area di lavoro personale"
         }
       }
     },

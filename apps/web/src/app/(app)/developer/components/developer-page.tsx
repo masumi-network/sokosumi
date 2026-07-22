@@ -5,6 +5,7 @@ import { DeveloperCoworkersSection } from "./coworkers";
 import { DeveloperTabs } from "./developer-tabs";
 import { DocsSection } from "./docs-section";
 import { OAuthClientsSection } from "./oauth-clients";
+import { DeveloperTasksSection } from "./tasks";
 
 export function DeveloperPage() {
   return (
@@ -17,6 +18,11 @@ export function DeveloperPage() {
             coworkersContent={
               <Suspense fallback={null}>
                 <DeveloperCoworkersSection />
+              </Suspense>
+            }
+            tasksContent={
+              <Suspense fallback={null}>
+                <DeveloperTasksSection />
               </Suspense>
             }
             docsContent={
