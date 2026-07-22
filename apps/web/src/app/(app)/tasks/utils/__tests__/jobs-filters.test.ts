@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildJobsListFiltersSearchParams,
+  getJobsListFiltersForLazyAgentCatalog,
   getJobsListFiltersFromSearchParams,
   getJobsListFiltersResetKey,
   mergeTopPageJobsWithListFilters,
@@ -81,6 +82,30 @@ describe("jobs-filters", () => {
       agentId: "agent-1",
       jobStatus: AgentJobStatus.COMPLETED,
       projectId: PROJECT_ID,
+    });
+  });
+
+  it("keeps URL agentId while the lazy jobs agent catalog is empty", () => {
+    const params = new URLSearchParams({
+      scope: "owned",
+      agentId: "agent-from-url",
+      jobStatus: AgentJobStatus.RUNNING,
+    });
+
+    expect(getJobsListFiltersForLazyAgentCatalog(params, "org-1", [])).toEqual({
+      scope: "owned",
+      agentId: "agent-from-url",
+      jobStatus: AgentJobStatus.RUNNING,
+      projectId: null,
+    });
+
+    expect(
+      getJobsListFiltersForLazyAgentCatalog(params, "org-1", agentOptions),
+    ).toEqual({
+      scope: "owned",
+      agentId: null,
+      jobStatus: AgentJobStatus.RUNNING,
+      projectId: null,
     });
   });
 

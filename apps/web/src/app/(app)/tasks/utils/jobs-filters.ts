@@ -157,6 +157,34 @@ export function getJobsListFiltersFromSearchParams(
   };
 }
 
+/**
+ * Like {@link getJobsListFiltersFromSearchParams}, but while the jobs-tab agent
+ * catalog is still empty (lazy-loaded), keep the URL `agentId` via persisted
+ * sanitize so the first fetch does not drop deep-link / bookmarked filters.
+ */
+export function getJobsListFiltersForLazyAgentCatalog(
+  searchParams: URLSearchParams,
+  activeOrganizationId: string | null,
+  agentOptions: ReadonlyArray<AgentOptionLike>,
+  projectOptions?: ReadonlyArray<ProjectFilterOption>,
+): JobsListFilters {
+  const parsed = getJobsListFiltersFromSearchParams(
+    searchParams,
+    activeOrganizationId,
+    agentOptions,
+    projectOptions,
+  );
+  if (agentOptions.length > 0) {
+    return parsed;
+  }
+  return {
+    ...parsed,
+    agentId: sanitizeJobAgentIdForPersistedFilter(
+      searchParams.get(JOBS_LIST_FILTER_PARAM_KEYS.agentId),
+    ),
+  };
+}
+
 export function buildJobsListFiltersSearchParams(
   currentSearchParams: URLSearchParams | SearchParamsLike,
   filters: JobsListFilters,

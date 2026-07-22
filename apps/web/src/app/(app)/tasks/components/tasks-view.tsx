@@ -42,7 +42,7 @@ import {
 } from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import {
-  getJobsListFiltersFromSearchParams,
+  getJobsListFiltersForLazyAgentCatalog,
   getJobsListFiltersResetKey,
   type JobsListFilters,
   mergeTopPageJobsWithListFilters,
@@ -358,7 +358,7 @@ export function TasksView({
   >([]);
   const jobsRouteFilters = useMemo(
     () =>
-      getJobsListFiltersFromSearchParams(
+      getJobsListFiltersForLazyAgentCatalog(
         searchParams,
         activeOrganizationId,
         jobAgentOptions,
