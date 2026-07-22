@@ -52,3 +52,7 @@ lint-report.json
 
 # Local Claude Code dev-server config (personal, per-machine)
 .claude/launch.json
+
+# Local Claude Code settings — holds machine-local overrides and any real
+# secrets (env block). Never commit; use for values that must stay out of git.
+.claude/settings.local.json
