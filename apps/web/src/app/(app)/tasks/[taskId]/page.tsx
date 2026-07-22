@@ -17,60 +17,63 @@ export default async function TaskDetailPage({
 }) {
   const { taskId } = await params;
 
-  const [taskWorkspace, session] = await Promise.all([
-    taskService.getTaskWorkspace(taskId),
+  // Happy path is active-workspace scoped: one Core read. Only probe workspace
+  // mapping when that miss might mean "switch workspace" rather than 404.
+  const [task, session] = await Promise.all([
+    taskService.getTaskById(taskId),
     getSession(),
   ]);
 
-  if (!taskWorkspace) {
+  if (!session) {
     return notFound();
   }
 
-  if (!session) {
+  if (task) {
+    return <TaskDetailView task={task} />;
+  }
+
+  const taskWorkspace = await taskService.getTaskWorkspace(taskId);
+
+  if (!taskWorkspace) {
     return notFound();
   }
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const targetOrganizationId = taskWorkspace.organizationId ?? null;
 
-  if (activeOrganizationId !== targetOrganizationId) {
-    const [members, tDetail, tOrganizationSwitcher] = await Promise.all([
-      userService.getMyMembersWithOrganizations(),
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("Components.OrganizationSwitcher"),
-    ]);
-    const targetAccountName = resolveAccountName(
-      targetOrganizationId,
-      members,
-      tOrganizationSwitcher("personalAccount"),
-    );
-    const currentAccountName = resolveAccountName(
-      activeOrganizationId,
-      members,
-      tOrganizationSwitcher("personalAccount"),
-    );
-
-    return (
-      <TaskWorkspaceSwitchDialog
-        currentAccountName={currentAccountName}
-        currentOrganization={resolveOrganization(activeOrganizationId, members)}
-        sessionUser={session.user}
-        taskName={taskWorkspace.name}
-        targetOrganization={resolveOrganization(targetOrganizationId, members)}
-        targetOrganizationId={targetOrganizationId}
-        targetAccountName={targetAccountName}
-        successMessage={tDetail("switchedWorkspace", {
-          account: targetAccountName,
-        })}
-      />
-    );
-  }
-
-  const task = await taskService.getTaskById(taskId);
-
-  if (!task) {
+  // Same workspace but task read failed — real miss, not a switch case.
+  if (activeOrganizationId === targetOrganizationId) {
     return notFound();
   }
 
-  return <TaskDetailView task={task} />;
+  const [members, tDetail, tOrganizationSwitcher] = await Promise.all([
+    userService.getMyMembersWithOrganizations(),
+    getTranslations("App.Tasks.Detail"),
+    getTranslations("Components.OrganizationSwitcher"),
+  ]);
+  const targetAccountName = resolveAccountName(
+    targetOrganizationId,
+    members,
+    tOrganizationSwitcher("personalAccount"),
+  );
+  const currentAccountName = resolveAccountName(
+    activeOrganizationId,
+    members,
+    tOrganizationSwitcher("personalAccount"),
+  );
+
+  return (
+    <TaskWorkspaceSwitchDialog
+      currentAccountName={currentAccountName}
+      currentOrganization={resolveOrganization(activeOrganizationId, members)}
+      sessionUser={session.user}
+      taskName={taskWorkspace.name}
+      targetOrganization={resolveOrganization(targetOrganizationId, members)}
+      targetOrganizationId={targetOrganizationId}
+      targetAccountName={targetAccountName}
+      successMessage={tDetail("switchedWorkspace", {
+        account: targetAccountName,
+      })}
+    />
+  );
 }

@@ -9,6 +9,7 @@ import {
   type DesignMdJobPayload,
 } from "@sokosumi/masumi/tools";
 import type { Session } from "@sokosumi/utils";
+import { cache } from "react";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { coreClient } from "@/lib/clients/core.client";
@@ -311,11 +312,13 @@ export const designMdService = (() => {
     });
   }
 
-  async function resolveEffectiveDesignMd(): Promise<EffectiveDesignMdAttachment | null> {
-    const { data } = await coreClient.getWorkspaceDesignMd();
+  const resolveEffectiveDesignMd = cache(
+    async (): Promise<EffectiveDesignMdAttachment | null> => {
+      const { data } = await coreClient.getWorkspaceDesignMd();
 
-    return data.designMd;
-  }
+      return data.designMd;
+    },
+  );
 
   async function appendDesignMdToDescription(
     description: string,

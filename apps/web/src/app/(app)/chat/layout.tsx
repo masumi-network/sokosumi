@@ -3,7 +3,6 @@ import { ChatLayoutClient } from "@/app/chat-ui/components/chat-layout-client";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services";
-import { designMdService } from "@/lib/services/design-md.service";
 
 import { ChatErrorFallback } from "./components/chat-error-fallback";
 
@@ -33,10 +32,10 @@ export default async function ChatLayout({
       default: "404",
     });
 
+  // Session is request-cached with the app layout; org is request-cached too.
+  // Do not await design.md here — chat UI does not use it, and it blocked LCP.
   const activeOrganization = await userService.getActiveOrganization();
   const organizationSlug = activeOrganization?.slug ?? null;
-  const initialDesignMdAttachment =
-    await designMdService.resolveEffectiveDesignMd();
 
   return (
     <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
@@ -45,7 +44,6 @@ export default async function ChatLayout({
         organizationSlug={organizationSlug}
         userImageUrl={userImageUrl}
         userName={session.user.name ?? undefined}
-        initialDesignMdAttachment={initialDesignMdAttachment}
       />
     </DefaultErrorBoundary>
   );

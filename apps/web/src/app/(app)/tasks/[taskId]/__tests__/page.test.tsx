@@ -95,6 +95,8 @@ describe("TaskDetailPage", () => {
   });
 
   it("renders a workspace switch dialog when a task belongs to another workspace", async () => {
+    // Active-workspace read misses; workspace probe reveals the target org.
+    getTaskByIdMock.mockResolvedValue(null);
     getTaskWorkspaceMock.mockResolvedValue({
       name: "Quarterly report",
       workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -123,6 +125,8 @@ describe("TaskDetailPage", () => {
       }),
     );
 
+    expect(getTaskByIdMock).toHaveBeenCalledWith("task_1");
+    expect(getTaskWorkspaceMock).toHaveBeenCalledWith("task_1");
     expect(taskWorkspaceSwitchDialogMock).toHaveBeenCalledWith({
       currentAccountName: "Personal Account",
       currentOrganization: null,
@@ -133,7 +137,6 @@ describe("TaskDetailPage", () => {
       targetAccountName: "Workspace Org",
       successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
     });
-    expect(getTaskByIdMock).not.toHaveBeenCalled();
     expect(taskDetailViewMock).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("task-workspace-switch-dialog"),
@@ -145,11 +148,6 @@ describe("TaskDetailPage", () => {
       id: "task_1",
       name: "Quarterly report",
     };
-    getTaskWorkspaceMock.mockResolvedValue({
-      name: "Quarterly report",
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      organizationId: "org_workspace",
-    });
     getSessionMock.mockResolvedValue({
       session: {
         activeOrganizationId: "org_workspace",
@@ -168,6 +166,8 @@ describe("TaskDetailPage", () => {
       }),
     );
 
+    expect(getTaskByIdMock).toHaveBeenCalledWith("task_1");
+    expect(getTaskWorkspaceMock).not.toHaveBeenCalled();
     expect(taskWorkspaceSwitchDialogMock).not.toHaveBeenCalled();
     expect(taskDetailViewMock).toHaveBeenCalledWith({
       task,
@@ -175,8 +175,15 @@ describe("TaskDetailPage", () => {
     expect(screen.getByTestId("task-detail-view")).toBeInTheDocument();
   });
 
-  it("returns not found when the task workspace cannot be resolved", async () => {
+  it("returns not found when the task cannot be resolved in any accessible workspace", async () => {
+    getTaskByIdMock.mockResolvedValue(null);
     getTaskWorkspaceMock.mockResolvedValue(null);
+    getSessionMock.mockResolvedValue({
+      session: {
+        activeOrganizationId: "org_workspace",
+      },
+      user: sessionUser,
+    });
 
     const { default: TaskDetailPage } = await import("../page");
 
@@ -188,6 +195,34 @@ describe("TaskDetailPage", () => {
       }),
     ).rejects.toThrow("notFound");
 
-    expect(getTaskByIdMock).not.toHaveBeenCalled();
+    expect(getTaskByIdMock).toHaveBeenCalledWith("task_1");
+    expect(getTaskWorkspaceMock).toHaveBeenCalledWith("task_1");
+  });
+
+  it("returns not found when the active-workspace task read fails but the workspace already matches", async () => {
+    getTaskByIdMock.mockResolvedValue(null);
+    getTaskWorkspaceMock.mockResolvedValue({
+      name: "Quarterly report",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_workspace",
+    });
+    getSessionMock.mockResolvedValue({
+      session: {
+        activeOrganizationId: "org_workspace",
+      },
+      user: sessionUser,
+    });
+
+    const { default: TaskDetailPage } = await import("../page");
+
+    await expect(
+      TaskDetailPage({
+        params: Promise.resolve({
+          taskId: "task_1",
+        }),
+      }),
+    ).rejects.toThrow("notFound");
+
+    expect(taskWorkspaceSwitchDialogMock).not.toHaveBeenCalled();
   });
 });
