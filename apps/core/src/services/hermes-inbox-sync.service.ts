@@ -10,6 +10,7 @@ import {
 } from "@/clients/hermes-orchestrator.client";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
 
 const HOT_LOOKBACK_MS = 10 * 60_000;
 const WARM_LOOKBACK_MS = 60 * 60_000;
@@ -379,8 +380,13 @@ async function pollInboxes(
   try {
     due = await findDueForPoll(Date.now());
   } catch (error) {
-    Sentry.captureException(error, {
-      tags: { context: "hermes_inbox_query" },
+    // Schema drift (e.g. table/column drop during migrate-before-promote) and
+    // transient Prisma failures are expected for one cron tick; do not page.
+    captureExternalServiceError(error, {
+      label: "hermes_inbox_query",
+      sentry: {
+        tags: { context: "hermes_inbox_query" },
+      },
     });
     breakdown.error += 1;
     return {
