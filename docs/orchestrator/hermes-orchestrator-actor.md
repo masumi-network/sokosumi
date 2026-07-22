@@ -85,7 +85,7 @@ Do not treat these as interchangeable in Hermes clients.
 | --- | --- |
 | User activates Hermes | Upsert/unarchive `Orchestrator` for `userId` (**fail closed**: if local ensure fails after remote provision, return **503** — retry provision) |
 | User destroy (`DELETE /v1/hermes/me/instance`) | Clear messages/pending; archive orchestrator |
-| Hermes service purge | `POST /orchestrators/me/purge` |
+| Hermes service purge | `POST /v1/orchestrators/me/purge` |
 | Re-activate | Unarchive same `userId` row (or create if missing) |
 | Active instance | Row exists and `archivedAt IS NULL` |
 
