@@ -278,6 +278,60 @@ describe("hermesInboxSyncService", () => {
     });
   });
 
+  it("suppresses Sentry for due-query schema drift during migrate windows", async () => {
+    const schemaDriftError = Object.assign(
+      new Error(
+        "The table `public.hermesInstance` does not exist in the current database.",
+      ),
+      {
+        name: "PrismaClientKnownRequestError",
+        code: "P2021",
+      },
+    );
+    orchestratorFindManyMock.mockRejectedValue(schemaDriftError);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(summary.polled).toBe(0);
+    expect(summary.breakdown.error).toBe(1);
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[hermes_inbox_query] suppressed external failure",
+      expect.objectContaining({
+        error: schemaDriftError.message,
+      }),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("reports unexpected due-query failures to Sentry with hermes_inbox_query context", async () => {
+    const queryError = new Error("connection pool exhausted");
+    orchestratorFindManyMock.mockRejectedValue(queryError);
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(summary.polled).toBe(0);
+    expect(summary.breakdown.error).toBe(1);
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      queryError,
+      expect.objectContaining({
+        tags: { context: "hermes_inbox_query" },
+      }),
+    );
+  });
+
   it("reports unexpected pollOne failures to Sentry with hermes_inbox_unhandled context", async () => {
     orchestratorFindManyMock.mockResolvedValue([
       {
