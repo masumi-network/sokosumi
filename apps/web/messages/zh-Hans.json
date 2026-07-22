@@ -1452,7 +1452,9 @@
       },
       "Errors": {
         "updateStatus": "更新任务状态失败",
-        "loadMore": "无法加载更多任务"
+        "loadMore": "无法加载更多任务",
+        "loadCreateTask": "无法加载创建任务表单",
+        "loadJobs": "无法加载作业"
       },
       "Card": {
         "comments": "评论",

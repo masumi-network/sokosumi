@@ -200,7 +200,7 @@ export function CreateTaskModal({
       })
       .catch(() => {
         if (cancelled) return;
-        toast.error(tTasksErrors("loadMore"));
+        toast.error(tTasksErrors("loadCreateTask"));
       });
 
     return () => {

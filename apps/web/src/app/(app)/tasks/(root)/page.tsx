@@ -294,6 +294,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
           loadMoreError: t("Errors.loadMore"),
+          loadJobsError: t("Errors.loadJobs"),
           reopenToReady: {
             title: tDetailActions("reopenToReadyTitle"),
             description: tDetailActions("reopenToReadyDescription"),

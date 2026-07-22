@@ -1452,7 +1452,9 @@
       },
       "Errors": {
         "updateStatus": "Falha ao atualizar status da tarefa",
-        "loadMore": "Não foi possível carregar mais tarefas"
+        "loadMore": "Não foi possível carregar mais tarefas",
+        "loadCreateTask": "Falha ao carregar o formulário de nova tarefa",
+        "loadJobs": "Falha ao carregar os jobs"
       },
       "Card": {
         "comments": "Comentários",

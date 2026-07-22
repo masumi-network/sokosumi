@@ -33,7 +33,10 @@ import {
   loadMoreJobs,
   loadMoreTasksColumn,
 } from "@/app/tasks/actions";
-import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
+import {
+  JOBS_TAB_LOAD_RETRY_DELAY_MS,
+  TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
+} from "@/app/tasks/constants";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
@@ -285,6 +288,7 @@ interface TasksViewProps {
     loading: string;
     dragError: string;
     loadMoreError: string;
+    loadJobsError: string;
     reopenToReady: TaskReopenToReadyDialogLabels & {
       commentRequired: string;
     };
@@ -540,51 +544,77 @@ export function TasksView({
     [],
   );
 
-  const loadJobsTab = useCallback(async () => {
-    if (isLoadingJobsTabRef.current || hasLoadedJobsTabRef.current) {
-      return;
+  useEffect(() => {
+    if (activeTab !== "jobs") return;
+    if (hasLoadedJobsTabRef.current) return;
+
+    let cancelled = false;
+    let retryTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    let hasToastedFailure = false;
+
+    async function fetchJobsTabWithRetry() {
+      if (
+        cancelled ||
+        hasLoadedJobsTabRef.current ||
+        isLoadingJobsTabRef.current
+      ) {
+        return;
+      }
+
+      isLoadingJobsTabRef.current = true;
+      startJobsTransition(async () => {
+        try {
+          const result = await loadJobsTabData(
+            jobsRouteFilters.scope,
+            jobsRouteFilters.agentId,
+            jobsRouteFilters.jobStatus,
+            jobsRouteFilters.projectId,
+          );
+          if (cancelled) return;
+          hasLoadedJobsTabRef.current = true;
+          setJobAgentOptions(result.jobAgentOptions);
+          setJobsItems((prev) => mergeJobsWithExisting(result.jobs, prev));
+          jobsItemsRef.current = mergeJobsWithExisting(
+            result.jobs,
+            jobsItemsRef.current,
+          );
+          setJobsCursor(result.nextCursor);
+          setAgentPreviews((prev) => ({
+            ...prev,
+            ...result.agentPreviewById,
+          }));
+        } catch {
+          if (cancelled) return;
+          if (!hasToastedFailure) {
+            hasToastedFailure = true;
+            toast.error(labels.loadJobsError);
+          }
+          retryTimeoutId = setTimeout(() => {
+            void fetchJobsTabWithRetry();
+          }, JOBS_TAB_LOAD_RETRY_DELAY_MS);
+        } finally {
+          isLoadingJobsTabRef.current = false;
+        }
+      });
     }
 
-    isLoadingJobsTabRef.current = true;
-    startJobsTransition(async () => {
-      try {
-        const result = await loadJobsTabData(
-          jobsRouteFilters.scope,
-          jobsRouteFilters.agentId,
-          jobsRouteFilters.jobStatus,
-          jobsRouteFilters.projectId,
-        );
-        hasLoadedJobsTabRef.current = true;
-        setJobAgentOptions(result.jobAgentOptions);
-        setJobsItems((prev) => mergeJobsWithExisting(result.jobs, prev));
-        jobsItemsRef.current = mergeJobsWithExisting(
-          result.jobs,
-          jobsItemsRef.current,
-        );
-        setJobsCursor(result.nextCursor);
-        setAgentPreviews((prev) => ({
-          ...prev,
-          ...result.agentPreviewById,
-        }));
-      } catch {
-        toast.error(labels.loadMoreError);
-      } finally {
-        isLoadingJobsTabRef.current = false;
+    void fetchJobsTabWithRetry();
+
+    return () => {
+      cancelled = true;
+      if (retryTimeoutId !== undefined) {
+        clearTimeout(retryTimeoutId);
       }
-    });
+    };
   }, [
+    activeTab,
     jobsRouteFilters.agentId,
     jobsRouteFilters.jobStatus,
     jobsRouteFilters.projectId,
     jobsRouteFilters.scope,
-    labels.loadMoreError,
+    labels.loadJobsError,
     mergeJobsWithExisting,
   ]);
-
-  useEffect(() => {
-    if (activeTab !== "jobs") return;
-    void loadJobsTab();
-  }, [activeTab, loadJobsTab]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

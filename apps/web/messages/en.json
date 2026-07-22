@@ -1463,7 +1463,9 @@
       },
       "Errors": {
         "updateStatus": "Failed to update task status",
-        "loadMore": "Failed to load more tasks"
+        "loadMore": "Failed to load more tasks",
+        "loadCreateTask": "Failed to load create task form",
+        "loadJobs": "Failed to load jobs"
       },
       "Card": {
         "comments": "Comments",

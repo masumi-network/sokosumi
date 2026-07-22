@@ -1452,7 +1452,9 @@
       },
       "Errors": {
         "updateStatus": "Échec de la mise à jour du statut de la tâche",
-        "loadMore": "Impossible de charger plus de tâches"
+        "loadMore": "Impossible de charger plus de tâches",
+        "loadCreateTask": "Impossible de charger le formulaire de création de tâche",
+        "loadJobs": "Impossible de charger les jobs"
       },
       "Card": {
         "comments": "Commentaires",
