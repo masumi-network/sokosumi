@@ -58,6 +58,7 @@
     "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",
     "prisma:migrate:reset": "pnpm exec prisma migrate reset",
     "prisma:studio": "pnpm exec prisma studio",
+    "seed:dev-marketplace": "pnpm exec tsx scripts/seed-dev-marketplace.ts",
     "lint": "biome lint .",
     "lint:write": "biome lint --write .",
     "check": "biome check .",
