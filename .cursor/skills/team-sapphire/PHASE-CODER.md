@@ -37,16 +37,16 @@ Prompt always includes branch name (orchestrator sets per `SKILL.md`).
 
 ## Modes (`sapphire-coder`)
 
-**Sole (`mode: sole`):** Implement → allowlisted verify → open **one draft PR** → push → return. Do **not** watch CI, run Learnings review, or call Linear.
+**Sole (`mode: sole`):** Implement → allowlisted verify → open **one draft PR** → push → return. Do **not** watch CI, run Reviewer, or call Linear.
 
 **PR:** draft unless user asked ready-for-review. **Title** = primary commit subject verbatim (Conventional Commit). **Body:** Linear issue link + Spec summary ≤8 lines.
 
 **Sequential (`mode: sequential`):** Owned block only → verify → commit → **push** → `prUrl` empty, `pushed: true`. Do **not** open a PR.
 
-**Orchestrator after sequential:** After last `ok`, open the **one draft PR** (title/body rules above), then CI + Learnings review (`LEARNINGS.md`).
+**Orchestrator after sequential:** After last `ok`, open the **one draft PR** (title/body rules above), then **CI green**, then Phase 4 Reviewer.
 
 **Return keys:** `ok`, `prUrl`, `branch`, `verification`, `pushed`, `summary` (one line), `blocker`. `pushed: true` = remote push done.
 
 ## Standalone Coder
 
-Verify → draft PR → **CI green** (`SKILL.md`) → Learnings review 0 High (`LEARNINGS.md`). Linear only per `LINEAR.md`.
+Verify → draft PR → **CI green** (`SKILL.md`) → hand off to Reviewer (`PHASE-REVIEWER.md`) unless user asked Coder-only. Linear only per `LINEAR.md`.

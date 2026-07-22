@@ -1,12 +1,12 @@
 # Sapphire quality learnings
 
-Distilled from past high/medium review findings on `masumi-network/sokosumi`. Prevent regressions before Reviewer.
+Past regression patterns on `masumi-network/sokosumi`. **Not a review phase** — checklist rules for Investigator, Tech Lead, Coder, and Reviewer.
 
-**Mandatory gates** (orchestrator after PR open — before Reviewer): CI green + **Learnings review** 0 High. See `SKILL.md` Phase 3. Do **not** post findings to Linear — note Medium in PR body for human merge.
+**Gates** (see `SKILL.md`): CI green → **Reviewer full review** (`PHASE-REVIEWER.md`). Do **not** launch a `bugbot` Task or a separate “learnings review.”
 
 ## Quality rules (R1–R12)
 
-Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder implements; Reviewer checks in `/goal`.
+Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder implements + self-checks; Reviewer checks in **full** `/goal` (with Spec, verify, UI — not as a standalone pass).
 
 ### R1 — Mutation order and atomicity
 
@@ -116,59 +116,33 @@ Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder imp
 - **Coder:** Response reflects post-sync state; 404 → `notFound()` not error page.
 - **Reviewer:** Click-through on one deep link when notifications/links in scope.
 
-## Mandatory Learnings review (before Reviewer)
+## Severity (Reviewer findings)
 
-**Gate runner** (orchestrator in squad mode; standalone Coder when alone) runs **one Learnings review** per PR before Reviewer. **Re-run** after Reviewer pushes — zero High before PR ready.
-
-**Do not** launch a `bugbot` Task, `/review-bugbot`, or any external Bugbot runner. Apply R1–R12 yourself to the PR branch.
-
-### Procedure
-
-1. Diff vs preferred base (`main` unless stated):  
-   `git fetch origin main` (if needed) → `git merge-base HEAD origin/main` → `git diff <merge-base>...HEAD` (and uncommitted only if still dirty).
-2. For each rule **R1–R12**, if its **trigger** matches touched paths or behavior, check the rule’s Coder/Reviewer expectations against the diff.
-3. Record findings as **High** or **Medium**:
+When Reviewer finds a gap (Spec, verify, UI, or triggered R1–R12):
 
 | Severity | Action |
 |----------|--------|
-| **High** | **Must fix** on PR branch. Re-review until **zero High**. |
-| **Medium** | **Do not block** Reviewer. Note in the **PR body** for human merge — not Linear. Do **not** fix Medium during Sapphire unless the user asks in this chat. |
+| **High** | **Must fix** on PR branch (one fix→push→re-verify cycle max per `PHASE-REVIEWER.md`). |
+| **Medium** | **Do not block** ready. Note in the **PR body** for human merge — not Linear. Do **not** fix Medium during Sapphire unless the user asks in this chat. |
 | **Low** | Optional note; no gate. |
-
-4. **High:** fix on branch (orchestrator or one Coder fix cycle) → push → re-review until **0 High**.
-5. **Medium:** add table to PR body (below).
-6. One full re-review after any push that changes product code. Caps: one fix cycle for High before stop; CI still ≤3 fix+push per `SKILL.md`.
-
-### Output (gate runner)
-
-Short report in chat (and optional PR comment):
-
-```text
-Learnings review: PASS | FAIL
-High: <n>
-Medium: <n>
-- [High|Medium] R#: <one-line finding> (<path>)
-```
-
-`PASS` only when High = 0.
 
 ### Medium findings — PR body only
 
-When review reports ≥1 Medium, add short table to **PR description** (or PR comment). Do **not** post to Linear.
+When Reviewer reports ≥1 Medium, add short table to **PR description** (or PR comment). Do **not** post to Linear.
 
 ```markdown
-### Learnings review — medium (human review)
+### Review notes — medium (human review)
 
-| Rule | Location | Finding |
-|------|----------|---------|
-| R# | `path:line` | … |
+| Rule / area | Location | Finding |
+|-------------|----------|---------|
+| R# or Spec | `path:line` | … |
 ```
 
 Skip when no medium findings.
 
 ## Coder self-check (before handoff)
 
-Answer each triggered rule (R1–R12). Fix obvious gaps before open/update PR.
+Answer each triggered rule (R1–R12). Fix obvious gaps before open/update PR. This is **not** a substitute for Reviewer.
 
 1. Multi-step writes — order + failure behavior defined and implemented?
 2. Status — one resolver; no stale toggle after schedule/status API?
