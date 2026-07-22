@@ -72,7 +72,7 @@ flowchart LR
 
 ## Verification
 
-Allowlisted scripts from `PHASE-CODER.md`. **Required:** check + test for the **verify set**. List **build** only when you want Coder/Reviewer to run it. **UI routes:** list ≥1 path-only route **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**` — else omit Routes and Reviewer skips visuals.
+Allowlisted scripts from `PHASE-CODER.md`. **Required:** check + test for the **verify set**. List **build** only when Coder/Reviewer must run it. If TDD required per `PHASE-CODER.md` → list the allowlisted test command that proves the Contract (do not paste TDD globs here). **UI routes:** ≥1 path-only route **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**` — else omit Routes.
 
 - Scope: `apps/web` — web:check, web:test
 - Routes (UI): `/example-path`
@@ -86,40 +86,5 @@ Allowlisted scripts from `PHASE-CODER.md`. **Required:** check + test for the **
 
 - No YAML plan frontmatter.
 - Keep Data flow, Verification, Out of scope.
-- Quality-rules appendix only when triggers apply.
+- Domain-pattern Spec appendix: only for **flagged** `Rn` from `QUALITY-TRIGGERS.md`; formats in matching `QUALITY-RULES.md` sections. **Do not** include empty or untriggered appendix sections.
 - Enforce size caps; cut tables first if over.
-
-## Appendix: optional Quality-rule sections
-
-### Mutation order (R1)
-
-| Step | On failure |
-|------|------------|
-| … | … |
-
-### State machine (R2)
-
-| User action | Target status | Notes |
-|-------------|---------------|-------|
-| … | … | derived / explicit |
-
-### Time semantics (R4)
-
-- Display TZ: …
-- Parse/persist TZ: …
-
-### Auth matrix (R10)
-
-| Caller type | Endpoint | Capability / scope |
-|-------------|----------|-------------------|
-| … | … | … |
-
-### Ripple checklist (R11)
-
-| Area | Updated in this PR |
-|------|-------------------|
-| Validators | … |
-| UI | … |
-| Archive | … |
-| Notifications | … |
-| Columns | … |

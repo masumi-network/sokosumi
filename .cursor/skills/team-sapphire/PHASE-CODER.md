@@ -1,6 +1,6 @@
 # Phase — Coder
 
-Load in **Phase 3** (and standalone Coder). Do **not** load during Investigator / Tech Lead.
+Load in **Phase 3** (and standalone Coder). Do **not** load during Investigator / Tech Lead. Do **not** load `PHASE-SEQUENTIAL.md` (orchestrator only).
 
 ## Allowlisted verification
 
@@ -28,6 +28,47 @@ Reject `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`, `npx`, `node
 
 **Local verify** = same check+test set (and listed builds). After **one** Spec-aligned fix→re-verify failure → unrecoverable blocker (`SKILL.md`).
 
+### Evidence before `ok`
+
+No completion claim without fresh evidence this turn:
+
+1. Run the full allowlisted verify commands for the verify set.
+2. Read exit codes and failure output.
+3. Only then set `ok: true` / claim pass.
+
+Prior runs, “should pass”, or partial checks do not count.
+
+### Verify / CI fail — root cause first
+
+Inside the fix budget (local: one re-verify; CI: ≤3 fix+push per `SKILL.md`):
+
+1. Read the error / log fully.
+2. Isolate: workspace + failing script or test name from the output.
+3. Write root cause in `summary` (one line, prefix `root:`) **before** editing. If stopping: same text in `blocker`.
+4. Apply one minimal Spec-aligned fix aimed at that root cause.
+
+No shotgun patches across unrelated files. No fix without a `root:` line in `summary`/`blocker`.
+
+## TDD (required vs skip)
+
+**Owner of these globs — do not restate elsewhere.** Decide from Spec **Deliverables** paths only.
+
+**TDD required** when ≥1 Deliverable matches:
+
+- `apps/core/**`
+- `packages/database/**`
+- `packages/*/src/**`
+
+**TDD skip** when every Deliverable is outside those globs (e.g. web UI/CSS only, `apps/web/messages/**`, `docs/**`, `*.md` only).
+
+When **TDD required**:
+
+1. Spec Verification **must** list the allowlisted test command that proves the Contract.
+2. Coder **must** add or update a failing test first, see it fail, then minimal code to pass, then full verify set.
+3. Missing required test before implement → Spec gap; do not claim `ok: true`.
+
+When **TDD skip**: do not invent tests for copy/CSS/docs/i18n-only work.
+
 ## Branch checkout
 
 Prompt always includes branch name (orchestrator sets per `SKILL.md`).
@@ -37,15 +78,13 @@ Prompt always includes branch name (orchestrator sets per `SKILL.md`).
 
 ## Modes (`sapphire-coder`)
 
-**Sole (`mode: sole`):** Implement → allowlisted verify → open **one draft PR** → push → return. Do **not** watch CI, run Reviewer, or call Linear.
+**Sole (`mode: sole`):** Implement → allowlisted verify (evidence before `ok`) → open **one draft PR** → push → return. Do **not** watch CI, run Reviewer, or call Linear.
 
 **PR:** draft unless user asked ready-for-review. **Title** = primary commit subject verbatim (Conventional Commit). **Body:** Linear issue link + Spec summary ≤8 lines.
 
-**Sequential (`mode: sequential`):** Owned block only → verify → commit → **push** → `prUrl` empty, `pushed: true`. Do **not** open a PR.
+**Sequential (`mode: sequential`):** Owned block only → verify → commit → **push** → `prUrl` empty, `pushed: true`. Do **not** open a PR. Orchestrator runs light Spec check via `PHASE-SEQUENTIAL.md` between blocks.
 
-**Orchestrator after sequential:** After last `ok`, open the **one draft PR** (title/body rules above), then **CI green**, then Phase 4 Reviewer.
-
-**Return keys:** `ok`, `prUrl`, `branch`, `verification`, `pushed`, `summary` (one line), `blocker`. `pushed: true` = remote push done.
+**Return keys:** `ok`, `prUrl`, `branch`, `verification`, `pushed`, `summary` (one line), `blocker`. `pushed: true` = remote push done. On verify/CI fail: `summary` must start with `root:`.
 
 ## Standalone Coder
 

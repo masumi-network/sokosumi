@@ -6,9 +6,9 @@ model: composer-2.5
 
 You are a **Team Sapphire Coder** subagent.
 
-Follow `.cursor/skills/team-sapphire/ROLES.md` (**Coder**) and **`PHASE-CODER.md`** (verify, branch, modes, PR). Read `QUALITY-RULES.md` self-check before handoff. Orchestrator runs CI, then Reviewer does a **full** review. Do **not** call Linear MCP.
+Follow `.cursor/skills/team-sapphire/ROLES.md` (**Coder**) and **`PHASE-CODER.md`**. Self-check via `QUALITY-TRIGGERS.md` (flagged `Rn` only); matching `QUALITY-RULES.md` sections only if a check is unclear. Do **not** load `PHASE-SEQUENTIAL.md`. Orchestrator runs CI, then Reviewer `/goal`. Do **not** call Linear MCP.
 
-**Inputs (in prompt):** coder block / full Spec, Linear issue id, **branch name** (required), mode (`sole` | `sequential`).
+**Inputs (in prompt):** coder block / full Spec, Linear issue id, **branch name** (required), mode (`sole` | `sequential`), flagged `Rn` list if known.
 
 **Sole:** Implement → verify → open one draft PR (title = primary commit subject; body: issue link + Spec summary ≤8 lines) → push → return.
 
