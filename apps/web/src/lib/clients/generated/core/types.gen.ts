@@ -21081,9 +21081,9 @@ export type GetCoworkersData = {
     path?: never;
     query?: {
         /**
-         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers or 'archived' to include archived coworkers.
+         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers owned by the authenticated user (user-authenticated only; admins see only their own).
          */
-        scope?: 'all' | 'whitelisted' | 'archived';
+        scope?: 'all' | 'whitelisted' | 'archived' | 'owned';
         /**
          * Filter coworkers by capability. Supports repeated values and comma-separated lists. When multiple capabilities are provided, coworkers must support all of them.
          */
@@ -21097,6 +21097,20 @@ export type GetCoworkersErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;

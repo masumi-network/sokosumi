@@ -3234,10 +3234,6 @@
           "emptyFilter": "選択したフィルターに一致するコワーカーはありません。"
         },
         "Form": {
-          "display": {
-            "title": "表示",
-            "description": "Sokosumi でのこのコワーカーの表示を更新します。"
-          },
           "controls": {
             "title": "プラットフォーム制御",
             "description": "機能、優先度、ホワイトリスト、アーカイブ状態を管理します。",
@@ -3262,56 +3258,23 @@
               "description": "ホワイトリスト登録のコワーカーは既定のマーケットプレイス範囲に表示されます。"
             }
           },
-          "Fields": {
-            "name": {
-              "label": "Name"
-            },
-            "caption": {
-              "label": "Caption"
-            },
-            "description": {
-              "label": "Description"
-            }
-          },
-          "image": {
-            "label": "Image",
-            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
-            "upload": "Upload image",
-            "replace": "Replace image",
-            "remove": "Remove image",
-            "previewAlt": "Coworker image preview",
-            "fileTooLarge": "Image must be 2 MB or smaller.",
-            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
-            "maxFilesExceeded": "Upload one image at a time.",
-            "uploadError": "Could not process the selected image."
-          },
-          "saveChanges": "表示を保存",
-          "saving": "Saving…",
           "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "Name must be at least {min} characters.",
-            "noChanges": "No changes to save.",
-            "captionMaxLength": "Caption must be at most {max} characters.",
             "priorityInteger": "優先度は整数である必要があります。",
             "noControlChanges": "保存する制御の変更がありません。"
           },
           "success": {
-            "saved": "コワーカーの表示を更新しました。",
             "controlsSaved": "コワーカーの制御を更新しました。",
             "whitelistSaved": "ホワイトリスト状態を更新しました。",
             "archived": "コワーカーをアーカイブしました。",
-            "unarchived": "コワーカーを復元しました。",
-            "imageSaved": "Image saved.",
-            "imageRemoved": "Image removed."
+            "unarchived": "コワーカーを復元しました。"
           },
           "errors": {
-            "saveFailed": "コワーカーの表示を保存できませんでした。",
             "controlsSaveFailed": "コワーカーの制御を保存できませんでした。",
             "whitelistSaveFailed": "ホワイトリスト状態を更新できませんでした。",
             "archiveFailed": "コワーカーをアーカイブできませんでした。",
             "unarchiveFailed": "コワーカーを復元できませんでした。",
-            "notFound": "Coworker not found.",
-            "imageSaveFailed": "Failed to update image."
+            "notFound": "Coworker not found."
           }
         },
         "Context": {
@@ -4251,7 +4214,8 @@
       "tabs": {
         "oauthClients": "OAuth クライアント",
         "apiKeys": "APIキー",
-        "docs": "ドキュメント"
+        "docs": "ドキュメント",
+        "coworkers": "コワーカー"
       },
       "Docs": {
         "title": "デベロッパー向けドキュメント",
@@ -4270,12 +4234,77 @@
             "description": "MCP 経由で AI クライアントを Sokosumi に接続します。"
           }
         }
+      },
+      "Coworkers": {
+        "title": "あなたのコワーカー",
+        "description": "所有するコワーカーの表示設定を管理します。",
+        "loadFailed": "コワーカーを読み込めませんでした。",
+        "backToList": "コワーカー一覧に戻る",
+        "editDescription": "Sokosumi でのこのコワーカーの表示を更新します。",
+        "errors": {
+          "notFound": "コワーカーが見つかりません。"
+        },
+        "List": {
+          "empty": "アクティブなコワーカーをまだ所有していません。",
+          "noCaption": "キャプションなし",
+          "edit": "編集"
+        },
+        "Metadata": {
+          "title": "コワーカーを編集",
+          "description": "所有するコワーカーの表示フィールドを編集"
+        }
       }
     },
     "Connections": {
       "tabs": {
         "connectedApps": "接続済みアプリ",
         "mcp": "MCP"
+      }
+    },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "表示",
+        "description": "Sokosumi でのこのコワーカーの表示を更新します。",
+        "fields": {
+          "name": {
+            "label": "名前"
+          },
+          "caption": {
+            "label": "キャプション"
+          },
+          "description": {
+            "label": "説明"
+          }
+        },
+        "image": {
+          "label": "画像",
+          "description": "PNG、JPEG、WebP、GIF（最大 2 MB）。",
+          "upload": "画像をアップロード",
+          "replace": "画像を置き換え",
+          "remove": "画像を削除",
+          "previewAlt": "コワーカー画像のプレビュー",
+          "fileTooLarge": "画像は 2 MB 以下である必要があります。",
+          "fileTypeNotAccepted": "PNG、JPEG、WebP、または GIF を使用してください。",
+          "maxFilesExceeded": "一度に 1 枚の画像をアップロードしてください。",
+          "uploadError": "選択した画像を処理できませんでした。"
+        },
+        "saveChanges": "表示を保存",
+        "saving": "保存中…",
+        "cancel": "キャンセル",
+        "validation": {
+          "nameMinLength": "名前は {min} 文字以上である必要があります。",
+          "noChanges": "保存する変更がありません。",
+          "captionMaxLength": "キャプションは {max} 文字以下である必要があります。"
+        },
+        "success": {
+          "saved": "コワーカーの表示を更新しました。",
+          "imageSaved": "画像を保存しました。",
+          "imageRemoved": "画像を削除しました。"
+        },
+        "errors": {
+          "saveFailed": "コワーカーの表示を保存できませんでした。",
+          "imageSaveFailed": "画像を更新できませんでした。"
+        }
       }
     }
   },
