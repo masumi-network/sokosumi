@@ -86,10 +86,10 @@ Allowlisted scripts from `PHASE-CODER.md`. **Required:** check + test for the **
 
 - No YAML plan frontmatter.
 - Keep Data flow, Verification, Out of scope.
-- BUGBOT appendix only when triggers apply.
+- Learnings appendix only when triggers apply.
 - Enforce size caps; cut tables first if over.
 
-## Appendix: optional BUGBOT sections
+## Appendix: optional Learnings sections
 
 ### Mutation order (R1)
 

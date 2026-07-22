@@ -18,7 +18,7 @@ Then:
 - Phase start/complete
 - Investigation or Spec artifacts
 - Status tables (`## Sapphire status`)
-- PR handoff / Bugbot / Reviewer summaries
+- PR handoff / Learnings review / Reviewer summaries
 - Issue state (`In Progress`, `In Review`, `Done`) — human owns workflow state
 
 ## Read

@@ -45,7 +45,7 @@ Omit empty sections. No essay preamble.
 
 **Goal:** Implementable Spec from Requirement + Investigation.
 
-**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; BUGBOT sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only Verification route **iff** Deliverables include any of: `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, `apps/web/messages/**`. Never for generated client only (`apps/web/src/lib/clients/**`). Routes ⇒ **UI in scope**.
+**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; Learnings sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only Verification route **iff** Deliverables include any of: `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, `apps/web/messages/**`. Never for generated client only (`apps/web/src/lib/clients/**`). Routes ⇒ **UI in scope**.
 
 **Do not:** Implement; wait for human PRD approval; child issues; Spec on Linear; load `PHASE-*` or `VISUAL-CAPTURE`.
 
@@ -61,7 +61,7 @@ Omit empty sections. No essay preamble.
 
 **Load:** `PHASE-CODER.md` for verify table, branch checkout, sole/sequential modes, PR title/body.
 
-**Do not:** CI watch, Bugbot, Linear MCP (unless standalone + `LINEAR.md`).
+**Do not:** CI watch, Learnings review gate, Linear MCP (unless standalone + `LINEAR.md`).
 
 ---
 

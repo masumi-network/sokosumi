@@ -4,7 +4,7 @@ Load in **Phase 4** (and standalone Reviewer / `sapphire-reviewer`). Do **not** 
 
 ## Entry
 
-Local verify exit 0 (verify set in `PHASE-CODER.md`), **CI green** (`SKILL.md`), Bugbot 0 High — else return to Phase 3.
+Local verify exit 0 (verify set in `PHASE-CODER.md`), **CI green** (`SKILL.md`), Learnings review 0 High (`BUGBOT-LEARNINGS.md`) — else return to Phase 3.
 
 ## `/goal`
 
@@ -22,7 +22,7 @@ Loop until PR matches Spec (Contract / Verification / Out of scope), allowlisted
 4. Allowlisted verify (`PHASE-CODER.md`).
 5. UI in scope → `VISUAL-CAPTURE.md`. Else skip.
 6. If fixable: one fix→push→re-verify. Else blocker.
-7. If pushed: return `pushed: true` — orchestrator re-runs Bugbot 0 High + CI green before ready.
+7. If pushed: return `pushed: true` — orchestrator re-runs Learnings review 0 High + CI green before ready.
 
 **`ok: true`:** `/goal` met + local verify exit 0. Does **not** skip orchestrator re-gates after a push.
 

@@ -1,8 +1,8 @@
-# Bugbot learnings (Sapphire quality rules)
+# Sapphire quality learnings
 
-Distilled from high/medium Bugbot findings on `masumi-network/sokosumi`. Prevent regressions before Reviewer.
+Distilled from past high/medium review findings on `masumi-network/sokosumi`. Prevent regressions before Reviewer.
 
-**Mandatory gates** (orchestrator after PR open — before Reviewer): CI green + Bugbot 0 High. See `SKILL.md` Phase 3. Do **not** post Bugbot to Linear — note Medium in PR body for human merge.
+**Mandatory gates** (orchestrator after PR open — before Reviewer): CI green + **Learnings review** 0 High. See `SKILL.md` Phase 3. Do **not** post findings to Linear — note Medium in PR body for human merge.
 
 ## Quality rules (R1–R12)
 
@@ -116,49 +116,57 @@ Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder imp
 - **Coder:** Response reflects post-sync state; 404 → `notFound()` not error page.
 - **Reviewer:** Click-through on one deep link when notifications/links in scope.
 
-## Mandatory Bugbot (before Reviewer)
+## Mandatory Learnings review (before Reviewer)
 
-**Gate runner** (orchestrator in squad mode; standalone Coder when alone) runs **one Bugbot review** per PR before Reviewer. **Re-run** after Reviewer pushes — zero High before PR ready. Launch Task subagent — do not assume repo-local skill file:
+**Gate runner** (orchestrator in squad mode; standalone Coder when alone) runs **one Learnings review** per PR before Reviewer. **Re-run** after Reviewer pushes — zero High before PR ready.
 
-| Field | Value |
-|-------|-------|
-| `subagent_type` | `bugbot` |
-| `readonly` | `true` |
-| `run_in_background` | `false` |
-| `description` | `Bugbot` |
+**Do not** launch a `bugbot` Task, `/review-bugbot`, or any external Bugbot runner. Apply R1–R12 yourself to the PR branch.
 
-Prompt (exact shape):
+### Procedure
 
-```text
-Full Repository Path: <absolute repository root>
-Diff: branch changes
-```
-
-In Cursor IDE, `/review-bugbot` same flow when editor skill installed. If subagent cannot compute diff, retry once with `Diff: natural language` + per-file change description (see `review-bugbot` skill retry rules).
+1. Diff vs preferred base (`main` unless stated):  
+   `git fetch origin main` (if needed) → `git merge-base HEAD origin/main` → `git diff <merge-base>...HEAD` (and uncommitted only if still dirty).
+2. For each rule **R1–R12**, if its **trigger** matches touched paths or behavior, check the rule’s Coder/Reviewer expectations against the diff.
+3. Record findings as **High** or **Medium**:
 
 | Severity | Action |
 |----------|--------|
-| **High** | **Must fix** on PR branch. Re-run until **zero High**. |
+| **High** | **Must fix** on PR branch. Re-review until **zero High**. |
 | **Medium** | **Do not block** Reviewer. Note in the **PR body** for human merge — not Linear. Do **not** fix Medium during Sapphire unless the user asks in this chat. |
 | **Low** | Optional note; no gate. |
 
+4. **High:** fix on branch (orchestrator or one Coder fix cycle) → push → re-review until **0 High**.
+5. **Medium:** add table to PR body (below).
+6. One full re-review after any push that changes product code. Caps: one fix cycle for High before stop; CI still ≤3 fix+push per `SKILL.md`.
+
+### Output (gate runner)
+
+Short report in chat (and optional PR comment):
+
+```text
+Learnings review: PASS | FAIL
+High: <n>
+Medium: <n>
+- [High|Medium] R#: <one-line finding> (<path>)
+```
+
+`PASS` only when High = 0.
+
 ### Medium findings — PR body only
 
-When Bugbot reports ≥1 Medium, add short table to **PR description** (or PR comment). Do **not** post to Linear.
+When review reports ≥1 Medium, add short table to **PR description** (or PR comment). Do **not** post to Linear.
 
 ```markdown
-### Bugbot medium (human review)
+### Learnings review — medium (human review)
 
-| Location | Finding |
-|----------|---------|
-| `path:line` | … |
+| Rule | Location | Finding |
+|------|----------|---------|
+| R# | `path:line` | … |
 ```
 
 Skip when no medium findings.
 
-If Bugbot cannot run (subagent failure after retry), **stop before Reviewer** and report blocker.
-
-## Coder self-check (before Bugbot)
+## Coder self-check (before handoff)
 
 Answer each triggered rule (R1–R12). Fix obvious gaps before open/update PR.
 
