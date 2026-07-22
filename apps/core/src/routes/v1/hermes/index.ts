@@ -532,6 +532,15 @@ function mapComposioError(error: unknown, fallback: string): never {
   throw internalServerError(fallback);
 }
 
+function isTransientOrchestratorError(error: HermesOrchestratorError): boolean {
+  return (
+    error.code === "HERMES_ORCH_UNREACHABLE" ||
+    error.httpStatus === 502 ||
+    error.httpStatus === 503 ||
+    error.httpStatus === 504
+  );
+}
+
 function mapOrchestratorError(error: unknown, fallback: string): never {
   if (error instanceof HTTPException) {
     throw error;
@@ -539,7 +548,9 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
 
   if (error instanceof HermesOrchestratorError) {
     if (error.httpStatus >= 500) {
-      throw serviceUnavailable(`${fallback}: ${error.message}`);
+      throw serviceUnavailable(`${fallback}: ${error.message}`, {
+        reportToSentry: !isTransientOrchestratorError(error),
+      });
     }
 
     // Auth / permission / rate-limit responses from the orchestrator reflect Core's
