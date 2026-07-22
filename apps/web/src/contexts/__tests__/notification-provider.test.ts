@@ -67,4 +67,47 @@ describe("notificationReducer", () => {
 
     expect(afterFetch.unreadCount).toBe(1);
   });
+
+  it("marks a notification read optimistically without waiting on the server payload", () => {
+    const unread = createNotification({ id: "notification-unread" });
+
+    const afterOptimistic = notificationReducer(
+      { notifications: [unread], unreadCount: 1 },
+      { type: "mark_read_optimistic", id: unread.id },
+    );
+
+    expect(afterOptimistic.notifications[0]?.isRead).toBe(true);
+    expect(afterOptimistic.unreadCount).toBe(0);
+
+    const serverUpdated = createNotification({
+      id: unread.id,
+      isRead: true,
+      readAt: new Date("2026-06-18T10:00:00.000Z"),
+    });
+
+    const afterSuccess = notificationReducer(afterOptimistic, {
+      type: "mark_read_success",
+      id: unread.id,
+      updated: serverUpdated,
+    });
+
+    expect(afterSuccess.notifications[0]).toEqual(serverUpdated);
+    expect(afterSuccess.unreadCount).toBe(0);
+  });
+
+  it("is a no-op when optimistically marking an already-read notification", () => {
+    const readNotification = createNotification({
+      id: "notification-read",
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
+    });
+    const state = { notifications: [readNotification], unreadCount: 0 };
+
+    const next = notificationReducer(state, {
+      type: "mark_read_optimistic",
+      id: readNotification.id,
+    });
+
+    expect(next).toBe(state);
+  });
 });

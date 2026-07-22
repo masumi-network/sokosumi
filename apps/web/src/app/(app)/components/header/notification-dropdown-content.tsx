@@ -44,39 +44,40 @@ export function NotificationDropdownContent({
   } = useNotifications();
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
-  const handleNotificationClick = async (notificationId: string) => {
+  const handleNotificationClick = (notificationId: string) => {
     const notification = notifications.find((n) => n.id === notificationId);
     if (!notification) return;
 
+    // Close immediately so the click paints before navigation work.
+    onClose();
+
+    // Optimistic mark-read paints via the provider before navigation work.
     if (!notification.isRead) {
-      try {
-        await markRead(notificationId);
-      } catch {
+      void markRead(notificationId).catch(() => {
         // Still navigate when mark-read fails transiently.
-      }
+      });
     }
 
-    await handleNotificationNavigation(
+    void handleNotificationNavigation(
       notification,
       activeOrganizationId,
       router,
       handleSelectWorkspace,
       tDetail,
     );
-    onClose();
   };
 
-  const handleMarkAllRead = async () => {
+  const handleMarkAllRead = () => {
     if (isMarkingAllRead || unreadCount === 0) return;
 
     setIsMarkingAllRead(true);
-    try {
-      await markAllRead();
-    } catch {
-      toast.error(t("markAllReadError"));
-    } finally {
-      setIsMarkingAllRead(false);
-    }
+    void markAllRead()
+      .catch(() => {
+        toast.error(t("markAllReadError"));
+      })
+      .finally(() => {
+        setIsMarkingAllRead(false);
+      });
   };
 
   const handleSeeMoreClick = () => {
@@ -152,7 +153,7 @@ export function NotificationDropdownContent({
             onPointerDown={(event) => {
               event.preventDefault();
             }}
-            onClick={() => void handleMarkAllRead()}
+            onClick={handleMarkAllRead}
             disabled={isMarkingAllRead}
           >
             {isMarkingAllRead ? t("loading") : t("markAllRead")}
@@ -165,7 +166,7 @@ export function NotificationDropdownContent({
           <NotificationItem
             key={notification.id}
             notification={notification}
-            onClick={() => void handleNotificationClick(notification.id)}
+            onClick={() => handleNotificationClick(notification.id)}
             formatTime={formatTime}
           />
         ))}
