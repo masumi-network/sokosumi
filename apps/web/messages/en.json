@@ -4315,6 +4315,7 @@
         "oauthClients": "OAuth Clients",
         "apiKeys": "API Keys",
         "coworkers": "Coworkers",
+        "tasks": "Tasks",
         "docs": "Documentation"
       },
       "Coworkers": {
@@ -4334,6 +4335,27 @@
         "Metadata": {
           "title": "Edit coworker",
           "description": "Edit owned coworker display fields"
+        }
+      },
+      "Tasks": {
+        "title": "Owned coworker tasks",
+        "description": "Read-only view of tasks where your coworkers are assignee or creator.",
+        "loadFailed": "Failed to load tasks.",
+        "List": {
+          "totalCount": "{count, plural, one {# task} other {# tasks}}",
+          "empty": "No tasks found for your coworkers yet.",
+          "task": "Task",
+          "status": "Status",
+          "coworkers": "Coworkers",
+          "owner": "Owner",
+          "updated": "Updated",
+          "loadMore": "Load more",
+          "loadFailed": "Failed to load tasks.",
+          "personalWorkspace": "Personal workspace"
+        },
+        "TaskDetail": {
+          "backToList": "Back to tasks",
+          "personalWorkspace": "Personal workspace"
         }
       },
       "Docs": {

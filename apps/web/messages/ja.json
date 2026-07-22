@@ -4150,7 +4150,8 @@
         "oauthClients": "OAuth クライアント",
         "apiKeys": "APIキー",
         "docs": "ドキュメント",
-        "coworkers": "コワーカー"
+        "coworkers": "コワーカー",
+        "tasks": "タスク"
       },
       "Docs": {
         "title": "デベロッパー向けドキュメント",
@@ -4187,6 +4188,27 @@
         "Metadata": {
           "title": "コワーカーを編集",
           "description": "所有するコワーカーの表示フィールドを編集"
+        }
+      },
+      "Tasks": {
+        "title": "所有コワーカーのタスク",
+        "description": "あなたのコワーカーが担当者または作成者であるタスクの読み取り専用ビュー。",
+        "loadFailed": "タスクを読み込めませんでした。",
+        "List": {
+          "totalCount": "{count, plural, one {# 件のタスク} other {# 件のタスク}}",
+          "empty": "コワーカーのタスクはまだ見つかりません。",
+          "task": "タスク",
+          "status": "ステータス",
+          "coworkers": "コワーカー",
+          "owner": "所有者",
+          "updated": "更新日",
+          "loadMore": "さらに読み込む",
+          "loadFailed": "タスクを読み込めませんでした。",
+          "personalWorkspace": "個人ワークスペース"
+        },
+        "TaskDetail": {
+          "backToList": "タスク一覧に戻る",
+          "personalWorkspace": "個人ワークスペース"
         }
       }
     },

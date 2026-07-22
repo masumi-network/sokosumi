@@ -103,6 +103,7 @@ import {
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
+  getDeveloperOwnedCoworkerTask as coreGetDeveloperOwnedCoworkerTask,
   getEnterpriseContracts as coreGetEnterpriseContracts,
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
@@ -163,6 +164,7 @@ import {
   listAdminTasks as coreListAdminTasks,
   listAdminUsers as coreListAdminUsers,
   listCreditPrices as coreListCreditPrices,
+  listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
@@ -1033,6 +1035,36 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch admin task",
+    );
+  }
+
+  async function listDeveloperOwnedCoworkerTasks(query: {
+    coworkerId?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListDeveloperOwnedCoworkerTasks({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list developer tasks",
+    );
+  }
+
+  async function getDeveloperOwnedCoworkerTask(taskId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetDeveloperOwnedCoworkerTask({
+          client,
+          path: { id: taskId },
+          cache: "no-store",
+        }),
+      "Failed to fetch developer task",
     );
   }
 
@@ -3191,6 +3223,8 @@ export function createCoreClient(getClient: GetClient) {
     deleteAdminAgentMetadataOverride,
     listAdminTasks,
     getAdminTask,
+    listDeveloperOwnedCoworkerTasks,
+    getDeveloperOwnedCoworkerTask,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
     listAdminOrganizations,

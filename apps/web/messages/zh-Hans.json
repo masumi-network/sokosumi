@@ -4150,7 +4150,8 @@
         "oauthClients": "OAuth 客户端",
         "apiKeys": "API 密钥",
         "docs": "文档",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "tasks": "任务"
       },
       "Docs": {
         "title": "开发者文档",
@@ -4187,6 +4188,27 @@
         "Metadata": {
           "title": "编辑 coworker",
           "description": "编辑你拥有的 coworker 展示字段"
+        }
+      },
+      "Tasks": {
+        "title": "自有 coworker 的任务",
+        "description": "只读查看你的 coworker 作为负责人或创建者的任务。",
+        "loadFailed": "加载任务失败。",
+        "List": {
+          "totalCount": "{count, plural, one {# 个任务} other {# 个任务}}",
+          "empty": "尚未找到你的 coworker 相关任务。",
+          "task": "任务",
+          "status": "状态",
+          "coworkers": "Coworkers",
+          "owner": "所有者",
+          "updated": "更新时间",
+          "loadMore": "加载更多",
+          "loadFailed": "加载任务失败。",
+          "personalWorkspace": "个人工作区"
+        },
+        "TaskDetail": {
+          "backToList": "返回任务列表",
+          "personalWorkspace": "个人工作区"
         }
       }
     },
