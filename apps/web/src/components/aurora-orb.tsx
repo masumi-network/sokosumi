@@ -164,16 +164,21 @@ interface PlaceholderOrbProps {
    * Fire a one-shot transient expression — bump `nonce` to trigger.
    */
   event?: OrbEvent | null;
+  /**
+   * Live rAF loop. Default true (hero / pre-setup). Pass false for lists —
+   * draws a single static frame.
+   */
+  animate?: boolean;
 }
 
 /**
- * The pre-setup "placeholder" orb — a heavily-animated, seedless mother-of-pearl
- * sphere whose full-spectrum iridescence sweeps continuously (it never settles
- * on a colour). Shown wherever the assistant's avatar appears before the user
- * picks their committed orb (sidebar nav, landing hero); once they pick, the
- * surface swaps to their chosen `AuroraOrb`.
+ * The pre-setup "placeholder" orb — a seedless mother-of-pearl sphere.
+ * Shown wherever the assistant's avatar appears before the user picks their
+ * committed orb (sidebar nav, landing hero); once they pick, the surface
+ * swaps to their chosen `AuroraOrb`.
  *
- * Always a live `<canvas>` + one rAF loop. Display size comes from `className`.
+ * Default is a live `<canvas>` + rAF loop. Pass `animate={false}` for lists.
+ * Display size comes from `className`.
  */
 export function PlaceholderOrb({
   size = 64,
@@ -182,6 +187,7 @@ export function PlaceholderOrb({
   alt = "",
   expression = null,
   event = null,
+  animate = true,
 }: PlaceholderOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handleRef = useRef<MountHandle | null>(null);
@@ -194,7 +200,7 @@ export function PlaceholderOrb({
     if (!canvas) return;
     const handle = mount(canvas, {
       placeholder: true,
-      animate: true,
+      animate,
       speed: speedRef.current,
       size,
       expression: expressionRef.current,
@@ -204,7 +210,7 @@ export function PlaceholderOrb({
       handle.stop();
       handleRef.current = null;
     };
-  }, [size]);
+  }, [size, animate]);
   useEffect(() => {
     handleRef.current?.setExpression(expression ?? null);
   }, [expression]);
@@ -242,13 +248,19 @@ interface AssistantOrbProps {
   speed?: number;
   className?: string;
   alt?: string;
+  /**
+   * Live rAF loop. Default true (PA hero / nav). Pass false for list rows —
+   * static PNG when seeded, single-frame placeholder when not.
+   */
+  animate?: boolean;
 }
 
 /**
  * The assistant's avatar at any point in its lifecycle: the white
  * `PlaceholderOrb` when no colour has been committed (`seed === null`),
- * otherwise the chosen `AuroraOrb`. Always animated. One component so every
- * surface (setup, provisioning, progress) renders the same identity + eyes.
+ * otherwise the chosen `AuroraOrb`. One component so every surface renders
+ * the same identity + eyes. Defaults to animated; pass `animate={false}` for
+ * lists and other repeated small avatars.
  */
 export function AssistantOrb({
   seed,
@@ -258,6 +270,7 @@ export function AssistantOrb({
   speed = 1.2,
   className,
   alt = "",
+  animate = true,
 }: AssistantOrbProps) {
   if (seed === null) {
     return (
@@ -268,13 +281,14 @@ export function AssistantOrb({
         event={event}
         className={className}
         alt={alt}
+        animate={animate}
       />
     );
   }
   return (
     <AuroraOrb
       seed={seed}
-      animate
+      animate={animate}
       size={size}
       speed={speed}
       expression={expression}

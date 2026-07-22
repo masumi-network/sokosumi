@@ -275,6 +275,7 @@ function MetadataAvatarValue({
         {avatarSeed !== undefined ? (
           <AssistantOrb
             seed={avatarSeed}
+            animate={false}
             size={20}
             className="size-5 shrink-0"
             alt={name}

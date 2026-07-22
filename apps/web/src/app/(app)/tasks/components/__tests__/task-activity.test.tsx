@@ -120,8 +120,21 @@ vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
 }));
 
 vi.mock("@/components/aurora-orb", () => ({
-  AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
-    <div data-testid="assistant-orb" data-seed={seed ?? ""} aria-label={alt} />
+  AssistantOrb: ({
+    seed,
+    alt,
+    animate,
+  }: {
+    seed: string | null;
+    alt?: string;
+    animate?: boolean;
+  }) => (
+    <div
+      data-testid="assistant-orb"
+      data-seed={seed ?? ""}
+      data-animate={animate === false ? "false" : "true"}
+      aria-label={alt}
+    />
   ),
 }));
 
@@ -572,6 +585,46 @@ describe("TaskActivitySection", () => {
       "data-seed",
       "orb:jewel-sky:user_123",
     );
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-animate",
+      "false",
+    );
+  });
+
+  it("shows static placeholder orb when orchestrator avatarSeed is null", () => {
+    const events: TaskEvent[] = [
+      createEvent("orch-null-seed", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Unnamed orb update",
+        userId: null,
+        coworkerId: null,
+        orchestratorId: "orch-1",
+        orchestrator: {
+          id: "orch-1",
+          name: "Hermes",
+          avatarSeed: null,
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
+        },
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-seed",
+      "",
+    );
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-animate",
+      "false",
+    );
+    expect(screen.queryByText("HL")).not.toBeInTheDocument();
   });
 
   it("prefers nested actor over conflicting deprecated flat FKs", () => {

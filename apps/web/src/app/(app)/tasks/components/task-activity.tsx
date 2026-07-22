@@ -448,8 +448,7 @@ export function TaskActivitySection({
                   })
                 : (actorInfo?.name ?? actorLabel);
             const actorImage = actorInfo?.image ?? null;
-            const showAssistantOrb =
-              actorInfo != null && "avatarSeed" in actorInfo;
+            const showAssistantOrb = actorKind === "orchestrator";
             const action = event.comment
               ? actionCommentedLabel
               : actionUpdatedStatusLabel;
@@ -554,7 +553,8 @@ export function TaskActivitySection({
                     </div>
                   ) : showAssistantOrb ? (
                     <AssistantOrb
-                      seed={actorInfo.avatarSeed ?? null}
+                      seed={actorInfo?.avatarSeed ?? null}
+                      animate={false}
                       size={24}
                       className="size-6 shrink-0 self-start"
                       alt={actorName}
