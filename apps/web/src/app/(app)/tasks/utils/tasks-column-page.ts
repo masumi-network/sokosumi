@@ -4,13 +4,13 @@ import type {
   KanbanColumnId,
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
+import { resolveMentionedAgentsById } from "@/app/tasks/utils/mentioned-agents";
 import { getColumnListQueryOptions } from "@/app/tasks/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
 import type { Coworker } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
-import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 type ColumnCursor = string | null;
 
@@ -23,7 +23,6 @@ interface GetTasksColumnPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   coworkersById: Map<string, Coworker>;
-  agentsById: Map<string, CoreAgentDto>;
 }
 
 interface GetTasksColumnPageResult {
@@ -40,7 +39,6 @@ export async function getTasksColumnPage({
   status,
   projectId,
   coworkersById,
-  agentsById,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
   const { statuses } = getColumnListQueryOptions(columnId, status);
 
@@ -59,6 +57,9 @@ export async function getTasksColumnPage({
     cursor,
     limit,
   });
+  const agentsById = await resolveMentionedAgentsById(
+    result.tasks.map((task) => task.description),
+  );
   const tasks = result.tasks.map((task) =>
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
   );

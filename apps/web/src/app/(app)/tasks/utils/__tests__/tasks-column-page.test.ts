@@ -15,6 +15,10 @@ vi.mock("@/lib/services/task.service", () => ({
   },
 }));
 
+vi.mock("@/app/tasks/utils/mentioned-agents", () => ({
+  resolveMentionedAgentsById: vi.fn().mockResolvedValue(new Map()),
+}));
+
 function buildTask({
   id,
   status,
@@ -81,7 +85,6 @@ describe("getTasksColumnPage", () => {
       status: null,
       projectId: PROJECT_ID,
       coworkersById: new Map(),
-      agentsById: new Map(),
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-10", "task-09"]);
@@ -118,7 +121,6 @@ describe("getTasksColumnPage", () => {
       status: null,
       projectId: null,
       coworkersById: new Map(),
-      agentsById: new Map(),
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-2"]);
@@ -159,7 +161,6 @@ describe("getTasksColumnPage", () => {
       status: null,
       projectId: null,
       coworkersById: new Map(),
-      agentsById: new Map(),
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual([
@@ -197,7 +198,6 @@ describe("getTasksColumnPage", () => {
       status: null,
       projectId: null,
       coworkersById: new Map(),
-      agentsById: new Map(),
     });
 
     expect(page.nextCursor).toBeNull();
@@ -213,7 +213,6 @@ describe("getTasksColumnPage", () => {
       status: TaskStatus.COMPLETED,
       projectId: null,
       coworkersById: new Map(),
-      agentsById: new Map(),
     });
 
     expect(page).toEqual({
@@ -244,7 +243,6 @@ describe("getTasksColumnPage", () => {
       status: null,
       projectId: null,
       coworkersById: new Map(),
-      agentsById: new Map(),
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-ready"]);
@@ -279,7 +277,6 @@ describe("getTasksColumnPage", () => {
       status: null,
       projectId: null,
       coworkersById: new Map(),
-      agentsById: new Map(),
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-grant-pending"]);

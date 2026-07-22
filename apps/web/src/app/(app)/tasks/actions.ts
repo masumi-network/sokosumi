@@ -1,6 +1,7 @@
 "use server";
 
 import type { KanbanColumnId } from "@/app/tasks/types/task-board";
+import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   sanitizeAgentJobStatusInput,
   sanitizeJobAgentIdForPersistedFilter,
@@ -15,8 +16,10 @@ import {
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Task } from "@/lib/clients/generated/core";
+import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 
 import { getTasksColumnPage } from "./utils/tasks-column-page";
@@ -38,10 +41,9 @@ export async function loadMoreTasksColumn({
   status,
   projectId,
 }: LoadMoreTasksColumnParams) {
-  const [session, coworkers, agents] = await Promise.all([
+  const [session, coworkers] = await Promise.all([
     getSession(),
     coworkerService.listCoworkers("tasks").catch(() => []),
-    agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
 
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -50,7 +52,6 @@ export async function loadMoreTasksColumn({
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const sanitizedAssigneeId =
     assigneeId && coworkersById.has(assigneeId) ? assigneeId : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
@@ -64,7 +65,6 @@ export async function loadMoreTasksColumn({
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
-    agentsById,
   });
 
   return {
@@ -80,10 +80,9 @@ export async function loadMoreJobs(
   jobStatus: string | null,
   projectId: string | null,
 ) {
-  const [session, coworkers, agents] = await Promise.all([
+  const [session, coworkers] = await Promise.all([
     getSession(),
     coworkerService.listCoworkers().catch(() => []),
-    agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
@@ -102,6 +101,54 @@ export async function loadMoreJobs(
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
+  const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
+    jobs: jobsPage.jobs,
+    coworkersById,
+  });
+
+  return {
+    jobs,
+    nextCursor: jobsPage.pagination?.nextCursor ?? null,
+    agentPreviewById,
+  };
+}
+
+export async function loadJobsTabData(
+  scope: TasksScope | null,
+  agentId: string | null,
+  jobStatus: string | null,
+  projectId: string | null,
+) {
+  const session = await getSession();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
+  const sanitizedAgentId = sanitizeJobAgentIdForPersistedFilter(agentId);
+  const sanitizedJobStatus = sanitizeAgentJobStatusInput(jobStatus);
+  const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
+
+  const [coworkers, agents, jobsPage] = await Promise.all([
+    coworkerService.listCoworkers().catch(() => []),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    taskService.listJobs({
+      scope: sanitizedScope,
+      agentId: sanitizedAgentId ?? undefined,
+      status: sanitizedJobStatus ?? undefined,
+      projectId: sanitizedProjectId ?? undefined,
+      cursor: null,
+      limit: 20,
+    }),
+  ]);
+
+  const agentNameById = buildAgentNameById(agents);
+  const jobAgentOptions = agents.map((agent) => ({
+    id: agent.id,
+    name: agentNameById.get(agent.id) ?? agent.name,
+    image: getAgentResolvedIcon(agent),
+  }));
+
+  const coworkersById = new Map(
+    coworkers.map((coworker) => [coworker.id, coworker]),
+  );
   const knownAgentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
     jobs: jobsPage.jobs,
@@ -113,5 +160,19 @@ export async function loadMoreJobs(
     jobs,
     nextCursor: jobsPage.pagination?.nextCursor ?? null,
     agentPreviewById,
+    jobAgentOptions,
+  };
+}
+
+export async function loadCreateTaskModalData() {
+  const session = await getSession();
+  const [agents, designMdAttachment] = await Promise.all([
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+  ]);
+
+  return {
+    agentNameById: Object.fromEntries(buildAgentNameById(agents)),
+    designMdAttachment,
   };
 }

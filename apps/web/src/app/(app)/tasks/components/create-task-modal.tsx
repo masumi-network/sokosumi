@@ -2,8 +2,17 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createContext, useCallback, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "sonner";
 
+import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
@@ -129,16 +138,18 @@ interface CreateTaskModalProps {
   /** Omit to hide the project picker (e.g. when opened from the agents page). */
   projectOptions?: ProjectFilterOption[];
   defaultProjectId?: string | null;
-  agentNameById: Map<string, string>;
+  agentNameById?: Map<string, string>;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
+  initialCreateTaskOpen?: boolean;
 }
 
 export function CreateTaskModal({
   coworkerOptions,
   projectOptions,
   defaultProjectId = null,
-  agentNameById,
-  initialDesignMdAttachment = null,
+  agentNameById: initialAgentNameById,
+  initialDesignMdAttachment: initialDesignMdAttachmentProp = null,
+  initialCreateTaskOpen = false,
 }: CreateTaskModalProps) {
   const {
     open,
@@ -152,13 +163,50 @@ export function CreateTaskModal({
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("App.Tasks.NewTask");
+  const tTasksErrors = useTranslations("App.Tasks.Errors");
   const [isDismissDisabled, setIsDismissDisabled] = useState(false);
   // True once the task is created and the success step is showing — the dismiss
   // button then means "close", not "cancel".
   const [isCreated, setIsCreated] = useState(false);
   // Bumped to remount the form with a clean slate for "Create another task".
   const [resetKey, setResetKey] = useState(0);
+  const [agentNameById, setAgentNameById] = useState(
+    () => initialAgentNameById ?? new Map<string, string>(),
+  );
+  const [initialDesignMdAttachment, setInitialDesignMdAttachment] = useState(
+    initialDesignMdAttachmentProp,
+  );
+  const hasLoadedCreateDataRef = useRef(
+    Boolean(
+      (initialAgentNameById && initialAgentNameById.size > 0) ||
+        initialDesignMdAttachmentProp,
+    ),
+  );
   const selectedProjectId = projectOverrideId ?? defaultProjectId ?? null;
+
+  useEffect(() => {
+    if (!open && !initialCreateTaskOpen) return;
+    if (hasLoadedCreateDataRef.current) return;
+
+    let cancelled = false;
+    void loadCreateTaskModalData()
+      .then((data) => {
+        if (cancelled) return;
+        hasLoadedCreateDataRef.current = true;
+        setAgentNameById(new Map(Object.entries(data.agentNameById)));
+        if (data.designMdAttachment) {
+          setInitialDesignMdAttachment(data.designMdAttachment);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        toast.error(tTasksErrors("loadMore"));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialCreateTaskOpen, open, tTasksErrors]);
 
   const stripCreateTaskSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;
