@@ -10,7 +10,7 @@ Caveman **full** in chat. **Not ultra** on Spec. Prefer `path:line` + short clau
 
 **Goal:** Codebase facts for Tech Lead — not a Spec.
 
-**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated, i18n); flag `BUGBOT-LEARNINGS.md` R1–R12; similar paths; open questions. `cavecrew-investigator` **only** for symbol locate (defs/callers/uses).
+**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated, i18n); flag `LEARNINGS.md` R1–R12; similar paths; open questions. `cavecrew-investigator` **only** for symbol locate (defs/callers/uses).
 
 **Do not:** Contract tables, file-change lists, verification commands, mermaid, implement, rewrite Requirement, write Linear. Do not load `SPEC-TEMPLATE`, `SUBAGENT-RUBRIC`, `PHASE-*`, `VISUAL-CAPTURE`.
 

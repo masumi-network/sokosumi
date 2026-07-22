@@ -4,7 +4,7 @@ Load in **Phase 4** (and standalone Reviewer / `sapphire-reviewer`). Do **not** 
 
 ## Entry
 
-Local verify exit 0 (verify set in `PHASE-CODER.md`), **CI green** (`SKILL.md`), Learnings review 0 High (`BUGBOT-LEARNINGS.md`) — else return to Phase 3.
+Local verify exit 0 (verify set in `PHASE-CODER.md`), **CI green** (`SKILL.md`), Learnings review 0 High (`LEARNINGS.md`) — else return to Phase 3.
 
 ## `/goal`
 

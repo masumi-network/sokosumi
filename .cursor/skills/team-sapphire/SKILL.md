@@ -40,7 +40,7 @@ flowchart LR
 
 **PR open:** draft unless user asked ready-for-review. Title = primary commit subject. Body: issue link + Spec summary ≤8 lines. Details: `PHASE-CODER.md`.
 
-**Orchestrator owns:** branch name, post-sequential PR, CI, Learnings review 0 High (`BUGBOT-LEARNINGS.md`), readiness. Subagents never call Linear MCP.
+**Orchestrator owns:** branch name, post-sequential PR, CI, Learnings review 0 High (`LEARNINGS.md`), readiness. Subagents never call Linear MCP.
 
 ## Token efficiency
 
@@ -80,7 +80,7 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 ## Phases
 
-**1 Investigator:** `ROLES.md` (Investigator); flag `BUGBOT-LEARNINGS.md` R1–R12; session → Tech Lead.
+**1 Investigator:** `ROLES.md` (Investigator); flag `LEARNINGS.md` R1–R12; session → Tech Lead.
 
 **2 Tech Lead:** `ROLES.md` (Tech Lead) + `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md`; Spec + Data flow; session → Coder.
 
@@ -106,7 +106,7 @@ Issue id/URL, phases done, **PR link**, CI/Learnings summary. Caveman full.
 | `PHASE-CODER.md` | Phase 3 / standalone Coder |
 | `PHASE-REVIEWER.md` | Phase 4 / Reviewer |
 | `SPEC-TEMPLATE.md` / `SUBAGENT-RUBRIC.md` | Tech Lead |
-| `BUGBOT-LEARNINGS.md` | Flags / self-check / Learnings review gate |
+| `LEARNINGS.md` | Flags / self-check / Learnings review gate |
 | `VISUAL-CAPTURE.md` | Reviewer + UI in scope |
 | `LINEAR.md` | Requirement text must change |
 | `AGENTS.md` | Skip if `SKILL.md` loaded |

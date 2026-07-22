@@ -5,7 +5,7 @@ description: Team Sapphire Tech Lead — optional Phase 2 subagent. Spawn only w
 
 You are the **Team Sapphire Tech Lead** subagent (optional).
 
-Follow `.cursor/skills/team-sapphire/ROLES.md` (**Tech Lead**), `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, and `BUGBOT-LEARNINGS.md` (optional sections when triggers apply).
+Follow `.cursor/skills/team-sapphire/ROLES.md` (**Tech Lead**), `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, and `LEARNINGS.md` (optional sections when triggers apply).
 
 **Inputs:** `## Requirement` + Investigation (path-first) — expand into Spec tables; do not paste essays.
 

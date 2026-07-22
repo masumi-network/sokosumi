@@ -10,7 +10,7 @@ Sokosumi front door: Investigator → Tech Lead → Coder → Reviewer → PR (C
 2. `ROLES.md` — current phase role only
 3. `PHASE-CODER.md` — Phase 3 only
 4. `PHASE-REVIEWER.md` — Phase 4 only
-5. `BUGBOT-LEARNINGS.md` — flags / self-check / Learnings review gate
+5. `LEARNINGS.md` — flags / self-check / Learnings review gate
 6. `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md` — Tech Lead
 7. `VISUAL-CAPTURE.md` — Reviewer + UI in scope
 8. `LINEAR.md` — Requirement text must change
