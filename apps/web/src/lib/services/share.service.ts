@@ -1,9 +1,16 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
+/**
+ * Public share reads are request-deduped with React `cache()` so
+ * `generateMetadata` and the page share one Core round-trip (LCP/TTFB on
+ * `/share/[token]`).
+ */
 export const shareService = (() => {
-  async function getPubliclySharedResource(token: string) {
+  const getPubliclySharedResource = cache(async (token: string) => {
     try {
       return await coreClient.getSharedResourceByToken(token);
     } catch (error) {
@@ -13,7 +20,7 @@ export const shareService = (() => {
 
       throw error;
     }
-  }
+  });
 
   return {
     getPubliclySharedResource,

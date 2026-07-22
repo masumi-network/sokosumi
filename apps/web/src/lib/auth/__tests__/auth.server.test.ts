@@ -6,6 +6,9 @@ const captureMessageMock = vi.fn();
 const setTagMock = vi.fn();
 const setContextMock = vi.fn();
 
+const SESSION_COOKIE =
+  "sokosumi-localhost-preprod.session_token=session-token-value";
+
 vi.mock("server-only", () => ({}));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -28,6 +31,14 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
 }));
 
+vi.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => ({
+    NETWORK: "Preprod",
+    VERCEL_ENV: "development",
+    VERCEL_GIT_COMMIT_REF: "main",
+  }),
+}));
+
 vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getServerCoreAppBaseUrl: () => "http://localhost:8787",
 }));
@@ -36,8 +47,26 @@ describe("auth.server", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    headersMock.mockResolvedValue(new Headers({ cookie: "session=abc" }));
+    headersMock.mockResolvedValue(new Headers({ cookie: SESSION_COOKIE }));
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("skips Core when no session cookie is present", async () => {
+    headersMock.mockResolvedValue(new Headers({}));
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession()).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("skips Core for refresh when no session cookie is present", async () => {
+    headersMock.mockResolvedValue(new Headers({}));
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("gets a refreshed session by disabling Better Auth cookie cache", async () => {
@@ -67,7 +96,7 @@ describe("auth.server", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       new URL("http://localhost:8787/auth/get-session?disableCookieCache=true"),
       {
-        headers: { cookie: "session=abc" },
+        headers: { cookie: SESSION_COOKIE },
         cache: "no-store",
         signal: expect.any(AbortSignal),
       },
@@ -145,7 +174,7 @@ describe("auth.server", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       new URL("http://localhost:8787/auth/list-accounts"),
       {
-        headers: { cookie: "session=abc" },
+        headers: { cookie: SESSION_COOKIE },
         cache: "no-store",
         signal: expect.any(AbortSignal),
       },
@@ -270,7 +299,7 @@ describe("auth.server", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       new URL("http://localhost:8787/auth/subscription/list?customerType=user"),
       {
-        headers: { cookie: "session=abc" },
+        headers: { cookie: SESSION_COOKIE },
         cache: "no-store",
         signal: expect.any(AbortSignal),
       },
@@ -394,7 +423,7 @@ describe("auth.server", () => {
         "http://localhost:8787/auth/oauth2/public-client?client_id=client_123",
       ),
       {
-        headers: { cookie: "session=abc" },
+        headers: { cookie: SESSION_COOKIE },
         cache: "no-store",
         signal: expect.any(AbortSignal),
       },

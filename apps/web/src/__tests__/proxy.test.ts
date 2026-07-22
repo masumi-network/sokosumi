@@ -60,4 +60,42 @@ describe("proxy", () => {
     );
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
+
+  it("edge-redirects anonymous / to /signin without running the app shell", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("../proxy");
+    getSessionCookieMock.mockReturnValue(null);
+    const request = new NextRequest(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/",
+    );
+
+    const response = await proxy(request);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/signin",
+    );
+    expect(response?.headers.get("Cross-Origin-Opener-Policy")).toBe(
+      CROSS_ORIGIN_OPENER_POLICY,
+    );
+    expect(getSessionCookieMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("edge-redirects authenticated / to /chat without running the app shell", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("../proxy");
+    const request = new NextRequest(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/",
+    );
+
+    const response = await proxy(request);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/chat",
+    );
+    expect(response?.headers.get("Cross-Origin-Opener-Policy")).toBe(
+      CROSS_ORIGIN_OPENER_POLICY,
+    );
+  });
 });
