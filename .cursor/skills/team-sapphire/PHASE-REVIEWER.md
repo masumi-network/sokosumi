@@ -8,15 +8,15 @@ Local verify exit 0 (verify set in `PHASE-CODER.md`), **CI green** (`SKILL.md`) 
 
 ## `/goal` (full review)
 
-Loop until PR matches Spec (Contract / Verification / Out of scope), allowlisted verify exits 0, triggered `LEARNINGS.md` R1–R12 hold, and UI evidence exists when **UI in scope** — or stop on unrecoverable blocker (`SKILL.md`).
+Loop until PR matches Spec (Contract / Verification / Out of scope), allowlisted verify exits 0, triggered `QUALITY-RULES.md` R1–R12 hold, and UI evidence exists when **UI in scope** — or stop on unrecoverable blocker (`SKILL.md`).
 
-This is **one full review**, not a Bugbot or learnings-only pass. Cover Spec compliance, code/verify health, regression rules, and UI evidence together.
+This is **one full review**, not a Bugbot or quality-rules-only pass. Cover Spec compliance, code/verify health, regression rules, and UI evidence together.
 
 **UI in scope:** Spec Verification lists ≥1 path-only route. Else skip visuals. Spawn `sapphire-reviewer` **only if user asks**.
 
-**Fixable:** Spec mismatch, learnings High, or verify failure correctable without expanding Out of scope or changing Requirement. At most **one** fix→push→re-verify cycle; then blocker.
+**Fixable:** Spec mismatch, quality-rule High, or verify failure correctable without expanding Out of scope or changing Requirement. At most **one** fix→push→re-verify cycle; then blocker.
 
-**Medium** findings (Spec or R1–R12): note in PR body per `LEARNINGS.md`; do not block ready unless user asks to fix.
+**Medium** findings (Spec or R1–R12): note in PR body per `QUALITY-RULES.md`; do not block ready unless user asks to fix.
 
 ### Loop
 
@@ -24,7 +24,7 @@ This is **one full review**, not a Bugbot or learnings-only pass. Cover Spec com
 2. **PR trust** (below).
 3. Compare Contract / Verification / Out of scope.
 4. Allowlisted verify (`PHASE-CODER.md`).
-5. Triggered R1–R12 from `LEARNINGS.md` against branch diff (`git diff` merge-base…HEAD).
+5. Triggered R1–R12 from `QUALITY-RULES.md` against branch diff (`git diff` merge-base…HEAD).
 6. UI in scope → `VISUAL-CAPTURE.md`. Else skip.
 7. If fixable High: one fix→push→re-verify. Else blocker.
 8. If pushed: return `pushed: true` — orchestrator re-checks **CI green** before ready.

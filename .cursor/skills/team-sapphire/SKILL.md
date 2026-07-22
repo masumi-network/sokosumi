@@ -40,7 +40,7 @@ flowchart LR
 
 **PR open:** draft unless user asked ready-for-review. Title = primary commit subject. Body: issue link + Spec summary ≤8 lines. Details: `PHASE-CODER.md`.
 
-**Orchestrator owns:** branch name, post-sequential PR, CI, Reviewer readiness. Subagents never call Linear MCP. Do **not** launch `bugbot` or a separate learnings-only review — Reviewer does **one full review**.
+**Orchestrator owns:** branch name, post-sequential PR, CI, Reviewer readiness. Subagents never call Linear MCP. Do **not** launch `bugbot` or a separate quality-rules-only review — Reviewer does **one full review**.
 
 ## Token efficiency
 
@@ -80,13 +80,13 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 ## Phases
 
-**1 Investigator:** `ROLES.md` (Investigator); flag `LEARNINGS.md` R1–R12; session → Tech Lead.
+**1 Investigator:** `ROLES.md` (Investigator); flag `QUALITY-RULES.md` R1–R12; session → Tech Lead.
 
 **2 Tech Lead:** `ROLES.md` (Tech Lead) + `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md`; Spec + Data flow; session → Coder.
 
-**3 Coder:** Load `PHASE-CODER.md` + `ROLES.md` (Coder) + `LEARNINGS.md` self-check. Sole Task or serial sequential Tasks (rules above). After PR: **CI green**, then Phase 4.
+**3 Coder:** Load `PHASE-CODER.md` + `ROLES.md` (Coder) + `QUALITY-RULES.md` self-check. Sole Task or serial sequential Tasks (rules above). After PR: **CI green**, then Phase 4.
 
-**4 Reviewer:** Load `PHASE-REVIEWER.md` + `ROLES.md` (Reviewer) + `LEARNINGS.md`. Entry: verify + CI green. **One full review** — Spec, verify, UI when in scope, and triggered R1–R12. Not a Bugbot substitute. If pushed → re-check CI before ready. Human merges.
+**4 Reviewer:** Load `PHASE-REVIEWER.md` + `ROLES.md` (Reviewer) + `QUALITY-RULES.md`. Entry: verify + CI green. **One full review** — Spec, verify, UI when in scope, and triggered R1–R12. Not a Bugbot substitute. If pushed → re-check CI before ready. Human merges.
 
 ## Stop early
 
@@ -106,7 +106,7 @@ Issue id/URL, phases done, **PR link**, CI + Reviewer summary. Caveman full.
 | `PHASE-CODER.md` | Phase 3 / standalone Coder |
 | `PHASE-REVIEWER.md` | Phase 4 / Reviewer |
 | `SPEC-TEMPLATE.md` / `SUBAGENT-RUBRIC.md` | Tech Lead |
-| `LEARNINGS.md` | R1–R12 flags, Coder self-check, Reviewer full-review checklist |
+| `QUALITY-RULES.md` | R1–R12 flags, Coder self-check, Reviewer full-review checklist |
 | `VISUAL-CAPTURE.md` | Reviewer + UI in scope |
 | `LINEAR.md` | Requirement text must change |
 | `AGENTS.md` | Skip if `SKILL.md` loaded |

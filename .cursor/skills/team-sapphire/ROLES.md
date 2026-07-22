@@ -10,7 +10,7 @@ Caveman **full** in chat. **Not ultra** on Spec. Prefer `path:line` + short clau
 
 **Goal:** Codebase facts for Tech Lead — not a Spec.
 
-**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated, i18n); flag `LEARNINGS.md` R1–R12; similar paths; open questions. `cavecrew-investigator` **only** for symbol locate (defs/callers/uses).
+**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated, i18n); flag `QUALITY-RULES.md` R1–R12; similar paths; open questions. `cavecrew-investigator` **only** for symbol locate (defs/callers/uses).
 
 **Do not:** Contract tables, file-change lists, verification commands, mermaid, implement, rewrite Requirement, write Linear. Do not load `SPEC-TEMPLATE`, `SUBAGENT-RUBRIC`, `PHASE-*`, `VISUAL-CAPTURE`.
 
@@ -45,7 +45,7 @@ Omit empty sections. No essay preamble.
 
 **Goal:** Implementable Spec from Requirement + Investigation.
 
-**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; Learnings sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only Verification route **iff** Deliverables include any of: `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, `apps/web/messages/**`. Never for generated client only (`apps/web/src/lib/clients/**`). Routes ⇒ **UI in scope**.
+**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; Quality-rule sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only Verification route **iff** Deliverables include any of: `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, `apps/web/messages/**`. Never for generated client only (`apps/web/src/lib/clients/**`). Routes ⇒ **UI in scope**.
 
 **Do not:** Implement; wait for human PRD approval; child issues; Spec on Linear; load `PHASE-*` or `VISUAL-CAPTURE`.
 
@@ -67,8 +67,8 @@ Omit empty sections. No essay preamble.
 
 ## Reviewer
 
-**Goal:** **One full review** via `/goal` — Spec, verify, UI when in scope, triggered `LEARNINGS.md` R1–R12. Not a Bugbot or learnings-only pass. Human merges.
+**Goal:** **One full review** via `/goal` — Spec, verify, UI when in scope, triggered `QUALITY-RULES.md` R1–R12. Not a Bugbot or quality-rules-only pass. Human merges.
 
-**Load:** `PHASE-REVIEWER.md` for entry, `/goal` loop, PR trust, fixable cycle, return semantics. `LEARNINGS.md` for R1–R12 severity and Medium PR-body notes.
+**Load:** `PHASE-REVIEWER.md` for entry, `/goal` loop, PR trust, fixable cycle, return semantics. `QUALITY-RULES.md` for R1–R12 severity and Medium PR-body notes.
 
 **UI in scope:** Spec Verification has ≥1 path-only route → else skip visuals.

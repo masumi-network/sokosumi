@@ -1,8 +1,8 @@
-# Sapphire quality learnings
+# Sapphire quality rules
 
-Past regression patterns on `masumi-network/sokosumi`. **Not a review phase** — checklist rules for Investigator, Tech Lead, Coder, and Reviewer.
+Regression checklist on `masumi-network/sokosumi`. **Not a review phase** — checklist rules for Investigator, Tech Lead, Coder, and Reviewer.
 
-**Gates** (see `SKILL.md`): CI green → **Reviewer full review** (`PHASE-REVIEWER.md`). Do **not** launch a `bugbot` Task or a separate “learnings review.”
+**Gates** (see `SKILL.md`): CI green → **Reviewer full review** (`PHASE-REVIEWER.md`). Do **not** launch a `bugbot` Task or a quality-rules-only pass.
 
 ## Quality rules (R1–R12)
 
