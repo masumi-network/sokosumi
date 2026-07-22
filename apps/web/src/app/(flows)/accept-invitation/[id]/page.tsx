@@ -10,11 +10,14 @@ export default async function AcceptInvitationPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // Start session before awaiting params so anonymous cookie short-circuit and
+  // logged-in Core session read run in parallel with invitation resolution.
+  const sessionPromise = getSession();
   const { id } = await params;
-
-  const session = await getSession();
-
-  const result = await organizationService.getPendingInvitation(id);
+  const [session, result] = await Promise.all([
+    sessionPromise,
+    organizationService.getPendingInvitation(id),
+  ]);
 
   if (result.error) {
     return <InvitationErrorCard errorCode={result.error} />;

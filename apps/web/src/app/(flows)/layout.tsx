@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 
-export default async function FlowsLayout({
+export default function FlowsLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

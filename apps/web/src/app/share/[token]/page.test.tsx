@@ -92,8 +92,8 @@ vi.mock("@/lib/services", () => ({
   },
 }));
 
-vi.mock("@/components/jobs", () => ({
-  JobDetailsView: ({ job }: { job: { id: string } }) => {
+vi.mock("@/components/jobs/job-details/job-details-view", () => ({
+  default: ({ job }: { job: { id: string } }) => {
     jobDetailsViewMock(job);
     return <div>job:{job.id}</div>;
   },
