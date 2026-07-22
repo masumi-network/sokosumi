@@ -1558,6 +1558,7 @@
         "actorCoworker": "同僚",
         "actorUser": "ユーザー",
         "actorOrchestrator": "オーケストレーター",
+        "actorOrchestratorWithOwner": "{assistant} · {owner}",
         "actorSystem": "システム",
         "originFromApp": "{appName}から",
         "channelApp": {

@@ -18,6 +18,7 @@ describe("resolveTaskEventActorKind", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
         },
       },
       userId: "user-1",
@@ -77,7 +78,7 @@ describe("getEventActorInfo", () => {
     });
   });
 
-  it("reads name and image from nested orchestrator actor", () => {
+  it("reads name, owner, and avatarSeed from nested orchestrator actor", () => {
     const event = {
       actor: {
         type: "orchestrator",
@@ -85,6 +86,12 @@ describe("getEventActorInfo", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
         },
       },
     } as TaskEvent;
@@ -92,6 +99,8 @@ describe("getEventActorInfo", () => {
     expect(getEventActorInfo(event)).toEqual({
       name: "Hermes",
       image: null,
+      avatarSeed: "orb:jewel-sky:user_123",
+      ownerName: "Ada Lovelace",
     });
   });
 });
@@ -117,6 +126,12 @@ describe("buildTaskActivityActors", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
         },
       },
       events: [
@@ -197,6 +212,12 @@ describe("buildTaskActivityActors", () => {
             orchestrator: {
               id: "orch-2",
               name: "Athena",
+              avatarSeed: null,
+              owner: {
+                id: "user-3",
+                name: "Grace Hopper",
+                image: null,
+              },
             },
           },
           userId: null,
@@ -207,6 +228,12 @@ describe("buildTaskActivityActors", () => {
           orchestrator: {
             id: "orch-2",
             name: "Athena",
+            avatarSeed: null,
+            owner: {
+              id: "user-3",
+              name: "Grace Hopper",
+              image: null,
+            },
           },
           transactionId: null,
           credits: null,
@@ -245,10 +272,14 @@ describe("buildTaskActivityActors", () => {
       "orch-1": {
         name: "Hermes",
         image: null,
+        avatarSeed: "orb:jewel-sky:user_123",
+        ownerName: "Ada Lovelace",
       },
       "orch-2": {
         name: "Athena",
         image: null,
+        avatarSeed: null,
+        ownerName: "Grace Hopper",
       },
     });
   });

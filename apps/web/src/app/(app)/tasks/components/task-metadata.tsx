@@ -2,6 +2,7 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
@@ -24,6 +25,10 @@ interface TaskMetadataLabels {
   created: string;
   updated: string;
   schedule: string;
+  formatOrchestratorActorName: (values: {
+    assistant: string;
+    owner: string;
+  }) => string;
 }
 
 interface TaskMetadataTask {
@@ -40,10 +45,12 @@ interface TaskMetadataTask {
 interface TaskCreatorDisplay {
   name: string;
   image: string | null;
+  avatarSeed?: string | null;
 }
 
 function resolveTaskCreatorDisplay(
   task: TaskMetadataTask,
+  formatOrchestratorActorName: TaskMetadataLabels["formatOrchestratorActorName"],
 ): TaskCreatorDisplay | null {
   switch (task.creator.type) {
     case "user": {
@@ -78,8 +85,12 @@ function resolveTaskCreatorDisplay(
       }
 
       return {
-        name: orchestrator.name ?? "Assistant",
+        name: formatOrchestratorActorName({
+          assistant: orchestrator.name ?? "Assistant",
+          owner: orchestrator.owner.name,
+        }),
         image: null,
+        avatarSeed: orchestrator.avatarSeed ?? null,
       };
     }
     default: {
@@ -108,7 +119,10 @@ export function TaskMetadata({
     ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
   const assigneeImage = getCoworkerImage(task.assignee);
-  const creator = resolveTaskCreatorDisplay(task);
+  const creator = resolveTaskCreatorDisplay(
+    task,
+    labels.formatOrchestratorActorName,
+  );
 
   return (
     <div className="space-y-4">
@@ -139,6 +153,7 @@ export function TaskMetadata({
             name={creator.name}
             image={creator.image}
             fallback={creator.name}
+            avatarSeed={creator.avatarSeed}
           />
         ) : null}
 
@@ -243,6 +258,7 @@ interface MetadataAvatarValueProps {
   name: string;
   image: string | null;
   fallback: string;
+  avatarSeed?: string | null;
 }
 
 function MetadataAvatarValue({
@@ -250,19 +266,30 @@ function MetadataAvatarValue({
   name,
   image,
   fallback,
+  avatarSeed,
 }: MetadataAvatarValueProps) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-muted-foreground text-sm">{label}</span>
       <div className="flex min-w-0 items-center gap-2">
-        <Avatar className="size-5">
-          {image ? (
-            <AvatarImage src={image} alt={name} className="object-cover" />
-          ) : null}
-          <AvatarFallback className="bg-muted text-[10px]">
-            {fallback.slice(0, 1).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        {avatarSeed !== undefined ? (
+          <AssistantOrb
+            seed={avatarSeed}
+            animate={false}
+            size={20}
+            className="size-5 shrink-0"
+            alt={name}
+          />
+        ) : (
+          <Avatar className="size-5">
+            {image ? (
+              <AvatarImage src={image} alt={name} className="object-cover" />
+            ) : null}
+            <AvatarFallback className="bg-muted text-[10px]">
+              {fallback.slice(0, 1).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        )}
         <span className="truncate text-right text-sm font-medium">{name}</span>
       </div>
     </div>
