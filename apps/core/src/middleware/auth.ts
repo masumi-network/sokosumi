@@ -7,7 +7,7 @@ import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
-import { ORCHESTRATOR_API_KEY_PREFIX } from "@/lib/orchestrator-api-key";
+import { isOrchestratorServiceToken } from "@/lib/orchestrator-service-token";
 
 const DEFAULT_USER_ROLE = "user";
 
@@ -20,8 +20,8 @@ export interface UserAuthenticationContext {
 }
 
 /**
- * Optional user/org workspace scope for coworker/orchestrator API keys via
- * `X-Context-*` headers. Shared by both actors — not coworker-specific.
+ * Optional user/org workspace scope for coworker keys / orchestrator service
+ * token via `X-Context-*` headers. Shared by both actors — not coworker-specific.
  */
 export interface WorkspaceActorRequestContext {
   userId: string;
@@ -37,7 +37,11 @@ export interface CoworkerAuthenticationContext {
 
 export interface OrchestratorAuthenticationContext {
   actor: "orchestrator";
-  orchestratorId: string;
+  /**
+   * Per-user orchestrator row id when user scope is known (context headers
+   * or resolved from body). Absent after bare service-token auth.
+   */
+  orchestratorId?: string;
   context?: WorkspaceActorRequestContext;
 }
 
@@ -74,8 +78,12 @@ function syncSentryUser(context: AuthVariables) {
   if (context.authContext.actor === "orchestrator") {
     const orchestrator = context.authContext;
     scope.setUser({
-      id: `orchestrator:${orchestrator.orchestratorId}`,
-      orchestratorId: orchestrator.orchestratorId,
+      id: orchestrator.orchestratorId
+        ? `orchestrator:${orchestrator.orchestratorId}`
+        : "orchestrator:service",
+      ...(orchestrator.orchestratorId
+        ? { orchestratorId: orchestrator.orchestratorId }
+        : {}),
     });
     if (orchestrator.context) {
       scope.setContext("orchestratorContext", {
@@ -143,9 +151,9 @@ export function isCoworkerAgentContext(
 
 /**
  * Effective user context for a handler: either a Better Auth session (`source: "session"`)
- * or a coworker/orchestrator API key with context headers (`source: "context"`). Use
- * {@link requireUserAuthContext} when the operation must not run under coworker
- * context (PII, session-bound consent, etc.).
+ * or a coworker key / orchestrator service token with context headers
+ * (`source: "context"`). Use {@link requireUserAuthContext} when the operation
+ * must not run under coworker context (PII, session-bound consent, etc.).
  */
 export type UserContext =
   | ({ source: "session" } & UserAuthenticationContext)
@@ -355,51 +363,14 @@ async function verifyCoworkerApiKey(
 }
 
 /**
- * Verifies a dedicated orchestrator API key and sets orchestrator auth context.
- *
- * Expected token format: orch_<secret>
+ * Verifies the global orchestrator service token (env) and sets actor context.
+ * Per-user `orchestratorId` is bound later from user scope (context/body).
  */
-async function verifyOrchestratorApiKey(
+function verifyOrchestratorServiceToken(
   token: string,
   c: Context<AuthEnv>,
-): Promise<boolean> {
-  if (!token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)) {
-    return false;
-  }
-
-  const keyHash = await hashApiKey(token);
-  const orchestratorApiKey = await prisma.orchestratorApiKey.findUnique({
-    where: {
-      keyHash,
-    },
-    select: {
-      orchestratorId: true,
-      revokedAt: true,
-      expiresAt: true,
-      orchestrator: {
-        select: {
-          archivedAt: true,
-        },
-      },
-    },
-  });
-
-  if (!orchestratorApiKey) {
-    return false;
-  }
-
-  if (orchestratorApiKey.revokedAt) {
-    return false;
-  }
-
-  if (
-    orchestratorApiKey.expiresAt &&
-    orchestratorApiKey.expiresAt <= new Date()
-  ) {
-    return false;
-  }
-
-  if (orchestratorApiKey.orchestrator.archivedAt) {
+): boolean {
+  if (!isOrchestratorServiceToken(token)) {
     return false;
   }
 
@@ -407,7 +378,6 @@ async function verifyOrchestratorApiKey(
     isAuthenticated: true,
     authContext: {
       actor: "orchestrator",
-      orchestratorId: orchestratorApiKey.orchestratorId,
     },
   });
   return true;
@@ -507,15 +477,9 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired coworker token");
     }
 
-    // Check 2: Dedicated orchestrator API key
-    // Orchestrator-prefixed tokens must not fall back to user auth schemes.
-    if (token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)) {
-      const orchestratorApiKeyValid = await verifyOrchestratorApiKey(token, c);
-      if (orchestratorApiKeyValid) {
-        return true;
-      }
-
-      throw unauthorized("Invalid or expired orchestrator token");
+    // Check 2: Global orchestrator service token (Hermes → Core)
+    if (verifyOrchestratorServiceToken(token, c)) {
+      return true;
     }
 
     // Check 3: Better Auth API key

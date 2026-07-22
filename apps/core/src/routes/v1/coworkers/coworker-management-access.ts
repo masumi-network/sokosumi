@@ -7,6 +7,18 @@ import {
   type UserAuthenticationContext,
 } from "@/middleware/auth";
 
+interface CoworkerMutationWhere {
+  id: string;
+  archivedAt?: null;
+}
+
+export function buildCoworkerMutationWhere(
+  id: string,
+  allowArchived: boolean,
+): CoworkerMutationWhere {
+  return allowArchived ? { id } : { id, archivedAt: null };
+}
+
 export async function requireCoworkerManagementAccess(
   authContext: AuthenticationContext,
   coworkerId: string,

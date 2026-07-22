@@ -325,7 +325,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds.
 
-**Orchestrator (Hermes):** [`docs/orchestrator/hermes-orchestrator-actor.md`](./docs/orchestrator/hermes-orchestrator-actor.md) — first-party `orch_` actor, DRAFT access, DRAFT↔READY status, usage/keys.
+**Orchestrator (Hermes):** [`docs/orchestrator/hermes-orchestrator-actor.md`](./docs/orchestrator/hermes-orchestrator-actor.md) — first-party orchestrator actor (`ORCHESTRATOR_SERVICE_TOKEN`), DRAFT access, DRAFT↔READY status, usage/purge.
 
 ## Additional Rules
 
@@ -370,3 +370,19 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 - **Agents catalog is empty and 500s by default:** `GET /v1/agents` and `/v1/categories` throw `Failed to get credit information for agents` until the `credit_cost` table has rows (seeded in real envs via the admin `POST /v1/credit-costs` endpoint / `/admin` UI). This breaks the Agents marketplace and the Chat/Tasks landing pages until seeded — it is missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` returns 500 (`No key specified`) and chat pages surface a "Something went wrong" modal, because `ABLY_SUBSCRIBE_ONLY_KEY` / Core `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.
 - Lint (`pnpm lint`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.
+
+Respond terse like smart caveman. All technical substance stay. Only fluff die.
+
+Rules:
+- Drop: articles (a/an/the), filler (just/really/basically), pleasantries, hedging
+- Fragments OK. Short synonyms. Technical terms exact. Code unchanged.
+- Pattern: [thing] [action] [reason]. [next step].
+- Not: "Sure! I'd be happy to help you with that."
+- Yes: "Bug in auth middleware. Fix:"
+
+Switch level: /caveman lite|full|ultra|wenyan
+Stop: "stop caveman" or "normal mode"
+
+Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
+
+Boundaries: code/commits/PRs written normal.

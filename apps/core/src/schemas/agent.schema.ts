@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import type { Agent } from "@sokosumi/database";
+import type { Agent, AgentMetadataOverride } from "@sokosumi/database";
 import { RiskClassification } from "@sokosumi/database";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
@@ -7,6 +7,8 @@ import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { categorySchema } from "@/schemas/category.schema";
 import { riskClassificationSchema } from "@/schemas/domain-enums.schema";
+
+type AgentMetadataOverrideScalars = AgentMetadataOverride;
 
 export const executionMetricsSchema = z
   .object({
@@ -79,13 +81,34 @@ export const authorSchema = z.object({
     .openapi({ example: "Other contact information" }),
 });
 
-export const getAuthorFromAgent = (agent: Agent) => {
+export const getAuthorFromAgent = (
+  agent: Pick<
+    Agent,
+    | "authorName"
+    | "authorOrganization"
+    | "authorContactEmail"
+    | "authorContactOther"
+    | "authorImage"
+  > & {
+    metadataOverride?: Partial<
+      Pick<
+        AgentMetadataOverrideScalars,
+        | "authorName"
+        | "authorOrganization"
+        | "authorContactEmail"
+        | "authorContactOther"
+        | "authorImage"
+      >
+    > | null;
+  },
+) => {
+  const override = agent.metadataOverride;
   return authorSchema.parse({
-    name: agent.overrideAuthorName ?? agent.authorName,
+    name: override?.authorName ?? agent.authorName,
     image: getAgentAuthorImage(agent),
-    organization: agent.overrideAuthorOrganization ?? agent.authorOrganization,
-    email: agent.overrideAuthorContactEmail ?? agent.authorContactEmail,
-    other: agent.overrideAuthorContactOther ?? agent.authorContactOther,
+    organization: override?.authorOrganization ?? agent.authorOrganization,
+    email: override?.authorContactEmail ?? agent.authorContactEmail,
+    other: override?.authorContactOther ?? agent.authorContactOther,
   });
 };
 
@@ -99,15 +122,27 @@ export const agentLegalSchema = z.object({
   other: z.string().nullable().openapi({ example: "Other" }),
 });
 
-export const getAgentLegalFromAgent = (agent: Agent) => {
+export const getAgentLegalFromAgent = (
+  agent: Pick<
+    Agent,
+    "legalPrivacyPolicy" | "legalTerms" | "legalDpa" | "legalOther"
+  > & {
+    metadataOverride?: Partial<
+      Pick<
+        AgentMetadataOverrideScalars,
+        "legalPrivacyPolicy" | "legalTerms" | "legalDpa" | "legalOther"
+      >
+    > | null;
+  },
+) => {
+  const override = agent.metadataOverride;
   return agentLegalSchema.parse({
-    privacyPolicy: agent.overrideLegalPrivacyPolicy ?? agent.legalPrivacyPolicy,
-    terms: agent.overrideLegalTerms ?? agent.legalTerms,
-    dpa: agent.overrideLegalDpa ?? agent.legalDpa,
-    other: agent.overrideLegalOther ?? agent.legalOther,
+    privacyPolicy: override?.legalPrivacyPolicy ?? agent.legalPrivacyPolicy,
+    terms: override?.legalTerms ?? agent.legalTerms,
+    dpa: override?.legalDpa ?? agent.legalDpa,
+    other: override?.legalOther ?? agent.legalOther,
   });
 };
-
 export const agentExampleOutputSchema = z
   .object({
     name: z.string().openapi({ example: "Generated summary" }),
@@ -124,20 +159,21 @@ interface AgentExampleOutputSource {
     mimeType: string;
     url: string;
   }>;
-  overrideExampleOutput: Array<{
-    name: string;
-    mimeType: string;
-    url: string;
-  }>;
+  metadataOverride?: {
+    exampleOutputs: Array<{
+      name: string;
+      mimeType: string;
+      url: string;
+    }>;
+  } | null;
 }
 
 export function getAgentExampleOutputsFromAgent(
   agent: AgentExampleOutputSource,
 ): AgentExampleOutput[] {
+  const overrideExamples = agent.metadataOverride?.exampleOutputs ?? [];
   const exampleOutputs =
-    agent.overrideExampleOutput.length > 0
-      ? agent.overrideExampleOutput
-      : agent.exampleOutput;
+    overrideExamples.length > 0 ? overrideExamples : agent.exampleOutput;
 
   return exampleOutputs.map((exampleOutput) =>
     agentExampleOutputSchema.parse({
@@ -150,12 +186,15 @@ export function getAgentExampleOutputsFromAgent(
 
 interface AgentTagsSource {
   tags: Array<{ name: string }>;
-  overrideTags: Array<{ name: string }>;
+  metadataOverride?: {
+    tags: Array<{ name: string }>;
+  } | null;
 }
 
 export function getAgentTagsFromAgent(agent: AgentTagsSource): string[] {
-  return agent.overrideTags.length > 0
-    ? agent.overrideTags.map((tag) => tag.name)
+  const overrideTags = agent.metadataOverride?.tags ?? [];
+  return overrideTags.length > 0
+    ? overrideTags.map((tag) => tag.name)
     : agent.tags.map((tag) => tag.name);
 }
 

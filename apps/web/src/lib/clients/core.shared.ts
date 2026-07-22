@@ -2,6 +2,7 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
   ActivateEnterpriseContractRequest,
+  AgentStatus,
   CreateConversationMessageRequest,
   CreateEnterpriseContractRequest,
   DeleteHermesMeInstanceIntegrationsByProviderData,
@@ -33,10 +34,11 @@ import type {
   MarkHermesInboxSeenRequest,
   Notice,
   PaginationMetadata,
+  PatchCoworkersByIdData,
+  PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
-  PatchOrchestratorsByIdData,
   PatchProjectsByIdData,
   PatchTasksByIdData,
   PostAgentsByIdJobsData,
@@ -63,12 +65,14 @@ import {
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
+  deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteCoworkersById as coreDeleteCoworkersById,
+  deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
-  deleteOrchestratorsByIdImage as coreDeleteOrchestratorsByIdImage,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
@@ -78,6 +82,7 @@ import {
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
+  getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminTask as coreGetAdminTask,
@@ -96,6 +101,7 @@ import {
   getConversationsByIdWarmup as coreGetConversationsByIdWarmup,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
+  getCoworkersById as coreGetCoworkersById,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getEnterpriseContracts as coreGetEnterpriseContracts,
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
@@ -118,8 +124,6 @@ import {
   getJobsById as coreGetJobsById,
   getNotifications as coreGetNotifications,
   getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
-  getOrchestrators as coreGetOrchestrators,
-  getOrchestratorsById as coreGetOrchestratorsById,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
@@ -152,6 +156,7 @@ import {
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
@@ -160,21 +165,25 @@ import {
   listCreditPrices as coreListCreditPrices,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
+  patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchCoworkersById as corePatchCoworkersById,
+  patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
-  patchOrchestratorsById as corePatchOrchestratorsById,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
+  postCoworkersByIdImage as corePostCoworkersByIdImage,
+  postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
   postEnterpriseContractsByIdActivate as corePostEnterpriseContractsByIdActivate,
   postEnterpriseContractsByIdCancel as corePostEnterpriseContractsByIdCancel,
@@ -189,7 +198,6 @@ import {
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
-  postOrchestratorsByIdImage as corePostOrchestratorsByIdImage,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
   postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
@@ -930,72 +938,71 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function listOrchestrators() {
+  async function listAdminAgents(query: {
+    q?: string;
+    cursor?: string;
+    limit?: number;
+    status?: AgentStatus;
+    sortBy?:
+      | "displayName"
+      | "registryName"
+      | "hasOverride"
+      | "status"
+      | "createdAt";
+    sortOrder?: "asc" | "desc";
+  }) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetOrchestrators({
+        coreListAdminAgents({
           client,
+          query,
           cache: "no-store",
         }),
-      "Failed to list orchestrators",
+      "Failed to list agents",
     );
   }
 
-  async function getOrchestratorById(id: string) {
+  async function getAdminAgent(agentId: string) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetOrchestratorsById({
+        coreGetAdminAgent({
           client,
-          path: { id },
+          path: { id: agentId },
           cache: "no-store",
         }),
-      "Failed to fetch orchestrator",
+      "Failed to fetch admin agent",
     );
   }
 
-  async function patchOrchestratorById(
-    id: string,
-    body: NonNullable<PatchOrchestratorsByIdData["body"]>,
+  async function patchAdminAgentMetadataOverride(
+    agentId: string,
+    body: Parameters<typeof corePatchAdminAgentMetadataOverride>[0]["body"],
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePatchOrchestratorsById({
+        corePatchAdminAgentMetadataOverride({
           client,
-          path: { id },
+          path: { id: agentId },
           body,
           cache: "no-store",
         }),
-      "Failed to update orchestrator",
+      "Failed to update agent metadata override",
     );
   }
 
-  async function uploadOrchestratorImage(id: string, file: Blob | File) {
+  async function deleteAdminAgentMetadataOverride(agentId: string) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostOrchestratorsByIdImage({
+        coreDeleteAdminAgentMetadataOverride({
           client,
-          path: { id },
-          body: { file },
+          path: { id: agentId },
           cache: "no-store",
         }),
-      "Failed to upload orchestrator image",
-    );
-  }
-
-  async function deleteOrchestratorImage(id: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreDeleteOrchestratorsByIdImage({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to remove orchestrator image",
+      "Failed to delete agent metadata override",
     );
   }
 
@@ -2154,6 +2161,115 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOwnedCoworkers() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkers({
+          client,
+          query: { scope: "owned" },
+          cache: "no-store",
+        }),
+      "Failed to fetch owned coworkers",
+    );
+  }
+
+  async function getCoworkerById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkersById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch coworker",
+    );
+  }
+
+  async function patchCoworker(
+    id: string,
+    body: NonNullable<PatchCoworkersByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchCoworkersById({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update coworker",
+    );
+  }
+
+  async function uploadCoworkerImage(id: string, file: Blob | File) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostCoworkersByIdImage({
+          client,
+          path: { id },
+          body: { file },
+          cache: "no-store",
+        }),
+      "Failed to upload coworker image",
+    );
+  }
+
+  async function deleteCoworkerImage(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteCoworkersByIdImage({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to remove coworker image",
+    );
+  }
+
+  async function patchCoworkerWhitelist(
+    id: string,
+    body: NonNullable<PatchCoworkersByIdWhitelistData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchCoworkersByIdWhitelist({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update coworker whitelist",
+    );
+  }
+
+  async function archiveCoworker(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteCoworkersById({
+          client,
+          path: { id },
+        }),
+      "Failed to archive coworker",
+    );
+  }
+
+  async function unarchiveCoworker(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostCoworkersByIdUnarchive({
+          client,
+          path: { id },
+        }),
+      "Failed to unarchive coworker",
+    );
+  }
+
   async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
     const response = await executeOperation(
       getClient,
@@ -3059,13 +3175,20 @@ export function createCoreClient(getClient: GetClient) {
     createAgentRating,
     getCategories,
     getCoworkers,
+    getOwnedCoworkers,
+    getCoworkerById,
+    patchCoworker,
+    patchCoworkerWhitelist,
+    archiveCoworker,
+    unarchiveCoworker,
+    uploadCoworkerImage,
+    deleteCoworkerImage,
     searchAdminUsers,
     listAdminUsers,
-    listOrchestrators,
-    getOrchestratorById,
-    patchOrchestratorById,
-    uploadOrchestratorImage,
-    deleteOrchestratorImage,
+    listAdminAgents,
+    getAdminAgent,
+    patchAdminAgentMetadataOverride,
+    deleteAdminAgentMetadataOverride,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,

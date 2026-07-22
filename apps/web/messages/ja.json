@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "管理",
-        "description": "組織と請求を管理するための内部ツール。",
+        "description": "アカウント、請求、カタログ、運用向けの内部ツール。",
+        "Groups": {
+          "accounts": "アカウント",
+          "billing": "請求と商用",
+          "catalog": "マーケットプレイスカタログ",
+          "operations": "運用"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "エンタープライズ契約",
@@ -2912,17 +2918,21 @@
             "title": "組織",
             "description": "メンバー、請求、クレジットを含む組織の検索可能な一覧。"
           },
+          "agents": {
+            "title": "エージェント",
+            "description": "マーケットプレイスの全エージェントを閲覧し、Sokosumi表示メタデータの上書きを管理します。"
+          },
           "tasks": {
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
           },
-          "orchestrators": {
-            "title": "オーケストレーター",
-            "description": "自社オーケストレーターの表示メタデータを編集します。"
-          },
           "freeCredits": {
             "title": "無料クレジット",
             "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "すべてのコワーカーの機能、優先度、ホワイトリスト、アーカイブ、表示メタデータを管理します。"
           }
         }
       },
@@ -3101,6 +3111,74 @@
           "openInStripe": "Stripe で開く"
         }
       },
+      "Agents": {
+        "title": "エージェント",
+        "description": "マーケットプレイスの全エージェントを閲覧し、Sokosumi表示メタデータの上書きを管理します。",
+        "AgentList": {
+          "searchPlaceholder": "名前またはブロックチェーン識別子で検索…",
+          "statusFilterLabel": "ステータス",
+          "filterAll": "すべて",
+          "filterOnline": "オンライン",
+          "filterOffline": "オフライン",
+          "filterDeregistered": "登録解除",
+          "filterInvalid": "無効",
+          "totalCount": "{count, plural, other {# 件のエージェント}}",
+          "filteredCount": "{total} 件中 {shown} 件を表示",
+          "empty": "エージェントが見つかりません。",
+          "emptyFilter": "選択したフィルターに一致するエージェントはありません。",
+          "displayName": "表示名",
+          "registryName": "レジストリ名",
+          "override": "上書き",
+          "hasOverride": "カスタマイズ済み",
+          "noOverride": "レジストリのみ",
+          "status": "ステータス",
+          "created": "作成日",
+          "actions": "操作",
+          "manage": "管理",
+          "loadMore": "さらに読み込む",
+          "loadError": "エージェントの読み込みに失敗しました。"
+        },
+        "AgentDetail": {
+          "subtitle": "レジストリフィールドは読み取り専用です。上書きフィールドはマーケットプレイスの表示を変更します。",
+          "backToList": "エージェント一覧に戻る",
+          "registryTitle": "レジストリ（読み取り専用）",
+          "registryName": "レジストリ名",
+          "registryDescription": "レジストリの説明",
+          "blockchainIdentifier": "ブロックチェーン識別子",
+          "overrideTitle": "Sokosumi 上書き",
+          "overrideDescription": "空欄のままにするとレジストリ値にフォールバックします。保存で上書きを適用し、すべてクリアで上書き行を削除します。",
+          "resolvedTitle": "解決済みプレビュー",
+          "emptyValue": "—",
+          "save": "上書きを保存",
+          "saveSuccess": "上書きを保存しました",
+          "saveError": "上書きの保存に失敗しました",
+          "clearAll": "すべての上書きをクリア",
+          "clearSuccess": "上書きを削除しました",
+          "clearError": "上書きの削除に失敗しました",
+          "examplesInvalid": "各例の行は name|mimeType|url 形式である必要があります",
+          "fields": {
+            "name": "名前",
+            "description": "説明",
+            "image": "画像 URL",
+            "apiBaseUrl": "API ベース URL",
+            "tags": "タグ",
+            "tagsPlaceholder": "カンマ区切りのタグ名",
+            "examples": "出力例",
+            "examplesPlaceholder": "1行に1件: name|mimeType|url",
+            "authorName": "作者名",
+            "authorImage": "作者画像 URL",
+            "authorContactEmail": "作者連絡先メール",
+            "authorContactOther": "作者その他連絡先",
+            "authorOrganization": "作者組織",
+            "legalPrivacyPolicy": "プライバシーポリシー URL",
+            "legalDpa": "DPAのURL",
+            "legalTerms": "利用規約 URL",
+            "legalOther": "その他法的 URL"
+          },
+          "hasOverride": "上書き行あり",
+          "noOverride": "レジストリ値のみ"
+        }
+      },
       "Tasks": {
         "title": "タスク",
         "description": "検索可能なすべてのタスクの一覧",
@@ -3121,68 +3199,93 @@
           "personalWorkspace": "個人ワークスペース"
         }
       },
-      "Orchestrators": {
-        "title": "オーケストレーター",
-        "description": "自社オーケストレーターの表示メタデータを管理します。",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, other {# 件のオーケストレーター}}",
-          "empty": "オーケストレーターが見つかりません。",
-          "orchestrator": "オーケストレーター",
-          "slug": "スラッグ",
-          "caption": "キャプション",
-          "emptyCaption": "—"
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "コワーカーの機能、優先度、ホワイトリスト、アーカイブ状態、表示メタデータを管理します。",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editDescription": "プラットフォーム制御とマーケットプレイス／プロダクトの表示項目を更新します。",
+        "Table": {
+          "name": "Name",
+          "slug": "Slug",
+          "status": "ステータス",
+          "active": "有効",
+          "archived": "アーカイブ済み",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "created": "作成日",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "コワーカーが見つかりません。",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "ステータス",
+          "filterAll": "すべて",
+          "filterActive": "有効",
+          "filterArchived": "アーカイブ済み",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "選択したフィルターに一致するコワーカーはありません。"
         },
-        "Detail": {
-          "title": "オーケストレーターを編集",
-          "backToList": "オーケストレーター一覧に戻る"
-        },
-        "EditForm": {
-          "submit": "変更を保存",
-          "submitting": "保存中…",
-          "image": {
-            "label": "画像",
-            "description": "PNG / JPEG / WebP / GIF（最大 2 MB）。",
-            "upload": "画像をアップロード",
-            "replace": "画像を差し替え",
-            "remove": "画像を削除",
-            "previewAlt": "オーケストレーター画像のプレビュー",
-            "fileTooLarge": "画像は 2 MB 以下にしてください。",
-            "fileTypeNotAccepted": "PNG、JPEG、WebP、GIF を使用してください。",
-            "maxFilesExceeded": "一度に 1 枚だけアップロードできます。",
-            "uploadError": "選択した画像を処理できませんでした。"
-          },
-          "fields": {
-            "name": {
-              "label": "名前",
-              "description": "オーケストレーターが表示されるすべての場所に使われます。"
+        "Form": {
+          "controls": {
+            "title": "プラットフォーム制御",
+            "description": "機能、優先度、ホワイトリスト、アーカイブ状態を管理します。",
+            "save": "制御を保存",
+            "saving": "制御を保存中…",
+            "archive": "アーカイブ",
+            "archiving": "アーカイブ中…",
+            "archiveConfirmTitle": "コワーカーをアーカイブしますか？",
+            "archiveConfirmDescription": "コワーカーがアーカイブされ、API キーが失効します。後で復元できますが、API キーは失効したままです。",
+            "unarchive": "復元",
+            "unarchiving": "復元中…",
+            "capabilities": {
+              "label": "機能",
+              "chat": "チャット",
+              "tasks": "タスク"
             },
-            "slug": {
-              "label": "スラッグ",
-              "description": "URL や API で使う読み取り専用の識別子です。"
+            "priority": {
+              "label": "優先度"
             },
-            "caption": {
-              "label": "キャプション",
-              "description": "名前の下に表示する短い文言。空にすると削除されます。"
-            },
-            "description": {
-              "label": "説明",
-              "description": "詳細画面向けの長い説明文。空にすると削除されます。"
+            "whitelist": {
+              "label": "ホワイトリスト",
+              "description": "ホワイトリスト登録のコワーカーは既定のマーケットプレイス範囲に表示されます。"
             }
           },
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "名前は {min} 文字以上にしてください。",
-            "noChanges": "保存する変更がありません。"
+            "priorityInteger": "優先度は整数である必要があります。",
+            "noControlChanges": "保存する制御の変更がありません。"
           },
           "success": {
-            "saved": "オーケストレーターを更新しました。",
-            "imageSaved": "画像を保存しました。",
-            "imageRemoved": "画像を削除しました。"
+            "controlsSaved": "コワーカーの制御を更新しました。",
+            "whitelistSaved": "ホワイトリスト状態を更新しました。",
+            "archived": "コワーカーをアーカイブしました。",
+            "unarchived": "コワーカーを復元しました。"
           },
           "errors": {
-            "saveFailed": "オーケストレーターを保存できませんでした。",
-            "notFound": "オーケストレーターが見つかりません。",
-            "imageSaveFailed": "画像の更新に失敗しました。"
+            "controlsSaveFailed": "コワーカーの制御を保存できませんでした。",
+            "whitelistSaveFailed": "ホワイトリスト状態を更新できませんでした。",
+            "archiveFailed": "コワーカーをアーカイブできませんでした。",
+            "unarchiveFailed": "コワーカーを復元できませんでした。",
+            "notFound": "Coworker not found."
           }
+        },
+        "Context": {
+          "title": "概要",
+          "description": "このコワーカーの識別情報とアーカイブ状態です。",
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "status": "ステータス",
+          "active": "有効",
+          "archived": "アーカイブ済み",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {
@@ -4043,7 +4146,8 @@
       "tabs": {
         "oauthClients": "OAuth クライアント",
         "apiKeys": "APIキー",
-        "docs": "ドキュメント"
+        "docs": "ドキュメント",
+        "coworkers": "コワーカー"
       },
       "Docs": {
         "title": "デベロッパー向けドキュメント",
@@ -4062,12 +4166,77 @@
             "description": "MCP 経由で AI クライアントを Sokosumi に接続します。"
           }
         }
+      },
+      "Coworkers": {
+        "title": "あなたのコワーカー",
+        "description": "所有するコワーカーの表示設定を管理します。",
+        "loadFailed": "コワーカーを読み込めませんでした。",
+        "backToList": "コワーカー一覧に戻る",
+        "editDescription": "Sokosumi でのこのコワーカーの表示を更新します。",
+        "errors": {
+          "notFound": "コワーカーが見つかりません。"
+        },
+        "List": {
+          "empty": "アクティブなコワーカーをまだ所有していません。",
+          "noCaption": "キャプションなし",
+          "edit": "編集"
+        },
+        "Metadata": {
+          "title": "コワーカーを編集",
+          "description": "所有するコワーカーの表示フィールドを編集"
+        }
       }
     },
     "Connections": {
       "tabs": {
         "connectedApps": "接続済みアプリ",
         "mcp": "MCP"
+      }
+    },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "表示",
+        "description": "Sokosumi でのこのコワーカーの表示を更新します。",
+        "fields": {
+          "name": {
+            "label": "名前"
+          },
+          "caption": {
+            "label": "キャプション"
+          },
+          "description": {
+            "label": "説明"
+          }
+        },
+        "image": {
+          "label": "画像",
+          "description": "PNG、JPEG、WebP、GIF（最大 2 MB）。",
+          "upload": "画像をアップロード",
+          "replace": "画像を置き換え",
+          "remove": "画像を削除",
+          "previewAlt": "コワーカー画像のプレビュー",
+          "fileTooLarge": "画像は 2 MB 以下である必要があります。",
+          "fileTypeNotAccepted": "PNG、JPEG、WebP、または GIF を使用してください。",
+          "maxFilesExceeded": "一度に 1 枚の画像をアップロードしてください。",
+          "uploadError": "選択した画像を処理できませんでした。"
+        },
+        "saveChanges": "表示を保存",
+        "saving": "保存中…",
+        "cancel": "キャンセル",
+        "validation": {
+          "nameMinLength": "名前は {min} 文字以上である必要があります。",
+          "noChanges": "保存する変更がありません。",
+          "captionMaxLength": "キャプションは {max} 文字以下である必要があります。"
+        },
+        "success": {
+          "saved": "コワーカーの表示を更新しました。",
+          "imageSaved": "画像を保存しました。",
+          "imageRemoved": "画像を削除しました。"
+        },
+        "errors": {
+          "saveFailed": "コワーカーの表示を保存できませんでした。",
+          "imageSaveFailed": "画像を更新できませんでした。"
+        }
       }
     }
   },

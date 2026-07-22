@@ -11,6 +11,7 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type OnChangeFn,
   type SortingState,
   useReactTable,
   type VisibilityState,
@@ -51,6 +52,9 @@ interface DataTableProps<TData, TValue> {
   showRowsPerPage?: boolean | undefined;
   initialPageSize?: number | undefined;
   defaultSort?: { id: string; desc: boolean }[];
+  manualSorting?: boolean | undefined;
+  sorting?: SortingState | undefined;
+  onSortingChange?: OnChangeFn<SortingState> | undefined;
   onRowClick?: (row: TData) => () => void | Promise<void>;
   rowClassName?: (row: TData) => string | undefined;
   // Optional grouping support: render headers inside tbody before first row of each group
@@ -71,6 +75,9 @@ export default function DataTable<TData, TValue>({
   showRowsPerPage = true,
   initialPageSize,
   defaultSort,
+  manualSorting = false,
+  sorting: controlledSorting,
+  onSortingChange,
   onRowClick,
   rowClassName,
   getGroupKey,
@@ -84,7 +91,11 @@ export default function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
-  const [sorting, setSorting] = React.useState<SortingState>(defaultSort ?? []);
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>(
+    defaultSort ?? [],
+  );
+  const sorting = controlledSorting ?? internalSorting;
+  const setSorting = onSortingChange ?? setInternalSorting;
 
   // TanStack Table's useReactTable returns functions that can't be memoized.
   // The "use no memo" directive above tells React Compiler to skip this component.
@@ -105,12 +116,13 @@ export default function DataTable<TData, TValue>({
     },
     enableRowSelection,
     onRowSelectionChange: setRowSelection,
+    manualSorting,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getSortedRowModel: manualSorting ? undefined : getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getPaginationRowModel: showPagination ? getPaginationRowModel() : undefined,

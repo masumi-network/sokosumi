@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createUserFileUploadSession,
-  deleteOrchestratorImageIfOwned,
+  deleteCoworkerImageIfOwned,
   listUserUploads,
+  uploadCoworkerImage,
   uploadGeneratedChatImage,
-  uploadOrchestratorImage,
   uploadProfileImage,
 } from "./blob";
 
@@ -304,29 +304,27 @@ describe("uploadGeneratedChatImage", () => {
   });
 });
 
-describe("uploadOrchestratorImage", () => {
+describe("uploadCoworkerImage", () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  it("uploads under the orchestrator prefix with a random suffix", async () => {
+  it("uploads under the coworker prefix with a random suffix", async () => {
     getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
     putMock.mockResolvedValue({
-      url: "https://blob.example/orchestrators/orch-1/image-logo-xyz.png",
+      url: "https://blob.example/coworkers/cow-1/image-logo-xyz.png",
     });
 
-    const url = await uploadOrchestratorImage({
-      orchestratorId: "orch-1",
+    const url = await uploadCoworkerImage({
+      coworkerId: "cow-1",
       bytes: Buffer.from("png-bytes"),
       contentType: "image/png",
       filename: "logo.png",
     });
 
-    expect(url).toBe(
-      "https://blob.example/orchestrators/orch-1/image-logo-xyz.png",
-    );
+    expect(url).toBe("https://blob.example/coworkers/cow-1/image-logo-xyz.png");
     expect(putMock).toHaveBeenCalledWith(
-      "orchestrators/orch-1/image-logo.png",
+      "coworkers/cow-1/image-logo.png",
       Buffer.from("png-bytes"),
       expect.objectContaining({
         access: "public",
@@ -340,18 +338,18 @@ describe("uploadOrchestratorImage", () => {
   it("uses the content-type extension when the filename extension differs", async () => {
     getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
     putMock.mockResolvedValue({
-      url: "https://blob.example/orchestrators/orch-1/image-logo-xyz.png",
+      url: "https://blob.example/coworkers/cow-1/image-logo-xyz.png",
     });
 
-    await uploadOrchestratorImage({
-      orchestratorId: "orch-1",
+    await uploadCoworkerImage({
+      coworkerId: "cow-1",
       bytes: Buffer.from("png-bytes"),
       contentType: "image/png",
       filename: "logo.jpg",
     });
 
     expect(putMock).toHaveBeenCalledWith(
-      "orchestrators/orch-1/image-logo.png",
+      "coworkers/cow-1/image-logo.png",
       Buffer.from("png-bytes"),
       expect.objectContaining({ contentType: "image/png" }),
     );
@@ -361,8 +359,8 @@ describe("uploadOrchestratorImage", () => {
     getEnvMock.mockReturnValue({});
 
     await expect(
-      uploadOrchestratorImage({
-        orchestratorId: "orch-1",
+      uploadCoworkerImage({
+        coworkerId: "cow-1",
         bytes: Buffer.from("png-bytes"),
         contentType: "image/png",
         filename: "logo.png",
@@ -372,19 +370,19 @@ describe("uploadOrchestratorImage", () => {
   });
 });
 
-describe("deleteOrchestratorImageIfOwned", () => {
+describe("deleteCoworkerImageIfOwned", () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  it("deletes owned orchestrator image URLs", async () => {
+  it("deletes owned coworker image URLs", async () => {
     getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
     delMock.mockResolvedValue(undefined);
 
     const url =
-      "https://abc.public.blob.vercel-storage.com/orchestrators/orch-1/image-logo-xyz.png";
+      "https://abc.public.blob.vercel-storage.com/coworkers/cow-1/image-logo-xyz.png";
 
-    await deleteOrchestratorImageIfOwned(url, "orch-1");
+    await deleteCoworkerImageIfOwned(url, "cow-1");
 
     expect(delMock).toHaveBeenCalledWith(url, { token: "rw_token" });
   });
@@ -392,15 +390,16 @@ describe("deleteOrchestratorImageIfOwned", () => {
   it("ignores foreign or invalid URLs", async () => {
     getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
 
-    await deleteOrchestratorImageIfOwned(
-      "https://example.com/evil.png",
-      "orch-1",
+    await deleteCoworkerImageIfOwned("https://example.com/evil.png", "cow-1");
+    await deleteCoworkerImageIfOwned(
+      "https://abc.public.blob.vercel-storage.com/coworkers/other/image.png",
+      "cow-1",
     );
-    await deleteOrchestratorImageIfOwned(
-      "https://abc.public.blob.vercel-storage.com/orchestrators/other/image.png",
-      "orch-1",
+    await deleteCoworkerImageIfOwned(
+      "https://abc.public.blob.vercel-storage.com/orchestrators/cow-1/image.png",
+      "cow-1",
     );
-    await deleteOrchestratorImageIfOwned(null, "orch-1");
+    await deleteCoworkerImageIfOwned(null, "cow-1");
 
     expect(delMock).not.toHaveBeenCalled();
   });
@@ -410,10 +409,10 @@ describe("deleteOrchestratorImageIfOwned", () => {
     delMock.mockRejectedValue(new Error("blob delete failed"));
 
     const url =
-      "https://abc.public.blob.vercel-storage.com/orchestrators/orch-1/image-logo-xyz.png";
+      "https://abc.public.blob.vercel-storage.com/coworkers/cow-1/image-logo-xyz.png";
 
     await expect(
-      deleteOrchestratorImageIfOwned(url, "orch-1"),
+      deleteCoworkerImageIfOwned(url, "cow-1"),
     ).resolves.toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalled();
   });

@@ -1,5 +1,9 @@
 import type { Prisma } from "../generated/prisma/client.js";
 
+export const agentMetadataOverrideScalarsInclude = {
+  metadataOverride: true,
+} as const;
+
 export const agentPricingInclude = {
   pricing: {
     include: { fixedPricing: { include: { amounts: true } } },
@@ -10,9 +14,28 @@ export const agentRatingInclude = {
   userAgentRating: true,
 } as const;
 
+/** Override row with tags + exampleOutputs (order matches marketplace merge). */
+export const agentMetadataOverrideRelationsInclude = {
+  metadataOverride: {
+    include: {
+      tags: {
+        orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
+      },
+      exampleOutputs: {
+        orderBy: [
+          { createdAt: "asc" },
+          { id: "asc" },
+        ] as Prisma.ExampleOutputOrderByWithRelationInput[],
+      },
+    },
+  },
+} as const;
+
 export const agentTagsInclude = {
-  tags: true,
-  overrideTags: true,
+  tags: {
+    orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
+  },
+  ...agentMetadataOverrideRelationsInclude,
 } as const;
 
 export const agentCategoriesInclude = {
@@ -20,8 +43,13 @@ export const agentCategoriesInclude = {
 } as const;
 
 export const agentExampleOutputInclude = {
-  exampleOutput: true,
-  overrideExampleOutput: true,
+  exampleOutput: {
+    orderBy: [
+      { createdAt: "asc" },
+      { id: "asc" },
+    ] as Prisma.ExampleOutputOrderByWithRelationInput[],
+  },
+  ...agentMetadataOverrideRelationsInclude,
 } as const;
 
 export const agentJobsInclude = {
@@ -85,4 +113,12 @@ export type AgentWithExampleOutput = Prisma.AgentGetPayload<{
 
 export type AgentWithJobs = Prisma.AgentGetPayload<{
   include: typeof agentJobsInclude;
+}>;
+
+export type AgentWithMetadataOverride = Prisma.AgentGetPayload<{
+  include: typeof agentMetadataOverrideScalarsInclude;
+}>;
+
+export type AgentWithMetadataOverrideDetail = Prisma.AgentGetPayload<{
+  include: typeof agentMetadataOverrideRelationsInclude;
 }>;

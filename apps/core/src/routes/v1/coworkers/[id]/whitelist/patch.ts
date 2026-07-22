@@ -8,6 +8,8 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
+
+import { buildCoworkerMutationWhere } from "../../coworker-management-access";
 import { patchCoworkerWhitelistRequestSchema } from "../../schema";
 import { paramsSchema } from "../schema";
 
@@ -42,13 +44,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { isWhitelisted } = c.req.valid("json");
+    const mutationWhere = buildCoworkerMutationWhere(id, true);
 
     const coworker = await prisma.$transaction(async (tx) => {
       const updatedCount = await tx.coworker.updateMany({
-        where: {
-          id,
-          archivedAt: null,
-        },
+        where: mutationWhere,
         data: {
           isWhitelisted,
         },
@@ -59,10 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const updatedCoworker = await tx.coworker.findFirst({
-        where: {
-          id,
-          archivedAt: null,
-        },
+        where: mutationWhere,
         include: coworkerInclude,
       });
 

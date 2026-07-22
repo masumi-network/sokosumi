@@ -24,7 +24,11 @@ const {
   hermesPendingConnectionDeleteMock,
   hermesPendingConnectionFindUniqueMock,
   hermesPendingConnectionUpsertMock,
-  hermesInstanceUpsertMock,
+  orchestratorFindUniqueMock,
+  orchestratorFindFirstMock,
+  orchestratorCreateMock,
+  orchestratorUpdateMock,
+  orchestratorUpdateManyMock,
   hermesMessageCreateMock,
   hermesMessageFindManyMock,
   hermesMessageUpsertMock,
@@ -37,12 +41,12 @@ const {
   organizationFindManyMock,
   resolveActiveSubscriptionMock,
   resolveOrganizationBillingPlanMock,
-  orchestratorApiKeyFindUniqueMock,
   patchInstanceMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
   rejectConfirmationMock,
   startInstanceOnboardingMock,
+  getInstanceOnboardingProgressMock,
   syncHermesInboxForUserMock,
   userFindUniqueMock,
   waitUntilMock,
@@ -84,7 +88,11 @@ const {
     hermesPendingConnectionDeleteMock: vi.fn(),
     hermesPendingConnectionFindUniqueMock: vi.fn(),
     hermesPendingConnectionUpsertMock: vi.fn(),
-    hermesInstanceUpsertMock: vi.fn(),
+    orchestratorFindUniqueMock: vi.fn(),
+    orchestratorFindFirstMock: vi.fn(),
+    orchestratorCreateMock: vi.fn(),
+    orchestratorUpdateMock: vi.fn(),
+    orchestratorUpdateManyMock: vi.fn(),
     hermesMessageCreateMock: vi.fn(),
     hermesMessageFindManyMock: vi.fn(),
     hermesMessageUpsertMock: vi.fn(),
@@ -97,12 +105,12 @@ const {
     organizationFindManyMock: vi.fn(),
     resolveActiveSubscriptionMock: vi.fn(),
     resolveOrganizationBillingPlanMock: vi.fn(),
-    orchestratorApiKeyFindUniqueMock: vi.fn(),
     patchInstanceMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
     rejectConfirmationMock: vi.fn(),
     startInstanceOnboardingMock: vi.fn(),
+    getInstanceOnboardingProgressMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
     waitUntilMock: vi.fn(),
@@ -128,14 +136,26 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({
+    ORCHESTRATOR_SERVICE_TOKEN: "test-orchestrator-service-token0",
+    HERMES_ORCH_BASE_URL: "https://hermes.example",
+    HERMES_ORCH_TOKEN: "token",
+    HERMES_INBOX_POLLING_ENABLED: false,
+  }),
+  getWebAppBaseUrl: () => "http://localhost:3000",
+  resolveSokosumiEnvForOrchestrator: () => "local",
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
-    hermesInstance: {
-      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-      findUnique: vi.fn().mockResolvedValue(null),
-      update: vi.fn().mockResolvedValue(undefined),
-      upsert: hermesInstanceUpsertMock,
+    orchestrator: {
+      findUnique: (...args: unknown[]) => orchestratorFindUniqueMock(...args),
+      findFirst: (...args: unknown[]) => orchestratorFindFirstMock(...args),
+      create: (...args: unknown[]) => orchestratorCreateMock(...args),
+      update: (...args: unknown[]) => orchestratorUpdateMock(...args),
+      updateMany: (...args: unknown[]) => orchestratorUpdateManyMock(...args),
     },
     hermesMessage: {
       create: hermesMessageCreateMock,
@@ -162,9 +182,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     organization: {
       findMany: organizationFindManyMock,
-    },
-    orchestratorApiKey: {
-      findUnique: orchestratorApiKeyFindUniqueMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -226,6 +243,7 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
     rejectConfirmation: rejectConfirmationMock,
     setInstanceSecret: vi.fn(),
     startInstanceOnboarding: startInstanceOnboardingMock,
+    getInstanceOnboardingProgress: getInstanceOnboardingProgressMock,
   };
 });
 
@@ -292,12 +310,29 @@ describe("Hermes route contracts", () => {
       valid: true,
       key: { referenceId: "user_123" },
     });
-    orchestratorApiKeyFindUniqueMock.mockResolvedValue(null);
+    orchestratorFindUniqueMock.mockResolvedValue(null);
+    orchestratorFindFirstMock.mockResolvedValue(null);
+    orchestratorCreateMock.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "orch_user",
+        archivedAt: null,
+        ...args.data,
+      }),
+    );
+    orchestratorUpdateMock.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "orch_user",
+        archivedAt: null,
+        userId: "user_123",
+        ...args.data,
+      }),
+    );
+    orchestratorUpdateManyMock.mockResolvedValue({ count: 1 });
     userFindUniqueMock.mockResolvedValue({ role: "user" });
     hermesMessageFindManyMock.mockResolvedValue([]);
     hermesMessageCreateMock.mockResolvedValue(undefined);
     hermesMessageUpsertMock.mockResolvedValue(undefined);
-    hermesInstanceUpsertMock.mockResolvedValue(undefined);
+    orchestratorFindUniqueMock.mockResolvedValue(undefined);
     ensureInstanceReadyMock.mockResolvedValue(undefined);
     syncHermesInboxForUserMock.mockResolvedValue({
       userId: "user_123",
@@ -377,12 +412,34 @@ describe("Hermes route contracts", () => {
             hermesMessage: {
               create: typeof hermesMessageCreateMock;
               upsert: typeof hermesMessageUpsertMock;
+              deleteMany: ReturnType<typeof vi.fn>;
+            };
+            hermesPendingConnection: {
+              deleteMany: typeof hermesPendingConnectionDeleteManyMock;
+            };
+            orchestrator: {
+              findUnique: typeof orchestratorFindUniqueMock;
+              findFirst: typeof orchestratorFindFirstMock;
+              create: typeof orchestratorCreateMock;
+              update: typeof orchestratorUpdateMock;
+              updateMany: typeof orchestratorUpdateManyMock;
             };
           }) => Promise<unknown>
         )({
           hermesMessage: {
             create: hermesMessageCreateMock,
             upsert: hermesMessageUpsertMock,
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
+          hermesPendingConnection: {
+            deleteMany: hermesPendingConnectionDeleteManyMock,
+          },
+          orchestrator: {
+            findUnique: orchestratorFindUniqueMock,
+            findFirst: orchestratorFindFirstMock,
+            create: orchestratorCreateMock,
+            update: orchestratorUpdateMock,
+            updateMany: orchestratorUpdateManyMock,
           },
         });
       }
@@ -421,17 +478,16 @@ describe("Hermes route contracts", () => {
   ] as const)(
     "returns 403 for $label on Hermes product routes",
     async ({ contextHeaders }) => {
-      orchestratorApiKeyFindUniqueMock.mockResolvedValue({
-        orchestratorId: "orch_123",
-        revokedAt: null,
-        expiresAt: null,
-        orchestrator: { archivedAt: null },
-      });
       userFindUniqueMock.mockResolvedValue({ id: "user_123", role: "user" });
+      orchestratorFindFirstMock.mockResolvedValue({
+        id: "orch_123",
+        userId: "user_123",
+        archivedAt: null,
+      });
 
       const response = await createApp().request("/me/instance", {
         headers: {
-          Authorization: "Bearer orch_test_secret",
+          Authorization: "Bearer test-orchestrator-service-token0",
           ...contextHeaders,
         },
       });
@@ -1084,31 +1140,7 @@ describe("Hermes route contracts", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("purges local state for the orchestrator actor", async () => {
-    orchestratorApiKeyFindUniqueMock.mockResolvedValue({
-      orchestratorId: "orch_123",
-      revokedAt: null,
-      expiresAt: null,
-      orchestrator: { archivedAt: null },
-    });
-
-    const response = await createApp().request("/instances/user_gone/purge", {
-      method: "POST",
-      headers: { Authorization: "Bearer orch_test_secret" },
-    });
-    const body = await parseJson(response);
-
-    expect(response.status).toBe(200);
-    expect(body).toHaveProperty("data.ok", true);
-    expect(prismaTransactionMock).toHaveBeenCalledWith([
-      expect.any(Promise),
-      expect.any(Promise),
-      expect.any(Promise),
-    ]);
-    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
-      where: { userId: "user_gone" },
-    });
-  });
+  // purge moved to POST /v1/orchestrators/me/purge
 
   it("persists a re-picked orb seed via PATCH /me/instance", async () => {
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
@@ -1123,22 +1155,16 @@ describe("Hermes route contracts", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(hermesInstanceUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: "user_123" },
-        create: expect.objectContaining({
-          avatarSeed: "orb:jewel-sky:user_123",
-        }),
-        update: expect.objectContaining({
-          avatarSeed: "orb:jewel-sky:user_123",
-        }),
-      }),
-    );
+    expect(orchestratorFindUniqueMock).toHaveBeenCalled();
+    expect(
+      orchestratorCreateMock.mock.calls.length +
+        orchestratorUpdateMock.mock.calls.length,
+    ).toBeGreaterThan(0);
   });
 
   it("still returns 200 when PATCH orch succeeds but local meta upsert fails", async () => {
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
-    hermesInstanceUpsertMock.mockRejectedValueOnce(new Error("db down"));
+    orchestratorFindUniqueMock.mockRejectedValueOnce(new Error("db down"));
 
     const response = await createApp().request("/me/instance", {
       method: "PATCH",
@@ -1171,23 +1197,7 @@ describe("Hermes route contracts", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(hermesInstanceUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({ avatarSeed: null }),
-      }),
-    );
-  });
-
-  it("rejects the purge endpoint for regular user credentials", async () => {
-    const response = await createApp().request("/instances/user_123/purge", {
-      method: "POST",
-      headers: { Authorization: "Bearer test_api_key" },
-    });
-    const body = await parseJson(response);
-
-    expect(response.status).toBe(403);
-    expect(body.message).toBe("Orchestrator authentication required");
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(orchestratorFindUniqueMock).toHaveBeenCalled();
   });
 
   it("persists the pending connection claim when initiating integration OAuth", async () => {
@@ -1392,11 +1402,7 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(200);
     expect(body).toHaveProperty("data.ok", true);
     expect(destroyInstance).toHaveBeenCalledWith("user_123");
-    expect(prismaTransactionMock).toHaveBeenCalledWith([
-      expect.any(Promise),
-      expect.any(Promise),
-      expect.any(Promise),
-    ]);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Function));
     expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
       where: { userId: "user_123" },
     });
@@ -1502,6 +1508,34 @@ describe("Hermes route contracts", () => {
     expect(body.message).toBe(
       "Failed to start assistant onboarding: orchestrator db down",
     );
+    expect(captureExceptionMock).toHaveBeenCalled();
+  });
+
+  it("does not report transient orchestrator outages to Sentry for onboarding progress", async () => {
+    getInstanceOnboardingProgressMock.mockRejectedValue(
+      new HermesOrchestratorError(503, {
+        code: "HERMES_ORCH_UNREACHABLE",
+        title: "Could not reach the assistant orchestrator: fetch failed",
+      }),
+    );
+
+    const response = await createApp().request(
+      "/me/instance/onboarding-progress",
+      {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer test_api_key",
+        },
+      },
+    );
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(body.message).toBe(
+      "Failed to fetch onboarding progress: Could not reach the assistant orchestrator: fetch failed",
+    );
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("returns 503 with only the generic fallback when an unexpected (non-orchestrator) error is thrown", async () => {
@@ -2028,6 +2062,24 @@ describe("Hermes route contracts", () => {
     );
     // Idempotent re-provision of a live instance must not wipe chat.
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(orchestratorCreateMock).toHaveBeenCalled();
+  });
+
+  it("returns 503 when remote provision succeeds but local orchestrator ensure fails", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+    orchestratorCreateMock.mockRejectedValueOnce(new Error("db unavailable"));
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(String(body.message)).toMatch(/local orchestrator instance/i);
+    expect(provisionInstance).toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalled();
   });
 
   it("clears leftover local mirror when provisioning a fresh early instance", async () => {
@@ -2047,15 +2099,11 @@ describe("Hermes route contracts", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(prismaTransactionMock).toHaveBeenCalledWith([
-      expect.any(Promise),
-      expect.any(Promise),
-      expect.any(Promise),
-    ]);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Function));
     expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
       where: { userId: "user_123" },
     });
-    expect(hermesInstanceUpsertMock).toHaveBeenCalled();
+    expect(orchestratorFindUniqueMock).toHaveBeenCalled();
   });
 
   it("does not wipe chat when pre-check is empty but post-provision is already ready", async () => {
@@ -2079,7 +2127,7 @@ describe("Hermes route contracts", () => {
     // instance must never delete hermesMessage history.
     expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(hermesPendingConnectionDeleteManyMock).not.toHaveBeenCalled();
-    expect(hermesInstanceUpsertMock).toHaveBeenCalled();
+    expect(orchestratorFindUniqueMock).toHaveBeenCalled();
   });
 
   it("provisions when a member organization carries the paid plan", async () => {

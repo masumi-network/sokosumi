@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "Administration",
-        "description": "Outils internes pour gérer les organisations et la facturation.",
+        "description": "Outils internes pour les comptes, la facturation, le catalogue et les opérations.",
+        "Groups": {
+          "accounts": "Comptes",
+          "billing": "Facturation et commercial",
+          "catalog": "Catalogue marketplace",
+          "operations": "Opérations"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Contrats entreprise",
@@ -2912,17 +2918,21 @@
             "title": "Organisations",
             "description": "Vue d'ensemble consultable des organisations avec membres, facturation et crédits."
           },
+          "agents": {
+            "title": "Agents",
+            "description": "Parcourez tous les agents du marketplace et gérez les remplacements de métadonnées d'affichage Sokosumi."
+          },
           "tasks": {
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
           },
-          "orchestrators": {
-            "title": "Orchestrateurs",
-            "description": "Modifier les métadonnées d'affichage des orchestrateurs internes."
-          },
           "freeCredits": {
             "title": "Crédits gratuits",
             "description": "Accordez des crédits gratuits directement à un utilisateur ou une organisation sans facture Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Gérez les capacités, la priorité, la liste blanche, l’archivage et les métadonnées d’affichage de tous les coworkers."
           }
         }
       },
@@ -3101,6 +3111,74 @@
           "openInStripe": "Ouvrir dans Stripe"
         }
       },
+      "Agents": {
+        "title": "Agents",
+        "description": "Parcourez tous les agents du marketplace et gérez les remplacements de métadonnées d'affichage Sokosumi.",
+        "AgentList": {
+          "searchPlaceholder": "Rechercher par nom ou identifiant blockchain…",
+          "statusFilterLabel": "Statut",
+          "filterAll": "Tous",
+          "filterOnline": "En ligne",
+          "filterOffline": "Hors ligne",
+          "filterDeregistered": "Désinscrit",
+          "filterInvalid": "Invalide",
+          "totalCount": "{count, plural, one {# agent} other {# agents}}",
+          "filteredCount": "Affichage de {shown} sur {total}",
+          "empty": "Aucun agent trouvé.",
+          "emptyFilter": "Aucun agent ne correspond au filtre sélectionné.",
+          "displayName": "Nom affiché",
+          "registryName": "Nom du registre",
+          "override": "Remplacement",
+          "hasOverride": "Personnalisé",
+          "noOverride": "Registre uniquement",
+          "status": "Statut",
+          "created": "Créé",
+          "actions": "Actions",
+          "manage": "Gérer",
+          "loadMore": "Charger plus",
+          "loadError": "Échec du chargement des agents."
+        },
+        "AgentDetail": {
+          "subtitle": "Les champs du registre sont en lecture seule. Les remplacements modifient l'affichage sur le marketplace.",
+          "backToList": "Retour aux agents",
+          "registryTitle": "Registre (lecture seule)",
+          "registryName": "Nom du registre",
+          "registryDescription": "Description du registre",
+          "blockchainIdentifier": "Identifiant blockchain",
+          "overrideTitle": "Remplacements Sokosumi",
+          "overrideDescription": "Laissez un champ vide pour utiliser la valeur du registre. Enregistrer applique les remplacements ; Tout effacer supprime la ligne de remplacement.",
+          "resolvedTitle": "Aperçu résolu",
+          "emptyValue": "—",
+          "save": "Enregistrer les remplacements",
+          "saveSuccess": "Remplacements enregistrés",
+          "saveError": "Échec de l'enregistrement des remplacements",
+          "clearAll": "Effacer tous les remplacements",
+          "clearSuccess": "Remplacements supprimés",
+          "clearError": "Échec de la suppression des remplacements",
+          "examplesInvalid": "Chaque ligne d'exemple doit être nom|mimeType|url",
+          "fields": {
+            "name": "Nom",
+            "description": "Description",
+            "image": "URL de l'image",
+            "apiBaseUrl": "URL de base de l'API",
+            "tags": "Étiquettes",
+            "tagsPlaceholder": "Noms de tags séparés par des virgules",
+            "examples": "Exemples de sorties",
+            "examplesPlaceholder": "Un par ligne : nom|mimeType|url",
+            "authorName": "Nom de l’auteur",
+            "authorImage": "URL d’image de l’auteur",
+            "authorContactEmail": "E-mail de contact de l’auteur",
+            "authorContactOther": "Autre contact de l’auteur",
+            "authorOrganization": "Organisation de l’auteur",
+            "legalPrivacyPolicy": "URL de confidentialité",
+            "legalDpa": "URL du DPA",
+            "legalTerms": "URL des conditions",
+            "legalOther": "Autre URL légale"
+          },
+          "hasOverride": "Ligne de remplacement présente",
+          "noOverride": "Valeurs du registre uniquement"
+        }
+      },
       "Tasks": {
         "title": "Tâches",
         "description": "Liste consultable de toutes les tâches",
@@ -3121,68 +3199,93 @@
           "personalWorkspace": "Espace de travail personnel"
         }
       },
-      "Orchestrators": {
-        "title": "Orchestrateurs",
-        "description": "Gérer les métadonnées d'affichage des orchestrateurs internes.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# orchestrateur} other {# orchestrateurs}}",
-          "empty": "Aucun orchestrateur trouvé.",
-          "orchestrator": "Orchestrateur",
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Gérez les capacités, la priorité, la liste blanche, l’archivage et les métadonnées d’affichage des coworkers.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editDescription": "Mettez à jour les contrôles plateforme et les champs d’affichage pour le marketplace et le produit.",
+        "Table": {
+          "name": "Name",
           "slug": "Slug",
-          "caption": "Légende",
-          "emptyCaption": "—"
+          "status": "Statut",
+          "active": "Actif",
+          "archived": "Archivé",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priorité",
+          "created": "Créé",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "Aucun coworker trouvé.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "Statut",
+          "filterAll": "Tous",
+          "filterActive": "Actifs",
+          "filterArchived": "Archivés",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "Aucun coworker ne correspond au filtre sélectionné."
         },
-        "Detail": {
-          "title": "Modifier l'orchestrateur",
-          "backToList": "Retour aux orchestrateurs"
-        },
-        "EditForm": {
-          "submit": "Enregistrer les modifications",
-          "submitting": "Enregistrement…",
-          "image": {
-            "label": "Image",
-            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo.",
-            "upload": "Téléverser une image",
-            "replace": "Remplacer l'image",
-            "remove": "Supprimer l'image",
-            "previewAlt": "Aperçu de l'image de l'orchestrateur",
-            "fileTooLarge": "L'image doit faire 2 Mo ou moins.",
-            "fileTypeNotAccepted": "Utilisez PNG, JPEG, WebP ou GIF.",
-            "maxFilesExceeded": "Téléversez une image à la fois.",
-            "uploadError": "Impossible de traiter l'image sélectionnée."
-          },
-          "fields": {
-            "name": {
-              "label": "Nom",
-              "description": "Affiché partout où l'orchestrateur apparaît."
+        "Form": {
+          "controls": {
+            "title": "Contrôles plateforme",
+            "description": "Gérez les capacités, la priorité, la liste blanche et l’archivage.",
+            "save": "Enregistrer les contrôles",
+            "saving": "Enregistrement des contrôles…",
+            "archive": "Archiver",
+            "archiving": "Archivage…",
+            "archiveConfirmTitle": "Archiver le coworker ?",
+            "archiveConfirmDescription": "Cela archive le coworker et révoque ses clés API. Vous pourrez le désarchiver plus tard, mais les clés API resteront révoquées.",
+            "unarchive": "Désarchiver",
+            "unarchiving": "Désarchivage…",
+            "capabilities": {
+              "label": "Capacités",
+              "chat": "Chat",
+              "tasks": "Tâches"
             },
-            "slug": {
-              "label": "Slug",
-              "description": "Identifiant en lecture seule utilisé dans les URL et les API."
+            "priority": {
+              "label": "Priorité"
             },
-            "caption": {
-              "label": "Légende",
-              "description": "Courte ligne sous le nom. Laissez vide pour effacer."
-            },
-            "description": {
-              "label": "Description",
-              "description": "Texte plus long pour les vues détaillées. Laissez vide pour effacer."
+            "whitelist": {
+              "label": "Liste blanche",
+              "description": "Les coworkers en liste blanche sont visibles dans la portée marketplace par défaut."
             }
           },
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "Le nom doit comporter au moins {min} caractères.",
-            "noChanges": "Aucune modification à enregistrer."
+            "priorityInteger": "La priorité doit être un nombre entier.",
+            "noControlChanges": "Aucun changement de contrôle à enregistrer."
           },
           "success": {
-            "saved": "Orchestrateur mis à jour.",
-            "imageSaved": "Image enregistrée.",
-            "imageRemoved": "Image supprimée."
+            "controlsSaved": "Contrôles du coworker mis à jour.",
+            "whitelistSaved": "Statut de liste blanche mis à jour.",
+            "archived": "Coworker archivé.",
+            "unarchived": "Coworker désarchivé."
           },
           "errors": {
-            "saveFailed": "Impossible d'enregistrer l'orchestrateur.",
-            "notFound": "Orchestrateur introuvable.",
-            "imageSaveFailed": "Échec de la mise à jour de l’image."
+            "controlsSaveFailed": "Impossible d’enregistrer les contrôles du coworker.",
+            "whitelistSaveFailed": "Impossible de mettre à jour le statut de liste blanche.",
+            "archiveFailed": "Impossible d’archiver le coworker.",
+            "unarchiveFailed": "Impossible de désarchiver le coworker.",
+            "notFound": "Coworker not found."
           }
+        },
+        "Context": {
+          "title": "Aperçu",
+          "description": "Identité et état d’archivage de ce coworker.",
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "status": "Statut",
+          "active": "Actif",
+          "archived": "Archivé",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {
@@ -4043,7 +4146,8 @@
       "tabs": {
         "oauthClients": "Clients OAuth",
         "apiKeys": "Clés API",
-        "docs": "Documentation"
+        "docs": "Documentation",
+        "coworkers": "Coworkers"
       },
       "Docs": {
         "title": "Documentation développeur",
@@ -4062,12 +4166,77 @@
             "description": "Connectez des clients IA à Sokosumi via MCP."
           }
         }
+      },
+      "Coworkers": {
+        "title": "Vos coworkers",
+        "description": "Gérez les paramètres d’affichage des coworkers que vous possédez.",
+        "loadFailed": "Échec du chargement de vos coworkers.",
+        "backToList": "Retour aux coworkers",
+        "editDescription": "Mettez à jour la façon dont ce coworker apparaît dans Sokosumi.",
+        "errors": {
+          "notFound": "Coworker introuvable."
+        },
+        "List": {
+          "empty": "Vous ne possédez encore aucun coworker actif.",
+          "noCaption": "Aucune légende",
+          "edit": "Modifier"
+        },
+        "Metadata": {
+          "title": "Modifier le coworker",
+          "description": "Modifier les champs d’affichage de vos coworkers"
+        }
       }
     },
     "Connections": {
       "tabs": {
         "connectedApps": "Applications connectées",
         "mcp": "MCP"
+      }
+    },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "Affichage",
+        "description": "Mettez à jour la façon dont ce coworker apparaît dans Sokosumi.",
+        "fields": {
+          "name": {
+            "label": "Nom"
+          },
+          "caption": {
+            "label": "Légende"
+          },
+          "description": {
+            "label": "Description"
+          }
+        },
+        "image": {
+          "label": "Image",
+          "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo.",
+          "upload": "Téléverser une image",
+          "replace": "Remplacer l’image",
+          "remove": "Supprimer l’image",
+          "previewAlt": "Aperçu de l’image du coworker",
+          "fileTooLarge": "L’image doit faire 2 Mo ou moins.",
+          "fileTypeNotAccepted": "Utilisez PNG, JPEG, WebP ou GIF.",
+          "maxFilesExceeded": "Téléversez une image à la fois.",
+          "uploadError": "Impossible de traiter l’image sélectionnée."
+        },
+        "saveChanges": "Enregistrer l’affichage",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "validation": {
+          "nameMinLength": "Le nom doit comporter au moins {min} caractères.",
+          "noChanges": "Aucune modification à enregistrer.",
+          "captionMaxLength": "La légende doit comporter au plus {max} caractères."
+        },
+        "success": {
+          "saved": "Affichage du coworker mis à jour.",
+          "imageSaved": "Image enregistrée.",
+          "imageRemoved": "Image supprimée."
+        },
+        "errors": {
+          "saveFailed": "Échec de l’enregistrement de l’affichage du coworker.",
+          "imageSaveFailed": "Échec de la mise à jour de l’image."
+        }
       }
     }
   },

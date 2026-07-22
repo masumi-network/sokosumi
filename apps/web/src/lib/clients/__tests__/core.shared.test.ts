@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCoreClient } from "@/lib/clients/core.shared";
-import { deleteAdminInvoice as coreDeleteAdminInvoice } from "@/lib/clients/generated/core";
+import {
+  deleteAdminInvoice as coreDeleteAdminInvoice,
+  getCoworkers as coreGetCoworkers,
+} from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
 vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
@@ -9,6 +12,7 @@ vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
   return {
     ...actual,
     deleteAdminInvoice: vi.fn(),
+    getCoworkers: vi.fn(),
   };
 });
 
@@ -22,5 +26,24 @@ describe("createCoreClient no-content responses", () => {
     const core = createCoreClient(async () => ({}) as Client);
 
     await expect(core.deleteAdminInvoice("in_1")).resolves.toBeUndefined();
+  });
+});
+
+describe("createCoreClient owned coworkers", () => {
+  it("requests owned scope with no-store caching", async () => {
+    vi.mocked(coreGetCoworkers).mockResolvedValue({
+      data: { data: [], meta: { timestamp: new Date(), requestId: "req_1" } },
+      response: { ok: true, status: 200 } as Response,
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await core.getOwnedCoworkers();
+
+    expect(coreGetCoworkers).toHaveBeenCalledWith({
+      client: {},
+      query: { scope: "owned" },
+      cache: "no-store",
+    });
   });
 });

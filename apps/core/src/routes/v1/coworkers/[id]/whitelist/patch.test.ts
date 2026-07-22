@@ -125,7 +125,6 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
       },
       data: {
         isWhitelisted: true,
@@ -163,10 +162,45 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
       },
       data: {
         isWhitelisted: false,
+      },
+    });
+  });
+
+  it("updates whitelist status for archived coworker", async () => {
+    const tx: TransactionMock = {
+      coworker: {
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
+        findFirst: coworkerFindFirstMock.mockResolvedValue(
+          createCoworkerRecord({
+            archivedAt: new Date("2026-03-01T00:00:00.000Z"),
+            isWhitelisted: true,
+          }),
+        ),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123/whitelist", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        isWhitelisted: true,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+      },
+      data: {
+        isWhitelisted: true,
       },
     });
   });

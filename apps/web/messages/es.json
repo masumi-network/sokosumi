@@ -2863,7 +2863,13 @@
       },
       "Overview": {
         "title": "Administración",
-        "description": "Herramientas internas para gestionar organizaciones y facturación.",
+        "description": "Herramientas internas para cuentas, facturación, catálogo y operaciones.",
+        "Groups": {
+          "accounts": "Cuentas",
+          "billing": "Facturación y comercial",
+          "catalog": "Catálogo del marketplace",
+          "operations": "Operaciones"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Contratos empresariales",
@@ -2881,17 +2887,21 @@
             "title": "Organizaciones",
             "description": "Resumen con búsqueda de organizaciones con miembros, facturación y créditos."
           },
+          "agents": {
+            "title": "Agentes",
+            "description": "Explora todos los agentes del marketplace y gestiona los overrides de metadatos de visualización de Sokosumi."
+          },
           "tasks": {
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           },
-          "orchestrators": {
-            "title": "Orquestadores",
-            "description": "Editar metadatos de presentación de orquestadores propios."
-          },
           "freeCredits": {
             "title": "Créditos gratuitos",
             "description": "Otorga créditos gratuitos directamente a un usuario u organización sin factura de Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Gestiona capacidades, prioridad, lista blanca, archivo y metadatos de visualización de todos los coworkers."
           }
         }
       },
@@ -3070,6 +3080,74 @@
           "openInStripe": "Abrir en Stripe"
         }
       },
+      "Agents": {
+        "title": "Agentes",
+        "description": "Explora todos los agentes del marketplace y gestiona los overrides de metadatos de visualización de Sokosumi.",
+        "AgentList": {
+          "searchPlaceholder": "Buscar por nombre o identificador blockchain…",
+          "statusFilterLabel": "Estado",
+          "filterAll": "Todos",
+          "filterOnline": "En línea",
+          "filterOffline": "Fuera de línea",
+          "filterDeregistered": "Dado de baja",
+          "filterInvalid": "No válido",
+          "totalCount": "{count, plural, one {# agente} other {# agentes}}",
+          "filteredCount": "Mostrando {shown} de {total}",
+          "empty": "No se encontraron agentes.",
+          "emptyFilter": "Ningún agente coincide con el filtro seleccionado.",
+          "displayName": "Nombre mostrado",
+          "registryName": "Nombre del registro",
+          "override": "Anulación",
+          "hasOverride": "Personalizado",
+          "noOverride": "Solo registro",
+          "status": "Estado",
+          "created": "Creado",
+          "actions": "Acciones",
+          "manage": "Gestionar",
+          "loadMore": "Cargar más",
+          "loadError": "No se pudieron cargar los agentes."
+        },
+        "AgentDetail": {
+          "subtitle": "Los campos del registro son de solo lectura. Los overrides cambian la visualización en el marketplace.",
+          "backToList": "Volver a agentes",
+          "registryTitle": "Registro (solo lectura)",
+          "registryName": "Nombre del registro",
+          "registryDescription": "Descripción del registro",
+          "blockchainIdentifier": "Identificador blockchain",
+          "overrideTitle": "Overrides de Sokosumi",
+          "overrideDescription": "Deja un campo vacío para usar el valor del registro. Guardar aplica overrides; Borrar todo elimina la fila de override.",
+          "resolvedTitle": "Vista previa resuelta",
+          "emptyValue": "—",
+          "save": "Guardar overrides",
+          "saveSuccess": "Overrides guardados",
+          "saveError": "No se pudieron guardar los overrides",
+          "clearAll": "Borrar todos los overrides",
+          "clearSuccess": "Overrides eliminados",
+          "clearError": "No se pudieron eliminar los overrides",
+          "examplesInvalid": "Cada línea de ejemplo debe ser nombre|mimeType|url",
+          "fields": {
+            "name": "Nombre",
+            "description": "Descripción",
+            "image": "URL de imagen",
+            "apiBaseUrl": "URL base de la API",
+            "tags": "Etiquetas",
+            "tagsPlaceholder": "Nombres de etiquetas separados por comas",
+            "examples": "Salidas de ejemplo",
+            "examplesPlaceholder": "Una por línea: nombre|mimeType|url",
+            "authorName": "Nombre del autor",
+            "authorImage": "URL de imagen del autor",
+            "authorContactEmail": "Email de contacto del autor",
+            "authorContactOther": "Otro contacto del autor",
+            "authorOrganization": "Organización del autor",
+            "legalPrivacyPolicy": "URL de privacidad",
+            "legalDpa": "URL del DPA",
+            "legalTerms": "URL de términos",
+            "legalOther": "Otra URL legal"
+          },
+          "hasOverride": "Fila de sobrescritura presente",
+          "noOverride": "Solo valores del registro"
+        }
+      },
       "Tasks": {
         "title": "Tareas",
         "description": "Lista de todas las tareas con búsqueda",
@@ -3090,68 +3168,93 @@
           "personalWorkspace": "Espacio de trabajo personal"
         }
       },
-      "Orchestrators": {
-        "title": "Orquestadores",
-        "description": "Gestionar metadatos de presentación de orquestadores propios.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# orquestador} other {# orquestadores}}",
-          "empty": "No se encontraron orquestadores.",
-          "orchestrator": "Orquestador",
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Gestiona capacidades, prioridad, lista blanca, estado de archivo y metadatos de visualización de los coworkers.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editDescription": "Actualiza los controles de plataforma y los campos de visualización del marketplace y el producto.",
+        "Table": {
+          "name": "Name",
           "slug": "Slug",
-          "caption": "Subtítulo",
-          "emptyCaption": "—"
+          "status": "Estado",
+          "active": "Activo",
+          "archived": "Archivado",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "created": "Creado",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "No se encontraron coworkers.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "Estado",
+          "filterAll": "Todos",
+          "filterActive": "Activos",
+          "filterArchived": "Archivados",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "Ningún coworker coincide con el filtro seleccionado."
         },
-        "Detail": {
-          "title": "Editar orquestador",
-          "backToList": "Volver a orquestadores"
-        },
-        "EditForm": {
-          "submit": "Guardar cambios",
-          "submitting": "Guardando…",
-          "image": {
-            "label": "Imagen",
-            "description": "PNG, JPEG, WebP o GIF de hasta 2 MB.",
-            "upload": "Subir imagen",
-            "replace": "Reemplazar imagen",
-            "remove": "Eliminar imagen",
-            "previewAlt": "Vista previa de la imagen del orquestador",
-            "fileTooLarge": "La imagen debe pesar 2 MB o menos.",
-            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
-            "maxFilesExceeded": "Sube una imagen a la vez.",
-            "uploadError": "No se pudo procesar la imagen seleccionada."
-          },
-          "fields": {
-            "name": {
-              "label": "Nombre",
-              "description": "Se muestra dondequiera que aparezca el orquestador."
+        "Form": {
+          "controls": {
+            "title": "Controles de plataforma",
+            "description": "Gestiona capacidades, prioridad, lista blanca y estado de archivo.",
+            "save": "Guardar controles",
+            "saving": "Guardando controles…",
+            "archive": "Archivar",
+            "archiving": "Archivando…",
+            "archiveConfirmTitle": "¿Archivar coworker?",
+            "archiveConfirmDescription": "Esto archiva el coworker y revoca sus claves API. Puedes desarchivarlo después, pero las claves API seguirán revocadas.",
+            "unarchive": "Desarchivar",
+            "unarchiving": "Desarchivando…",
+            "capabilities": {
+              "label": "Capacidades",
+              "chat": "Chat",
+              "tasks": "Tareas"
             },
-            "slug": {
-              "label": "Slug",
-              "description": "Identificador de solo lectura usado en URLs y APIs."
+            "priority": {
+              "label": "Prioridad"
             },
-            "caption": {
-              "label": "Subtítulo",
-              "description": "Línea breve bajo el nombre. Déjalo vacío para borrarlo."
-            },
-            "description": {
-              "label": "Descripción",
-              "description": "Texto más largo para vistas de detalle. Déjalo vacío para borrarlo."
+            "whitelist": {
+              "label": "Lista blanca",
+              "description": "Los coworkers en lista blanca son visibles en el alcance predeterminado del marketplace."
             }
           },
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "El nombre debe tener al menos {min} caracteres.",
-            "noChanges": "No hay cambios que guardar."
+            "priorityInteger": "La prioridad debe ser un número entero.",
+            "noControlChanges": "No hay cambios de control para guardar."
           },
           "success": {
-            "saved": "Orquestador actualizado.",
-            "imageSaved": "Imagen guardada.",
-            "imageRemoved": "Imagen eliminada."
+            "controlsSaved": "Controles del coworker actualizados.",
+            "whitelistSaved": "Estado de lista blanca actualizado.",
+            "archived": "Coworker archivado.",
+            "unarchived": "Coworker desarchivado."
           },
           "errors": {
-            "saveFailed": "No se pudo guardar el orquestador.",
-            "notFound": "Orquestador no encontrado.",
-            "imageSaveFailed": "No se pudo actualizar la imagen."
+            "controlsSaveFailed": "No se pudieron guardar los controles del coworker.",
+            "whitelistSaveFailed": "No se pudo actualizar el estado de lista blanca.",
+            "archiveFailed": "No se pudo archivar el coworker.",
+            "unarchiveFailed": "No se pudo desarchivar el coworker.",
+            "notFound": "Coworker not found."
           }
+        },
+        "Context": {
+          "title": "Resumen",
+          "description": "Identidad y estado de archivo de este coworker.",
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "status": "Estado",
+          "active": "Activo",
+          "archived": "Archivado",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {
@@ -4043,7 +4146,8 @@
       "tabs": {
         "oauthClients": "Clientes OAuth",
         "apiKeys": "API Keys",
-        "docs": "Documentación"
+        "docs": "Documentación",
+        "coworkers": "Coworkers"
       },
       "Docs": {
         "title": "Documentación para desarrolladores",
@@ -4062,12 +4166,77 @@
             "description": "Conecta clientes de IA a Sokosumi mediante MCP."
           }
         }
+      },
+      "Coworkers": {
+        "title": "Tus coworkers",
+        "description": "Gestiona la configuración de visualización de los coworkers que posees.",
+        "loadFailed": "No se pudieron cargar tus coworkers.",
+        "backToList": "Volver a coworkers",
+        "editDescription": "Actualiza cómo aparece este coworker en Sokosumi.",
+        "errors": {
+          "notFound": "Coworker no encontrado."
+        },
+        "List": {
+          "empty": "Aún no posees coworkers activos.",
+          "noCaption": "Sin subtítulo",
+          "edit": "Editar"
+        },
+        "Metadata": {
+          "title": "Editar coworker",
+          "description": "Editar los campos de visualización de tus coworkers"
+        }
       }
     },
     "Connections": {
       "tabs": {
         "connectedApps": "Apps conectadas",
         "mcp": "MCP"
+      }
+    },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "Visualización",
+        "description": "Actualiza cómo aparece este coworker en Sokosumi.",
+        "fields": {
+          "name": {
+            "label": "Nombre"
+          },
+          "caption": {
+            "label": "Subtítulo"
+          },
+          "description": {
+            "label": "Descripción"
+          }
+        },
+        "image": {
+          "label": "Imagen",
+          "description": "PNG, JPEG, WebP o GIF de hasta 2 MB.",
+          "upload": "Subir imagen",
+          "replace": "Reemplazar imagen",
+          "remove": "Eliminar imagen",
+          "previewAlt": "Vista previa de la imagen del coworker",
+          "fileTooLarge": "La imagen debe ser de 2 MB o menos.",
+          "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+          "maxFilesExceeded": "Sube una imagen a la vez.",
+          "uploadError": "No se pudo procesar la imagen seleccionada."
+        },
+        "saveChanges": "Guardar visualización",
+        "saving": "Guardando…",
+        "cancel": "Cancelar",
+        "validation": {
+          "nameMinLength": "El nombre debe tener al menos {min} caracteres.",
+          "noChanges": "No hay cambios para guardar.",
+          "captionMaxLength": "El subtítulo debe tener como máximo {max} caracteres."
+        },
+        "success": {
+          "saved": "Visualización del coworker actualizada.",
+          "imageSaved": "Imagen guardada.",
+          "imageRemoved": "Imagen eliminada."
+        },
+        "errors": {
+          "saveFailed": "No se pudo guardar la visualización del coworker.",
+          "imageSaveFailed": "No se pudo actualizar la imagen."
+        }
       }
     }
   },

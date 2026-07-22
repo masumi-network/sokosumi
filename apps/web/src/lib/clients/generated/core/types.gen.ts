@@ -4,11 +4,29 @@ export type ClientOptions = {
     baseUrl: `${string}://openapi-core.snapshot.json` | (string & {});
 };
 
-export type AdminUserOption = {
+export type AdminAgentList = Array<AdminAgentListItem>;
+
+export type AdminAgentListItem = {
     id: string;
-    name: string;
-    email: string;
+    blockchainIdentifier: string;
+    registryName: string;
+    hasOverride: boolean;
+    displayName: string;
+    displayImage: string | null;
+    status: AgentStatus;
+    isShown: boolean;
+    createdAt: Date;
+    updatedAt: Date;
 };
+
+export const AgentStatus = {
+    ONLINE: 'ONLINE',
+    OFFLINE: 'OFFLINE',
+    DEREGISTERED: 'DEREGISTERED',
+    INVALID: 'INVALID'
+} as const;
+
+export type AgentStatus = typeof AgentStatus[keyof typeof AgentStatus];
 
 export type PaginationMetadata = {
     /**
@@ -27,6 +45,103 @@ export type PaginationMetadata = {
      * Cursor for the next page
      */
     nextCursor: string | null;
+};
+
+export type AdminAgentDetail = {
+    registry: AdminAgentRegistry;
+    override: AdminAgentMetadataOverride;
+    resolved: {
+        name: string;
+        description: string | null;
+        image: string | null;
+        apiBaseUrl: string;
+        authorName: string | null;
+        authorImage: string | null;
+        authorContactEmail: string | null;
+        authorContactOther: string | null;
+        authorOrganization: string | null;
+        legalPrivacyPolicy: string | null;
+        legalDpa: string | null;
+        legalTerms: string | null;
+        legalOther: string | null;
+        tags: Array<string>;
+        exampleOutputs: Array<AdminAgentMetadataOverrideExample>;
+    };
+};
+
+export type AdminAgentRegistry = {
+    id: string;
+    blockchainIdentifier: string;
+    name: string;
+    description: string | null;
+    apiBaseUrl: string;
+    capabilityName: string | null;
+    capabilityVersion: string | null;
+    authorName: string | null;
+    authorImage: string | null;
+    authorContactEmail: string | null;
+    authorContactOther: string | null;
+    authorOrganization: string | null;
+    legalPrivacyPolicy: string | null;
+    legalDpa: string | null;
+    legalTerms: string | null;
+    legalOther: string | null;
+    image: string | null;
+    icon: string | null;
+    status: AgentStatus;
+    isShown: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AdminAgentMetadataOverride = {
+    name: string | null;
+    description: string | null;
+    apiBaseUrl: string | null;
+    capabilityName: string | null;
+    capabilityVersion: string | null;
+    authorName: string | null;
+    authorImage: string | null;
+    authorContactEmail: string | null;
+    authorContactOther: string | null;
+    authorOrganization: string | null;
+    legalPrivacyPolicy: string | null;
+    legalDpa: string | null;
+    legalTerms: string | null;
+    legalOther: string | null;
+    image: string | null;
+    tags: Array<string>;
+    exampleOutputs: Array<AdminAgentMetadataOverrideExample>;
+} | null;
+
+export type AdminAgentMetadataOverrideExample = {
+    name: string;
+    mimeType: string;
+    url: string;
+};
+
+export type PatchAdminAgentMetadataOverrideBody = {
+    name?: string | null;
+    description?: string | null;
+    apiBaseUrl?: string | null;
+    authorName?: string | null;
+    authorImage?: string | null;
+    authorContactEmail?: string | null;
+    authorContactOther?: string | null;
+    authorOrganization?: string | null;
+    legalPrivacyPolicy?: string | null;
+    legalDpa?: string | null;
+    legalTerms?: string | null;
+    legalOther?: string | null;
+    image?: string | null;
+    tags?: Array<string>;
+    exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
+};
+
+export type AdminUserOption = {
+    id: string;
+    name: string;
+    email: string;
 };
 
 export type AdminOrganizationOption = {
@@ -453,9 +568,7 @@ export type TaskCreatorOrchestrator = {
 
 export type OrchestratorSummary = {
     id: string;
-    name: string;
-    slug: string;
-    image: string | null;
+    name: string | null;
 };
 
 export type TaskEvent = {
@@ -510,9 +623,7 @@ export type TaskEvent = {
      */
     orchestrator?: {
         id: string;
-        name: string;
-        slug: string;
-        image: string | null;
+        name: string | null;
     } | null;
     transactionId?: string | null;
     credits?: number | null;
@@ -2955,36 +3066,6 @@ export type CreateCoworkerApiKeyResponse = {
     expiresAt: Date | null;
 };
 
-export type Orchestrator = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    archivedAt: Date | null;
-    slug: string;
-    name: string;
-    caption: string | null;
-    description: string | null;
-    image: string | null;
-};
-
-export type OrchestratorApiKey = {
-    id: string;
-    orchestratorId: string;
-    name: string | null;
-    keyStart: string;
-    expiresAt: Date | null;
-    revokedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-};
-
-export type CreateOrchestratorApiKeyResponse = {
-    id: string;
-    token: string;
-    name: string | null;
-    expiresAt: Date | null;
-};
-
 export type OrchestratorUsage = {
     id: string;
     createdAt: Date;
@@ -2993,9 +3074,17 @@ export type OrchestratorUsage = {
     referenceId: string | null;
     orchestratorId: string;
     userId: string;
-    organizationId: string | null;
     credits: number;
     transactionId: string;
+};
+
+export type OrchestratorPurgeResponse = {
+    purged: true;
+    userId: string;
+};
+
+export type OrchestratorPurgeRequest = {
+    userId: string;
 };
 
 export type TaskListItem = {
@@ -3216,6 +3305,326 @@ export type ContextUserId = string;
  * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
  */
 export type ContextOrganizationId = string;
+
+export type ListAdminAgentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Optional search on registry name, blockchain identifier, or override name
+         */
+        q?: string;
+        /**
+         * Filter agents by registry status (omit for all)
+         */
+        status?: AgentStatus & unknown;
+        /**
+         * Column to sort the admin agent list by
+         */
+        sortBy?: 'displayName' | 'registryName' | 'hasOverride' | 'status' | 'createdAt';
+        /**
+         * Sort direction for the admin agent list
+         */
+        sortOrder?: 'asc' | 'desc';
+    };
+    url: '/admin/agents';
+};
+
+export type ListAdminAgentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminAgentsError = ListAdminAgentsErrors[keyof ListAdminAgentsErrors];
+
+export type ListAdminAgentsResponses = {
+    /**
+     * Paginated list of agents for the admin console
+     */
+    200: {
+        data: AdminAgentList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminAgentsResponse = ListAdminAgentsResponses[keyof ListAdminAgentsResponses];
+
+export type GetAdminAgentData = {
+    body?: never;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/agents/{id}';
+};
+
+export type GetAdminAgentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAgentError = GetAdminAgentErrors[keyof GetAdminAgentErrors];
+
+export type GetAdminAgentResponses = {
+    /**
+     * Admin agent detail with registry and override data
+     */
+    200: {
+        data: AdminAgentDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAgentResponse = GetAdminAgentResponses[keyof GetAdminAgentResponses];
+
+export type DeleteAdminAgentMetadataOverrideData = {
+    body?: never;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/agents/{id}/metadata-override';
+};
+
+export type DeleteAdminAgentMetadataOverrideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminAgentMetadataOverrideError = DeleteAdminAgentMetadataOverrideErrors[keyof DeleteAdminAgentMetadataOverrideErrors];
+
+export type DeleteAdminAgentMetadataOverrideResponses = {
+    /**
+     * Agent detail after metadata override removal (idempotent when already absent)
+     */
+    200: {
+        data: AdminAgentDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteAdminAgentMetadataOverrideResponse = DeleteAdminAgentMetadataOverrideResponses[keyof DeleteAdminAgentMetadataOverrideResponses];
+
+export type PatchAdminAgentMetadataOverrideData = {
+    body?: PatchAdminAgentMetadataOverrideBody;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/agents/{id}/metadata-override';
+};
+
+export type PatchAdminAgentMetadataOverrideErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchAdminAgentMetadataOverrideError = PatchAdminAgentMetadataOverrideErrors[keyof PatchAdminAgentMetadataOverrideErrors];
+
+export type PatchAdminAgentMetadataOverrideResponses = {
+    /**
+     * Updated agent detail with metadata override
+     */
+    200: {
+        data: AdminAgentDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchAdminAgentMetadataOverrideResponse = PatchAdminAgentMetadataOverrideResponses[keyof PatchAdminAgentMetadataOverrideResponses];
 
 export type SearchAdminUsersData = {
     body?: never;
@@ -10937,92 +11346,6 @@ export type PostHermesMeInstanceResponses = {
 };
 
 export type PostHermesMeInstanceResponse = PostHermesMeInstanceResponses[keyof PostHermesMeInstanceResponses];
-
-export type PostHermesInstancesByUserIdPurgeData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator API key. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        userId: string;
-    };
-    query?: never;
-    url: '/hermes/instances/{userId}/purge';
-};
-
-export type PostHermesInstancesByUserIdPurgeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesInstancesByUserIdPurgeError = PostHermesInstancesByUserIdPurgeErrors[keyof PostHermesInstancesByUserIdPurgeErrors];
-
-export type PostHermesInstancesByUserIdPurgeResponses = {
-    /**
-     * local assistant state purged
-     */
-    200: {
-        data: HermesEmptyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesInstancesByUserIdPurgeResponse = PostHermesInstancesByUserIdPurgeResponses[keyof PostHermesInstancesByUserIdPurgeResponses];
 
 export type GetHermesMeMessagesData = {
     body?: never;
@@ -20646,9 +20969,9 @@ export type GetCoworkersData = {
     path?: never;
     query?: {
         /**
-         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers or 'archived' to include archived coworkers.
+         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers owned by the authenticated user (user-authenticated only; admins see only their own).
          */
-        scope?: 'all' | 'whitelisted' | 'archived';
+        scope?: 'all' | 'whitelisted' | 'archived' | 'owned';
         /**
          * Filter coworkers by capability. Supports repeated values and comma-separated lists. When multiple capabilities are provided, coworkers must support all of them.
          */
@@ -20662,6 +20985,20 @@ export type GetCoworkersErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
@@ -20716,7 +21053,6 @@ export type PostCoworkersData = {
          */
         baseURL?: string | null;
         description?: string | null;
-        image?: string | null;
         /**
          * Admin only. Higher numbers sort first in coworker lists.
          */
@@ -21499,7 +21835,6 @@ export type PatchCoworkersByIdData = {
          */
         baseURL?: string | null;
         description?: string | null;
-        image?: string | null;
         /**
          * Admin only. Higher numbers sort first in coworker lists.
          */
@@ -21580,18 +21915,16 @@ export type PatchCoworkersByIdResponses = {
 
 export type PatchCoworkersByIdResponse = PatchCoworkersByIdResponses[keyof PatchCoworkersByIdResponses];
 
-export type PatchCoworkersByIdWhitelistData = {
-    body?: {
-        isWhitelisted: boolean;
-    };
+export type DeleteCoworkersByIdImageData = {
+    body?: never;
     path: {
         id: string;
     };
     query?: never;
-    url: '/coworkers/{id}/whitelist';
+    url: '/coworkers/{id}/image';
 };
 
-export type PatchCoworkersByIdWhitelistErrors = {
+export type DeleteCoworkersByIdImageErrors = {
     /**
      * Unauthorized
      */
@@ -21636,11 +21969,11 @@ export type PatchCoworkersByIdWhitelistErrors = {
     };
 };
 
-export type PatchCoworkersByIdWhitelistError = PatchCoworkersByIdWhitelistErrors[keyof PatchCoworkersByIdWhitelistErrors];
+export type DeleteCoworkersByIdImageError = DeleteCoworkersByIdImageErrors[keyof DeleteCoworkersByIdImageErrors];
 
-export type PatchCoworkersByIdWhitelistResponses = {
+export type DeleteCoworkersByIdImageResponses = {
     /**
-     * Update coworker whitelist status
+     * Remove coworker image
      */
     200: {
         data: Coworker;
@@ -21652,991 +21985,12 @@ export type PatchCoworkersByIdWhitelistResponses = {
     };
 };
 
-export type PatchCoworkersByIdWhitelistResponse = PatchCoworkersByIdWhitelistResponses[keyof PatchCoworkersByIdWhitelistResponses];
+export type DeleteCoworkersByIdImageResponse = DeleteCoworkersByIdImageResponses[keyof DeleteCoworkersByIdImageResponses];
 
-export type GetOrchestratorsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Orchestrator visibility scope. Defaults to 'all' active orchestrators. Use 'archived' for archived rows.
-         */
-        scope?: 'all' | 'archived';
-    };
-    url: '/orchestrators';
-};
-
-export type GetOrchestratorsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetOrchestratorsError = GetOrchestratorsErrors[keyof GetOrchestratorsErrors];
-
-export type GetOrchestratorsResponses = {
-    /**
-     * Retrieve orchestrators
-     */
-    200: {
-        data: Array<Orchestrator>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetOrchestratorsResponse = GetOrchestratorsResponses[keyof GetOrchestratorsResponses];
-
-export type PostOrchestratorsData = {
-    body?: {
-        name: string;
-        slug: string;
-        caption?: string | null;
-        description?: string | null;
-    };
-    path?: never;
-    query?: never;
-    url: '/orchestrators';
-};
-
-export type PostOrchestratorsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostOrchestratorsError = PostOrchestratorsErrors[keyof PostOrchestratorsErrors];
-
-export type PostOrchestratorsResponses = {
-    /**
-     * Create orchestrator
-     */
-    201: {
-        data: Orchestrator;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostOrchestratorsResponse = PostOrchestratorsResponses[keyof PostOrchestratorsResponses];
-
-export type GetOrchestratorsMeData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/orchestrators/me';
-};
-
-export type GetOrchestratorsMeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetOrchestratorsMeError = GetOrchestratorsMeErrors[keyof GetOrchestratorsMeErrors];
-
-export type GetOrchestratorsMeResponses = {
-    /**
-     * Retrieve the current orchestrator
-     */
-    200: {
-        data: Orchestrator;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetOrchestratorsMeResponse = GetOrchestratorsMeResponses[keyof GetOrchestratorsMeResponses];
-
-export type GetOrchestratorsMeApiKeysData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/orchestrators/me/api-keys';
-};
-
-export type GetOrchestratorsMeApiKeysErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetOrchestratorsMeApiKeysError = GetOrchestratorsMeApiKeysErrors[keyof GetOrchestratorsMeApiKeysErrors];
-
-export type GetOrchestratorsMeApiKeysResponses = {
-    /**
-     * Retrieve orchestrator API keys
-     */
-    200: {
-        data: Array<OrchestratorApiKey>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetOrchestratorsMeApiKeysResponse = GetOrchestratorsMeApiKeysResponses[keyof GetOrchestratorsMeApiKeysResponses];
-
-export type PostOrchestratorsMeApiKeysData = {
-    body?: {
-        name?: string | null;
-        expiresAt?: Date | null;
-    };
-    path?: never;
-    query?: never;
-    url: '/orchestrators/me/api-keys';
-};
-
-export type PostOrchestratorsMeApiKeysErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostOrchestratorsMeApiKeysError = PostOrchestratorsMeApiKeysErrors[keyof PostOrchestratorsMeApiKeysErrors];
-
-export type PostOrchestratorsMeApiKeysResponses = {
-    /**
-     * Create orchestrator API key
-     */
-    201: {
-        data: CreateOrchestratorApiKeyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostOrchestratorsMeApiKeysResponse = PostOrchestratorsMeApiKeysResponses[keyof PostOrchestratorsMeApiKeysResponses];
-
-export type DeleteOrchestratorsMeApiKeysByKeyIdData = {
-    body?: never;
-    path: {
-        keyId: string;
-    };
-    query?: never;
-    url: '/orchestrators/me/api-keys/{keyId}';
-};
-
-export type DeleteOrchestratorsMeApiKeysByKeyIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteOrchestratorsMeApiKeysByKeyIdError = DeleteOrchestratorsMeApiKeysByKeyIdErrors[keyof DeleteOrchestratorsMeApiKeysByKeyIdErrors];
-
-export type DeleteOrchestratorsMeApiKeysByKeyIdResponses = {
-    /**
-     * Revoke orchestrator API key
-     */
-    200: {
-        data: OrchestratorApiKey;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteOrchestratorsMeApiKeysByKeyIdResponse = DeleteOrchestratorsMeApiKeysByKeyIdResponses[keyof DeleteOrchestratorsMeApiKeysByKeyIdResponses];
-
-export type PatchOrchestratorsMeApiKeysByKeyIdData = {
-    body?: {
-        name?: string | null;
-        expiresAt?: Date | null;
-    };
-    path: {
-        keyId: string;
-    };
-    query?: never;
-    url: '/orchestrators/me/api-keys/{keyId}';
-};
-
-export type PatchOrchestratorsMeApiKeysByKeyIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchOrchestratorsMeApiKeysByKeyIdError = PatchOrchestratorsMeApiKeysByKeyIdErrors[keyof PatchOrchestratorsMeApiKeysByKeyIdErrors];
-
-export type PatchOrchestratorsMeApiKeysByKeyIdResponses = {
-    /**
-     * Update orchestrator API key
-     */
-    200: {
-        data: OrchestratorApiKey;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchOrchestratorsMeApiKeysByKeyIdResponse = PatchOrchestratorsMeApiKeysByKeyIdResponses[keyof PatchOrchestratorsMeApiKeysByKeyIdResponses];
-
-export type PostOrchestratorsMeUsageData = {
-    body?: {
-        userId: string;
-        organizationId: string | null;
-        idempotencyKey: string;
-        credits: number;
-        referenceId?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/orchestrators/me/usage';
-};
-
-export type PostOrchestratorsMeUsageErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostOrchestratorsMeUsageError = PostOrchestratorsMeUsageErrors[keyof PostOrchestratorsMeUsageErrors];
-
-export type PostOrchestratorsMeUsageResponses = {
-    /**
-     * Retrieve usage
-     */
-    200: {
-        data: OrchestratorUsage;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-    /**
-     * Create usage
-     */
-    201: {
-        data: OrchestratorUsage;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostOrchestratorsMeUsageResponse = PostOrchestratorsMeUsageResponses[keyof PostOrchestratorsMeUsageResponses];
-
-export type GetOrchestratorsByIdApiKeysData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/orchestrators/{id}/api-keys';
-};
-
-export type GetOrchestratorsByIdApiKeysErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetOrchestratorsByIdApiKeysError = GetOrchestratorsByIdApiKeysErrors[keyof GetOrchestratorsByIdApiKeysErrors];
-
-export type GetOrchestratorsByIdApiKeysResponses = {
-    /**
-     * Retrieve orchestrator API keys
-     */
-    200: {
-        data: Array<OrchestratorApiKey>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetOrchestratorsByIdApiKeysResponse = GetOrchestratorsByIdApiKeysResponses[keyof GetOrchestratorsByIdApiKeysResponses];
-
-export type PostOrchestratorsByIdApiKeysData = {
-    body?: {
-        name?: string | null;
-        expiresAt?: Date | null;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/orchestrators/{id}/api-keys';
-};
-
-export type PostOrchestratorsByIdApiKeysErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostOrchestratorsByIdApiKeysError = PostOrchestratorsByIdApiKeysErrors[keyof PostOrchestratorsByIdApiKeysErrors];
-
-export type PostOrchestratorsByIdApiKeysResponses = {
-    /**
-     * Create orchestrator API key
-     */
-    201: {
-        data: CreateOrchestratorApiKeyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostOrchestratorsByIdApiKeysResponse = PostOrchestratorsByIdApiKeysResponses[keyof PostOrchestratorsByIdApiKeysResponses];
-
-export type DeleteOrchestratorsByIdApiKeysByKeyIdData = {
-    body?: never;
-    path: {
-        id: string;
-        keyId: string;
-    };
-    query?: never;
-    url: '/orchestrators/{id}/api-keys/{keyId}';
-};
-
-export type DeleteOrchestratorsByIdApiKeysByKeyIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteOrchestratorsByIdApiKeysByKeyIdError = DeleteOrchestratorsByIdApiKeysByKeyIdErrors[keyof DeleteOrchestratorsByIdApiKeysByKeyIdErrors];
-
-export type DeleteOrchestratorsByIdApiKeysByKeyIdResponses = {
-    /**
-     * Revoke orchestrator API key
-     */
-    200: {
-        data: OrchestratorApiKey;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteOrchestratorsByIdApiKeysByKeyIdResponse = DeleteOrchestratorsByIdApiKeysByKeyIdResponses[keyof DeleteOrchestratorsByIdApiKeysByKeyIdResponses];
-
-export type PatchOrchestratorsByIdApiKeysByKeyIdData = {
-    body?: {
-        name?: string | null;
-        expiresAt?: Date | null;
-    };
-    path: {
-        id: string;
-        keyId: string;
-    };
-    query?: never;
-    url: '/orchestrators/{id}/api-keys/{keyId}';
-};
-
-export type PatchOrchestratorsByIdApiKeysByKeyIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchOrchestratorsByIdApiKeysByKeyIdError = PatchOrchestratorsByIdApiKeysByKeyIdErrors[keyof PatchOrchestratorsByIdApiKeysByKeyIdErrors];
-
-export type PatchOrchestratorsByIdApiKeysByKeyIdResponses = {
-    /**
-     * Update orchestrator API key
-     */
-    200: {
-        data: OrchestratorApiKey;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchOrchestratorsByIdApiKeysByKeyIdResponse = PatchOrchestratorsByIdApiKeysByKeyIdResponses[keyof PatchOrchestratorsByIdApiKeysByKeyIdResponses];
-
-export type DeleteOrchestratorsByIdImageData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/orchestrators/{id}/image';
-};
-
-export type DeleteOrchestratorsByIdImageErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteOrchestratorsByIdImageError = DeleteOrchestratorsByIdImageErrors[keyof DeleteOrchestratorsByIdImageErrors];
-
-export type DeleteOrchestratorsByIdImageResponses = {
-    /**
-     * Remove orchestrator image
-     */
-    200: {
-        data: Orchestrator;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteOrchestratorsByIdImageResponse = DeleteOrchestratorsByIdImageResponses[keyof DeleteOrchestratorsByIdImageResponses];
-
-export type PostOrchestratorsByIdImageData = {
+export type PostCoworkersByIdImageData = {
     body: {
         /**
-         * Orchestrator image file (png, jpeg, webp, or gif; max 2 MB)
+         * Coworker image file (png, jpeg, webp, or gif; max 2 MB)
          */
         file?: Blob | File;
     };
@@ -22644,10 +21998,10 @@ export type PostOrchestratorsByIdImageData = {
         id: string;
     };
     query?: never;
-    url: '/orchestrators/{id}/image';
+    url: '/coworkers/{id}/image';
 };
 
-export type PostOrchestratorsByIdImageErrors = {
+export type PostCoworkersByIdImageErrors = {
     /**
      * Bad Request
      */
@@ -22734,14 +22088,14 @@ export type PostOrchestratorsByIdImageErrors = {
     };
 };
 
-export type PostOrchestratorsByIdImageError = PostOrchestratorsByIdImageErrors[keyof PostOrchestratorsByIdImageErrors];
+export type PostCoworkersByIdImageError = PostCoworkersByIdImageErrors[keyof PostCoworkersByIdImageErrors];
 
-export type PostOrchestratorsByIdImageResponses = {
+export type PostCoworkersByIdImageResponses = {
     /**
-     * Upload orchestrator image
+     * Upload coworker image
      */
     200: {
-        data: Orchestrator;
+        data: Coworker;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22750,167 +22104,181 @@ export type PostOrchestratorsByIdImageResponses = {
     };
 };
 
-export type PostOrchestratorsByIdImageResponse = PostOrchestratorsByIdImageResponses[keyof PostOrchestratorsByIdImageResponses];
+export type PostCoworkersByIdImageResponse = PostCoworkersByIdImageResponses[keyof PostCoworkersByIdImageResponses];
 
-export type DeleteOrchestratorsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/orchestrators/{id}';
-};
-
-export type DeleteOrchestratorsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteOrchestratorsByIdError = DeleteOrchestratorsByIdErrors[keyof DeleteOrchestratorsByIdErrors];
-
-export type DeleteOrchestratorsByIdResponses = {
-    /**
-     * Archive orchestrator
-     */
-    200: {
-        data: Orchestrator;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteOrchestratorsByIdResponse = DeleteOrchestratorsByIdResponses[keyof DeleteOrchestratorsByIdResponses];
-
-export type GetOrchestratorsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/orchestrators/{id}';
-};
-
-export type GetOrchestratorsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetOrchestratorsByIdError = GetOrchestratorsByIdErrors[keyof GetOrchestratorsByIdErrors];
-
-export type GetOrchestratorsByIdResponses = {
-    /**
-     * Retrieve orchestrator
-     */
-    200: {
-        data: Orchestrator;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetOrchestratorsByIdResponse = GetOrchestratorsByIdResponses[keyof GetOrchestratorsByIdResponses];
-
-export type PatchOrchestratorsByIdData = {
+export type PatchCoworkersByIdWhitelistData = {
     body?: {
-        name?: string;
-        slug?: string;
-        caption?: string | null;
-        description?: string | null;
+        isWhitelisted: boolean;
     };
     path: {
         id: string;
     };
     query?: never;
-    url: '/orchestrators/{id}';
+    url: '/coworkers/{id}/whitelist';
 };
 
-export type PatchOrchestratorsByIdErrors = {
+export type PatchCoworkersByIdWhitelistErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchCoworkersByIdWhitelistError = PatchCoworkersByIdWhitelistErrors[keyof PatchCoworkersByIdWhitelistErrors];
+
+export type PatchCoworkersByIdWhitelistResponses = {
+    /**
+     * Update coworker whitelist status
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchCoworkersByIdWhitelistResponse = PatchCoworkersByIdWhitelistResponses[keyof PatchCoworkersByIdWhitelistResponses];
+
+export type PostCoworkersByIdUnarchiveData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/unarchive';
+};
+
+export type PostCoworkersByIdUnarchiveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostCoworkersByIdUnarchiveError = PostCoworkersByIdUnarchiveErrors[keyof PostCoworkersByIdUnarchiveErrors];
+
+export type PostCoworkersByIdUnarchiveResponses = {
+    /**
+     * Unarchive coworker
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostCoworkersByIdUnarchiveResponse = PostCoworkersByIdUnarchiveResponses[keyof PostCoworkersByIdUnarchiveResponses];
+
+export type PostOrchestratorsMeUsageData = {
+    body?: {
+        userId: string;
+        idempotencyKey: string;
+        credits: number;
+        referenceId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/orchestrators/me/usage';
+};
+
+export type PostOrchestratorsMeUsageErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -22967,16 +22335,41 @@ export type PatchOrchestratorsByIdErrors = {
             method: string;
         };
     };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
-export type PatchOrchestratorsByIdError = PatchOrchestratorsByIdErrors[keyof PatchOrchestratorsByIdErrors];
+export type PostOrchestratorsMeUsageError = PostOrchestratorsMeUsageErrors[keyof PostOrchestratorsMeUsageErrors];
 
-export type PatchOrchestratorsByIdResponses = {
+export type PostOrchestratorsMeUsageResponses = {
     /**
-     * Update orchestrator
+     * Retrieve usage
      */
     200: {
-        data: Orchestrator;
+        data: OrchestratorUsage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Create usage
+     */
+    201: {
+        data: OrchestratorUsage;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22985,7 +22378,63 @@ export type PatchOrchestratorsByIdResponses = {
     };
 };
 
-export type PatchOrchestratorsByIdResponse = PatchOrchestratorsByIdResponses[keyof PatchOrchestratorsByIdResponses];
+export type PostOrchestratorsMeUsageResponse = PostOrchestratorsMeUsageResponses[keyof PostOrchestratorsMeUsageResponses];
+
+export type PostOrchestratorsMePurgeData = {
+    body?: OrchestratorPurgeRequest;
+    path?: never;
+    query?: never;
+    url: '/orchestrators/me/purge';
+};
+
+export type PostOrchestratorsMePurgeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrchestratorsMePurgeError = PostOrchestratorsMePurgeErrors[keyof PostOrchestratorsMePurgeErrors];
+
+export type PostOrchestratorsMePurgeResponses = {
+    /**
+     * local assistant state purged
+     */
+    200: {
+        data: OrchestratorPurgeResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrchestratorsMePurgeResponse = PostOrchestratorsMePurgeResponses[keyof PostOrchestratorsMePurgeResponses];
 
 export type GetTasksData = {
     body?: never;

@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import agentsRouter from "./agents/index.js";
 import creditsRouter from "./credits/index.js";
 import invoicesRouter from "./invoices/index.js";
 import organizationsRouter from "./organizations/index.js";
@@ -18,6 +19,7 @@ const requireAdmin = createMiddleware(async (c, next) => {
 const app = new OpenAPIHonoWithAuth();
 
 app.use("*", requireAdmin);
+app.route("/agents", agentsRouter);
 app.route("/search", searchRouter);
 app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);

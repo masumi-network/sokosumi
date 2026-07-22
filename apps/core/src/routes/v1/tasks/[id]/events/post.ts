@@ -22,12 +22,14 @@ import {
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import {
+  badRequest,
   conflict,
   errorResponseWithExtensionsSchema,
   unprocessableEntity,
 } from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   mapTaskEvent,
@@ -61,7 +63,30 @@ const paramsSchema = z.object({
   }),
 });
 
-function getStatusEventActorData(authContext: AuthenticationContext) {
+/**
+ * Orchestrator status/comment attribution uses only `orchestratorId`.
+ * Context userId is workspace scope, not a second actor FK.
+ * Fail closed when the service token has context but no active instance
+ * (same rule as task create). Re-reads at write time so concurrent purge
+ * cannot attribute via a stale middleware snapshot.
+ */
+async function getOrchestratorEventActorData(
+  authContext: AuthenticationContext,
+) {
+  if (!isOrchestratorAuthContext(authContext)) {
+    throw badRequest(
+      "Active orchestrator instance required (bind X-Context-User-Id)",
+    );
+  }
+
+  return {
+    userId: null,
+    coworkerId: null,
+    orchestratorId: await requireOrchestratorIdForAttribution(authContext),
+  };
+}
+
+async function getStatusEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
@@ -71,14 +96,7 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
   }
 
   if (isOrchestratorAuthContext(authContext)) {
-    // Attribute status events to the orchestrator only. Context userId is
-    // workspace context, not a second actor FK — keep a single FK so nested
-    // `actor` and deprecated flat summaries stay unambiguous.
-    return {
-      userId: null,
-      coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
-    };
+    return getOrchestratorEventActorData(authContext);
   }
 
   // Status transitions from a delegated coworker are attributed to the acting
@@ -90,7 +108,7 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
   };
 }
 
-function getCommentEventActorData(authContext: AuthenticationContext) {
+async function getCommentEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
@@ -100,11 +118,7 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
   }
 
   if (isOrchestratorAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
-    };
+    return getOrchestratorEventActorData(authContext);
   }
 
   // Coworker comments are shown by coworkerId in the UI; userId is not used.
@@ -524,10 +538,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         const actorData =
           status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
-            ? getStatusEventActorData(authContext)
+            ? await getStatusEventActorData(authContext)
             : credits != null || masumiPayment != null
               ? getCoworkerActorData(authContext)
-              : getCommentEventActorData(authContext);
+              : await getCommentEventActorData(authContext);
 
         const createdEvent = await tx.taskEvent.create({
           data: {

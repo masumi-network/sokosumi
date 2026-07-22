@@ -2894,7 +2894,13 @@
       },
       "Overview": {
         "title": "Amministrazione",
-        "description": "Strumenti interni per gestire organizzazioni e fatturazione.",
+        "description": "Strumenti interni per account, fatturazione, catalogo e operazioni.",
+        "Groups": {
+          "accounts": "Account",
+          "billing": "Fatturazione e commerciale",
+          "catalog": "Catalogo marketplace",
+          "operations": "Operazioni"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Contratti enterprise",
@@ -2912,17 +2918,21 @@
             "title": "Organizzazioni",
             "description": "Panoramica ricercabile delle organizzazioni con membri, fatturazione e crediti."
           },
+          "agents": {
+            "title": "Agenti",
+            "description": "Sfoglia tutti gli agenti del marketplace e gestisci gli override dei metadati di visualizzazione Sokosumi."
+          },
           "tasks": {
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
           },
-          "orchestrators": {
-            "title": "Orchestrator",
-            "description": "Modifica i metadati di visualizzazione degli orchestrator proprietari."
-          },
           "freeCredits": {
             "title": "Crediti gratuiti",
             "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
+          },
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Gestisci capacità, priorità, whitelist, archivio e metadati di visualizzazione per tutti i coworker."
           }
         }
       },
@@ -3101,6 +3111,74 @@
           "openInStripe": "Apri in Stripe"
         }
       },
+      "Agents": {
+        "title": "Agenti",
+        "description": "Sfoglia tutti gli agenti del marketplace e gestisci gli override dei metadati di visualizzazione Sokosumi.",
+        "AgentList": {
+          "searchPlaceholder": "Cerca per nome o identificatore blockchain…",
+          "statusFilterLabel": "Stato",
+          "filterAll": "Tutti",
+          "filterOnline": "Online",
+          "filterOffline": "Offline",
+          "filterDeregistered": "Deregistrato",
+          "filterInvalid": "Non valido",
+          "totalCount": "{count, plural, one {# agente} other {# agenti}}",
+          "filteredCount": "Visualizzati {shown} di {total}",
+          "empty": "Nessun agente trovato.",
+          "emptyFilter": "Nessun agente corrisponde al filtro selezionato.",
+          "displayName": "Nome visualizzato",
+          "registryName": "Nome registro",
+          "override": "Sovrascrittura",
+          "hasOverride": "Personalizzato",
+          "noOverride": "Solo registro",
+          "status": "Stato",
+          "created": "Creato",
+          "actions": "Azioni",
+          "manage": "Gestisci",
+          "loadMore": "Carica altri",
+          "loadError": "Impossibile caricare gli agenti."
+        },
+        "AgentDetail": {
+          "subtitle": "I campi del registro sono in sola lettura. Gli override modificano la visualizzazione nel marketplace.",
+          "backToList": "Torna agli agenti",
+          "registryTitle": "Registro (sola lettura)",
+          "registryName": "Nome registro",
+          "registryDescription": "Descrizione registro",
+          "blockchainIdentifier": "Identificatore blockchain",
+          "overrideTitle": "Override Sokosumi",
+          "overrideDescription": "Lascia un campo vuoto per usare il valore del registro. Salva applica gli override; Cancella tutto rimuove la riga di override.",
+          "resolvedTitle": "Anteprima risolta",
+          "emptyValue": "—",
+          "save": "Salva override",
+          "saveSuccess": "Override salvati",
+          "saveError": "Impossibile salvare gli override",
+          "clearAll": "Cancella tutti gli override",
+          "clearSuccess": "Override eliminati",
+          "clearError": "Impossibile eliminare gli override",
+          "examplesInvalid": "Ogni riga di esempio deve essere nome|mimeType|url",
+          "fields": {
+            "name": "Nome",
+            "description": "Descrizione",
+            "image": "URL immagine",
+            "apiBaseUrl": "URL base API",
+            "tags": "Tag",
+            "tagsPlaceholder": "Nomi tag separati da virgola",
+            "examples": "Output di esempio",
+            "examplesPlaceholder": "Uno per riga: nome|mimeType|url",
+            "authorName": "Nome autore",
+            "authorImage": "URL immagine autore",
+            "authorContactEmail": "Email di contatto autore",
+            "authorContactOther": "Altro contatto autore",
+            "authorOrganization": "Organizzazione autore",
+            "legalPrivacyPolicy": "URL privacy",
+            "legalDpa": "URL DPA",
+            "legalTerms": "URL termini",
+            "legalOther": "Altra URL legale"
+          },
+          "hasOverride": "Riga di override presente",
+          "noOverride": "Solo valori del registro"
+        }
+      },
       "Tasks": {
         "title": "Attività",
         "description": "Elenco ricercabile di tutte le attività",
@@ -3121,68 +3199,93 @@
           "personalWorkspace": "Spazio di lavoro personale"
         }
       },
-      "Orchestrators": {
-        "title": "Orchestrator",
-        "description": "Gestisci i metadati di visualizzazione degli orchestrator proprietari.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# orchestrator} other {# orchestrator}}",
-          "empty": "Nessun orchestrator trovato.",
-          "orchestrator": "Orchestrator",
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Gestisci capacità, priorità, whitelist, stato di archivio e metadati di visualizzazione dei coworker.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editDescription": "Aggiorna i controlli di piattaforma e i campi di visualizzazione per marketplace e prodotto.",
+        "Table": {
+          "name": "Name",
           "slug": "Slug",
-          "caption": "Didascalia",
-          "emptyCaption": "—"
+          "status": "Stato",
+          "active": "Attivo",
+          "archived": "Archiviato",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "created": "Creato",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "Nessun coworker trovato.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "Stato",
+          "filterAll": "Tutti",
+          "filterActive": "Attivi",
+          "filterArchived": "Archiviati",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "Nessun coworker corrisponde al filtro selezionato."
         },
-        "Detail": {
-          "title": "Modifica orchestrator",
-          "backToList": "Torna agli orchestrator"
-        },
-        "EditForm": {
-          "submit": "Salva modifiche",
-          "submitting": "Salvataggio…",
-          "image": {
-            "label": "Immagine",
-            "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
-            "upload": "Carica immagine",
-            "replace": "Sostituisci immagine",
-            "remove": "Rimuovi immagine",
-            "previewAlt": "Anteprima immagine orchestrator",
-            "fileTooLarge": "L'immagine deve essere di 2 MB o meno.",
-            "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
-            "maxFilesExceeded": "Carica un'immagine alla volta.",
-            "uploadError": "Impossibile elaborare l'immagine selezionata."
-          },
-          "fields": {
-            "name": {
-              "label": "Nome",
-              "description": "Mostrato ovunque compaia l'orchestrator."
+        "Form": {
+          "controls": {
+            "title": "Controlli piattaforma",
+            "description": "Gestisci capacità, priorità, whitelist e stato di archivio.",
+            "save": "Salva controlli",
+            "saving": "Salvataggio controlli…",
+            "archive": "Archivia",
+            "archiving": "Archiviazione…",
+            "archiveConfirmTitle": "Archiviare il coworker?",
+            "archiveConfirmDescription": "Questo archivia il coworker e revoca le sue chiavi API. Puoi ripristinarlo in seguito, ma le chiavi API restano revocate.",
+            "unarchive": "Ripristina",
+            "unarchiving": "Ripristino…",
+            "capabilities": {
+              "label": "Capacità",
+              "chat": "Chat",
+              "tasks": "Attività"
             },
-            "slug": {
-              "label": "Slug",
-              "description": "Identificatore di sola lettura usato in URL e API."
+            "priority": {
+              "label": "Priorità"
             },
-            "caption": {
-              "label": "Didascalia",
-              "description": "Breve riga sotto il nome. Lascia vuoto per cancellare."
-            },
-            "description": {
-              "label": "Descrizione",
-              "description": "Testo più lungo per le viste di dettaglio. Lascia vuoto per cancellare."
+            "whitelist": {
+              "label": "Whitelist",
+              "description": "I coworker in whitelist sono visibili nell’ambito predefinito del marketplace."
             }
           },
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
-            "noChanges": "Nessuna modifica da salvare."
+            "priorityInteger": "La priorità deve essere un numero intero.",
+            "noControlChanges": "Nessuna modifica ai controlli da salvare."
           },
           "success": {
-            "saved": "Orchestrator aggiornato.",
-            "imageSaved": "Immagine salvata.",
-            "imageRemoved": "Immagine rimossa."
+            "controlsSaved": "Controlli del coworker aggiornati.",
+            "whitelistSaved": "Stato whitelist aggiornato.",
+            "archived": "Coworker archiviato.",
+            "unarchived": "Coworker ripristinato."
           },
           "errors": {
-            "saveFailed": "Impossibile salvare l'orchestrator.",
-            "notFound": "Orchestrator non trovato.",
-            "imageSaveFailed": "Impossibile aggiornare l’immagine."
+            "controlsSaveFailed": "Impossibile salvare i controlli del coworker.",
+            "whitelistSaveFailed": "Impossibile aggiornare lo stato whitelist.",
+            "archiveFailed": "Impossibile archiviare il coworker.",
+            "unarchiveFailed": "Impossibile ripristinare il coworker.",
+            "notFound": "Coworker not found."
           }
+        },
+        "Context": {
+          "title": "Panoramica",
+          "description": "Identità e stato di archiviazione di questo coworker.",
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "status": "Stato",
+          "active": "Attivo",
+          "archived": "Archiviato",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
         }
       },
       "FreeCredits": {
@@ -4043,7 +4146,8 @@
       "tabs": {
         "oauthClients": "Client OAuth",
         "apiKeys": "Chiavi API",
-        "docs": "Documentazione"
+        "docs": "Documentazione",
+        "coworkers": "Coworkers"
       },
       "Docs": {
         "title": "Documentazione per sviluppatori",
@@ -4062,12 +4166,77 @@
             "description": "Collega client AI a Sokosumi tramite MCP."
           }
         }
+      },
+      "Coworkers": {
+        "title": "I tuoi coworker",
+        "description": "Gestisci le impostazioni di visualizzazione dei coworker che possiedi.",
+        "loadFailed": "Impossibile caricare i tuoi coworker.",
+        "backToList": "Torna ai coworker",
+        "editDescription": "Aggiorna come questo coworker appare in Sokosumi.",
+        "errors": {
+          "notFound": "Coworker non trovato."
+        },
+        "List": {
+          "empty": "Non possiedi ancora coworker attivi.",
+          "noCaption": "Nessuna didascalia",
+          "edit": "Modifica"
+        },
+        "Metadata": {
+          "title": "Modifica coworker",
+          "description": "Modifica i campi di visualizzazione dei tuoi coworker"
+        }
       }
     },
     "Connections": {
       "tabs": {
         "connectedApps": "App connesse",
         "mcp": "MCP"
+      }
+    },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "Visualizzazione",
+        "description": "Aggiorna come questo coworker appare in Sokosumi.",
+        "fields": {
+          "name": {
+            "label": "Nome"
+          },
+          "caption": {
+            "label": "Didascalia"
+          },
+          "description": {
+            "label": "Descrizione"
+          }
+        },
+        "image": {
+          "label": "Immagine",
+          "description": "PNG, JPEG, WebP o GIF fino a 2 MB.",
+          "upload": "Carica immagine",
+          "replace": "Sostituisci immagine",
+          "remove": "Rimuovi immagine",
+          "previewAlt": "Anteprima immagine coworker",
+          "fileTooLarge": "L’immagine deve essere di 2 MB o meno.",
+          "fileTypeNotAccepted": "Usa PNG, JPEG, WebP o GIF.",
+          "maxFilesExceeded": "Carica un’immagine alla volta.",
+          "uploadError": "Impossibile elaborare l’immagine selezionata."
+        },
+        "saveChanges": "Salva visualizzazione",
+        "saving": "Salvataggio…",
+        "cancel": "Annulla",
+        "validation": {
+          "nameMinLength": "Il nome deve avere almeno {min} caratteri.",
+          "noChanges": "Nessuna modifica da salvare.",
+          "captionMaxLength": "La didascalia deve avere al massimo {max} caratteri."
+        },
+        "success": {
+          "saved": "Visualizzazione del coworker aggiornata.",
+          "imageSaved": "Immagine salvata.",
+          "imageRemoved": "Immagine rimossa."
+        },
+        "errors": {
+          "saveFailed": "Impossibile salvare la visualizzazione del coworker.",
+          "imageSaveFailed": "Impossibile aggiornare l’immagine."
+        }
       }
     }
   },

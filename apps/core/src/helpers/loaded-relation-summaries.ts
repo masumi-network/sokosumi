@@ -94,9 +94,7 @@ export function coworkerSummaryFromLoadedRelation(
 
 interface OrchestratorSummaryFields {
   id: string;
-  name: string;
-  slug: string;
-  image: string | null;
+  name: string | null;
 }
 
 /**
@@ -121,7 +119,5 @@ export function orchestratorSummaryFromLoadedRelation(
   return {
     id: orchestrator.id,
     name: orchestrator.name,
-    slug: orchestrator.slug,
-    image: orchestrator.image,
   };
 }

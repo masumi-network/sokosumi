@@ -15,6 +15,7 @@ import {
   jsonErrorResponse,
   jsonSuccessResponse,
 } from "@/helpers/openapi";
+import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -158,13 +159,14 @@ async function assertTaskProjectInWorkspace(
   }
 }
 
-function resolveTaskCreatorFields(
+async function resolveTaskCreatorFields(
   authContext: AuthenticationContext,
   ownerId: string,
 ) {
   if (isOrchestratorAuthContext(authContext)) {
     return {
-      creatorOrchestratorId: authContext.orchestratorId,
+      creatorOrchestratorId:
+        await requireOrchestratorIdForAttribution(authContext),
       creatorUserId: null,
       creatorCoworkerId: null,
     };
@@ -185,7 +187,7 @@ function resolveTaskCreatorFields(
   };
 }
 
-function resolveInitialTaskEventActor(
+async function resolveInitialTaskEventActor(
   authContext: AuthenticationContext,
   ownerId: string,
 ) {
@@ -193,7 +195,7 @@ function resolveInitialTaskEventActor(
     return {
       userId: null,
       coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
+      orchestratorId: await requireOrchestratorIdForAttribution(authContext),
     };
   }
 
@@ -241,6 +243,11 @@ async function createTaskRecord(
   const isGrantPending = pendingVendorGrantId != null;
   const status = isGrantPending ? TaskStatus.GRANT_PENDING : body.status;
   const initialEventStatus = status;
+  const creatorFields = await resolveTaskCreatorFields(authContext, ownerId);
+  const initialEventActor = await resolveInitialTaskEventActor(
+    authContext,
+    ownerId,
+  );
 
   return tx.task.create({
     data: {
@@ -251,7 +258,7 @@ async function createTaskRecord(
       name: resolvedName,
       description: body.description ?? null,
       assigneeId: body.assigneeId ?? null,
-      ...resolveTaskCreatorFields(authContext, ownerId),
+      ...creatorFields,
       status,
       grantResumeStatus: isGrantPending ? grantResumeStatus : null,
       metadata: null,
@@ -262,7 +269,7 @@ async function createTaskRecord(
           status: initialEventStatus,
           comment: null,
           channel: body.channel,
-          ...resolveInitialTaskEventActor(authContext, ownerId),
+          ...initialEventActor,
         },
       },
     },

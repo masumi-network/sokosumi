@@ -227,4 +227,79 @@ describe("GET /coworkers", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindManyMock).toHaveBeenCalled();
   });
+
+  it("returns active coworkers owned by the authenticated user via scope=owned", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+      role: "user",
+    });
+    const response = await app.request("http://localhost/?scope=owned");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        userId: "user_123",
+      },
+      orderBy: expectedOrderBy,
+      include: coworkerInclude,
+    });
+  });
+
+  it("scopes owned coworkers to the admin session user id", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp({
+      actor: "user",
+      userId: "admin_456",
+      organizationId: null,
+      role: "admin",
+    });
+    const response = await app.request("http://localhost/?scope=owned");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        userId: "admin_456",
+      },
+      orderBy: expectedOrderBy,
+      include: coworkerInclude,
+    });
+  });
+
+  it("rejects coworker actors for scope=owned with 403", async () => {
+    const app = createApp(coworkerAuth);
+
+    const response = await app.request("http://localhost/?scope=owned");
+
+    expect(response.status).toBe(403);
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("composes owned scope with capability filters", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?scope=owned&capability=tasks",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        userId: "user_123",
+        capabilities: {
+          hasEvery: ["tasks"],
+        },
+      },
+      orderBy: expectedOrderBy,
+      include: coworkerInclude,
+    });
+  });
 });

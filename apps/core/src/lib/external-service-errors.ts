@@ -83,7 +83,9 @@ export function isTransientPrismaError(error: unknown): boolean {
  */
 export function isSchemaDriftPrismaError(error: unknown): boolean {
   const code = getPrismaErrorCode(error);
-  if (code === "P2022") {
+  // P2021: table missing; P2022: column missing — both appear when migrate
+  // deploy runs before the matching app release is fully promoted.
+  if (code === "P2021" || code === "P2022") {
     return true;
   }
 

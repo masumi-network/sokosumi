@@ -10,7 +10,7 @@ import {
   getResultHash,
   isJobStatusSettled,
 } from "@sokosumi/database/helpers";
-
+import { getJobDetailsAgentOverrideFields } from "@/helpers/agent";
 import {
   organizationSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
@@ -111,18 +111,13 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     agent: {
       id: job.agent.id,
       name: job.agent.name,
-      overrideName: job.agent.overrideName,
+      ...getJobDetailsAgentOverrideFields(job.agent),
       icon: job.agent.icon,
       image: job.agent.image,
-      overrideImage: job.agent.overrideImage,
       legalPrivacyPolicy: job.agent.legalPrivacyPolicy,
-      overrideLegalPrivacyPolicy: job.agent.overrideLegalPrivacyPolicy,
       legalTerms: job.agent.legalTerms,
-      overrideLegalTerms: job.agent.overrideLegalTerms,
       legalDpa: job.agent.legalDpa,
-      overrideLegalDpa: job.agent.overrideLegalDpa,
       legalOther: job.agent.legalOther,
-      overrideLegalOther: job.agent.overrideLegalOther,
     },
     events: job.events.map((event) => ({
       id: event.id,

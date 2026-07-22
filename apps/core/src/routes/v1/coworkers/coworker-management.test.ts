@@ -410,14 +410,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(body.data.metadata).toEqual(metadata);
   });
 
-  it("ignores request isWhitelisted and persists false by default", async () => {
-    const tx = createTransactionMock({
-      findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
-      create: coworkerCreateMock.mockResolvedValue(createCoworkerRecord()),
-    });
-
-    mockTransaction(tx);
-
+  it("rejects isWhitelisted on create (use whitelist endpoint)", async () => {
     const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -431,14 +424,8 @@ describe("coworker management CRUD endpoints", () => {
       }),
     });
 
-    expect(response.status).toBe(201);
-    expect(coworkerCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          isWhitelisted: false,
-        }),
-      }),
-    );
+    expect(response.status).toBe(400);
+    expect(coworkerCreateMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when create hits a slug unique race (P2002)", async () => {
@@ -754,6 +741,65 @@ describe("coworker management CRUD endpoints", () => {
     expect(body.data.priority).toBe(10);
   });
 
+  it("allows admin to update archived coworker", async () => {
+    const archivedAt = new Date("2026-03-01T00:00:00.000Z");
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock,
+        findFirst: coworkerFindFirstTxMock
+          .mockResolvedValueOnce(
+            createCoworkerRecord({
+              archivedAt,
+              capabilities: ["chat"],
+            }),
+          )
+          .mockResolvedValueOnce(
+            createCoworkerRecord({
+              archivedAt,
+              capabilities: ["chat", "tasks"],
+            }),
+          ),
+        create: coworkerCreateMock,
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      userId: "admin_123",
+      role: "admin",
+    });
+    const response = await app.request("http://localhost/cow_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        capabilities: ["chat", "tasks"],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindFirstAuthMock).not.toHaveBeenCalled();
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "cow_123",
+        },
+        data: expect.objectContaining({
+          capabilities: ["chat", "tasks"],
+        }),
+      }),
+    );
+  });
+
   it("rejects priority updates for non-admin owner", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/cow_123", {
@@ -870,7 +916,6 @@ describe("coworker management CRUD endpoints", () => {
       expect.objectContaining({
         where: {
           id: "cow_123",
-          archivedAt: null,
         },
         data: expect.objectContaining({
           name: "Updated by admin",

@@ -117,7 +117,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   blockchainIdentifier: true,
                   name: true,
                   apiBaseUrl: true,
-                  overrideApiBaseUrl: true,
+                  metadataOverride: {
+                    select: {
+                      apiBaseUrl: true,
+                    },
+                  },
                 },
               },
             },

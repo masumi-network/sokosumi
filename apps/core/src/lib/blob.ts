@@ -2,10 +2,10 @@ import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
 import {
-  buildOrchestratorImagePathname,
+  buildCoworkerImagePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
-  isOwnedOrchestratorImageUrl,
+  isOwnedCoworkerImageUrl,
 } from "@sokosumi/utils";
 import { del, list, put } from "@vercel/blob";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
@@ -275,11 +275,11 @@ export async function uploadGeneratedChatImage(params: {
 }
 
 /**
- * Upload an orchestrator image to Vercel Blob (public, random suffix).
+ * Upload a coworker image to Vercel Blob (public, random suffix).
  * Returns the public URL, or null when blob storage is not configured / put fails.
  */
-export async function uploadOrchestratorImage(params: {
-  orchestratorId: string;
+export async function uploadCoworkerImage(params: {
+  coworkerId: string;
   bytes: ArrayBuffer | Buffer | Blob;
   contentType: string;
   filename: string;
@@ -287,13 +287,13 @@ export async function uploadOrchestratorImage(params: {
   const env = getEnv();
   if (!env.BLOB_READ_WRITE_TOKEN) {
     console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping orchestrator image upload",
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping coworker image upload",
     );
     return null;
   }
 
-  const pathname = buildOrchestratorImagePathname(
-    params.orchestratorId,
+  const pathname = buildCoworkerImagePathname(
+    params.coworkerId,
     params.filename,
     params.contentType,
   );
@@ -309,7 +309,7 @@ export async function uploadOrchestratorImage(params: {
   } catch (error) {
     Sentry.captureException(error, {
       tags: {
-        function: "uploadOrchestratorImage",
+        function: "uploadCoworkerImage",
       },
     });
     return null;
@@ -317,15 +317,15 @@ export async function uploadOrchestratorImage(params: {
 }
 
 /**
- * Best-effort delete of a previous orchestrator image when the URL is owned by
- * that orchestrator (pathname under `orchestrators/{id}/`). Foreign / invalid
- * URLs are ignored.
+ * Best-effort delete of a previous coworker image when the URL is owned by
+ * that coworker (pathname under `coworkers/{id}/`). Foreign / invalid URLs are
+ * ignored.
  */
-export async function deleteOrchestratorImageIfOwned(
+export async function deleteCoworkerImageIfOwned(
   url: string | null | undefined,
-  orchestratorId: string,
+  coworkerId: string,
 ): Promise<void> {
-  if (!url || !isOwnedOrchestratorImageUrl(url, orchestratorId)) {
+  if (!url || !isOwnedCoworkerImageUrl(url, coworkerId)) {
     return;
   }
 
@@ -339,10 +339,10 @@ export async function deleteOrchestratorImageIfOwned(
   } catch (error) {
     Sentry.captureException(error, {
       tags: {
-        function: "deleteOrchestratorImageIfOwned",
+        function: "deleteCoworkerImageIfOwned",
       },
       extra: {
-        orchestratorId,
+        coworkerId,
         url,
       },
     });

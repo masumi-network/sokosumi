@@ -85,12 +85,14 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
     }
 
     try {
-      const workspace = await prisma.$transaction((tx) =>
-        workspaceRepository.upsertWorkspaceForContext(
-          workspaceOwnerContext.userId,
-          workspaceOwnerContext.organizationId,
-          tx,
-        ),
+      // Avoid wrapping every request in a DB transaction — pool contention under
+      // load caused P2028 "Unable to start a transaction in the given time"
+      // (SOKOSUMI-CORE-2J). upsertWorkspaceForContext is idempotent and handles
+      // create races via unique-constraint recovery.
+      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+        workspaceOwnerContext.userId,
+        workspaceOwnerContext.organizationId,
+        prisma,
       );
 
       const workspaceContext: WorkspaceContext = {

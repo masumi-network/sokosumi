@@ -43,6 +43,12 @@ overrides:
   # GHSA-g8m3-5g58-fq7m (SameSite downgrade) — @vercel/blob@2.5.0 still resolves
   # undici@6.26.0. Force patched 6.27 line (direct blob HTTP client path).
   "undici@<6.27.0": "6.27.0"
+  # fast-uri GHSA-4c8g-83qw-93j6 / GHSA-v2hh-gcrm-f6hx (host confusion) — prisma
+  # dev > ajv > fast-uri@3.1.2. Dev-tooling transitive; force patched 3.1.4 line.
+  "fast-uri@<3.1.4": "3.1.4"
+  # sharp GHSA-f88m-g3jw-g9cj (libvips CVEs) — next optional dep still resolves
+  # sharp@0.34.5. Force patched 0.35 line (image optimization runtime path).
+  "sharp@<0.35.0": "0.35.3"
 
 allowBuilds:
   # pnpm 11: workspace prepare scripts are blocked unless listed (strictDepBuilds).

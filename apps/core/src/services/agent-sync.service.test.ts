@@ -336,17 +336,17 @@ describe("agentSyncService.syncAgentSummaries", () => {
       {
         id: "agent-1",
         description: "Base description",
-        overrideDescription: null,
+        metadataOverride: null,
       },
       {
         id: "agent-2",
         description: "Old description",
-        overrideDescription: "Override description",
+        metadataOverride: { description: "Override description" },
       },
       {
         id: "agent-3",
         description: null,
-        overrideDescription: null,
+        metadataOverride: null,
       },
     ]);
     openrouterGenerateAgentSummaryMock
@@ -362,8 +362,11 @@ describe("agentSyncService.syncAgentSummaries", () => {
         summary: null,
         OR: [
           { description: { not: null } },
-          { overrideDescription: { not: null } },
+          { metadataOverride: { description: { not: null } } },
         ],
+      },
+      include: {
+        metadataOverride: true,
       },
       take: 20,
     });
@@ -400,7 +403,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
       {
         id: "agent-1",
         description: "Base description",
-        overrideDescription: null,
+        metadataOverride: null,
       },
     ]);
     openrouterGenerateAgentSummaryMock.mockResolvedValue(null);
@@ -424,7 +427,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
       {
         id: "agent-1",
         description: "Base description",
-        overrideDescription: null,
+        metadataOverride: null,
       },
     ]);
     openrouterGenerateAgentSummaryMock.mockResolvedValue("Summary one");
@@ -469,12 +472,12 @@ describe("agentSyncService.syncAgentSummaries", () => {
       {
         id: "agent-1",
         description: "Description one",
-        overrideDescription: null,
+        metadataOverride: null,
       },
       {
         id: "agent-2",
         description: "Description two",
-        overrideDescription: null,
+        metadataOverride: null,
       },
     ]);
     openrouterGenerateAgentSummaryMock

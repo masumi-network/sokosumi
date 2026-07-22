@@ -3065,7 +3065,13 @@
       },
       "Overview": {
         "title": "Admin",
-        "description": "Internal tools for managing organizations and billing.",
+        "description": "Internal tools for accounts, billing, catalog, and operations.",
+        "Groups": {
+          "accounts": "Accounts",
+          "billing": "Billing & commercial",
+          "catalog": "Marketplace catalog",
+          "operations": "Operations"
+        },
         "Sections": {
           "enterpriseContracts": {
             "title": "Enterprise contracts",
@@ -3091,9 +3097,13 @@
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
           },
-          "orchestrators": {
-            "title": "Orchestrators",
-            "description": "Edit display metadata for first-party orchestrators."
+          "coworkers": {
+            "title": "Coworkers",
+            "description": "Manage capabilities, priority, whitelist, archive state, and display metadata for all coworkers."
+          },
+          "agents": {
+            "title": "Agents",
+            "description": "Browse all marketplace agents and manage Sokosumi display metadata overrides."
           }
         }
       },
@@ -3213,67 +3223,160 @@
           "personalWorkspace": "Personal workspace"
         }
       },
-      "Orchestrators": {
-        "title": "Orchestrators",
-        "description": "Manage display metadata for first-party orchestrators.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# orchestrator} other {# orchestrators}}",
-          "empty": "No orchestrators found.",
-          "orchestrator": "Orchestrator",
+      "Coworkers": {
+        "title": "Coworkers",
+        "description": "Manage coworker capabilities, priority, whitelist, archive state, and display metadata.",
+        "loadFailed": "Failed to load coworkers.",
+        "backToList": "Back to list",
+        "editDescription": "Update platform controls and display fields shown in the marketplace and product.",
+        "Table": {
+          "name": "Name",
           "slug": "Slug",
-          "caption": "Caption",
-          "emptyCaption": "—"
+          "status": "Status",
+          "active": "Active",
+          "archived": "Archived",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted",
+          "priority": "Priority",
+          "created": "Created",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "No coworkers found.",
+          "searchPlaceholder": "Search by name, slug, caption, or vendor…",
+          "archiveFilterLabel": "Status",
+          "filterAll": "All",
+          "filterActive": "Active",
+          "filterArchived": "Archived",
+          "totalCount": "{count, plural, one {# coworker} other {# coworkers}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No coworkers match your search.",
+          "emptyFilter": "No coworkers match the selected filter."
         },
-        "Detail": {
-          "title": "Edit orchestrator",
-          "backToList": "Back to orchestrators"
-        },
-        "EditForm": {
-          "submit": "Save changes",
-          "submitting": "Saving…",
-          "image": {
-            "label": "Image",
-            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
-            "upload": "Upload image",
-            "replace": "Replace image",
-            "remove": "Remove image",
-            "previewAlt": "Orchestrator image preview",
-            "fileTooLarge": "Image must be 2 MB or smaller.",
-            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
-            "maxFilesExceeded": "Upload one image at a time.",
-            "uploadError": "Could not process the selected image."
-          },
-          "fields": {
-            "name": {
-              "label": "Name",
-              "description": "Shown wherever the orchestrator is listed."
+        "Form": {
+          "controls": {
+            "title": "Platform controls",
+            "description": "Manage capabilities, priority, whitelist, and archive state.",
+            "save": "Save controls",
+            "saving": "Saving controls…",
+            "archive": "Archive",
+            "archiving": "Archiving…",
+            "archiveConfirmTitle": "Archive coworker?",
+            "archiveConfirmDescription": "This archives the coworker and revokes its API keys. You can unarchive later, but API keys stay revoked.",
+            "unarchive": "Unarchive",
+            "unarchiving": "Unarchiving…",
+            "capabilities": {
+              "label": "Capabilities",
+              "chat": "Chat",
+              "tasks": "Tasks"
             },
-            "slug": {
-              "label": "Slug",
-              "description": "Read-only identifier used in URLs and APIs."
+            "priority": {
+              "label": "Priority"
             },
-            "caption": {
-              "label": "Caption",
-              "description": "Short line shown under the name. Leave empty to clear."
-            },
-            "description": {
-              "label": "Description",
-              "description": "Longer copy for detail views. Leave empty to clear."
+            "whitelist": {
+              "label": "Whitelist",
+              "description": "Whitelisted coworkers are visible in the default marketplace scope."
             }
           },
+          "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "Name must be at least {min} characters.",
-            "noChanges": "No changes to save."
+            "priorityInteger": "Priority must be a whole number.",
+            "noControlChanges": "No control changes to save."
           },
           "success": {
-            "saved": "Orchestrator updated.",
-            "imageSaved": "Image saved.",
-            "imageRemoved": "Image removed."
+            "controlsSaved": "Coworker controls updated.",
+            "whitelistSaved": "Whitelist status updated.",
+            "archived": "Coworker archived.",
+            "unarchived": "Coworker unarchived."
           },
           "errors": {
-            "saveFailed": "Failed to save orchestrator.",
-            "notFound": "Orchestrator not found.",
-            "imageSaveFailed": "Failed to update image."
+            "controlsSaveFailed": "Failed to save coworker controls.",
+            "whitelistSaveFailed": "Failed to update whitelist status.",
+            "archiveFailed": "Failed to archive coworker.",
+            "unarchiveFailed": "Failed to unarchive coworker.",
+            "notFound": "Coworker not found."
+          }
+        },
+        "Context": {
+          "title": "Overview",
+          "description": "Identity and archive status for this coworker.",
+          "id": "ID",
+          "slug": "Slug",
+          "vendor": "Vendor",
+          "status": "Status",
+          "active": "Active",
+          "archived": "Archived",
+          "priority": "Priority",
+          "whitelist": "Whitelist",
+          "whitelisted": "Whitelisted",
+          "notWhitelisted": "Not whitelisted"
+        }
+      },
+      "Agents": {
+        "title": "Agents",
+        "description": "Browse all marketplace agents and manage Sokosumi display metadata overrides.",
+        "AgentList": {
+          "searchPlaceholder": "Search by name or blockchain identifier…",
+          "statusFilterLabel": "Status",
+          "filterAll": "All",
+          "filterOnline": "Online",
+          "filterOffline": "Offline",
+          "filterDeregistered": "Deregistered",
+          "filterInvalid": "Invalid",
+          "totalCount": "{count, plural, one {# agent} other {# agents}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "empty": "No agents found.",
+          "emptyFilter": "No agents match the selected filter.",
+          "displayName": "Display name",
+          "registryName": "Registry name",
+          "override": "Override",
+          "hasOverride": "Customized",
+          "noOverride": "Registry only",
+          "status": "Status",
+          "created": "Created",
+          "actions": "Actions",
+          "manage": "Manage",
+          "loadMore": "Load more",
+          "loadError": "Failed to load agents."
+        },
+        "AgentDetail": {
+          "subtitle": "Registry fields are read-only. Override fields change marketplace display.",
+          "backToList": "Back to agents",
+          "registryTitle": "Registry (read-only)",
+          "registryName": "Registry name",
+          "registryDescription": "Registry description",
+          "blockchainIdentifier": "Blockchain identifier",
+          "overrideTitle": "Sokosumi overrides",
+          "overrideDescription": "Leave a field empty to fall back to the registry value. Save applies overrides; Clear all removes the override row.",
+          "resolvedTitle": "Resolved preview",
+          "emptyValue": "—",
+          "save": "Save overrides",
+          "saveSuccess": "Overrides saved",
+          "saveError": "Failed to save overrides",
+          "clearAll": "Clear all overrides",
+          "clearSuccess": "Overrides cleared",
+          "clearError": "Failed to clear overrides",
+          "examplesInvalid": "Each example line must be name|mimeType|url",
+          "hasOverride": "Override row present",
+          "noOverride": "Using registry values only",
+          "fields": {
+            "name": "Name",
+            "description": "Description",
+            "image": "Image URL",
+            "apiBaseUrl": "API base URL",
+            "authorName": "Author name",
+            "authorImage": "Author image URL",
+            "authorContactEmail": "Author contact email",
+            "authorContactOther": "Author contact other",
+            "authorOrganization": "Author organization",
+            "legalPrivacyPolicy": "Privacy policy URL",
+            "legalDpa": "DPA URL",
+            "legalTerms": "Terms URL",
+            "legalOther": "Other legal URL",
+            "tags": "Tags",
+            "tagsPlaceholder": "Comma-separated tag names",
+            "examples": "Example outputs",
+            "examplesPlaceholder": "One per line: name|mimeType|url"
           }
         }
       }
@@ -4158,11 +4261,77 @@
       "discardDialogDescription": "Your edits will be lost if you leave without saving.",
       "discardConfirm": "Discard changes"
     },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "Display",
+        "description": "Update how this coworker appears in Sokosumi.",
+        "fields": {
+          "name": {
+            "label": "Name"
+          },
+          "caption": {
+            "label": "Caption"
+          },
+          "description": {
+            "label": "Description"
+          }
+        },
+        "image": {
+          "label": "Image",
+          "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+          "upload": "Upload image",
+          "replace": "Replace image",
+          "remove": "Remove image",
+          "previewAlt": "Coworker image preview",
+          "fileTooLarge": "Image must be 2 MB or smaller.",
+          "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+          "maxFilesExceeded": "Upload one image at a time.",
+          "uploadError": "Could not process the selected image."
+        },
+        "saveChanges": "Save display",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "validation": {
+          "nameMinLength": "Name must be at least {min} characters.",
+          "noChanges": "No changes to save.",
+          "captionMaxLength": "Caption must be at most {max} characters."
+        },
+        "success": {
+          "saved": "Coworker display updated.",
+          "imageSaved": "Image saved.",
+          "imageRemoved": "Image removed."
+        },
+        "errors": {
+          "saveFailed": "Failed to save coworker display.",
+          "imageSaveFailed": "Failed to update image."
+        }
+      }
+    },
     "Developer": {
       "tabs": {
         "oauthClients": "OAuth Clients",
         "apiKeys": "API Keys",
+        "coworkers": "Coworkers",
         "docs": "Documentation"
+      },
+      "Coworkers": {
+        "title": "Your coworkers",
+        "description": "Manage display settings for coworkers you own.",
+        "loadFailed": "Failed to load your coworkers.",
+        "backToList": "Back to coworkers",
+        "editDescription": "Update how this coworker appears in Sokosumi.",
+        "errors": {
+          "notFound": "Coworker not found."
+        },
+        "List": {
+          "empty": "You do not own any active coworkers yet.",
+          "noCaption": "No caption",
+          "edit": "Edit"
+        },
+        "Metadata": {
+          "title": "Edit coworker",
+          "description": "Edit owned coworker display fields"
+        }
       },
       "Docs": {
         "title": "Developer Documentation",

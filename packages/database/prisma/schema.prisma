@@ -84,7 +84,8 @@ model User {
 
   // Hermes (per-user private agent — single conversation)
   hermesMessages           HermesMessage[]
-  hermesInstance           HermesInstance?
+  /// Per-user Hermes orchestrator instance (identity + local mirror metadata).
+  orchestrator             Orchestrator?
   hermesPendingConnections HermesPendingConnection[]
 
   @@unique([email])
@@ -521,10 +522,14 @@ model ExampleOutput {
   mimeType  String
   url       String
 
-  agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
-  agentId         String?
-  agentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
-  agentIdOverride String?
+  agent   Agent? @relation("ExampleOutputAgent", fields: [agentId], references: [id])
+  agentId String?
+
+  metadataOverride   AgentMetadataOverride? @relation(fields: [metadataOverrideId], references: [id], onDelete: Cascade)
+  metadataOverrideId String?
+
+  @@index([agentId])
+  @@index([metadataOverrideId])
 }
 
 model UserAgentRating {
@@ -552,55 +557,31 @@ model Agent {
 
   blockchainIdentifier String @unique
 
-  name         String
-  overrideName String?
+  name        String
+  description String?
 
-  description         String?
-  overrideDescription String?
+  apiBaseUrl String
 
-  apiBaseUrl         String
-  overrideApiBaseUrl String?
-
-  capabilityName         String?
-  overrideCapabilityName String?
-
-  capabilityVersion         String?
-  overrideCapabilityVersion String?
+  capabilityName    String?
+  capabilityVersion String?
 
   authorName         String?
-  overrideAuthorName String?
+  authorImage        String?
+  authorContactEmail String?
+  authorContactOther String?
+  authorOrganization String?
 
-  authorImage         String?
-  overrideAuthorImage String?
-
-  authorContactEmail         String?
-  overrideAuthorContactEmail String?
-
-  authorContactOther         String?
-  overrideAuthorContactOther String?
-
-  authorOrganization         String?
-  overrideAuthorOrganization String?
-
-  legalPrivacyPolicy         String?
-  overrideLegalPrivacyPolicy String?
-
-  legalDpa         String?
-  overrideLegalDpa String?
-
+  legalPrivacyPolicy String?
+  legalDpa           String?
   legalTerms         String?
-  overrideLegalTerms String?
-
   legalOther         String?
-  overrideLegalOther String?
 
   lastUptimeCheck  DateTime
   uptimeCount      Int
   uptimeCheckCount Int
 
-  image         String?
-  overrideImage String?
-  icon          String?
+  image String?
+  icon  String?
 
   metadataVersion Int @default(1)
 
@@ -613,18 +594,51 @@ model Agent {
   isShown            Boolean
   riskClassification RiskClassification @default(MINIMAL)
 
-  exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
-  overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
+  exampleOutput ExampleOutput[] @relation("ExampleOutputAgent")
 
   userAgentRating UserAgentRating[]
   jobs            Job[]
 
-  tags         Tag[]      @relation("AgentTag")
-  overrideTags Tag[]      @relation("AgentTagOverride")
-  categories   Category[] @relation("AgentCategory")
+  tags       Tag[]      @relation("AgentTag")
+  categories Category[] @relation("AgentCategory")
+
+  metadataOverride AgentMetadataOverride?
 
   // Summary
   summary String?
+}
+
+model AgentMetadataOverride {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agentId String @unique
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  name        String?
+  description String?
+
+  apiBaseUrl String?
+
+  capabilityName    String?
+  capabilityVersion String?
+
+  authorName         String?
+  authorImage        String?
+  authorContactEmail String?
+  authorContactOther String?
+  authorOrganization String?
+
+  legalPrivacyPolicy String?
+  legalDpa           String?
+  legalTerms         String?
+  legalOther         String?
+
+  image String?
+
+  tags           Tag[]
+  exampleOutputs ExampleOutput[]
 }
 
 model Category {
@@ -675,8 +689,8 @@ model Tag {
   updatedAt DateTime @updatedAt
   name      String   @unique
 
-  agents         Agent[] @relation("AgentTag")
-  agentsOverride Agent[] @relation("AgentTagOverride")
+  agents            Agent[]                 @relation("AgentTag")
+  metadataOverrides AgentMetadataOverride[]
 }
 
 model SyncMetadata {
@@ -1228,51 +1242,49 @@ model Coworker {
   coworkerUsages CoworkerUsage[]
 
   @@index([archivedAt])
+  @@index([userId, archivedAt])
   @@index([vendorId])
   @@map("coworker")
 }
 
-/// First-party Sokosumi orchestrator (e.g. Hermes). Not a marketplace coworker:
-/// no vendor/owner/whitelist; authenticates with `orch_` API keys.
+/// Per-user first-party orchestrator instance (Hermes). Not a marketplace
+/// coworker: no vendor/owner/whitelist. Hermes authenticates with a shared
+/// env service token; each row is one user's instance (identity + mirror).
 model Orchestrator {
   id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  /// Soft-deactivate on purge; keep row while tasks/events reference it.
   archivedAt DateTime?
 
-  slug        String  @unique
-  name        String
-  caption     String?
-  description String?
-  image       String?
+  /// Owner of this Hermes instance. One row per user (active or archived).
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  orchestratorApiKeys OrchestratorApiKey[]
-  createdTasks        Task[] @relation("TaskCreatorOrchestrator")
-  taskEvents          TaskEvent[]
-  orchestratorUsages  OrchestratorUsage[]
+  /// User-chosen display name for their personal assistant. Null until named.
+  name String?
+
+  /// Seed for the assistant's deterministic generative "aurora orb" avatar.
+  avatarSeed String?
+
+  /// Personality spectrums 0–100 (tone / detail / style). Null until set.
+  personalityTone   Int?
+  personalityDetail Int?
+  personalityStyle  Int?
+
+  /// Inbox poll metadata (cron).
+  lastPolledAt          DateTime?
+  lastInboxMessageAt    DateTime?
+  lastSeenInboxAt       DateTime?
+  consecutivePollErrors Int      @default(0)
+
+  createdTasks       Task[]             @relation("TaskCreatorOrchestrator")
+  taskEvents         TaskEvent[]
+  orchestratorUsages OrchestratorUsage[]
 
   @@index([archivedAt])
+  @@index([lastPolledAt])
   @@map("orchestrator")
-}
-
-model OrchestratorApiKey {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name     String?
-  keyHash  String  @unique
-  keyStart String
-
-  expiresAt DateTime?
-  revokedAt DateTime?
-
-  orchestratorId String       @db.Uuid
-  orchestrator   Orchestrator @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
-
-  @@index([orchestratorId])
-  @@index([revokedAt, expiresAt])
-  @@map("orchestrator_api_key")
 }
 
 model CoworkerApiKey {
@@ -1583,54 +1595,6 @@ model HermesMessage {
 
   @@index([userId, createdAt])
   @@map("hermesMessage")
-}
-
-/// Sokosumi-side metadata about each user's Hermes instance. The orchestrator
-/// remains the source of truth for instance state; this table tracks polling
-/// metadata so the inbox cron can decide who to poll and when. One row per user.
-model HermesInstance {
-  id String @id @default(uuid(7)) @db.Uuid
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  /// User-chosen display name for their personal assistant (set during setup,
-  /// editable in Settings). Sokosumi-side only — NOT forwarded to the
-  /// orchestrator, whose `name` field is the user's own name. Null until the
-  /// user names their assistant; the UI falls back to a generic label.
-  assistantName String?
-
-  /// Seed string for the assistant's deterministic generative "aurora orb"
-  /// avatar, chosen during setup. Same seed → identical orb (no image stored).
-  /// Null until chosen; the UI falls back to a per-user default seed.
-  avatarSeed String?
-
-  /// Assistant personality chosen during setup, as three 0–100 spectrums.
-  /// Forwarded to the orchestrator for the system prompt AND mirrored here
-  /// (Sokosumi-side) so the chat UI can reflect it — e.g. the orb's liveliness
-  /// and resting expression. Null until set; the UI falls back to a calm
-  /// default. tone: direct↔warm · detail: concise↔thorough · style: formal↔playful.
-  personalityTone   Int?
-  personalityDetail Int?
-  personalityStyle  Int?
-
-  /// When the inbox cron last attempted a poll (success or failure).
-  lastPolledAt DateTime?
-  /// `createdAt` of the most recent inbox message we've ingested. Used as the
-  /// `since` cursor on the next poll.
-  lastInboxMessageAt DateTime?
-  /// `createdAt` of the latest inbox-kind message the user has seen. Anything
-  /// with `createdAt > lastSeenInboxAt` counts toward the sidebar unread badge.
-  lastSeenInboxAt DateTime?
-  /// Number of consecutive failed polls. Drives backoff into the cold tier.
-  consecutivePollErrors Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  /// Lets the cron query "all instances due for polling, sorted by last poll".
-  @@index([lastPolledAt])
-  @@map("hermesInstance")
 }
 
 /// Short-lived claim record written by the `initiate` integration handler

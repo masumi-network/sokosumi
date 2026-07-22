@@ -276,11 +276,12 @@ Web data access for domain entities goes through the Core API
   HTTP on every request** (React `cache()` only dedupes within one request).
   It opts into fetch-level revalidation via `coreClient.getAgents(query,
   { revalidate, tags: [AGENTS_CACHE_TAG] })`, so the catalog is fetched at most
-  once per TTL across all users. Invalidate on demand with
-  `revalidateTag(AGENTS_CACHE_TAG)`. The proper long-term fix is a Core
-  endpoint that returns the filtered catalog in one call (see the
-  `TODO(core-api)` in `core-loaders.ts`); until then, do not add new
-  per-request all-pages loops.
+  once per TTL across all users. Invalidate on demand from a Server Action
+  with `updateTag(AGENTS_CACHE_TAG)` (Next.js Cache Components; prefer
+  `updateTag` over the two-arg `revalidateTag` profile API). The proper
+  long-term fix is a Core endpoint that returns the filtered catalog in one
+  call (see the `TODO(core-api)` in `core-loaders.ts`); until then, do not
+  add new per-request all-pages loops.
 
 ### Better Auth ID generation
 

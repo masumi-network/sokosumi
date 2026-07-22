@@ -185,11 +185,13 @@ describe("workspaceMiddleware", () => {
       "user_123",
       "org_123",
       expect.objectContaining({
-        oauthAccessToken: expect.any(Object),
-        oauthConsent: expect.any(Object),
+        $transaction: expect.any(Function),
+        coworkerApiKey: expect.any(Object),
+        user: expect.any(Object),
+        member: expect.any(Object),
       }),
     );
-    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("creates workspaceContext when the active workspace was missing", async () => {
@@ -346,10 +348,12 @@ describe("workspaceMiddleware", () => {
       "user_delegate",
       null,
       expect.objectContaining({
-        oauthAccessToken: expect.any(Object),
-        oauthConsent: expect.any(Object),
+        $transaction: expect.any(Function),
+        coworkerApiKey: expect.any(Object),
+        user: expect.any(Object),
+        member: expect.any(Object),
       }),
     );
-    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 });

@@ -75,10 +75,8 @@ export function getEventActorInfo(
       }
       case "orchestrator":
         return {
-          name: event.actor.orchestrator.name,
-          image: event.actor.orchestrator.image
-            ? resolveIpfsOrHttpUrl(event.actor.orchestrator.image)
-            : null,
+          name: event.actor.orchestrator.name ?? "Assistant",
+          image: null,
         };
       default: {
         const _exhaustive: never = event.actor;
@@ -92,10 +90,8 @@ export function getEventActorInfo(
   if (event.orchestratorId) {
     if (event.orchestrator) {
       return {
-        name: event.orchestrator.name,
-        image: event.orchestrator.image
-          ? resolveIpfsOrHttpUrl(event.orchestrator.image)
-          : null,
+        name: event.orchestrator.name ?? "Assistant",
+        image: null,
       };
     }
 
@@ -240,12 +236,11 @@ function addOrchestratorActor(
   orchestratorById: Record<string, TaskActivityActorInfo>,
   orchestrator: {
     id: string;
-    name: string;
-    image?: string | null;
+    name: string | null;
   },
 ) {
   orchestratorById[orchestrator.id] = {
-    name: orchestrator.name,
-    image: orchestrator.image ? resolveIpfsOrHttpUrl(orchestrator.image) : null,
+    name: orchestrator.name ?? "Assistant",
+    image: null,
   };
 }
