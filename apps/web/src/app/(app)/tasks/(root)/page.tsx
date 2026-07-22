@@ -7,25 +7,25 @@ import {
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
-import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   findCoworkerIdBySlug,
   getCoworkerOptions,
 } from "@/app/tasks/utils/coworker-options";
-import { parseJobsListFilters } from "@/app/tasks/utils/jobs-filters";
-import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
+import {
+  parseJobsListFilters,
+  sanitizeJobAgentIdForPersistedFilter,
+} from "@/app/tasks/utils/jobs-filters";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
+  firstQueryString,
+  normalizeOptionalString,
   type ProjectFilterOption,
   parseTasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
-import { getAgentResolvedIcon } from "@/lib/helpers/agent";
-import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { designMdService } from "@/lib/services/design-md.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -65,7 +65,6 @@ const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 async function loadTasksPageData() {
   return await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
-    agentService.getAvailableAgentsWithCreditsPrice(),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
   ]);
 }
@@ -100,22 +99,21 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, agents, projectsPage] = await loadTasksPageData();
+  const [taskCoworkers, projectsPage] = await loadTasksPageData();
   const filters = parseTasksFilters(
     { scope, assigneeId, coworkerId: legacyCoworkerId, status, projectId },
     activeOrganizationId,
   );
-  const agentNameById = buildAgentNameById(agents);
-  const jobAgentOptions = agents.map((agent) => ({
-    id: agent.id,
-    name: agentNameById.get(agent.id) ?? agent.name,
-    image: getAgentResolvedIcon(agent),
-  }));
-  const jobsListFilters = parseJobsListFilters(
-    { scope, agentId, jobStatus, projectId },
-    activeOrganizationId,
-    jobAgentOptions,
-  );
+  const jobsListFilters = {
+    ...parseJobsListFilters(
+      { scope, agentId, jobStatus, projectId },
+      activeOrganizationId,
+      [],
+    ),
+    agentId: sanitizeJobAgentIdForPersistedFilter(
+      normalizeOptionalString(firstQueryString(agentId)),
+    ),
+  };
   let projectOptions: ProjectFilterOption[] = projectsPage.projects.map(
     (project) => ({
       id: project.id,
@@ -139,7 +137,6 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const coworkersById = new Map(
     taskCoworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const validCoworkerIds = new Set(
     taskCoworkers.map((coworker) => coworker.id),
   );
@@ -167,63 +164,37 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     activeFilters.status == null ||
     activeFilters.status === TaskStatus.GRANT_PENDING;
 
-  const [jobsPage, columnPages, initialDesignMdAttachment, parkedTasksPage] =
-    await Promise.all([
-      taskService.listJobs({
-        scope: activeJobsListFilters.scope,
-        agentId: activeJobsListFilters.agentId ?? undefined,
-        projectId: activeJobsListFilters.projectId ?? undefined,
-        status: activeJobsListFilters.jobStatus ?? undefined,
-        limit: 20,
-      }),
-      Promise.all(
-        KANBAN_COLUMNS.map(async (column) => {
-          const page = await getTasksColumnPage({
-            columnId: column.id,
-            cursor: null,
-            limit: TASKS_COLUMN_PAGE_LIMIT,
-            scope: activeFilters.scope,
-            assigneeId: activeFilters.assigneeId,
-            status: activeFilters.status,
-            projectId: activeFilters.projectId,
-            coworkersById,
-            agentsById,
-          });
+  const [columnPages, parkedTasksPage] = await Promise.all([
+    Promise.all(
+      KANBAN_COLUMNS.map(async (column) => {
+        const page = await getTasksColumnPage({
+          columnId: column.id,
+          cursor: null,
+          limit: TASKS_COLUMN_PAGE_LIMIT,
+          scope: activeFilters.scope,
+          assigneeId: activeFilters.assigneeId,
+          status: activeFilters.status,
+          projectId: activeFilters.projectId,
+          coworkersById,
+        });
 
-          return [column.id, page] as const;
-        }),
-      ),
-      session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
-      shouldCountGrantPendingTasks
-        ? taskService.listTasks({
-            status: TaskStatus.GRANT_PENDING,
-            scope: activeFilters.scope,
-            assigneeId: activeFilters.assigneeId ?? undefined,
-            projectId: activeFilters.projectId ?? undefined,
-            limit: 1,
-          })
-        : Promise.resolve({ tasks: [], pagination: null }),
-    ]);
+        return [column.id, page] as const;
+      }),
+    ),
+    shouldCountGrantPendingTasks
+      ? taskService.listTasks({
+          status: TaskStatus.GRANT_PENDING,
+          scope: activeFilters.scope,
+          assigneeId: activeFilters.assigneeId ?? undefined,
+          projectId: activeFilters.projectId ?? undefined,
+          limit: 1,
+        })
+      : Promise.resolve({ tasks: [], pagination: null }),
+  ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
   const columnNextCursorById = Object.fromEntries(
     columnPages.map(([columnId, page]) => [columnId, page.nextCursor]),
   ) as Record<KanbanColumnId, string | null>;
-  const seedTasksById = new Map(
-    tasks.map((task) => [
-      task.id,
-      {
-        id: task.id,
-        assigneeId: task.assignee?.id ?? null,
-      },
-    ]),
-  );
-
-  const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
-    jobs: jobsPage.jobs,
-    coworkersById,
-    knownAgentsById: agentsById,
-    seedTasksById,
-  });
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
   const initialCreateTaskOpen = create === "true";
@@ -255,15 +226,10 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       </Suspense>
       <TasksView
         tasks={tasks}
-        jobs={jobs}
-        jobsNextCursor={jobsPage.pagination?.nextCursor ?? null}
-        agentPreviewById={agentPreviewById}
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        jobAgentOptions={jobAgentOptions}
-        agentNameById={agentNameById}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         initialFilters={activeFilters}
@@ -275,7 +241,6 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         initialCreateTaskPrompt={
           initialCreateTaskOpen ? (promptParam ?? null) : null
         }
-        initialDesignMdAttachment={initialDesignMdAttachment}
         createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialAssigneeId ?? resolvedAssigneeSlug ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
         labels={{
           tabs: {
@@ -329,6 +294,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
           loadMoreError: t("Errors.loadMore"),
+          loadJobsError: t("Errors.loadJobs"),
           reopenToReady: {
             title: tDetailActions("reopenToReadyTitle"),
             description: tDetailActions("reopenToReadyDescription"),

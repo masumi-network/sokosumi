@@ -1452,7 +1452,9 @@
       },
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
-        "loadMore": "Weitere Aufgaben konnten nicht geladen werden"
+        "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
+        "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
+        "loadJobs": "Jobs konnten nicht geladen werden"
       },
       "Card": {
         "comments": "Kommentare",

@@ -1452,7 +1452,9 @@
       },
       "Errors": {
         "updateStatus": "Impossibile aggiornare lo stato del task",
-        "loadMore": "Impossibile caricare altre attività"
+        "loadMore": "Impossibile caricare altre attività",
+        "loadCreateTask": "Impossibile caricare il modulo di creazione attività",
+        "loadJobs": "Impossibile caricare i job"
       },
       "Card": {
         "comments": "Commenti",
