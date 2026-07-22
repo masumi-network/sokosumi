@@ -6,8 +6,9 @@ import {
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 
-import { badRequest, conflict } from "@/helpers/error";
+import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { findOrchestratorForUser } from "@/helpers/orchestrator-instance";
 import { created, ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -19,7 +20,8 @@ import { createOrchestratorUsageRequestSchema } from "./schema";
 const route = createRoute({
   method: "post",
   path: "/me/usage",
-  description: "Create usage for the current orchestrator",
+  description:
+    "Create personal-scope usage for the orchestrator instance of the user in the body. Always bills the user's personal credit buckets (PA is user-bound, not org-bound).",
   tags: ["Orchestrators"],
   request: {
     body: {
@@ -36,6 +38,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
@@ -49,19 +52,24 @@ function serializeUsage(usage: {
   referenceId: string | null;
   orchestratorId: string;
   userId: string;
-  organizationId: string | null;
   cents: bigint;
   transactionId: string;
 }) {
-  return {
-    ...usage,
+  return orchestratorUsageSchema.parse({
+    id: usage.id,
+    createdAt: usage.createdAt,
+    updatedAt: usage.updatedAt,
+    idempotencyKey: usage.idempotencyKey,
+    referenceId: usage.referenceId,
+    orchestratorId: usage.orchestratorId,
+    userId: usage.userId,
     credits: convertCentsToCredits(usage.cents),
-  };
+    transactionId: usage.transactionId,
+  });
 }
 
-async function prepareConsumptions(
+async function preparePersonalConsumptions(
   userId: string,
-  organizationId: string | null,
   cents: bigint,
   tx: Prisma.TransactionClient,
 ): Promise<Consumption[]> {
@@ -72,7 +80,7 @@ async function prepareConsumptions(
   try {
     return await creditBucketRepository.prepareConsumption(
       userId,
-      organizationId,
+      null,
       cents,
       tx,
     );
@@ -86,12 +94,19 @@ async function prepareConsumptions(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireOrchestratorAuthContext(c.var.authContext);
-    const { credits, idempotencyKey, referenceId, userId, organizationId } =
+    requireOrchestratorAuthContext(c.var.authContext);
+    const { credits, idempotencyKey, referenceId, userId } =
       c.req.valid("json");
-    const orchestratorId = authContext.orchestratorId;
 
     const result = await serializableTransaction(async (tx) => {
+      // Include archived rows so idempotent retries still resolve after purge
+      // (one orchestrator row per userId; archive does not change the id).
+      const orchestrator = await findOrchestratorForUser(userId, tx);
+      if (!orchestrator) {
+        throw notFound("Orchestrator instance not found for user");
+      }
+      const orchestratorId = orchestrator.id;
+
       const existing = await tx.orchestratorUsage.findUnique({
         where: {
           orchestratorId_idempotencyKey: {
@@ -117,50 +132,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             "Idempotency key already used with different reference id",
           );
         }
-        if (existing.organizationId !== organizationId) {
-          throw conflict(
-            "Idempotency key already used with different organization id",
-          );
-        }
 
         return { usage: existing, created: false };
       }
 
-      if (organizationId !== null) {
-        const member = await tx.member.findUnique({
-          where: {
-            userId_organizationId: {
-              userId,
-              organizationId,
-            },
-          },
-          select: { userId: true },
-        });
-
-        if (!member) {
-          throw badRequest(
-            "User is not a member of the specified organization",
-          );
-        }
+      // New charges require a live instance.
+      if (orchestrator.archivedAt != null) {
+        throw notFound("Orchestrator instance not found for user");
       }
 
       const cents = convertCreditsToCents(credits);
-      const consumptions = await prepareConsumptions(
-        userId,
-        organizationId,
-        cents,
-        tx,
-      );
+      const consumptions = await preparePersonalConsumptions(userId, cents, tx);
 
       const transaction = await tx.transaction.create({
         data: {
           amount: cents * BigInt(-1),
           user: { connect: { id: userId } },
-          ...(organizationId
-            ? {
-                organization: { connect: { id: organizationId } },
-              }
-            : {}),
           creditConsumptions: {
             createMany: {
               data: consumptions.map((consumption) => ({
@@ -179,27 +166,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           idempotencyKey,
           referenceId: referenceId ?? null,
+          orchestratorId,
+          userId,
+          organizationId: null,
           cents,
-          orchestrator: { connect: { id: orchestratorId } },
-          user: { connect: { id: userId } },
-          ...(organizationId
-            ? {
-                organization: { connect: { id: organizationId } },
-              }
-            : {}),
-          transaction: { connect: { id: transaction.id } },
+          transactionId: transaction.id,
         },
       });
 
       return { usage, created: true };
     }, "Usage recording conflicted with a concurrent request. Please retry.");
 
-    const response = serializeUsage(result.usage);
-
     if (result.created) {
-      return created(c, orchestratorUsageSchema.parse(response));
+      return created(c, serializeUsage(result.usage));
     }
-
-    return ok(c, orchestratorUsageSchema.parse(response));
+    return ok(c, serializeUsage(result.usage));
   });
 }

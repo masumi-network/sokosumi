@@ -2926,10 +2926,6 @@
             "title": "Tarefas",
             "description": "Lista pesquisável de todas as tarefas entre usuários e organizações."
           },
-          "orchestrators": {
-            "title": "Orquestradores",
-            "description": "Editar metadados de exibição de orquestradores próprios."
-          },
           "freeCredits": {
             "title": "Créditos gratuitos",
             "description": "Conceda créditos gratuitos diretamente a um usuário ou organização sem fatura Stripe."
@@ -3319,70 +3315,6 @@
           "submitting": "Concedendo créditos…",
           "grantSuccess": "Créditos gratuitos concedidos",
           "grantError": "Falha ao conceder créditos gratuitos"
-        }
-      },
-      "Orchestrators": {
-        "title": "Orquestradores",
-        "description": "Gerenciar metadados de exibição de orquestradores próprios.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# orquestrador} other {# orquestradores}}",
-          "empty": "Nenhum orquestrador encontrado.",
-          "orchestrator": "Orquestrador",
-          "slug": "Slug",
-          "caption": "Legenda",
-          "emptyCaption": "—"
-        },
-        "Detail": {
-          "title": "Editar orquestrador",
-          "backToList": "Voltar aos orquestradores"
-        },
-        "EditForm": {
-          "submit": "Salvar alterações",
-          "submitting": "Salvando…",
-          "image": {
-            "label": "Imagem",
-            "description": "PNG, JPEG, WebP ou GIF de até 2 MB.",
-            "upload": "Enviar imagem",
-            "replace": "Substituir imagem",
-            "remove": "Remover imagem",
-            "previewAlt": "Pré-visualização da imagem do orquestrador",
-            "fileTooLarge": "A imagem deve ter 2 MB ou menos.",
-            "fileTypeNotAccepted": "Use PNG, JPEG, WebP ou GIF.",
-            "maxFilesExceeded": "Envie uma imagem por vez.",
-            "uploadError": "Não foi possível processar a imagem selecionada."
-          },
-          "fields": {
-            "name": {
-              "label": "Nome",
-              "description": "Exibido onde o orquestrador for listado."
-            },
-            "slug": {
-              "label": "Slug",
-              "description": "Identificador somente leitura usado em URLs e APIs."
-            },
-            "caption": {
-              "label": "Legenda",
-              "description": "Linha curta abaixo do nome. Deixe vazio para limpar."
-            },
-            "description": {
-              "label": "Descrição",
-              "description": "Texto mais longo para telas de detalhe. Deixe vazio para limpar."
-            }
-          },
-          "validation": {
-            "nameMinLength": "O nome deve ter pelo menos {min} caracteres.",
-            "noChanges": "Nenhuma alteração para salvar."
-          },
-          "success": {
-            "saved": "Orquestrador atualizado.",
-            "imageSaved": "Imagem salva.",
-            "imageRemoved": "Imagem removida."
-          },
-          "errors": {
-            "saveFailed": "Não foi possível salvar o orquestrador.",
-            "notFound": "Orquestrador não encontrado.",
-            "imageSaveFailed": "Falha ao atualizar a imagem."
-          }
         }
       }
     },

@@ -6,17 +6,17 @@ const {
   ackInstanceInboxMock,
   getEnvMock,
   getInstanceInboxMock,
-  hermesInstanceFindManyMock,
-  hermesInstanceFindUniqueMock,
-  hermesInstanceUpdateMock,
+  orchestratorFindManyMock,
+  orchestratorFindFirstMock,
+  orchestratorUpdateManyMock,
   hermesMessageUpsertMock,
 } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
   getInstanceInboxMock: vi.fn(),
   ackInstanceInboxMock: vi.fn(),
-  hermesInstanceFindManyMock: vi.fn(),
-  hermesInstanceFindUniqueMock: vi.fn(),
-  hermesInstanceUpdateMock: vi.fn(),
+  orchestratorFindManyMock: vi.fn(),
+  orchestratorFindFirstMock: vi.fn(),
+  orchestratorUpdateManyMock: vi.fn(),
   hermesMessageUpsertMock: vi.fn(),
 }));
 
@@ -40,11 +40,10 @@ vi.mock("@/clients/hermes-orchestrator.client", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    hermesInstance: {
-      findMany: (...args: unknown[]) => hermesInstanceFindManyMock(...args),
-      findUnique: (...args: unknown[]) => hermesInstanceFindUniqueMock(...args),
-      update: (...args: unknown[]) => hermesInstanceUpdateMock(...args),
-      delete: vi.fn().mockResolvedValue(undefined),
+    orchestrator: {
+      findMany: (...args: unknown[]) => orchestratorFindManyMock(...args),
+      findFirst: (...args: unknown[]) => orchestratorFindFirstMock(...args),
+      updateMany: (...args: unknown[]) => orchestratorUpdateManyMock(...args),
     },
     $transaction: async (
       arg:
@@ -71,11 +70,11 @@ describe("hermesInboxSyncService", () => {
     } as ReturnType<typeof import("@/config/env").getEnv>);
     ackInstanceInboxMock.mockResolvedValue({ kind: "ok" });
     hermesMessageUpsertMock.mockResolvedValue(undefined);
-    hermesInstanceUpdateMock.mockResolvedValue(undefined);
+    orchestratorUpdateManyMock.mockResolvedValue(undefined);
   });
 
   it("sets lastInboxMessageAt to the max createdAt, not the last array element", async () => {
-    hermesInstanceFindManyMock.mockResolvedValue([
+    orchestratorFindManyMock.mockResolvedValue([
       {
         userId: "user-inbox-1",
         lastInboxMessageAt: null,
@@ -114,9 +113,9 @@ describe("hermesInboxSyncService", () => {
       shouldContinue: () => true,
     });
 
-    expect(hermesInstanceUpdateMock).toHaveBeenCalledWith(
+    expect(orchestratorUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: "user-inbox-1" },
+        where: { userId: "user-inbox-1", archivedAt: null },
         data: expect.objectContaining({
           lastInboxMessageAt: new Date("2026-01-01T14:00:00.000Z"),
           lastPolledAt: expect.any(Date),
@@ -126,7 +125,7 @@ describe("hermesInboxSyncService", () => {
   });
 
   it("does not start the next inbox poll after shouldContinue becomes false", async () => {
-    hermesInstanceFindManyMock.mockResolvedValue([
+    orchestratorFindManyMock.mockResolvedValue([
       {
         userId: "user-first",
         lastInboxMessageAt: null,
@@ -161,7 +160,7 @@ describe("hermesInboxSyncService", () => {
   });
 
   it("overlaps the inbox since cursor when lastInboxMessageAt is set", async () => {
-    hermesInstanceFindManyMock.mockResolvedValue([
+    orchestratorFindManyMock.mockResolvedValue([
       {
         userId: "user-overlap",
         lastInboxMessageAt: new Date("2026-01-01T10:00:00.000Z"),
@@ -189,7 +188,7 @@ describe("hermesInboxSyncService", () => {
   });
 
   it("does not advance lastInboxMessageAt when inbox ack fails", async () => {
-    hermesInstanceFindManyMock.mockResolvedValue([
+    orchestratorFindManyMock.mockResolvedValue([
       {
         userId: "user-ack-fails",
         lastInboxMessageAt: null,
@@ -217,7 +216,7 @@ describe("hermesInboxSyncService", () => {
       shouldContinue: () => true,
     });
 
-    const ackFailureUpdates = hermesInstanceUpdateMock.mock.calls.filter(
+    const ackFailureUpdates = orchestratorUpdateManyMock.mock.calls.filter(
       ([args]) =>
         (args as { where?: { userId?: string } }).where?.userId ===
         "user-ack-fails",
@@ -233,7 +232,7 @@ describe("hermesInboxSyncService", () => {
   });
 
   it("upserts inbox messages with a stable id derived from the orchestrator message id", async () => {
-    hermesInstanceFindManyMock.mockResolvedValue([
+    orchestratorFindManyMock.mockResolvedValue([
       {
         userId: "user-upsert",
         lastInboxMessageAt: null,
@@ -280,7 +279,7 @@ describe("hermesInboxSyncService", () => {
   });
 
   it("reports unexpected pollOne failures to Sentry with hermes_inbox_unhandled context", async () => {
-    hermesInstanceFindManyMock.mockResolvedValue([
+    orchestratorFindManyMock.mockResolvedValue([
       {
         userId: "user-unhandled",
         lastInboxMessageAt: null,
@@ -316,7 +315,7 @@ describe("hermesInboxSyncService", () => {
       lastInboxMessageAt: null,
       lastPolledAt: null,
     }));
-    hermesInstanceFindManyMock.mockResolvedValue(instances);
+    orchestratorFindManyMock.mockResolvedValue(instances);
 
     const transientError = Object.assign(new TypeError("fetch failed"), {
       cause: new Error("connect timeout"),
@@ -351,13 +350,46 @@ describe("hermesInboxSyncService", () => {
     );
   });
 
+  it("does not archive on instance_missing (fail-open like GET /me/instance)", async () => {
+    orchestratorFindManyMock.mockResolvedValue([
+      {
+        userId: "user-missing",
+        lastInboxMessageAt: null,
+        lastPolledAt: null,
+      },
+    ]);
+    getInstanceInboxMock.mockResolvedValue({ kind: "instance_missing" });
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(summary.breakdown.skipped_instance_missing).toBe(1);
+    expect(orchestratorUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-missing", archivedAt: null },
+        data: expect.objectContaining({
+          lastPolledAt: expect.any(Date),
+          consecutivePollErrors: 0,
+        }),
+      }),
+    );
+    const archiveCalls = orchestratorUpdateManyMock.mock.calls.filter(
+      ([args]) =>
+        (args as { data?: { archivedAt?: unknown } }).data?.archivedAt != null,
+    );
+    expect(archiveCalls).toHaveLength(0);
+  });
+
   it("does not alert when a transient failure is isolated among healthy polls", async () => {
     const instances = Array.from({ length: 6 }, (_, i) => ({
       userId: `user-blip-${i}`,
       lastInboxMessageAt: null,
       lastPolledAt: null,
     }));
-    hermesInstanceFindManyMock.mockResolvedValue(instances);
+    orchestratorFindManyMock.mockResolvedValue(instances);
 
     const transientError = Object.assign(new TypeError("fetch failed"), {
       cause: new Error("connect timeout"),

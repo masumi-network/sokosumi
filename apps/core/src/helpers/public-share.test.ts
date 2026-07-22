@@ -361,7 +361,6 @@ describe("getPublicSharedResourceByToken", () => {
             coworker: null,
             orchestrator: {
               name: "Hermes",
-              image: "https://example.com/hermes.png",
             },
             transaction: null,
           },
@@ -442,7 +441,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: "Done by Hermes",
             credits: null,
             actorName: "Hermes",
-            actorImage: "https://example.com/hermes.png",
+            actorImage: null,
           },
         ],
       },

@@ -433,7 +433,7 @@ export async function getInstance(
     // "this user has no instance". A bare 404 (edge/proxy misroute, an
     // orchestrator rollback that drops the route) must NOT read as
     // "destroyed". Local mirror cleanup is orchestrator-driven via
-    // POST /v1/hermes/instances/{userId}/purge — never automatic on GET —
+    // POST /v1/orchestrators/me/purge — never automatic on GET —
     // but a spurious null still misleads the UI into hasInstance:false.
     // Verified against the live orchestrator: missing instance →
     // code "instance_not_found"; unknown route → code "not_found".

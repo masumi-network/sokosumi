@@ -2926,10 +2926,6 @@
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
           },
-          "orchestrators": {
-            "title": "Orchestrateurs",
-            "description": "Modifier les métadonnées d'affichage des orchestrateurs internes."
-          },
           "freeCredits": {
             "title": "Crédits gratuits",
             "description": "Accordez des crédits gratuits directement à un utilisateur ou une organisation sans facture Stripe."
@@ -3319,70 +3315,6 @@
           "submitting": "Attribution des crédits…",
           "grantSuccess": "Crédits gratuits accordés",
           "grantError": "Impossible d'accorder les crédits gratuits"
-        }
-      },
-      "Orchestrators": {
-        "title": "Orchestrateurs",
-        "description": "Gérer les métadonnées d'affichage des orchestrateurs internes.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# orchestrateur} other {# orchestrateurs}}",
-          "empty": "Aucun orchestrateur trouvé.",
-          "orchestrator": "Orchestrateur",
-          "slug": "Slug",
-          "caption": "Légende",
-          "emptyCaption": "—"
-        },
-        "Detail": {
-          "title": "Modifier l'orchestrateur",
-          "backToList": "Retour aux orchestrateurs"
-        },
-        "EditForm": {
-          "submit": "Enregistrer les modifications",
-          "submitting": "Enregistrement…",
-          "image": {
-            "label": "Image",
-            "description": "PNG, JPEG, WebP ou GIF jusqu’à 2 Mo.",
-            "upload": "Téléverser une image",
-            "replace": "Remplacer l'image",
-            "remove": "Supprimer l'image",
-            "previewAlt": "Aperçu de l'image de l'orchestrateur",
-            "fileTooLarge": "L'image doit faire 2 Mo ou moins.",
-            "fileTypeNotAccepted": "Utilisez PNG, JPEG, WebP ou GIF.",
-            "maxFilesExceeded": "Téléversez une image à la fois.",
-            "uploadError": "Impossible de traiter l'image sélectionnée."
-          },
-          "fields": {
-            "name": {
-              "label": "Nom",
-              "description": "Affiché partout où l'orchestrateur apparaît."
-            },
-            "slug": {
-              "label": "Slug",
-              "description": "Identifiant en lecture seule utilisé dans les URL et les API."
-            },
-            "caption": {
-              "label": "Légende",
-              "description": "Courte ligne sous le nom. Laissez vide pour effacer."
-            },
-            "description": {
-              "label": "Description",
-              "description": "Texte plus long pour les vues détaillées. Laissez vide pour effacer."
-            }
-          },
-          "validation": {
-            "nameMinLength": "Le nom doit comporter au moins {min} caractères.",
-            "noChanges": "Aucune modification à enregistrer."
-          },
-          "success": {
-            "saved": "Orchestrateur mis à jour.",
-            "imageSaved": "Image enregistrée.",
-            "imageRemoved": "Image supprimée."
-          },
-          "errors": {
-            "saveFailed": "Impossible d'enregistrer l'orchestrateur.",
-            "notFound": "Orchestrateur introuvable.",
-            "imageSaveFailed": "Échec de la mise à jour de l’image."
-          }
         }
       }
     },

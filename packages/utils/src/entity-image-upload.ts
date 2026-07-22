@@ -1,6 +1,6 @@
 import { sanitizeUserUploadFilename } from "./user-upload-path.js";
 
-/** Allowed MIME types for entity image uploads (coworker, orchestrator, …). */
+/** Allowed MIME types for entity image uploads (coworker, vendor, …). */
 export const ENTITY_IMAGE_ALLOWED_MIME_TYPES = [
   "image/png",
   "image/jpeg",

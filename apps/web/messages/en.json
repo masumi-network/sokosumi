@@ -3097,10 +3097,6 @@
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
           },
-          "orchestrators": {
-            "title": "Orchestrators",
-            "description": "Edit display metadata for first-party orchestrators."
-          },
           "coworkers": {
             "title": "Coworkers",
             "description": "Manage capabilities, priority, whitelist, archive state, and display metadata for all coworkers."
@@ -3314,70 +3310,6 @@
           "whitelist": "Whitelist",
           "whitelisted": "Whitelisted",
           "notWhitelisted": "Not whitelisted"
-        }
-      },
-      "Orchestrators": {
-        "title": "Orchestrators",
-        "description": "Manage display metadata for first-party orchestrators.",
-        "OrchestratorList": {
-          "totalCount": "{count, plural, one {# orchestrator} other {# orchestrators}}",
-          "empty": "No orchestrators found.",
-          "orchestrator": "Orchestrator",
-          "slug": "Slug",
-          "caption": "Caption",
-          "emptyCaption": "—"
-        },
-        "Detail": {
-          "title": "Edit orchestrator",
-          "backToList": "Back to orchestrators"
-        },
-        "EditForm": {
-          "submit": "Save changes",
-          "submitting": "Saving…",
-          "image": {
-            "label": "Image",
-            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
-            "upload": "Upload image",
-            "replace": "Replace image",
-            "remove": "Remove image",
-            "previewAlt": "Orchestrator image preview",
-            "fileTooLarge": "Image must be 2 MB or smaller.",
-            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
-            "maxFilesExceeded": "Upload one image at a time.",
-            "uploadError": "Could not process the selected image."
-          },
-          "fields": {
-            "name": {
-              "label": "Name",
-              "description": "Shown wherever the orchestrator is listed."
-            },
-            "slug": {
-              "label": "Slug",
-              "description": "Read-only identifier used in URLs and APIs."
-            },
-            "caption": {
-              "label": "Caption",
-              "description": "Short line shown under the name. Leave empty to clear."
-            },
-            "description": {
-              "label": "Description",
-              "description": "Longer copy for detail views. Leave empty to clear."
-            }
-          },
-          "validation": {
-            "nameMinLength": "Name must be at least {min} characters.",
-            "noChanges": "No changes to save."
-          },
-          "success": {
-            "saved": "Orchestrator updated.",
-            "imageSaved": "Image saved.",
-            "imageRemoved": "Image removed."
-          },
-          "errors": {
-            "saveFailed": "Failed to save orchestrator.",
-            "notFound": "Orchestrator not found.",
-            "imageSaveFailed": "Failed to update image."
-          }
         }
       },
       "Agents": {

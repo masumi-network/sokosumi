@@ -39,7 +39,6 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
-  PatchOrchestratorsByIdData,
   PatchProjectsByIdData,
   PatchTasksByIdData,
   PostAgentsByIdJobsData,
@@ -74,7 +73,6 @@ import {
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
-  deleteOrchestratorsByIdImage as coreDeleteOrchestratorsByIdImage,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
@@ -126,8 +124,6 @@ import {
   getJobsById as coreGetJobsById,
   getNotifications as coreGetNotifications,
   getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
-  getOrchestrators as coreGetOrchestrators,
-  getOrchestratorsById as coreGetOrchestratorsById,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
@@ -180,7 +176,6 @@ import {
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
-  patchOrchestratorsById as corePatchOrchestratorsById,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -203,7 +198,6 @@ import {
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
-  postOrchestratorsByIdImage as corePostOrchestratorsByIdImage,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
   postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
@@ -1009,75 +1003,6 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to delete agent metadata override",
-    );
-  }
-
-  async function listOrchestrators() {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetOrchestrators({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to list orchestrators",
-    );
-  }
-
-  async function getOrchestratorById(id: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetOrchestratorsById({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to fetch orchestrator",
-    );
-  }
-
-  async function patchOrchestratorById(
-    id: string,
-    body: NonNullable<PatchOrchestratorsByIdData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchOrchestratorsById({
-          client,
-          path: { id },
-          body,
-          cache: "no-store",
-        }),
-      "Failed to update orchestrator",
-    );
-  }
-
-  async function uploadOrchestratorImage(id: string, file: Blob | File) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostOrchestratorsByIdImage({
-          client,
-          path: { id },
-          body: { file },
-          cache: "no-store",
-        }),
-      "Failed to upload orchestrator image",
-    );
-  }
-
-  async function deleteOrchestratorImage(id: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreDeleteOrchestratorsByIdImage({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to remove orchestrator image",
     );
   }
 
@@ -3264,11 +3189,6 @@ export function createCoreClient(getClient: GetClient) {
     getAdminAgent,
     patchAdminAgentMetadataOverride,
     deleteAdminAgentMetadataOverride,
-    listOrchestrators,
-    getOrchestratorById,
-    patchOrchestratorById,
-    uploadOrchestratorImage,
-    deleteOrchestratorImage,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,

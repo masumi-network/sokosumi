@@ -129,6 +129,57 @@ describe("authMiddleware", () => {
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
+  it("authenticates from the orchestrator service token", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer test-orchestrator-service-token0",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "orchestrator",
+    });
+    expect(coworkerApiKeyFindUniqueMock).not.toHaveBeenCalled();
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not treat a wrong bearer as orchestrator service auth", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: false,
+      key: null,
+    });
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer wrong-orchestrator-token",
+      },
+    });
+
+    // Falls through to other schemes and ends unauthenticated/401 path.
+    expect(response.status).not.toBe(200);
+    expect(verifyApiKeyMock).toHaveBeenCalled();
+  });
+
+  it("never authenticates legacy orch_ API keys as the orchestrator actor", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: false,
+      key: null,
+    });
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        // Pre-hard-cut DB-minted keys; table and verify path are gone.
+        authorization: "Bearer orch_deadbeefcafebabedeadbeefcafebabe",
+      },
+    });
+
+    // Hard cut: must not become actor orchestrator (falls through → 401).
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).toHaveBeenCalled();
+  });
+
   it("returns 401 for revoked dedicated coworker API key", async () => {
     coworkerApiKeyFindUniqueMock.mockResolvedValue({
       coworkerId: "cow_123",

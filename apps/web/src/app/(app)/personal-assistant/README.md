@@ -101,7 +101,7 @@ Surfaces:
 
 ### Personality (setup-only)
 
-Tone / detail / style (0–100) are chosen on onboarding step 2 (Look + personality), forwarded to the orchestrator, and mirrored on `hermesInstance`. Settings can rename the assistant and re-pick the orb colour after setup; **personality is not editable post-onboard** (no PATCH field today). Re-provision / destroy + activate again is the only way to change it.
+Tone / detail / style (0–100) are chosen on onboarding step 2 (Look + personality), forwarded to the orchestrator, and mirrored on the per-user `Orchestrator` row (`name` / personality fields). Settings can rename the assistant and re-pick the orb colour after setup; **personality is not editable post-onboard** (no PATCH field today). Re-provision / destroy + activate again is the only way to change it.
 
 ---
 
@@ -278,11 +278,11 @@ Useful for design iteration.
 
 ### Resetting an instance
 
-`DELETE /v1/instances/:userId` on the orchestrator (mirror also clears
-`hermesInstance` + `hermesMessage` + `hermesPendingConnection` in our DB via
-the destroy route). Orchestrator-side deletes must also
-`POST /v1/hermes/instances/{userId}/purge`. For a hard local-only reset, drop
-those rows directly.
+`DELETE /v1/instances/:userId` on the orchestrator (mirror also archives the
+per-user `Orchestrator` row and clears `hermesMessage` +
+`hermesPendingConnection` in our DB via the destroy route). Orchestrator-side
+deletes must also `POST /v1/orchestrators/me/purge` with body `{ userId }`.
+For a hard local-only reset, drop those rows directly.
 
 ---
 

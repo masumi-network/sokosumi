@@ -65,7 +65,6 @@ const publicTaskInclude = {
       orchestrator: {
         select: {
           name: true,
-          image: true,
         },
       },
       transaction: {
@@ -109,11 +108,7 @@ function mapPublicTaskMilestone(
       event.coworker?.name ??
       event.user?.name ??
       null,
-    actorImage:
-      event.orchestrator?.image ??
-      event.coworker?.image ??
-      event.user?.image ??
-      null,
+    actorImage: event.coworker?.image ?? event.user?.image ?? null,
   };
 }
 
