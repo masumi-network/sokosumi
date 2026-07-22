@@ -1,10 +1,11 @@
+import { err, ok, type Result } from "neverthrow";
+
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
   COWORKER_CAPTION_MAX_LENGTH,
   COWORKER_NAME_MIN_LENGTH,
 } from "@/lib/constants/coworker-display";
 import type { CoworkerDisplayPatchBody } from "@/lib/services/coworker-display.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 
 /** Client payload may include non-display keys; they are dropped. */
 export interface UntrustedCoworkerDisplayPatch {
@@ -18,7 +19,7 @@ export function sanitizeCoworkerDisplayPatchBody(
   patchBody: UntrustedCoworkerDisplayPatch | undefined,
 ): Result<CoworkerDisplayPatchBody | undefined, ActionError> {
   if (!patchBody) {
-    return Ok(undefined);
+    return ok(undefined);
   }
 
   const sanitized: CoworkerDisplayPatchBody = {};
@@ -26,7 +27,7 @@ export function sanitizeCoworkerDisplayPatchBody(
   if (patchBody.name !== undefined) {
     const name = patchBody.name.trim();
     if (name.length < COWORKER_NAME_MIN_LENGTH) {
-      return Err({
+      return err({
         code: CommonErrorCode.BAD_INPUT,
         message: `Name must be at least ${COWORKER_NAME_MIN_LENGTH} characters`,
       });
@@ -42,7 +43,7 @@ export function sanitizeCoworkerDisplayPatchBody(
       if (caption.length === 0) {
         sanitized.caption = null;
       } else if (caption.length > COWORKER_CAPTION_MAX_LENGTH) {
-        return Err({
+        return err({
           code: CommonErrorCode.BAD_INPUT,
           message: `Caption must be at most ${COWORKER_CAPTION_MAX_LENGTH} characters`,
         });
@@ -61,5 +62,5 @@ export function sanitizeCoworkerDisplayPatchBody(
     }
   }
 
-  return Ok(Object.keys(sanitized).length > 0 ? sanitized : undefined);
+  return ok(Object.keys(sanitized).length > 0 ? sanitized : undefined);
 }

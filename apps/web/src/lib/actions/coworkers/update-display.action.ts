@@ -56,11 +56,11 @@ export const updateDeveloperCoworkerDisplayAction = withSession<
       }
 
       const sanitizeResult = sanitizeCoworkerDisplayPatchBody(patchBody);
-      if (!sanitizeResult.ok) {
-        return sanitizeResult;
+      if (sanitizeResult.isErr()) {
+        return Err(sanitizeResult.error);
       }
 
-      const safePatchBody = sanitizeResult.data;
+      const safePatchBody = sanitizeResult.value;
       const hasPatchBody = Boolean(safePatchBody);
       if (!hasPatchBody && imageIntent === "none") {
         return Err({

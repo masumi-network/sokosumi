@@ -4,19 +4,10 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 import type { AdminCoworkerCapability } from "@/lib/constants/coworker-display";
 import {
-  type CoworkerDisplayPatchBody,
-  type CoworkerImageIntent,
   coworkerDisplayService,
   type UpdateCoworkerDisplayInput,
   type UpdateCoworkerDisplayResult,
 } from "@/lib/services/coworker-display.service";
-
-export type {
-  CoworkerDisplayPatchBody as AdminCoworkerDisplayPatchBody,
-  CoworkerImageIntent as AdminCoworkerImageIntent,
-  UpdateCoworkerDisplayInput as UpdateAdminCoworkerDisplayInput,
-  UpdateCoworkerDisplayResult as UpdateAdminCoworkerDisplayResult,
-};
 
 export interface AdminCoworkerControlsPatchBody {
   capabilities?: AdminCoworkerCapability[];

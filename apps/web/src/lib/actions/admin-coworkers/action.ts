@@ -15,10 +15,12 @@ import {
 } from "@/lib/constants/coworker-display";
 import {
   type AdminCoworkerControlsPatchBody,
-  type AdminCoworkerImageIntent,
   adminCoworkerService,
-  type UpdateAdminCoworkerDisplayResult,
 } from "@/lib/services/admin-coworker.service";
+import {
+  type CoworkerImageIntent,
+  type UpdateCoworkerDisplayResult,
+} from "@/lib/services/coworker-display.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -46,23 +48,23 @@ function mapCoreError(error: unknown): ActionError {
 interface UpdateAdminCoworkerDisplayParameters extends AuthenticatedRequest {
   id: string;
   patchBody?: UntrustedCoworkerDisplayPatch;
-  imageIntent?: AdminCoworkerImageIntent;
+  imageIntent?: CoworkerImageIntent;
   imageFile?: File;
 }
 
 export const updateAdminCoworkerDisplayAction = withSession<
   UpdateAdminCoworkerDisplayParameters,
-  Result<UpdateAdminCoworkerDisplayResult, ActionError>
+  Result<UpdateCoworkerDisplayResult, ActionError>
 >(async ({ session, id, patchBody, imageIntent = "none", imageFile }) => {
   try {
     assertAdminSession(session);
 
     const sanitizeResult = sanitizeCoworkerDisplayPatchBody(patchBody);
-    if (!sanitizeResult.ok) {
-      return sanitizeResult;
+    if (sanitizeResult.isErr()) {
+      return Err(sanitizeResult.error);
     }
 
-    const safePatchBody = sanitizeResult.data;
+    const safePatchBody = sanitizeResult.value;
     const hasPatchBody = Boolean(safePatchBody);
     if (!hasPatchBody && imageIntent === "none") {
       return Err({

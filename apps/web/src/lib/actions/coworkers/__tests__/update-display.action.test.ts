@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { UntrustedCoworkerDisplayPatch } from "../sanitize-display-patch";
+
 vi.mock("server-only", () => ({}));
 
 export {};
@@ -36,6 +38,14 @@ vi.mock("@/lib/services/coworker-display.service", () => ({
     updateDisplay: (...args: unknown[]) => updateDisplayMock(...args),
   },
 }));
+
+interface MaliciousCoworkerDisplayPatch extends UntrustedCoworkerDisplayPatch {
+  baseURL?: string;
+  url?: string;
+  capabilities?: string[];
+  priority?: number;
+  metadata?: Record<string, unknown>;
+}
 
 describe("developer coworker actions", () => {
   const session = {
@@ -89,15 +99,22 @@ describe("developer coworker actions", () => {
       coworker: { id: "cow_123", name: "Ops Agent" },
     });
 
+    const patchBody: MaliciousCoworkerDisplayPatch = {
+      name: "Ops Agent",
+      caption: "  Partner  ",
+      description: "   ",
+      image: "https://evil.example/logo.png",
+      baseURL: "https://evil.example/base",
+      url: "https://evil.example/url",
+      capabilities: ["chat", "tasks"],
+      priority: 99,
+      metadata: { channels: "evil" },
+    };
+
     const result = await updateDeveloperCoworkerDisplayAction({
       session,
       id: "cow_123",
-      patchBody: {
-        name: "Ops Agent",
-        caption: "  Partner  ",
-        description: "   ",
-        image: "https://evil.example/logo.png",
-      },
+      patchBody,
       imageIntent: "none",
     });
 
@@ -112,6 +129,24 @@ describe("developer coworker actions", () => {
       imageIntent: "none",
       imageFile: undefined,
     });
+    expect(updateDisplayMock.mock.calls[0]?.[0]?.patchBody).not.toHaveProperty(
+      "baseURL",
+    );
+    expect(updateDisplayMock.mock.calls[0]?.[0]?.patchBody).not.toHaveProperty(
+      "url",
+    );
+    expect(updateDisplayMock.mock.calls[0]?.[0]?.patchBody).not.toHaveProperty(
+      "capabilities",
+    );
+    expect(updateDisplayMock.mock.calls[0]?.[0]?.patchBody).not.toHaveProperty(
+      "priority",
+    );
+    expect(updateDisplayMock.mock.calls[0]?.[0]?.patchBody).not.toHaveProperty(
+      "metadata",
+    );
+    expect(updateDisplayMock.mock.calls[0]?.[0]?.patchBody).not.toHaveProperty(
+      "image",
+    );
   });
 
   it("rejects names shorter than three characters", async () => {
