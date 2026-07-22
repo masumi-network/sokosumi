@@ -2194,11 +2194,19 @@ export const OrchestratorSummarySchema = {
                 'null'
             ],
             example: 'Atlas'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'orb:jewel-sky:user_123'
         }
     },
     required: [
         'id',
-        'name'
+        'name',
+        'avatarSeed'
     ]
 } as const;
 
@@ -2334,11 +2342,19 @@ export const TaskEventSchema = {
                         'null'
                     ],
                     example: 'Atlas'
+                },
+                avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'orb:jewel-sky:user_123'
                 }
             },
             required: [
                 'id',
-                'name'
+                'name',
+                'avatarSeed'
             ],
             deprecated: true,
             description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'

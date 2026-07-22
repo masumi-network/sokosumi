@@ -18,6 +18,7 @@ describe("resolveTaskEventActorKind", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
         },
       },
       userId: "user-1",
@@ -85,6 +86,7 @@ describe("getEventActorInfo", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
         },
       },
     } as TaskEvent;
@@ -92,6 +94,7 @@ describe("getEventActorInfo", () => {
     expect(getEventActorInfo(event)).toEqual({
       name: "Hermes",
       image: null,
+      avatarSeed: "orb:jewel-sky:user_123",
     });
   });
 });
@@ -117,6 +120,7 @@ describe("buildTaskActivityActors", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
         },
       },
       events: [
@@ -197,6 +201,7 @@ describe("buildTaskActivityActors", () => {
             orchestrator: {
               id: "orch-2",
               name: "Athena",
+              avatarSeed: null,
             },
           },
           userId: null,
@@ -207,6 +212,7 @@ describe("buildTaskActivityActors", () => {
           orchestrator: {
             id: "orch-2",
             name: "Athena",
+            avatarSeed: null,
           },
           transactionId: null,
           credits: null,
@@ -245,10 +251,12 @@ describe("buildTaskActivityActors", () => {
       "orch-1": {
         name: "Hermes",
         image: null,
+        avatarSeed: "orb:jewel-sky:user_123",
       },
       "orch-2": {
         name: "Athena",
         image: null,
+        avatarSeed: null,
       },
     });
   });

@@ -115,6 +115,12 @@ vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
   ),
 }));
 
+vi.mock("@/components/aurora-orb", () => ({
+  AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
+    <div data-testid="assistant-orb" data-seed={seed ?? ""} aria-label={alt} />
+  ),
+}));
+
 function createEvent(
   id: string,
   {
@@ -532,17 +538,19 @@ describe("TaskActivitySection", () => {
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
   });
 
-  it("shows orchestrator actor name for orchestrator-authored events", () => {
+  it("shows orchestrator actor name and orb for orchestrator-authored events", () => {
     const events: TaskEvent[] = [
       createEvent("orch-event", {
         createdAt: "2026-01-01T12:00:00.000Z",
-        status: TaskStatus.READY,
+        status: null,
+        comment: "Assistant update",
         userId: null,
         coworkerId: null,
         orchestratorId: "orch-1",
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
         },
       }),
     ];
@@ -551,6 +559,10 @@ describe("TaskActivitySection", () => {
 
     expect(screen.getByText("Hermes")).toBeInTheDocument();
     expect(screen.queryByText("System")).not.toBeInTheDocument();
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-seed",
+      "orb:jewel-sky:user_123",
+    );
   });
 
   it("prefers nested actor over conflicting deprecated flat FKs", () => {
@@ -564,6 +576,7 @@ describe("TaskActivitySection", () => {
           orchestrator: {
             id: "orch-1",
             name: "Hermes",
+            avatarSeed: "orb:jewel-sky:user_123",
           },
         },
         // Legacy dual FK: flat userId would have won the old coworker>user>orch order.
@@ -578,6 +591,7 @@ describe("TaskActivitySection", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
         },
       }),
     ];

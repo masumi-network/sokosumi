@@ -7,6 +7,7 @@ import { getCoworkerImage } from "./coworker-image";
 export interface TaskActivityActorInfo {
   name: string;
   image: string | null;
+  avatarSeed?: string | null;
 }
 
 export interface TaskActivityActors {
@@ -77,6 +78,7 @@ export function getEventActorInfo(
         return {
           name: event.actor.orchestrator.name ?? "Assistant",
           image: null,
+          avatarSeed: event.actor.orchestrator.avatarSeed ?? null,
         };
       default: {
         const _exhaustive: never = event.actor;
@@ -92,6 +94,7 @@ export function getEventActorInfo(
       return {
         name: event.orchestrator.name ?? "Assistant",
         image: null,
+        avatarSeed: event.orchestrator.avatarSeed ?? null,
       };
     }
 
@@ -237,10 +240,12 @@ function addOrchestratorActor(
   orchestrator: {
     id: string;
     name: string | null;
+    avatarSeed?: string | null;
   },
 ) {
   orchestratorById[orchestrator.id] = {
     name: orchestrator.name ?? "Assistant",
     image: null,
+    avatarSeed: orchestrator.avatarSeed ?? null,
   };
 }
