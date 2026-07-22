@@ -33,14 +33,15 @@ async function upsertCredentialAccount(
   if (existing) {
     await prisma.account.update({
       where: { id: existing.id },
-      data: { password: passwordHash, accountId: user.email },
+      data: { password: passwordHash, accountId: user.id },
     });
     return;
   }
 
   await prisma.account.create({
     data: {
-      accountId: user.email,
+      // Better Auth credential accounts store the user id in accountId.
+      accountId: user.id,
       providerId: "credential",
       userId: user.id,
       password: passwordHash,
@@ -182,6 +183,11 @@ export async function seedUsersAndOrgs(
   await upsertMember(prisma, bob.id, acme.id, "member");
   await upsertMember(prisma, alice.id, bootstrap.id, "owner");
 
+  const aliceWithPreferredOrg = await prisma.user.update({
+    where: { id: alice.id },
+    data: { preferredOrganizationId: acme.id },
+  });
+
   const adminWorkspace = await upsertPersonalWorkspace(prisma, admin.id);
   const aliceWorkspace = await upsertPersonalWorkspace(prisma, alice.id);
   const bobWorkspace = await upsertPersonalWorkspace(prisma, bob.id);
@@ -189,7 +195,7 @@ export async function seedUsersAndOrgs(
   const acmeWorkspace = await upsertOrgWorkspace(prisma, acme.id);
   const bootstrapWorkspace = await upsertOrgWorkspace(prisma, bootstrap.id);
 
-  ctx.users = { admin, alice, bob, carol };
+  ctx.users = { admin, alice: aliceWithPreferredOrg, bob, carol };
   ctx.orgs = { acme, bootstrap };
   ctx.workspaces = {
     adminPersonal: adminWorkspace,

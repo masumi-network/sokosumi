@@ -63,6 +63,17 @@ async function upsertJob(
     jobType: JobType;
     status: AgentJobStatus;
     name: string;
+    /** Required when jobType is PAID (DB check paid_job_blockchain_required). */
+    paidFields?: {
+      blockchainIdentifier: string;
+      identifierFromPurchaser: string;
+      sellerVkey: string;
+      payByTime: Date;
+      submitResultTime: Date;
+      unlockTime: Date;
+      externalDisputeUnlockTime: Date;
+      transactionId: string;
+    };
   },
 ) {
   const existing = await ctx.prisma.job.findFirst({
@@ -71,6 +82,21 @@ async function upsertJob(
       ownerId: params.ownerId,
     },
   });
+
+  const paidCreateData =
+    params.jobType === JobType.PAID && params.paidFields
+      ? {
+          blockchainIdentifier: params.paidFields.blockchainIdentifier,
+          identifierFromPurchaser: params.paidFields.identifierFromPurchaser,
+          sellerVkey: params.paidFields.sellerVkey,
+          payByTime: params.paidFields.payByTime,
+          submitResultTime: params.paidFields.submitResultTime,
+          unlockTime: params.paidFields.unlockTime,
+          externalDisputeUnlockTime:
+            params.paidFields.externalDisputeUnlockTime,
+          transactionId: params.paidFields.transactionId,
+        }
+      : {};
 
   const job =
     existing ??
@@ -84,6 +110,7 @@ async function upsertJob(
         taskId: params.taskId,
         jobType: params.jobType,
         name: params.name,
+        ...paidCreateData,
       },
     }));
 
@@ -97,6 +124,7 @@ async function upsertJob(
         taskId: params.taskId,
         jobType: params.jobType,
         name: params.name,
+        ...paidCreateData,
       },
     });
   }
@@ -170,6 +198,37 @@ export async function seedTasksAndJobs(ctx: SeedContext): Promise<void> {
     name: "Seed completed job",
   });
 
+  const payByTime = new Date(ctx.now);
+  const submitResultTime = new Date(ctx.now);
+  submitResultTime.setUTCHours(submitResultTime.getUTCHours() + 24);
+  const unlockTime = new Date(ctx.now);
+  unlockTime.setUTCDate(unlockTime.getUTCDate() + 7);
+  const externalDisputeUnlockTime = new Date(ctx.now);
+  externalDisputeUnlockTime.setUTCDate(
+    externalDisputeUnlockTime.getUTCDate() + 14,
+  );
+
+  const existingPaidJob = await ctx.prisma.job.findFirst({
+    where: {
+      agentJobId: SEED_JOB_AGENT_IDS.running,
+      ownerId: users.alice.id,
+    },
+    select: { id: true, transactionId: true },
+  });
+
+  let paidTransactionId = existingPaidJob?.transactionId ?? null;
+  if (!paidTransactionId) {
+    const spendTx = await ctx.prisma.transaction.create({
+      data: {
+        // Negative = spend (1 credit)
+        amount: -10_000_000_000n,
+        userId: users.alice.id,
+        organizationId: orgs.acme.id,
+      },
+    });
+    paidTransactionId = spendTx.id;
+  }
+
   await upsertJob(ctx, {
     agentJobId: SEED_JOB_AGENT_IDS.running,
     ownerId: users.alice.id,
@@ -180,5 +239,15 @@ export async function seedTasksAndJobs(ctx: SeedContext): Promise<void> {
     jobType: JobType.PAID,
     status: AgentJobStatus.RUNNING,
     name: "Seed running job",
+    paidFields: {
+      blockchainIdentifier: "seed-paid-job-blockchain-001",
+      identifierFromPurchaser: "seed-purchaser-001",
+      sellerVkey: "seed_seller_vkey_001",
+      payByTime,
+      submitResultTime,
+      unlockTime,
+      externalDisputeUnlockTime,
+      transactionId: paidTransactionId,
+    },
   });
 }
