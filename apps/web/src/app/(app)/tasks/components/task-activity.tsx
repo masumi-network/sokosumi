@@ -25,6 +25,7 @@ import {
   resolveTaskEventActorKind,
   type TaskActivityActorInfo,
 } from "@/app/tasks/utils/task-activity-actors";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
@@ -439,8 +440,15 @@ export function TaskActivitySection({
               coworkerById,
               orchestratorById,
             );
-            const actorName = actorInfo?.name ?? actorLabel;
+            const actorName =
+              actorInfo?.ownerName != null
+                ? t("actorOrchestratorWithOwner", {
+                    assistant: actorInfo.name,
+                    owner: actorInfo.ownerName,
+                  })
+                : (actorInfo?.name ?? actorLabel);
             const actorImage = actorInfo?.image ?? null;
+            const showAssistantOrb = actorKind === "orchestrator";
             const action = event.comment
               ? actionCommentedLabel
               : actionUpdatedStatusLabel;
@@ -543,6 +551,14 @@ export function TaskActivitySection({
                         aria-hidden
                       />
                     </div>
+                  ) : showAssistantOrb ? (
+                    <AssistantOrb
+                      seed={actorInfo?.avatarSeed ?? null}
+                      animate={false}
+                      size={24}
+                      className="size-6 shrink-0 self-start"
+                      alt={actorName}
+                    />
                   ) : (
                     <Avatar className="size-6 shrink-0 self-start">
                       {actorImage ? (

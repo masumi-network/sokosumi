@@ -1,8 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+
+vi.mock("@/components/aurora-orb", () => ({
+  AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
+    <div data-testid="assistant-orb" data-seed={seed ?? ""} aria-label={alt} />
+  ),
+}));
 
 const baseLabels = {
   propertiesTitle: "Properties",
@@ -20,6 +26,13 @@ const baseLabels = {
   created: "Created",
   updated: "Updated",
   schedule: "Schedule",
+  formatOrchestratorActorName: ({
+    assistant,
+    owner,
+  }: {
+    assistant: string;
+    owner: string;
+  }) => `${assistant} · ${owner}`,
 };
 
 function createTask(
@@ -120,7 +133,7 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
   });
 
-  it("shows orchestrator creator", () => {
+  it("shows orchestrator creator with owner name", () => {
     render(
       <TaskMetadata
         task={createTask({
@@ -130,6 +143,12 @@ describe("TaskMetadata", () => {
             orchestrator: {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Hermes",
+              avatarSeed: null,
+              owner: {
+                id: "user_2",
+                name: "Ada Lovelace",
+                image: null,
+              },
             },
           },
         })}
@@ -141,6 +160,10 @@ describe("TaskMetadata", () => {
     );
 
     expect(screen.getByText("Creator")).toBeInTheDocument();
-    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-seed",
+      "",
+    );
   });
 });

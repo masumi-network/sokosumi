@@ -836,6 +836,9 @@ describe("mapTaskEventActor", () => {
     const orchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: "orb:jewel-sky:user_123",
+      userId: defaultTaskUser.id,
+      user: defaultTaskUser,
     };
     const event = buildTaskEventFixture({
       orchestratorId: orchestrator.id,
@@ -845,7 +848,12 @@ describe("mapTaskEventActor", () => {
     expect(mapTaskEventActor(event)).toEqual({
       type: "orchestrator",
       id: orchestrator.id,
-      orchestrator,
+      orchestrator: {
+        id: orchestrator.id,
+        name: orchestrator.name,
+        avatarSeed: orchestrator.avatarSeed,
+        owner: defaultTaskUser,
+      },
     });
   });
 
@@ -874,6 +882,9 @@ describe("mapTaskEventActor", () => {
     const orchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: null,
+      userId: defaultTaskUser.id,
+      user: defaultTaskUser,
     };
 
     expect(
@@ -888,7 +899,12 @@ describe("mapTaskEventActor", () => {
     ).toEqual({
       type: "orchestrator",
       id: orchestrator.id,
-      orchestrator,
+      orchestrator: {
+        id: orchestrator.id,
+        name: orchestrator.name,
+        avatarSeed: orchestrator.avatarSeed,
+        owner: defaultTaskUser,
+      },
     });
   });
 
@@ -896,6 +912,9 @@ describe("mapTaskEventActor", () => {
     const orchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: null,
+      userId: defaultTaskUser.id,
+      user: defaultTaskUser,
     };
 
     expect(
@@ -910,7 +929,12 @@ describe("mapTaskEventActor", () => {
     ).toEqual({
       type: "orchestrator",
       id: orchestrator.id,
-      orchestrator,
+      orchestrator: {
+        id: orchestrator.id,
+        name: orchestrator.name,
+        avatarSeed: orchestrator.avatarSeed,
+        owner: defaultTaskUser,
+      },
     });
   });
 
@@ -1088,6 +1112,9 @@ describe("mapTask", () => {
     const creatorOrchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: null,
+      userId: defaultTaskUser.id,
+      user: defaultTaskUser,
     };
     const task = {
       id: "tsk_alias",
@@ -1120,6 +1147,13 @@ describe("mapTask", () => {
       },
     } as unknown as TaskWithIncludes;
 
+    const mappedOrchestrator = {
+      id: creatorOrchestrator.id,
+      name: creatorOrchestrator.name,
+      avatarSeed: creatorOrchestrator.avatarSeed,
+      owner: defaultTaskUser,
+    };
+
     expect(mapTask(task)).toMatchObject({
       ownerId: "user_123",
       userId: "user_123",
@@ -1130,10 +1164,10 @@ describe("mapTask", () => {
       creator: {
         type: "orchestrator",
         id: creatorOrchestrator.id,
-        orchestrator: creatorOrchestrator,
+        orchestrator: mappedOrchestrator,
       },
       orchestratorId: creatorOrchestrator.id,
-      orchestrator: creatorOrchestrator,
+      orchestrator: mappedOrchestrator,
     });
   });
 

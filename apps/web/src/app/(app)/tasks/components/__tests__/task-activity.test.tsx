@@ -59,6 +59,10 @@ vi.mock("next-intl", () => ({
         return `from ${values?.appName ?? ""}`.trim();
       }
 
+      if (key === "actorOrchestratorWithOwner") {
+        return `${values?.assistant ?? ""} · ${values?.owner ?? ""}`.trim();
+      }
+
       return labels[key] ?? key;
     };
 
@@ -112,6 +116,25 @@ vi.mock("@/components/expandable-markdown", () => ({
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
   FileChipMiniPreviewWithMetadata: ({ url }: { url: string }) => (
     <div>{url}</div>
+  ),
+}));
+
+vi.mock("@/components/aurora-orb", () => ({
+  AssistantOrb: ({
+    seed,
+    alt,
+    animate,
+  }: {
+    seed: string | null;
+    alt?: string;
+    animate?: boolean;
+  }) => (
+    <div
+      data-testid="assistant-orb"
+      data-seed={seed ?? ""}
+      data-animate={animate === false ? "false" : "true"}
+      aria-label={alt}
+    />
   ),
 }));
 
@@ -532,25 +555,76 @@ describe("TaskActivitySection", () => {
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
   });
 
-  it("shows orchestrator actor name for orchestrator-authored events", () => {
+  it("shows orchestrator actor name with owner and orb for orchestrator-authored events", () => {
     const events: TaskEvent[] = [
       createEvent("orch-event", {
         createdAt: "2026-01-01T12:00:00.000Z",
-        status: TaskStatus.READY,
+        status: null,
+        comment: "Assistant update",
         userId: null,
         coworkerId: null,
         orchestratorId: "orch-1",
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
         },
       }),
     ];
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
     expect(screen.queryByText("System")).not.toBeInTheDocument();
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-seed",
+      "orb:jewel-sky:user_123",
+    );
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-animate",
+      "false",
+    );
+  });
+
+  it("shows static placeholder orb when orchestrator avatarSeed is null", () => {
+    const events: TaskEvent[] = [
+      createEvent("orch-null-seed", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Unnamed orb update",
+        userId: null,
+        coworkerId: null,
+        orchestratorId: "orch-1",
+        orchestrator: {
+          id: "orch-1",
+          name: "Hermes",
+          avatarSeed: null,
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
+        },
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-seed",
+      "",
+    );
+    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+      "data-animate",
+      "false",
+    );
+    expect(screen.queryByText("HL")).not.toBeInTheDocument();
   });
 
   it("prefers nested actor over conflicting deprecated flat FKs", () => {
@@ -564,13 +638,19 @@ describe("TaskActivitySection", () => {
           orchestrator: {
             id: "orch-1",
             name: "Hermes",
+            avatarSeed: "orb:jewel-sky:user_123",
+            owner: {
+              id: "user-1",
+              name: "Ada Lovelace",
+              image: null,
+            },
           },
         },
         // Legacy dual FK: flat userId would have won the old coworker>user>orch order.
         userId: "user-2",
         user: {
           id: "user-2",
-          name: "Ada Lovelace",
+          name: "Grace Hopper",
           image: null,
         },
         coworkerId: null,
@@ -578,14 +658,20 @@ describe("TaskActivitySection", () => {
         orchestrator: {
           id: "orch-1",
           name: "Hermes",
+          avatarSeed: "orb:jewel-sky:user_123",
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
         },
       }),
     ];
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    expect(screen.getByText("Hermes")).toBeInTheDocument();
-    expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
+    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+    expect(screen.queryByText("Grace Hopper")).not.toBeInTheDocument();
   });
 
   it("shows upgrade plan billing CTA for latest out-of-credits event on free plan", () => {

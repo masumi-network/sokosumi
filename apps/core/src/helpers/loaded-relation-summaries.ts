@@ -92,19 +92,29 @@ export function coworkerSummaryFromLoadedRelation(
   };
 }
 
-interface OrchestratorSummaryFields {
+interface OrchestratorLoadedRelation {
   id: string;
   name: string | null;
+  avatarSeed: string | null;
+  userId: string;
+  user: UserSummaryFields | null;
+}
+
+export interface OrchestratorSummaryFields {
+  id: string;
+  name: string | null;
+  avatarSeed: string | null;
+  owner: UserSummaryFields;
 }
 
 /**
  * When `orchestratorId` is null, there is no creator orchestrator summary.
- * When it is set, the orchestrator relation must be loaded.
+ * When it is set, the orchestrator relation (including owner user) must be loaded.
  */
 export function orchestratorSummaryFromLoadedRelation(
   context: string,
   orchestratorId: string | null,
-  orchestrator: OrchestratorSummaryFields | null,
+  orchestrator: OrchestratorLoadedRelation | null,
 ): OrchestratorSummaryFields | null {
   if (orchestratorId == null) {
     return null;
@@ -119,5 +129,11 @@ export function orchestratorSummaryFromLoadedRelation(
   return {
     id: orchestrator.id,
     name: orchestrator.name,
+    avatarSeed: orchestrator.avatarSeed,
+    owner: userSummaryFromLoadedRelation(
+      `${context} orchestrator owner`,
+      orchestrator.userId,
+      orchestrator.user,
+    ),
   };
 }
