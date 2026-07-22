@@ -119,6 +119,22 @@ describe("isSchemaDriftPrismaError", () => {
     ).toBe(true);
   });
 
+  it("detects missing-table schema drift (P2021)", () => {
+    expect(
+      isSchemaDriftPrismaError(
+        Object.assign(
+          new Error(
+            "The table `public.hermesInstance` does not exist in the current database.",
+          ),
+          {
+            name: "PrismaClientKnownRequestError",
+            code: "P2021",
+          },
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it("detects enum-value schema drift during deploy windows", () => {
     expect(
       isSchemaDriftPrismaError(
