@@ -7,10 +7,14 @@ import { DeveloperCoworkerEditForm } from "@/app/developer/components/coworkers/
 import { Button } from "@/components/ui/button";
 import { developerCoworkerService } from "@/lib/services/developer-coworker.service";
 
-export const metadata: Metadata = {
-  title: "Edit coworker",
-  description: "Edit owned coworker display fields",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Developer.Coworkers.Metadata");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 interface DeveloperCoworkerEditPageProps {
   params: Promise<{ id: string }>;

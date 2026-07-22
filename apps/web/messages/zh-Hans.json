@@ -4248,6 +4248,10 @@
           "empty": "你还没有任何活跃的 coworkers。",
           "noCaption": "无副标题",
           "edit": "编辑"
+        },
+        "Metadata": {
+          "title": "编辑 coworker",
+          "description": "编辑你拥有的 coworker 展示字段"
         }
       }
     },

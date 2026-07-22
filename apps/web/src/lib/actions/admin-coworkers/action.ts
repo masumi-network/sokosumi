@@ -1,10 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  sanitizeCoworkerDisplayPatchBody,
-  type UntrustedCoworkerDisplayPatch,
-} from "@/lib/actions/coworkers/sanitize-display-patch";
+import { validateCoworkerDisplayActionInput } from "@/lib/actions/coworkers/apply-display-action-input";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
@@ -17,10 +14,7 @@ import {
   type AdminCoworkerControlsPatchBody,
   adminCoworkerService,
 } from "@/lib/services/admin-coworker.service";
-import {
-  type CoworkerImageIntent,
-  type UpdateCoworkerDisplayResult,
-} from "@/lib/services/coworker-display.service";
+import { type UpdateCoworkerDisplayResult } from "@/lib/services/coworker-display.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -46,48 +40,34 @@ function mapCoreError(error: unknown): ActionError {
 }
 
 interface UpdateAdminCoworkerDisplayParameters extends AuthenticatedRequest {
-  id: string;
-  patchBody?: UntrustedCoworkerDisplayPatch;
-  imageIntent?: CoworkerImageIntent;
-  imageFile?: File;
+  id: unknown;
+  patchBody?: unknown;
+  imageIntent?: unknown;
+  imageFile?: unknown;
 }
 
 export const updateAdminCoworkerDisplayAction = withSession<
   UpdateAdminCoworkerDisplayParameters,
   Result<UpdateCoworkerDisplayResult, ActionError>
->(async ({ session, id, patchBody, imageIntent = "none", imageFile }) => {
+>(async ({ session, id, patchBody, imageIntent, imageFile }) => {
   try {
     assertAdminSession(session);
 
-    const sanitizeResult = sanitizeCoworkerDisplayPatchBody(patchBody);
-    if (sanitizeResult.isErr()) {
-      return Err(sanitizeResult.error);
-    }
-
-    const safePatchBody = sanitizeResult.value;
-    const hasPatchBody = Boolean(safePatchBody);
-    if (!hasPatchBody && imageIntent === "none") {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "No coworker changes to save",
-      });
-    }
-
-    if (imageIntent === "upload" && !imageFile) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Image file is required for upload",
-      });
-    }
-
-    const result = await adminCoworkerService.updateDisplay({
+    const validatedInput = validateCoworkerDisplayActionInput({
       id,
-      patchBody: safePatchBody,
+      patchBody,
       imageIntent,
       imageFile,
     });
+    if (validatedInput.isErr()) {
+      return Err(validatedInput.error);
+    }
 
-    revalidateAdminCoworkerRoutes(id);
+    const result = await adminCoworkerService.updateDisplay(
+      validatedInput.value,
+    );
+
+    revalidateAdminCoworkerRoutes(validatedInput.value.id);
     return Ok(result);
   } catch (error) {
     return Err(mapCoreError(error));

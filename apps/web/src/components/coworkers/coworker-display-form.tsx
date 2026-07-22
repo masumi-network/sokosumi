@@ -56,6 +56,8 @@ export type UpdateCoworkerDisplayAction = (input: {
 interface CoworkerDisplayFormProps {
   coworker: Coworker;
   cancelHref: string;
+  disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
   updateAction: UpdateCoworkerDisplayAction;
   onNotFound: () => void;
 }
@@ -63,6 +65,8 @@ interface CoworkerDisplayFormProps {
 export function CoworkerDisplayForm({
   coworker,
   cancelHref,
+  disabled = false,
+  onBusyChange,
   updateAction,
   onNotFound,
 }: CoworkerDisplayFormProps) {
@@ -83,7 +87,8 @@ export function CoworkerDisplayForm({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isRemovingImage, setIsRemovingImage] = useState(false);
 
-  const isBusy = isSavingText || isUploadingImage || isRemovingImage;
+  const isFormBusy = isSavingText || isUploadingImage || isRemovingImage;
+  const isDisabled = disabled || isFormBusy;
 
   const imageLabels = {
     fileTooLarge: t("image.fileTooLarge"),
@@ -117,35 +122,46 @@ export function CoworkerDisplayForm({
     return false;
   }
 
+  async function runDisplayMutation<T>(mutation: () => Promise<T>): Promise<T> {
+    onBusyChange?.(true);
+    try {
+      return await mutation();
+    } finally {
+      onBusyChange?.(false);
+    }
+  }
+
   async function handleImageSelect(files: File[]) {
     const file = files[0];
-    if (!file || isBusy) {
+    if (!file || isDisabled) {
       return;
     }
 
     setPendingImageFiles(files);
     setIsUploadingImage(true);
     try {
-      const result = await updateAction({
-        id: baseline.id,
-        imageIntent: "upload",
-        imageFile: file,
-      });
+      await runDisplayMutation(async () => {
+        const result = await updateAction({
+          id: baseline.id,
+          imageIntent: "upload",
+          imageFile: file,
+        });
 
-      if (!result.ok) {
-        if (!handleActionError(result)) {
-          toast.error(result.error.message ?? t("errors.imageSaveFailed"));
+        if (!result.ok) {
+          if (!handleActionError(result)) {
+            toast.error(t("errors.imageSaveFailed"));
+          }
+          return;
         }
-        return;
-      }
 
-      applySavedCoworker(result.data.coworker);
-      if (result.data.imageError) {
-        toast.error(result.data.imageError);
-      } else {
-        toast.success(t("success.imageSaved"));
-      }
-      router.refresh();
+        applySavedCoworker(result.data.coworker);
+        if (result.data.imageError) {
+          toast.error(t("errors.imageSaveFailed"));
+        } else {
+          toast.success(t("success.imageSaved"));
+        }
+        router.refresh();
+      });
     } finally {
       setPendingImageFiles([]);
       setIsUploadingImage(false);
@@ -153,31 +169,33 @@ export function CoworkerDisplayForm({
   }
 
   async function handleRemoveImage() {
-    if (!imageValue || isBusy) {
+    if (!imageValue || isDisabled) {
       return;
     }
 
     setIsRemovingImage(true);
     try {
-      const result = await updateAction({
-        id: baseline.id,
-        imageIntent: "remove",
-      });
+      await runDisplayMutation(async () => {
+        const result = await updateAction({
+          id: baseline.id,
+          imageIntent: "remove",
+        });
 
-      if (!result.ok) {
-        if (!handleActionError(result)) {
-          toast.error(result.error.message ?? t("errors.imageSaveFailed"));
+        if (!result.ok) {
+          if (!handleActionError(result)) {
+            toast.error(t("errors.imageSaveFailed"));
+          }
+          return;
         }
-        return;
-      }
 
-      applySavedCoworker(result.data.coworker);
-      if (result.data.imageError) {
-        toast.error(result.data.imageError);
-      } else {
-        toast.success(t("success.imageRemoved"));
-      }
-      router.refresh();
+        applySavedCoworker(result.data.coworker);
+        if (result.data.imageError) {
+          toast.error(t("errors.imageSaveFailed"));
+        } else {
+          toast.success(t("success.imageRemoved"));
+        }
+        router.refresh();
+      });
     } finally {
       setIsRemovingImage(false);
     }
@@ -185,7 +203,7 @@ export function CoworkerDisplayForm({
 
   async function handleDisplaySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isBusy) {
+    if (isDisabled) {
       return;
     }
 
@@ -221,27 +239,29 @@ export function CoworkerDisplayForm({
 
     setIsSavingText(true);
     try {
-      const result = await updateAction({
-        id: baseline.id,
-        patchBody,
-        imageIntent: "none",
-      });
+      await runDisplayMutation(async () => {
+        const result = await updateAction({
+          id: baseline.id,
+          patchBody,
+          imageIntent: "none",
+        });
 
-      if (!result.ok) {
-        if (!handleActionError(result)) {
-          toast.error(result.error.message ?? t("errors.saveFailed"));
+        if (!result.ok) {
+          if (!handleActionError(result)) {
+            toast.error(t("errors.saveFailed"));
+          }
+          return;
         }
-        return;
-      }
 
-      applySavedCoworker(result.data.coworker);
-      if (result.data.imageError) {
-        toast.success(t("success.saved"));
-        toast.error(result.data.imageError);
-      } else {
-        toast.success(t("success.saved"));
-      }
-      router.refresh();
+        applySavedCoworker(result.data.coworker);
+        if (result.data.imageError) {
+          toast.success(t("success.saved"));
+          toast.error(t("errors.imageSaveFailed"));
+        } else {
+          toast.success(t("success.saved"));
+        }
+        router.refresh();
+      });
     } finally {
       setIsSavingText(false);
     }
@@ -259,7 +279,7 @@ export function CoworkerDisplayForm({
             <Label>{t("image.label")}</Label>
             <OrganizationLogoUploadField
               accept={COWORKER_IMAGE_ACCEPT}
-              disabled={isBusy}
+              disabled={isDisabled}
               fallbackIcon={<Bot className="size-8" />}
               isRemoving={isRemovingImage}
               isUploading={isUploadingImage}
@@ -284,7 +304,7 @@ export function CoworkerDisplayForm({
                 id="coworker-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                disabled={isBusy}
+                disabled={isDisabled}
                 required
                 minLength={COWORKER_NAME_MIN_LENGTH}
               />
@@ -298,7 +318,7 @@ export function CoworkerDisplayForm({
                 id="coworker-caption"
                 value={caption}
                 onChange={(event) => setCaption(event.target.value)}
-                disabled={isBusy}
+                disabled={isDisabled}
                 maxLength={COWORKER_CAPTION_MAX_LENGTH}
               />
             </div>
@@ -311,14 +331,14 @@ export function CoworkerDisplayForm({
                 id="coworker-description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                disabled={isBusy}
+                disabled={isDisabled}
                 rows={4}
               />
             </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={isBusy}>
+            <Button type="submit" disabled={isDisabled}>
               {isSavingText ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -328,7 +348,12 @@ export function CoworkerDisplayForm({
                 t("saveChanges")
               )}
             </Button>
-            <Button type="button" variant="outline" asChild disabled={isBusy}>
+            <Button
+              type="button"
+              variant="outline"
+              asChild
+              disabled={isDisabled}
+            >
               <Link href={cancelHref}>{t("cancel")}</Link>
             </Button>
           </div>

@@ -101,10 +101,15 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
   const [isUpdatingWhitelist, setIsUpdatingWhitelist] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isUnarchiving, setIsUnarchiving] = useState(false);
+  const [isDisplayBusy, setIsDisplayBusy] = useState(false);
 
   const archived = isArchived(baseline);
   const isBusy =
-    isSavingControls || isUpdatingWhitelist || isArchiving || isUnarchiving;
+    isSavingControls ||
+    isUpdatingWhitelist ||
+    isArchiving ||
+    isUnarchiving ||
+    isDisplayBusy;
 
   function applySavedCoworker(saved: Coworker) {
     setBaseline(saved);
@@ -437,9 +442,10 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
       </Card>
 
       <CoworkerDisplayForm
-        key={`${baseline.id}-${baseline.updatedAt.toISOString()}`}
         coworker={baseline}
         cancelHref="/admin/coworkers"
+        disabled={isBusy}
+        onBusyChange={setIsDisplayBusy}
         updateAction={updateAdminCoworkerDisplayAction}
         onNotFound={handleNotFound}
       />

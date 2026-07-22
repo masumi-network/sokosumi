@@ -4248,6 +4248,10 @@
           "empty": "Non possiedi ancora coworker attivi.",
           "noCaption": "Nessuna didascalia",
           "edit": "Modifica"
+        },
+        "Metadata": {
+          "title": "Modifica coworker",
+          "description": "Modifica i campi di visualizzazione dei tuoi coworker"
         }
       }
     },

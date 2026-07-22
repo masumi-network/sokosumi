@@ -4248,6 +4248,10 @@
           "empty": "Você ainda não possui coworkers ativos.",
           "noCaption": "Sem legenda",
           "edit": "Editar"
+        },
+        "Metadata": {
+          "title": "Editar coworker",
+          "description": "Editar os campos de exibição dos seus coworkers"
         }
       }
     },

@@ -4395,6 +4395,10 @@
           "empty": "You do not own any active coworkers yet.",
           "noCaption": "No caption",
           "edit": "Edit"
+        },
+        "Metadata": {
+          "title": "Edit coworker",
+          "description": "Edit owned coworker display fields"
         }
       },
       "Docs": {

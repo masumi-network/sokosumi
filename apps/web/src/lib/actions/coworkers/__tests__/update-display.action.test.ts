@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { UntrustedCoworkerDisplayPatch } from "../sanitize-display-patch";
-
 vi.mock("server-only", () => ({}));
 
 export {};
@@ -38,14 +36,6 @@ vi.mock("@/lib/services/coworker-display.service", () => ({
     updateDisplay: (...args: unknown[]) => updateDisplayMock(...args),
   },
 }));
-
-interface MaliciousCoworkerDisplayPatch extends UntrustedCoworkerDisplayPatch {
-  baseURL?: string;
-  url?: string;
-  capabilities?: string[];
-  priority?: number;
-  metadata?: Record<string, unknown>;
-}
 
 describe("developer coworker actions", () => {
   const session = {
@@ -99,7 +89,7 @@ describe("developer coworker actions", () => {
       coworker: { id: "cow_123", name: "Ops Agent" },
     });
 
-    const patchBody: MaliciousCoworkerDisplayPatch = {
+    const patchBody = {
       name: "Ops Agent",
       caption: "  Partner  ",
       description: "   ",
@@ -173,5 +163,57 @@ describe("developer coworker actions", () => {
 
     expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
     expect(updateDisplayMock).not.toHaveBeenCalled();
+  });
+
+  it("returns BAD_INPUT for invalid image intent without calling service", async () => {
+    const { updateDeveloperCoworkerDisplayAction } = await import(
+      "../update-display.action"
+    );
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+
+    getOwnedCoworkerByIdMock.mockResolvedValue({ id: "cow_123" });
+
+    const result = await updateDeveloperCoworkerDisplayAction({
+      session,
+      id: "cow_123",
+      patchBody: {
+        name: "Ops Agent",
+      },
+      imageIntent: "evil",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    expect(updateDisplayMock).not.toHaveBeenCalled();
+    expect(getOwnedCoworkerByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns BAD_INPUT for forged non-string display fields", async () => {
+    const { updateDeveloperCoworkerDisplayAction } = await import(
+      "../update-display.action"
+    );
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+
+    const result = await updateDeveloperCoworkerDisplayAction({
+      session,
+      id: "cow_123",
+      patchBody: {
+        name: 123,
+      },
+      imageIntent: "none",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    expect(updateDisplayMock).not.toHaveBeenCalled();
+    expect(getOwnedCoworkerByIdMock).not.toHaveBeenCalled();
   });
 });

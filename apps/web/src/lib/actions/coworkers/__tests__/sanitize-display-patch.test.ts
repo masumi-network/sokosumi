@@ -1,21 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  sanitizeCoworkerDisplayPatchBody,
-  type UntrustedCoworkerDisplayPatch,
-} from "../sanitize-display-patch";
+import { CommonErrorCode } from "@/lib/actions/errors";
 
-interface MaliciousCoworkerDisplayPatch extends UntrustedCoworkerDisplayPatch {
-  baseURL?: string;
-  url?: string;
-  capabilities?: string[];
-  priority?: number;
-  metadata?: Record<string, unknown>;
-}
+import { sanitizeCoworkerDisplayPatchBody } from "../sanitize-display-patch";
 
 describe("sanitizeCoworkerDisplayPatchBody", () => {
   it("omits locked config fields from sanitized output", () => {
-    const patchBody: MaliciousCoworkerDisplayPatch = {
+    const patchBody = {
       name: "Ops Agent",
       caption: "  Partner  ",
       description: "   ",
@@ -45,5 +36,20 @@ describe("sanitizeCoworkerDisplayPatchBody", () => {
     expect(result.value).not.toHaveProperty("capabilities");
     expect(result.value).not.toHaveProperty("priority");
     expect(result.value).not.toHaveProperty("metadata");
+  });
+
+  it("returns BAD_INPUT for forged non-string display fields", () => {
+    const result = sanitizeCoworkerDisplayPatchBody({
+      name: 123,
+      caption: true,
+      description: { evil: true },
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isOk()) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
   });
 });
