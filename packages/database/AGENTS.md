@@ -160,7 +160,10 @@ export const userRepository = {
 | `pnpm prisma:migrate:dev`    | Create new migration          |
 | `pnpm prisma:migrate:deploy` | Apply migrations (production / Core Vercel build) |
 | `pnpm prisma:migrate:reset`  | Reset database (dev only)     |
+| `pnpm prisma:seed`           | Seed local dev fixture data   |
 | `pnpm prisma:studio`         | Open Prisma Studio            |
+
+Fixture identities and run instructions: [`prisma/SEED.md`](./prisma/SEED.md).
 
 ## Usage in Apps
 

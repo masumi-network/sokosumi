@@ -17,5 +17,5 @@
     "preserveSymlinks": true
   },
   "include": ["src/**/*", "**/*.test.ts"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "prisma/**"]
 }

@@ -1,10 +1,8 @@
 /**
- * One-off seed: populate coworker.description (longer) and
- * coworker.metadata.profile (model / hosting / capabilities / examples) for the
- * New Task agent picker. Safe to re-run; merges with existing metadata and
- * preserves any `channels`. Run against a dev branch only:
+ * @deprecated Use `pnpm prisma:seed` instead. This script only updates existing
+ * coworker rows; the canonical seed creates full fixture data locally.
  *
- *   DATABASE_URL="postgres://..." npx tsx packages/database/scripts/seed-coworker-profiles.ts
+ *   pnpm prisma:seed
  */
 import { createPrismaClient } from "../src/client";
 
