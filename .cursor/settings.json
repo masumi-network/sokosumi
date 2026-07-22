@@ -8,9 +8,6 @@
     },
     "docs-canvas": {
       "enabled": true
-    },
-    "compound-engineering": {
-      "enabled": true
     }
   }
 }
