@@ -1,11 +1,14 @@
 import "server-only";
 
 import type { Account, Session } from "@sokosumi/utils";
+import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
+import { getSessionCookie } from "better-auth/cookies";
 import { err, ok, type Result } from "neverthrow";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { ActiveSubscription } from "@/components/billing/subscription-plan-utils";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
@@ -147,10 +150,38 @@ function parseCoreAuthArrayResponse<T>(
   });
 }
 
+function getBetterAuthCookiePrefixFromEnv(): string {
+  const env = getEnvSecrets();
+  return resolveBetterAuthCookiePrefix({
+    network: env.NETWORK,
+    vercelEnv: env.VERCEL_ENV,
+    vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
+  });
+}
+
+/**
+ * Cheap presence check — no Core round-trip. Anonymous auth entry paths
+ * (signin/signup) must not pay Core RTT when no session cookie exists.
+ */
+function hasSessionCookie(requestHeaders: Headers): boolean {
+  return (
+    getSessionCookie(requestHeaders, {
+      cookiePrefix: getBetterAuthCookiePrefixFromEnv(),
+    }) != null
+  );
+}
+
 async function fetchSession(
   requestHeaders: Headers,
   options?: GetSessionOptions,
 ): Promise<Session | null> {
+  // Skip Core entirely when the browser did not send a session cookie. Auth
+  // entry pages call getSession on every visit; anonymous users were paying a
+  // full Core RTT for a guaranteed null.
+  if (!hasSessionCookie(requestHeaders)) {
+    return null;
+  }
+
   // Concatenate rather than `new URL(path, base)` so a base URL with a
   // sub-path (e.g. `https://host/core`) is preserved instead of dropped by
   // absolute-path resolution.
