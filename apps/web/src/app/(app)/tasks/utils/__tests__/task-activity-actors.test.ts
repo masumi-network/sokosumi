@@ -78,7 +78,7 @@ describe("getEventActorInfo", () => {
     });
   });
 
-  it("reads name and image from nested orchestrator actor", () => {
+  it("reads name, owner, and avatarSeed from nested orchestrator actor", () => {
     const event = {
       actor: {
         type: "orchestrator",
@@ -87,6 +87,11 @@ describe("getEventActorInfo", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
         },
       },
     } as TaskEvent;
@@ -95,6 +100,7 @@ describe("getEventActorInfo", () => {
       name: "Hermes",
       image: null,
       avatarSeed: "orb:jewel-sky:user_123",
+      ownerName: "Ada Lovelace",
     });
   });
 });
@@ -121,6 +127,11 @@ describe("buildTaskActivityActors", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
+          owner: {
+            id: "user-1",
+            name: "Ada Lovelace",
+            image: null,
+          },
         },
       },
       events: [
@@ -202,6 +213,11 @@ describe("buildTaskActivityActors", () => {
               id: "orch-2",
               name: "Athena",
               avatarSeed: null,
+              owner: {
+                id: "user-3",
+                name: "Grace Hopper",
+                image: null,
+              },
             },
           },
           userId: null,
@@ -213,6 +229,11 @@ describe("buildTaskActivityActors", () => {
             id: "orch-2",
             name: "Athena",
             avatarSeed: null,
+            owner: {
+              id: "user-3",
+              name: "Grace Hopper",
+              image: null,
+            },
           },
           transactionId: null,
           credits: null,
@@ -252,11 +273,13 @@ describe("buildTaskActivityActors", () => {
         name: "Hermes",
         image: null,
         avatarSeed: "orb:jewel-sky:user_123",
+        ownerName: "Ada Lovelace",
       },
       "orch-2": {
         name: "Athena",
         image: null,
         avatarSeed: null,
+        ownerName: "Grace Hopper",
       },
     });
   });

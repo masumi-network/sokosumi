@@ -1570,6 +1570,7 @@
         "actorCoworker": "Coworker",
         "actorUser": "User",
         "actorOrchestrator": "Orchestrator",
+        "actorOrchestratorWithOwner": "{assistant} · {owner}",
         "actorSystem": "System",
         "originFromApp": "from {appName}",
         "channelApp": {

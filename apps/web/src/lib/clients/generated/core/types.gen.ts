@@ -570,6 +570,7 @@ export type OrchestratorSummary = {
     id: string;
     name: string | null;
     avatarSeed: string | null;
+    owner: UserSummary;
 };
 
 export type TaskEvent = {
@@ -626,6 +627,7 @@ export type TaskEvent = {
         id: string;
         name: string | null;
         avatarSeed: string | null;
+        owner: UserSummary;
     } | null;
     transactionId?: string | null;
     credits?: number | null;

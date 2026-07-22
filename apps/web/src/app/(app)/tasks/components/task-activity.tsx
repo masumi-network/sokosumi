@@ -440,7 +440,13 @@ export function TaskActivitySection({
               coworkerById,
               orchestratorById,
             );
-            const actorName = actorInfo?.name ?? actorLabel;
+            const actorName =
+              actorInfo?.ownerName != null
+                ? t("actorOrchestratorWithOwner", {
+                    assistant: actorInfo.name,
+                    owner: actorInfo.ownerName,
+                  })
+                : (actorInfo?.name ?? actorLabel);
             const actorImage = actorInfo?.image ?? null;
             const showAssistantOrb =
               actorInfo != null && "avatarSeed" in actorInfo;

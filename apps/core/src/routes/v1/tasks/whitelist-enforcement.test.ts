@@ -70,7 +70,8 @@ const {
               | undefined) ?? {
               id: creatorOrchestratorId,
               name: "Orchestrator",
-              slug: "orchestrator",
+              avatarSeed: null,
+              owner: { id: "user_fallback", name: "Owner", image: null },
             },
           };
         }

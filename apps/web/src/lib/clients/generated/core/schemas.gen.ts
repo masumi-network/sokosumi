@@ -2201,12 +2201,16 @@ export const OrchestratorSummarySchema = {
                 'null'
             ],
             example: 'orb:jewel-sky:user_123'
+        },
+        owner: {
+            $ref: '#/components/schemas/UserSummary'
         }
     },
     required: [
         'id',
         'name',
-        'avatarSeed'
+        'avatarSeed',
+        'owner'
     ]
 } as const;
 
@@ -2349,12 +2353,16 @@ export const TaskEventSchema = {
                         'null'
                     ],
                     example: 'orb:jewel-sky:user_123'
+                },
+                owner: {
+                    $ref: '#/components/schemas/UserSummary'
                 }
             },
             required: [
                 'id',
                 'name',
-                'avatarSeed'
+                'avatarSeed',
+                'owner'
             ],
             deprecated: true,
             description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'

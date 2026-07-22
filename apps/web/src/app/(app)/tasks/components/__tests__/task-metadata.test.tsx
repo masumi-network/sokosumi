@@ -26,6 +26,13 @@ const baseLabels = {
   created: "Created",
   updated: "Updated",
   schedule: "Schedule",
+  formatOrchestratorActorName: ({
+    assistant,
+    owner,
+  }: {
+    assistant: string;
+    owner: string;
+  }) => `${assistant} · ${owner}`,
 };
 
 function createTask(
@@ -126,7 +133,7 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
   });
 
-  it("shows orchestrator creator", () => {
+  it("shows orchestrator creator with owner name", () => {
     render(
       <TaskMetadata
         task={createTask({
@@ -137,6 +144,11 @@ describe("TaskMetadata", () => {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Hermes",
               avatarSeed: null,
+              owner: {
+                id: "user_2",
+                name: "Ada Lovelace",
+                image: null,
+              },
             },
           },
         })}
@@ -148,7 +160,7 @@ describe("TaskMetadata", () => {
     );
 
     expect(screen.getByText("Creator")).toBeInTheDocument();
-    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-seed",
       "",

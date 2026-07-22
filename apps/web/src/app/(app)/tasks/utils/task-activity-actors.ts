@@ -8,6 +8,8 @@ export interface TaskActivityActorInfo {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
+  /** Present for orchestrator actors — format with i18n at render. */
+  ownerName?: string;
 }
 
 export interface TaskActivityActors {
@@ -22,6 +24,17 @@ type TaskActivityActorSource = Pick<
   Task,
   "owner" | "assignee" | "creator" | "events"
 >;
+
+type OrchestratorActorSummary = {
+  id: string;
+  name: string | null;
+  avatarSeed?: string | null;
+  owner: {
+    id: string;
+    name: string;
+    image?: string | null;
+  };
+};
 
 /**
  * Prefer nested `actor`. Fall back to deprecated flat FKs for older payloads.
@@ -75,11 +88,7 @@ export function getEventActorInfo(
         };
       }
       case "orchestrator":
-        return {
-          name: event.actor.orchestrator.name ?? "Assistant",
-          image: null,
-          avatarSeed: event.actor.orchestrator.avatarSeed ?? null,
-        };
+        return orchestratorActorInfo(event.actor.orchestrator);
       default: {
         const _exhaustive: never = event.actor;
         return _exhaustive;
@@ -91,11 +100,7 @@ export function getEventActorInfo(
   // Prefer order matches Core: orchestrator → coworker → user.
   if (event.orchestratorId) {
     if (event.orchestrator) {
-      return {
-        name: event.orchestrator.name ?? "Assistant",
-        image: null,
-        avatarSeed: event.orchestrator.avatarSeed ?? null,
-      };
+      return orchestratorActorInfo(event.orchestrator);
     }
 
     return orchestratorById?.[event.orchestratorId];
@@ -206,6 +211,17 @@ export function buildTaskActivityActors(
   };
 }
 
+function orchestratorActorInfo(
+  orchestrator: OrchestratorActorSummary,
+): TaskActivityActorInfo {
+  return {
+    name: orchestrator.name ?? "Assistant",
+    image: null,
+    avatarSeed: orchestrator.avatarSeed ?? null,
+    ownerName: orchestrator.owner.name,
+  };
+}
+
 function addUserActor(
   userById: Record<string, TaskActivityActorInfo>,
   user: {
@@ -237,15 +253,7 @@ function addCoworkerActor(
 
 function addOrchestratorActor(
   orchestratorById: Record<string, TaskActivityActorInfo>,
-  orchestrator: {
-    id: string;
-    name: string | null;
-    avatarSeed?: string | null;
-  },
+  orchestrator: OrchestratorActorSummary,
 ) {
-  orchestratorById[orchestrator.id] = {
-    name: orchestrator.name ?? "Assistant",
-    image: null,
-    avatarSeed: orchestrator.avatarSeed ?? null,
-  };
+  orchestratorById[orchestrator.id] = orchestratorActorInfo(orchestrator);
 }

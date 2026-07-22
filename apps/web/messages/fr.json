@@ -1558,6 +1558,7 @@
         "actorCoworker": "Collègue",
         "actorUser": "Utilisateur",
         "actorOrchestrator": "Orchestrateur",
+        "actorOrchestratorWithOwner": "{assistant} · {owner}",
         "actorSystem": "Système",
         "originFromApp": "depuis {appName}",
         "channelApp": {

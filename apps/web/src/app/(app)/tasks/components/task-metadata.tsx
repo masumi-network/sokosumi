@@ -25,6 +25,10 @@ interface TaskMetadataLabels {
   created: string;
   updated: string;
   schedule: string;
+  formatOrchestratorActorName: (values: {
+    assistant: string;
+    owner: string;
+  }) => string;
 }
 
 interface TaskMetadataTask {
@@ -46,6 +50,7 @@ interface TaskCreatorDisplay {
 
 function resolveTaskCreatorDisplay(
   task: TaskMetadataTask,
+  formatOrchestratorActorName: TaskMetadataLabels["formatOrchestratorActorName"],
 ): TaskCreatorDisplay | null {
   switch (task.creator.type) {
     case "user": {
@@ -80,7 +85,10 @@ function resolveTaskCreatorDisplay(
       }
 
       return {
-        name: orchestrator.name ?? "Assistant",
+        name: formatOrchestratorActorName({
+          assistant: orchestrator.name ?? "Assistant",
+          owner: orchestrator.owner.name,
+        }),
         image: null,
         avatarSeed: orchestrator.avatarSeed ?? null,
       };
@@ -111,7 +119,10 @@ export function TaskMetadata({
     ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
   const assigneeImage = getCoworkerImage(task.assignee);
-  const creator = resolveTaskCreatorDisplay(task);
+  const creator = resolveTaskCreatorDisplay(
+    task,
+    labels.formatOrchestratorActorName,
+  );
 
   return (
     <div className="space-y-4">

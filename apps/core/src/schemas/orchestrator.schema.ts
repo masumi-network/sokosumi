@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { userSummarySchema } from "@/schemas/user.schema";
+
 export const orchestratorSummarySchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -9,6 +11,7 @@ export const orchestratorSummarySchema = z
     avatarSeed: z.string().nullable().openapi({
       example: "orb:jewel-sky:user_123",
     }),
+    owner: userSummarySchema,
   })
   .openapi("OrchestratorSummary");
 
