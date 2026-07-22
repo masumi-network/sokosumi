@@ -32,19 +32,26 @@ flowchart LR
 
 **Branch (before Coder):** Linear `gitBranchName`, else `{issue-id-lower}-{short-kebab}` (≤6 segments). Pass in every Coder prompt.
 
-**Default:** one coder (`mode: sole`), one **draft** PR. Rubric ≥ 2 → sequential Tasks **one at a time** (Execution order); each `mode: sequential` (push, no PR); orchestrator opens draft PR after last `ok`.
+**Default:** one coder (`mode: sole`), one **draft** PR. Rubric ≥ 2 → sequential Tasks **one at a time**; each `mode: sequential`; after each block load `PHASE-SEQUENTIAL.md` (light Spec check); draft PR after last `ok`.
 
 **UI in scope:** Spec Verification has ≥1 path-only route (`ROLES.md` Tech Lead).
 
-**CI green:** `gh pr checks` — all `pass`/`success`; wait on `pending`; fail on `fail`/`failure`/`cancelled`/`timed_out`. Skip a check only if Spec Out of scope names it exactly.
+**CI green:** `gh pr checks` — all `pass`/`success`; wait on `pending`; fail on `fail`/`failure`/`cancelled`/`timed_out`. Skip a check only if Spec Out of scope names it exactly. On fail: `root:` then fix per `PHASE-CODER.md` (≤3 fix+push).
 
-**PR open:** draft unless user asked ready-for-review. Title = primary commit subject. Body: issue link + Spec summary ≤8 lines. Details: `PHASE-CODER.md`.
+**PR open:** draft unless user asked ready-for-review. Title = primary commit subject. Body: issue link + Spec summary ≤8 lines (`PHASE-CODER.md`).
 
-**Orchestrator owns:** branch name, post-sequential PR, CI, Reviewer readiness. Subagents never call Linear MCP. Do **not** launch `bugbot` or a separate quality-rules-only review — Reviewer does **one full review**.
+**Orchestrator owns:** branch, sequential light Spec check, PR, CI, Reviewer readiness. Subagents never call Linear MCP. Do **not** launch `bugbot` or R-only review — Reviewer runs `/goal` (`PHASE-REVIEWER.md`).
 
 ## Token efficiency
 
-Load phase files only when that phase runs. Cap Investigation/Spec (`ROLES.md`). Structured one-line returns. Do **not** load `AGENTS.md` if this file is loaded; do **not** load `PHASE-*` / `VISUAL-CAPTURE` early.
+Load phase files only when that phase runs. Cap Investigation/Spec (`ROLES.md`). Structured one-line returns.
+
+- Do **not** load `AGENTS.md` if this file is loaded.
+- Do **not** load `PHASE-*` / `VISUAL-CAPTURE` early.
+- Investigator: `QUALITY-TRIGGERS.md` only — never full `QUALITY-RULES.md`.
+- Tech Lead / Coder / Reviewer: load `QUALITY-RULES.md` **sections for flagged Rn only**.
+- `PHASE-SEQUENTIAL.md` only when **Coders:** ≥ 2.
+- Single owners: TDD globs → `PHASE-CODER.md`; `/goal` + severity → `PHASE-REVIEWER.md`. Pointers elsewhere, no copy.
 
 ## Linear
 
@@ -80,13 +87,13 @@ Tech Lead (optional): `ok`, `spec`, `summary`, `blocker`.
 
 ## Phases
 
-**1 Investigator:** `ROLES.md` (Investigator); flag `QUALITY-RULES.md` R1–R12; session → Tech Lead.
+**1 Investigator:** `ROLES.md` + `QUALITY-TRIGGERS.md` → Tech Lead.
 
-**2 Tech Lead:** `ROLES.md` (Tech Lead) + `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md`; Spec + Data flow; session → Coder.
+**2 Tech Lead:** `ROLES.md` + `SPEC-TEMPLATE.md` + `SUBAGENT-RUBRIC.md` + flagged `QUALITY-RULES.md` sections → Coder.
 
-**3 Coder:** Load `PHASE-CODER.md` + `ROLES.md` (Coder) + `QUALITY-RULES.md` self-check. Sole Task or serial sequential Tasks (rules above). After PR: **CI green**, then Phase 4.
+**3 Coder:** `PHASE-CODER.md` + `ROLES.md` + `QUALITY-TRIGGERS.md` (self-check). Sequential → also `PHASE-SEQUENTIAL.md` between blocks (orchestrator). After PR: CI green → Phase 4.
 
-**4 Reviewer:** Load `PHASE-REVIEWER.md` + `ROLES.md` (Reviewer) + `QUALITY-RULES.md`. Entry: verify + CI green. **One full review** — Spec, verify, UI when in scope, and triggered R1–R12. Not a Bugbot substitute. If pushed → re-check CI before ready. Human merges.
+**4 Reviewer:** `PHASE-REVIEWER.md` + `ROLES.md` + triggers + flagged rule sections. Entry: verify + CI green. `/goal` as written in `PHASE-REVIEWER.md`. Human merges.
 
 ## Stop early
 
@@ -104,9 +111,11 @@ Issue id/URL, phases done, **PR link**, CI + Reviewer summary. Caveman full.
 |------|------|
 | `ROLES.md` | Current phase role only |
 | `PHASE-CODER.md` | Phase 3 / standalone Coder |
+| `PHASE-SEQUENTIAL.md` | Orchestrator; **Coders:** ≥ 2 only |
 | `PHASE-REVIEWER.md` | Phase 4 / Reviewer |
 | `SPEC-TEMPLATE.md` / `SUBAGENT-RUBRIC.md` | Tech Lead |
-| `QUALITY-RULES.md` | R1–R12 flags, Coder self-check, Reviewer full-review checklist |
+| `QUALITY-TRIGGERS.md` | Investigator always; Coder/Reviewer/Tech Lead for flags |
+| `QUALITY-RULES.md` | Flagged `Rn` sections only |
 | `VISUAL-CAPTURE.md` | Reviewer + UI in scope |
 | `LINEAR.md` | Requirement text must change |
 | `AGENTS.md` | Skip if `SKILL.md` loaded |

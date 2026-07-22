@@ -1,6 +1,6 @@
 # Roles
 
-Contracts only. Ops live in `PHASE-CODER.md` / `PHASE-REVIEWER.md`. **No Linear phase reporting.** Roles never call Linear MCP.
+Contracts only. Ops: `PHASE-CODER.md` / `PHASE-REVIEWER.md` / `PHASE-SEQUENTIAL.md`. **No Linear phase reporting.** Roles never call Linear MCP.
 
 ## Token shape
 
@@ -10,9 +10,9 @@ Caveman **full** in chat. **Not ultra** on Spec. Prefer `path:line` + short clau
 
 **Goal:** Codebase facts for Tech Lead — not a Spec.
 
-**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated, i18n); flag `QUALITY-RULES.md` R1–R12; similar paths; open questions. `cavecrew-investigator` **only** for symbol locate (defs/callers/uses).
+**Do:** Search routes/services/schemas/tests; pitfalls (auth, web→core, migrations, generated, i18n); load `QUALITY-TRIGGERS.md` only — flag matching `Rn`; similar paths; open questions. `cavecrew-investigator` **only** for symbol locate (defs/callers/uses).
 
-**Do not:** Contract tables, file-change lists, verification commands, mermaid, implement, rewrite Requirement, write Linear. Do not load `SPEC-TEMPLATE`, `SUBAGENT-RUBRIC`, `PHASE-*`, `VISUAL-CAPTURE`.
+**Do not:** Contract tables, file-change lists, verification commands, mermaid, implement, rewrite Requirement, write Linear. Do not load `QUALITY-RULES`, `SPEC-TEMPLATE`, `SUBAGENT-RUBRIC`, `PHASE-*`, `VISUAL-CAPTURE`.
 
 **Caps:** ≤12 patterns · ≤8 pitfalls · ≤5 recommend · ≤8 open · ≤5 related. ≤15 words/bullet (leading `path:line` / id / `` `symbol` `` excluded).
 
@@ -45,9 +45,9 @@ Omit empty sections. No essay preamble.
 
 **Goal:** Implementable Spec from Requirement + Investigation.
 
-**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; Quality-rule sections when triggers fire; `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only Verification route **iff** Deliverables include any of: `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, `apps/web/messages/**`. Never for generated client only (`apps/web/src/lib/clients/**`). Routes ⇒ **UI in scope**.
+**Do:** Resolve opens in **Key decisions**; always **Data flow**; `SUBAGENT-RUBRIC.md`; `QUALITY-TRIGGERS.md` then **only flagged** `QUALITY-RULES.md` sections (Spec appendix formats there); `[repo=masumi-network/sokosumi]` at top. List ≥1 path-only Verification route **iff** Deliverables include any of: `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, `apps/web/messages/**`. Never for generated client only (`apps/web/src/lib/clients/**`). Routes ⇒ **UI in scope**. If TDD required per `PHASE-CODER.md`, Verification **must** list the proving allowlisted test command — do not copy TDD globs here.
 
-**Do not:** Implement; wait for human PRD approval; child issues; Spec on Linear; load `PHASE-*` or `VISUAL-CAPTURE`.
+**Do not:** Implement; wait for human PRD approval; child issues; Spec on Linear; load `PHASE-*` or `VISUAL-CAPTURE`. Do **not** paste unused domain-pattern appendix sections.
 
 **Default:** one coder. Rubric ≥ 2 → sequential breakdown, one-at-a-time Execution order. No parallel branches.
 
@@ -59,16 +59,14 @@ Omit empty sections. No essay preamble.
 
 **Goal:** Implement Spec. One draft PR (issue link + Spec summary ≤8 lines).
 
-**Load:** `PHASE-CODER.md` for verify table, branch checkout, sole/sequential modes, PR title/body.
+**Load:** `PHASE-CODER.md`. `QUALITY-TRIGGERS.md` self-check for flagged `Rn`; matching `QUALITY-RULES.md` sections only if a check is unclear.
 
-**Do not:** CI watch, Reviewer phase, Linear MCP (unless standalone + `LINEAR.md`).
+**Do not:** CI watch, Reviewer phase, `PHASE-SEQUENTIAL.md`, Linear MCP (unless standalone + `LINEAR.md`).
 
 ---
 
 ## Reviewer
 
-**Goal:** **One full review** via `/goal` — Spec, verify, UI when in scope, triggered `QUALITY-RULES.md` R1–R12. Not a Bugbot or quality-rules-only pass. Human merges.
+**Goal:** Run `/goal` in `PHASE-REVIEWER.md`. Human merges.
 
-**Load:** `PHASE-REVIEWER.md` for entry, `/goal` loop, PR trust, fixable cycle, return semantics. `QUALITY-RULES.md` for R1–R12 severity and Medium PR-body notes.
-
-**UI in scope:** Spec Verification has ≥1 path-only route → else skip visuals.
+**Load:** `PHASE-REVIEWER.md`. Then `QUALITY-TRIGGERS.md` + matching `QUALITY-RULES.md` sections only. UI in scope → `VISUAL-CAPTURE.md`.
