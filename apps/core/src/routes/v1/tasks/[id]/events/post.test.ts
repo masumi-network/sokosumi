@@ -227,6 +227,7 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
       ? {
           id: record.orchestratorId,
           name: "Task orchestrator",
+          avatarSeed: null,
         }
       : null,
     transaction: null as { amount: bigint } | null,
@@ -1291,6 +1292,7 @@ describe("POST /{id}/events", () => {
       orchestrator: {
         id: ORCHESTRATOR_ID,
         name: "Task orchestrator",
+        avatarSeed: null,
       },
     });
   });

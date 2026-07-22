@@ -836,6 +836,7 @@ describe("mapTaskEventActor", () => {
     const orchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: "orb:jewel-sky:user_123",
     };
     const event = buildTaskEventFixture({
       orchestratorId: orchestrator.id,
@@ -874,6 +875,7 @@ describe("mapTaskEventActor", () => {
     const orchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: null,
     };
 
     expect(
@@ -896,6 +898,7 @@ describe("mapTaskEventActor", () => {
     const orchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: null,
     };
 
     expect(
@@ -1088,6 +1091,7 @@ describe("mapTask", () => {
     const creatorOrchestrator = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
+      avatarSeed: null,
     };
     const task = {
       id: "tsk_alias",

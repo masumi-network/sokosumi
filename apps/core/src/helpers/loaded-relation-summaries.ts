@@ -95,6 +95,7 @@ export function coworkerSummaryFromLoadedRelation(
 interface OrchestratorSummaryFields {
   id: string;
   name: string | null;
+  avatarSeed: string | null;
 }
 
 /**
@@ -119,5 +120,6 @@ export function orchestratorSummaryFromLoadedRelation(
   return {
     id: orchestrator.id,
     name: orchestrator.name,
+    avatarSeed: orchestrator.avatarSeed,
   };
 }

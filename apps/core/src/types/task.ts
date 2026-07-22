@@ -18,7 +18,7 @@ export const taskEventApiInclude = {
     select: { id: true, name: true, image: true, slug: true, vendorId: true },
   },
   orchestrator: {
-    select: { id: true, name: true },
+    select: { id: true, name: true, avatarSeed: true },
   },
   transaction: { select: { amount: true } },
 } as const;
