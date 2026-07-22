@@ -2,34 +2,67 @@
 
 Load in **Phase 4** (and standalone Reviewer / `sapphire-reviewer`). Do **not** load during Investigator / Tech Lead / Coder implement.
 
+**Owner of `/goal` order and severity — do not restate in ROLES/SKILL.**
+
 ## Entry
 
 Local verify exit 0 (verify set in `PHASE-CODER.md`), **CI green** (`SKILL.md`) — else return to Phase 3.
 
 ## `/goal` (full review)
 
-Loop until PR matches Spec (Contract / Verification / Out of scope), allowlisted verify exits 0, triggered `QUALITY-RULES.md` R1–R12 hold, and UI evidence exists when **UI in scope** — or stop on unrecoverable blocker (`SKILL.md`).
+Loop until all hold — or unrecoverable blocker (`SKILL.md`):
 
-This is **one full review**, not a Bugbot or quality-rules-only pass. Cover Spec compliance, code/verify health, regression rules, and UI evidence together.
+1. Spec match (Contract / Verification / Out of scope)
+2. Allowlisted verify exit 0 (fresh this turn)
+3. No unresolved **High** from general review
+4. No unresolved **High** from triggered domain patterns
+5. UI evidence when **UI in scope**
+
+One full review — not Bugbot / R-only. Follow **Loop** exactly.
 
 **UI in scope:** Spec Verification lists ≥1 path-only route. Else skip visuals. Spawn `sapphire-reviewer` **only if user asks**.
 
-**Fixable:** Spec mismatch, quality-rule High, or verify failure correctable without expanding Out of scope or changing Requirement. At most **one** fix→push→re-verify cycle; then blocker.
+**Fixable High:** Spec mismatch, general High, domain-pattern High, or verify failure — without expanding Out of scope or changing Requirement. At most **one** fix→push→re-verify; then blocker.
 
-**Medium** findings (Spec or R1–R12): note in PR body per `QUALITY-RULES.md`; do not block ready unless user asks to fix.
+**Medium:** PR body notes (below); do not block ready unless user asks to fix.
 
 ### Loop
 
 1. Session Spec + Requirement (Linear read-only).
 2. **PR trust** (below).
-3. Compare Contract / Verification / Out of scope.
-4. Allowlisted verify (`PHASE-CODER.md`).
-5. Triggered R1–R12 from `QUALITY-RULES.md` against branch diff (`git diff` merge-base…HEAD).
-6. UI in scope → `VISUAL-CAPTURE.md`. Else skip.
-7. If fixable High: one fix→push→re-verify. Else blocker.
-8. If pushed: return `pushed: true` — orchestrator re-checks **CI green** before ready.
+3. **Spec compliance** — Contract / Verification / Out of scope.
+4. Allowlisted verify (`PHASE-CODER.md`) — fresh this turn.
+5. **General review** on `git diff` merge-base…HEAD — severity table below.
+6. `QUALITY-TRIGGERS.md` vs diff → load **matching** `QUALITY-RULES.md` sections only → check those patterns.
+7. UI in scope → `VISUAL-CAPTURE.md`. Else skip.
+8. Fixable High → one fix→push→re-verify. Else High remains → blocker. Medium only → PR notes → ready.
+9. If pushed: `pushed: true` — orchestrator re-checks **CI green** before ready.
 
-**`ok: true`:** `/goal` met + local verify exit 0. Does **not** skip orchestrator CI re-check after a push.
+**`ok: true`:** `/goal` met + verify exit 0 + zero unresolved High.
+
+### Severity (any finding — Spec, general, R)
+
+If High vs Medium unclear → **High**.
+
+| Severity | Must use when | Action |
+|----------|---------------|--------|
+| **High** | Behavior contradicts Spec Contract; authz/workspace/capability hole; data loss or billing/money drift; `apps/web` imports Prisma/`@sokosumi/database` repositories; verify set fails; TDD required (`PHASE-CODER.md`) but no test covers Contract | Must fix (one cycle) |
+| **Medium** | Happy-path Spec holds, but error path incomplete; dead code in touched files; misleading name; weak but green test | PR body only |
+| **Low** | Style / comment / import-order already covered by check | Optional note |
+
+Axes (general review): bugs vs Spec; security/authz; error handling; wrong layer / dead code / names; tests when TDD required or Spec lists proving test command.
+
+### Medium findings — PR body only
+
+```markdown
+### Review notes — medium (human review)
+
+| Area | Location | Finding |
+|------|----------|---------|
+| Spec / defect / R# | `path:line` | … |
+```
+
+Skip when no medium findings. Do **not** post to Linear.
 
 ## PR trust
 
