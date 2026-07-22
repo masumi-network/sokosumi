@@ -1,12 +1,12 @@
-# Bugbot learnings (Sapphire quality rules)
+# Sapphire quality rules
 
-Distilled from high/medium Bugbot findings on `masumi-network/sokosumi`. Prevent regressions before Reviewer.
+Regression checklist on `masumi-network/sokosumi`. **Not a review phase** — checklist rules for Investigator, Tech Lead, Coder, and Reviewer.
 
-**Mandatory gates** (orchestrator after PR open — before Reviewer): CI green + Bugbot 0 High. See `SKILL.md` Phase 3. Do **not** post Bugbot to Linear — note Medium in PR body for human merge.
+**Gates** (see `SKILL.md`): CI green → **Reviewer full review** (`PHASE-REVIEWER.md`). Do **not** launch a `bugbot` Task or a quality-rules-only pass.
 
 ## Quality rules (R1–R12)
 
-Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder implements; Reviewer checks in `/goal`.
+Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder implements + self-checks; Reviewer checks in **full** `/goal` (with Spec, verify, UI — not as a standalone pass).
 
 ### R1 — Mutation order and atomicity
 
@@ -116,51 +116,33 @@ Apply when **trigger** matches. Investigator flags; Tech Lead encodes; Coder imp
 - **Coder:** Response reflects post-sync state; 404 → `notFound()` not error page.
 - **Reviewer:** Click-through on one deep link when notifications/links in scope.
 
-## Mandatory Bugbot (before Reviewer)
+## Severity (Reviewer findings)
 
-**Gate runner** (orchestrator in squad mode; standalone Coder when alone) runs **one Bugbot review** per PR before Reviewer. **Re-run** after Reviewer pushes — zero High before PR ready. Launch Task subagent — do not assume repo-local skill file:
-
-| Field | Value |
-|-------|-------|
-| `subagent_type` | `bugbot` |
-| `readonly` | `true` |
-| `run_in_background` | `false` |
-| `description` | `Bugbot` |
-
-Prompt (exact shape):
-
-```text
-Full Repository Path: <absolute repository root>
-Diff: branch changes
-```
-
-In Cursor IDE, `/review-bugbot` same flow when editor skill installed. If subagent cannot compute diff, retry once with `Diff: natural language` + per-file change description (see `review-bugbot` skill retry rules).
+When Reviewer finds a gap (Spec, verify, UI, or triggered R1–R12):
 
 | Severity | Action |
 |----------|--------|
-| **High** | **Must fix** on PR branch. Re-run until **zero High**. |
-| **Medium** | **Do not block** Reviewer. Note in the **PR body** for human merge — not Linear. Do **not** fix Medium during Sapphire unless the user asks in this chat. |
+| **High** | **Must fix** on PR branch (one fix→push→re-verify cycle max per `PHASE-REVIEWER.md`). |
+| **Medium** | **Do not block** ready. Note in the **PR body** for human merge — not Linear. Do **not** fix Medium during Sapphire unless the user asks in this chat. |
 | **Low** | Optional note; no gate. |
 
 ### Medium findings — PR body only
 
-When Bugbot reports ≥1 Medium, add short table to **PR description** (or PR comment). Do **not** post to Linear.
+When Reviewer reports ≥1 Medium, add short table to **PR description** (or PR comment). Do **not** post to Linear.
 
 ```markdown
-### Bugbot medium (human review)
+### Review notes — medium (human review)
 
-| Location | Finding |
-|----------|---------|
-| `path:line` | … |
+| Rule / area | Location | Finding |
+|-------------|----------|---------|
+| R# or Spec | `path:line` | … |
 ```
 
 Skip when no medium findings.
 
-If Bugbot cannot run (subagent failure after retry), **stop before Reviewer** and report blocker.
+## Coder self-check (before handoff)
 
-## Coder self-check (before Bugbot)
-
-Answer each triggered rule (R1–R12). Fix obvious gaps before open/update PR.
+Answer each triggered rule (R1–R12). Fix obvious gaps before open/update PR. This is **not** a substitute for Reviewer.
 
 1. Multi-step writes — order + failure behavior defined and implemented?
 2. Status — one resolver; no stale toggle after schedule/status API?
