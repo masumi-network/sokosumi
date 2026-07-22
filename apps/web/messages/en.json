@@ -3254,10 +3254,6 @@
           "emptyFilter": "No coworkers match the selected filter."
         },
         "Form": {
-          "display": {
-            "title": "Display",
-            "description": "Update how this coworker appears in Sokosumi."
-          },
           "controls": {
             "title": "Platform controls",
             "description": "Manage capabilities, priority, whitelist, and archive state.",
@@ -3282,56 +3278,23 @@
               "description": "Whitelisted coworkers are visible in the default marketplace scope."
             }
           },
-          "Fields": {
-            "name": {
-              "label": "Name"
-            },
-            "caption": {
-              "label": "Caption"
-            },
-            "description": {
-              "label": "Description"
-            }
-          },
-          "image": {
-            "label": "Image",
-            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
-            "upload": "Upload image",
-            "replace": "Replace image",
-            "remove": "Remove image",
-            "previewAlt": "Coworker image preview",
-            "fileTooLarge": "Image must be 2 MB or smaller.",
-            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
-            "maxFilesExceeded": "Upload one image at a time.",
-            "uploadError": "Could not process the selected image."
-          },
-          "saveChanges": "Save display",
-          "saving": "Saving…",
           "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "Name must be at least {min} characters.",
-            "noChanges": "No changes to save.",
-            "captionMaxLength": "Caption must be at most {max} characters.",
             "priorityInteger": "Priority must be a whole number.",
             "noControlChanges": "No control changes to save."
           },
           "success": {
-            "saved": "Coworker display updated.",
             "controlsSaved": "Coworker controls updated.",
             "whitelistSaved": "Whitelist status updated.",
             "archived": "Coworker archived.",
-            "unarchived": "Coworker unarchived.",
-            "imageSaved": "Image saved.",
-            "imageRemoved": "Image removed."
+            "unarchived": "Coworker unarchived."
           },
           "errors": {
-            "saveFailed": "Failed to save coworker display.",
             "controlsSaveFailed": "Failed to save coworker controls.",
             "whitelistSaveFailed": "Failed to update whitelist status.",
             "archiveFailed": "Failed to archive coworker.",
             "unarchiveFailed": "Failed to unarchive coworker.",
-            "notFound": "Coworker not found.",
-            "imageSaveFailed": "Failed to update image."
+            "notFound": "Coworker not found."
           }
         },
         "Context": {
@@ -4298,11 +4261,77 @@
       "discardDialogDescription": "Your edits will be lost if you leave without saving.",
       "discardConfirm": "Discard changes"
     },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "Display",
+        "description": "Update how this coworker appears in Sokosumi.",
+        "fields": {
+          "name": {
+            "label": "Name"
+          },
+          "caption": {
+            "label": "Caption"
+          },
+          "description": {
+            "label": "Description"
+          }
+        },
+        "image": {
+          "label": "Image",
+          "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
+          "upload": "Upload image",
+          "replace": "Replace image",
+          "remove": "Remove image",
+          "previewAlt": "Coworker image preview",
+          "fileTooLarge": "Image must be 2 MB or smaller.",
+          "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
+          "maxFilesExceeded": "Upload one image at a time.",
+          "uploadError": "Could not process the selected image."
+        },
+        "saveChanges": "Save display",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "validation": {
+          "nameMinLength": "Name must be at least {min} characters.",
+          "noChanges": "No changes to save.",
+          "captionMaxLength": "Caption must be at most {max} characters."
+        },
+        "success": {
+          "saved": "Coworker display updated.",
+          "imageSaved": "Image saved.",
+          "imageRemoved": "Image removed."
+        },
+        "errors": {
+          "saveFailed": "Failed to save coworker display.",
+          "imageSaveFailed": "Failed to update image."
+        }
+      }
+    },
     "Developer": {
       "tabs": {
         "oauthClients": "OAuth Clients",
         "apiKeys": "API Keys",
+        "coworkers": "Coworkers",
         "docs": "Documentation"
+      },
+      "Coworkers": {
+        "title": "Your coworkers",
+        "description": "Manage display settings for coworkers you own.",
+        "loadFailed": "Failed to load your coworkers.",
+        "backToList": "Back to coworkers",
+        "editDescription": "Update how this coworker appears in Sokosumi.",
+        "errors": {
+          "notFound": "Coworker not found."
+        },
+        "List": {
+          "empty": "You do not own any active coworkers yet.",
+          "noCaption": "No caption",
+          "edit": "Edit"
+        },
+        "Metadata": {
+          "title": "Edit coworker",
+          "description": "Edit owned coworker display fields"
+        }
       },
       "Docs": {
         "title": "Developer Documentation",

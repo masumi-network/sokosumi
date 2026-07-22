@@ -1242,6 +1242,7 @@ model Coworker {
   coworkerUsages CoworkerUsage[]
 
   @@index([archivedAt])
+  @@index([userId, archivedAt])
   @@index([vendorId])
   @@map("coworker")
 }

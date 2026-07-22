@@ -3131,10 +3131,6 @@
           "emptyFilter": "Keine Coworker entsprechen dem ausgewählten Filter."
         },
         "Form": {
-          "display": {
-            "title": "Anzeige",
-            "description": "Aktualisieren Sie, wie dieser Coworker in Sokosumi erscheint."
-          },
           "controls": {
             "title": "Plattformsteuerung",
             "description": "Fähigkeiten, Priorität, Whitelist und Archivstatus verwalten.",
@@ -3159,56 +3155,23 @@
               "description": "Whitelistete Coworker sind im Standard-Marktplatz sichtbar."
             }
           },
-          "Fields": {
-            "name": {
-              "label": "Name"
-            },
-            "caption": {
-              "label": "Caption"
-            },
-            "description": {
-              "label": "Description"
-            }
-          },
-          "image": {
-            "label": "Image",
-            "description": "PNG, JPEG, WebP, or GIF up to 2 MB.",
-            "upload": "Upload image",
-            "replace": "Replace image",
-            "remove": "Remove image",
-            "previewAlt": "Coworker image preview",
-            "fileTooLarge": "Image must be 2 MB or smaller.",
-            "fileTypeNotAccepted": "Use PNG, JPEG, WebP, or GIF.",
-            "maxFilesExceeded": "Upload one image at a time.",
-            "uploadError": "Could not process the selected image."
-          },
-          "saveChanges": "Anzeige speichern",
-          "saving": "Saving…",
           "cancel": "Cancel",
           "validation": {
-            "nameMinLength": "Name must be at least {min} characters.",
-            "noChanges": "No changes to save.",
-            "captionMaxLength": "Caption must be at most {max} characters.",
             "priorityInteger": "Priorität muss eine ganze Zahl sein.",
             "noControlChanges": "Keine Steuerungsänderungen zum Speichern."
           },
           "success": {
-            "saved": "Coworker-Anzeige aktualisiert.",
             "controlsSaved": "Coworker-Steuerung aktualisiert.",
             "whitelistSaved": "Whitelist-Status aktualisiert.",
             "archived": "Coworker archiviert.",
-            "unarchived": "Coworker wiederhergestellt.",
-            "imageSaved": "Image saved.",
-            "imageRemoved": "Image removed."
+            "unarchived": "Coworker wiederhergestellt."
           },
           "errors": {
-            "saveFailed": "Coworker-Anzeige konnte nicht gespeichert werden.",
             "controlsSaveFailed": "Coworker-Steuerung konnte nicht gespeichert werden.",
             "whitelistSaveFailed": "Whitelist-Status konnte nicht aktualisiert werden.",
             "archiveFailed": "Coworker konnte nicht archiviert werden.",
             "unarchiveFailed": "Coworker konnte nicht wiederhergestellt werden.",
-            "notFound": "Coworker not found.",
-            "imageSaveFailed": "Failed to update image."
+            "notFound": "Coworker not found."
           }
         },
         "Context": {
@@ -4183,7 +4146,8 @@
       "tabs": {
         "oauthClients": "OAuth-Clients",
         "apiKeys": "API-Keys",
-        "docs": "Dokumentation"
+        "docs": "Dokumentation",
+        "coworkers": "Coworkers"
       },
       "Docs": {
         "title": "Entwicklerdokumentation",
@@ -4202,12 +4166,77 @@
             "description": "Verbinden Sie KI-Clients über MCP mit Sokosumi."
           }
         }
+      },
+      "Coworkers": {
+        "title": "Ihre Coworkers",
+        "description": "Verwalten Sie die Anzeigeeinstellungen Ihrer Coworkers.",
+        "loadFailed": "Ihre Coworkers konnten nicht geladen werden.",
+        "backToList": "Zurück zu Coworkers",
+        "editDescription": "Aktualisieren Sie, wie dieser Coworker in Sokosumi erscheint.",
+        "errors": {
+          "notFound": "Coworker nicht gefunden."
+        },
+        "List": {
+          "empty": "Sie besitzen noch keine aktiven Coworkers.",
+          "noCaption": "Kein Untertitel",
+          "edit": "Bearbeiten"
+        },
+        "Metadata": {
+          "title": "Coworker bearbeiten",
+          "description": "Anzeigefelder Ihrer Coworkers bearbeiten"
+        }
       }
     },
     "Connections": {
       "tabs": {
         "connectedApps": "Verbundene Apps",
         "mcp": "MCP"
+      }
+    },
+    "Coworkers": {
+      "DisplayForm": {
+        "title": "Anzeige",
+        "description": "Aktualisieren Sie, wie dieser Coworker in Sokosumi erscheint.",
+        "fields": {
+          "name": {
+            "label": "Name"
+          },
+          "caption": {
+            "label": "Untertitel"
+          },
+          "description": {
+            "label": "Beschreibung"
+          }
+        },
+        "image": {
+          "label": "Bild",
+          "description": "PNG, JPEG, WebP oder GIF bis 2 MB.",
+          "upload": "Bild hochladen",
+          "replace": "Bild ersetzen",
+          "remove": "Bild entfernen",
+          "previewAlt": "Vorschau des Coworker-Bildes",
+          "fileTooLarge": "Das Bild darf höchstens 2 MB groß sein.",
+          "fileTypeNotAccepted": "Verwenden Sie PNG, JPEG, WebP oder GIF.",
+          "maxFilesExceeded": "Laden Sie jeweils nur ein Bild hoch.",
+          "uploadError": "Das ausgewählte Bild konnte nicht verarbeitet werden."
+        },
+        "saveChanges": "Anzeige speichern",
+        "saving": "Wird gespeichert…",
+        "cancel": "Abbrechen",
+        "validation": {
+          "nameMinLength": "Der Name muss mindestens {min} Zeichen lang sein.",
+          "noChanges": "Keine Änderungen zum Speichern.",
+          "captionMaxLength": "Der Untertitel darf höchstens {max} Zeichen lang sein."
+        },
+        "success": {
+          "saved": "Coworker-Anzeige aktualisiert.",
+          "imageSaved": "Bild gespeichert.",
+          "imageRemoved": "Bild entfernt."
+        },
+        "errors": {
+          "saveFailed": "Coworker-Anzeige konnte nicht gespeichert werden.",
+          "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
+        }
       }
     }
   },

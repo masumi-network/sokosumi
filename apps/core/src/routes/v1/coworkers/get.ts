@@ -9,6 +9,7 @@ import {
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
 const capabilityQuerySchema = z
@@ -29,13 +30,13 @@ const capabilityQuerySchema = z
 
 const querySchema = z.object({
   scope: z
-    .enum(["all", "whitelisted", "archived"])
+    .enum(["all", "whitelisted", "archived", "owned"])
     .optional()
     .default("whitelisted")
     .openapi({
       param: { name: "scope", in: "query" },
       description:
-        "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers or 'archived' to include archived coworkers.",
+        "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers owned by the authenticated user (user-authenticated only; admins see only their own).",
       example: "whitelisted",
     }),
   capability: capabilityQuerySchema,
@@ -58,6 +59,7 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -65,14 +67,23 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { scope, capability } = c.req.valid("query");
+    const { authContext } = c.var;
 
-    const baseScope =
-      scope === "archived"
-        ? { archivedAt: { not: null } }
-        : {
-            archivedAt: null,
-            ...(scope === "whitelisted" ? { isWhitelisted: true } : {}),
-          };
+    let baseScope: Record<string, unknown>;
+    if (scope === "owned") {
+      const userAuthContext = requireUserAuthContext(authContext);
+      baseScope = {
+        archivedAt: null,
+        userId: userAuthContext.userId,
+      };
+    } else if (scope === "archived") {
+      baseScope = { archivedAt: { not: null } };
+    } else {
+      baseScope = {
+        archivedAt: null,
+        ...(scope === "whitelisted" ? { isWhitelisted: true } : {}),
+      };
+    }
     const where = {
       ...baseScope,
       ...(capability ? { capabilities: { hasEvery: capability } } : {}),

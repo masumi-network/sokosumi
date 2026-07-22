@@ -2161,6 +2161,19 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOwnedCoworkers() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkers({
+          client,
+          query: { scope: "owned" },
+          cache: "no-store",
+        }),
+      "Failed to fetch owned coworkers",
+    );
+  }
+
   async function getCoworkerById(id: string) {
     return executeOperation(
       getClient,
@@ -3162,6 +3175,7 @@ export function createCoreClient(getClient: GetClient) {
     createAgentRating,
     getCategories,
     getCoworkers,
+    getOwnedCoworkers,
     getCoworkerById,
     patchCoworker,
     patchCoworkerWhitelist,
