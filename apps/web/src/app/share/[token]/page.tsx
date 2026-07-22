@@ -1,28 +1,31 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { JobDetailsView } from "@/components/jobs";
+import JobDetailsView from "@/components/jobs/job-details/job-details-view";
 import { siteConfig } from "@/config/site";
 import { getAgentResolvedImage } from "@/lib/helpers/agent";
 import { shareService } from "@/lib/services";
 import { SharedTaskView } from "../components/shared-task-view";
-
-async function getPublicShare(token: string) {
-  return await shareService.getPubliclySharedResource(token);
-}
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ token: string }>;
 }): Promise<Metadata> {
-  const [tJobs, tTasks] = await Promise.all([
+  // Start translations and token resolution immediately so metadata does not
+  // waterfall: translations ∥ (params → shared resource).
+  const translationsPromise = Promise.all([
     getTranslations("Share.Jobs.Metadata"),
     getTranslations("Share.Tasks.Metadata"),
   ]);
-
   const { token } = await params;
-  const resource = await getPublicShare(token);
+  const resourcePromise = shareService.getPubliclySharedResource(token);
+
+  const [[tJobs, tTasks], resource] = await Promise.all([
+    translationsPromise,
+    resourcePromise,
+  ]);
+
   if (!resource) {
     return notFound();
   }
@@ -99,7 +102,8 @@ export default async function SharePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const resource = await getPublicShare(token);
+  // Deduped with generateMetadata via React cache() in shareService.
+  const resource = await shareService.getPubliclySharedResource(token);
   if (!resource) {
     return notFound();
   }
