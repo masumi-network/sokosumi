@@ -99,6 +99,7 @@ type NotificationAction =
       id: string;
       updated: NotificationItem;
     }
+  | { type: "mark_read_optimistic"; id: string }
   | { type: "mark_all_read" };
 
 export function notificationReducer(
@@ -156,6 +157,26 @@ export function notificationReducer(
           : state.unreadCount + 1,
       };
     }
+    case "mark_read_optimistic": {
+      const existing = state.notifications.find(
+        (notification) => notification.id === action.id,
+      );
+
+      if (!existing || existing.isRead) {
+        return state;
+      }
+
+      const readAt = new Date();
+
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.id === action.id
+            ? { ...notification, isRead: true, readAt }
+            : notification,
+        ),
+        unreadCount: Math.max(0, state.unreadCount - 1),
+      };
+    }
     case "mark_read_success": {
       const existing = state.notifications.find(
         (notification) => notification.id === action.id,
@@ -184,8 +205,11 @@ export function notificationReducer(
         unreadCount: 0,
       };
     }
-    default:
+    default: {
+      const _exhaustive: never = action;
+      void _exhaustive;
       return state;
+    }
   }
 }
 
@@ -249,34 +273,42 @@ function NotificationProviderBody({
   }, []);
 
   const markAllRead = useCallback(async () => {
+    // Paint read state immediately so mark-all-read clicks stay within good INP.
+    dispatch({ type: "mark_all_read" });
+    dismissAllNotificationToasts();
+
     try {
       await coreClient.patchNotificationsReadAll();
-
-      dismissAllNotificationToasts();
-
-      dispatch({ type: "mark_all_read" });
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
+      void fetchNotifications();
       throw error;
     }
-  }, []);
+  }, [fetchNotifications]);
 
-  const markRead = useCallback(async (id: string) => {
-    try {
-      const response = await coreClient.patchNotificationRead({ id });
-
+  const markRead = useCallback(
+    async (id: string) => {
+      // Optimistic update paints before the network round-trip, which keeps
+      // notification clicks from blocking Interaction to Next Paint.
+      dispatch({ type: "mark_read_optimistic", id });
       dismissNotificationToast(id);
 
-      dispatch({
-        type: "mark_read_success",
-        id,
-        updated: response.data,
-      });
-    } catch (error) {
-      console.error("Failed to mark notification as read:", error);
-      throw error;
-    }
-  }, []);
+      try {
+        const response = await coreClient.patchNotificationRead({ id });
+
+        dispatch({
+          type: "mark_read_success",
+          id,
+          updated: response.data,
+        });
+      } catch (error) {
+        console.error("Failed to mark notification as read:", error);
+        void fetchNotifications();
+        throw error;
+      }
+    },
+    [fetchNotifications],
+  );
 
   const handleNotificationEvent = useCallback(
     (notification: NotificationEventData) => {

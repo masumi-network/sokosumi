@@ -60,6 +60,7 @@ export async function handleNotificationNavigation(
     return;
   }
 
+  // Resolve workspace org first; only load members when a switch is required.
   const organizationId = await getWorkspaceOrganizationId(workspaceId);
   if (organizationId === undefined) {
     console.warn(

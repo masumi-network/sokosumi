@@ -63,13 +63,13 @@ export function NotificationToastListener({
             <NotificationToastBody
               message={message}
               onOpen={() => {
+                toast.dismiss(notification.id);
+
                 void (async () => {
                   if (!notification.isRead) {
-                    try {
-                      await markRead(notification.id);
-                    } catch {
+                    void markRead(notification.id).catch(() => {
                       // Still open the link when mark-read fails.
-                    }
+                    });
                   }
 
                   const sessionResponse = await authClient.getSession();
@@ -83,7 +83,6 @@ export function NotificationToastListener({
                     handleSelectWorkspace,
                     tDetail,
                   );
-                  toast.dismiss(notification.id);
                 })();
               }}
             />
