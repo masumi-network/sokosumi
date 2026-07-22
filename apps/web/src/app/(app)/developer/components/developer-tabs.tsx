@@ -6,22 +6,29 @@ import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type DeveloperTabValue = "oauth-clients" | "api-keys" | "docs";
+type DeveloperTabValue = "oauth-clients" | "api-keys" | "coworkers" | "docs";
 
 interface DeveloperTabsProps {
   oauthClientsContent: ReactNode;
   apiKeysContent: ReactNode;
+  coworkersContent: ReactNode;
   docsContent: ReactNode;
 }
 
-const ENABLED_TABS: DeveloperTabValue[] = ["oauth-clients", "api-keys", "docs"];
+const ENABLED_TABS: DeveloperTabValue[] = [
+  "oauth-clients",
+  "api-keys",
+  "coworkers",
+  "docs",
+];
 
 const TAB_TRIGGER_CLASS_NAME =
-  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm";
+  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground shrink-0 rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm";
 
 export function DeveloperTabs({
   oauthClientsContent,
   apiKeysContent,
+  coworkersContent,
   docsContent,
 }: DeveloperTabsProps) {
   const t = useTranslations("App.Developer");
@@ -47,12 +54,15 @@ export function DeveloperTabs({
       }}
       className="flex flex-col gap-5"
     >
-      <TabsList className="bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1">
+      <TabsList className="bg-muted/50 flex w-full max-w-full items-center gap-1 self-start overflow-x-auto rounded-lg p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <TabsTrigger value="oauth-clients" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.oauthClients")}
         </TabsTrigger>
         <TabsTrigger value="api-keys" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.apiKeys")}
+        </TabsTrigger>
+        <TabsTrigger value="coworkers" className={TAB_TRIGGER_CLASS_NAME}>
+          {t("tabs.coworkers")}
         </TabsTrigger>
         <TabsTrigger value="docs" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.docs")}
@@ -61,6 +71,7 @@ export function DeveloperTabs({
 
       <TabsContent value="oauth-clients">{oauthClientsContent}</TabsContent>
       <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
+      <TabsContent value="coworkers">{coworkersContent}</TabsContent>
       <TabsContent value="docs">{docsContent}</TabsContent>
     </Tabs>
   );
