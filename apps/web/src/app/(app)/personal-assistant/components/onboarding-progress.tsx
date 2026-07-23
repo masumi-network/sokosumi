@@ -161,11 +161,18 @@ function useOnboardingProgress(
           // steps on every poll (Core maps an absent array to []), and a
           // step-less 200 mid-run — or right at the terminal flip — must
           // not bounce the rendered checklist back to the warming-up line.
+          // The ETA rides along: with no steps the orchestrator computes
+          // etaSeconds as remaining × 25 = 0, so a step-less poll carries
+          // no usable ETA either — adopting that 0 would flash
+          // "Almost done…" during the 1–2 min machine boot.
           steps:
             result.data.steps.length > 0
               ? result.data.steps
               : prev.progress.steps,
-          etaSeconds: result.data.etaSeconds,
+          etaSeconds:
+            result.data.steps.length > 0
+              ? result.data.etaSeconds
+              : prev.progress.etaSeconds,
         },
         pollError: false,
       }));
@@ -218,12 +225,15 @@ export default function OnboardingProgress({
   // Coarse, minute-granular ETA — the orchestrator now publishes a reliable
   // figure from the first poll, but a per-second countdown would jitter and
   // read as broken, so we round up and hand off to "almost done" copy.
+  // Gated on a non-empty step list: an ETA derived from zero steps is a
+  // fabrication, and its 0 would read "Almost done…" mid machine-boot.
+  const hasSteps = displaySteps.length > 0;
   const etaMinutes =
-    progress.etaSeconds !== null && progress.etaSeconds > 30
+    hasSteps && progress.etaSeconds !== null && progress.etaSeconds > 30
       ? Math.ceil(progress.etaSeconds / 60)
       : null;
   const showEtaSettling =
-    progress.etaSeconds !== null && progress.etaSeconds <= 30;
+    hasSteps && progress.etaSeconds !== null && progress.etaSeconds <= 30;
   const elapsedSeconds = useElapsedSeconds(startedAt);
   const tProvisioning = useTranslations("App.Hermes.Provisioning");
 

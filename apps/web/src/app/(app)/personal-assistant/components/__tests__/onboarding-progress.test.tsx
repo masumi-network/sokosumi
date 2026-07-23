@@ -105,7 +105,13 @@ describe("OnboardingProgress", () => {
   });
 
   it("shows one neutral warming-up line instead of a fabricated step list before steps arrive", async () => {
-    getProgressMock.mockResolvedValue(progressResult("onboarding"));
+    // Boot-window shape: no steps yet, and the orchestrator computes
+    // etaSeconds as remaining × 25 — which is 0 with zero steps. That 0
+    // must not surface as "Almost done…" during a 1–2 min machine boot.
+    getProgressMock.mockResolvedValue({
+      ok: true,
+      data: { status: "onboarding", steps: [], etaSeconds: 0 },
+    });
 
     render(
       <OnboardingProgress previewMode={false} seed={null} startedAt={NOW} />,
@@ -113,6 +119,7 @@ describe("OnboardingProgress", () => {
 
     await waitFor(() => expect(getProgressMock).toHaveBeenCalled());
     expect(screen.getByText("stepFallbackLabel")).toBeInTheDocument();
+    expect(screen.queryByText("etaSettling")).not.toBeInTheDocument();
     // The old 6-step skeleton fabricated rows with local ids — none of that
     // may render anymore; the orchestrator's payload is the only source.
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
@@ -170,7 +177,12 @@ describe("OnboardingProgress", () => {
           etaSeconds: 90,
         },
       })
-      .mockResolvedValue(progressResult("onboarding"));
+      // Later step-less polls also carry the fabricated etaSeconds: 0 —
+      // both the rows AND the last real ETA must survive them.
+      .mockResolvedValue({
+        ok: true,
+        data: { status: "onboarding", steps: [], etaSeconds: 0 },
+      });
 
     render(
       <OnboardingProgress previewMode={false} seed={null} startedAt={NOW} />,
@@ -189,6 +201,10 @@ describe("OnboardingProgress", () => {
     );
     expect(screen.getByText("Saving your details")).toBeInTheDocument();
     expect(screen.queryByText("stepFallbackLabel")).not.toBeInTheDocument();
+    // The retained 90s ETA still shows; the step-less polls' 0 never
+    // downgraded it to the settling copy.
+    expect(screen.getByText("about 2 min remaining")).toBeInTheDocument();
+    expect(screen.queryByText("etaSettling")).not.toBeInTheDocument();
   });
 
   it("hands the ETA off to the settling copy when under a minute", async () => {
