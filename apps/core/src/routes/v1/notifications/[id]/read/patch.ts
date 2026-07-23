@@ -8,7 +8,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { notificationItemSchema } from "@/schemas/notification.schema";
 
 const paramsSchema = z.object({
@@ -65,7 +65,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     // Check ownership

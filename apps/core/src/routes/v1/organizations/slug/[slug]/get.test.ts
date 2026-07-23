@@ -10,7 +10,7 @@ const { prismaTransactionMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
+  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext) {
       throw new HTTPException(403, {
         message: "User authentication required",

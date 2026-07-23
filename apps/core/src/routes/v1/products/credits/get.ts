@@ -3,7 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { creditPriceOptionListSchema } from "@/schemas/invoice.schema";
 import { invoiceAdminService } from "@/services/invoice-admin.service";
 
@@ -40,7 +40,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
 
     const prices = await invoiceAdminService.listPrices();
 

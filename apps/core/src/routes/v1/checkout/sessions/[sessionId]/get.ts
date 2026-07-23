@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { checkoutSessionAnalyticsSchema } from "@/schemas/billing.schema";
 import { stripeBillingService } from "@/services/stripe-billing.service";
 
@@ -56,7 +56,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const { sessionId } = c.req.valid("param");
 
     const analytics = await stripeBillingService.getCheckoutSessionAnalytics(

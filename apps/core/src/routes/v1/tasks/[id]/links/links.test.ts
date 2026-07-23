@@ -841,6 +841,54 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 
+  it("returns 403 for delegated coworker context on owner link mutations", async () => {
+    const app = createDelegatedCoworkerApp();
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        relation: "blocks",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for delegated coworker context on owner link patch", async () => {
+    const app = createDelegatedCoworkerApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "blocks",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for delegated coworker context on owner link delete", async () => {
+    const app = createDelegatedCoworkerApp();
+    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(taskLinkDeleteMock).not.toHaveBeenCalled();
+  });
+
   it("creates reversed directional links from task-relative relations", async () => {
     taskLinkCreateMock.mockResolvedValue({
       id: "tl_1",

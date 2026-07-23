@@ -9,7 +9,7 @@ import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -52,7 +52,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
+    const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 

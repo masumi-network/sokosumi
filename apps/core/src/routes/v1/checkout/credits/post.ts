@@ -5,7 +5,7 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import {
   createCreditCheckoutSessionSchema,
   creditCheckoutSessionSchema,
@@ -52,7 +52,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const body = c.req.valid("json");
     const organizationId = body.organizationId ?? null;
 

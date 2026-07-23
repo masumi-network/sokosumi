@@ -5,18 +5,22 @@ import {
   type AuthenticationContext,
   hasAdminRole,
   requireUserAuthContext,
-  requireUserContext,
-  type UserContext,
+  type UserAuthenticationContext,
 } from "@/middleware/auth";
 
 /** Path segment meaning "the authenticated session user" (Better Auth only). */
 export const USERS_PATH_ME = "me" as const;
 
+/** Session-only user context returned from user-path access checks. */
+export type SessionUserContext = {
+  source: "session";
+} & UserAuthenticationContext;
+
 /** OpenAPI path param: `me` or a concrete user id (see {@link resolveUsersPathUserId}). */
 export const usersRoutePathUserIdSchema = z.string().openapi({
   param: { name: "id", in: "path" },
   description:
-    "Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.",
+    "Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.",
   example: "me",
 });
 
@@ -27,7 +31,7 @@ export const usersRoutePathUserIdSchema = z.string().openapi({
 export function resolveUsersPathUserId(
   authContext: AuthenticationContext,
   pathUserSegment: string,
-): { resolvedUserId: string; userContext: UserContext } {
+): { resolvedUserId: string; userContext: SessionUserContext } {
   if (pathUserSegment === USERS_PATH_ME) {
     const session = requireUserAuthContext(authContext);
     return {
@@ -44,20 +48,20 @@ export function resolveUsersPathUserId(
 }
 
 /**
- * Ensures the caller may access or mutate data for `resolvedUserId`: the effective
- * user (session or delegated coworker) matches `resolvedUserId`, or the caller is a
- * session user with an admin role.
+ * Ensures the caller may access or mutate data for `resolvedUserId`: the
+ * session user matches `resolvedUserId`, or the session user has an admin role.
+ * Coworker and orchestrator actors are rejected — user path data is session-only.
  */
 export function requireAccessToTargetUserData(
   authContext: AuthenticationContext,
   resolvedUserId: string,
-): UserContext {
-  const userContext = requireUserContext(authContext);
-  if (userContext.userId === resolvedUserId) {
-    return userContext;
+): SessionUserContext {
+  const session = requireUserAuthContext(authContext);
+  if (session.userId === resolvedUserId) {
+    return { source: "session", ...session };
   }
-  if (userContext.source === "session" && hasAdminRole(userContext.role)) {
-    return userContext;
+  if (hasAdminRole(session.role)) {
+    return { source: "session", ...session };
   }
   throw forbidden("You are not allowed to access this user's data");
 }

@@ -83,4 +83,18 @@ describe("usersPathUserContextMiddleware", () => {
       select: { id: true },
     });
   });
+
+  it("returns 403 when coworker context targets a concrete user id", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: null },
+    });
+
+    const response = await app.request("http://localhost/user_123/uploads");
+
+    expect(response.status).toBe(403);
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+  });
 });

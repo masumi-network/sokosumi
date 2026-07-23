@@ -20,7 +20,7 @@ const route = createRoute({
   method: "get",
   path: "/",
   description:
-    "Get a user: use path `me` for the authenticated session user, or a user id when the effective user matches that id, a delegated coworker acts for that user, or a session admin requests any user.",
+    "Get a user: use path `me` for the authenticated session user, or a user id when the session user matches that id or a session admin requests any user.",
   tags: ["Users"],
   request: { params },
   responses: {

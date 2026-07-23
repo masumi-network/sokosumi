@@ -93,6 +93,18 @@ describe("GET /organizations/{id}/subscription", () => {
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
+  it("returns 403 for coworker with X-Context-User-Id matching a member", async () => {
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_1", organizationId: "org_1" },
+    }).request("http://localhost/org_1/subscription");
+
+    expect(response.status).toBe(403);
+    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when the organization does not exist", async () => {
     resolveMemberOrganizationByIdMock.mockRejectedValue(
       notFound("Organization not found"),
