@@ -47,6 +47,7 @@ function mockRequestImplementation(
       statusCode: spec.status,
       statusMessage: "",
       headers: spec.headers ?? {},
+      destroy: vi.fn(),
     });
     const request = Object.assign(new EventEmitter(), {
       write: (chunk: string) => {
@@ -185,5 +186,32 @@ describe("ssrfSafeFetch", () => {
     expect(httpsRequestMock).toHaveBeenCalledTimes(
       MAX_SSRF_FETCH_REDIRECTS + 1,
     );
+  });
+
+  it("rejects when Content-Length exceeds maxResponseBytes", async () => {
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({
+        status: 200,
+        headers: { "content-length": "100" },
+        body: "x".repeat(100),
+      }),
+    );
+
+    await expect(
+      ssrfSafeFetch("https://example.com/big.bin", { maxResponseBytes: 50 }),
+    ).rejects.toThrow(/Content-Length/);
+  });
+
+  it("rejects when streamed body exceeds maxResponseBytes", async () => {
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({
+        status: 200,
+        body: "x".repeat(100),
+      }),
+    );
+
+    await expect(
+      ssrfSafeFetch("https://example.com/big.bin", { maxResponseBytes: 50 }),
+    ).rejects.toThrow(/body exceeds maxResponseBytes/);
   });
 });

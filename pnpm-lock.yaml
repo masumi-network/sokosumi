@@ -245,6 +245,9 @@ importers:
       '@sokosumi/masumi':
         specifier: workspace:*
         version: link:../../packages/masumi
+      '@sokosumi/net':
+        specifier: workspace:*
+        version: link:../../packages/net
       '@sokosumi/utils':
         specifier: workspace:*
         version: link:../../packages/utils
