@@ -215,6 +215,7 @@ async function main() {
     await injectShellRc(path.join(home, ".profile"), REPO_ROOT);
 
     runMigrations();
+    await runAuthFixtures({ branchName });
 
     log(
       `Ready: branch ${branchName} (${branchMeta.branchId})` +
@@ -223,6 +224,29 @@ async function main() {
     log("Use: node scripts/cloud-agent-db/with-db.mjs -- <command>");
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
+  }
+}
+
+/**
+ * Upsert known login users on the agent branch only.
+ * @param {{ branchName: string }} input
+ */
+async function runAuthFixtures(input) {
+  if (process.env.CLOUD_AGENT_DB_SKIP_FIXTURES === "1") {
+    log("Skipping auth fixtures (CLOUD_AGENT_DB_SKIP_FIXTURES=1)");
+    return;
+  }
+
+  log("Seeding guarded auth fixtures");
+  const { seedAuthFixtures } = await import("./seed-auth-fixtures.mjs");
+  const result = await seedAuthFixtures({
+    branchName: input.branchName,
+    databaseUrl: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
+  });
+  if (!result.skipped) {
+    log(
+      `Auth fixtures ready (${result.seeded}); see docs/agents/cloud-agent-database.md`,
+    );
   }
 }
 
