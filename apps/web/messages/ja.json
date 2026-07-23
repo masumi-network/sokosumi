@@ -3750,7 +3750,9 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
           "cancelButton": "キャンセル",
-          "saveButton": "変更を保存"
+          "saveButton": "変更を保存",
+          "includeCoreApiLabel": "Sokosumi APIアクセスを許可",
+          "includeCoreApiHelp": "オフ：本人確認のみ（openid）。オン：Core APIアクセスも許可（sokosumi:api）。変更するとクライアントの許可スコープが更新されます。新しいトークンには再認可が必要です。"
         },
         "DeleteDialog": {
           "title": "OAuth クライアントを削除",
@@ -3838,9 +3840,7 @@
         "clientIdPlaceholder": "OAuthクライアントIDを入力してください",
         "clientSecretLabel": "クライアントシークレット",
         "clientSecretPlaceholder": "OAuthクライアントシークレットを入力してください",
-        "clientSecretHelp": "機密クライアントにはクライアントシークレットが必要です。公開クライアントの場合は空欄のままにしてください。",
-        "includeCoreApiLabel": "Sokosumi APIアクセスを要求",
-        "includeCoreApiHelp": "認可時のスコープと一致させてください。本人確認のみのトークン（openid）ならオフのままにしてください。"
+        "clientSecretHelp": "機密クライアントにはクライアントシークレットが必要です。公開クライアントの場合は空欄のままにしてください。"
       },
       "BrandProfile": {
         "title": "ブランドプロフィール",

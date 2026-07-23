@@ -24,7 +24,7 @@ export const OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES = [
   OAUTH_SCOPE_OPENID,
 ] as const;
 
-/** Build the space-separated scope string for client registration / token exchange. */
+/** Build the space-separated scope string for client registration / update. */
 export function buildOAuthClientScopeParam(includeCoreApi: boolean): string {
   return includeCoreApi ? OAUTH_CORE_API_SCOPE_PARAM : OAUTH_SCOPE_OPENID;
 }

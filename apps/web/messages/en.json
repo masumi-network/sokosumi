@@ -3813,7 +3813,9 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Enter one redirect URI per line. Use HTTPS (HTTP only for localhost/loopback), no fragments. Custom app schemes are allowed.",
           "cancelButton": "Cancel",
-          "saveButton": "Save Changes"
+          "saveButton": "Save Changes",
+          "includeCoreApiLabel": "Allow Sokosumi API access",
+          "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: also allow Core API access (sokosumi:api). Changing this updates the client's allowed scopes; users must reauthorize for new tokens."
         },
         "DeleteDialog": {
           "title": "Delete OAuth Client",
@@ -3901,9 +3903,7 @@
         "clientIdPlaceholder": "Enter your OAuth Client ID",
         "clientSecretLabel": "Client Secret",
         "clientSecretPlaceholder": "Enter your OAuth Client Secret",
-        "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty.",
-        "includeCoreApiLabel": "Request Sokosumi API access",
-        "includeCoreApiHelp": "Match the scopes used during authorization. Leave unchecked for identity-only (openid) tokens."
+        "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
       },
       "BrandProfile": {
         "title": "Brand profile",

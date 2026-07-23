@@ -13,6 +13,7 @@ export const DEFAULT_CREATE_FORM_VALUES = {
 export const DEFAULT_EDIT_FORM_VALUES = {
   name: "",
   redirectUris: "",
+  includeCoreApi: false,
 };
 
 /** Schemes Better Auth's SafeUrlSchema rejects. */
@@ -126,19 +127,7 @@ export function createOAuthClientSchema(t: TranslationFunction) {
 }
 
 export function editOAuthClientSchema(t: TranslationFunction) {
-  return z.object({
-    name: z
-      .string()
-      .trim()
-      .min(1, t("Validation.nameRequired"))
-      .max(100, t("Validation.nameMaxLength")),
-    redirectUris: z
-      .string()
-      .min(1, t("Validation.redirectUrisRequired"))
-      .refine(areRedirectUrisValid, {
-        message: t("Validation.redirectUrisInvalid"),
-      }),
-  });
+  return createOAuthClientSchema(t);
 }
 
 export { parseRedirectUris };

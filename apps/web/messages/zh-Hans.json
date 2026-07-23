@@ -3750,7 +3750,9 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "每行一个重定向 URI。使用 HTTPS（仅 localhost/loopback 可用 HTTP），不得包含片段。允许自定义应用 scheme。",
           "cancelButton": "取消",
-          "saveButton": "保存更改"
+          "saveButton": "保存更改",
+          "includeCoreApiLabel": "允许访问 Sokosumi API",
+          "includeCoreApiHelp": "未勾选：仅身份验证（openid）。勾选：还允许访问 Core API（sokosumi:api）。更改会更新客户端允许的 scope；用户需重新授权才能获得新令牌。"
         },
         "DeleteDialog": {
           "title": "删除 OAuth 客户端",
@@ -3838,9 +3840,7 @@
         "clientIdPlaceholder": "输入您的 OAuth 客户端 ID",
         "clientSecretLabel": "客户端密钥",
         "clientSecretPlaceholder": "输入您的 OAuth 客户端密钥",
-        "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。",
-        "includeCoreApiLabel": "请求 Sokosumi API 访问权限",
-        "includeCoreApiHelp": "须与授权时使用的 scope 一致。仅身份令牌（openid）请保持未勾选。"
+        "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。"
       },
       "BrandProfile": {
         "title": "品牌资料",

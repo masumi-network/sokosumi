@@ -16,6 +16,7 @@ export interface CreateOAuthClientFormData {
 export interface EditOAuthClientFormData {
   name: string;
   redirectUris: string;
+  includeCoreApi: boolean;
 }
 
 export interface CreateOAuthClientRequest {
@@ -40,6 +41,8 @@ export interface UpdateOAuthClientRequest {
   clientId: string;
   name: string;
   redirectUris: string[];
+  /** When true, allow `openid sokosumi:api`; otherwise `openid` only. */
+  includeCoreApi?: boolean;
 }
 
 export interface DeleteOAuthClientRequest {

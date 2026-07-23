@@ -1,6 +1,5 @@
 "use client";
 
-import { buildOAuthClientScopeParam } from "@sokosumi/utils";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -14,7 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getBrowserCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
@@ -37,7 +35,6 @@ export default function OAuthCallbackPage() {
   const [codeVerifier, setCodeVerifier] = useState("");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
-  const [includeCoreApi, setIncludeCoreApi] = useState(false);
   const [isExchanging, setIsExchanging] = useState(false);
   const [tokenResponse, setTokenResponse] = useState<TokenResponse | null>(
     null,
@@ -110,7 +107,6 @@ export default function OAuthCallbackPage() {
         redirect_uri: redirectUri,
         code_verifier: codeVerifier.trim(),
         client_id: clientId.trim(),
-        scope: buildOAuthClientScopeParam(includeCoreApi),
       });
       if (clientSecret.trim()) {
         body.set("client_secret", clientSecret.trim());
@@ -358,28 +354,6 @@ export default function OAuthCallbackPage() {
                 <p className="text-muted-foreground text-xs">
                   {t("clientSecretHelp")}
                 </p>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  id="include-core-api"
-                  checked={includeCoreApi}
-                  onCheckedChange={(checked) => {
-                    setIncludeCoreApi(checked === true);
-                  }}
-                  disabled={isExchanging}
-                />
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="include-core-api"
-                    className="font-normal leading-none"
-                  >
-                    {t("includeCoreApiLabel")}
-                  </Label>
-                  <p className="text-muted-foreground text-xs">
-                    {t("includeCoreApiHelp")}
-                  </p>
-                </div>
               </div>
 
               {error && (

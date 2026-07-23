@@ -173,9 +173,45 @@ describe("useOAuthClients", () => {
       update: {
         client_name: "Renamed",
         redirect_uris: ["https://example.com/new"],
+        scope: "openid",
       },
     });
     expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("updates a client with Core API scope when includeCoreApi is true", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "API Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api",
+      },
+    });
   });
 
   it("deletes a client", async () => {
