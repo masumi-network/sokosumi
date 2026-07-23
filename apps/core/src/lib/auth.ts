@@ -704,9 +704,12 @@ export const auth = betterAuth({
       loginPage: `${webAppBaseUrl}/signin`,
       consentPage: `${webAppBaseUrl}/oauth/consent`,
       scopes: [...OAUTH_PROVIDER_SCOPES],
+      // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
+      // for authenticated create-client and for DCR if enabled later.
       clientRegistrationDefaultScopes: [
         ...OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
       ],
+      clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)

@@ -472,6 +472,7 @@ describe("authMiddleware", () => {
     });
 
     expect(response.status).toBe(401);
+    expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 when OAuth client is disabled", async () => {
@@ -502,6 +503,7 @@ describe("authMiddleware", () => {
     });
 
     expect(response.status).toBe(401);
+    expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 when bearer token is invalid", async () => {

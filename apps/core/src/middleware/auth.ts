@@ -447,6 +447,13 @@ async function verifyOAuthToken(
       }
     }
 
+    // Client allow-list must still include Core API (e.g. after privilege reduction).
+    // Check before consent so disabled/reduced clients skip the consent query.
+    const client = oauthToken.client;
+    if (!client || client.disabled || !hasCoreApiOAuthScope(client.scopes)) {
+      return null;
+    }
+
     // Verify that consent still exists (user hasn't revoked access)
     // and still grants Core API scope.
     const consent = await tx.oauthConsent.findFirst({
@@ -462,12 +469,6 @@ async function verifyOAuthToken(
     });
 
     if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
-      return null;
-    }
-
-    // Client allow-list must still include Core API (e.g. after privilege reduction).
-    const client = oauthToken.client;
-    if (!client || client.disabled || !hasCoreApiOAuthScope(client.scopes)) {
       return null;
     }
 
