@@ -2467,7 +2467,6 @@
         "eyebrow": "Preparando seu agente",
         "title": "Preparando seu assistente para você",
         "subtitle": "Isso leva alguns minutos. Você pode fechar esta aba; seu assistente continua configurando em segundo plano.",
-        "etaLabel": "Cerca de {seconds} segundos restantes",
         "etaSettling": "Quase pronto…",
         "stepFallbackLabel": "Aquecendo os motores",
         "footerHint": "Quando terminar, o chat abrirá com uma introdução personalizada do seu assistente.",

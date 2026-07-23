@@ -16,6 +16,8 @@ vi.mock("next-intl", () => ({
   useTranslations: () => {
     const t = (key: string, params?: Record<string, string | number>) => {
       if (key === "elapsedLabel" && params) return `${params.elapsed} elapsed`;
+      if (key === "etaMinutesLabel" && params)
+        return `about ${params.minutes} min remaining`;
       return key;
     };
     t.raw = (_key: string) => ({});
@@ -100,6 +102,118 @@ describe("OnboardingProgress", () => {
       vi.advanceTimersByTime(4_100);
     });
     expect(onTerminalStatus.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("shows one neutral warming-up line instead of a fabricated step list before steps arrive", async () => {
+    getProgressMock.mockResolvedValue(progressResult("onboarding"));
+
+    render(
+      <OnboardingProgress previewMode={false} seed={null} startedAt={NOW} />,
+    );
+
+    await waitFor(() => expect(getProgressMock).toHaveBeenCalled());
+    expect(screen.getByText("stepFallbackLabel")).toBeInTheDocument();
+    // The old 6-step skeleton fabricated rows with local ids — none of that
+    // may render anymore; the orchestrator's payload is the only source.
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(screen.queryByText("save_details")).not.toBeInTheDocument();
+  });
+
+  it("renders the polled steps verbatim — dynamic subset, orchestrator labels, coarse ETA", async () => {
+    getProgressMock.mockResolvedValue({
+      ok: true,
+      data: {
+        status: "onboarding",
+        // A realistic dynamic subset: no integration/sokosumi steps, the
+        // inbox step skipped with its alternate label, orchestrator ids
+        // ("memory") that never matched the old local skeleton ids.
+        steps: [
+          { id: "memory", label: "Saving your details", status: "running" },
+          { id: "inbox_scan", label: "Inbox not connected", status: "skipped" },
+          {
+            id: "intro_draft",
+            label: "Drafting your intro",
+            status: "pending",
+          },
+        ],
+        etaSeconds: 95,
+      },
+    });
+
+    render(
+      <OnboardingProgress previewMode={false} seed={null} startedAt={NOW} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Saving your details")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Inbox not connected")).toBeInTheDocument();
+    expect(screen.getByText("Drafting your intro")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    // 95s rounds up to a 2-minute coarse ETA.
+    expect(screen.getByText("about 2 min remaining")).toBeInTheDocument();
+    expect(screen.queryByText("stepFallbackLabel")).not.toBeInTheDocument();
+  });
+
+  it("keeps the last non-empty step list when a later poll returns no steps", async () => {
+    // The contract doesn't guarantee steps on every poll (Core maps an
+    // absent array to []) — a step-less 200 mid-run must not bounce the
+    // rendered checklist back to the warming-up line.
+    getProgressMock
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          status: "onboarding",
+          steps: [
+            { id: "memory", label: "Saving your details", status: "running" },
+          ],
+          etaSeconds: 90,
+        },
+      })
+      .mockResolvedValue(progressResult("onboarding"));
+
+    render(
+      <OnboardingProgress previewMode={false} seed={null} startedAt={NOW} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Saving your details")).toBeInTheDocument(),
+    );
+
+    // Let several step-less polls land; the rows must survive them.
+    act(() => {
+      vi.advanceTimersByTime(2_100);
+    });
+    await waitFor(() =>
+      expect(getProgressMock.mock.calls.length).toBeGreaterThanOrEqual(3),
+    );
+    expect(screen.getByText("Saving your details")).toBeInTheDocument();
+    expect(screen.queryByText("stepFallbackLabel")).not.toBeInTheDocument();
+  });
+
+  it("hands the ETA off to the settling copy when under a minute", async () => {
+    getProgressMock.mockResolvedValue({
+      ok: true,
+      data: {
+        status: "onboarding",
+        steps: [
+          {
+            id: "intro_draft",
+            label: "Drafting your intro",
+            status: "running",
+          },
+        ],
+        etaSeconds: 20,
+      },
+    });
+
+    render(
+      <OnboardingProgress previewMode={false} seed={null} startedAt={NOW} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("etaSettling")).toBeInTheDocument(),
+    );
   });
 
   it("does not nudge while onboarding is still in flight", async () => {

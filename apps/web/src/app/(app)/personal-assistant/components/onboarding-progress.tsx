@@ -40,9 +40,13 @@ interface OnboardingProgressProps {
 const POLL_INTERVAL_MS = 1_000;
 
 /**
- * Production onboarding step order. Used for both the preview-mode mock and
- * the skeleton-state default before the first real poll lands. The UI keeps
- * these rows stable and merges orchestrator statuses onto them.
+ * Preview-mode mock ONLY. Real onboarding renders the orchestrator's polled
+ * step list verbatim — it's a dynamic subset (integration/inbox/sokosumi
+ * steps only appear when applicable) whose labels can change mid-run (e.g.
+ * inbox_scan relabels itself when skipped), so nothing here may be used as
+ * a template for live data. The orchestrator publishes the real list within
+ * ~1s of onboarding start, so the pre-first-poll window is a single neutral
+ * "warming up" line, not a fabricated list.
  */
 const HERMES_ONBOARDING_STEP_IDS = [
   "save_details",
@@ -72,23 +76,6 @@ function buildPreviewSequence(
       status: statuses[index]!,
     })),
   );
-}
-
-/**
- * Skeleton step list used before the first real poll resolves. First step
- * is "running" so the user sees a live spinner; the rest are pending. The
- * labels come from i18n previewSteps so the user reads real copy from the
- * first paint. When the orchestrator's statuses arrive, they update these
- * rows in place.
- */
-function buildSkeletonSteps(
-  stepLabels: Record<string, string>,
-): HermesOnboardingStep[] {
-  return HERMES_ONBOARDING_STEP_IDS.map((id, index) => ({
-    id,
-    label: stepLabels[id] ?? id,
-    status: index === 0 ? "running" : "pending",
-  }));
 }
 
 const PREVIEW_TICK_MS = 7_000;
@@ -167,14 +154,21 @@ function useOnboardingProgress(
         return;
       }
       consecutiveFailures = 0;
-      setState({
+      setState((prev) => ({
         progress: {
           status: result.data.status as ProgressShape["status"],
-          steps: result.data.steps,
+          // Keep the last non-empty list: the contract doesn't guarantee
+          // steps on every poll (Core maps an absent array to []), and a
+          // step-less 200 mid-run — or right at the terminal flip — must
+          // not bounce the rendered checklist back to the warming-up line.
+          steps:
+            result.data.steps.length > 0
+              ? result.data.steps
+              : prev.progress.steps,
           etaSeconds: result.data.etaSeconds,
         },
         pollError: false,
-      });
+      }));
     };
 
     void tick();
@@ -209,10 +203,6 @@ export default function OnboardingProgress({
     () => buildPreviewSequence(previewSteps),
     [previewSteps],
   );
-  const skeletonSteps = useMemo(
-    () => buildSkeletonSteps(previewSteps),
-    [previewSteps],
-  );
   const hints = useMemo(
     () => orderedMessageList(t.raw("hints") as Record<string, string>),
     [t],
@@ -221,8 +211,19 @@ export default function OnboardingProgress({
     previewMode,
     previewSequence,
   );
-  const displaySteps =
-    progress.steps.length > 0 ? progress.steps : skeletonSteps;
+  // The polled steps are the source of truth, rendered verbatim: the
+  // orchestrator emits a dynamic subset with its own labels/statuses, so
+  // any local template would swap names mid-onboarding.
+  const displaySteps = progress.steps;
+  // Coarse, minute-granular ETA — the orchestrator now publishes a reliable
+  // figure from the first poll, but a per-second countdown would jitter and
+  // read as broken, so we round up and hand off to "almost done" copy.
+  const etaMinutes =
+    progress.etaSeconds !== null && progress.etaSeconds > 30
+      ? Math.ceil(progress.etaSeconds / 60)
+      : null;
+  const showEtaSettling =
+    progress.etaSeconds !== null && progress.etaSeconds <= 30;
   const elapsedSeconds = useElapsedSeconds(startedAt);
   const tProvisioning = useTranslations("App.Hermes.Provisioning");
 
@@ -263,29 +264,50 @@ export default function OnboardingProgress({
         </div>
 
         {/* ── Steps ───────────────────────────────────────────────── */}
-        {/* Elapsed clock, matching the provisioning screen so the two setup
-            phases read as one continuous process. */}
-        <div className="mb-2 flex items-center justify-end">
+        {/* ETA on the left (the first step legitimately runs 1–2 min while
+            the machine boots — the ETA keeps that from reading as stuck),
+            elapsed clock on the right matching the provisioning screen so
+            the two setup phases read as one continuous process. */}
+        <div className="mb-2 flex min-h-4 items-center justify-between gap-3">
+          <span className="text-muted-foreground text-xs">
+            {etaMinutes !== null
+              ? t("etaMinutesLabel", { minutes: etaMinutes })
+              : showEtaSettling
+                ? t("etaSettling")
+                : null}
+          </span>
           <span className="text-muted-foreground font-mono text-xs tabular-nums">
             {tProvisioning("elapsedLabel", {
               elapsed: formatElapsed(elapsedSeconds),
             })}
           </span>
         </div>
-        <ol className="border-border/60 bg-card/40 flex flex-col overflow-hidden rounded-xl border">
-          {displaySteps.map((step, index) => (
-            <StepRow
-              key={step.id}
-              step={step}
-              isLast={index === displaySteps.length - 1}
-            />
-          ))}
-        </ol>
+        {displaySteps.length > 0 ? (
+          <ol className="border-border/60 bg-card/40 flex flex-col overflow-hidden rounded-xl border">
+            {displaySteps.map((step, index) => (
+              <StepRow
+                key={step.id}
+                step={step}
+                isLast={index === displaySteps.length - 1}
+              />
+            ))}
+          </ol>
+        ) : (
+          /* Pre-first-poll (or an empty list from the orchestrator): one
+             honest neutral line instead of a fabricated step list that the
+             real rows would visibly replace. */
+          <div className="border-border/60 bg-card/40 flex items-center gap-3 rounded-xl border px-5 py-4">
+            <Loader2 className="text-primary size-4 animate-spin" aria-hidden />
+            <span className="text-foreground text-sm">
+              {t("stepFallbackLabel")}
+            </span>
+          </div>
+        )}
 
-        {/* Rotating hint instead of the misleading countdown. The orchestrator
-          ETA is wildly variable (Composio MCP cold-start, OAuth verification,
-          Gmail inbox size) so a per-second number reads as broken when it
-          inevitably drifts. Honest copy + something fun to read. */}
+        {/* Rotating hints keep the wait entertaining; the coarse minute-level
+          ETA above carries the "how long" question. Per-step durations still
+          vary (Composio MCP cold-start, Gmail inbox size), which is why the
+          ETA is rounded rather than a per-second countdown. */}
         <div className="mt-4 flex min-h-8 items-center justify-center">
           <RotatingMessages
             messages={hints}
@@ -366,7 +388,11 @@ function StepRow({
             isActive && "text-foreground font-medium",
             isDone && "text-foreground",
             isError && "text-destructive font-medium",
-            isSkipped && "text-muted-foreground/70 line-through",
+            // No line-through: skipped labels are status explanations under
+            // the new contract ("Inbox not connected") and striking a
+            // negative statement reads as its opposite. The dash glyph +
+            // muted colour already say "not applicable".
+            isSkipped && "text-muted-foreground/70",
             !isDone &&
               !isActive &&
               !isError &&

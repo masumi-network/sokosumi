@@ -2483,7 +2483,7 @@
         "eyebrow": "Preparing your agent",
         "title": "Getting your assistant ready for you",
         "subtitle": "This takes a few minutes. You can close this tab; your assistant keeps setting up in the background.",
-        "etaLabel": "About {seconds} seconds remaining",
+        "etaMinutesLabel": "About {minutes, plural, one {# minute} other {# minutes}} remaining",
         "etaSettling": "Almost done…",
         "stepFallbackLabel": "Warming things up",
         "footerHint": "When this finishes, the chat will open with a personalized intro from your assistant.",

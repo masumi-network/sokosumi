@@ -2467,7 +2467,6 @@
         "eyebrow": "Préparation de votre agent",
         "title": "Votre assistant se prépare pour vous",
         "subtitle": "Cela prend quelques minutes. Vous pouvez fermer cet onglet ; votre assistant continue la configuration en arrière-plan.",
-        "etaLabel": "Environ {seconds} secondes restantes",
         "etaSettling": "Presque terminé…",
         "stepFallbackLabel": "Mise en route",
         "footerHint": "À la fin, le chat s'ouvrira avec une introduction personnalisée de votre assistant.",

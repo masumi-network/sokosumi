@@ -287,7 +287,6 @@
     "moreLaterShort": "Slack, Notion, GitHub and more can be connected later from Settings."
   },
   "OnboardingProgress": {
-    "etaLabel": "Cerca de {seconds} segundos restantes",
     "etaSettling": "Quase pronto…",
     "eyebrow": "Preparando seu agente",
     "footerHint": "Quando terminar, o chat abrirá com uma introdução personalizada do seu assistente.",
