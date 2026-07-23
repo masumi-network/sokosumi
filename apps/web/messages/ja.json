@@ -263,7 +263,12 @@
       "new": "新規",
       "notifications": "通知",
       "projects": "プロジェクト",
-      "invoices": "請求書"
+      "invoices": "請求書",
+      "oauth-clients": "OAuth クライアント",
+      "api-keys": "API キー",
+      "coworkers": "コワーカー",
+      "vendors": "ベンダー",
+      "docs": "ドキュメント"
     },
     "Jobs": {
       "StatusBadge": {

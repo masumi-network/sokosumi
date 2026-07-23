@@ -45,7 +45,7 @@ const assignCoworkerDeveloperSchema = z.object({
 const unassignCoworkerDeveloperSchema = assignCoworkerDeveloperSchema;
 
 function revalidateDeveloperVendorRoutes() {
-  revalidatePath("/developer");
+  revalidatePath("/developer/vendors");
 }
 
 interface LoadVendorAdminPanelParameters extends AuthenticatedRequest {

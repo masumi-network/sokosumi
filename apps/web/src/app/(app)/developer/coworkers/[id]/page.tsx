@@ -36,7 +36,7 @@ export default async function DeveloperCoworkerEditPage({
       <div className="min-h-full w-full">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-2">
           <Button variant="outline" asChild>
-            <Link href="/developer?tab=coworkers">{t("backToList")}</Link>
+            <Link href="/developer/coworkers">{t("backToList")}</Link>
           </Button>
           <p className="text-destructive text-sm">{t("loadFailed")}</p>
         </div>
@@ -64,7 +64,7 @@ export default async function DeveloperCoworkerEditPage({
             </p>
           </div>
           <Button variant="outline" asChild>
-            <Link href="/developer?tab=coworkers">{t("backToList")}</Link>
+            <Link href="/developer/coworkers">{t("backToList")}</Link>
           </Button>
         </div>
 

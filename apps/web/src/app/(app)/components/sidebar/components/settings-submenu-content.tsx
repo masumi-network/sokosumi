@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { ChevronRight, LifeBuoy, LogOut, Scale } from "lucide-react";
+import { ChevronRight, Code2, LifeBuoy, LogOut, Scale } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
@@ -71,7 +71,6 @@ export function SettingsSubmenuContent({
         | "account"
         | "billing"
         | "connections"
-        | "developer"
         | "organizationsHeading",
     );
   }
@@ -98,6 +97,23 @@ export function SettingsSubmenuContent({
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              type="button"
+              onClick={() => openSubmenu("developer")}
+              className={cn(
+                "flex min-h-auto w-full items-center gap-2 px-3",
+                "text-tertiary-foreground dark:text-muted-foreground",
+                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              )}
+            >
+              <Code2 className="size-4" aria-hidden />
+              <span className="flex-1 truncate text-left">
+                {tUserAvatar("developer")}
+              </span>
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               type="button"

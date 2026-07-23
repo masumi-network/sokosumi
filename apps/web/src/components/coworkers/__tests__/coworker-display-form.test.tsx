@@ -88,7 +88,7 @@ describe("CoworkerDisplayForm", () => {
       <NextIntlClientProvider locale="en" messages={messages}>
         <CoworkerDisplayForm
           coworker={mockCoreCoworker({ name: "Ops Agent" })}
-          cancelHref="/developer?tab=coworkers"
+          cancelHref="/developer/coworkers"
           updateAction={updateAction}
           onNotFound={vi.fn()}
         />

@@ -279,7 +279,12 @@
       "history": "History",
       "new": "New",
       "notifications": "Notifications",
-      "projects": "Projects"
+      "projects": "Projects",
+      "oauth-clients": "OAuth Clients",
+      "api-keys": "API Keys",
+      "coworkers": "Coworkers",
+      "vendors": "Vendors",
+      "docs": "Documentation"
     },
     "Jobs": {
       "StatusBadge": {

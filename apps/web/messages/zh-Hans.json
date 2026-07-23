@@ -263,7 +263,12 @@
       "new": "新建",
       "notifications": "通知",
       "projects": "项目",
-      "invoices": "发票"
+      "invoices": "发票",
+      "oauth-clients": "OAuth 客户端",
+      "api-keys": "API 密钥",
+      "coworkers": "同事",
+      "vendors": "供应商",
+      "docs": "文档"
     },
     "Jobs": {
       "StatusBadge": {

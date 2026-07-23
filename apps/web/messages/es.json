@@ -263,7 +263,12 @@
       "new": "Nuevo",
       "notifications": "Notificaciones",
       "projects": "Proyectos",
-      "invoices": "Facturas"
+      "invoices": "Facturas",
+      "oauth-clients": "Clientes OAuth",
+      "api-keys": "Claves API",
+      "coworkers": "Coworkers",
+      "vendors": "Vendors",
+      "docs": "Documentación"
     },
     "Jobs": {
       "StatusBadge": {

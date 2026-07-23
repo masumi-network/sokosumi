@@ -16,7 +16,7 @@ export default async function ConnectionsRoute({
 
   // API keys moved to Developer; keep MCP on Connections.
   if (tabValue === "api-keys") {
-    redirect("/developer?tab=api-keys");
+    redirect("/developer/api-keys");
   }
 
   return <ConnectionsPage />;
