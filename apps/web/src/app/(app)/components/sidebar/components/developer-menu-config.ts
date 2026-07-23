@@ -72,17 +72,18 @@ export function getDeveloperNavItems({
     return BASE_DEVELOPER_NAV_ITEMS;
   }
 
-  const docsIndex = BASE_DEVELOPER_NAV_ITEMS.findIndex(
-    (item) => item.key === "docs",
+  const apiKeysIndex = BASE_DEVELOPER_NAV_ITEMS.findIndex(
+    (item) => item.key === "apiKeys",
   );
-  if (docsIndex === -1) {
+  if (apiKeysIndex === -1) {
     return [...BASE_DEVELOPER_NAV_ITEMS, VENDORS_NAV_ITEM];
   }
 
+  const insertAt = apiKeysIndex + 1;
   return [
-    ...BASE_DEVELOPER_NAV_ITEMS.slice(0, docsIndex),
+    ...BASE_DEVELOPER_NAV_ITEMS.slice(0, insertAt),
     VENDORS_NAV_ITEM,
-    ...BASE_DEVELOPER_NAV_ITEMS.slice(docsIndex),
+    ...BASE_DEVELOPER_NAV_ITEMS.slice(insertAt),
   ];
 }
 

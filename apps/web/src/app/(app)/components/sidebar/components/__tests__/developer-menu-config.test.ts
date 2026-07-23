@@ -18,15 +18,15 @@ describe("getDeveloperNavItems", () => {
     ]);
   });
 
-  it("inserts vendors before docs when enabled", () => {
+  it("inserts vendors after api keys when enabled", () => {
     const items = getDeveloperNavItems({ showVendors: true });
 
     expect(items.map((item) => item.key)).toEqual([
       "oauthClients",
       "apiKeys",
+      "vendors",
       "coworkers",
       "tasks",
-      "vendors",
       "docs",
     ]);
   });
