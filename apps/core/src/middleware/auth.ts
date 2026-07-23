@@ -454,7 +454,7 @@ async function verifyOAuthToken(
         userId: oauthToken.userId,
         clientId: oauthToken.clientId,
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       select: {
         id: true,
         scopes: true,

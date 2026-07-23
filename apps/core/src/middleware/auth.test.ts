@@ -375,7 +375,7 @@ describe("authMiddleware", () => {
         userId: "user_oauth",
         clientId: "client_123",
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       select: {
         id: true,
         scopes: true,
