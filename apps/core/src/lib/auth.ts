@@ -710,7 +710,7 @@ export const auth = betterAuth({
         ...OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
       ],
       clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
-      grantTypes: ["authorization_code"],
+      grantTypes: ["authorization_code", "refresh_token"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
