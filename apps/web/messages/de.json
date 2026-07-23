@@ -3743,6 +3743,7 @@
           "createError": "OAuth-Client konnte nicht erstellt werden",
           "updateSuccess": "OAuth-Client erfolgreich aktualisiert",
           "updateError": "OAuth-Client konnte nicht aktualisiert werden",
+          "updateScopeFlagsRequired": "API-Zugriff und Refresh-Token-Einstellungen müssen gemeinsam aktualisiert werden.",
           "deleteSuccess": "OAuth-Client erfolgreich gelöscht",
           "deleteError": "OAuth-Client konnte nicht gelöscht werden",
           "copyError": "Kopieren in die Zwischenablage fehlgeschlagen",

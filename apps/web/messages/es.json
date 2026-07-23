@@ -3743,6 +3743,7 @@
           "createError": "Error al crear el cliente OAuth",
           "updateSuccess": "Cliente OAuth actualizado correctamente",
           "updateError": "Error al actualizar el cliente OAuth",
+          "updateScopeFlagsRequired": "El acceso a la API y la configuración del token de actualización deben actualizarse juntos.",
           "deleteSuccess": "Cliente OAuth eliminado correctamente",
           "deleteError": "Error al eliminar el cliente OAuth",
           "copyError": "Error al copiar al portapapeles",

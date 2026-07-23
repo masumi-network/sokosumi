@@ -3774,6 +3774,7 @@
           "createError": "创建 OAuth 客户端失败",
           "updateSuccess": "OAuth 客户端更新成功",
           "updateError": "更新 OAuth 客户端失败",
+          "updateScopeFlagsRequired": "API 访问与刷新令牌设置必须一并更新。",
           "deleteSuccess": "OAuth 客户端删除成功",
           "deleteError": "删除 OAuth 客户端失败",
           "copyError": "复制到剪贴板失败",

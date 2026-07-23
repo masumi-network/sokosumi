@@ -3774,6 +3774,7 @@
           "createError": "OAuth クライアントの作成に失敗しました",
           "updateSuccess": "OAuth クライアントを更新しました",
           "updateError": "OAuth クライアントの更新に失敗しました",
+          "updateScopeFlagsRequired": "APIアクセスとリフレッシュトークンの設定は同時に更新する必要があります。",
           "deleteSuccess": "OAuth クライアントを削除しました",
           "deleteError": "OAuth クライアントの削除に失敗しました",
           "copyError": "クリップボードへのコピーに失敗しました",

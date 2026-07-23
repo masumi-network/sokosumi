@@ -125,7 +125,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         // Both flags required together so a missing sibling cannot default to
         // false and strip the other scope (e.g. API-only update clearing offline).
         if (hasIncludeCoreApi !== hasIncludeOfflineAccess) {
-          toast.error(t("Messages.updateError"));
+          toast.error(t("Messages.updateScopeFlagsRequired"));
           return false;
         }
 

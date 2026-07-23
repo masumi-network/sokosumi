@@ -32,6 +32,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
+import { toast } from "sonner";
 import { useOAuthClients } from "@/app/developer/components/oauth-clients/hooks/use-oauth-clients";
 
 describe("useOAuthClients", () => {
@@ -420,6 +421,9 @@ describe("useOAuthClients", () => {
 
     expect(success).toBe(false);
     expect(updateClientMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "Messages.updateScopeFlagsRequired",
+    );
   });
 
   it("deletes a client", async () => {

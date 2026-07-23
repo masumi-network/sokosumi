@@ -3837,6 +3837,7 @@
           "createError": "Failed to create OAuth client",
           "updateSuccess": "OAuth client updated successfully",
           "updateError": "Failed to update OAuth client",
+          "updateScopeFlagsRequired": "API access and refresh token settings must be updated together.",
           "deleteSuccess": "OAuth client deleted successfully",
           "deleteError": "Failed to delete OAuth client",
           "copyError": "Failed to copy to clipboard",

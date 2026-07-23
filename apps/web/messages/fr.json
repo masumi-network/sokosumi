@@ -3774,6 +3774,7 @@
           "createError": "Échec de la création du client OAuth",
           "updateSuccess": "Client OAuth mis à jour avec succès",
           "updateError": "Échec de la mise à jour du client OAuth",
+          "updateScopeFlagsRequired": "L'accès API et les paramètres de jeton d'actualisation doivent être mis à jour ensemble.",
           "deleteSuccess": "Client OAuth supprimé avec succès",
           "deleteError": "Échec de la suppression du client OAuth",
           "copyError": "Échec de la copie dans le presse-papiers",

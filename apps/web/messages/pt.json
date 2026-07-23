@@ -3774,6 +3774,7 @@
           "createError": "Falha ao criar cliente OAuth",
           "updateSuccess": "Cliente OAuth atualizado com sucesso",
           "updateError": "Falha ao atualizar cliente OAuth",
+          "updateScopeFlagsRequired": "O acesso à API e as definições do token de atualização devem ser atualizados em conjunto.",
           "deleteSuccess": "Cliente OAuth eliminado com sucesso",
           "deleteError": "Falha ao eliminar cliente OAuth",
           "copyError": "Falha ao copiar para a área de transferência",

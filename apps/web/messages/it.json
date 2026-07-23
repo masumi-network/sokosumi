@@ -3774,6 +3774,7 @@
           "createError": "Impossibile creare il client OAuth",
           "updateSuccess": "Client OAuth aggiornato con successo",
           "updateError": "Impossibile aggiornare il client OAuth",
+          "updateScopeFlagsRequired": "L'accesso API e le impostazioni del token di refresh devono essere aggiornati insieme.",
           "deleteSuccess": "Client OAuth eliminato con successo",
           "deleteError": "Impossibile eliminare il client OAuth",
           "copyError": "Copia negli appunti non riuscita",
