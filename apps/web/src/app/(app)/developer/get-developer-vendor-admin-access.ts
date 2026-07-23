@@ -1,7 +1,5 @@
 import "server-only";
 
-import { getSession } from "@/lib/auth/auth.server";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { VendorMembership } from "@/lib/clients/generated/core";
 import { vendorService } from "@/lib/services/vendor.service";
 
@@ -11,15 +9,11 @@ export interface DeveloperVendorAdminAccess {
 }
 
 /**
- * Platform admins manage vendors under /admin. Developer Vendors nav/page is
- * only for VendorMember admins (not user.role=admin).
+ * Developer Vendors is for VendorMember admins. Platform user.role=admin alone
+ * does not grant it (use /admin/vendors); being platform admin does not block
+ * it when the user is also a VendorMember admin.
  */
 export async function getDeveloperVendorAdminAccess(): Promise<DeveloperVendorAdminAccess> {
-  const session = await getSession();
-  if (hasAdminRole(session?.user.role)) {
-    return { showVendors: false, adminVendors: [] };
-  }
-
   const adminVendors = await vendorService
     .listMyAdminVendorMemberships()
     .catch(() => []);
