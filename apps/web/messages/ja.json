@@ -4288,7 +4288,7 @@
       },
       "Vendors": {
         "title": "ベンダー管理",
-        "description": "管理者であるベンダーのプロフィールと開発者の割り当てを管理します。",
+        "description": "管理者であるベンダーのプロフィールを管理します。",
         "loading": "ベンダーデータを読み込み中…",
         "vendorSelect": {
           "label": "ベンダー",
@@ -4314,17 +4314,6 @@
             "maxFilesExceeded": "一度にアップロードできるロゴは1つだけです。",
             "uploadError": "ロゴのアップロードに失敗しました。"
           }
-        },
-        "assignments": {
-          "title": "開発者の割り当て",
-          "description": "ベンダーメンバーをコワーカーに割り当てます。管理者と開発者の両方を割り当てできます。",
-          "emptyCoworkers": "このベンダーにはまだ有効なコワーカーがありません。",
-          "noAssignments": "開発者が割り当てられていません。",
-          "assignPlaceholder": "メンバーを割り当て",
-          "assignSuccess": "開発者を割り当てました。",
-          "unassignSuccess": "開発者の割り当てを解除しました。",
-          "unassign": "{member} の割り当てを解除",
-          "noMembers": "このベンダーには割り当て可能なメンバーがいません。"
         },
         "loadFailed": "ベンダーデータの読み込みに失敗しました。"
       }

@@ -4288,7 +4288,7 @@
       },
       "Vendors": {
         "title": "Administração de fornecedores",
-        "description": "Gerencie o perfil do fornecedor e as atribuições de desenvolvedores para fornecedores em que você é administrador.",
+        "description": "Gerencie o perfil do fornecedor nos fornecedores em que você é administrador.",
         "loading": "Carregando dados do fornecedor…",
         "vendorSelect": {
           "label": "Fornecedor",
@@ -4314,17 +4314,6 @@
             "maxFilesExceeded": "Apenas um arquivo de logotipo pode ser enviado por vez.",
             "uploadError": "Falha ao enviar o logotipo."
           }
-        },
-        "assignments": {
-          "title": "Atribuições de developer",
-          "description": "Atribua membros do vendor a coworkers. Admins e developers podem ser atribuídos.",
-          "emptyCoworkers": "Este vendor ainda não tem coworkers ativos.",
-          "noAssignments": "Nenhum developer atribuído.",
-          "assignPlaceholder": "Atribuir membro",
-          "assignSuccess": "Developer atribuído.",
-          "unassignSuccess": "Developer removido.",
-          "unassign": "Remover {member}",
-          "noMembers": "Este vendor não tem membros para atribuir."
         },
         "loadFailed": "Falha ao carregar os dados do fornecedor."
       }

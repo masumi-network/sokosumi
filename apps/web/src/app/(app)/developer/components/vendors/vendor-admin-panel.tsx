@@ -26,7 +26,6 @@ import {
 import type { VendorMembership } from "@/lib/clients/generated/core";
 import type { VendorAdminPanelData } from "@/lib/services/vendor.service";
 
-import { VendorCoworkerAssignments } from "./vendor-coworker-assignments";
 import { VendorProfileForm } from "./vendor-profile-form";
 
 interface VendorAdminPanelProps {
@@ -38,7 +37,7 @@ export function VendorAdminPanel({ adminVendors }: VendorAdminPanelProps) {
   const [selectedVendorId, setSelectedVendorId] = useState(adminVendors[0]?.id);
   const [panelData, setPanelData] = useState<VendorAdminPanelData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isLoadingPanel, startLoadPanel] = useTransition();
+  const [, startLoadPanel] = useTransition();
   const [isSavingProfile, startSaveProfile] = useTransition();
 
   const selectedVendor = useMemo(
@@ -127,19 +126,10 @@ export function VendorAdminPanel({ adminVendors }: VendorAdminPanelProps) {
     [panelData, selectedVendor, startSaveProfile, t],
   );
 
-  const handleAssignmentsChange = useCallback(() => {
-    if (!selectedVendorId) {
-      return;
-    }
-
-    loadPanelData(selectedVendorId);
-  }, [loadPanelData, selectedVendorId]);
-
   if (adminVendors.length === 0) {
     return null;
   }
 
-  // Soft reloads (e.g. after assign) keep panelData; only vendor switch clears it.
   const showLoading = !panelData && !loadError;
 
   return (
@@ -173,21 +163,12 @@ export function VendorAdminPanel({ adminVendors }: VendorAdminPanelProps) {
       {showLoading ? (
         <VendorPanelLoadingView label={t("loading")} />
       ) : selectedVendor && panelData ? (
-        <>
-          <VendorProfileForm
-            key={selectedVendor.id}
-            vendor={panelData.vendor}
-            isSaving={isSavingProfile}
-            onSave={handleProfileSave}
-          />
-          <VendorCoworkerAssignments
-            vendorId={selectedVendor.id}
-            assignableMembers={panelData.assignableMembers}
-            coworkerAssignments={panelData.coworkerAssignments}
-            isLoading={isLoadingPanel}
-            onAssignmentsChange={handleAssignmentsChange}
-          />
-        </>
+        <VendorProfileForm
+          key={selectedVendor.id}
+          vendor={panelData.vendor}
+          isSaving={isSavingProfile}
+          onSave={handleProfileSave}
+        />
       ) : null}
     </div>
   );
@@ -196,43 +177,22 @@ export function VendorAdminPanel({ adminVendors }: VendorAdminPanelProps) {
 function VendorPanelLoadingView({ label }: { label: string }) {
   return (
     <div
-      className="space-y-8"
+      className="space-y-4"
       aria-busy="true"
       aria-live="polite"
       aria-label={label}
     >
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-4 w-72 max-w-full" />
-        </div>
-        <Skeleton className="h-9 w-full max-w-md" />
-        <Skeleton className="h-9 w-full max-w-md" />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-28 w-full" />
-        </div>
-        <Skeleton className="h-9 w-32" />
+      <div className="space-y-2">
+        <Skeleton className="h-5 w-36" />
+        <Skeleton className="h-4 w-72 max-w-full" />
       </div>
-
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-44" />
-          <Skeleton className="h-4 w-80 max-w-full" />
-        </div>
-        <div className="divide-border divide-y rounded-lg border">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div
-              key={index}
-              className="flex flex-wrap items-center gap-2 px-3 py-2"
-            >
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-6 w-28 rounded-full" />
-              <Skeleton className="ml-auto h-8 w-40" />
-            </div>
-          ))}
-        </div>
+      <Skeleton className="h-9 w-full max-w-md" />
+      <Skeleton className="h-9 w-full max-w-md" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-28 w-full" />
       </div>
+      <Skeleton className="h-9 w-32" />
     </div>
   );
 }

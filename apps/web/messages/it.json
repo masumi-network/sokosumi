@@ -4288,7 +4288,7 @@
       },
       "Vendors": {
         "title": "Amministrazione vendor",
-        "description": "Gestisci il profilo del vendor e le assegnazioni degli sviluppatori per i vendor di cui sei amministratore.",
+        "description": "Gestisci il profilo del vendor per i vendor di cui sei amministratore.",
         "loading": "Caricamento dati vendor…",
         "vendorSelect": {
           "label": "Vendor",
@@ -4314,17 +4314,6 @@
             "maxFilesExceeded": "È possibile caricare un solo file logo alla volta.",
             "uploadError": "Impossibile caricare il logo."
           }
-        },
-        "assignments": {
-          "title": "Assegnazioni sviluppatore",
-          "description": "Assegna i membri del vendor ai coworker. Admin e developer possono essere assegnati.",
-          "emptyCoworkers": "Questo vendor non ha ancora coworker attivi.",
-          "noAssignments": "Nessuno sviluppatore assegnato.",
-          "assignPlaceholder": "Assegna membro",
-          "assignSuccess": "Sviluppatore assegnato.",
-          "unassignSuccess": "Sviluppatore rimosso.",
-          "unassign": "Rimuovi {member}",
-          "noMembers": "Questo vendor non ha membri da assegnare."
         },
         "loadFailed": "Impossibile caricare i dati del vendor."
       }

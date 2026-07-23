@@ -4288,7 +4288,7 @@
       },
       "Vendors": {
         "title": "Administration fournisseur",
-        "description": "Gérez le profil fournisseur et les affectations de développeurs pour les fournisseurs dont vous êtes administrateur.",
+        "description": "Gérez le profil du vendor pour les vendors dont vous êtes administrateur.",
         "loading": "Chargement des données fournisseur…",
         "vendorSelect": {
           "label": "Fournisseur",
@@ -4314,17 +4314,6 @@
             "maxFilesExceeded": "Un seul fichier logo peut être téléversé à la fois.",
             "uploadError": "Échec du téléversement du logo."
           }
-        },
-        "assignments": {
-          "title": "Affectations développeur",
-          "description": "Affectez des membres du vendor aux coworkers. Les admins et les développeurs peuvent être affectés.",
-          "emptyCoworkers": "Ce vendor n’a pas encore de coworkers actifs.",
-          "noAssignments": "Aucun développeur affecté.",
-          "assignPlaceholder": "Affecter un membre",
-          "assignSuccess": "Développeur affecté.",
-          "unassignSuccess": "Développeur retiré.",
-          "unassign": "Retirer {member}",
-          "noMembers": "Ce vendor n’a aucun membre à affecter."
         },
         "loadFailed": "Échec du chargement des données fournisseur."
       }

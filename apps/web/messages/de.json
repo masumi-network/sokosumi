@@ -4288,7 +4288,7 @@
       },
       "Vendors": {
         "title": "Anbieterverwaltung",
-        "description": "Verwalten Sie Anbieterprofil und Entwicklerzuweisungen für Anbieter, bei denen Sie Administrator sind.",
+        "description": "Verwalte das Vendor-Profil für Vendors, bei denen du Admin bist.",
         "loading": "Anbieterdaten werden geladen…",
         "vendorSelect": {
           "label": "Anbieter",
@@ -4314,17 +4314,6 @@
             "maxFilesExceeded": "Es kann jeweils nur eine Logodatei hochgeladen werden.",
             "uploadError": "Logo konnte nicht hochgeladen werden."
           }
-        },
-        "assignments": {
-          "title": "Developer-Zuweisungen",
-          "description": "Vendor-Mitglieder Coworkern zuweisen. Admins und Developer können zugewiesen werden.",
-          "emptyCoworkers": "Dieser Vendor hat noch keine aktiven Coworker.",
-          "noAssignments": "Keine Developer zugewiesen.",
-          "assignPlaceholder": "Mitglied zuweisen",
-          "assignSuccess": "Developer zugewiesen.",
-          "unassignSuccess": "Developer entfernt.",
-          "unassign": "{member} entfernen",
-          "noMembers": "Dieser Vendor hat keine Mitglieder zum Zuweisen."
         },
         "loadFailed": "Anbieterdaten konnten nicht geladen werden."
       }

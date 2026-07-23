@@ -4288,7 +4288,7 @@
       },
       "Vendors": {
         "title": "Administración de proveedores",
-        "description": "Gestiona el perfil del proveedor y las asignaciones de desarrolladores para los proveedores en los que eres administrador.",
+        "description": "Gestiona el perfil del vendor en los vendors donde eres administrador.",
         "loading": "Cargando datos del proveedor…",
         "vendorSelect": {
           "label": "Proveedor",
@@ -4314,17 +4314,6 @@
             "maxFilesExceeded": "Solo se puede subir un archivo de logotipo a la vez.",
             "uploadError": "No se pudo subir el logotipo."
           }
-        },
-        "assignments": {
-          "title": "Asignaciones de desarrolladores",
-          "description": "Asigna miembros del vendor a coworkers. Se pueden asignar admins y desarrolladores.",
-          "emptyCoworkers": "Este vendor aún no tiene coworkers activos.",
-          "noAssignments": "No hay desarrolladores asignados.",
-          "assignPlaceholder": "Asignar miembro",
-          "assignSuccess": "Desarrollador asignado.",
-          "unassignSuccess": "Desarrollador desasignado.",
-          "unassign": "Desasignar {member}",
-          "noMembers": "Este vendor no tiene miembros para asignar."
         },
         "loadFailed": "No se pudieron cargar los datos del proveedor."
       }

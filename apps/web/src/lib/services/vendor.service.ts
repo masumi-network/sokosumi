@@ -2,40 +2,20 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
-  Coworker,
-  CoworkerAssignment,
   PatchVendorAdminRequest,
   Vendor,
-  VendorMember,
   VendorMembership,
 } from "@/lib/clients/generated/core";
 import { VendorMemberRole } from "@/lib/clients/generated/core";
-import { developerCoworkerService } from "@/lib/services/developer-coworker.service";
-
-export interface VendorCoworkerAssignments {
-  coworker: Coworker;
-  assignments: CoworkerAssignment[];
-}
 
 export interface VendorAdminPanelData {
   vendor: VendorMembership;
-  members: VendorMember[];
-  /** Vendor members eligible for coworker assignment (admin or developer). */
-  assignableMembers: VendorMember[];
-  coworkerAssignments: VendorCoworkerAssignments[];
 }
 
 function isAdminMembership(
   membership: VendorMembership,
 ): membership is VendorMembership & { role: typeof VendorMemberRole.ADMIN } {
   return membership.role === VendorMemberRole.ADMIN;
-}
-
-function isAssignableMember(member: VendorMember): boolean {
-  return (
-    member.role === VendorMemberRole.ADMIN ||
-    member.role === VendorMemberRole.DEVELOPER
-  );
 }
 
 function buildVendorPatchBody(
@@ -90,34 +70,6 @@ export const vendorService = (() => {
     return memberships.filter(isAdminMembership);
   }
 
-  async function listVendorMembers(vendorId: string): Promise<VendorMember[]> {
-    const { data } = await coreClient.listVendorMembers(vendorId);
-    return data ?? [];
-  }
-
-  async function listVendorAssignableMembers(
-    vendorId: string,
-  ): Promise<VendorMember[]> {
-    const members = await listVendorMembers(vendorId);
-    return members.filter(isAssignableMember);
-  }
-
-  async function listVendorCoworkers(vendorId: string): Promise<Coworker[]> {
-    const coworkers = await developerCoworkerService.listOwnedCoworkers();
-    return coworkers.filter((coworker) => coworker.vendor.id === vendorId);
-  }
-
-  async function listCoworkerAssignments(
-    vendorId: string,
-    coworkerId: string,
-  ): Promise<CoworkerAssignment[]> {
-    const { data } = await coreClient.listCoworkerAssignments(
-      vendorId,
-      coworkerId,
-    );
-    return data ?? [];
-  }
-
   async function getVendorAdminPanelData(
     vendorId: string,
   ): Promise<VendorAdminPanelData | null> {
@@ -127,24 +79,7 @@ export const vendorService = (() => {
       return null;
     }
 
-    const [members, coworkers] = await Promise.all([
-      listVendorMembers(vendorId),
-      listVendorCoworkers(vendorId),
-    ]);
-
-    const coworkerAssignments = await Promise.all(
-      coworkers.map(async (coworker) => ({
-        coworker,
-        assignments: await listCoworkerAssignments(vendorId, coworker.id),
-      })),
-    );
-
-    return {
-      vendor,
-      members,
-      assignableMembers: members.filter(isAssignableMember),
-      coworkerAssignments,
-    };
+    return { vendor };
   }
 
   async function patchVendorProfile(
@@ -167,38 +102,11 @@ export const vendorService = (() => {
     return data;
   }
 
-  async function assignCoworkerDeveloper(
-    vendorId: string,
-    coworkerId: string,
-    userId: string,
-  ): Promise<CoworkerAssignment> {
-    const { data } = await coreClient.assignCoworkerDeveloper(
-      vendorId,
-      coworkerId,
-      userId,
-    );
-    return data;
-  }
-
-  async function unassignCoworkerDeveloper(
-    vendorId: string,
-    coworkerId: string,
-    userId: string,
-  ): Promise<void> {
-    await coreClient.unassignCoworkerDeveloper(vendorId, coworkerId, userId);
-  }
-
   return {
     listVendors,
     listMyVendorMemberships,
     listMyAdminVendorMemberships,
-    listVendorMembers,
-    listVendorAssignableMembers,
-    listVendorCoworkers,
-    listCoworkerAssignments,
     getVendorAdminPanelData,
     patchVendorProfile,
-    assignCoworkerDeveloper,
-    unassignCoworkerDeveloper,
   };
 })();

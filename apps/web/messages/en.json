@@ -4435,7 +4435,7 @@
       },
       "Vendors": {
         "title": "Vendor administration",
-        "description": "Manage vendor profile and developer assignments for vendors where you are an admin.",
+        "description": "Manage vendor profile for vendors where you are an admin.",
         "loading": "Loading vendor data…",
         "loadFailed": "Failed to load vendor data.",
         "vendorSelect": {
@@ -4462,17 +4462,6 @@
             "maxFilesExceeded": "Only one logo file can be uploaded at a time.",
             "uploadError": "Failed to upload logo."
           }
-        },
-        "assignments": {
-          "title": "Developer assignments",
-          "description": "Assign vendor members to coworkers. Admins and developers can be assigned.",
-          "emptyCoworkers": "This vendor has no active coworkers yet.",
-          "noAssignments": "No developers assigned.",
-          "assignPlaceholder": "Assign member",
-          "assignSuccess": "Developer assigned.",
-          "unassignSuccess": "Developer unassigned.",
-          "unassign": "Unassign {member}",
-          "noMembers": "This vendor has no members to assign."
         }
       },
       "Docs": {

@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
-import type { CoworkerAssignment, Vendor } from "@/lib/clients/generated/core";
+import type { Vendor } from "@/lib/clients/generated/core";
 import {
   type VendorAdminPanelData,
   vendorService,
@@ -35,14 +35,6 @@ const patchVendorProfileSchema = z.object({
     }),
   }),
 });
-
-const assignCoworkerDeveloperSchema = z.object({
-  vendorId: vendorIdSchema,
-  coworkerId: vendorIdSchema,
-  userId: vendorIdSchema,
-});
-
-const unassignCoworkerDeveloperSchema = assignCoworkerDeveloperSchema;
 
 function revalidateDeveloperVendorRoutes() {
   revalidatePath("/developer/vendors");
@@ -126,86 +118,6 @@ export const patchVendorProfileAction = withSession<
 
     revalidateDeveloperVendorRoutes();
     return Ok(vendor);
-  } catch (error) {
-    return Err(toCoreApiActionError(error));
-  }
-});
-
-interface AssignCoworkerDeveloperParameters extends AuthenticatedRequest {
-  input: unknown;
-}
-
-export const assignCoworkerDeveloperAction = withSession<
-  AssignCoworkerDeveloperParameters,
-  Result<CoworkerAssignment, ActionError>
->(async ({ input }) => {
-  try {
-    const parsed = assignCoworkerDeveloperSchema.safeParse(input);
-    if (!parsed.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Invalid assignment input",
-      });
-    }
-
-    const panelData = await vendorService.getVendorAdminPanelData(
-      parsed.data.vendorId,
-    );
-    if (!panelData) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "Vendor admin access required",
-      });
-    }
-
-    const assignment = await vendorService.assignCoworkerDeveloper(
-      parsed.data.vendorId,
-      parsed.data.coworkerId,
-      parsed.data.userId,
-    );
-
-    revalidateDeveloperVendorRoutes();
-    return Ok(assignment);
-  } catch (error) {
-    return Err(toCoreApiActionError(error));
-  }
-});
-
-interface UnassignCoworkerDeveloperParameters extends AuthenticatedRequest {
-  input: unknown;
-}
-
-export const unassignCoworkerDeveloperAction = withSession<
-  UnassignCoworkerDeveloperParameters,
-  Result<{ success: true }, ActionError>
->(async ({ input }) => {
-  try {
-    const parsed = unassignCoworkerDeveloperSchema.safeParse(input);
-    if (!parsed.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Invalid unassignment input",
-      });
-    }
-
-    const panelData = await vendorService.getVendorAdminPanelData(
-      parsed.data.vendorId,
-    );
-    if (!panelData) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "Vendor admin access required",
-      });
-    }
-
-    await vendorService.unassignCoworkerDeveloper(
-      parsed.data.vendorId,
-      parsed.data.coworkerId,
-      parsed.data.userId,
-    );
-
-    revalidateDeveloperVendorRoutes();
-    return Ok({ success: true });
   } catch (error) {
     return Err(toCoreApiActionError(error));
   }
