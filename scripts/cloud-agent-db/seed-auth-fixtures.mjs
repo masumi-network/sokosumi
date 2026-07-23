@@ -25,10 +25,6 @@ function log(message) {
   console.log(`[cloud-agent-db] ${message}`);
 }
 
-function warn(message) {
-  console.warn(`[cloud-agent-db] ${message}`);
-}
-
 /**
  * Resolve packages that live under apps/core (not hoisted to root).
  * @param {string} specifier
