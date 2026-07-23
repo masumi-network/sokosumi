@@ -370,6 +370,17 @@ describe("authMiddleware", () => {
         },
       },
     });
+    expect(oauthConsentFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_oauth",
+        clientId: "client_123",
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        scopes: true,
+      },
+    });
   });
 
   it("returns 401 for OAuth tokens that only have openid scope", async () => {
