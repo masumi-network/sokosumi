@@ -3718,7 +3718,7 @@
           "includeCoreApiLabel": "允许访问 Sokosumi API",
           "includeCoreApiHelp": "未勾选（默认）：仅身份验证（openid / userinfo）。勾选：还允许以用户身份调用 Core API（sokosumi:api）。",
           "includeOfflineAccessLabel": "允许刷新令牌",
-          "includeOfflineAccessHelp": "未勾选（默认）：无刷新令牌。勾选：客户端可请求 offline_access 并接收刷新令牌，之后可用其获取新的访问令牌（最长约 90 天）。关闭会更新客户端的允许列表与授权；用户需重新授权才能获得新的刷新令牌。"
+          "includeOfflineAccessHelp": "未勾选（默认）：无刷新令牌。勾选：客户端可请求 offline_access 并接收刷新令牌，之后可用其获取新的访问令牌（最长约 90 天）。关闭会从客户端允许列表中移除 offline_access；用户需重新授权才能获得新的刷新令牌。"
         },
         "CreatedSuccess": {
           "title": "OAuth 客户端已创建",
@@ -3760,7 +3760,7 @@
           "includeCoreApiLabel": "允许访问 Sokosumi API",
           "includeCoreApiHelp": "未勾选：仅身份验证（openid）。勾选：授权时可请求 Core API（sokosumi:api）。更改会更新客户端允许列表。关闭 API 会立即阻止现有令牌访问 Core；开启则需用户重新授权以获得带该 scope 的新令牌。",
           "includeOfflineAccessLabel": "允许刷新令牌",
-          "includeOfflineAccessHelp": "未勾选：无刷新令牌。勾选：客户端可请求 offline_access 并接收刷新令牌，之后可用其获取新的访问令牌（最长约 90 天）。更改会更新客户端的允许列表与授权。关闭刷新会更新授权；用户需重新授权才能获得新的刷新令牌。"
+          "includeOfflineAccessHelp": "未勾选：无刷新令牌。勾选：客户端可请求 offline_access 并接收刷新令牌，之后可用其获取新的访问令牌（最长约 90 天）。更改会更新客户端的 scope 允许列表。关闭刷新会从该允许列表中移除 offline_access；用户需重新授权才能获得新的刷新令牌。"
         },
         "DeleteDialog": {
           "title": "删除 OAuth 客户端",

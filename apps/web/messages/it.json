@@ -3718,7 +3718,7 @@
           "includeCoreApiLabel": "Consenti accesso all'API Sokosumi",
           "includeCoreApiHelp": "Non selezionato (predefinito): solo identità (openid / userinfo). Selezionato: consente anche di chiamare l'API Core come utente (sokosumi:api).",
           "includeOfflineAccessLabel": "Consenti token di aggiornamento",
-          "includeOfflineAccessHelp": "Non selezionato (predefinito): nessun token di aggiornamento. Selezionato: il client può richiedere offline_access e ricevere token di aggiornamento che consentono di ottenere nuovi token di accesso in seguito (fino a circa 90 giorni). Disattivarlo aggiorna l'allow-list e i grant del client; gli utenti devono riautorizzare per nuovi token di aggiornamento."
+          "includeOfflineAccessHelp": "Non selezionato (predefinito): nessun token di aggiornamento. Selezionato: il client può richiedere offline_access e ricevere token di aggiornamento che consentono di ottenere nuovi token di accesso in seguito (fino a circa 90 giorni). Disattivarlo rimuove offline_access dall'allow-list del client; gli utenti devono riautorizzare per nuovi token di aggiornamento."
         },
         "CreatedSuccess": {
           "title": "Client OAuth creato",
@@ -3760,7 +3760,7 @@
           "includeCoreApiLabel": "Consenti accesso all'API Sokosumi",
           "includeCoreApiHelp": "Non selezionato: solo identità (openid). Selezionato: consente l'API Core (sokosumi:api) in autorizzazione. La modifica aggiorna l'allow-list del client. Disattivare l'API blocca subito l'accesso a Core dei token esistenti; attivarla richiede riautorizzazione per nuovi token con quello scope.",
           "includeOfflineAccessLabel": "Consenti token di aggiornamento",
-          "includeOfflineAccessHelp": "Non selezionato: nessun token di aggiornamento. Selezionato: il client può richiedere offline_access e ricevere token di aggiornamento che consentono di ottenere nuovi token di accesso in seguito (fino a circa 90 giorni). La modifica aggiorna l'allow-list e i grant del client. Disattivare l'aggiornamento aggiorna i grant; gli utenti devono riautorizzare per nuovi token di aggiornamento."
+          "includeOfflineAccessHelp": "Non selezionato: nessun token di aggiornamento. Selezionato: il client può richiedere offline_access e ricevere token di aggiornamento che consentono di ottenere nuovi token di accesso in seguito (fino a circa 90 giorni). La modifica aggiorna l'allow-list degli scope del client. Disattivare l'aggiornamento rimuove offline_access da quell'allow-list; gli utenti devono riautorizzare per nuovi token di aggiornamento."
         },
         "DeleteDialog": {
           "title": "Elimina client OAuth",

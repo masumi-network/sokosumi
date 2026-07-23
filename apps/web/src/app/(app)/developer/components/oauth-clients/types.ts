@@ -42,19 +42,26 @@ export interface CreateOAuthClientResult {
   };
 }
 
-export interface UpdateOAuthClientRequest {
+interface UpdateOAuthClientBase {
   clientId: string;
   name: string;
   redirectUris: string[];
-  /**
-   * When true, allow `sokosumi:api`; when false, omit it.
-   * If either scope flag is set, both `scope` and `grant_types` are rebuilt.
-   * Omit both flags to leave scopes/grants unchanged.
-   */
-  includeCoreApi?: boolean;
-  /** When true, allow `offline_access` + `refresh_token`; when false, strip them. */
-  includeOfflineAccess?: boolean;
 }
+
+/**
+ * Scope flags are all-or-nothing: pass both booleans to rebuild `scope` +
+ * `grant_types`, or omit both to leave them unchanged. Passing only one would
+ * risk stripping the other via a false default.
+ */
+export type UpdateOAuthClientRequest =
+  | (UpdateOAuthClientBase & {
+      includeCoreApi: boolean;
+      includeOfflineAccess: boolean;
+    })
+  | (UpdateOAuthClientBase & {
+      includeCoreApi?: never;
+      includeOfflineAccess?: never;
+    });
 
 export interface DeleteOAuthClientRequest {
   clientId: string;

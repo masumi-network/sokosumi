@@ -3718,7 +3718,7 @@
           "includeCoreApiLabel": "Sokosumi APIアクセスを許可",
           "includeCoreApiHelp": "オフ（デフォルト）：本人確認のみ（openid / userinfo）。オン：ユーザーとしてCore APIの呼び出しも許可（sokosumi:api）。",
           "includeOfflineAccessLabel": "リフレッシュトークンを許可",
-          "includeOfflineAccessHelp": "オフ（デフォルト）：リフレッシュトークンなし。オン：クライアントは offline_access を要求でき、後で新しいアクセストークンを取得できるリフレッシュトークンを受け取れます（最長約90日）。オフにするとクライアントの許可リストとグラントが更新され、新しいリフレッシュトークンには再認可が必要です。"
+          "includeOfflineAccessHelp": "オフ（デフォルト）：リフレッシュトークンなし。オン：クライアントは offline_access を要求でき、後で新しいアクセストークンを取得できるリフレッシュトークンを受け取れます（最長約90日）。オフにするとクライアントの許可リストから offline_access が削除され、新しいリフレッシュトークンには再認可が必要です。"
         },
         "CreatedSuccess": {
           "title": "OAuthクライアントを作成しました",
@@ -3760,7 +3760,7 @@
           "includeCoreApiLabel": "Sokosumi APIアクセスを許可",
           "includeCoreApiHelp": "オフ：本人確認のみ（openid）。オン：認可時にCore API（sokosumi:api）を許可。変更するとクライアントの許可リストが更新されます。APIをオフにすると既存トークンのCoreアクセスは直ちに拒否されます。オンにする場合、そのスコープ付きの新トークンには再認可が必要です。",
           "includeOfflineAccessLabel": "リフレッシュトークンを許可",
-          "includeOfflineAccessHelp": "オフ：リフレッシュトークンなし。オン：クライアントは offline_access を要求でき、後で新しいアクセストークンを取得できるリフレッシュトークンを受け取れます（最長約90日）。変更するとクライアントの許可リストとグラントが更新されます。リフレッシュをオフにするとグラントが更新され、新しいリフレッシュトークンには再認可が必要です。"
+          "includeOfflineAccessHelp": "オフ：リフレッシュトークンなし。オン：クライアントは offline_access を要求でき、後で新しいアクセストークンを取得できるリフレッシュトークンを受け取れます（最長約90日）。変更するとクライアントのスコープ許可リストが更新されます。リフレッシュをオフにするとその許可リストから offline_access が削除され、新しいリフレッシュトークンには再認可が必要です。"
         },
         "DeleteDialog": {
           "title": "OAuth クライアントを削除",

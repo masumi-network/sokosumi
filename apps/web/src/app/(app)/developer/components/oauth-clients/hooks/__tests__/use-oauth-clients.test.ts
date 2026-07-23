@@ -325,13 +325,13 @@ describe("useOAuthClients", () => {
     });
   });
 
-  it("updates a client to disable refresh when includeOfflineAccess is false", async () => {
+  it("updates a client to keep Core API while disabling refresh", async () => {
     updateClientMock.mockResolvedValue({
       data: {
         client_id: "client_1",
-        client_name: "Client",
+        client_name: "API Client",
         redirect_uris: ["https://example.com/cb"],
-        scope: "openid",
+        scope: "openid sokosumi:api",
         grant_types: ["authorization_code"],
       },
       error: null,
@@ -345,9 +345,9 @@ describe("useOAuthClients", () => {
     await act(async () => {
       await result.current.update({
         clientId: "client_1",
-        name: "Client",
+        name: "API Client",
         redirectUris: ["https://example.com/cb"],
-        includeCoreApi: false,
+        includeCoreApi: true,
         includeOfflineAccess: false,
       });
     });
@@ -355,12 +355,33 @@ describe("useOAuthClients", () => {
     expect(updateClientMock).toHaveBeenCalledWith({
       client_id: "client_1",
       update: {
-        client_name: "Client",
+        client_name: "API Client",
         redirect_uris: ["https://example.com/cb"],
-        scope: "openid",
+        scope: "openid sokosumi:api",
         grant_types: ["authorization_code"],
       },
     });
+  });
+
+  it("rejects update when only one scope flag is provided", async () => {
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    let success = true;
+    await act(async () => {
+      // Bypass the all-or-nothing type contract to exercise the runtime guard.
+      success = await result.current.update({
+        clientId: "client_1",
+        name: "Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+      } as unknown as Parameters<typeof result.current.update>[0]);
+    });
+
+    expect(success).toBe(false);
+    expect(updateClientMock).not.toHaveBeenCalled();
   });
 
   it("deletes a client", async () => {

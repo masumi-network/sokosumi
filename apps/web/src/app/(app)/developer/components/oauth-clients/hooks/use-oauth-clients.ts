@@ -118,26 +118,36 @@ export function useOAuthClients(): UseOAuthClientsReturn {
   const update = useCallback(
     async (data: UpdateOAuthClientRequest): Promise<boolean> => {
       try {
-        const hasScopeFlags =
-          typeof data.includeCoreApi === "boolean" ||
+        const hasIncludeCoreApi = typeof data.includeCoreApi === "boolean";
+        const hasIncludeOfflineAccess =
           typeof data.includeOfflineAccess === "boolean";
+
+        // Both flags required together so a missing sibling cannot default to
+        // false and strip the other scope (e.g. API-only update clearing offline).
+        if (hasIncludeCoreApi !== hasIncludeOfflineAccess) {
+          toast.error(t("Messages.updateError"));
+          return false;
+        }
+
+        const scopeUpdate =
+          hasIncludeCoreApi && hasIncludeOfflineAccess
+            ? {
+                scope: buildOAuthClientScopeParam({
+                  includeCoreApi: data.includeCoreApi,
+                  includeOfflineAccess: data.includeOfflineAccess,
+                }),
+                grant_types: buildOAuthClientGrantTypes(
+                  data.includeOfflineAccess,
+                ),
+              }
+            : {};
 
         const result = await authClient.oauth2.updateClient({
           client_id: data.clientId,
           update: {
             client_name: data.name,
             redirect_uris: data.redirectUris,
-            ...(hasScopeFlags
-              ? {
-                  scope: buildOAuthClientScopeParam({
-                    includeCoreApi: data.includeCoreApi ?? false,
-                    includeOfflineAccess: data.includeOfflineAccess ?? false,
-                  }),
-                  grant_types: buildOAuthClientGrantTypes(
-                    data.includeOfflineAccess ?? false,
-                  ),
-                }
-              : {}),
+            ...scopeUpdate,
           },
         });
 

@@ -107,10 +107,10 @@ If token response includes `refresh_token` (or scope includes `offline_access`),
 
 Turning refresh **off** on edit:
 
-1. Remove `offline_access` from client scopes
-2. Set `grant_types` to `authorization_code` only (no `refresh_token`)
+1. Remove `offline_access` from client scopes (**this is the real gate**)
+2. Set `grant_types` to `authorization_code` only (hygiene; not sufficient alone)
 
-Expected BA behavior: subsequent `grant_type=refresh_token` fails when client no longer allows the grant/scope. Verify during implementation; if BA still refreshes, open a follow-up — do not add Core-side refresh-token validation in this PR.
+**Better Auth `@better-auth/oauth-provider@1.6.23` quirk:** `clientAllowsGrant` treats any client allowed for `authorization_code` as allowed for `refresh_token`. Dropping `refresh_token` from client `grant_types` alone does **not** stop refresh. Refresh fails when stored RT scopes (including `offline_access`) are no longer a subset of the client allow-list (`validateClientCredentials`). Keep syncing `grant_types` for hygiene; document privilege reduction as **scope allow-list** removal of `offline_access`.
 
 Turning refresh **on**: users must reauthorize with `offline_access` to receive an RT.
 

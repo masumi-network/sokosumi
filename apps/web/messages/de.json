@@ -3687,7 +3687,7 @@
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
           "includeCoreApiHelp": "Deaktiviert (Standard): nur Identität (openid / userinfo). Aktiviert: zusätzlich Aufruf der Core-API als Nutzer (sokosumi:api).",
           "includeOfflineAccessLabel": "Refresh-Tokens erlauben",
-          "includeOfflineAccessHelp": "Deaktiviert (Standard): keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Deaktivieren aktualisiert die Allow-List und Grants des Clients; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
+          "includeOfflineAccessHelp": "Deaktiviert (Standard): keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Deaktivieren entfernt offline_access aus der Allow-List des Clients; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
         },
         "CreatedSuccess": {
           "title": "OAuth-Client erstellt",
@@ -3729,7 +3729,7 @@
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
           "includeCoreApiHelp": "Deaktiviert: nur Identität (openid). Aktiviert: Core-API (sokosumi:api) bei der Autorisierung. Änderung aktualisiert die Allow-List des Clients. API aus sperrt Core-Zugriff für bestehende Tokens sofort; API an erfordert erneute Autorisierung für neue Tokens mit diesem Scope.",
           "includeOfflineAccessLabel": "Refresh-Tokens erlauben",
-          "includeOfflineAccessHelp": "Deaktiviert: keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Änderung aktualisiert Allow-List und Grants des Clients. Refresh aus aktualisiert die Grants; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
+          "includeOfflineAccessHelp": "Deaktiviert: keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Änderung aktualisiert die Scope-Allow-List des Clients. Refresh aus entfernt offline_access aus dieser Allow-List; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
         },
         "DeleteDialog": {
           "title": "OAuth-Client löschen",
