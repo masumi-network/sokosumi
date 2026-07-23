@@ -42,7 +42,7 @@ flowchart LR
 | Linear project | `sokosumi-6357694ddd23` (Sōkosumi) |
 | Linear state | `Triage` |
 | Linear priority | `3` (Medium) unless user overrides |
-| Linear assignee | `me` unless user overrides |
+| Linear assignee | unassigned (omit `assignee`) unless user overrides |
 | Linear label | Infer exactly one: `Feature`, `Bug`, or `Improvement` |
 | Title | Plain product title (not Conventional Commit) |
 
@@ -76,11 +76,11 @@ Do not ask for the Linear project by default.
    - Show near the top (chat draft only — do **not** post this line to Linear). For **create**, use defaults. For **update**, show the existing issue’s current state/assignee/priority unless the user overrode them:
 
      ```markdown
-     **Requirement draft:** create · project Sōkosumi · state Triage · priority Medium · assignee me · label Feature
+     **Requirement draft:** create · project Sōkosumi · state Triage · priority Medium · assignee none · label Feature
      ```
 
      ```markdown
-     **Requirement draft:** update SOK-XXX · project Sōkosumi · state In Progress (keep) · priority Medium · assignee me · label Bug
+     **Requirement draft:** update SOK-XXX · project Sōkosumi · state In Progress (keep) · priority Medium · assignee (keep) · label Bug
      ```
 
    - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Those belong in a later design/spec step if someone builds the issue.

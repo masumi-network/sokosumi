@@ -15,7 +15,7 @@ const LINEAR_PROJECT = "sokosumi-6357694ddd23"; // display name: Sōkosumi
 const LINEAR_PROJECT_ID = "a51c9d61-b1a4-457e-a382-1277e1f7be4a";
 const LINEAR_STATE = "Triage";
 const LINEAR_PRIORITY = 3; // Medium — 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low
-const LINEAR_ASSIGNEE = "me";
+const LINEAR_ASSIGNEE = null; // omit on create unless user overrides
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
 ```
 
@@ -33,10 +33,11 @@ Every `save_issue` **create** call (no `id`) must include **all** of:
 | `project` | `sokosumi-6357694ddd23` (Sōkosumi marketplace) |
 | `state` | `Triage` |
 | `priority` | `3` (Medium) |
-| `assignee` | `me` |
-| `labels` | exactly one of `Feature`, `Bug`, `Improvement` |
+| `labels` | exactly one of `Feature`, `Bug`, or `Improvement` |
 
-Override only when the user explicitly passed a different value during intake.
+**Do not set `assignee` on create** unless the user explicitly asked for an assignee during intake.
+
+Override other fields only when the user explicitly passed a different value during intake.
 
 **Never omit `project`.** If the user did not name a project, always pass `"project": "sokosumi-6357694ddd23"`.
 
@@ -62,7 +63,8 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 - Never call a write tool without a complete `arguments` object.
 - Stop if Linear MCP is not loaded.
 - **Never create or update before user approval.**
-- **Never create without `project`** — same rule as `assignee`, `state`, and `priority` on create.
+- **Never create without `project`** — same rule as `state` and `priority` on create.
+- **Never set `assignee` on create** unless the user explicitly requested one.
 
 ## MCP health check
 
@@ -85,9 +87,9 @@ Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issu
 2. Project → `sokosumi-6357694ddd23` / Sōkosumi (or user override)
 3. State → `Triage`
 4. Priority → `3` (Medium) unless user override
-5. Assignee → `me` unless user override
+5. Assignee → omit (unassigned) unless user override
 6. Label → exact match from draft
-7. Create via `save_issue` without `id` — pass the full required create field set above
+7. Create via `save_issue` without `id` — pass the full required create field set above (no `assignee` unless overridden)
 
 ## Post-write verify
 
@@ -96,7 +98,7 @@ Immediately after create or update:
 1. `get_issue` with the identifier.
 2. **Create only:** if any create default is missing or wrong and the user did not override it, patch with `save_issue` + `id`:
    - `projectId` not `a51c9d61-b1a4-457e-a382-1277e1f7be4a` (or `project` not `Sōkosumi`) → `"project": "sokosumi-6357694ddd23"`
-   - no assignee → `"me"`
+   - assignee set and user did **not** request one → `"assignee": null`
    - state not `Triage` → `"Triage"`
    - priority not Medium (`3`) → `3`
 3. **Update:** do **not** patch state/assignee/priority/project back to create defaults. Only confirm `## Requirement` (and approved title/labels) landed.
@@ -115,7 +117,6 @@ Immediately after create or update:
     "project": "sokosumi-6357694ddd23",
     "state": "Triage",
     "priority": 3,
-    "assignee": "me",
     "labels": ["Feature"]
   }
 }
