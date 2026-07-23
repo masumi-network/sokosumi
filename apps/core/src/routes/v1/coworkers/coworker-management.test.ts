@@ -11,6 +11,8 @@ import mountPostCoworker from "./post";
 const {
   userFindUniqueMock,
   coworkerFindFirstAuthMock,
+  vendorMemberFindFirstAuthMock,
+  coworkerAssignmentFindFirstAuthMock,
   prismaTransactionMock,
   coworkerFindUniqueMock,
   coworkerFindFirstTxMock,
@@ -21,6 +23,8 @@ const {
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   coworkerFindFirstAuthMock: vi.fn(),
+  vendorMemberFindFirstAuthMock: vi.fn(),
+  coworkerAssignmentFindFirstAuthMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   coworkerFindUniqueMock: vi.fn(),
   coworkerFindFirstTxMock: vi.fn(),
@@ -37,6 +41,12 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     coworker: {
       findFirst: coworkerFindFirstAuthMock,
+    },
+    vendorMember: {
+      findFirst: vendorMemberFindFirstAuthMock,
+    },
+    coworkerAssignment: {
+      findFirst: coworkerAssignmentFindFirstAuthMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -121,7 +131,6 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     description: "Ops helper",
     image: "https://example.com/logo",
     baseURL: null,
-    userId: "user_123",
     vendorId,
     vendor: sampleVendor,
     metadata: null,
@@ -157,11 +166,13 @@ describe("coworker management CRUD endpoints", () => {
     });
     coworkerFindFirstAuthMock.mockResolvedValue({
       id: "cow_123",
-      userId: "user_123",
+      vendorId,
     });
+    vendorMemberFindFirstAuthMock.mockResolvedValue(null);
+    coworkerAssignmentFindFirstAuthMock.mockResolvedValue({ id: "assign_1" });
   });
 
-  it("creates coworker and auto-assigns authenticated creator userId", async () => {
+  it("creates coworker without assigning a user owner", async () => {
     const tx = createTransactionMock({
       findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
       create: coworkerCreateMock.mockResolvedValue(createCoworkerRecord()),
@@ -185,13 +196,17 @@ describe("coworker management CRUD endpoints", () => {
     expect(coworkerCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          userId: "admin_123",
+          vendorId,
           isWhitelisted: false,
           priority: 0,
           baseURL: null,
         }),
       }),
     );
+    const createCall = coworkerCreateMock.mock.calls[0]?.[0] as {
+      data?: Record<string, unknown>;
+    };
+    expect(createCall.data).not.toHaveProperty("userId");
   });
 
   it("creates coworker with baseURL when provided", async () => {
@@ -287,7 +302,6 @@ describe("coworker management CRUD endpoints", () => {
     expect(coworkerCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          userId: "admin_123",
           priority: 10,
         }),
       }),
@@ -498,7 +512,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("updates coworker metadata as creator", async () => {
+  it("updates coworker metadata as assigned developer", async () => {
     const tx: TransactionMock = {
       coworker: {
         findUnique: coworkerFindUniqueMock,
@@ -534,7 +548,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindFirstAuthMock).toHaveBeenCalledWith({
       where: { id: "cow_123", archivedAt: null },
-      select: { id: true, userId: true },
+      select: { id: true, vendorId: true },
     });
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -865,13 +879,13 @@ describe("coworker management CRUD endpoints", () => {
     expect(body.data.metadata).toEqual(metadata);
   });
 
-  it("allows admin to update metadata for another user's coworker", async () => {
+  it("allows platform admin to update metadata for any coworker", async () => {
     userFindUniqueMock.mockResolvedValue({
       role: "admin",
     });
     coworkerFindFirstAuthMock.mockResolvedValue({
       id: "cow_123",
-      userId: "owner_999",
+      vendorId,
     });
 
     const tx: TransactionMock = {
@@ -879,7 +893,6 @@ describe("coworker management CRUD endpoints", () => {
         findUnique: coworkerFindUniqueMock,
         findFirst: coworkerFindFirstTxMock.mockResolvedValue(
           createCoworkerRecord({
-            userId: "owner_999",
             name: "Updated by admin",
           }),
         ),
@@ -987,7 +1000,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindFirstAuthMock).toHaveBeenCalledWith({
       where: { id: "cow_123", archivedAt: null },
-      select: { id: true, userId: true },
+      select: { id: true, vendorId: true },
     });
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
@@ -1015,17 +1028,16 @@ describe("coworker management CRUD endpoints", () => {
     });
   });
 
-  it("allows admin to archive coworker owned by another user", async () => {
+  it("allows platform admin to archive any coworker", async () => {
     userFindUniqueMock.mockResolvedValue({
       role: "admin",
     });
     coworkerFindFirstAuthMock.mockResolvedValue({
       id: "cow_123",
-      userId: "owner_999",
+      vendorId,
     });
 
     const archivedRecord = createCoworkerRecord({
-      userId: "owner_999",
       archivedAt: new Date("2026-02-20T11:00:00.000Z"),
     });
     const tx: TransactionMock = {

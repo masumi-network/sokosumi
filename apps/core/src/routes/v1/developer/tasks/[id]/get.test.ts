@@ -23,6 +23,28 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const { default: mountGetDeveloperTask } = await import("./get.js");
 
+const accessibleCoworkerWhere = {
+  OR: [
+    {
+      vendor: {
+        vendorMembers: {
+          some: {
+            userId: "user_dev",
+            role: "admin",
+          },
+        },
+      },
+    },
+    {
+      assignments: {
+        some: {
+          userId: "user_dev",
+        },
+      },
+    },
+  ],
+};
+
 interface AppOptions {
   actor?: "user" | "coworker";
   userId?: string;
@@ -146,8 +168,8 @@ describe("GET /developer/tasks/{id}", () => {
           id: "0195b9f4-7d35-7a4e-b14e-111111111111",
           archivedAt: null,
           OR: [
-            { assignee: { userId: "user_dev" } },
-            { creatorCoworker: { userId: "user_dev" } },
+            { assignee: accessibleCoworkerWhere },
+            { creatorCoworker: accessibleCoworkerWhere },
           ],
         },
       }),

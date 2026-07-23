@@ -19,6 +19,31 @@ export function buildCoworkerMutationWhere(
   return allowArchived ? { id } : { id, archivedAt: null };
 }
 
+async function userCanManageCoworker(
+  userId: string,
+  coworker: { id: string; vendorId: string },
+): Promise<boolean> {
+  const [vendorAdminMembership, assignment] = await Promise.all([
+    prisma.vendorMember.findFirst({
+      where: {
+        vendorId: coworker.vendorId,
+        userId,
+        role: "admin",
+      },
+      select: { id: true },
+    }),
+    prisma.coworkerAssignment.findFirst({
+      where: {
+        coworkerId: coworker.id,
+        userId,
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  return vendorAdminMembership != null || assignment != null;
+}
+
 export async function requireCoworkerManagementAccess(
   authContext: AuthenticationContext,
   coworkerId: string,
@@ -36,7 +61,7 @@ export async function requireCoworkerManagementAccess(
     },
     select: {
       id: true,
-      userId: true,
+      vendorId: true,
     },
   });
 
@@ -44,8 +69,13 @@ export async function requireCoworkerManagementAccess(
     throw notFound("Coworker not found");
   }
 
-  if (coworker.userId !== userAuthContext.userId) {
-    throw forbidden("You can only manage your own coworkers");
+  const canManage = await userCanManageCoworker(
+    userAuthContext.userId,
+    coworker,
+  );
+
+  if (!canManage) {
+    throw forbidden("You do not have permission to manage this coworker");
   }
 
   return userAuthContext;

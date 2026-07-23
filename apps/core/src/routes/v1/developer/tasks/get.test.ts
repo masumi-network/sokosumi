@@ -31,6 +31,28 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const { default: mountListDeveloperTasks } = await import("./get.js");
 
+const accessibleCoworkerWhere = {
+  OR: [
+    {
+      vendor: {
+        vendorMembers: {
+          some: {
+            userId: "user_dev",
+            role: "admin",
+          },
+        },
+      },
+    },
+    {
+      assignments: {
+        some: {
+          userId: "user_dev",
+        },
+      },
+    },
+  ],
+};
+
 interface AppOptions {
   actor?: "user" | "coworker";
   userId?: string;
@@ -126,8 +148,8 @@ describe("GET /developer/tasks", () => {
         where: {
           archivedAt: null,
           OR: [
-            { assignee: { userId: "user_dev" } },
-            { creatorCoworker: { userId: "user_dev" } },
+            { assignee: accessibleCoworkerWhere },
+            { creatorCoworker: accessibleCoworkerWhere },
           ],
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -168,7 +190,11 @@ describe("GET /developer/tasks", () => {
 
     expect(response.status).toBe(200);
     expect(coworkerFindFirstMock).toHaveBeenCalledWith({
-      where: { id: "cow_owned", userId: "user_dev" },
+      where: {
+        id: "cow_owned",
+        archivedAt: null,
+        ...accessibleCoworkerWhere,
+      },
       select: { id: true },
     });
     expect(taskFindManyMock).toHaveBeenCalledWith(

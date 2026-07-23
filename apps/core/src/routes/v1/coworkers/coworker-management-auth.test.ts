@@ -13,9 +13,16 @@ import mountPatchCoworkerById from "./[id]/patch";
 import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch";
 import mountPostCoworker from "./post";
 
-const { userFindUniqueMock, coworkerFindFirstMock } = vi.hoisted(() => ({
+const {
+  userFindUniqueMock,
+  coworkerFindFirstMock,
+  vendorMemberFindFirstMock,
+  coworkerAssignmentFindFirstMock,
+} = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
+  vendorMemberFindFirstMock: vi.fn(),
+  coworkerAssignmentFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -26,8 +33,16 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: {
       findFirst: coworkerFindFirstMock,
     },
+    vendorMember: {
+      findFirst: vendorMemberFindFirstMock,
+    },
+    coworkerAssignment: {
+      findFirst: coworkerAssignmentFindFirstMock,
+    },
   },
 }));
+
+const vendorId = "01960001-0001-7001-8001-000000000001";
 
 function createApp(authContext: AuthenticationContext) {
   const app = new OpenAPIHono<{
@@ -56,14 +71,14 @@ const RESTRICTED_ENDPOINTS: Array<{
   method: string;
   path: string;
   body?: Record<string, unknown>;
-  restriction: "creator-or-admin" | "admin-only";
+  restriction: "membership-or-admin" | "admin-only";
 }> = [
   {
     method: "POST",
     path: "/",
     body: {
       name: "Ops Agent",
-      vendorId: "01960001-0001-7001-8001-000000000001",
+      vendorId,
     },
     restriction: "admin-only",
   },
@@ -81,17 +96,17 @@ const RESTRICTED_ENDPOINTS: Array<{
     body: {
       name: "Updated name",
     },
-    restriction: "creator-or-admin",
+    restriction: "membership-or-admin",
   },
   {
     method: "DELETE",
     path: "/cow_123",
-    restriction: "creator-or-admin",
+    restriction: "membership-or-admin",
   },
   {
     method: "GET",
     path: "/cow_123/api-keys",
-    restriction: "creator-or-admin",
+    restriction: "membership-or-admin",
   },
   {
     method: "POST",
@@ -99,7 +114,7 @@ const RESTRICTED_ENDPOINTS: Array<{
     body: {
       name: "Key 1",
     },
-    restriction: "creator-or-admin",
+    restriction: "membership-or-admin",
   },
   {
     method: "PATCH",
@@ -107,12 +122,12 @@ const RESTRICTED_ENDPOINTS: Array<{
     body: {
       name: "Updated key",
     },
-    restriction: "creator-or-admin",
+    restriction: "membership-or-admin",
   },
   {
     method: "DELETE",
     path: "/cow_123/api-keys/cokey_123",
-    restriction: "creator-or-admin",
+    restriction: "membership-or-admin",
   },
 ];
 
@@ -124,12 +139,14 @@ describe("coworker management endpoints auth guard", () => {
     });
     coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
-      userId: "owner_999",
+      vendorId,
     });
+    vendorMemberFindFirstMock.mockResolvedValue(null);
+    coworkerAssignmentFindFirstMock.mockResolvedValue(null);
   });
 
   it.each(RESTRICTED_ENDPOINTS)(
-    "returns 403 for non-owner non-admin user on $method $path",
+    "returns 403 for user without vendor membership access on $method $path",
     async ({ method, path, body, restriction }) => {
       const app = createApp({
         actor: "user",
@@ -145,10 +162,10 @@ describe("coworker management endpoints auth guard", () => {
       });
 
       expect(response.status).toBe(403);
-      if (restriction === "creator-or-admin") {
+      if (restriction === "membership-or-admin") {
         expect(coworkerFindFirstMock).toHaveBeenCalledWith({
           where: { id: "cow_123", archivedAt: null },
-          select: { id: true, userId: true },
+          select: { id: true, vendorId: true },
         });
       }
     },
@@ -160,7 +177,7 @@ describe("coworker management endpoints auth guard", () => {
       const app = createApp({
         actor: "coworker",
         coworkerId: "cow_123",
-        vendorId: "01960001-0001-7001-8001-000000000001",
+        vendorId,
       });
 
       const response = await app.request(`http://localhost${path}`, {
