@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -35,10 +36,11 @@ function createApp(
   },
 ) {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
+    Variables: AuthVariables & WorkspaceVariables & RequestIdVariables;
   }>();
 
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_schedule_delete_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     c.set("workspaceContext", {
