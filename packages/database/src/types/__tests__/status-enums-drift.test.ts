@@ -10,6 +10,7 @@ import {
   NextJobAction as PrismaNextJobAction,
   NextJobActionErrorType as PrismaNextJobActionErrorType,
   OnChainTransactionStatus as PrismaOnChainTransactionStatus,
+  VendorMemberRole as PrismaVendorMemberRole,
 } from "../../generated/prisma/enums.js";
 import { InvitationStatus } from "../invitation.js";
 import { MemberRole } from "../organization.js";
@@ -41,6 +42,13 @@ describe("status enum drift guard", () => {
   it("utils OnChainTransactionStatus matches the Prisma-generated OnChainTransactionStatus enum", () => {
     expect({ ...OnChainTransactionStatus }).toEqual({
       ...PrismaOnChainTransactionStatus,
+    });
+  });
+
+  it("Prisma VendorMemberRole keeps canonical vendor membership values", () => {
+    expect({ ...PrismaVendorMemberRole }).toEqual({
+      admin: "admin",
+      developer: "developer",
     });
   });
 

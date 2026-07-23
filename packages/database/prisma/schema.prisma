@@ -62,8 +62,10 @@ model User {
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
-  // Coworkers
-  coworkers Coworker[]
+  // Vendor membership and coworker assignments
+  vendorMembers        VendorMember[]
+  coworkerAssignments  CoworkerAssignment[]
+
   workspace Workspace?
 
   ownedTasks     Task[] @relation("TaskOwner")
@@ -250,6 +252,11 @@ enum VendorGrantStatus {
   REVOKED
 }
 
+enum VendorMemberRole {
+  admin
+  developer
+}
+
 model Vendor {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -260,10 +267,31 @@ model Vendor {
   logoLight String?
   logoDark  String?
 
-  coworkers    Coworker[]
-  vendorGrants VendorGrant[]
+  coworkers      Coworker[]
+  vendorGrants   VendorGrant[]
+  vendorMembers  VendorMember[]
 
   @@map("vendor")
+}
+
+/// Vendor team membership. One row per (vendorId, userId); role is admin or developer.
+model VendorMember {
+  id        String           @id @default(uuid(7))
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role VendorMemberRole
+
+  @@unique([vendorId, userId])
+  @@index([userId])
+  @@index([vendorId, role])
+  @@map("vendor_member")
 }
 
 /// Vendor workspace access grant (personal or organization). One row per (vendorId, workspaceId).
@@ -1228,13 +1256,11 @@ model Coworker {
   image       String?
   metadata    Json?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   vendorId String @db.Uuid
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
   coworkerApiKeys CoworkerApiKey[]
+  assignments     CoworkerAssignment[]
 
   assignedTasks  Task[] @relation("TaskAssignee")
   createdTasks   Task[] @relation("TaskCreatorCoworker")
@@ -1242,9 +1268,25 @@ model Coworker {
   coworkerUsages CoworkerUsage[]
 
   @@index([archivedAt])
-  @@index([userId, archivedAt])
   @@index([vendorId])
   @@map("coworker")
+}
+
+/// Scoped developer access to a coworker. One row per (coworkerId, userId).
+model CoworkerAssignment {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([coworkerId, userId])
+  @@index([userId])
+  @@map("coworker_assignment")
 }
 
 /// Per-user first-party orchestrator instance (Hermes). Not a marketplace
