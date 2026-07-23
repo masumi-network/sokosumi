@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { upsertEnvLines } from "../apply-env.mjs";
+import { checkAgentFixtureSafety } from "../assert-agent-database.mjs";
+import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "../fixtures.mjs";
 import {
   agentBranchName,
   expiresAtIso,
@@ -86,5 +88,68 @@ describe("upsertEnvLines", () => {
     assert.match(out, /^DATABASE_URL_UNPOOLED=new-direct$/m);
     assert.match(out, /^FOO=1$/m);
     assert.doesNotMatch(out, /old/);
+  });
+});
+
+describe("checkAgentFixtureSafety", () => {
+  const agentBranch = "cloud-agent-bc-bc5212fe-8ee2-4bfa-9e8d-85e27cb47e48";
+  const url = "postgresql://u:p@ep-agent.us-east-1.aws.neon.tech/neondb";
+
+  it("allows agent branch + database url", () => {
+    assert.deepEqual(
+      checkAgentFixtureSafety({
+        branchName: agentBranch,
+        databaseUrl: url,
+      }),
+      { ok: true },
+    );
+  });
+
+  it("blocks production/main branch names", () => {
+    const result = checkAgentFixtureSafety({
+      branchName: "main",
+      databaseUrl: url,
+    });
+    assert.equal(result.ok, false);
+    assert.match(result.reason, /non-agent branch/);
+  });
+
+  it("blocks missing branch without force", () => {
+    const result = checkAgentFixtureSafety({
+      branchName: null,
+      databaseUrl: url,
+    });
+    assert.equal(result.ok, false);
+  });
+
+  it("blocks force without agent branch on remote hosts", () => {
+    const result = checkAgentFixtureSafety({
+      branchName: null,
+      databaseUrl: url,
+      force: true,
+    });
+    assert.equal(result.ok, false);
+    assert.match(result.reason, /cloud-agent-\*|localhost/);
+  });
+
+  it("allows force on localhost for dry-runs", () => {
+    assert.deepEqual(
+      checkAgentFixtureSafety({
+        branchName: null,
+        databaseUrl: "postgresql://sokosumi:sokosumi@localhost:5432/core",
+        force: true,
+      }),
+      { ok: true },
+    );
+  });
+});
+
+describe("auth fixtures", () => {
+  it("exposes known emails and password for agents", () => {
+    assert.equal(FIXTURE_PASSWORD.length >= 8, true);
+    assert.equal(AUTH_FIXTURES.length >= 1, true);
+    for (const fixture of AUTH_FIXTURES) {
+      assert.match(fixture.email, /@sokosumi\.test$/);
+    }
   });
 });

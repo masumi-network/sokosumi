@@ -49,8 +49,28 @@ When `CURSOR_AGENT=1` and Neon secrets are present, provision:
    - patches `apps/core/.env` and `apps/web/.env` when present
    - injects a source block into `~/.bashrc` / `~/.profile`
 5. Runs `pnpm prisma:migrate:deploy` with `DATABASE_URL_UNPOOLED`
+6. Upserts **guarded auth fixtures** (known email/password logins) — agent
+   branches only; never against production/`main`
 
 If connection setup fails after create, provision **deletes the orphan branch**.
+
+## Auth fixtures (login)
+
+Production-forked data has real users but unknown passwords. After migrate,
+provision upserts disposable Better Auth credential accounts:
+
+| Email | Password | Notes |
+| --- | --- | --- |
+| `alice@sokosumi.test` | `Password123!` | Regular user + personal workspace |
+| `bob@sokosumi.test` | `Password123!` | Regular user + personal workspace |
+
+**Guards:** fixtures run only when provision state has a `cloud-agent-*` branch
+name (and a `DATABASE_URL`). They refuse `main` / other non-agent branches.
+Skip with `CLOUD_AGENT_DB_SKIP_FIXTURES=1`. Manual re-run:
+
+```bash
+node scripts/cloud-agent-db/with-db.mjs -- pnpm cloud-agent-db:seed-auth
+```
 
 Manual / forced local dry-run:
 
