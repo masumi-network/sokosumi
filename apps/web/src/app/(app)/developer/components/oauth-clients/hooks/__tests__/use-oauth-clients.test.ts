@@ -181,6 +181,41 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("registers Core API and offline_access when both flags are true", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_both",
+        client_secret: "secret",
+        client_name: "Both Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api offline_access",
+        grant_types: ["authorization_code", "refresh_token"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Both Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      client_name: "Both Client",
+      redirect_uris: ["https://example.com/cb"],
+      scope: "openid sokosumi:api offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
+    });
+  });
+
   it("updates a client with the Better Auth payload shape", async () => {
     updateClientMock.mockResolvedValue({
       data: {

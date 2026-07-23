@@ -3715,7 +3715,9 @@
           "cancelButton": "Annuler",
           "createButton": "Créer un client OAuth",
           "includeCoreApiLabel": "Autoriser l'accès à l'API Sokosumi",
-          "includeCoreApiHelp": "Décoché (par défaut) : identité uniquement (openid / userinfo). Coché : autorise aussi l'appel à l'API Core en tant qu'utilisateur (sokosumi:api)."
+          "includeCoreApiHelp": "Décoché (par défaut) : identité uniquement (openid / userinfo). Coché : autorise aussi l'appel à l'API Core en tant qu'utilisateur (sokosumi:api).",
+          "includeOfflineAccessLabel": "Autoriser les jetons d'actualisation",
+          "includeOfflineAccessHelp": "Décoché (par défaut) : pas de jetons d'actualisation. Coché : le client peut demander offline_access et recevoir des jetons d'actualisation permettant d'obtenir de nouveaux jetons d'accès plus tard (jusqu'à environ 90 jours). Désactiver cela met à jour la liste d'autorisations et les grants du client ; les utilisateurs doivent se réautoriser pour de nouveaux jetons d'actualisation."
         },
         "CreatedSuccess": {
           "title": "Client OAuth créé",
@@ -3736,7 +3738,8 @@
         "Status": {
           "disabled": "Désactivé",
           "apiAccess": "Accès API",
-          "identityOnly": "Identité uniquement"
+          "identityOnly": "Identité uniquement",
+          "refresh": "Actualisation"
         },
         "Actions": {
           "editTooltip": "Modifier le client OAuth",
@@ -3754,7 +3757,9 @@
           "cancelButton": "Annuler",
           "saveButton": "Enregistrer",
           "includeCoreApiLabel": "Autoriser l'accès à l'API Sokosumi",
-          "includeCoreApiHelp": "Décoché : identité uniquement (openid). Coché : autorise l'API Core (sokosumi:api) à l'autorisation. Ce changement met à jour la liste d'autorisations du client. Désactiver l'API bloque immédiatement l'accès Core des jetons existants ; l'activer exige une réautorisation pour de nouveaux jetons avec ce scope."
+          "includeCoreApiHelp": "Décoché : identité uniquement (openid). Coché : autorise l'API Core (sokosumi:api) à l'autorisation. Ce changement met à jour la liste d'autorisations du client. Désactiver l'API bloque immédiatement l'accès Core des jetons existants ; l'activer exige une réautorisation pour de nouveaux jetons avec ce scope.",
+          "includeOfflineAccessLabel": "Autoriser les jetons d'actualisation",
+          "includeOfflineAccessHelp": "Décoché : pas de jetons d'actualisation. Coché : le client peut demander offline_access et recevoir des jetons d'actualisation permettant d'obtenir de nouveaux jetons d'accès plus tard (jusqu'à environ 90 jours). Ce changement met à jour la liste d'autorisations et les grants du client. Désactiver l'actualisation met à jour les grants ; les utilisateurs doivent se réautoriser pour de nouveaux jetons d'actualisation."
         },
         "DeleteDialog": {
           "title": "Supprimer le client OAuth",

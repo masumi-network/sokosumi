@@ -184,6 +184,35 @@ export function EditOAuthClientDialog({
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name="includeOfflineAccess"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-start gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked === true);
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <div className="space-y-1">
+                        <FormLabel className="font-normal">
+                          {t("EditDialog.includeOfflineAccessLabel")}
+                        </FormLabel>
+                        <FormDescription>
+                          {t("EditDialog.includeOfflineAccessHelp")}
+                        </FormDescription>
+                      </div>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <DialogFooter>
                 <Button
                   type="button"

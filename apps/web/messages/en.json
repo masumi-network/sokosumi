@@ -3777,6 +3777,8 @@
           "redirectUrisHelp": "Enter one redirect URI per line. Use HTTPS (HTTP only for localhost/loopback), no fragments. Custom app schemes are allowed.",
           "includeCoreApiLabel": "Allow Sokosumi API access",
           "includeCoreApiHelp": "Unchecked (default): identity only (openid / userinfo). Checked: also allow calling the Core API as the user (sokosumi:api).",
+          "includeOfflineAccessLabel": "Allow refresh tokens",
+          "includeOfflineAccessHelp": "Unchecked (default): no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Turning this off updates the client's allow-list and grants; users must reauthorize for new refresh tokens.",
           "cancelButton": "Cancel",
           "createButton": "Create OAuth Client"
         },
@@ -3799,7 +3801,8 @@
         "Status": {
           "disabled": "Disabled",
           "apiAccess": "API access",
-          "identityOnly": "Identity only"
+          "identityOnly": "Identity only",
+          "refresh": "Refresh"
         },
         "Actions": {
           "editTooltip": "Edit OAuth client",
@@ -3817,7 +3820,9 @@
           "cancelButton": "Cancel",
           "saveButton": "Save Changes",
           "includeCoreApiLabel": "Allow Sokosumi API access",
-          "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: allow Core API (sokosumi:api) on authorize. Changing this updates the client's allow-list. Turning API off blocks Core access for existing tokens immediately; turning it on requires users to reauthorize for new tokens with that scope."
+          "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: allow Core API (sokosumi:api) on authorize. Changing this updates the client's allow-list. Turning API off blocks Core access for existing tokens immediately; turning it on requires users to reauthorize for new tokens with that scope.",
+          "includeOfflineAccessLabel": "Allow refresh tokens",
+          "includeOfflineAccessHelp": "Unchecked: no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Changing this updates the client's allow-list and grants. Turning refresh off updates grants; users must reauthorize for new refresh tokens."
         },
         "DeleteDialog": {
           "title": "Delete OAuth Client",

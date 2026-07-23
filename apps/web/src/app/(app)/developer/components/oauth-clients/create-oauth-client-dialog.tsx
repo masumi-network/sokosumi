@@ -295,6 +295,35 @@ export function CreateOAuthClientDialog({
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="includeOfflineAccess"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-start gap-3">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked === true);
+                            }}
+                            disabled={isSubmitting}
+                          />
+                        </FormControl>
+                        <div className="space-y-1">
+                          <FormLabel className="font-normal">
+                            {t("CreateDialog.includeOfflineAccessLabel")}
+                          </FormLabel>
+                          <FormDescription>
+                            {t("CreateDialog.includeOfflineAccessHelp")}
+                          </FormDescription>
+                        </div>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <DialogFooter>
                   <Button
                     type="button"

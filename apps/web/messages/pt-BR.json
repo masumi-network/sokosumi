@@ -3715,7 +3715,9 @@
           "cancelButton": "Cancelar",
           "createButton": "Criar cliente OAuth",
           "includeCoreApiLabel": "Permitir acesso à API Sokosumi",
-          "includeCoreApiHelp": "Desmarcado (padrão): apenas identidade (openid / userinfo). Marcado: também permite chamar a API Core como o usuário (sokosumi:api)."
+          "includeCoreApiHelp": "Desmarcado (padrão): apenas identidade (openid / userinfo). Marcado: também permite chamar a API Core como o usuário (sokosumi:api).",
+          "includeOfflineAccessLabel": "Permitir tokens de atualização",
+          "includeOfflineAccessHelp": "Desmarcado (padrão): sem tokens de atualização. Marcado: o cliente pode solicitar offline_access e receber tokens de atualização que permitem obter novos tokens de acesso mais tarde (até cerca de 90 dias). Desativar atualiza a lista de permissões e os grants do cliente; os usuários devem reautorizar para novos tokens de atualização."
         },
         "CreatedSuccess": {
           "title": "Cliente OAuth criado",
@@ -3736,7 +3738,8 @@
         "Status": {
           "disabled": "Desativado",
           "apiAccess": "Acesso à API",
-          "identityOnly": "Apenas identidade"
+          "identityOnly": "Apenas identidade",
+          "refresh": "Atualização"
         },
         "Actions": {
           "editTooltip": "Editar cliente OAuth",
@@ -3754,7 +3757,9 @@
           "cancelButton": "Cancelar",
           "saveButton": "Salvar alterações",
           "includeCoreApiLabel": "Permitir acesso à API Sokosumi",
-          "includeCoreApiHelp": "Desmarcado: apenas identidade (openid). Marcado: permite a API Core (sokosumi:api) na autorização. Alterar isso atualiza a lista de permissões do cliente. Desativar a API bloqueia imediatamente o acesso Core de tokens existentes; ativá-la exige reautorização para novos tokens com esse scope."
+          "includeCoreApiHelp": "Desmarcado: apenas identidade (openid). Marcado: permite a API Core (sokosumi:api) na autorização. Alterar isso atualiza a lista de permissões do cliente. Desativar a API bloqueia imediatamente o acesso Core de tokens existentes; ativá-la exige reautorização para novos tokens com esse scope.",
+          "includeOfflineAccessLabel": "Permitir tokens de atualização",
+          "includeOfflineAccessHelp": "Desmarcado: sem tokens de atualização. Marcado: o cliente pode solicitar offline_access e receber tokens de atualização que permitem obter novos tokens de acesso mais tarde (até cerca de 90 dias). Alterar isso atualiza a lista de permissões e os grants do cliente. Desativar a atualização atualiza os grants; os usuários devem reautorizar para novos tokens de atualização."
         },
         "DeleteDialog": {
           "title": "Excluir cliente OAuth",
