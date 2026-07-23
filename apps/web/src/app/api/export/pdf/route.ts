@@ -2,15 +2,20 @@ import { sanitizeFileName } from "@sokosumi/utils";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Page } from "puppeteer-core";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { getSession } from "@/lib/auth/auth.server";
+import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
+import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Hard cap on HTML payload size to limit Chromium memory/CPU abuse. */
+const MAX_HTML_BYTES = 1_500_000;
+
 interface GeneratePdfRequest {
   html?: string;
-  headerHtml?: string;
-  footerHtml?: string;
   fileName?: string;
 }
 
@@ -79,14 +84,13 @@ const footerWithLogoHtml = `
     </div>
   `;
 
-function getOriginFromHeaders(request: NextRequest): string {
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = request.headers.get("host");
-  const protocol =
-    forwardedProto ?? (request.nextUrl.protocol.replace(":", "") || "https");
-  const hostname = forwardedHost ?? host ?? request.nextUrl.hostname;
-  return `${protocol}://${hostname}`;
+/**
+ * Origin for `<base href>` relative asset resolution.
+ * Pinned to the configured public app URL — never request Host /
+ * X-Forwarded-* headers (those remain client-influenced on many proxies).
+ */
+function getTrustedDocumentOrigin(): string {
+  return new URL(getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL).origin;
 }
 
 const IMAGE_LOAD_TIMEOUT_MS = 30_000;
@@ -123,19 +127,15 @@ function wrapHtmlDocument(html: string, origin: string): string {
   const hasHtmlTag = /<html[\s>]/i.test(html);
   const hasHeadTag = /<head[\s>]/i.test(html);
   const hasBodyTag = /<body[\s>]/i.test(html);
+  const baseTag = `<base href="${origin}">`;
 
   if (hasHtmlTag && hasHeadTag && hasBodyTag) {
-    // Ensure a <base> tag exists to resolve relative assets
-    if (!/<base[\s>]/i.test(html)) {
-      // `\b` enforces the original "head followed by whitespace or >" rule
-      // while keeping a single, non-overlapping char class to avoid polynomial
-      // backtracking (js/polynomial-redos).
-      return html.replace(
-        /<head\b([^>]*)>/i,
-        `<head$1><base href="${origin}">`,
-      );
-    }
-    return html;
+    // Always strip attacker-supplied <base> and pin to the trusted origin.
+    const withoutBase = html.replace(/<base\b[^>]*>/gi, "");
+    // `\b` enforces "head followed by whitespace or >" while keeping a single,
+    // non-overlapping char class to avoid polynomial backtracking
+    // (js/polynomial-redos).
+    return withoutBase.replace(/<head\b([^>]*)>/i, `<head$1>${baseTag}`);
   }
 
   return `<!doctype html>
@@ -143,7 +143,7 @@ function wrapHtmlDocument(html: string, origin: string): string {
 		<head>
 			<meta charSet="utf-8" />
 			<meta name="color-scheme" content="light only" />
-			<base href="${origin}" />
+			${baseTag}
 			<style>
 				/* Basic print resets */
 				*, *::before, *::after { box-sizing: border-box; }
@@ -158,13 +158,41 @@ function wrapHtmlDocument(html: string, origin: string): string {
 export async function POST(request: NextRequest) {
   let browser;
   try {
-    const json = (await request.json()) as GeneratePdfRequest;
-    const rawHtml = (json.html ?? "").toString();
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const parsed = await readRequestJsonWithByteLimit<GeneratePdfRequest>(
+      request,
+      MAX_HTML_BYTES,
+    );
+    if (!parsed.ok) {
+      if (parsed.error === "too_large") {
+        return NextResponse.json(
+          { error: "HTML payload too large" },
+          { status: 413 },
+        );
+      }
+      if (parsed.error === "invalid_json") {
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
+    }
+
+    const rawHtml = (parsed.value.html ?? "").toString();
     if (!rawHtml) {
       return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
     }
 
-    const origin = getOriginFromHeaders(request);
+    if (Buffer.byteLength(rawHtml, "utf8") > MAX_HTML_BYTES) {
+      return NextResponse.json(
+        { error: "HTML payload too large" },
+        { status: 413 },
+      );
+    }
+
+    const origin = getTrustedDocumentOrigin();
     const html = wrapHtmlDocument(rawHtml, origin);
 
     const isVercel = !!getEnvSecrets().VERCEL_URL;
@@ -195,6 +223,8 @@ export async function POST(request: NextRequest) {
     // pnpm dlx puppeteer browsers install chrome
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    installPdfExportRequestGuard(page);
     await page.setContent(html, { waitUntil: "load" });
     await waitForDocumentImages(page);
     await page.emulateMediaType("print");
@@ -208,7 +238,8 @@ export async function POST(request: NextRequest) {
       displayHeaderFooter: true,
     });
 
-    const fileName = sanitizeFileName(json.fileName ?? "result") + ".pdf";
+    const fileName =
+      sanitizeFileName(parsed.value.fileName ?? "result") + ".pdf";
     const body =
       pdfBuffer instanceof Blob
         ? pdfBuffer
