@@ -3745,7 +3745,8 @@
           "retry": "Try again"
         },
         "title": "Authorize Application",
-        "description": "An application wants to access your account and call the Sokosumi API on your behalf",
+        "description": "An application wants to access your account",
+        "descriptionWithApi": "An application wants to access your account and call the Sokosumi API on your behalf",
         "wantsAccess": "wants to access your Sokosumi account",
         "actions": {
           "authorize": "Authorize",
@@ -3774,6 +3775,8 @@
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Enter one redirect URI per line. Use HTTPS (HTTP only for localhost/loopback), no fragments. Custom app schemes are allowed.",
+          "includeCoreApiLabel": "Allow Sokosumi API access",
+          "includeCoreApiHelp": "Unchecked (default): identity only (openid / userinfo). Checked: also allow calling the Core API as the user (sokosumi:api).",
           "cancelButton": "Cancel",
           "createButton": "Create OAuth Client"
         },
@@ -3898,7 +3901,9 @@
         "clientIdPlaceholder": "Enter your OAuth Client ID",
         "clientSecretLabel": "Client Secret",
         "clientSecretPlaceholder": "Enter your OAuth Client Secret",
-        "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
+        "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty.",
+        "includeCoreApiLabel": "Request Sokosumi API access",
+        "includeCoreApiHelp": "Match the scopes used during authorization. Leave unchecked for identity-only (openid) tokens."
       },
       "BrandProfile": {
         "title": "Brand profile",

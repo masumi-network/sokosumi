@@ -3682,7 +3682,7 @@
           "retry": "再試行"
         },
         "title": "アプリケーションを承認",
-        "description": "アプリケーションがあなたのアカウントにアクセスし、あなたの代わりにSokosumi APIを呼び出そうとしています",
+        "description": "アプリケーションがあなたのアカウントへのアクセスを要求しています",
         "wantsAccess": "があなたのSokosumiアカウントへのアクセスを要求しています",
         "actions": {
           "authorize": "承認",
@@ -3695,7 +3695,8 @@
           "authorizeSuccess": "アプリケーションの認可に成功しました",
           "denyError": "アプリケーションの拒否に失敗しました"
         },
-        "apiAccessNotice": "承認するとアカウントへのフルAPIアクセス（openidおよびsokosumi:api）が付与されます。信頼できるアプリのみ承認してください。"
+        "apiAccessNotice": "承認するとアカウントへのフルAPIアクセス（openidおよびsokosumi:api）が付与されます。信頼できるアプリのみ承認してください。",
+        "descriptionWithApi": "アプリケーションがあなたのアカウントにアクセスし、あなたの代わりにSokosumi APIを呼び出そうとしています"
       },
       "OAuthClients": {
         "title": "OAuthクライアント",
@@ -3712,7 +3713,9 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
           "cancelButton": "キャンセル",
-          "createButton": "OAuthクライアントを作成"
+          "createButton": "OAuthクライアントを作成",
+          "includeCoreApiLabel": "Sokosumi APIアクセスを許可",
+          "includeCoreApiHelp": "オフ（デフォルト）：本人確認のみ（openid / userinfo）。オン：ユーザーとしてCore APIの呼び出しも許可（sokosumi:api）。"
         },
         "CreatedSuccess": {
           "title": "OAuthクライアントを作成しました",
@@ -3835,7 +3838,9 @@
         "clientIdPlaceholder": "OAuthクライアントIDを入力してください",
         "clientSecretLabel": "クライアントシークレット",
         "clientSecretPlaceholder": "OAuthクライアントシークレットを入力してください",
-        "clientSecretHelp": "機密クライアントにはクライアントシークレットが必要です。公開クライアントの場合は空欄のままにしてください。"
+        "clientSecretHelp": "機密クライアントにはクライアントシークレットが必要です。公開クライアントの場合は空欄のままにしてください。",
+        "includeCoreApiLabel": "Sokosumi APIアクセスを要求",
+        "includeCoreApiHelp": "認可時のスコープと一致させてください。本人確認のみのトークン（openid）ならオフのままにしてください。"
       },
       "BrandProfile": {
         "title": "ブランドプロフィール",

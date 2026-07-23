@@ -3682,7 +3682,7 @@
           "retry": "重试"
         },
         "title": "授权应用",
-        "description": "某个应用想访问你的账户并以你的名义调用 Sokosumi API",
+        "description": "某个应用希望访问您的账户",
         "wantsAccess": "希望访问您的 Sokosumi 账户",
         "actions": {
           "authorize": "授权",
@@ -3695,7 +3695,8 @@
           "authorizeSuccess": "应用授权成功",
           "denyError": "拒绝应用失败"
         },
-        "apiAccessNotice": "授权将授予对你账户的完整 API 访问权限（openid 和 sokosumi:api）。请只批准你信任的应用。"
+        "apiAccessNotice": "授权将授予对你账户的完整 API 访问权限（openid 和 sokosumi:api）。请只批准你信任的应用。",
+        "descriptionWithApi": "某个应用想访问你的账户并以你的名义调用 Sokosumi API"
       },
       "OAuthClients": {
         "title": "OAuth 客户端",
@@ -3712,7 +3713,9 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "每行一个重定向 URI。使用 HTTPS（仅 localhost/loopback 可用 HTTP），不得包含片段。允许自定义应用 scheme。",
           "cancelButton": "取消",
-          "createButton": "创建 OAuth 客户端"
+          "createButton": "创建 OAuth 客户端",
+          "includeCoreApiLabel": "允许访问 Sokosumi API",
+          "includeCoreApiHelp": "未勾选（默认）：仅身份验证（openid / userinfo）。勾选：还允许以用户身份调用 Core API（sokosumi:api）。"
         },
         "CreatedSuccess": {
           "title": "OAuth 客户端已创建",
@@ -3835,7 +3838,9 @@
         "clientIdPlaceholder": "输入您的 OAuth 客户端 ID",
         "clientSecretLabel": "客户端密钥",
         "clientSecretPlaceholder": "输入您的 OAuth 客户端密钥",
-        "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。"
+        "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。",
+        "includeCoreApiLabel": "请求 Sokosumi API 访问权限",
+        "includeCoreApiHelp": "须与授权时使用的 scope 一致。仅身份令牌（openid）请保持未勾选。"
       },
       "BrandProfile": {
         "title": "品牌资料",

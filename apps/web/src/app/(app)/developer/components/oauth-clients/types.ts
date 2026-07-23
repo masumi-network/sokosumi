@@ -9,6 +9,8 @@ export type OAuthClientRecord = NonNullable<
 export interface CreateOAuthClientFormData {
   name: string;
   redirectUris: string;
+  /** When true, client may request `sokosumi:api` (Core `/v1` access). */
+  includeCoreApi: boolean;
 }
 
 export interface EditOAuthClientFormData {
@@ -19,6 +21,8 @@ export interface EditOAuthClientFormData {
 export interface CreateOAuthClientRequest {
   name: string;
   redirectUris: string[];
+  /** When true, register with `openid sokosumi:api`; otherwise `openid` only. */
+  includeCoreApi?: boolean;
 }
 
 export interface CreateOAuthClientResult {

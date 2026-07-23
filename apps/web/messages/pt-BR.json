@@ -3682,7 +3682,7 @@
           "retry": "Tentar novamente"
         },
         "title": "Autorizar aplicativo",
-        "description": "Um aplicativo quer acessar sua conta e chamar a API Sokosumi em seu nome",
+        "description": "Um aplicativo quer acessar sua conta",
         "wantsAccess": "quer acessar sua conta Sokosumi",
         "actions": {
           "authorize": "Autorizar",
@@ -3695,7 +3695,8 @@
           "authorizeSuccess": "Aplicação autorizada com sucesso",
           "denyError": "Falha ao negar aplicativo"
         },
-        "apiAccessNotice": "Autorizar concede acesso total à API da sua conta (openid e sokosumi:api). Aprove apenas apps em que você confia."
+        "apiAccessNotice": "Autorizar concede acesso total à API da sua conta (openid e sokosumi:api). Aprove apenas apps em que você confia.",
+        "descriptionWithApi": "Um aplicativo quer acessar sua conta e chamar a API Sokosumi em seu nome"
       },
       "OAuthClients": {
         "title": "Clientes OAuth",
@@ -3712,7 +3713,9 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Um URI de redirecionamento por linha. Use HTTPS (HTTP apenas para localhost/loopback), sem fragmentos. Esquemas de app personalizados são permitidos.",
           "cancelButton": "Cancelar",
-          "createButton": "Criar cliente OAuth"
+          "createButton": "Criar cliente OAuth",
+          "includeCoreApiLabel": "Permitir acesso à API Sokosumi",
+          "includeCoreApiHelp": "Desmarcado (padrão): apenas identidade (openid / userinfo). Marcado: também permite chamar a API Core como o usuário (sokosumi:api)."
         },
         "CreatedSuccess": {
           "title": "Cliente OAuth criado",
@@ -3835,7 +3838,9 @@
         "clientIdPlaceholder": "Digite seu OAuth Client ID",
         "clientSecretLabel": "Segredo do cliente",
         "clientSecretPlaceholder": "Digite seu OAuth Client Secret",
-        "clientSecretHelp": "Seu client secret é obrigatório para clientes confidenciais. Para clientes públicos, deixe em branco."
+        "clientSecretHelp": "Seu client secret é obrigatório para clientes confidenciais. Para clientes públicos, deixe em branco.",
+        "includeCoreApiLabel": "Solicitar acesso à API Sokosumi",
+        "includeCoreApiHelp": "Deve corresponder aos scopes da autorização. Deixe desmarcado para tokens só de identidade (openid)."
       },
       "BrandProfile": {
         "title": "Perfil da marca",

@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -78,6 +80,7 @@ export function CreateOAuthClientDialog({
     const result = await createClient({
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
+      includeCoreApi: values.includeCoreApi,
     });
 
     if (result.success && result.data) {
@@ -257,6 +260,35 @@ export function CreateOAuthClientDialog({
                       <p className="text-muted-foreground text-xs">
                         {t("CreateDialog.redirectUrisHelp")}
                       </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="includeCoreApi"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-start gap-3">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked === true);
+                            }}
+                            disabled={isSubmitting}
+                          />
+                        </FormControl>
+                        <div className="space-y-1">
+                          <FormLabel className="font-normal">
+                            {t("CreateDialog.includeCoreApiLabel")}
+                          </FormLabel>
+                          <FormDescription>
+                            {t("CreateDialog.includeCoreApiHelp")}
+                          </FormDescription>
+                        </div>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

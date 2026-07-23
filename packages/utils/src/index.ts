@@ -113,7 +113,9 @@ export {
   stringifyMetadataRecord,
 } from "./metadata-record.js";
 export {
+  buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,
+  OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_CORE_API_SCOPE_PARAM,
   OAUTH_PROVIDER_SCOPES,
   OAUTH_SCOPE_CORE_API,

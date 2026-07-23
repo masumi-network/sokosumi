@@ -103,7 +103,7 @@ describe("useOAuthClients", () => {
     expect(createClientMock).toHaveBeenCalledWith({
       redirect_uris: ["https://example.com/cb"],
       client_name: "New Client",
-      scope: "openid sokosumi:api",
+      scope: "openid",
     });
     expect(createResult!.success).toBe(true);
     expect(createResult!.data?.clientId).toBe("client_2");
@@ -111,6 +111,35 @@ describe("useOAuthClients", () => {
     // List refresh is fire-and-forget after credentials are returned.
     await waitFor(() => {
       expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("registers Core API scope when includeCoreApi is true", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_api",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "API Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["https://example.com/cb"],
+      client_name: "API Client",
+      scope: "openid sokosumi:api",
     });
   });
 

@@ -1,3 +1,4 @@
+import { hasCoreApiOAuthScope } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -36,6 +37,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   const client_id = oauthSearchParams.get("client_id");
+  const requestsCoreApi = hasCoreApiOAuthScope(oauthSearchParams.get("scope"));
 
   if (!client_id) {
     return (
@@ -95,7 +97,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
       <Card>
         <CardHeader>
           <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
+          <CardDescription>
+            {requestsCoreApi ? t("descriptionWithApi") : t("description")}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
@@ -103,9 +107,11 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
               {client.client_name || client.client_id}
             </p>
             <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
-            <p className="text-muted-foreground mt-2 text-sm">
-              {t("apiAccessNotice")}
-            </p>
+            {requestsCoreApi ? (
+              <p className="text-muted-foreground mt-2 text-sm">
+                {t("apiAccessNotice")}
+              </p>
+            ) : null}
           </div>
 
           <ConsentActions />

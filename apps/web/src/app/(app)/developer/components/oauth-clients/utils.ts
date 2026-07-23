@@ -7,6 +7,7 @@ export const DIALOG_CLEANUP_TIMEOUT = 300;
 export const DEFAULT_CREATE_FORM_VALUES = {
   name: "",
   redirectUris: "",
+  includeCoreApi: false,
 };
 
 export const DEFAULT_EDIT_FORM_VALUES = {
@@ -120,11 +121,24 @@ export function createOAuthClientSchema(t: TranslationFunction) {
       .refine(areRedirectUrisValid, {
         message: t("Validation.redirectUrisInvalid"),
       }),
+    includeCoreApi: z.boolean(),
   });
 }
 
 export function editOAuthClientSchema(t: TranslationFunction) {
-  return createOAuthClientSchema(t);
+  return z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t("Validation.nameRequired"))
+      .max(100, t("Validation.nameMaxLength")),
+    redirectUris: z
+      .string()
+      .min(1, t("Validation.redirectUrisRequired"))
+      .refine(areRedirectUrisValid, {
+        message: t("Validation.redirectUrisInvalid"),
+      }),
+  });
 }
 
 export { parseRedirectUris };
