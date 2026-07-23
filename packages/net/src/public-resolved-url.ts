@@ -47,16 +47,51 @@ function isPrivateIpv4(address: string): boolean {
   );
 }
 
+/**
+ * Extracts the embedded IPv4 from an IPv4-mapped IPv6 address.
+ * Handles both dotted (`::ffff:169.254.169.254`) and hex (`::ffff:a9fe:a9fe`)
+ * forms — Node/`URL` normalizes the former to the latter.
+ */
+function ipv4FromMappedIpv6(address: string): string | null {
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
+
+  const dotted = normalized.match(/(?:^|:)ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dotted?.[1]) {
+    return dotted[1];
+  }
+
+  const hex = normalized.match(/(?:^|:)ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!hex?.[1] || !hex[2]) {
+    return null;
+  }
+
+  const high = Number.parseInt(hex[1], 16);
+  const low = Number.parseInt(hex[2], 16);
+  if (!Number.isFinite(high) || !Number.isFinite(low)) {
+    return null;
+  }
+
+  return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+}
+
 function isPrivateIpv6(address: string): boolean {
-  const normalized = address.toLowerCase();
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
   if (normalized === "::" || normalized === "::1") {
     return true;
   }
 
-  // IPv4-mapped IPv6 (:ffff:x.x.x.x)
-  const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped?.[1]) {
-    return isPrivateIpv4(mapped[1]);
+  const mappedIpv4 = ipv4FromMappedIpv6(normalized);
+  if (mappedIpv4) {
+    return isPrivateIpv4(mappedIpv4);
+  }
+
+  // Well-known NAT64 prefix 64:ff9b::/96 embeds an IPv4 in the low 32 bits.
+  const nat64 = normalized.match(/^64:ff9b::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (nat64?.[1] && nat64[2]) {
+    const high = Number.parseInt(nat64[1], 16);
+    const low = Number.parseInt(nat64[2], 16);
+    const embedded = `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+    return isPrivateIpv4(embedded);
   }
 
   // Unique local (fc00::/7) and link-local (fe80::/10)

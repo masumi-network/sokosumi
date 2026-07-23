@@ -2,6 +2,7 @@ import { sanitizeFileName } from "@sokosumi/utils";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Page } from "puppeteer-core";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/auth.server";
 import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
@@ -14,8 +15,6 @@ const MAX_HTML_BYTES = 1_500_000;
 
 interface GeneratePdfRequest {
   html?: string;
-  headerHtml?: string;
-  footerHtml?: string;
   fileName?: string;
 }
 
@@ -86,10 +85,11 @@ const footerWithLogoHtml = `
 
 /**
  * Origin for `<base href>` relative asset resolution.
- * Uses the request URL only — never client-controlled forwarded host headers.
+ * Pinned to the configured public app URL — never request Host /
+ * X-Forwarded-* headers (those remain client-influenced on many proxies).
  */
-function getTrustedDocumentOrigin(request: NextRequest): string {
-  return request.nextUrl.origin;
+function getTrustedDocumentOrigin(): string {
+  return new URL(getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL).origin;
 }
 
 const IMAGE_LOAD_TIMEOUT_MS = 30_000;
@@ -126,19 +126,15 @@ function wrapHtmlDocument(html: string, origin: string): string {
   const hasHtmlTag = /<html[\s>]/i.test(html);
   const hasHeadTag = /<head[\s>]/i.test(html);
   const hasBodyTag = /<body[\s>]/i.test(html);
+  const baseTag = `<base href="${origin}">`;
 
   if (hasHtmlTag && hasHeadTag && hasBodyTag) {
-    // Ensure a <base> tag exists to resolve relative assets
-    if (!/<base[\s>]/i.test(html)) {
-      // `\b` enforces the original "head followed by whitespace or >" rule
-      // while keeping a single, non-overlapping char class to avoid polynomial
-      // backtracking (js/polynomial-redos).
-      return html.replace(
-        /<head\b([^>]*)>/i,
-        `<head$1><base href="${origin}">`,
-      );
-    }
-    return html;
+    // Always strip attacker-supplied <base> and pin to the trusted origin.
+    const withoutBase = html.replace(/<base\b[^>]*>/gi, "");
+    // `\b` enforces "head followed by whitespace or >" while keeping a single,
+    // non-overlapping char class to avoid polynomial backtracking
+    // (js/polynomial-redos).
+    return withoutBase.replace(/<head\b([^>]*)>/i, `<head$1>${baseTag}`);
   }
 
   return `<!doctype html>
@@ -146,7 +142,7 @@ function wrapHtmlDocument(html: string, origin: string): string {
 		<head>
 			<meta charSet="utf-8" />
 			<meta name="color-scheme" content="light only" />
-			<base href="${origin}" />
+			${baseTag}
 			<style>
 				/* Basic print resets */
 				*, *::before, *::after { box-sizing: border-box; }
@@ -166,6 +162,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const contentLengthHeader = request.headers.get("content-length");
+    if (contentLengthHeader !== null) {
+      const contentLength = Number(contentLengthHeader);
+      if (Number.isFinite(contentLength) && contentLength > MAX_HTML_BYTES) {
+        return NextResponse.json(
+          { error: "HTML payload too large" },
+          { status: 413 },
+        );
+      }
+    }
+
     const json = (await request.json()) as GeneratePdfRequest;
     const rawHtml = (json.html ?? "").toString();
     if (!rawHtml) {
@@ -179,7 +186,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const origin = getTrustedDocumentOrigin(request);
+    const origin = getTrustedDocumentOrigin();
     const html = wrapHtmlDocument(rawHtml, origin);
 
     const isVercel = !!getEnvSecrets().VERCEL_URL;
