@@ -323,6 +323,8 @@ Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Ca
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). See [`docs/agents/domain.md`](./docs/agents/domain.md).
 
+**Cloud agent database:** [`docs/agents/cloud-agent-database.md`](./docs/agents/cloud-agent-database.md) — ephemeral Neon branch per agent run via `DATABASE_URL`, provision/teardown, 72h idle TTL.
+
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds.
 
 **Orchestrator (Hermes):** [`docs/orchestrator/hermes-orchestrator-actor.md`](./docs/orchestrator/hermes-orchestrator-actor.md) — first-party orchestrator actor (`ORCHESTRATOR_SERVICE_TOKEN`), DRAFT access, DRAFT↔READY status, usage/purge.
@@ -347,27 +349,38 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Cursor Cloud specific instructions
 
-These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script only runs `pnpm install`; everything below (Node 24, PostgreSQL, `.env` files, applied migrations) is baked into the VM snapshot and persists across runs.
+These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs `pnpm install` then provisions an ephemeral Neon agent database when secrets are present (see below). Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
 
 ### Runtime versions
 
 - **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.15.1 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
 
-### Database (local PostgreSQL, not Neon)
+### Database (Cloud agent Neon branch)
 
-- The dev DB is a **local PostgreSQL 16 cluster** (installed via apt). It is **not started on boot** — start it with `sudo pg_ctlcluster 16 main start` (check with `pg_lsclusters`). DB `core`, role `sokosumi` / password `sokosumi`, on `localhost:5432`.
-- **Gotcha — injected `DATABASE_URL`:** the platform injects a stale/invalid Neon `DATABASE_URL` env var (`...neon.tech...`, `neondb_owner` auth fails). `dotenv` does **not** override an already-set env var, so it would shadow `apps/core/.env`. A `~/.bashrc` line exports the local `DATABASE_URL`, which wins in **login/interactive** shells. Therefore **run the dev servers in a login shell** (tmux started with `bash -l`, or `bash -lc "…"`). If you see `Authentication failed against the database server, the provided database credentials for (not available)` or a `neon.tech` host, the injected var leaked into a non-login shell — prefix the command with the local `DATABASE_URL` or use a login shell.
-- Schema is already applied. After pulling schema changes, run `pnpm prisma:generate` then `pnpm prisma:migrate:deploy` (needs `DATABASE_URL`; use a login shell). To inspect: `PGPASSWORD=sokosumi psql -h localhost -U sokosumi -d core`.
+Cloud agents get a **disposable Neon branch** forked from production/`main`, not a shared mutable DB and not live production writes.
+
+- **Provision:** `.cursor/environment.json` `install` runs `node scripts/cloud-agent-db/provision.mjs` after `pnpm install` when `CURSOR_AGENT=1` and `NEON_API_KEY` + `NEON_PROJECT_ID` are set (Cursor Runtime Secrets). Branch name: `cloud-agent-<CURSOR_CONVERSATION_ID>`. Parent is always `NEON_PARENT_BRANCH` (default `main`). Resume reuses the same branch and refreshes the **72h** `expires_at` TTL. Pending migrations run via `pnpm prisma:migrate:deploy` (`DATABASE_URL_UNPOOLED`). **No seed** — parent already has real schema/data.
+- **Use:** Prefer `node scripts/cloud-agent-db/with-db.mjs -- <command>` so ambient/stale `DATABASE_URL` cannot win. `start` already wraps `pnpm dev`. Login shells source `.cursor/cloud-agent-db.env` via bashrc/profile.
+- **Teardown:** deletes only `cloud-agent-*` branches — never production/`main`. Triggers: PR merged/closed (GitHub Action parses `bc-…` from PR body), agent completes with no PR (`pnpm cloud-agent-db:teardown`), agent archived (same when possible), idle **72h** (Neon `expires_at` + scheduled Action GC).
+- **Do not** put a static production `DATABASE_URL` in Cursor secrets. Full runbook: [`docs/agents/cloud-agent-database.md`](./docs/agents/cloud-agent-database.md).
+
+### Database (local PostgreSQL fallback)
+
+When Neon secrets are absent, provision skips and local Postgres remains the fallback (snapshot-oriented).
+
+- Local cluster is **PostgreSQL 16** (apt). It is **not started on boot** — start it with `sudo pg_ctlcluster 16 main start` (check with `pg_lsclusters`). DB `core`, role `sokosumi` / password `sokosumi`, on `localhost:5432`.
+- **Gotcha — ambient `DATABASE_URL`:** if the platform still injects a stale Neon URL (`...neon.tech...`, auth fails), `dotenv` does **not** override it. Prefer `with-db.mjs` when a provisioned agent branch exists; otherwise use a login shell (provision injects bashrc) or prefix commands with the local URL. If you see `Authentication failed against the database server` or an unexpected `neon.tech` host without a provisioned agent branch, unset/override `DATABASE_URL`.
+- Schema is already applied on the snapshot DB. After pulling schema changes without a Neon agent branch, run `pnpm prisma:generate` then `pnpm prisma:migrate:deploy`. To inspect local: `PGPASSWORD=sokosumi psql -h localhost -U sokosumi -d core`.
 
 ### `.env` files (gitignored, snapshot-persisted)
 
-`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost`; `POSTMARK_FROM_EMAIL` and `HERMES_ORCH_BASE_URL` set to valid dummy values; invalid placeholders removed (`COMPOSIO_API_KEY`, `AGENT_HIRED_WEBHOOK`); `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
+`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `POSTMARK_FROM_EMAIL` and `HERMES_ORCH_BASE_URL` set to valid dummy values; invalid placeholders removed (`COMPOSIO_API_KEY`, `AGENT_HIRED_WEBHOOK`); `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
 
 ### Running & known local gotchas
 
-- Start services (login shell): `pnpm core:dev` → Core API on `:8787` (Swagger at `/`, OpenAPI at `/v1/openapi.json`); `pnpm web:dev` → web on `:3000`. `pnpm dev` runs everything. Standard scripts/ports are in the Commands table above and each app's `AGENTS.md`.
+- Start services: `pnpm core:dev` / `pnpm web:dev` / `pnpm dev`, or `node scripts/cloud-agent-db/with-db.mjs -- pnpm dev` when an agent Neon branch is provisioned. Core API on `:8787` (Swagger at `/`, OpenAPI at `/v1/openapi.json`); web on `:3000`.
 - **Auth for a test account:** email/password signup works with no email verification and auto sign-in (`/signup`). Google/Microsoft OAuth and magic-link email do **not** work (placeholder credentials). Use email/password.
-- **Agents catalog is empty and 500s by default:** `GET /v1/agents` and `/v1/categories` throw `Failed to get credit information for agents` until the `credit_cost` table has rows (seeded in real envs via the admin `POST /v1/credit-costs` endpoint / `/admin` UI). This breaks the Agents marketplace and the Chat/Tasks landing pages until seeded — it is missing data, not a broken build.
+- **Agents catalog:** on a Neon agent branch forked from production, catalog/billing data comes from the parent. On empty local Postgres, `GET /v1/agents` / `/v1/categories` may 500 until `credit_cost` has rows (admin `POST /v1/credit-costs` / `/admin` UI) — missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` returns 500 (`No key specified`) and chat pages surface a "Something went wrong" modal, because `ABLY_SUBSCRIBE_ONLY_KEY` / Core `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.
 - Lint (`pnpm lint`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.
 
