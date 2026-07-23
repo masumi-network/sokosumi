@@ -1,9 +1,5 @@
 "use client";
 
-import {
-  hasCoreApiOAuthScope,
-  hasOfflineAccessOAuthScope,
-} from "@sokosumi/utils";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -21,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getBrowserCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { normalizeOAuthIssuerBase } from "@/lib/utils/oauth-issuer";
+
+import { getOAuthCallbackTokenWarnings } from "./oauth-callback-warnings";
 
 interface TokenResponse {
   access_token?: string;
@@ -207,6 +205,9 @@ export default function OAuthCallbackPage() {
 
   // Show success if we have a token response
   if (tokenResponse?.access_token) {
+    const { showApiAccessWarning, showRefreshWarning } =
+      getOAuthCallbackTokenWarnings(tokenResponse);
+
     return (
       <div className="container mx-auto max-w-2xl py-8">
         <Card>
@@ -286,16 +287,15 @@ export default function OAuthCallbackPage() {
 
             <div className="bg-muted space-y-2 rounded-md p-4">
               <p className="text-muted-foreground text-sm">
-                {hasCoreApiOAuthScope(tokenResponse.scope)
+                {showApiAccessWarning
                   ? t("success.warningApi")
                   : t("success.warningIdentity")}
               </p>
-              {(tokenResponse.refresh_token ||
-                hasOfflineAccessOAuthScope(tokenResponse.scope)) && (
+              {showRefreshWarning ? (
                 <p className="text-muted-foreground text-sm">
                   {t("success.warningRefresh")}
                 </p>
-              )}
+              ) : null}
             </div>
           </CardContent>
         </Card>

@@ -3740,7 +3740,7 @@
           "disabled": "Désactivé",
           "apiAccess": "Accès API",
           "identityOnly": "Identité uniquement",
-          "refresh": "Actualisation"
+          "refresh": "Jeton d'actualisation"
         },
         "Actions": {
           "editTooltip": "Modifier le client OAuth",

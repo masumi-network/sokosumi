@@ -3740,7 +3740,7 @@
           "disabled": "無効",
           "apiAccess": "APIアクセス",
           "identityOnly": "本人確認のみ",
-          "refresh": "リフレッシュ"
+          "refresh": "リフレッシュトークン"
         },
         "Actions": {
           "editTooltip": "OAuth クライアントを編集",

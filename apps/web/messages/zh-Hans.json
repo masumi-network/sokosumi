@@ -3740,7 +3740,7 @@
           "disabled": "已禁用",
           "apiAccess": "API 访问",
           "identityOnly": "仅身份验证",
-          "refresh": "刷新"
+          "refresh": "刷新令牌"
         },
         "Actions": {
           "editTooltip": "编辑 OAuth 客户端",

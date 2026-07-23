@@ -325,6 +325,44 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("updates a client to enable refresh while keeping Core API", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api offline_access",
+        grant_types: ["authorization_code", "refresh_token"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "API Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api offline_access",
+        grant_types: ["authorization_code", "refresh_token"],
+      },
+    });
+  });
+
   it("updates a client to keep Core API while disabling refresh", async () => {
     updateClientMock.mockResolvedValue({
       data: {

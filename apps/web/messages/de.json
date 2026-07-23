@@ -3709,7 +3709,7 @@
           "disabled": "Deaktiviert",
           "apiAccess": "API-Zugriff",
           "identityOnly": "Nur Identität",
-          "refresh": "Aktualisierung"
+          "refresh": "Refresh-Token"
         },
         "Actions": {
           "editTooltip": "OAuth-Client bearbeiten",

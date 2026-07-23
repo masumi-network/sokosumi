@@ -9,9 +9,6 @@ export const OAUTH_SCOPE_OPENID = "openid";
 export const OAUTH_SCOPE_CORE_API = "sokosumi:api";
 export const OAUTH_SCOPE_OFFLINE_ACCESS = "offline_access";
 
-/** Space-separated scope string when Core API access is requested (no offline). */
-export const OAUTH_CORE_API_SCOPE_PARAM = `${OAUTH_SCOPE_OPENID} ${OAUTH_SCOPE_CORE_API}`;
-
 /** Scopes advertised by the OAuth provider (authorization server). */
 export const OAUTH_PROVIDER_SCOPES = [
   OAUTH_SCOPE_OPENID,
