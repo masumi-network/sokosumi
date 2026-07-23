@@ -44,6 +44,7 @@
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
+    "@sokosumi/net": "workspace:*",
     "@sokosumi/utils": "workspace:*",
     "@sparticuz/chromium-min": "149.0.0",
     "@tanstack/react-query": "5.101.4",
