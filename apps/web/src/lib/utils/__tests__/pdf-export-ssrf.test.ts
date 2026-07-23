@@ -13,6 +13,8 @@ import type { HTTPRequest, Page } from "puppeteer-core";
 import {
   installPdfExportRequestGuard,
   isAllowedLocalBrowserUrl,
+  MAX_PDF_RESOURCE_BYTES,
+  redactUrlForLog,
 } from "@/lib/utils/pdf-export-ssrf";
 
 beforeEach(() => {
@@ -25,6 +27,12 @@ describe("pdf-export-ssrf helpers", () => {
     expect(isAllowedLocalBrowserUrl("about:blank")).toBe(true);
     expect(isAllowedLocalBrowserUrl("blob:https://example/uuid")).toBe(true);
     expect(isAllowedLocalBrowserUrl("https://example.com")).toBe(false);
+  });
+
+  it("redacts query strings from logged URLs", () => {
+    expect(redactUrlForLog("https://cdn.example/a.png?token=secret#frag")).toBe(
+      "https://cdn.example/a.png",
+    );
   });
 
   it("continues local schemes and fulfills http(s) via ssrfSafeFetch", async () => {
@@ -71,7 +79,10 @@ describe("pdf-export-ssrf helpers", () => {
     await vi.waitFor(() => expect(respondMock).toHaveBeenCalled());
     expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
       "https://cdn.example/a.png",
-      { method: "GET" },
+      {
+        method: "GET",
+        maxResponseBytes: MAX_PDF_RESOURCE_BYTES,
+      },
     );
     expect(respondMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -82,7 +93,8 @@ describe("pdf-export-ssrf helpers", () => {
     );
   });
 
-  it("aborts when ssrfSafeFetch rejects (blocked target)", async () => {
+  it("aborts and logs when ssrfSafeFetch rejects (blocked target)", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const handlers: Array<(request: HTTPRequest) => void> = [];
     const page = {
       on: (_event: string, handler: (request: HTTPRequest) => void) => {
@@ -95,7 +107,7 @@ describe("pdf-export-ssrf helpers", () => {
 
     const abortMock = vi.fn().mockResolvedValue(undefined);
     const request = {
-      url: () => "http://169.254.169.254/latest/meta-data/",
+      url: () => "http://169.254.169.254/latest/meta-data/?x=1",
       method: () => "GET",
       continue: vi.fn(),
       respond: vi.fn(),
@@ -106,5 +118,13 @@ describe("pdf-export-ssrf helpers", () => {
     await vi.waitFor(() =>
       expect(abortMock).toHaveBeenCalledWith("blockedbyclient"),
     );
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[pdf-export-ssrf] blocked request",
+      expect.objectContaining({
+        reason: "ssrf_or_fetch_failed",
+        url: "http://169.254.169.254/latest/meta-data/",
+      }),
+    );
+    warnSpy.mockRestore();
   });
 });

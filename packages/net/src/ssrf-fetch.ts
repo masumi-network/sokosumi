@@ -27,6 +27,11 @@ export interface SsrfSafeFetchInit {
   headers?: Record<string, string>;
   body?: string;
   signal?: AbortSignal;
+  /**
+   * When set, reject with {@link SsrfError} if `Content-Length` exceeds this
+   * or if the streamed body grows past it (closes chunked oversize DoS).
+   */
+  maxResponseBytes?: number;
 }
 
 /**
@@ -89,6 +94,7 @@ function buildRequestHeaders(init: SsrfSafeFetchInit): Record<string, string> {
 function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
   return new Promise((resolve, reject) => {
     const transport = url.protocol === "https:" ? https : http;
+    const maxBytes = init.maxResponseBytes;
     const request = transport.request(
       url,
       {
@@ -98,9 +104,45 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
         signal: init.signal,
       },
       (message) => {
+        const declaredLength = message.headers["content-length"];
+        if (maxBytes !== undefined && declaredLength !== undefined) {
+          const length = Number(declaredLength);
+          if (Number.isFinite(length) && length > maxBytes) {
+            message.destroy();
+            reject(
+              new SsrfError(
+                `Response Content-Length ${length} exceeds maxResponseBytes (${maxBytes})`,
+              ),
+            );
+            return;
+          }
+        }
+
         const chunks: Buffer[] = [];
-        message.on("data", (chunk: Buffer) => chunks.push(chunk));
+        let received = 0;
+        let rejectedForSize = false;
+
+        message.on("data", (chunk: Buffer) => {
+          if (rejectedForSize) {
+            return;
+          }
+          received += chunk.byteLength;
+          if (maxBytes !== undefined && received > maxBytes) {
+            rejectedForSize = true;
+            message.destroy();
+            reject(
+              new SsrfError(
+                `Response body exceeds maxResponseBytes (${maxBytes})`,
+              ),
+            );
+            return;
+          }
+          chunks.push(chunk);
+        });
         message.on("end", () => {
+          if (rejectedForSize) {
+            return;
+          }
           const status = message.statusCode ?? 502;
           const body = NULL_BODY_STATUSES.has(status)
             ? null
@@ -113,7 +155,11 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
             }),
           );
         });
-        message.on("error", reject);
+        message.on("error", (error) => {
+          if (!rejectedForSize) {
+            reject(error);
+          }
+        });
       },
     );
 

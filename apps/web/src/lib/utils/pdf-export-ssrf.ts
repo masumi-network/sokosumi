@@ -3,6 +3,9 @@ import type { HTTPRequest, Page } from "puppeteer-core";
 
 const ALLOWED_LOCAL_SCHEMES = ["data:", "blob:", "about:blank"] as const;
 
+/** Hard cap on each remote resource Chromium would load during PDF export. */
+export const MAX_PDF_RESOURCE_BYTES = 5_000_000;
+
 /**
  * True when Chromium may load the URL without an outbound network check
  * (inline documents / blank frames).
@@ -11,6 +14,16 @@ export function isAllowedLocalBrowserUrl(url: string): boolean {
   return ALLOWED_LOCAL_SCHEMES.some(
     (scheme) => url === scheme || url.startsWith(scheme),
   );
+}
+
+/** Origin + pathname only — strip query/fragment (may hold secrets). */
+export function redactUrlForLog(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return "[unparseable-url]";
+  }
 }
 
 function responseHeadersForPuppeteer(
@@ -33,9 +46,21 @@ function responseHeadersForPuppeteer(
   return headers;
 }
 
+async function abortBlockedRequest(
+  request: HTTPRequest,
+  reason: string,
+  url: string,
+): Promise<void> {
+  console.warn("[pdf-export-ssrf] blocked request", {
+    reason,
+    url: redactUrlForLog(url),
+  });
+  await request.abort("blockedbyclient").catch(() => {});
+}
+
 async function handlePdfExportRequest(request: HTTPRequest): Promise<void> {
+  const url = request.url();
   try {
-    const url = request.url();
     if (isAllowedLocalBrowserUrl(url)) {
       await request.continue();
       return;
@@ -43,13 +68,18 @@ async function handlePdfExportRequest(request: HTTPRequest): Promise<void> {
 
     const method = request.method().toUpperCase();
     if (method !== "GET" && method !== "HEAD") {
-      await request.abort("blockedbyclient");
+      await abortBlockedRequest(request, "method_not_allowed", url);
       return;
     }
 
     // Fetch in-process with connect-time address filtering so DNS rebinding
     // between check and Chromium connect cannot open private targets.
-    const response = await ssrfSafeFetch(url, { method });
+    // Intentionally do NOT forward Chromium cookies / Authorization — that
+    // would widen SSRF blast radius to the caller's credentials.
+    const response = await ssrfSafeFetch(url, {
+      method,
+      maxResponseBytes: MAX_PDF_RESOURCE_BYTES,
+    });
     const body = Buffer.from(await response.arrayBuffer());
     await request.respond({
       status: response.status,
@@ -58,7 +88,7 @@ async function handlePdfExportRequest(request: HTTPRequest): Promise<void> {
       body,
     });
   } catch {
-    await request.abort("blockedbyclient").catch(() => {});
+    await abortBlockedRequest(request, "ssrf_or_fetch_failed", url);
   }
 }
 

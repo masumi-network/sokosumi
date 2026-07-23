@@ -6,6 +6,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/auth.server";
 import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
+import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -162,19 +163,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const contentLengthHeader = request.headers.get("content-length");
-    if (contentLengthHeader !== null) {
-      const contentLength = Number(contentLengthHeader);
-      if (Number.isFinite(contentLength) && contentLength > MAX_HTML_BYTES) {
+    const parsed = await readRequestJsonWithByteLimit<GeneratePdfRequest>(
+      request,
+      MAX_HTML_BYTES,
+    );
+    if (!parsed.ok) {
+      if (parsed.error === "too_large") {
         return NextResponse.json(
           { error: "HTML payload too large" },
           { status: 413 },
         );
       }
+      if (parsed.error === "invalid_json") {
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
     }
 
-    const json = (await request.json()) as GeneratePdfRequest;
-    const rawHtml = (json.html ?? "").toString();
+    const rawHtml = (parsed.value.html ?? "").toString();
     if (!rawHtml) {
       return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
     }
@@ -232,7 +238,8 @@ export async function POST(request: NextRequest) {
       displayHeaderFooter: true,
     });
 
-    const fileName = sanitizeFileName(json.fileName ?? "result") + ".pdf";
+    const fileName =
+      sanitizeFileName(parsed.value.fileName ?? "result") + ".pdf";
     const body =
       pdfBuffer instanceof Blob
         ? pdfBuffer
