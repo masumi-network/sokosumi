@@ -62,7 +62,10 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         const result = await authClient.oauth2.createClient({
           redirect_uris: data.redirectUris,
           client_name: data.name,
-          scope: buildOAuthClientScopeParam(data.includeCoreApi ?? false),
+          scope: buildOAuthClientScopeParam({
+            includeCoreApi: data.includeCoreApi ?? false,
+            includeOfflineAccess: false,
+          }),
         });
 
         if (result.error) {
@@ -115,7 +118,12 @@ export function useOAuthClients(): UseOAuthClientsReturn {
             client_name: data.name,
             redirect_uris: data.redirectUris,
             ...(typeof data.includeCoreApi === "boolean"
-              ? { scope: buildOAuthClientScopeParam(data.includeCoreApi) }
+              ? {
+                  scope: buildOAuthClientScopeParam({
+                    includeCoreApi: data.includeCoreApi,
+                    includeOfflineAccess: false,
+                  }),
+                }
               : {}),
           },
         });
