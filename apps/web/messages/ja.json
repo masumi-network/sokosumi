@@ -3694,7 +3694,10 @@
           "authorizeErrorGeneric": "承認中にエラーが発生しました",
           "authorizeSuccess": "アプリケーションの認可に成功しました",
           "denyError": "アプリケーションの拒否に失敗しました"
-        }
+        },
+        "apiAccessNotice": "承認するとアカウントへのフルAPIアクセス（openidおよびsokosumi:api）が付与されます。信頼できるアプリのみ承認してください。",
+        "descriptionWithApi": "アプリケーションがあなたのアカウントにアクセスし、あなたの代わりにSokosumi APIを呼び出そうとしています",
+        "offlineAccessNotice": "このアプリはサインイン状態を維持し、再度確認せずに後から新しいアクセストークンを取得できます（リフレッシュトークン、最長90日）。"
       },
       "OAuthClients": {
         "title": "OAuthクライアント",
@@ -3711,7 +3714,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
           "cancelButton": "キャンセル",
-          "createButton": "OAuthクライアントを作成"
+          "createButton": "OAuthクライアントを作成",
+          "includeCoreApiLabel": "Sokosumi APIアクセスを許可",
+          "includeCoreApiHelp": "オフ（デフォルト）：本人確認のみ（openid / userinfo）。オン：ユーザーとしてCore APIの呼び出しも許可（sokosumi:api）。",
+          "includeOfflineAccessLabel": "リフレッシュトークンを許可",
+          "includeOfflineAccessHelp": "オフ（デフォルト）：リフレッシュトークンなし。オン：クライアントは offline_access を要求でき、後で新しいアクセストークンを取得できるリフレッシュトークンを受け取れます（最長約90日）。オフにするとクライアントの許可リストから offline_access が削除され、新しいリフレッシュトークンには再認可が必要です。"
         },
         "CreatedSuccess": {
           "title": "OAuthクライアントを作成しました",
@@ -3730,7 +3737,10 @@
         "redirectUrisLabel": "リダイレクト URI",
         "created": "作成日: {date}",
         "Status": {
-          "disabled": "無効"
+          "disabled": "無効",
+          "apiAccess": "APIアクセス",
+          "identityOnly": "本人確認のみ",
+          "refresh": "リフレッシュトークン"
         },
         "Actions": {
           "editTooltip": "OAuth クライアントを編集",
@@ -3746,7 +3756,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "リダイレクトURIを1行に1つ。HTTPSを使用（HTTPはlocalhost/loopbackのみ）、フラグメント不可。カスタムアプリスキームは許可されます。",
           "cancelButton": "キャンセル",
-          "saveButton": "変更を保存"
+          "saveButton": "変更を保存",
+          "includeCoreApiLabel": "Sokosumi APIアクセスを許可",
+          "includeCoreApiHelp": "オフ：本人確認のみ（openid）。オン：認可時にCore API（sokosumi:api）を許可。変更するとクライアントの許可リストが更新されます。APIをオフにすると既存トークンのCoreアクセスは直ちに拒否されます。オンにする場合、そのスコープ付きの新トークンには再認可が必要です。",
+          "includeOfflineAccessLabel": "リフレッシュトークンを許可",
+          "includeOfflineAccessHelp": "オフ：リフレッシュトークンなし。オン：クライアントは offline_access を要求でき、後で新しいアクセストークンを取得できるリフレッシュトークンを受け取れます（最長約90日）。変更するとクライアントのスコープ許可リストが更新されます。リフレッシュをオフにするとその許可リストから offline_access が削除され、新しいリフレッシュトークンには再認可が必要です。"
         },
         "DeleteDialog": {
           "title": "OAuth クライアントを削除",
@@ -3760,6 +3774,7 @@
           "createError": "OAuth クライアントの作成に失敗しました",
           "updateSuccess": "OAuth クライアントを更新しました",
           "updateError": "OAuth クライアントの更新に失敗しました",
+          "updateScopeFlagsRequired": "APIアクセスとリフレッシュトークンの設定は同時に更新する必要があります。",
           "deleteSuccess": "OAuth クライアントを削除しました",
           "deleteError": "OAuth クライアントの削除に失敗しました",
           "copyError": "クリップボードへのコピーに失敗しました",
@@ -3811,10 +3826,12 @@
           "seconds": "秒",
           "scope": "スコープ",
           "idToken": "IDトークン",
-          "warning": "これらのトークンは安全に保管してください。アクセストークンはAPIへの認証済みリクエストに使用できます。",
           "tokenExchanged": "トークンを交換しました",
           "tokenCopied": "アクセストークンをクリップボードにコピーしました",
-          "refreshTokenCopied": "リフレッシュトークンをクリップボードにコピーしました"
+          "refreshTokenCopied": "リフレッシュトークンをクリップボードにコピーしました",
+          "warningApi": "これらのトークンは安全に保管してください。このアクセストークンには sokosumi:api が含まれ、あなたとして Core API を呼び出せます。",
+          "warningIdentity": "これらのトークンは安全に保管してください。このトークンは本人確認のみ（openid）で、Core API は呼び出せません。",
+          "warningRefresh": "リフレッシュトークンは安全に保管してください。有効期限切れまたは取り消しまで、同意を繰り返さずに新しいアクセストークンを取得できます。"
         },
         "error": {
           "title": "認可エラー",

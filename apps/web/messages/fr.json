@@ -3694,7 +3694,10 @@
           "authorizeErrorGeneric": "Une erreur est survenue lors de l’autorisation",
           "authorizeSuccess": "Application autorisée avec succès",
           "denyError": "Échec du refus de l’application"
-        }
+        },
+        "apiAccessNotice": "L'autorisation accorde un accès API complet à votre compte (openid et sokosumi:api). N'approuvez que les applications auxquelles vous faites confiance.",
+        "descriptionWithApi": "Une application souhaite accéder à votre compte et appeler l'API Sokosumi en votre nom",
+        "offlineAccessNotice": "Cette application peut rester connectée et obtenir de nouveaux jetons d'accès plus tard sans vous le redemander (jetons d'actualisation, jusqu'à 90 jours)."
       },
       "OAuthClients": {
         "title": "Clients OAuth",
@@ -3711,7 +3714,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Une URI de redirection par ligne. Utilisez HTTPS (HTTP uniquement pour localhost/loopback), sans fragments. Les schémas d'app personnalisés sont autorisés.",
           "cancelButton": "Annuler",
-          "createButton": "Créer un client OAuth"
+          "createButton": "Créer un client OAuth",
+          "includeCoreApiLabel": "Autoriser l'accès à l'API Sokosumi",
+          "includeCoreApiHelp": "Décoché (par défaut) : identité uniquement (openid / userinfo). Coché : autorise aussi l'appel à l'API Core en tant qu'utilisateur (sokosumi:api).",
+          "includeOfflineAccessLabel": "Autoriser les jetons d'actualisation",
+          "includeOfflineAccessHelp": "Décoché (par défaut) : pas de jetons d'actualisation. Coché : le client peut demander offline_access et recevoir des jetons d'actualisation permettant d'obtenir de nouveaux jetons d'accès plus tard (jusqu'à environ 90 jours). Désactiver cela retire offline_access de la liste d'autorisations du client ; les utilisateurs doivent se réautoriser pour de nouveaux jetons d'actualisation."
         },
         "CreatedSuccess": {
           "title": "Client OAuth créé",
@@ -3730,7 +3737,10 @@
         "redirectUrisLabel": "URI de redirection",
         "created": "Créé : {date}",
         "Status": {
-          "disabled": "Désactivé"
+          "disabled": "Désactivé",
+          "apiAccess": "Accès API",
+          "identityOnly": "Identité uniquement",
+          "refresh": "Jeton d'actualisation"
         },
         "Actions": {
           "editTooltip": "Modifier le client OAuth",
@@ -3746,7 +3756,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Une URI de redirection par ligne. Utilisez HTTPS (HTTP uniquement pour localhost/loopback), sans fragments. Les schémas d'app personnalisés sont autorisés.",
           "cancelButton": "Annuler",
-          "saveButton": "Enregistrer"
+          "saveButton": "Enregistrer",
+          "includeCoreApiLabel": "Autoriser l'accès à l'API Sokosumi",
+          "includeCoreApiHelp": "Décoché : identité uniquement (openid). Coché : autorise l'API Core (sokosumi:api) à l'autorisation. Ce changement met à jour la liste d'autorisations du client. Désactiver l'API bloque immédiatement l'accès Core des jetons existants ; l'activer exige une réautorisation pour de nouveaux jetons avec ce scope.",
+          "includeOfflineAccessLabel": "Autoriser les jetons d'actualisation",
+          "includeOfflineAccessHelp": "Décoché : pas de jetons d'actualisation. Coché : le client peut demander offline_access et recevoir des jetons d'actualisation permettant d'obtenir de nouveaux jetons d'accès plus tard (jusqu'à environ 90 jours). Ce changement met à jour la liste d'autorisations de scopes du client. Désactiver l'actualisation retire offline_access de cette liste ; les utilisateurs doivent se réautoriser pour de nouveaux jetons d'actualisation."
         },
         "DeleteDialog": {
           "title": "Supprimer le client OAuth",
@@ -3760,6 +3774,7 @@
           "createError": "Échec de la création du client OAuth",
           "updateSuccess": "Client OAuth mis à jour avec succès",
           "updateError": "Échec de la mise à jour du client OAuth",
+          "updateScopeFlagsRequired": "L'accès API et les paramètres de jeton d'actualisation doivent être mis à jour ensemble.",
           "deleteSuccess": "Client OAuth supprimé avec succès",
           "deleteError": "Échec de la suppression du client OAuth",
           "copyError": "Échec de la copie dans le presse-papiers",
@@ -3811,10 +3826,12 @@
           "seconds": "secondes",
           "scope": "Portée",
           "idToken": "Jeton d’ID",
-          "warning": "Conservez ces jetons en lieu sûr. Le jeton d’accès peut être utilisé pour effectuer des requêtes authentifiées vers l’API.",
           "tokenExchanged": "Jeton échangé avec succès",
           "tokenCopied": "Jeton d’accès copié dans le presse-papiers",
-          "refreshTokenCopied": "Jeton de rafraîchissement copié dans le presse-papiers"
+          "refreshTokenCopied": "Jeton de rafraîchissement copié dans le presse-papiers",
+          "warningApi": "Conservez ces jetons en sécurité. Ce jeton d'accès inclut sokosumi:api et peut appeler l'API Core en votre nom.",
+          "warningIdentity": "Conservez ces jetons en sécurité. Ce jeton est uniquement d'identité (openid) ; il ne peut pas appeler l'API Core.",
+          "warningRefresh": "Conservez le jeton d'actualisation en sécurité. Il permet d'obtenir de nouveaux jetons d'accès sans renouveler le consentement jusqu'à son expiration ou sa révocation."
         },
         "error": {
           "title": "Erreur d’autorisation",

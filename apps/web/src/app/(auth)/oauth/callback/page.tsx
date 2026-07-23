@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { getBrowserCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { normalizeOAuthIssuerBase } from "@/lib/utils/oauth-issuer";
 
+import { getOAuthCallbackTokenWarnings } from "./oauth-callback-warnings";
+
 interface TokenResponse {
   access_token?: string;
   token_type?: string;
@@ -107,7 +109,6 @@ export default function OAuthCallbackPage() {
         redirect_uri: redirectUri,
         code_verifier: codeVerifier.trim(),
         client_id: clientId.trim(),
-        scope: "openid",
       });
       if (clientSecret.trim()) {
         body.set("client_secret", clientSecret.trim());
@@ -204,6 +205,9 @@ export default function OAuthCallbackPage() {
 
   // Show success if we have a token response
   if (tokenResponse?.access_token) {
+    const { showApiAccessWarning, showRefreshWarning } =
+      getOAuthCallbackTokenWarnings(tokenResponse);
+
     return (
       <div className="container mx-auto max-w-2xl py-8">
         <Card>
@@ -281,10 +285,17 @@ export default function OAuthCallbackPage() {
               </div>
             )}
 
-            <div className="bg-muted rounded-md p-4">
+            <div className="bg-muted space-y-2 rounded-md p-4">
               <p className="text-muted-foreground text-sm">
-                {t("success.warning")}
+                {showApiAccessWarning
+                  ? t("success.warningApi")
+                  : t("success.warningIdentity")}
               </p>
+              {showRefreshWarning ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("success.warningRefresh")}
+                </p>
+              ) : null}
             </div>
           </CardContent>
         </Card>

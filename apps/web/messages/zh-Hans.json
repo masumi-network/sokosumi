@@ -3694,7 +3694,10 @@
           "authorizeErrorGeneric": "授权过程中发生错误",
           "authorizeSuccess": "应用授权成功",
           "denyError": "拒绝应用失败"
-        }
+        },
+        "apiAccessNotice": "授权将授予对你账户的完整 API 访问权限（openid 和 sokosumi:api）。请只批准你信任的应用。",
+        "descriptionWithApi": "某个应用想访问你的账户并以你的名义调用 Sokosumi API",
+        "offlineAccessNotice": "此应用可保持登录状态，并在之后获取新的访问令牌而无需再次询问您（刷新令牌，最长 90 天）。"
       },
       "OAuthClients": {
         "title": "OAuth 客户端",
@@ -3711,7 +3714,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "每行一个重定向 URI。使用 HTTPS（仅 localhost/loopback 可用 HTTP），不得包含片段。允许自定义应用 scheme。",
           "cancelButton": "取消",
-          "createButton": "创建 OAuth 客户端"
+          "createButton": "创建 OAuth 客户端",
+          "includeCoreApiLabel": "允许访问 Sokosumi API",
+          "includeCoreApiHelp": "未勾选（默认）：仅身份验证（openid / userinfo）。勾选：还允许以用户身份调用 Core API（sokosumi:api）。",
+          "includeOfflineAccessLabel": "允许刷新令牌",
+          "includeOfflineAccessHelp": "未勾选（默认）：无刷新令牌。勾选：客户端可请求 offline_access 并接收刷新令牌，之后可用其获取新的访问令牌（最长约 90 天）。关闭会从客户端允许列表中移除 offline_access；用户需重新授权才能获得新的刷新令牌。"
         },
         "CreatedSuccess": {
           "title": "OAuth 客户端已创建",
@@ -3730,7 +3737,10 @@
         "redirectUrisLabel": "重定向 URI",
         "created": "创建于：{date}",
         "Status": {
-          "disabled": "已禁用"
+          "disabled": "已禁用",
+          "apiAccess": "API 访问",
+          "identityOnly": "仅身份验证",
+          "refresh": "刷新令牌"
         },
         "Actions": {
           "editTooltip": "编辑 OAuth 客户端",
@@ -3746,7 +3756,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "每行一个重定向 URI。使用 HTTPS（仅 localhost/loopback 可用 HTTP），不得包含片段。允许自定义应用 scheme。",
           "cancelButton": "取消",
-          "saveButton": "保存更改"
+          "saveButton": "保存更改",
+          "includeCoreApiLabel": "允许访问 Sokosumi API",
+          "includeCoreApiHelp": "未勾选：仅身份验证（openid）。勾选：授权时可请求 Core API（sokosumi:api）。更改会更新客户端允许列表。关闭 API 会立即阻止现有令牌访问 Core；开启则需用户重新授权以获得带该 scope 的新令牌。",
+          "includeOfflineAccessLabel": "允许刷新令牌",
+          "includeOfflineAccessHelp": "未勾选：无刷新令牌。勾选：客户端可请求 offline_access 并接收刷新令牌，之后可用其获取新的访问令牌（最长约 90 天）。更改会更新客户端的 scope 允许列表。关闭刷新会从该允许列表中移除 offline_access；用户需重新授权才能获得新的刷新令牌。"
         },
         "DeleteDialog": {
           "title": "删除 OAuth 客户端",
@@ -3760,6 +3774,7 @@
           "createError": "创建 OAuth 客户端失败",
           "updateSuccess": "OAuth 客户端更新成功",
           "updateError": "更新 OAuth 客户端失败",
+          "updateScopeFlagsRequired": "API 访问与刷新令牌设置必须一并更新。",
           "deleteSuccess": "OAuth 客户端删除成功",
           "deleteError": "删除 OAuth 客户端失败",
           "copyError": "复制到剪贴板失败",
@@ -3811,10 +3826,12 @@
           "seconds": "秒",
           "scope": "范围",
           "idToken": "ID 令牌",
-          "warning": "请安全保存这些令牌。访问令牌可用于向 API 发起已认证的请求。",
           "tokenExchanged": "令牌兑换成功",
           "tokenCopied": "访问令牌已复制到剪贴板",
-          "refreshTokenCopied": "刷新令牌已复制到剪贴板"
+          "refreshTokenCopied": "刷新令牌已复制到剪贴板",
+          "warningApi": "请妥善保存这些令牌。此访问令牌包含 sokosumi:api，可以以你的身份调用 Core API。",
+          "warningIdentity": "请妥善保存这些令牌。此令牌仅用于身份验证（openid），无法调用 Core API。",
+          "warningRefresh": "请安全存储刷新令牌。在其过期或被撤销之前，可用它获取新的访问令牌而无需再次同意。"
         },
         "error": {
           "title": "授权错误",

@@ -242,9 +242,11 @@ describe("authMiddleware", () => {
       refreshId: null,
       refreshToken: null,
       clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
     });
     oauthConsentFindFirstMock.mockResolvedValue({
       id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
     });
 
     const app = createApp();
@@ -328,10 +330,16 @@ describe("authMiddleware", () => {
       refreshId: null,
       refreshToken: null,
       clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
       user: { role: "user" },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
     });
     oauthConsentFindFirstMock.mockResolvedValue({
       id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
     });
 
     const app = createApp();
@@ -359,8 +367,173 @@ describe("authMiddleware", () => {
         user: {
           select: { role: true },
         },
+        client: {
+          select: {
+            disabled: true,
+            scopes: true,
+          },
+        },
       },
     });
+    expect(oauthConsentFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_oauth",
+        clientId: "client_123",
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        scopes: true,
+      },
+    });
+  });
+
+  it("returns 401 for OAuth tokens that only have openid scope", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid"],
+      user: { role: "user" },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_openid_only",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for OAuth tokens that only have openid and offline_access", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "offline_access"],
+      user: { role: "user" },
+      client: {
+        disabled: false,
+        scopes: ["openid", "offline_access", "sokosumi:api"],
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer oauth_offline_only" },
+    });
+
+    expect(response.status).toBe(401);
+    expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when OAuth consent no longer includes sokosumi:api", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user" },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_revoked_api_scope",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 when OAuth client no longer allows sokosumi:api", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user" },
+      client: {
+        disabled: false,
+        scopes: ["openid"],
+      },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_client_scope_reduced",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when OAuth client is disabled", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user" },
+      client: {
+        disabled: true,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_client_disabled",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 when bearer token is invalid", async () => {

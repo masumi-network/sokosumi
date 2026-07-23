@@ -12,6 +12,7 @@ import {
 import { getOAuthClientPublic, getSession } from "@/lib/auth/auth.server";
 
 import { ConsentActions } from "./consent-actions";
+import { getOAuthConsentScopeFlags } from "./oauth-consent-scope-flags";
 
 interface ConsentPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -36,6 +37,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   const client_id = oauthSearchParams.get("client_id");
+  const { requestsCoreApi, requestsOfflineAccess } = getOAuthConsentScopeFlags(
+    oauthSearchParams.get("scope"),
+  );
 
   if (!client_id) {
     return (
@@ -95,7 +99,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
       <Card>
         <CardHeader>
           <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
+          <CardDescription>
+            {requestsCoreApi ? t("descriptionWithApi") : t("description")}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
@@ -103,6 +109,16 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
               {client.client_name || client.client_id}
             </p>
             <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
+            {requestsCoreApi ? (
+              <p className="text-muted-foreground mt-2 text-sm">
+                {t("apiAccessNotice")}
+              </p>
+            ) : null}
+            {requestsOfflineAccess ? (
+              <p className="text-muted-foreground mt-2 text-sm">
+                {t("offlineAccessNotice")}
+              </p>
+            ) : null}
           </div>
 
           <ConsentActions />

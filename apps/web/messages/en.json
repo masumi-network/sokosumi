@@ -3746,6 +3746,7 @@
         },
         "title": "Authorize Application",
         "description": "An application wants to access your account",
+        "descriptionWithApi": "An application wants to access your account and call the Sokosumi API on your behalf",
         "wantsAccess": "wants to access your Sokosumi account",
         "actions": {
           "authorize": "Authorize",
@@ -3757,7 +3758,9 @@
           "authorizeErrorGeneric": "An error occurred during authorization",
           "authorizeSuccess": "Application authorized successfully",
           "denyError": "Failed to deny application"
-        }
+        },
+        "apiAccessNotice": "Authorizing grants full API access to your account (openid and sokosumi:api). Only approve apps you trust.",
+        "offlineAccessNotice": "This app can stay signed in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
       },
       "OAuthClients": {
         "title": "OAuth Clients",
@@ -3773,6 +3776,10 @@
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Enter one redirect URI per line. Use HTTPS (HTTP only for localhost/loopback), no fragments. Custom app schemes are allowed.",
+          "includeCoreApiLabel": "Allow Sokosumi API access",
+          "includeCoreApiHelp": "Unchecked (default): identity only (openid / userinfo). Checked: also allow calling the Core API as the user (sokosumi:api).",
+          "includeOfflineAccessLabel": "Allow refresh tokens",
+          "includeOfflineAccessHelp": "Unchecked (default): no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Turning this off removes offline_access from the client's allow-list; users must reauthorize for new refresh tokens.",
           "cancelButton": "Cancel",
           "createButton": "Create OAuth Client"
         },
@@ -3793,7 +3800,10 @@
         "redirectUrisLabel": "Redirect URIs",
         "created": "Created: {date}",
         "Status": {
-          "disabled": "Disabled"
+          "disabled": "Disabled",
+          "apiAccess": "API access",
+          "identityOnly": "Identity only",
+          "refresh": "Refresh token"
         },
         "Actions": {
           "editTooltip": "Edit OAuth client",
@@ -3809,7 +3819,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Enter one redirect URI per line. Use HTTPS (HTTP only for localhost/loopback), no fragments. Custom app schemes are allowed.",
           "cancelButton": "Cancel",
-          "saveButton": "Save Changes"
+          "saveButton": "Save Changes",
+          "includeCoreApiLabel": "Allow Sokosumi API access",
+          "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: allow Core API (sokosumi:api) on authorize. Changing this updates the client's allow-list. Turning API off blocks Core access for existing tokens immediately; turning it on requires users to reauthorize for new tokens with that scope.",
+          "includeOfflineAccessLabel": "Allow refresh tokens",
+          "includeOfflineAccessHelp": "Unchecked: no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Changing this updates the client's scope allow-list. Turning refresh off removes offline_access from that allow-list; users must reauthorize for new refresh tokens."
         },
         "DeleteDialog": {
           "title": "Delete OAuth Client",
@@ -3823,6 +3837,7 @@
           "createError": "Failed to create OAuth client",
           "updateSuccess": "OAuth client updated successfully",
           "updateError": "Failed to update OAuth client",
+          "updateScopeFlagsRequired": "API access and refresh token settings must be updated together.",
           "deleteSuccess": "OAuth client deleted successfully",
           "deleteError": "Failed to delete OAuth client",
           "copyError": "Failed to copy to clipboard",
@@ -3874,10 +3889,12 @@
           "seconds": "seconds",
           "scope": "Scope",
           "idToken": "ID Token",
-          "warning": "Store these tokens securely. The access token can be used to make authenticated requests to the API.",
           "tokenExchanged": "Token exchanged successfully",
           "tokenCopied": "Access token copied to clipboard",
-          "refreshTokenCopied": "Refresh token copied to clipboard"
+          "refreshTokenCopied": "Refresh token copied to clipboard",
+          "warningApi": "Store these tokens securely. This access token includes sokosumi:api and can call the Core API as you.",
+          "warningIdentity": "Store these tokens securely. This token is identity-only (openid); it cannot call the Core API.",
+          "warningRefresh": "Store the refresh token securely. It can be used to obtain new access tokens without repeating consent until it expires or is revoked."
         },
         "error": {
           "title": "Authorization Error",

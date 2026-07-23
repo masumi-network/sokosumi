@@ -3694,7 +3694,10 @@
           "authorizeErrorGeneric": "Ocorreu um erro durante a autorização",
           "authorizeSuccess": "Aplicação autorizada com sucesso",
           "denyError": "Falha ao recusar a aplicação"
-        }
+        },
+        "apiAccessNotice": "Autorizar concede acesso total à API da tua conta (openid e sokosumi:api). Aprova apenas apps em que confias.",
+        "descriptionWithApi": "Uma aplicação quer aceder à tua conta e chamar a API Sokosumi em teu nome",
+        "offlineAccessNotice": "Esta aplicação pode permanecer autenticada e obter novos tokens de acesso mais tarde sem lhe perguntar novamente (tokens de atualização, até 90 dias)."
       },
       "OAuthClients": {
         "title": "Clientes OAuth",
@@ -3711,7 +3714,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Um URI de redirecionamento por linha. Use HTTPS (HTTP apenas para localhost/loopback), sem fragmentos. Esquemas de app personalizados são permitidos.",
           "cancelButton": "Cancelar",
-          "createButton": "Criar cliente OAuth"
+          "createButton": "Criar cliente OAuth",
+          "includeCoreApiLabel": "Permitir acesso à API Sokosumi",
+          "includeCoreApiHelp": "Desmarcado (predefinição): apenas identidade (openid / userinfo). Marcado: também permite chamar a API Core como o utilizador (sokosumi:api).",
+          "includeOfflineAccessLabel": "Permitir tokens de atualização",
+          "includeOfflineAccessHelp": "Desmarcado (predefinição): sem tokens de atualização. Marcado: o cliente pode solicitar offline_access e receber tokens de atualização que permitem obter novos tokens de acesso mais tarde (até cerca de 90 dias). Desativar remove offline_access da lista de permissões do cliente; os utilizadores devem reautorizar para novos tokens de atualização."
         },
         "CreatedSuccess": {
           "title": "Cliente OAuth criado",
@@ -3730,7 +3737,10 @@
         "redirectUrisLabel": "URIs de redirecionamento",
         "created": "Criado: {date}",
         "Status": {
-          "disabled": "Desativado"
+          "disabled": "Desativado",
+          "apiAccess": "Acesso à API",
+          "identityOnly": "Apenas identidade",
+          "refresh": "Token de atualização"
         },
         "Actions": {
           "editTooltip": "Editar cliente OAuth",
@@ -3746,7 +3756,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Um URI de redirecionamento por linha. Use HTTPS (HTTP apenas para localhost/loopback), sem fragmentos. Esquemas de app personalizados são permitidos.",
           "cancelButton": "Cancelar",
-          "saveButton": "Guardar alterações"
+          "saveButton": "Guardar alterações",
+          "includeCoreApiLabel": "Permitir acesso à API Sokosumi",
+          "includeCoreApiHelp": "Desmarcado: apenas identidade (openid). Marcado: permite a API Core (sokosumi:api) na autorização. Alterar isto atualiza a lista de permissões do cliente. Desativar a API bloqueia de imediato o acesso Core de tokens existentes; ativá-la exige reautorização para novos tokens com esse scope.",
+          "includeOfflineAccessLabel": "Permitir tokens de atualização",
+          "includeOfflineAccessHelp": "Desmarcado: sem tokens de atualização. Marcado: o cliente pode solicitar offline_access e receber tokens de atualização que permitem obter novos tokens de acesso mais tarde (até cerca de 90 dias). Alterar isto atualiza a lista de permissões de scopes do cliente. Desativar a atualização remove offline_access dessa lista; os utilizadores devem reautorizar para novos tokens de atualização."
         },
         "DeleteDialog": {
           "title": "Eliminar cliente OAuth",
@@ -3760,6 +3774,7 @@
           "createError": "Falha ao criar cliente OAuth",
           "updateSuccess": "Cliente OAuth atualizado com sucesso",
           "updateError": "Falha ao atualizar cliente OAuth",
+          "updateScopeFlagsRequired": "O acesso à API e as definições do token de atualização devem ser atualizados em conjunto.",
           "deleteSuccess": "Cliente OAuth eliminado com sucesso",
           "deleteError": "Falha ao eliminar cliente OAuth",
           "copyError": "Falha ao copiar para a área de transferência",
@@ -3811,10 +3826,12 @@
           "seconds": "segundos",
           "scope": "Âmbito",
           "idToken": "ID Token",
-          "warning": "Guarde estes tokens em segurança. O token de acesso pode ser usado para fazer pedidos autenticados à API.",
           "tokenExchanged": "Token trocado com sucesso",
           "tokenCopied": "Token de acesso copiado para a área de transferência",
-          "refreshTokenCopied": "Token de atualização copiado para a área de transferência"
+          "refreshTokenCopied": "Token de atualização copiado para a área de transferência",
+          "warningApi": "Guarde estes tokens com segurança. Este access token inclui sokosumi:api e pode chamar a API Core em seu nome.",
+          "warningIdentity": "Guarde estes tokens com segurança. Este token é apenas de identidade (openid); não pode chamar a API Core.",
+          "warningRefresh": "Guarde o token de atualização em segurança. Pode ser usado para obter novos tokens de acesso sem repetir o consentimento até expirar ou ser revogado."
         },
         "error": {
           "title": "Erro de autorização",

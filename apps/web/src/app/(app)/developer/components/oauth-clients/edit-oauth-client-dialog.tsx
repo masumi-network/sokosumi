@@ -1,12 +1,17 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  hasCoreApiOAuthScope,
+  hasOfflineAccessOAuthScope,
+} from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +23,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -56,6 +62,8 @@ export function EditOAuthClientDialog({
       form.reset({
         name: client.client_name ?? "",
         redirectUris: (client.redirect_uris ?? []).join("\n"),
+        includeCoreApi: hasCoreApiOAuthScope(client.scope),
+        includeOfflineAccess: hasOfflineAccessOAuthScope(client.scope),
       });
     }
   }, [client, form]);
@@ -71,6 +79,8 @@ export function EditOAuthClientDialog({
       clientId: client.client_id,
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
+      includeCoreApi: values.includeCoreApi,
+      includeOfflineAccess: values.includeOfflineAccess,
     });
 
     if (success) {
@@ -140,6 +150,64 @@ export function EditOAuthClientDialog({
                     <p className="text-muted-foreground text-xs">
                       {t("EditDialog.redirectUrisHelp")}
                     </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="includeCoreApi"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-start gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked === true);
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <div className="space-y-1">
+                        <FormLabel className="font-normal">
+                          {t("EditDialog.includeCoreApiLabel")}
+                        </FormLabel>
+                        <FormDescription>
+                          {t("EditDialog.includeCoreApiHelp")}
+                        </FormDescription>
+                      </div>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="includeOfflineAccess"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-start gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked === true);
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <div className="space-y-1">
+                        <FormLabel className="font-normal">
+                          {t("EditDialog.includeOfflineAccessLabel")}
+                        </FormLabel>
+                        <FormDescription>
+                          {t("EditDialog.includeOfflineAccessHelp")}
+                        </FormDescription>
+                      </div>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

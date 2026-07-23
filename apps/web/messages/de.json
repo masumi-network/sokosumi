@@ -3663,7 +3663,10 @@
           "authorizeErrorGeneric": "Bei der Autorisierung ist ein Fehler aufgetreten",
           "authorizeSuccess": "Anwendung erfolgreich autorisiert",
           "denyError": "Anwendung konnte nicht abgelehnt werden"
-        }
+        },
+        "apiAccessNotice": "Die Autorisierung gewährt vollen API-Zugriff auf dein Konto (openid und sokosumi:api). Genehmige nur Apps, denen du vertraust.",
+        "descriptionWithApi": "Eine Anwendung möchte auf dein Konto zugreifen und die Sokosumi-API in deinem Namen aufrufen",
+        "offlineAccessNotice": "Diese App kann angemeldet bleiben und später neue Access-Tokens holen, ohne dich erneut zu fragen (Refresh-Tokens, bis zu 90 Tage)."
       },
       "OAuthClients": {
         "title": "OAuth-Clients",
@@ -3680,7 +3683,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
           "cancelButton": "Abbrechen",
-          "createButton": "OAuth-Client erstellen"
+          "createButton": "OAuth-Client erstellen",
+          "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
+          "includeCoreApiHelp": "Deaktiviert (Standard): nur Identität (openid / userinfo). Aktiviert: zusätzlich Aufruf der Core-API als Nutzer (sokosumi:api).",
+          "includeOfflineAccessLabel": "Refresh-Tokens erlauben",
+          "includeOfflineAccessHelp": "Deaktiviert (Standard): keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Deaktivieren entfernt offline_access aus der Allow-List des Clients; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
         },
         "CreatedSuccess": {
           "title": "OAuth-Client erstellt",
@@ -3699,7 +3706,10 @@
         "redirectUrisLabel": "Redirect-URIs",
         "created": "Erstellt: {date}",
         "Status": {
-          "disabled": "Deaktiviert"
+          "disabled": "Deaktiviert",
+          "apiAccess": "API-Zugriff",
+          "identityOnly": "Nur Identität",
+          "refresh": "Refresh-Token"
         },
         "Actions": {
           "editTooltip": "OAuth-Client bearbeiten",
@@ -3715,7 +3725,11 @@
           "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
           "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
           "cancelButton": "Abbrechen",
-          "saveButton": "Änderungen speichern"
+          "saveButton": "Änderungen speichern",
+          "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
+          "includeCoreApiHelp": "Deaktiviert: nur Identität (openid). Aktiviert: Core-API (sokosumi:api) bei der Autorisierung. Änderung aktualisiert die Allow-List des Clients. API aus sperrt Core-Zugriff für bestehende Tokens sofort; API an erfordert erneute Autorisierung für neue Tokens mit diesem Scope.",
+          "includeOfflineAccessLabel": "Refresh-Tokens erlauben",
+          "includeOfflineAccessHelp": "Deaktiviert: keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Änderung aktualisiert die Scope-Allow-List des Clients. Refresh aus entfernt offline_access aus dieser Allow-List; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
         },
         "DeleteDialog": {
           "title": "OAuth-Client löschen",
@@ -3729,6 +3743,7 @@
           "createError": "OAuth-Client konnte nicht erstellt werden",
           "updateSuccess": "OAuth-Client erfolgreich aktualisiert",
           "updateError": "OAuth-Client konnte nicht aktualisiert werden",
+          "updateScopeFlagsRequired": "API-Zugriff und Refresh-Token-Einstellungen müssen gemeinsam aktualisiert werden.",
           "deleteSuccess": "OAuth-Client erfolgreich gelöscht",
           "deleteError": "OAuth-Client konnte nicht gelöscht werden",
           "copyError": "Kopieren in die Zwischenablage fehlgeschlagen",
@@ -3780,10 +3795,12 @@
           "seconds": "Sekunden",
           "scope": "Scope",
           "idToken": "ID-Token",
-          "warning": "Speichere diese Tokens sicher. Das Zugriffstoken kann für authentifizierte API-Anfragen verwendet werden.",
           "tokenExchanged": "Token erfolgreich getauscht",
           "tokenCopied": "Zugriffstoken in Zwischenablage kopiert",
-          "refreshTokenCopied": "Refresh-Token in Zwischenablage kopiert"
+          "refreshTokenCopied": "Refresh-Token in Zwischenablage kopiert",
+          "warningApi": "Bewahren Sie diese Tokens sicher auf. Dieses Access-Token enthält sokosumi:api und kann die Core-API in Ihrem Namen aufrufen.",
+          "warningIdentity": "Bewahren Sie diese Tokens sicher auf. Dieses Token gilt nur für die Identität (openid) und kann die Core-API nicht aufrufen.",
+          "warningRefresh": "Bewahren Sie das Refresh-Token sicher auf. Damit können neue Access-Tokens geholt werden, ohne die Zustimmung zu wiederholen, bis es abläuft oder widerrufen wird."
         },
         "error": {
           "title": "Autorisierungsfehler",

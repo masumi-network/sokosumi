@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import { hasCoreApiOAuthScope } from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
@@ -417,7 +418,9 @@ const hashAccessToken = async (value: string) => {
 
 /**
  * Verifies an OAuth access token and sets the authentication context if valid.
- * Checks token existence, expiration, refresh token revocation, and consent validity.
+ * Requires `sokosumi:api` on the access token, consent, and the client's
+ * allow-list (`OauthClient.scopes`). Rejects disabled clients.
+ * `openid`-only tokens are identity-scoped and must not authenticate Core `/v1`.
  *
  * @param token - The OAuth access token to verify
  * @param c - The Hono context
@@ -436,6 +439,12 @@ async function verifyOAuthToken(
         user: {
           select: { role: true },
         },
+        client: {
+          select: {
+            disabled: true,
+            scopes: true,
+          },
+        },
       },
     });
 
@@ -453,6 +462,11 @@ async function verifyOAuthToken(
       return null;
     }
 
+    // Identity-only tokens (openid without sokosumi:api) cannot call Core API.
+    if (!hasCoreApiOAuthScope(oauthToken.scopes)) {
+      return null;
+    }
+
     // Check if refresh token is revoked (if token has a refreshId)
     if (oauthToken.refreshId && oauthToken.refreshToken) {
       if (oauthToken.refreshToken.revoked) {
@@ -460,15 +474,28 @@ async function verifyOAuthToken(
       }
     }
 
+    // Client allow-list must still include Core API (e.g. after privilege reduction).
+    // Check before consent so disabled/reduced clients skip the consent query.
+    const client = oauthToken.client;
+    if (!client || client.disabled || !hasCoreApiOAuthScope(client.scopes)) {
+      return null;
+    }
+
     // Verify that consent still exists (user hasn't revoked access)
+    // and still grants Core API scope.
     const consent = await tx.oauthConsent.findFirst({
       where: {
         userId: oauthToken.userId,
         clientId: oauthToken.clientId,
       },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        scopes: true,
+      },
     });
 
-    if (!consent) {
+    if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
       return null;
     }
 

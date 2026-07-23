@@ -32,6 +32,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
+import { toast } from "sonner";
 import { useOAuthClients } from "@/app/developer/components/oauth-clients/hooks/use-oauth-clients";
 
 describe("useOAuthClients", () => {
@@ -104,6 +105,7 @@ describe("useOAuthClients", () => {
       redirect_uris: ["https://example.com/cb"],
       client_name: "New Client",
       scope: "openid",
+      grant_types: ["authorization_code"],
     });
     expect(createResult!.success).toBe(true);
     expect(createResult!.data?.clientId).toBe("client_2");
@@ -111,6 +113,107 @@ describe("useOAuthClients", () => {
     // List refresh is fire-and-forget after credentials are returned.
     await waitFor(() => {
       expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("registers Core API scope when includeCoreApi is true", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_api",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "API Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+        includeOfflineAccess: false,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["https://example.com/cb"],
+      client_name: "API Client",
+      scope: "openid sokosumi:api",
+      grant_types: ["authorization_code"],
+    });
+  });
+
+  it("registers offline_access and refresh_token grant when includeOfflineAccess is true", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_rt",
+        client_secret: "secret",
+        client_name: "RT Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid offline_access",
+        grant_types: ["authorization_code", "refresh_token"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "RT Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: false,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      client_name: "RT Client",
+      redirect_uris: ["https://example.com/cb"],
+      scope: "openid offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
+    });
+  });
+
+  it("registers Core API and offline_access when both flags are true", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_both",
+        client_secret: "secret",
+        client_name: "Both Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api offline_access",
+        grant_types: ["authorization_code", "refresh_token"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Both Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      client_name: "Both Client",
+      redirect_uris: ["https://example.com/cb"],
+      scope: "openid sokosumi:api offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
     });
   });
 
@@ -147,6 +250,180 @@ describe("useOAuthClients", () => {
       },
     });
     expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("updates a client with Core API scope when includeCoreApi is true", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "API Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+        includeOfflineAccess: false,
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api",
+        grant_types: ["authorization_code"],
+      },
+    });
+  });
+
+  it("updates a client to openid only when includeCoreApi is false", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "Identity Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "Identity Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: false,
+        includeOfflineAccess: false,
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "Identity Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid",
+        grant_types: ["authorization_code"],
+      },
+    });
+  });
+
+  it("updates a client to enable refresh while keeping Core API", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api offline_access",
+        grant_types: ["authorization_code", "refresh_token"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "API Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api offline_access",
+        grant_types: ["authorization_code", "refresh_token"],
+      },
+    });
+  });
+
+  it("updates a client to keep Core API while disabling refresh", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api",
+        grant_types: ["authorization_code"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "API Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+        includeOfflineAccess: false,
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "API Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid sokosumi:api",
+        grant_types: ["authorization_code"],
+      },
+    });
+  });
+
+  it("rejects update when only one scope flag is provided", async () => {
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    let success = true;
+    await act(async () => {
+      // Bypass the all-or-nothing type contract to exercise the runtime guard.
+      success = await result.current.update({
+        clientId: "client_1",
+        name: "Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: true,
+      } as unknown as Parameters<typeof result.current.update>[0]);
+    });
+
+    expect(success).toBe(false);
+    expect(updateClientMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "Messages.updateScopeFlagsRequired",
+    );
   });
 
   it("deletes a client", async () => {
