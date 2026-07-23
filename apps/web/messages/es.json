@@ -3665,7 +3665,8 @@
           "denyError": "No se pudo rechazar la aplicación"
         },
         "apiAccessNotice": "Autorizar otorga acceso completo a la API de tu cuenta (openid y sokosumi:api). Aprueba solo apps en las que confíes.",
-        "descriptionWithApi": "Una aplicación quiere acceder a tu cuenta y llamar a la API de Sokosumi en tu nombre"
+        "descriptionWithApi": "Una aplicación quiere acceder a tu cuenta y llamar a la API de Sokosumi en tu nombre",
+        "offlineAccessNotice": "Esta aplicación puede permanecer conectada y obtener nuevos tokens de acceso más tarde sin pedírtelo de nuevo (tokens de actualización, hasta 90 días)."
       },
       "OAuthClients": {
         "title": "OAuth Clients",
@@ -3797,7 +3798,8 @@
           "tokenCopied": "Token de acceso copiado al portapapeles",
           "refreshTokenCopied": "Token de actualización copiado al portapapeles",
           "warningApi": "Guarda estos tokens de forma segura. Este access token incluye sokosumi:api y puede llamar a la API Core en tu nombre.",
-          "warningIdentity": "Guarda estos tokens de forma segura. Este token es solo de identidad (openid); no puede llamar a la API Core."
+          "warningIdentity": "Guarda estos tokens de forma segura. Este token es solo de identidad (openid); no puede llamar a la API Core.",
+          "warningRefresh": "Guarda el token de actualización de forma segura. Se puede usar para obtener nuevos tokens de acceso sin repetir el consentimiento hasta que caduque o se revoque."
         },
         "error": {
           "title": "Error de autorización",

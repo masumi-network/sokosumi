@@ -1,6 +1,9 @@
 "use client";
 
-import { hasCoreApiOAuthScope } from "@sokosumi/utils";
+import {
+  hasCoreApiOAuthScope,
+  hasOfflineAccessOAuthScope,
+} from "@sokosumi/utils";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -281,12 +284,18 @@ export default function OAuthCallbackPage() {
               </div>
             )}
 
-            <div className="bg-muted rounded-md p-4">
+            <div className="bg-muted space-y-2 rounded-md p-4">
               <p className="text-muted-foreground text-sm">
                 {hasCoreApiOAuthScope(tokenResponse.scope)
                   ? t("success.warningApi")
                   : t("success.warningIdentity")}
               </p>
+              {(tokenResponse.refresh_token ||
+                hasOfflineAccessOAuthScope(tokenResponse.scope)) && (
+                <p className="text-muted-foreground text-sm">
+                  {t("success.warningRefresh")}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

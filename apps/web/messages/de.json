@@ -3665,7 +3665,8 @@
           "denyError": "Anwendung konnte nicht abgelehnt werden"
         },
         "apiAccessNotice": "Die Autorisierung gewährt vollen API-Zugriff auf dein Konto (openid und sokosumi:api). Genehmige nur Apps, denen du vertraust.",
-        "descriptionWithApi": "Eine Anwendung möchte auf dein Konto zugreifen und die Sokosumi-API in deinem Namen aufrufen"
+        "descriptionWithApi": "Eine Anwendung möchte auf dein Konto zugreifen und die Sokosumi-API in deinem Namen aufrufen",
+        "offlineAccessNotice": "Diese App kann angemeldet bleiben und später neue Access-Tokens holen, ohne dich erneut zu fragen (Refresh-Tokens, bis zu 90 Tage)."
       },
       "OAuthClients": {
         "title": "OAuth-Clients",
@@ -3797,7 +3798,8 @@
           "tokenCopied": "Zugriffstoken in Zwischenablage kopiert",
           "refreshTokenCopied": "Refresh-Token in Zwischenablage kopiert",
           "warningApi": "Bewahren Sie diese Tokens sicher auf. Dieses Access-Token enthält sokosumi:api und kann die Core-API in Ihrem Namen aufrufen.",
-          "warningIdentity": "Bewahren Sie diese Tokens sicher auf. Dieses Token gilt nur für die Identität (openid) und kann die Core-API nicht aufrufen."
+          "warningIdentity": "Bewahren Sie diese Tokens sicher auf. Dieses Token gilt nur für die Identität (openid) und kann die Core-API nicht aufrufen.",
+          "warningRefresh": "Bewahren Sie das Refresh-Token sicher auf. Damit können neue Access-Tokens geholt werden, ohne die Zustimmung zu wiederholen, bis es abläuft oder widerrufen wird."
         },
         "error": {
           "title": "Autorisierungsfehler",

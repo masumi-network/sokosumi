@@ -3759,7 +3759,8 @@
           "authorizeSuccess": "Application authorized successfully",
           "denyError": "Failed to deny application"
         },
-        "apiAccessNotice": "Authorizing grants full API access to your account (openid and sokosumi:api). Only approve apps you trust."
+        "apiAccessNotice": "Authorizing grants full API access to your account (openid and sokosumi:api). Only approve apps you trust.",
+        "offlineAccessNotice": "This app can stay signed in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
       },
       "OAuthClients": {
         "title": "OAuth Clients",
@@ -3891,7 +3892,8 @@
           "tokenCopied": "Access token copied to clipboard",
           "refreshTokenCopied": "Refresh token copied to clipboard",
           "warningApi": "Store these tokens securely. This access token includes sokosumi:api and can call the Core API as you.",
-          "warningIdentity": "Store these tokens securely. This token is identity-only (openid); it cannot call the Core API."
+          "warningIdentity": "Store these tokens securely. This token is identity-only (openid); it cannot call the Core API.",
+          "warningRefresh": "Store the refresh token securely. It can be used to obtain new access tokens without repeating consent until it expires or is revoked."
         },
         "error": {
           "title": "Authorization Error",

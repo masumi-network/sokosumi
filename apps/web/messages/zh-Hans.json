@@ -3696,7 +3696,8 @@
           "denyError": "拒绝应用失败"
         },
         "apiAccessNotice": "授权将授予对你账户的完整 API 访问权限（openid 和 sokosumi:api）。请只批准你信任的应用。",
-        "descriptionWithApi": "某个应用想访问你的账户并以你的名义调用 Sokosumi API"
+        "descriptionWithApi": "某个应用想访问你的账户并以你的名义调用 Sokosumi API",
+        "offlineAccessNotice": "此应用可保持登录状态，并在之后获取新的访问令牌而无需再次询问您（刷新令牌，最长 90 天）。"
       },
       "OAuthClients": {
         "title": "OAuth 客户端",
@@ -3828,7 +3829,8 @@
           "tokenCopied": "访问令牌已复制到剪贴板",
           "refreshTokenCopied": "刷新令牌已复制到剪贴板",
           "warningApi": "请妥善保存这些令牌。此访问令牌包含 sokosumi:api，可以以你的身份调用 Core API。",
-          "warningIdentity": "请妥善保存这些令牌。此令牌仅用于身份验证（openid），无法调用 Core API。"
+          "warningIdentity": "请妥善保存这些令牌。此令牌仅用于身份验证（openid），无法调用 Core API。",
+          "warningRefresh": "请安全存储刷新令牌。在其过期或被撤销之前，可用它获取新的访问令牌而无需再次同意。"
         },
         "error": {
           "title": "授权错误",

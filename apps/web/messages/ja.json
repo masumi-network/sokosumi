@@ -3696,7 +3696,8 @@
           "denyError": "アプリケーションの拒否に失敗しました"
         },
         "apiAccessNotice": "承認するとアカウントへのフルAPIアクセス（openidおよびsokosumi:api）が付与されます。信頼できるアプリのみ承認してください。",
-        "descriptionWithApi": "アプリケーションがあなたのアカウントにアクセスし、あなたの代わりにSokosumi APIを呼び出そうとしています"
+        "descriptionWithApi": "アプリケーションがあなたのアカウントにアクセスし、あなたの代わりにSokosumi APIを呼び出そうとしています",
+        "offlineAccessNotice": "このアプリはサインイン状態を維持し、再度確認せずに後から新しいアクセストークンを取得できます（リフレッシュトークン、最長90日）。"
       },
       "OAuthClients": {
         "title": "OAuthクライアント",
@@ -3828,7 +3829,8 @@
           "tokenCopied": "アクセストークンをクリップボードにコピーしました",
           "refreshTokenCopied": "リフレッシュトークンをクリップボードにコピーしました",
           "warningApi": "これらのトークンは安全に保管してください。このアクセストークンには sokosumi:api が含まれ、あなたとして Core API を呼び出せます。",
-          "warningIdentity": "これらのトークンは安全に保管してください。このトークンは本人確認のみ（openid）で、Core API は呼び出せません。"
+          "warningIdentity": "これらのトークンは安全に保管してください。このトークンは本人確認のみ（openid）で、Core API は呼び出せません。",
+          "warningRefresh": "リフレッシュトークンは安全に保管してください。有効期限切れまたは取り消しまで、同意を繰り返さずに新しいアクセストークンを取得できます。"
         },
         "error": {
           "title": "認可エラー",

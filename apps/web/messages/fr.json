@@ -3696,7 +3696,8 @@
           "denyError": "Échec du refus de l’application"
         },
         "apiAccessNotice": "L'autorisation accorde un accès API complet à votre compte (openid et sokosumi:api). N'approuvez que les applications auxquelles vous faites confiance.",
-        "descriptionWithApi": "Une application souhaite accéder à votre compte et appeler l'API Sokosumi en votre nom"
+        "descriptionWithApi": "Une application souhaite accéder à votre compte et appeler l'API Sokosumi en votre nom",
+        "offlineAccessNotice": "Cette application peut rester connectée et obtenir de nouveaux jetons d'accès plus tard sans vous le redemander (jetons d'actualisation, jusqu'à 90 jours)."
       },
       "OAuthClients": {
         "title": "Clients OAuth",
@@ -3828,7 +3829,8 @@
           "tokenCopied": "Jeton d’accès copié dans le presse-papiers",
           "refreshTokenCopied": "Jeton de rafraîchissement copié dans le presse-papiers",
           "warningApi": "Conservez ces jetons en sécurité. Ce jeton d'accès inclut sokosumi:api et peut appeler l'API Core en votre nom.",
-          "warningIdentity": "Conservez ces jetons en sécurité. Ce jeton est uniquement d'identité (openid) ; il ne peut pas appeler l'API Core."
+          "warningIdentity": "Conservez ces jetons en sécurité. Ce jeton est uniquement d'identité (openid) ; il ne peut pas appeler l'API Core.",
+          "warningRefresh": "Conservez le jeton d'actualisation en sécurité. Il permet d'obtenir de nouveaux jetons d'accès sans renouveler le consentement jusqu'à son expiration ou sa révocation."
         },
         "error": {
           "title": "Erreur d’autorisation",

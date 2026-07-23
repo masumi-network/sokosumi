@@ -1,4 +1,7 @@
-import { hasCoreApiOAuthScope } from "@sokosumi/utils";
+import {
+  hasCoreApiOAuthScope,
+  hasOfflineAccessOAuthScope,
+} from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -38,6 +41,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
 
   const client_id = oauthSearchParams.get("client_id");
   const requestsCoreApi = hasCoreApiOAuthScope(oauthSearchParams.get("scope"));
+  const requestsOfflineAccess = hasOfflineAccessOAuthScope(
+    oauthSearchParams.get("scope"),
+  );
 
   if (!client_id) {
     return (
@@ -110,6 +116,11 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
             {requestsCoreApi ? (
               <p className="text-muted-foreground mt-2 text-sm">
                 {t("apiAccessNotice")}
+              </p>
+            ) : null}
+            {requestsOfflineAccess ? (
+              <p className="text-muted-foreground mt-2 text-sm">
+                {t("offlineAccessNotice")}
               </p>
             ) : null}
           </div>

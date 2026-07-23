@@ -3696,7 +3696,8 @@
           "denyError": "Impossibile negare l’applicazione"
         },
         "apiAccessNotice": "L'autorizzazione concede accesso API completo al tuo account (openid e sokosumi:api). Approva solo le app di cui ti fidi.",
-        "descriptionWithApi": "Un'applicazione vuole accedere al tuo account e chiamare l'API Sokosumi per tuo conto"
+        "descriptionWithApi": "Un'applicazione vuole accedere al tuo account e chiamare l'API Sokosumi per tuo conto",
+        "offlineAccessNotice": "Questa app può restare connessa e ottenere nuovi token di accesso in seguito senza chiedertelo di nuovo (token di aggiornamento, fino a 90 giorni)."
       },
       "OAuthClients": {
         "title": "Client OAuth",
@@ -3828,7 +3829,8 @@
           "tokenCopied": "Token di accesso copiato negli appunti",
           "refreshTokenCopied": "Token di refresh copiato negli appunti",
           "warningApi": "Conserva questi token in modo sicuro. Questo access token include sokosumi:api e può chiamare l'API Core a tuo nome.",
-          "warningIdentity": "Conserva questi token in modo sicuro. Questo token è solo di identità (openid); non può chiamare l'API Core."
+          "warningIdentity": "Conserva questi token in modo sicuro. Questo token è solo di identità (openid); non può chiamare l'API Core.",
+          "warningRefresh": "Conserva il token di aggiornamento in modo sicuro. Può essere usato per ottenere nuovi token di accesso senza ripetere il consenso fino alla scadenza o alla revoca."
         },
         "error": {
           "title": "Errore di autorizzazione",
