@@ -61,6 +61,7 @@ provision upserts disposable Better Auth credential accounts:
 
 | Email | Password | Notes |
 | --- | --- | --- |
+| `admin@sokosumi.test` | `Password123!` | Platform admin (`role: admin`) + personal workspace |
 | `alice@sokosumi.test` | `Password123!` | Regular user + personal workspace |
 | `bob@sokosumi.test` | `Password123!` | Regular user + personal workspace |
 

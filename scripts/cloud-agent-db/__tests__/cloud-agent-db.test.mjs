@@ -152,4 +152,10 @@ describe("auth fixtures", () => {
       assert.match(fixture.email, /@sokosumi\.test$/);
     }
   });
+
+  it("includes one platform admin", () => {
+    const admins = AUTH_FIXTURES.filter((fixture) => fixture.role === "admin");
+    assert.equal(admins.length, 1);
+    assert.equal(admins[0]?.email, "admin@sokosumi.test");
+  });
 });

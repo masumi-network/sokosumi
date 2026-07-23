@@ -9,6 +9,11 @@ export const FIXTURE_PASSWORD = "Password123!";
 /** @type {AuthFixture[]} */
 export const AUTH_FIXTURES = [
   {
+    email: "admin@sokosumi.test",
+    name: "Admin Agent",
+    role: "admin",
+  },
+  {
     email: "alice@sokosumi.test",
     name: "Alice Agent",
     role: "user",
