@@ -213,6 +213,41 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("updates a client to openid only when includeCoreApi is false", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "Identity Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "Identity Client",
+        redirectUris: ["https://example.com/cb"],
+        includeCoreApi: false,
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "Identity Client",
+        redirect_uris: ["https://example.com/cb"],
+        scope: "openid",
+      },
+    });
+  });
+
   it("deletes a client", async () => {
     deleteClientMock.mockResolvedValue({ data: {}, error: null });
 

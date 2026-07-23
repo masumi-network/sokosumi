@@ -391,7 +391,8 @@ const hashAccessToken = async (value: string) => {
 
 /**
  * Verifies an OAuth access token and sets the authentication context if valid.
- * Requires the `sokosumi:api` scope on both the access token and consent —
+ * Requires `sokosumi:api` on the access token, consent, and the client's
+ * allow-list (`OauthClient.scopes`). Rejects disabled clients.
  * `openid`-only tokens are identity-scoped and must not authenticate Core `/v1`.
  *
  * @param token - The OAuth access token to verify
