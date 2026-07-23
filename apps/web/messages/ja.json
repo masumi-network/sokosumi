@@ -3752,7 +3752,7 @@
           "cancelButton": "キャンセル",
           "saveButton": "変更を保存",
           "includeCoreApiLabel": "Sokosumi APIアクセスを許可",
-          "includeCoreApiHelp": "オフ：本人確認のみ（openid）。オン：Core APIアクセスも許可（sokosumi:api）。変更するとクライアントの許可スコープが更新されます。新しいトークンには再認可が必要です。"
+          "includeCoreApiHelp": "オフ：本人確認のみ（openid）。オン：認可時にCore API（sokosumi:api）を許可。変更するとクライアントの許可リストが更新されます。APIをオフにすると既存トークンのCoreアクセスは直ちに拒否されます。オンにする場合、そのスコープ付きの新トークンには再認可が必要です。"
         },
         "DeleteDialog": {
           "title": "OAuth クライアントを削除",

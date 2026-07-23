@@ -173,7 +173,6 @@ describe("useOAuthClients", () => {
       update: {
         client_name: "Renamed",
         redirect_uris: ["https://example.com/new"],
-        scope: "openid",
       },
     });
     expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);

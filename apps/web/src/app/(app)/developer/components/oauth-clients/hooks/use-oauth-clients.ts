@@ -114,7 +114,9 @@ export function useOAuthClients(): UseOAuthClientsReturn {
           update: {
             client_name: data.name,
             redirect_uris: data.redirectUris,
-            scope: buildOAuthClientScopeParam(data.includeCoreApi ?? false),
+            ...(typeof data.includeCoreApi === "boolean"
+              ? { scope: buildOAuthClientScopeParam(data.includeCoreApi) }
+              : {}),
           },
         });
 

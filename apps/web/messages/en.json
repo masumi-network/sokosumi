@@ -3815,7 +3815,7 @@
           "cancelButton": "Cancel",
           "saveButton": "Save Changes",
           "includeCoreApiLabel": "Allow Sokosumi API access",
-          "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: also allow Core API access (sokosumi:api). Changing this updates the client's allowed scopes; users must reauthorize for new tokens."
+          "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: allow Core API (sokosumi:api) on authorize. Changing this updates the client's allow-list. Turning API off blocks Core access for existing tokens immediately; turning it on requires users to reauthorize for new tokens with that scope."
         },
         "DeleteDialog": {
           "title": "Delete OAuth Client",

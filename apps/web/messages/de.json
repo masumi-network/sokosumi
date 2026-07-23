@@ -3721,7 +3721,7 @@
           "cancelButton": "Abbrechen",
           "saveButton": "Änderungen speichern",
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
-          "includeCoreApiHelp": "Deaktiviert: nur Identität (openid). Aktiviert: zusätzlich Core-API-Zugriff (sokosumi:api). Änderung aktualisiert die erlaubten Scopes des Clients; Nutzer müssen für neue Tokens erneut autorisieren."
+          "includeCoreApiHelp": "Deaktiviert: nur Identität (openid). Aktiviert: Core-API (sokosumi:api) bei der Autorisierung. Änderung aktualisiert die Allow-List des Clients. API aus sperrt Core-Zugriff für bestehende Tokens sofort; API an erfordert erneute Autorisierung für neue Tokens mit diesem Scope."
         },
         "DeleteDialog": {
           "title": "OAuth-Client löschen",

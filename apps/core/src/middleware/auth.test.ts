@@ -12,6 +12,7 @@ const {
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
+  oauthClientFindUniqueMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
   verifyApiKeyMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
+  oauthClientFindUniqueMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
 }));
 
@@ -70,6 +72,7 @@ describe("authMiddleware", () => {
     getSessionMock.mockResolvedValue(null);
     oauthAccessTokenFindUniqueMock.mockResolvedValue(null);
     oauthConsentFindFirstMock.mockResolvedValue(null);
+    oauthClientFindUniqueMock.mockResolvedValue(null);
     userFindUniqueMock.mockResolvedValue({ role: "user" });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -79,6 +82,9 @@ describe("authMiddleware", () => {
         },
         oauthConsent: {
           findFirst: oauthConsentFindFirstMock,
+        },
+        oauthClient: {
+          findUnique: oauthClientFindUniqueMock,
         },
       });
     });
@@ -332,6 +338,10 @@ describe("authMiddleware", () => {
       id: "consent_123",
       scopes: ["openid", "sokosumi:api"],
     });
+    oauthClientFindUniqueMock.mockResolvedValue({
+      disabled: false,
+      scopes: ["openid", "sokosumi:api"],
+    });
 
     const app = createApp();
     const response = await app.request("http://localhost/", {
@@ -358,6 +368,13 @@ describe("authMiddleware", () => {
         user: {
           select: { role: true },
         },
+      },
+    });
+    expect(oauthClientFindUniqueMock).toHaveBeenCalledWith({
+      where: { clientId: "client_123" },
+      select: {
+        disabled: true,
+        scopes: true,
       },
     });
   });
@@ -409,6 +426,67 @@ describe("authMiddleware", () => {
     const response = await app.request("http://localhost/", {
       headers: {
         authorization: "Bearer oauth_revoked_api_scope",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(oauthClientFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when OAuth client no longer allows sokosumi:api", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user" },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+    oauthClientFindUniqueMock.mockResolvedValue({
+      disabled: false,
+      scopes: ["openid"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_client_scope_reduced",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 when OAuth client is disabled", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user" },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+    oauthClientFindUniqueMock.mockResolvedValue({
+      disabled: true,
+      scopes: ["openid", "sokosumi:api"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_client_disabled",
       },
     });
 

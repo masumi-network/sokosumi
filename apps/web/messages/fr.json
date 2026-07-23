@@ -3752,7 +3752,7 @@
           "cancelButton": "Annuler",
           "saveButton": "Enregistrer",
           "includeCoreApiLabel": "Autoriser l'accès à l'API Sokosumi",
-          "includeCoreApiHelp": "Décoché : identité uniquement (openid). Coché : autorise aussi l'accès à l'API Core (sokosumi:api). Ce changement met à jour les scopes autorisés du client ; les utilisateurs doivent réautoriser pour de nouveaux jetons."
+          "includeCoreApiHelp": "Décoché : identité uniquement (openid). Coché : autorise l'API Core (sokosumi:api) à l'autorisation. Ce changement met à jour la liste d'autorisations du client. Désactiver l'API bloque immédiatement l'accès Core des jetons existants ; l'activer exige une réautorisation pour de nouveaux jetons avec ce scope."
         },
         "DeleteDialog": {
           "title": "Supprimer le client OAuth",

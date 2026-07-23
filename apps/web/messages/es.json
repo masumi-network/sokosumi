@@ -3721,7 +3721,7 @@
           "cancelButton": "Cancelar",
           "saveButton": "Guardar cambios",
           "includeCoreApiLabel": "Permitir acceso a la API de Sokosumi",
-          "includeCoreApiHelp": "Desmarcado: solo identidad (openid). Marcado: también permite acceso a la API Core (sokosumi:api). Cambiar esto actualiza los scopes permitidos del cliente; los usuarios deben reautorizar para obtener tokens nuevos."
+          "includeCoreApiHelp": "Desmarcado: solo identidad (openid). Marcado: permite la API Core (sokosumi:api) en la autorización. Cambiar esto actualiza la lista de permisos del cliente. Desactivar la API bloquea el acceso a Core de los tokens existentes de inmediato; activarla exige que los usuarios reautoricen para obtener tokens nuevos con ese scope."
         },
         "DeleteDialog": {
           "title": "Eliminar cliente OAuth",

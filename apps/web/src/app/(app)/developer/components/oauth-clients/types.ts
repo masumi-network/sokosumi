@@ -41,7 +41,7 @@ export interface UpdateOAuthClientRequest {
   clientId: string;
   name: string;
   redirectUris: string[];
-  /** When true, allow `openid sokosumi:api`; otherwise `openid` only. */
+  /** When true, allow `openid sokosumi:api`; when false, `openid` only. Omit to leave scopes unchanged. */
   includeCoreApi?: boolean;
 }
 
