@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { forbidCoworkerActor, requireUserContext } from "@/middleware/auth";
 import { putTaskShareRequestSchema } from "@/schemas/public-share.schema.js";
 import { taskShareSchema } from "@/schemas/share.schema.js";
 
@@ -42,7 +42,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const { authContext } = c.var;
+    forbidCoworkerActor(authContext);
+    const userContext = requireUserContext(authContext);
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 

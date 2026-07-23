@@ -3,7 +3,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountPatchTask, { patchTaskRequestSchema } from "./patch";
@@ -111,19 +111,21 @@ function createTaskApi(projectId: string | null = null) {
   };
 }
 
-function createApp() {
+function createApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: "org_123",
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: "org_123",
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("workspaceContext", {
       workspaceId: WORKSPACE_ID,
       userId: null,
@@ -339,5 +341,27 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Hijacked",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
   });
 });

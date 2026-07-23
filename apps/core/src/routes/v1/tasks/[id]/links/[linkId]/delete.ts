@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { forbidCoworkerActor, requireUserContext } from "@/middleware/auth";
 
 const deletedSchema = z
   .object({
@@ -43,7 +43,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const { authContext } = c.var;
+    forbidCoworkerActor(authContext);
+    const userContext = requireUserContext(authContext);
     const { id, linkId } = c.req.valid("param");
 
     await prisma.$transaction(async (tx) => {

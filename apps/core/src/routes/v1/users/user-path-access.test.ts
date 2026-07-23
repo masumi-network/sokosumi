@@ -24,18 +24,31 @@ describe("requireAccessToTargetUserData", () => {
     expect(ctx.userId).toBe(target);
   });
 
-  it("allows delegated coworker when user id matches", () => {
-    const ctx = requireAccessToTargetUserData(
-      {
-        actor: "coworker",
-        coworkerId: "cow_1",
-        vendorId: TEST_VENDOR_ID,
-        context: { userId: target, organizationId: null },
-      },
-      target,
-    );
-    expect(ctx.source).toBe("context");
-    expect(ctx.userId).toBe(target);
+  it("rejects delegated coworker even when user id matches", () => {
+    expect(() =>
+      requireAccessToTargetUserData(
+        {
+          actor: "coworker",
+          coworkerId: "cow_1",
+          vendorId: TEST_VENDOR_ID,
+          context: { userId: target, organizationId: null },
+        },
+        target,
+      ),
+    ).toThrow();
+  });
+
+  it("rejects orchestrator context even when user id matches", () => {
+    expect(() =>
+      requireAccessToTargetUserData(
+        {
+          actor: "orchestrator",
+          orchestratorId: "orch_1",
+          context: { userId: target, organizationId: null },
+        },
+        target,
+      ),
+    ).toThrow();
   });
 
   it("allows session admin for another user id", () => {
@@ -66,7 +79,7 @@ describe("requireAccessToTargetUserData", () => {
     ).toThrow();
   });
 
-  it("rejects coworker delegation mismatch", () => {
+  it("rejects coworker for concrete user ids", () => {
     expect(() =>
       requireAccessToTargetUserData(
         {

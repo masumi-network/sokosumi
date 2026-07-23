@@ -17,7 +17,7 @@ import {
 } from "@/helpers/task-assignee-alias";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { forbidCoworkerActor, requireUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -109,6 +109,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    forbidCoworkerActor(authContext);
     const userContext = requireUserContext(authContext);
     const { id } = c.req.valid("param");
     const { name, description, projectId, assigneeId } = c.req.valid("json");

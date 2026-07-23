@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthVariables } from "./auth";
-import { authMiddleware, requireAdminAuthContext } from "./auth";
+import {
+  authMiddleware,
+  forbidCoworkerActor,
+  requireAdminAuthContext,
+} from "./auth";
 
 const {
   verifyApiKeyMock,
@@ -473,5 +477,39 @@ describe("requireAdminAuthContext", () => {
         },
       }),
     ).toThrowError("User authentication required");
+  });
+});
+
+describe("forbidCoworkerActor", () => {
+  it("allows user actors", () => {
+    expect(() =>
+      forbidCoworkerActor({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows orchestrator actors with context", () => {
+    expect(() =>
+      forbidCoworkerActor({
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: "user_123", organizationId: null },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects coworker actors", () => {
+    expect(() =>
+      forbidCoworkerActor({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: "user_123", organizationId: null },
+      }),
+    ).toThrowError("Coworker authentication cannot perform this owner action");
   });
 });

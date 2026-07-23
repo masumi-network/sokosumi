@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountDeleteTask from "./delete";
@@ -149,7 +149,15 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
+function createApp(
+  activeWorkspaceId = "99999999-9999-7999-8999-999999999999",
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables & RequestIdVariables;
   }>();
@@ -157,12 +165,7 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
   app.use("*", async (c, next) => {
     c.set("requestId", "req_delete_route_test");
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("workspaceContext", {
       workspaceId: activeWorkspaceId,
       userId: "user_123",
@@ -369,5 +372,21 @@ describe("DELETE /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
+    const app = createApp("99999999-9999-7999-8999-999999999999", {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: null },
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireTaskArchiveAccessMock).not.toHaveBeenCalled();
   });
 });
