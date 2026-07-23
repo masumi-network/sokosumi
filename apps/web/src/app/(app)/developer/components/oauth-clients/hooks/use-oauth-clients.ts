@@ -1,5 +1,6 @@
 "use client";
 
+import { OAUTH_CORE_API_SCOPE_PARAM } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -61,7 +62,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         const result = await authClient.oauth2.createClient({
           redirect_uris: data.redirectUris,
           client_name: data.name,
-          scope: "openid",
+          scope: OAUTH_CORE_API_SCOPE_PARAM,
         });
 
         if (result.error) {

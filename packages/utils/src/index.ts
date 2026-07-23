@@ -113,6 +113,13 @@ export {
   stringifyMetadataRecord,
 } from "./metadata-record.js";
 export {
+  hasCoreApiOAuthScope,
+  OAUTH_CORE_API_SCOPE_PARAM,
+  OAUTH_PROVIDER_SCOPES,
+  OAUTH_SCOPE_CORE_API,
+  OAUTH_SCOPE_OPENID,
+} from "./oauth-scopes.js";
+export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,
   findJsonObjectEnd,

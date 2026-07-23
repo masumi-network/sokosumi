@@ -3682,7 +3682,7 @@
           "retry": "再試行"
         },
         "title": "アプリケーションを承認",
-        "description": "アプリケーションがあなたのアカウントへのアクセスを要求しています",
+        "description": "アプリケーションがあなたのアカウントにアクセスし、あなたの代わりにSokosumi APIを呼び出そうとしています",
         "wantsAccess": "があなたのSokosumiアカウントへのアクセスを要求しています",
         "actions": {
           "authorize": "承認",
@@ -3694,7 +3694,8 @@
           "authorizeErrorGeneric": "承認中にエラーが発生しました",
           "authorizeSuccess": "アプリケーションの認可に成功しました",
           "denyError": "アプリケーションの拒否に失敗しました"
-        }
+        },
+        "apiAccessNotice": "承認するとアカウントへのフルAPIアクセス（openidおよびsokosumi:api）が付与されます。信頼できるアプリのみ承認してください。"
       },
       "OAuthClients": {
         "title": "OAuthクライアント",

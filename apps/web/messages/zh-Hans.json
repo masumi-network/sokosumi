@@ -3682,7 +3682,7 @@
           "retry": "重试"
         },
         "title": "授权应用",
-        "description": "某个应用希望访问您的账户",
+        "description": "某个应用想访问你的账户并以你的名义调用 Sokosumi API",
         "wantsAccess": "希望访问您的 Sokosumi 账户",
         "actions": {
           "authorize": "授权",
@@ -3694,7 +3694,8 @@
           "authorizeErrorGeneric": "授权过程中发生错误",
           "authorizeSuccess": "应用授权成功",
           "denyError": "拒绝应用失败"
-        }
+        },
+        "apiAccessNotice": "授权将授予对你账户的完整 API 访问权限（openid 和 sokosumi:api）。请只批准你信任的应用。"
       },
       "OAuthClients": {
         "title": "OAuth 客户端",

@@ -29,6 +29,7 @@ import {
   betterAuthUserAdditionalFields,
   getEmailLocale,
   getStoredUserName,
+  OAUTH_PROVIDER_SCOPES,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
@@ -701,8 +702,8 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
       consentPage: `${webAppBaseUrl}/oauth/consent`,
-      scopes: ["openid"],
-      clientRegistrationDefaultScopes: ["openid"],
+      scopes: [...OAUTH_PROVIDER_SCOPES],
+      clientRegistrationDefaultScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)

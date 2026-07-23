@@ -103,7 +103,7 @@ describe("useOAuthClients", () => {
     expect(createClientMock).toHaveBeenCalledWith({
       redirect_uris: ["https://example.com/cb"],
       client_name: "New Client",
-      scope: "openid",
+      scope: "openid sokosumi:api",
     });
     expect(createResult!.success).toBe(true);
     expect(createResult!.data?.clientId).toBe("client_2");

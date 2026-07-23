@@ -103,6 +103,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
               {client.client_name || client.client_id}
             </p>
             <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
+            <p className="text-muted-foreground mt-2 text-sm">
+              {t("apiAccessNotice")}
+            </p>
           </div>
 
           <ConsentActions />

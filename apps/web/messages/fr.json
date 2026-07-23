@@ -3682,7 +3682,7 @@
           "retry": "Réessayer"
         },
         "title": "Autoriser l’application",
-        "description": "Une application souhaite accéder à votre compte",
+        "description": "Une application souhaite accéder à votre compte et appeler l'API Sokosumi en votre nom",
         "wantsAccess": "souhaite accéder à votre compte Sokosumi",
         "actions": {
           "authorize": "Autoriser",
@@ -3694,7 +3694,8 @@
           "authorizeErrorGeneric": "Une erreur est survenue lors de l’autorisation",
           "authorizeSuccess": "Application autorisée avec succès",
           "denyError": "Échec du refus de l’application"
-        }
+        },
+        "apiAccessNotice": "L'autorisation accorde un accès API complet à votre compte (openid et sokosumi:api). N'approuvez que les applications auxquelles vous faites confiance."
       },
       "OAuthClients": {
         "title": "Clients OAuth",
