@@ -71,7 +71,7 @@ Better Auth rules this design depends on:
 ### Create / Edit
 
 - Checkbox **Allow refresh tokens** (default off), independent of API checkbox
-- Help copy: unchecked = no refresh; checked = client may request `offline_access` and receive refresh tokens that can obtain new access tokens later (up to ~90 days). Turning off updates allow-list/grants; users need reauthorize for new RTs.
+- Help copy: unchecked = no refresh; checked = client may request `offline_access` and receive refresh tokens that can obtain new access tokens later (up to ~90 days). Turning off removes `offline_access` from the client allow-list; users need reauthorize for new RTs.
 - Edit initial value from `hasOfflineAccessOAuthScope(client.scope)`; on save, keep `grant_types` in sync with the checkbox (scope is source of truth for UI)
 
 ### Hooks / types
