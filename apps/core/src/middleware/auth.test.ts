@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthVariables } from "./auth";
-import { authMiddleware, requireAdminAuthContext } from "./auth";
+import {
+  authMiddleware,
+  forbidCoworkerActor,
+  requireAdminAuthContext,
+  requireOwnerUserContext,
+} from "./auth";
 
 const {
   verifyApiKeyMock,
@@ -473,5 +478,83 @@ describe("requireAdminAuthContext", () => {
         },
       }),
     ).toThrowError("User authentication required");
+  });
+});
+
+describe("forbidCoworkerActor", () => {
+  it("allows user actors", () => {
+    expect(() =>
+      forbidCoworkerActor({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows orchestrator actors with context", () => {
+    expect(() =>
+      forbidCoworkerActor({
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: "user_123", organizationId: null },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects coworker actors", () => {
+    expect(() =>
+      forbidCoworkerActor({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: "user_123", organizationId: null },
+      }),
+    ).toThrowError("Coworker authentication cannot perform this owner action");
+  });
+});
+
+describe("requireOwnerUserContext", () => {
+  it("returns session user context", () => {
+    expect(
+      requireOwnerUserContext({
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_1",
+        role: "user",
+      }),
+    ).toEqual({
+      source: "session",
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_1",
+      role: "user",
+    });
+  });
+
+  it("returns orchestrator contextual user", () => {
+    expect(
+      requireOwnerUserContext({
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: "user_123", organizationId: "org_1" },
+      }),
+    ).toEqual({
+      source: "context",
+      userId: "user_123",
+      organizationId: "org_1",
+    });
+  });
+
+  it("rejects coworker even with matching context user", () => {
+    expect(() =>
+      requireOwnerUserContext({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: "user_123", organizationId: null },
+      }),
+    ).toThrowError("Coworker authentication cannot perform this owner action");
   });
 });

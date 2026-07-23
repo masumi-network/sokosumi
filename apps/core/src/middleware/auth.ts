@@ -229,6 +229,33 @@ export function forbidOrchestratorActor(
   }
 }
 
+/**
+ * Rejects coworker actors (bare or contextual). Use on owner-only mutations
+ * where {@link requireUserContext} would otherwise treat `X-Context-User-Id` as
+ * the task owner. Orchestrator with workspace context remains allowed.
+ */
+export function forbidCoworkerActor(
+  authContext: AuthenticationContext,
+  message = "Coworker authentication cannot perform this owner action",
+): void {
+  if (isCoworkerAuthContext(authContext)) {
+    throw forbidden(message);
+  }
+}
+
+/**
+ * Owner-mutation user context: session user, or orchestrator with workspace
+ * context. Rejects coworker actors (bare or contextual) so
+ * `X-Context-User-Id` cannot impersonate the task owner.
+ */
+export function requireOwnerUserContext(
+  authContext: AuthenticationContext,
+  message = "Coworker authentication cannot perform this owner action",
+): UserContext {
+  forbidCoworkerActor(authContext, message);
+  return requireUserContext(authContext);
+}
+
 export function requireCoworkerAuthContext(
   authContext: AuthenticationContext,
 ): CoworkerAuthenticationContext {

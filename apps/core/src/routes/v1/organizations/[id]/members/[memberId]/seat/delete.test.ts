@@ -28,7 +28,7 @@ const {
 }));
 
 vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
+  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, {
         message: "User authentication required",

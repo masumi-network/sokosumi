@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountPutTaskWorkspace, { putTaskWorkspaceRequestSchema } from "./put";
@@ -187,19 +187,22 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-function createApp(activeOrganizationId: string | null = "org_current") {
+function createApp(
+  activeOrganizationId: string | null = "org_current",
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: activeOrganizationId,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: activeOrganizationId,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("workspaceContext", {
       workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: null,
@@ -766,5 +769,27 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
     });
     expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
+    const app = createApp("org_current", {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: "org_current" },
+    });
+
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
   });
 });
