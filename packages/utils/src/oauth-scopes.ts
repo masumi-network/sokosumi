@@ -36,11 +36,11 @@ function normalizeOAuthScopes(
     return [];
   }
 
-  if (typeof scopes === "string") {
-    return scopes.split(/\s+/).filter((scope) => scope.length > 0);
-  }
+  const entries = typeof scopes === "string" ? [scopes] : scopes;
 
-  return [...scopes];
+  return entries.flatMap((entry) =>
+    entry.split(/\s+/).filter((scope) => scope.length > 0),
+  );
 }
 
 export function hasCoreApiOAuthScope(

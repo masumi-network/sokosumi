@@ -3734,7 +3734,9 @@
         "redirectUrisLabel": "URI de redirection",
         "created": "Créé : {date}",
         "Status": {
-          "disabled": "Désactivé"
+          "disabled": "Désactivé",
+          "apiAccess": "Accès API",
+          "identityOnly": "Identité uniquement"
         },
         "Actions": {
           "editTooltip": "Modifier le client OAuth",
@@ -3817,10 +3819,11 @@
           "seconds": "secondes",
           "scope": "Portée",
           "idToken": "Jeton d’ID",
-          "warning": "Conservez ces jetons en lieu sûr. Le jeton d’accès peut être utilisé pour effectuer des requêtes authentifiées vers l’API.",
           "tokenExchanged": "Jeton échangé avec succès",
           "tokenCopied": "Jeton d’accès copié dans le presse-papiers",
-          "refreshTokenCopied": "Jeton de rafraîchissement copié dans le presse-papiers"
+          "refreshTokenCopied": "Jeton de rafraîchissement copié dans le presse-papiers",
+          "warningApi": "Conservez ces jetons en sécurité. Ce jeton d'accès inclut sokosumi:api et peut appeler l'API Core en votre nom.",
+          "warningIdentity": "Conservez ces jetons en sécurité. Ce jeton est uniquement d'identité (openid) ; il ne peut pas appeler l'API Core."
         },
         "error": {
           "title": "Erreur d’autorisation",

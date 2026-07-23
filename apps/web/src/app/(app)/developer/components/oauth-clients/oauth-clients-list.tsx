@@ -1,5 +1,6 @@
 "use client";
 
+import { hasCoreApiOAuthScope } from "@sokosumi/utils";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -58,6 +59,7 @@ export function OAuthClientsList({
               dateStyle: "medium",
             })
           : null;
+        const allowsCoreApi = hasCoreApiOAuthScope(client.scope);
 
         return (
           <div
@@ -67,6 +69,11 @@ export function OAuthClientsList({
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="truncate font-semibold">{name}</p>
+                <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
+                  {allowsCoreApi
+                    ? t("Status.apiAccess")
+                    : t("Status.identityOnly")}
+                </span>
                 {client.disabled ? (
                   <span className="bg-semantic-destructive/10 text-semantic-destructive inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
                     {t("Status.disabled")}

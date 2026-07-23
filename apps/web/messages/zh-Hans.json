@@ -3734,7 +3734,9 @@
         "redirectUrisLabel": "重定向 URI",
         "created": "创建于：{date}",
         "Status": {
-          "disabled": "已禁用"
+          "disabled": "已禁用",
+          "apiAccess": "API 访问",
+          "identityOnly": "仅身份验证"
         },
         "Actions": {
           "editTooltip": "编辑 OAuth 客户端",
@@ -3817,10 +3819,11 @@
           "seconds": "秒",
           "scope": "范围",
           "idToken": "ID 令牌",
-          "warning": "请安全保存这些令牌。访问令牌可用于向 API 发起已认证的请求。",
           "tokenExchanged": "令牌兑换成功",
           "tokenCopied": "访问令牌已复制到剪贴板",
-          "refreshTokenCopied": "刷新令牌已复制到剪贴板"
+          "refreshTokenCopied": "刷新令牌已复制到剪贴板",
+          "warningApi": "请妥善保存这些令牌。此访问令牌包含 sokosumi:api，可以以你的身份调用 Core API。",
+          "warningIdentity": "请妥善保存这些令牌。此令牌仅用于身份验证（openid），无法调用 Core API。"
         },
         "error": {
           "title": "授权错误",

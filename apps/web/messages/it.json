@@ -3734,7 +3734,9 @@
         "redirectUrisLabel": "URI di reindirizzamento",
         "created": "Creato: {date}",
         "Status": {
-          "disabled": "Disabilitato"
+          "disabled": "Disabilitato",
+          "apiAccess": "Accesso API",
+          "identityOnly": "Solo identità"
         },
         "Actions": {
           "editTooltip": "Modifica client OAuth",
@@ -3817,10 +3819,11 @@
           "seconds": "secondi",
           "scope": "Ambito",
           "idToken": "Token ID",
-          "warning": "Conserva questi token in modo sicuro. Il token di accesso può essere usato per effettuare richieste autenticate all’API.",
           "tokenExchanged": "Token scambiato correttamente",
           "tokenCopied": "Token di accesso copiato negli appunti",
-          "refreshTokenCopied": "Token di refresh copiato negli appunti"
+          "refreshTokenCopied": "Token di refresh copiato negli appunti",
+          "warningApi": "Conserva questi token in modo sicuro. Questo access token include sokosumi:api e può chiamare l'API Core a tuo nome.",
+          "warningIdentity": "Conserva questi token in modo sicuro. Questo token è solo di identità (openid); non può chiamare l'API Core."
         },
         "error": {
           "title": "Errore di autorizzazione",

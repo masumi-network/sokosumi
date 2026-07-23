@@ -30,5 +30,7 @@ describe("oauth scopes", () => {
     expect(hasCoreApiOAuthScope("openid")).toBe(false);
     expect(hasCoreApiOAuthScope("openid sokosumi:api")).toBe(true);
     expect(hasCoreApiOAuthScope(undefined)).toBe(false);
+    // Harden against space-joined entries inside arrays (odd DB / legacy shapes).
+    expect(hasCoreApiOAuthScope(["openid sokosumi:api"])).toBe(true);
   });
 });

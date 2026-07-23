@@ -3703,7 +3703,9 @@
         "redirectUrisLabel": "Redirect-URIs",
         "created": "Erstellt: {date}",
         "Status": {
-          "disabled": "Deaktiviert"
+          "disabled": "Deaktiviert",
+          "apiAccess": "API-Zugriff",
+          "identityOnly": "Nur Identität"
         },
         "Actions": {
           "editTooltip": "OAuth-Client bearbeiten",
@@ -3786,10 +3788,11 @@
           "seconds": "Sekunden",
           "scope": "Scope",
           "idToken": "ID-Token",
-          "warning": "Speichere diese Tokens sicher. Das Zugriffstoken kann für authentifizierte API-Anfragen verwendet werden.",
           "tokenExchanged": "Token erfolgreich getauscht",
           "tokenCopied": "Zugriffstoken in Zwischenablage kopiert",
-          "refreshTokenCopied": "Refresh-Token in Zwischenablage kopiert"
+          "refreshTokenCopied": "Refresh-Token in Zwischenablage kopiert",
+          "warningApi": "Bewahren Sie diese Tokens sicher auf. Dieses Access-Token enthält sokosumi:api und kann die Core-API in Ihrem Namen aufrufen.",
+          "warningIdentity": "Bewahren Sie diese Tokens sicher auf. Dieses Token gilt nur für die Identität (openid) und kann die Core-API nicht aufrufen."
         },
         "error": {
           "title": "Autorisierungsfehler",

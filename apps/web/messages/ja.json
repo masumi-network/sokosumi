@@ -3734,7 +3734,9 @@
         "redirectUrisLabel": "リダイレクト URI",
         "created": "作成日: {date}",
         "Status": {
-          "disabled": "無効"
+          "disabled": "無効",
+          "apiAccess": "APIアクセス",
+          "identityOnly": "本人確認のみ"
         },
         "Actions": {
           "editTooltip": "OAuth クライアントを編集",
@@ -3817,10 +3819,11 @@
           "seconds": "秒",
           "scope": "スコープ",
           "idToken": "IDトークン",
-          "warning": "これらのトークンは安全に保管してください。アクセストークンはAPIへの認証済みリクエストに使用できます。",
           "tokenExchanged": "トークンを交換しました",
           "tokenCopied": "アクセストークンをクリップボードにコピーしました",
-          "refreshTokenCopied": "リフレッシュトークンをクリップボードにコピーしました"
+          "refreshTokenCopied": "リフレッシュトークンをクリップボードにコピーしました",
+          "warningApi": "これらのトークンは安全に保管してください。このアクセストークンには sokosumi:api が含まれ、あなたとして Core API を呼び出せます。",
+          "warningIdentity": "これらのトークンは安全に保管してください。このトークンは本人確認のみ（openid）で、Core API は呼び出せません。"
         },
         "error": {
           "title": "認可エラー",

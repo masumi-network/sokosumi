@@ -412,6 +412,12 @@ async function verifyOAuthToken(
         user: {
           select: { role: true },
         },
+        client: {
+          select: {
+            disabled: true,
+            scopes: true,
+          },
+        },
       },
     });
 
@@ -459,14 +465,7 @@ async function verifyOAuthToken(
     }
 
     // Client allow-list must still include Core API (e.g. after privilege reduction).
-    const client = await tx.oauthClient.findUnique({
-      where: { clientId: oauthToken.clientId },
-      select: {
-        disabled: true,
-        scopes: true,
-      },
-    });
-
+    const client = oauthToken.client;
     if (!client || client.disabled || !hasCoreApiOAuthScope(client.scopes)) {
       return null;
     }
