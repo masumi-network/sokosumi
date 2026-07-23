@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 
+import { getSession } from "@/lib/auth/auth.server";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { vendorService } from "@/lib/services/vendor.service";
 
 import { ApiKeysSection } from "./api-keys";
@@ -11,9 +13,14 @@ import { DeveloperTasksSection } from "./tasks";
 import { DeveloperVendorsSection } from "./vendors";
 
 export async function DeveloperPage() {
-  const adminVendors = await vendorService
-    .listMyAdminVendorMemberships()
-    .catch(() => []);
+  const session = await getSession();
+  const isPlatformAdmin = hasAdminRole(session?.user.role);
+
+  // Platform admins manage vendors under /admin. Developer Vendors is only for
+  // VendorMember admins (not user.role=admin).
+  const adminVendors = isPlatformAdmin
+    ? []
+    : await vendorService.listMyAdminVendorMemberships().catch(() => []);
   const showVendorsTab = adminVendors.length > 0;
 
   return (

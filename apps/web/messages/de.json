@@ -2902,6 +2902,10 @@
             "title": "Coworkers",
             "description": "Fähigkeiten, Priorität, Whitelist, Archivstatus und Anzeigemetadaten für alle Coworker verwalten."
           },
+          "vendors": {
+            "title": "Vendors",
+            "description": "Marketplace-Vendors erstellen und bearbeiten, einschließlich Name und Logos."
+          },
           "agents": {
             "title": "Agenten",
             "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
@@ -3287,6 +3291,54 @@
           },
           "hasOverride": "Überschreibungszeile vorhanden",
           "noOverride": "Nur Registry-Werte"
+        }
+      },
+      "Vendors": {
+        "title": "Vendors",
+        "description": "Marketplace-Vendors erstellen und bearbeiten, einschließlich Name und Logos.",
+        "loadFailed": "Vendors konnten nicht geladen werden.",
+        "backToList": "Zurück zur Liste",
+        "createVendor": "Vendor erstellen",
+        "createTitle": "Neuer Vendor",
+        "createDescription": "Einen Marketplace-Vendor erstellen. Der Slug kann später nicht geändert werden.",
+        "editDescription": "Vendor-Name und Logos aktualisieren. Der Slug kann nicht geändert werden.",
+        "Table": {
+          "name": "Name",
+          "slug": "Slug",
+          "created": "Erstellt",
+          "updated": "Aktualisiert",
+          "actions": "Aktionen",
+          "edit": "Bearbeiten",
+          "empty": "Keine Vendors gefunden.",
+          "searchPlaceholder": "Nach Name oder Slug suchen…",
+          "totalCount": "{count, plural, one {# Vendor} other {# Vendors}}",
+          "filteredCount": "{shown} von {total} angezeigt",
+          "emptySearch": "Keine Vendors entsprechen deiner Suche."
+        },
+        "Form": {
+          "nameLabel": "Name",
+          "slugLabel": "Slug",
+          "slugHintCreate": "Kleinbuchstaben, Zahlen und Bindestriche verwenden. Der Slug kann nach der Erstellung nicht geändert werden.",
+          "slugHintEdit": "Der Slug ist schreibgeschützt.",
+          "create": "Vendor erstellen",
+          "save": "Änderungen speichern",
+          "createSuccess": "Vendor erstellt.",
+          "saveSuccess": "Vendor aktualisiert.",
+          "saveFailed": "Vendor konnte nicht gespeichert werden.",
+          "invalidInput": "Prüfe die Vendor-Felder und versuche es erneut.",
+          "notFound": "Vendor nicht gefunden.",
+          "logos": {
+            "lightLabel": "Logo (Hellmodus)",
+            "darkLabel": "Logo (Dunkelmodus)",
+            "upload": "Logo hochladen",
+            "replace": "Logo ersetzen",
+            "remove": "Logo entfernen",
+            "previewAlt": "Vendor-Logo-Vorschau",
+            "fileTooLarge": "Logo-Datei ist zu groß.",
+            "fileTypeNotAccepted": "Logo-Dateityp wird nicht unterstützt.",
+            "maxFilesExceeded": "Es kann jeweils nur eine Logo-Datei hochgeladen werden.",
+            "uploadError": "Logo konnte nicht hochgeladen werden."
+          }
         }
       }
     },

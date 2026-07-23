@@ -3,6 +3,7 @@ import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-shar
 import type {
   ActivateEnterpriseContractRequest,
   AgentStatus,
+  CreateAdminVendorData,
   CreateConversationMessageRequest,
   CreateEnterpriseContractRequest,
   DeleteHermesMeInstanceIntegrationsByProviderData,
@@ -34,6 +35,7 @@ import type {
   MarkHermesInboxSeenRequest,
   Notice,
   PaginationMetadata,
+  PatchAdminVendorData,
   PatchCoworkersByIdData,
   PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
@@ -66,6 +68,7 @@ import {
   claimCoupon as coreClaimCoupon,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
+  createAdminVendor as coreCreateAdminVendor,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
@@ -165,6 +168,7 @@ import {
   listAdminOrganizations as coreListAdminOrganizations,
   listAdminTasks as coreListAdminTasks,
   listAdminUsers as coreListAdminUsers,
+  listAdminVendors as coreListAdminVendors,
   listCoworkerAssignments as coreListCoworkerAssignments,
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
@@ -173,6 +177,7 @@ import {
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
+  patchAdminVendor as corePatchAdminVendor,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchCoworkersById as corePatchCoworkersById,
@@ -2038,6 +2043,50 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function listAdminVendors() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminVendors({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch admin vendors",
+    );
+  }
+
+  async function createAdminVendor(
+    body: NonNullable<CreateAdminVendorData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminVendor({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create vendor",
+    );
+  }
+
+  async function patchAdminVendor(
+    id: string,
+    body: NonNullable<PatchAdminVendorData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchAdminVendor({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update vendor",
+    );
+  }
+
   async function listMyVendorMemberships() {
     return executeOperation(
       getClient,
@@ -3377,6 +3426,9 @@ export function createCoreClient(getClient: GetClient) {
     denyMyVendorGrant,
     revokeMyVendorGrant,
     listVendors,
+    listAdminVendors,
+    createAdminVendor,
+    patchAdminVendor,
     listMyVendorMemberships,
     patchVendor,
     listVendorMembers,

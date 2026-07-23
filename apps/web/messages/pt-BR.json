@@ -2936,6 +2936,10 @@
           "coworkers": {
             "title": "Coworkers",
             "description": "Gerencie capacidades, prioridade, lista de permissão, arquivamento e metadados de exibição de todos os coworkers."
+          },
+          "vendors": {
+            "title": "Vendors",
+            "description": "Crie e edite vendors do marketplace, incluindo nome e logos."
           }
         }
       },
@@ -3318,6 +3322,54 @@
           "submitting": "Concedendo créditos…",
           "grantSuccess": "Créditos gratuitos concedidos",
           "grantError": "Falha ao conceder créditos gratuitos"
+        }
+      },
+      "Vendors": {
+        "title": "Vendors",
+        "description": "Crie e edite vendors do marketplace, incluindo nome e logos.",
+        "loadFailed": "Falha ao carregar vendors.",
+        "backToList": "Voltar à lista",
+        "createVendor": "Criar vendor",
+        "createTitle": "Novo vendor",
+        "createDescription": "Crie um vendor do marketplace. O slug não pode ser alterado depois.",
+        "editDescription": "Atualize o nome e os logos do vendor. O slug não pode ser alterado.",
+        "Table": {
+          "name": "Nome",
+          "slug": "Slug",
+          "created": "Criado",
+          "updated": "Atualizado",
+          "actions": "Ações",
+          "edit": "Editar",
+          "empty": "Nenhum vendor encontrado.",
+          "searchPlaceholder": "Pesquisar por nome ou slug…",
+          "totalCount": "{count, plural, one {# vendor} other {# vendors}}",
+          "filteredCount": "Mostrando {shown} de {total}",
+          "emptySearch": "Nenhum vendor corresponde à pesquisa."
+        },
+        "Form": {
+          "nameLabel": "Nome",
+          "slugLabel": "Slug",
+          "slugHintCreate": "Use letras minúsculas, números e hífens. O slug não pode ser alterado após a criação.",
+          "slugHintEdit": "O slug é somente leitura.",
+          "create": "Criar vendor",
+          "save": "Salvar alterações",
+          "createSuccess": "Vendor criado.",
+          "saveSuccess": "Vendor atualizado.",
+          "saveFailed": "Falha ao salvar o vendor.",
+          "invalidInput": "Verifique os campos do vendor e tente novamente.",
+          "notFound": "Vendor não encontrado.",
+          "logos": {
+            "lightLabel": "Logo (modo claro)",
+            "darkLabel": "Logo (modo escuro)",
+            "upload": "Enviar logo",
+            "replace": "Substituir logo",
+            "remove": "Remover logo",
+            "previewAlt": "Prévia do logo do vendor",
+            "fileTooLarge": "O arquivo do logo é muito grande.",
+            "fileTypeNotAccepted": "O tipo de arquivo do logo não é suportado.",
+            "maxFilesExceeded": "Só é possível enviar um arquivo de logo por vez.",
+            "uploadError": "Falha ao enviar o logo."
+          }
         }
       }
     },

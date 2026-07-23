@@ -2936,6 +2936,10 @@
           "coworkers": {
             "title": "Coworkers",
             "description": "管理所有同事的能力、优先级、白名单、归档和显示元数据。"
+          },
+          "vendors": {
+            "title": "供应商",
+            "description": "创建和编辑市场供应商，包括名称和徽标。"
           }
         }
       },
@@ -3318,6 +3322,54 @@
           "submitting": "正在发放积分…",
           "grantSuccess": "免费积分已发放",
           "grantError": "发放免费积分失败"
+        }
+      },
+      "Vendors": {
+        "title": "供应商",
+        "description": "创建和编辑市场供应商，包括名称和徽标。",
+        "loadFailed": "加载供应商失败。",
+        "backToList": "返回列表",
+        "createVendor": "创建供应商",
+        "createTitle": "新建供应商",
+        "createDescription": "创建市场供应商。创建后无法更改 slug。",
+        "editDescription": "更新供应商名称和徽标。slug 无法更改。",
+        "Table": {
+          "name": "名称",
+          "slug": "Slug",
+          "created": "创建时间",
+          "updated": "更新时间",
+          "actions": "操作",
+          "edit": "编辑",
+          "empty": "未找到供应商。",
+          "searchPlaceholder": "按名称或 slug 搜索…",
+          "totalCount": "{count, plural, other {# 个供应商}}",
+          "filteredCount": "显示 {shown} / {total}",
+          "emptySearch": "没有与搜索匹配的供应商。"
+        },
+        "Form": {
+          "nameLabel": "名称",
+          "slugLabel": "Slug",
+          "slugHintCreate": "使用小写字母、数字和连字符。创建后无法更改 slug。",
+          "slugHintEdit": "Slug 为只读。",
+          "create": "创建供应商",
+          "save": "保存更改",
+          "createSuccess": "供应商已创建。",
+          "saveSuccess": "供应商已更新。",
+          "saveFailed": "保存供应商失败。",
+          "invalidInput": "请检查供应商字段后重试。",
+          "notFound": "未找到供应商。",
+          "logos": {
+            "lightLabel": "徽标（浅色模式）",
+            "darkLabel": "徽标（深色模式）",
+            "upload": "上传徽标",
+            "replace": "替换徽标",
+            "remove": "移除徽标",
+            "previewAlt": "供应商徽标预览",
+            "fileTooLarge": "徽标文件过大。",
+            "fileTypeNotAccepted": "不支持该徽标文件类型。",
+            "maxFilesExceeded": "一次只能上传一个徽标文件。",
+            "uploadError": "上传徽标失败。"
+          }
         }
       }
     },
