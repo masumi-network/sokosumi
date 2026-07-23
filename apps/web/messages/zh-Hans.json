@@ -4312,14 +4312,14 @@
         },
         "assignments": {
           "title": "开发者分配",
-          "description": "将供应商开发者分配给协作者。只能分配开发者成员。",
-          "emptyCoworkers": "该供应商尚无活跃协作者。",
+          "description": "将供应商成员分配给同事。管理员和开发者都可以被分配。",
+          "emptyCoworkers": "此供应商尚无活跃同事。",
           "noAssignments": "未分配开发者。",
-          "noDevelopers": "该供应商没有可分配的开发者成员。",
-          "assignPlaceholder": "分配开发者",
+          "assignPlaceholder": "分配成员",
           "assignSuccess": "已分配开发者。",
-          "unassignSuccess": "已取消开发者分配。",
-          "unassign": "取消分配 {developer}"
+          "unassignSuccess": "已取消分配开发者。",
+          "unassign": "取消分配 {member}",
+          "noMembers": "此供应商没有可分配的成员。"
         },
         "loadFailed": "加载供应商数据失败。"
       }

@@ -20,7 +20,8 @@ export interface VendorCoworkerAssignments {
 export interface VendorAdminPanelData {
   vendor: VendorMembership;
   members: VendorMember[];
-  developerMembers: VendorMember[];
+  /** Vendor members eligible for coworker assignment (admin or developer). */
+  assignableMembers: VendorMember[];
   coworkerAssignments: VendorCoworkerAssignments[];
 }
 
@@ -28,6 +29,13 @@ function isAdminMembership(
   membership: VendorMembership,
 ): membership is VendorMembership & { role: typeof VendorMemberRole.ADMIN } {
   return membership.role === VendorMemberRole.ADMIN;
+}
+
+function isAssignableMember(member: VendorMember): boolean {
+  return (
+    member.role === VendorMemberRole.ADMIN ||
+    member.role === VendorMemberRole.DEVELOPER
+  );
 }
 
 function buildVendorPatchBody(
@@ -87,13 +95,11 @@ export const vendorService = (() => {
     return data ?? [];
   }
 
-  async function listVendorDeveloperMembers(
+  async function listVendorAssignableMembers(
     vendorId: string,
   ): Promise<VendorMember[]> {
     const members = await listVendorMembers(vendorId);
-    return members.filter(
-      (member) => member.role === VendorMemberRole.DEVELOPER,
-    );
+    return members.filter(isAssignableMember);
   }
 
   async function listVendorCoworkers(vendorId: string): Promise<Coworker[]> {
@@ -136,9 +142,7 @@ export const vendorService = (() => {
     return {
       vendor,
       members,
-      developerMembers: members.filter(
-        (member) => member.role === VendorMemberRole.DEVELOPER,
-      ),
+      assignableMembers: members.filter(isAssignableMember),
       coworkerAssignments,
     };
   }
@@ -189,7 +193,7 @@ export const vendorService = (() => {
     listMyVendorMemberships,
     listMyAdminVendorMemberships,
     listVendorMembers,
-    listVendorDeveloperMembers,
+    listVendorAssignableMembers,
     listVendorCoworkers,
     listCoworkerAssignments,
     getVendorAdminPanelData,

@@ -182,7 +182,7 @@ export function VendorAdminPanel({ adminVendors }: VendorAdminPanelProps) {
           />
           <VendorCoworkerAssignments
             vendorId={selectedVendor.id}
-            developerMembers={panelData.developerMembers}
+            assignableMembers={panelData.assignableMembers}
             coworkerAssignments={panelData.coworkerAssignments}
             isLoading={isLoadingPanel}
             onAssignmentsChange={handleAssignmentsChange}

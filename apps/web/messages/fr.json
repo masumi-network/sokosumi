@@ -4311,15 +4311,15 @@
           }
         },
         "assignments": {
-          "title": "Affectations développeurs",
-          "description": "Affectez des développeurs fournisseur aux coworkers. Seuls les membres développeurs peuvent être affectés.",
-          "emptyCoworkers": "Ce fournisseur n'a pas encore de coworkers actifs.",
+          "title": "Affectations développeur",
+          "description": "Affectez des membres du vendor aux coworkers. Les admins et les développeurs peuvent être affectés.",
+          "emptyCoworkers": "Ce vendor n’a pas encore de coworkers actifs.",
           "noAssignments": "Aucun développeur affecté.",
-          "noDevelopers": "Ce fournisseur n'a aucun membre développeur à affecter.",
-          "assignPlaceholder": "Affecter un développeur",
+          "assignPlaceholder": "Affecter un membre",
           "assignSuccess": "Développeur affecté.",
           "unassignSuccess": "Développeur retiré.",
-          "unassign": "Retirer {developer}"
+          "unassign": "Retirer {member}",
+          "noMembers": "Ce vendor n’a aucun membre à affecter."
         },
         "loadFailed": "Échec du chargement des données fournisseur."
       }

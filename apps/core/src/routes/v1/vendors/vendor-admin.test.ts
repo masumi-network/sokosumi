@@ -251,7 +251,36 @@ describe("vendor admin APIs", () => {
     });
   });
 
-  it("rejects assignment when target user is not a developer member", async () => {
+  it("assigns a vendor admin member to a coworker", async () => {
+    mockVendorDeveloperTarget();
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/coworkers/cow_123/assignments`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "admin_user" }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(coworkerAssignmentUpsertMock).toHaveBeenCalledWith({
+      where: {
+        coworkerId_userId: {
+          coworkerId: "cow_123",
+          userId: "admin_user",
+        },
+      },
+      create: {
+        coworkerId: "cow_123",
+        userId: "admin_user",
+      },
+      update: {},
+    });
+  });
+
+  it("rejects assignment when target user is not a vendor member", async () => {
     mockVendorAdmin();
     vendorMemberFindFirstMock
       .mockResolvedValueOnce({ id: "vm_admin" })

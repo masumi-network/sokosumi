@@ -4311,15 +4311,15 @@
           }
         },
         "assignments": {
-          "title": "Atribuições de desenvolvedores",
-          "description": "Atribua desenvolvedores do fornecedor a coworkers. Apenas membros desenvolvedores podem ser atribuídos.",
-          "emptyCoworkers": "Este fornecedor ainda não tem coworkers ativos.",
-          "noAssignments": "Nenhum desenvolvedor atribuído.",
-          "noDevelopers": "Este fornecedor não tem membros desenvolvedores para atribuir.",
-          "assignPlaceholder": "Atribuir desenvolvedor",
-          "assignSuccess": "Desenvolvedor atribuído.",
-          "unassignSuccess": "Desenvolvedor removido.",
-          "unassign": "Remover {developer}"
+          "title": "Atribuições de developer",
+          "description": "Atribua membros do vendor a coworkers. Admins e developers podem ser atribuídos.",
+          "emptyCoworkers": "Este vendor ainda não tem coworkers ativos.",
+          "noAssignments": "Nenhum developer atribuído.",
+          "assignPlaceholder": "Atribuir membro",
+          "assignSuccess": "Developer atribuído.",
+          "unassignSuccess": "Developer removido.",
+          "unassign": "Remover {member}",
+          "noMembers": "Este vendor não tem membros para atribuir."
         },
         "loadFailed": "Falha ao carregar os dados do fornecedor."
       }

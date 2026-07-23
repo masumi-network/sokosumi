@@ -4312,14 +4312,14 @@
         },
         "assignments": {
           "title": "Asignaciones de desarrolladores",
-          "description": "Asigna desarrolladores del proveedor a coworkers. Solo se pueden asignar miembros desarrolladores.",
-          "emptyCoworkers": "Este proveedor aún no tiene coworkers activos.",
+          "description": "Asigna miembros del vendor a coworkers. Se pueden asignar admins y desarrolladores.",
+          "emptyCoworkers": "Este vendor aún no tiene coworkers activos.",
           "noAssignments": "No hay desarrolladores asignados.",
-          "noDevelopers": "Este proveedor no tiene miembros desarrolladores para asignar.",
-          "assignPlaceholder": "Asignar desarrollador",
+          "assignPlaceholder": "Asignar miembro",
           "assignSuccess": "Desarrollador asignado.",
           "unassignSuccess": "Desarrollador desasignado.",
-          "unassign": "Quitar {developer}"
+          "unassign": "Desasignar {member}",
+          "noMembers": "Este vendor no tiene miembros para asignar."
         },
         "loadFailed": "No se pudieron cargar los datos del proveedor."
       }

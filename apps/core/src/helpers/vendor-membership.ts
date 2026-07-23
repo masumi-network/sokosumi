@@ -62,7 +62,11 @@ export async function requireVendorAdminMembership(
   }
 }
 
-export async function requireVendorDeveloperMembership(
+/**
+ * Assignment targets: vendor admin or developer. Admin is a member with more
+ * vendor permissions and may still be assigned to a coworker.
+ */
+export async function requireAssignableVendorMembership(
   userId: string,
   vendorId: string,
 ): Promise<void> {
@@ -70,13 +74,15 @@ export async function requireVendorDeveloperMembership(
     where: {
       vendorId,
       userId,
-      role: "developer",
+      role: {
+        in: ["admin", "developer"],
+      },
     },
     select: { id: true },
   });
 
   if (!membership) {
-    throw badRequest("Target user must be a developer member of this vendor");
+    throw badRequest("Target user must be a member of this vendor");
   }
 }
 

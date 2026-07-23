@@ -140,6 +140,12 @@ describe("vendorService", () => {
     listVendorMembersMock.mockResolvedValue({
       data: [
         {
+          id: "admin_1",
+          email: "admin@example.com",
+          name: "Admin",
+          role: VendorMemberRole.ADMIN,
+        },
+        {
           id: "dev_1",
           email: "dev@example.com",
           name: "Dev",
@@ -152,7 +158,7 @@ describe("vendorService", () => {
       data: [
         {
           coworkerId: coworker.id,
-          userId: "dev_1",
+          userId: "admin_1",
           createdAt: new Date("2025-01-03T00:00:00.000Z"),
           updatedAt: new Date("2025-01-03T00:00:00.000Z"),
         },
@@ -162,7 +168,7 @@ describe("vendorService", () => {
     const result = await vendorService.getVendorAdminPanelData("vendor_1");
 
     expect(result?.vendor.id).toBe("vendor_1");
-    expect(result?.developerMembers).toHaveLength(1);
+    expect(result?.assignableMembers).toHaveLength(2);
     expect(result?.coworkerAssignments).toHaveLength(1);
   });
 

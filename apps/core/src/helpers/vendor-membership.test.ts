@@ -5,9 +5,9 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import {
   buildAccessibleCoworkerMembershipOr,
   buildAccessibleCoworkersWhere,
+  requireAssignableVendorMembership,
   requireCoworkerBelongsToVendor,
   requireVendorAdminMembership,
-  requireVendorDeveloperMembership,
 } from "./vendor-membership";
 
 const {
@@ -98,7 +98,7 @@ describe("requireVendorAdminMembership", () => {
   });
 });
 
-describe("requireVendorDeveloperMembership", () => {
+describe("requireAssignableVendorMembership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -107,18 +107,26 @@ describe("requireVendorDeveloperMembership", () => {
     vendorMemberFindFirstMock.mockResolvedValue({ id: "vm_dev" });
 
     await expect(
-      requireVendorDeveloperMembership("dev_123", TEST_VENDOR_ID),
+      requireAssignableVendorMembership("dev_123", TEST_VENDOR_ID),
     ).resolves.toBeUndefined();
   });
 
-  it("throws 400 when the user is not a developer member", async () => {
+  it("resolves when the user is a vendor admin member", async () => {
+    vendorMemberFindFirstMock.mockResolvedValue({ id: "vm_admin" });
+
+    await expect(
+      requireAssignableVendorMembership("admin_123", TEST_VENDOR_ID),
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws 400 when the user is not a vendor member", async () => {
     vendorMemberFindFirstMock.mockResolvedValue(null);
 
     await expect(
-      requireVendorDeveloperMembership("dev_123", TEST_VENDOR_ID),
+      requireAssignableVendorMembership("outsider", TEST_VENDOR_ID),
     ).rejects.toMatchObject({
       status: 400,
-      message: "Target user must be a developer member of this vendor",
+      message: "Target user must be a member of this vendor",
     });
   });
 });

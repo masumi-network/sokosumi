@@ -4312,14 +4312,14 @@
         },
         "assignments": {
           "title": "開発者の割り当て",
-          "description": "ベンダーの開発者をコワーカーに割り当てます。開発者メンバーのみ割り当て可能です。",
-          "emptyCoworkers": "このベンダーにはまだアクティブなコワーカーがありません。",
-          "noAssignments": "割り当てられた開発者はいません。",
-          "noDevelopers": "このベンダーには割り当て可能な開発者メンバーがいません。",
-          "assignPlaceholder": "開発者を割り当て",
+          "description": "ベンダーメンバーをコワーカーに割り当てます。管理者と開発者の両方を割り当てできます。",
+          "emptyCoworkers": "このベンダーにはまだ有効なコワーカーがありません。",
+          "noAssignments": "開発者が割り当てられていません。",
+          "assignPlaceholder": "メンバーを割り当て",
           "assignSuccess": "開発者を割り当てました。",
           "unassignSuccess": "開発者の割り当てを解除しました。",
-          "unassign": "{developer} を解除"
+          "unassign": "{member} の割り当てを解除",
+          "noMembers": "このベンダーには割り当て可能なメンバーがいません。"
         },
         "loadFailed": "ベンダーデータの読み込みに失敗しました。"
       }

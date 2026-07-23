@@ -4311,15 +4311,15 @@
           }
         },
         "assignments": {
-          "title": "Entwicklerzuweisungen",
-          "description": "Weisen Sie Anbieter-Entwickler Coworkers zu. Es können nur Entwicklermitglieder zugewiesen werden.",
-          "emptyCoworkers": "Dieser Anbieter hat noch keine aktiven Coworkers.",
-          "noAssignments": "Keine Entwickler zugewiesen.",
-          "noDevelopers": "Dieser Anbieter hat keine Entwicklermitglieder zum Zuweisen.",
-          "assignPlaceholder": "Entwickler zuweisen",
-          "assignSuccess": "Entwickler zugewiesen.",
-          "unassignSuccess": "Entwicklerzuweisung entfernt.",
-          "unassign": "{developer} entfernen"
+          "title": "Developer-Zuweisungen",
+          "description": "Vendor-Mitglieder Coworkern zuweisen. Admins und Developer können zugewiesen werden.",
+          "emptyCoworkers": "Dieser Vendor hat noch keine aktiven Coworker.",
+          "noAssignments": "Keine Developer zugewiesen.",
+          "assignPlaceholder": "Mitglied zuweisen",
+          "assignSuccess": "Developer zugewiesen.",
+          "unassignSuccess": "Developer entfernt.",
+          "unassign": "{member} entfernen",
+          "noMembers": "Dieser Vendor hat keine Mitglieder zum Zuweisen."
         },
         "loadFailed": "Anbieterdaten konnten nicht geladen werden."
       }

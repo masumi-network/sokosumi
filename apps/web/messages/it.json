@@ -4311,15 +4311,15 @@
           }
         },
         "assignments": {
-          "title": "Assegnazioni sviluppatori",
-          "description": "Assegna gli sviluppatori del vendor ai coworker. Possono essere assegnati solo membri sviluppatori.",
+          "title": "Assegnazioni sviluppatore",
+          "description": "Assegna i membri del vendor ai coworker. Admin e developer possono essere assegnati.",
           "emptyCoworkers": "Questo vendor non ha ancora coworker attivi.",
           "noAssignments": "Nessuno sviluppatore assegnato.",
-          "noDevelopers": "Questo vendor non ha membri sviluppatori da assegnare.",
-          "assignPlaceholder": "Assegna sviluppatore",
+          "assignPlaceholder": "Assegna membro",
           "assignSuccess": "Sviluppatore assegnato.",
           "unassignSuccess": "Sviluppatore rimosso.",
-          "unassign": "Rimuovi {developer}"
+          "unassign": "Rimuovi {member}",
+          "noMembers": "Questo vendor non ha membri da assegnare."
         },
         "loadFailed": "Impossibile caricare i dati del vendor."
       }

@@ -4460,14 +4460,14 @@
         },
         "assignments": {
           "title": "Developer assignments",
-          "description": "Assign vendor developers to coworkers. Only developer members can be assigned.",
+          "description": "Assign vendor members to coworkers. Admins and developers can be assigned.",
           "emptyCoworkers": "This vendor has no active coworkers yet.",
           "noAssignments": "No developers assigned.",
-          "noDevelopers": "This vendor has no developer members to assign.",
-          "assignPlaceholder": "Assign developer",
+          "assignPlaceholder": "Assign member",
           "assignSuccess": "Developer assigned.",
           "unassignSuccess": "Developer unassigned.",
-          "unassign": "Unassign {developer}"
+          "unassign": "Unassign {member}",
+          "noMembers": "This vendor has no members to assign."
         }
       },
       "Docs": {

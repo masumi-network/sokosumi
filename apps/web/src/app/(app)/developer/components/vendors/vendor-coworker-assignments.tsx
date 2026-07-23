@@ -23,7 +23,7 @@ import type { VendorCoworkerAssignments } from "@/lib/services/vendor.service";
 
 interface VendorCoworkerAssignmentsProps {
   vendorId: string;
-  developerMembers: VendorMember[];
+  assignableMembers: VendorMember[];
   coworkerAssignments: VendorCoworkerAssignments[];
   isLoading: boolean;
   onAssignmentsChange: () => void;
@@ -35,7 +35,7 @@ function memberLabel(member: VendorMember): string {
 
 export function VendorCoworkerAssignments({
   vendorId,
-  developerMembers,
+  assignableMembers,
   coworkerAssignments,
   isLoading,
   onAssignmentsChange,
@@ -65,7 +65,7 @@ export function VendorCoworkerAssignments({
             vendorId={vendorId}
             coworkerId={coworker.id}
             coworkerName={coworker.name}
-            developerMembers={developerMembers}
+            assignableMembers={assignableMembers}
             assignments={assignments}
             isLoading={isLoading}
             onAssignmentsChange={onAssignmentsChange}
@@ -80,7 +80,7 @@ interface CoworkerAssignmentRowProps {
   vendorId: string;
   coworkerId: string;
   coworkerName: string;
-  developerMembers: VendorMember[];
+  assignableMembers: VendorMember[];
   assignments: VendorCoworkerAssignments["assignments"];
   isLoading: boolean;
   onAssignmentsChange: () => void;
@@ -90,7 +90,7 @@ function CoworkerAssignmentRow({
   vendorId,
   coworkerId,
   coworkerName,
-  developerMembers,
+  assignableMembers,
   assignments,
   isLoading,
   onAssignmentsChange,
@@ -104,13 +104,13 @@ function CoworkerAssignmentRow({
   );
 
   const assignedMembers = useMemo(
-    () => developerMembers.filter((member) => assignedUserIds.has(member.id)),
-    [assignedUserIds, developerMembers],
+    () => assignableMembers.filter((member) => assignedUserIds.has(member.id)),
+    [assignedUserIds, assignableMembers],
   );
 
   const availableMembers = useMemo(
-    () => developerMembers.filter((member) => !assignedUserIds.has(member.id)),
-    [assignedUserIds, developerMembers],
+    () => assignableMembers.filter((member) => !assignedUserIds.has(member.id)),
+    [assignedUserIds, assignableMembers],
   );
 
   const handleAssign = useCallback(
@@ -185,7 +185,7 @@ function CoworkerAssignmentRow({
                 className="size-4"
                 disabled={busy}
                 onClick={() => handleUnassign(member.id)}
-                aria-label={t("unassign", { developer: memberLabel(member) })}
+                aria-label={t("unassign", { member: memberLabel(member) })}
               >
                 <X className="size-2.5" />
               </Button>
@@ -195,8 +195,8 @@ function CoworkerAssignmentRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
-        {developerMembers.length === 0 ? (
-          <p className="text-muted-foreground text-xs">{t("noDevelopers")}</p>
+        {assignableMembers.length === 0 ? (
+          <p className="text-muted-foreground text-xs">{t("noMembers")}</p>
         ) : availableMembers.length > 0 ? (
           <>
             <Select disabled={busy} onValueChange={handleAssign}>
