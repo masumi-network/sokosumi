@@ -1,6 +1,6 @@
 {
   "name": "Sokosumi Monorepo",
   "agentCanUpdateSnapshot": true,
-  "install": "pnpm install",
-  "start": "pnpm dev"
+  "install": "pnpm install && node scripts/cloud-agent-db/provision.mjs",
+  "start": "node scripts/cloud-agent-db/with-db.mjs -- pnpm dev"
 }
