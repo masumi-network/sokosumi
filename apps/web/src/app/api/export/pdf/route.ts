@@ -3,9 +3,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { Page } from "puppeteer-core";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import { getSession } from "@/lib/auth/auth.server";
+import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Hard cap on HTML payload size to limit Chromium memory/CPU abuse. */
+const MAX_HTML_BYTES = 1_500_000;
 
 interface GeneratePdfRequest {
   html?: string;
@@ -79,14 +84,12 @@ const footerWithLogoHtml = `
     </div>
   `;
 
-function getOriginFromHeaders(request: NextRequest): string {
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = request.headers.get("host");
-  const protocol =
-    forwardedProto ?? (request.nextUrl.protocol.replace(":", "") || "https");
-  const hostname = forwardedHost ?? host ?? request.nextUrl.hostname;
-  return `${protocol}://${hostname}`;
+/**
+ * Origin for `<base href>` relative asset resolution.
+ * Uses the request URL only — never client-controlled forwarded host headers.
+ */
+function getTrustedDocumentOrigin(request: NextRequest): string {
+  return request.nextUrl.origin;
 }
 
 const IMAGE_LOAD_TIMEOUT_MS = 30_000;
@@ -158,13 +161,25 @@ function wrapHtmlDocument(html: string, origin: string): string {
 export async function POST(request: NextRequest) {
   let browser;
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const json = (await request.json()) as GeneratePdfRequest;
     const rawHtml = (json.html ?? "").toString();
     if (!rawHtml) {
       return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
     }
 
-    const origin = getOriginFromHeaders(request);
+    if (Buffer.byteLength(rawHtml, "utf8") > MAX_HTML_BYTES) {
+      return NextResponse.json(
+        { error: "HTML payload too large" },
+        { status: 413 },
+      );
+    }
+
+    const origin = getTrustedDocumentOrigin(request);
     const html = wrapHtmlDocument(rawHtml, origin);
 
     const isVercel = !!getEnvSecrets().VERCEL_URL;
@@ -195,6 +210,8 @@ export async function POST(request: NextRequest) {
     // pnpm dlx puppeteer browsers install chrome
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    installPdfExportRequestGuard(page);
     await page.setContent(html, { waitUntil: "load" });
     await waitForDocumentImages(page);
     await page.emulateMediaType("print");
