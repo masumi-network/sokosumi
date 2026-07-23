@@ -4168,7 +4168,8 @@
         "apiKeys": "Chaves de API",
         "docs": "Documentação",
         "coworkers": "Coworkers",
-        "tasks": "Tarefas"
+        "tasks": "Tarefas",
+        "vendors": "Fornecedores"
       },
       "Docs": {
         "title": "Documentação para programadores",
@@ -4190,7 +4191,7 @@
       },
       "Coworkers": {
         "title": "Os seus coworkers",
-        "description": "Gira as definições de apresentação dos coworkers que possui.",
+        "description": "Gerir definições de apresentação dos coworkers a que pode aceder através da adesão ao fornecedor.",
         "loadFailed": "Falha ao carregar os seus coworkers.",
         "backToList": "Voltar aos coworkers",
         "editDescription": "Atualize como este coworker aparece no Sokosumi.",
@@ -4198,22 +4199,22 @@
           "notFound": "Coworker não encontrado."
         },
         "List": {
-          "empty": "Ainda não possui coworkers ativos.",
+          "empty": "Ainda não tem coworkers ativos acessíveis.",
           "noCaption": "Sem legenda",
           "edit": "Editar"
         },
         "Metadata": {
           "title": "Editar coworker",
-          "description": "Editar os campos de apresentação dos seus coworkers"
+          "description": "Editar campos de apresentação de coworkers acessíveis"
         }
       },
       "Tasks": {
-        "title": "Tarefas dos coworkers próprios",
-        "description": "Vista só de leitura de tarefas em que os seus coworkers são responsáveis ou criadores.",
+        "title": "Tarefas de coworkers acessíveis",
+        "description": "Vista só de leitura de tarefas em que os seus coworkers acessíveis são responsáveis ou criadores.",
         "loadFailed": "Não foi possível carregar as tarefas.",
         "List": {
           "totalCount": "{count, plural, one {# tarefa} other {# tarefas}}",
-          "empty": "Ainda não foram encontradas tarefas para os seus coworkers.",
+          "empty": "Ainda não foram encontradas tarefas para os seus coworkers acessíveis.",
           "task": "Tarefa",
           "status": "Estado",
           "coworkers": "Coworkers",
@@ -4227,6 +4228,48 @@
           "backToList": "Voltar às tarefas",
           "personalWorkspace": "Área de trabalho pessoal"
         }
+      },
+      "Vendors": {
+        "title": "Administração de fornecedores",
+        "description": "Gerir o perfil do fornecedor e as atribuições de programadores para fornecedores em que é administrador.",
+        "loading": "A carregar dados do fornecedor…",
+        "vendorSelect": {
+          "label": "Fornecedor",
+          "placeholder": "Selecionar um fornecedor"
+        },
+        "profile": {
+          "title": "Perfil do fornecedor",
+          "description": "Atualize o nome e os logótipos do fornecedor. O slug não pode ser alterado.",
+          "nameLabel": "Nome",
+          "slugLabel": "Slug",
+          "slugHint": "O slug é só de leitura.",
+          "save": "Guardar alterações",
+          "saveSuccess": "Perfil do fornecedor atualizado.",
+          "logos": {
+            "lightLabel": "Logótipo (modo claro)",
+            "darkLabel": "Logótipo (modo escuro)",
+            "upload": "Carregar logótipo",
+            "replace": "Substituir logótipo",
+            "remove": "Remover logótipo",
+            "previewAlt": "Pré-visualização do logótipo do fornecedor",
+            "fileTooLarge": "O ficheiro do logótipo é demasiado grande.",
+            "fileTypeNotAccepted": "O tipo de ficheiro do logótipo não é suportado.",
+            "maxFilesExceeded": "Só pode ser carregado um ficheiro de logótipo de cada vez.",
+            "uploadError": "Falha ao carregar o logótipo."
+          }
+        },
+        "assignments": {
+          "title": "Atribuições de programadores",
+          "description": "Atribua programadores do fornecedor a coworkers. Apenas membros programadores podem ser atribuídos.",
+          "emptyCoworkers": "Este fornecedor ainda não tem coworkers ativos.",
+          "noAssignments": "Nenhum programador atribuído.",
+          "noDevelopers": "Este fornecedor não tem membros programadores para atribuir.",
+          "assignPlaceholder": "Atribuir programador",
+          "assignSuccess": "Programador atribuído.",
+          "unassignSuccess": "Programador removido.",
+          "unassign": "Remover {developer}"
+        },
+        "loadFailed": "Falha ao carregar os dados do fornecedor."
       }
     },
     "Connections": {

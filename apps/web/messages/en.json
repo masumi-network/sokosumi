@@ -4333,11 +4333,12 @@
         "apiKeys": "API Keys",
         "coworkers": "Coworkers",
         "tasks": "Tasks",
+        "vendors": "Vendors",
         "docs": "Documentation"
       },
       "Coworkers": {
         "title": "Your coworkers",
-        "description": "Manage display settings for coworkers you own.",
+        "description": "Manage display settings for coworkers you can access through vendor membership.",
         "loadFailed": "Failed to load your coworkers.",
         "backToList": "Back to coworkers",
         "editDescription": "Update how this coworker appears in Sokosumi.",
@@ -4345,22 +4346,22 @@
           "notFound": "Coworker not found."
         },
         "List": {
-          "empty": "You do not own any active coworkers yet.",
+          "empty": "You do not have any active accessible coworkers yet.",
           "noCaption": "No caption",
           "edit": "Edit"
         },
         "Metadata": {
           "title": "Edit coworker",
-          "description": "Edit owned coworker display fields"
+          "description": "Edit accessible coworker display fields"
         }
       },
       "Tasks": {
-        "title": "Owned coworker tasks",
-        "description": "Read-only view of tasks where your coworkers are assignee or creator.",
+        "title": "Accessible coworker tasks",
+        "description": "Read-only view of tasks where your accessible coworkers are assignee or creator.",
         "loadFailed": "Failed to load tasks.",
         "List": {
           "totalCount": "{count, plural, one {# task} other {# tasks}}",
-          "empty": "No tasks found for your coworkers yet.",
+          "empty": "No tasks found for your accessible coworkers yet.",
           "task": "Task",
           "status": "Status",
           "coworkers": "Coworkers",
@@ -4373,6 +4374,48 @@
         "TaskDetail": {
           "backToList": "Back to tasks",
           "personalWorkspace": "Personal workspace"
+        }
+      },
+      "Vendors": {
+        "title": "Vendor administration",
+        "description": "Manage vendor profile and developer assignments for vendors where you are an admin.",
+        "loading": "Loading vendor data…",
+        "loadFailed": "Failed to load vendor data.",
+        "vendorSelect": {
+          "label": "Vendor",
+          "placeholder": "Select a vendor"
+        },
+        "profile": {
+          "title": "Vendor profile",
+          "description": "Update the vendor name and logos. The slug cannot be changed.",
+          "nameLabel": "Name",
+          "slugLabel": "Slug",
+          "slugHint": "The slug is read-only.",
+          "save": "Save changes",
+          "saveSuccess": "Vendor profile updated.",
+          "logos": {
+            "lightLabel": "Logo (light mode)",
+            "darkLabel": "Logo (dark mode)",
+            "upload": "Upload logo",
+            "replace": "Replace logo",
+            "remove": "Remove logo",
+            "previewAlt": "Vendor logo preview",
+            "fileTooLarge": "Logo file is too large.",
+            "fileTypeNotAccepted": "Logo file type is not supported.",
+            "maxFilesExceeded": "Only one logo file can be uploaded at a time.",
+            "uploadError": "Failed to upload logo."
+          }
+        },
+        "assignments": {
+          "title": "Developer assignments",
+          "description": "Assign vendor developers to coworkers. Only developer members can be assigned.",
+          "emptyCoworkers": "This vendor has no active coworkers yet.",
+          "noAssignments": "No developers assigned.",
+          "noDevelopers": "This vendor has no developer members to assign.",
+          "assignPlaceholder": "Assign developer",
+          "assignSuccess": "Developer assigned.",
+          "unassignSuccess": "Developer unassigned.",
+          "unassign": "Unassign {developer}"
         }
       },
       "Docs": {

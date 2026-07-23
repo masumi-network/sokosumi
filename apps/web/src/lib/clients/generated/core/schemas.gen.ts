@@ -11410,6 +11410,142 @@ export const SubscriptionCatalogPlanSchema = {
     ]
 } as const;
 
+export const VendorMembershipListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/VendorMembership'
+    }
+} as const;
+
+export const VendorMembershipSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Vendor'
+        },
+        {
+            type: 'object',
+            properties: {
+                role: {
+                    $ref: '#/components/schemas/VendorMemberRole'
+                }
+            },
+            required: [
+                'role'
+            ]
+        }
+    ]
+} as const;
+
+export const VendorMemberRoleSchema = {
+    type: 'string',
+    enum: [
+        'admin',
+        'developer'
+    ]
+} as const;
+
+export const PatchVendorAdminRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            example: 'Serviceplan'
+        },
+        logos: {
+            $ref: '#/components/schemas/VendorLogosInput'
+        }
+    }
+} as const;
+
+export const VendorMemberListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/VendorMember'
+    }
+} as const;
+
+export const VendorMemberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        email: {
+            type: 'string',
+            format: 'email',
+            example: 'dev@example.com'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Dev User'
+        },
+        role: {
+            $ref: '#/components/schemas/VendorMemberRole'
+        }
+    },
+    required: [
+        'id',
+        'email',
+        'name',
+        'role'
+    ]
+} as const;
+
+export const CoworkerAssignmentListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/CoworkerAssignment'
+    }
+} as const;
+
+export const CoworkerAssignmentSchema = {
+    type: 'object',
+    properties: {
+        coworkerId: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'coworkerId',
+        'userId',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const AssignCoworkerRequestSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            example: 'user_123'
+        }
+    },
+    required: [
+        'userId'
+    ]
+} as const;
+
 export const EffectiveDesignMdSchema = {
     type: 'object',
     properties: {

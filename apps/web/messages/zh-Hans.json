@@ -4168,7 +4168,8 @@
         "apiKeys": "API 密钥",
         "docs": "文档",
         "coworkers": "Coworkers",
-        "tasks": "任务"
+        "tasks": "任务",
+        "vendors": "供应商"
       },
       "Docs": {
         "title": "开发者文档",
@@ -4190,7 +4191,7 @@
       },
       "Coworkers": {
         "title": "你的 coworkers",
-        "description": "管理你拥有的 coworkers 的展示设置。",
+        "description": "管理您通过供应商成员身份可访问的协作者的显示设置。",
         "loadFailed": "加载你的 coworkers 失败。",
         "backToList": "返回 coworkers",
         "editDescription": "更新此 coworker 在 Sokosumi 中的展示方式。",
@@ -4198,22 +4199,22 @@
           "notFound": "未找到 coworker。"
         },
         "List": {
-          "empty": "你还没有任何活跃的 coworkers。",
+          "empty": "您还没有任何可访问的活跃协作者。",
           "noCaption": "无副标题",
           "edit": "编辑"
         },
         "Metadata": {
           "title": "编辑 coworker",
-          "description": "编辑你拥有的 coworker 展示字段"
+          "description": "编辑可访问协作者的显示字段"
         }
       },
       "Tasks": {
-        "title": "自有 coworker 的任务",
-        "description": "只读查看你的 coworker 作为负责人或创建者的任务。",
+        "title": "可访问协作者的任务",
+        "description": "只读查看您的可访问协作者作为负责人或创建者的任务。",
         "loadFailed": "加载任务失败。",
         "List": {
           "totalCount": "{count, plural, one {# 个任务} other {# 个任务}}",
-          "empty": "尚未找到你的 coworker 相关任务。",
+          "empty": "尚未找到您的可访问协作者的任务。",
           "task": "任务",
           "status": "状态",
           "coworkers": "Coworkers",
@@ -4227,6 +4228,48 @@
           "backToList": "返回任务列表",
           "personalWorkspace": "个人工作区"
         }
+      },
+      "Vendors": {
+        "title": "供应商管理",
+        "description": "管理您担任管理员的供应商的资料和开发者分配。",
+        "loading": "正在加载供应商数据…",
+        "vendorSelect": {
+          "label": "供应商",
+          "placeholder": "选择供应商"
+        },
+        "profile": {
+          "title": "供应商资料",
+          "description": "更新供应商名称和徽标。slug 无法更改。",
+          "nameLabel": "名称",
+          "slugLabel": "Slug",
+          "slugHint": "Slug 为只读。",
+          "save": "保存更改",
+          "saveSuccess": "供应商资料已更新。",
+          "logos": {
+            "lightLabel": "徽标（浅色模式）",
+            "darkLabel": "徽标（深色模式）",
+            "upload": "上传徽标",
+            "replace": "替换徽标",
+            "remove": "移除徽标",
+            "previewAlt": "供应商徽标预览",
+            "fileTooLarge": "徽标文件过大。",
+            "fileTypeNotAccepted": "不支持该徽标文件类型。",
+            "maxFilesExceeded": "一次只能上传一个徽标文件。",
+            "uploadError": "徽标上传失败。"
+          }
+        },
+        "assignments": {
+          "title": "开发者分配",
+          "description": "将供应商开发者分配给协作者。只能分配开发者成员。",
+          "emptyCoworkers": "该供应商尚无活跃协作者。",
+          "noAssignments": "未分配开发者。",
+          "noDevelopers": "该供应商没有可分配的开发者成员。",
+          "assignPlaceholder": "分配开发者",
+          "assignSuccess": "已分配开发者。",
+          "unassignSuccess": "已取消开发者分配。",
+          "unassign": "取消分配 {developer}"
+        },
+        "loadFailed": "加载供应商数据失败。"
       }
     },
     "Connections": {

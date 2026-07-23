@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -11,17 +11,20 @@ type DeveloperTabValue =
   | "api-keys"
   | "coworkers"
   | "tasks"
+  | "vendors"
   | "docs";
 
 interface DeveloperTabsProps {
+  showVendorsTab: boolean;
   oauthClientsContent: ReactNode;
   apiKeysContent: ReactNode;
   coworkersContent: ReactNode;
   tasksContent: ReactNode;
+  vendorsContent: ReactNode;
   docsContent: ReactNode;
 }
 
-const ENABLED_TABS: DeveloperTabValue[] = [
+const BASE_TABS: DeveloperTabValue[] = [
   "oauth-clients",
   "api-keys",
   "coworkers",
@@ -33,10 +36,12 @@ const TAB_TRIGGER_CLASS_NAME =
   "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground shrink-0 rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm";
 
 export function DeveloperTabs({
+  showVendorsTab,
   oauthClientsContent,
   apiKeysContent,
   coworkersContent,
   tasksContent,
+  vendorsContent,
   docsContent,
 }: DeveloperTabsProps) {
   const t = useTranslations("App.Developer");
@@ -44,15 +49,30 @@ export function DeveloperTabs({
     defaultValue: "oauth-clients",
   });
 
-  const activeTab = ENABLED_TABS.includes(tab as DeveloperTabValue)
+  const enabledTabs = useMemo<DeveloperTabValue[]>(() => {
+    if (!showVendorsTab) {
+      return BASE_TABS;
+    }
+
+    return [
+      "oauth-clients",
+      "api-keys",
+      "coworkers",
+      "tasks",
+      "vendors",
+      "docs",
+    ];
+  }, [showVendorsTab]);
+
+  const activeTab = enabledTabs.includes(tab as DeveloperTabValue)
     ? (tab as DeveloperTabValue)
     : "oauth-clients";
 
   useEffect(() => {
-    if (!ENABLED_TABS.includes(tab as DeveloperTabValue)) {
+    if (!enabledTabs.includes(tab as DeveloperTabValue)) {
       void setTab("oauth-clients");
     }
-  }, [setTab, tab]);
+  }, [enabledTabs, setTab, tab]);
 
   return (
     <Tabs
@@ -75,6 +95,11 @@ export function DeveloperTabs({
         <TabsTrigger value="tasks" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.tasks")}
         </TabsTrigger>
+        {showVendorsTab ? (
+          <TabsTrigger value="vendors" className={TAB_TRIGGER_CLASS_NAME}>
+            {t("tabs.vendors")}
+          </TabsTrigger>
+        ) : null}
         <TabsTrigger value="docs" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.docs")}
         </TabsTrigger>
@@ -84,6 +109,9 @@ export function DeveloperTabs({
       <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
       <TabsContent value="coworkers">{coworkersContent}</TabsContent>
       <TabsContent value="tasks">{tasksContent}</TabsContent>
+      {showVendorsTab ? (
+        <TabsContent value="vendors">{vendorsContent}</TabsContent>
+      ) : null}
       <TabsContent value="docs">{docsContent}</TabsContent>
     </Tabs>
   );

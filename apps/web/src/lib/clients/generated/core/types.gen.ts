@@ -3312,6 +3312,43 @@ export type SubscriptionCatalogPlan = {
     slug: string;
 };
 
+export type VendorMembershipList = Array<VendorMembership>;
+
+export type VendorMembership = Vendor & {
+    role: VendorMemberRole;
+};
+
+export const VendorMemberRole = { ADMIN: 'admin', DEVELOPER: 'developer' } as const;
+
+export type VendorMemberRole = typeof VendorMemberRole[keyof typeof VendorMemberRole];
+
+export type PatchVendorAdminRequest = {
+    name?: string;
+    logos?: VendorLogosInput;
+};
+
+export type VendorMemberList = Array<VendorMember>;
+
+export type VendorMember = {
+    id: string;
+    email: string;
+    name: string | null;
+    role: VendorMemberRole;
+};
+
+export type CoworkerAssignmentList = Array<CoworkerAssignment>;
+
+export type CoworkerAssignment = {
+    coworkerId: string;
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AssignCoworkerRequest = {
+    userId: string;
+};
+
 export type EffectiveDesignMd = {
     /**
      * The effective DESIGN.md, or null when none
@@ -13736,7 +13773,7 @@ export type GetUsersByIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -13887,7 +13924,7 @@ export type GetUsersByIdDesignMdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -13976,7 +14013,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -14093,7 +14130,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -14182,7 +14219,7 @@ export type GetUsersByIdOrganizationsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -14271,7 +14308,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
         /**
@@ -14426,7 +14463,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
         /**
@@ -14519,7 +14556,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -14626,7 +14663,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -14724,7 +14761,7 @@ export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -14827,7 +14864,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
         /**
@@ -14941,7 +14978,7 @@ export type GetUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15035,7 +15072,7 @@ export type PostUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15129,7 +15166,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15220,7 +15257,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
         /**
@@ -15331,7 +15368,7 @@ export type GetUsersByIdUploadsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15439,7 +15476,7 @@ export type PostUsersByIdUploadsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15570,7 +15607,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15659,7 +15696,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15753,7 +15790,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -15842,7 +15879,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
         /**
@@ -15935,7 +15972,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16025,7 +16062,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16129,7 +16166,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -16232,7 +16269,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -16335,7 +16372,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -16438,7 +16475,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -16527,7 +16564,7 @@ export type GetUsersByIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
          */
         id: string;
     };
@@ -21168,7 +21205,7 @@ export type GetCoworkersData = {
     path?: never;
     query?: {
         /**
-         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers owned by the authenticated user (user-authenticated only; admins see only their own).
+         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned coworkers only; user-authenticated only).
          */
         scope?: 'all' | 'whitelisted' | 'archived' | 'owned';
         /**
@@ -25540,6 +25577,474 @@ export type ListVendorsResponses = {
 };
 
 export type ListVendorsResponse = ListVendorsResponses[keyof ListVendorsResponses];
+
+export type ListMyVendorMembershipsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/vendors/me';
+};
+
+export type ListMyVendorMembershipsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListMyVendorMembershipsError = ListMyVendorMembershipsErrors[keyof ListMyVendorMembershipsErrors];
+
+export type ListMyVendorMembershipsResponses = {
+    /**
+     * List of vendor memberships for the current user
+     */
+    200: {
+        data: VendorMembershipList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListMyVendorMembershipsResponse = ListMyVendorMembershipsResponses[keyof ListMyVendorMembershipsResponses];
+
+export type PatchVendorData = {
+    body?: PatchVendorAdminRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}';
+};
+
+export type PatchVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - vendor missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchVendorError = PatchVendorErrors[keyof PatchVendorErrors];
+
+export type PatchVendorResponses = {
+    /**
+     * The updated vendor
+     */
+    200: {
+        data: Vendor;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchVendorResponse = PatchVendorResponses[keyof PatchVendorResponses];
+
+export type ListVendorMembersData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/members';
+};
+
+export type ListVendorMembersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListVendorMembersError = ListVendorMembersErrors[keyof ListVendorMembersErrors];
+
+export type ListVendorMembersResponses = {
+    /**
+     * List of vendor members
+     */
+    200: {
+        data: VendorMemberList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListVendorMembersResponse = ListVendorMembersResponses[keyof ListVendorMembersResponses];
+
+export type ListCoworkerAssignmentsData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+        /**
+         * Coworker ID
+         */
+        coworkerId: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/coworkers/{coworkerId}/assignments';
+};
+
+export type ListCoworkerAssignmentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCoworkerAssignmentsError = ListCoworkerAssignmentsErrors[keyof ListCoworkerAssignmentsErrors];
+
+export type ListCoworkerAssignmentsResponses = {
+    /**
+     * List of coworker assignments
+     */
+    200: {
+        data: CoworkerAssignmentList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCoworkerAssignmentsResponse = ListCoworkerAssignmentsResponses[keyof ListCoworkerAssignmentsResponses];
+
+export type AssignCoworkerDeveloperData = {
+    body?: AssignCoworkerRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+        /**
+         * Coworker ID
+         */
+        coworkerId: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/coworkers/{coworkerId}/assignments';
+};
+
+export type AssignCoworkerDeveloperErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AssignCoworkerDeveloperError = AssignCoworkerDeveloperErrors[keyof AssignCoworkerDeveloperErrors];
+
+export type AssignCoworkerDeveloperResponses = {
+    /**
+     * Coworker assignment created or already present
+     */
+    201: {
+        data: CoworkerAssignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AssignCoworkerDeveloperResponse = AssignCoworkerDeveloperResponses[keyof AssignCoworkerDeveloperResponses];
+
+export type UnassignCoworkerDeveloperData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+        /**
+         * Coworker ID
+         */
+        coworkerId: string;
+        /**
+         * Assigned user ID
+         */
+        userId: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/coworkers/{coworkerId}/assignments/{userId}';
+};
+
+export type UnassignCoworkerDeveloperErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UnassignCoworkerDeveloperError = UnassignCoworkerDeveloperErrors[keyof UnassignCoworkerDeveloperErrors];
+
+export type UnassignCoworkerDeveloperResponses = {
+    /**
+     * Assignment removed or already absent
+     */
+    204: void;
+};
+
+export type UnassignCoworkerDeveloperResponse = UnassignCoworkerDeveloperResponses[keyof UnassignCoworkerDeveloperResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;

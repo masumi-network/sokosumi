@@ -4168,7 +4168,8 @@
         "apiKeys": "API Keys",
         "docs": "Documentación",
         "coworkers": "Coworkers",
-        "tasks": "Tareas"
+        "tasks": "Tareas",
+        "vendors": "Proveedores"
       },
       "Docs": {
         "title": "Documentación para desarrolladores",
@@ -4190,7 +4191,7 @@
       },
       "Coworkers": {
         "title": "Tus coworkers",
-        "description": "Gestiona la configuración de visualización de los coworkers que posees.",
+        "description": "Gestiona la configuración de visualización de los coworkers a los que puedes acceder mediante la membresía del proveedor.",
         "loadFailed": "No se pudieron cargar tus coworkers.",
         "backToList": "Volver a coworkers",
         "editDescription": "Actualiza cómo aparece este coworker en Sokosumi.",
@@ -4198,22 +4199,22 @@
           "notFound": "Coworker no encontrado."
         },
         "List": {
-          "empty": "Aún no posees coworkers activos.",
+          "empty": "Aún no tienes coworkers activos accesibles.",
           "noCaption": "Sin subtítulo",
           "edit": "Editar"
         },
         "Metadata": {
           "title": "Editar coworker",
-          "description": "Editar los campos de visualización de tus coworkers"
+          "description": "Editar campos de visualización de coworkers accesibles"
         }
       },
       "Tasks": {
-        "title": "Tareas de coworkers propios",
-        "description": "Vista de solo lectura de tareas en las que tus coworkers son asignados o creadores.",
+        "title": "Tareas de coworkers accesibles",
+        "description": "Vista de solo lectura de tareas en las que tus coworkers accesibles son asignados o creadores.",
         "loadFailed": "No se pudieron cargar las tareas.",
         "List": {
           "totalCount": "{count, plural, one {# tarea} other {# tareas}}",
-          "empty": "Aún no se encontraron tareas para tus coworkers.",
+          "empty": "Aún no se encontraron tareas para tus coworkers accesibles.",
           "task": "Tarea",
           "status": "Estado",
           "coworkers": "Coworkers",
@@ -4227,6 +4228,48 @@
           "backToList": "Volver a tareas",
           "personalWorkspace": "Espacio de trabajo personal"
         }
+      },
+      "Vendors": {
+        "title": "Administración de proveedores",
+        "description": "Gestiona el perfil del proveedor y las asignaciones de desarrolladores para los proveedores en los que eres administrador.",
+        "loading": "Cargando datos del proveedor…",
+        "vendorSelect": {
+          "label": "Proveedor",
+          "placeholder": "Seleccionar un proveedor"
+        },
+        "profile": {
+          "title": "Perfil del proveedor",
+          "description": "Actualiza el nombre y los logotipos del proveedor. El slug no se puede cambiar.",
+          "nameLabel": "Nombre",
+          "slugLabel": "Slug",
+          "slugHint": "El slug es de solo lectura.",
+          "save": "Guardar cambios",
+          "saveSuccess": "Perfil del proveedor actualizado.",
+          "logos": {
+            "lightLabel": "Logotipo (modo claro)",
+            "darkLabel": "Logotipo (modo oscuro)",
+            "upload": "Subir logotipo",
+            "replace": "Reemplazar logotipo",
+            "remove": "Eliminar logotipo",
+            "previewAlt": "Vista previa del logotipo del proveedor",
+            "fileTooLarge": "El archivo del logotipo es demasiado grande.",
+            "fileTypeNotAccepted": "El tipo de archivo del logotipo no es compatible.",
+            "maxFilesExceeded": "Solo se puede subir un archivo de logotipo a la vez.",
+            "uploadError": "No se pudo subir el logotipo."
+          }
+        },
+        "assignments": {
+          "title": "Asignaciones de desarrolladores",
+          "description": "Asigna desarrolladores del proveedor a coworkers. Solo se pueden asignar miembros desarrolladores.",
+          "emptyCoworkers": "Este proveedor aún no tiene coworkers activos.",
+          "noAssignments": "No hay desarrolladores asignados.",
+          "noDevelopers": "Este proveedor no tiene miembros desarrolladores para asignar.",
+          "assignPlaceholder": "Asignar desarrollador",
+          "assignSuccess": "Desarrollador asignado.",
+          "unassignSuccess": "Desarrollador desasignado.",
+          "unassign": "Quitar {developer}"
+        },
+        "loadFailed": "No se pudieron cargar los datos del proveedor."
       }
     },
     "Connections": {

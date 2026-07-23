@@ -4168,7 +4168,8 @@
         "apiKeys": "API-Keys",
         "docs": "Dokumentation",
         "coworkers": "Coworkers",
-        "tasks": "Aufgaben"
+        "tasks": "Aufgaben",
+        "vendors": "Anbieter"
       },
       "Docs": {
         "title": "Entwicklerdokumentation",
@@ -4190,7 +4191,7 @@
       },
       "Coworkers": {
         "title": "Ihre Coworkers",
-        "description": "Verwalten Sie die Anzeigeeinstellungen Ihrer Coworkers.",
+        "description": "Verwalten Sie die Anzeigeeinstellungen für Coworkers, auf die Sie über die Anbieter-Mitgliedschaft zugreifen können.",
         "loadFailed": "Ihre Coworkers konnten nicht geladen werden.",
         "backToList": "Zurück zu Coworkers",
         "editDescription": "Aktualisieren Sie, wie dieser Coworker in Sokosumi erscheint.",
@@ -4198,22 +4199,22 @@
           "notFound": "Coworker nicht gefunden."
         },
         "List": {
-          "empty": "Sie besitzen noch keine aktiven Coworkers.",
+          "empty": "Sie haben noch keine aktiven zugänglichen Coworkers.",
           "noCaption": "Kein Untertitel",
           "edit": "Bearbeiten"
         },
         "Metadata": {
           "title": "Coworker bearbeiten",
-          "description": "Anzeigefelder Ihrer Coworkers bearbeiten"
+          "description": "Anzeigefelder zugänglicher Coworkers bearbeiten"
         }
       },
       "Tasks": {
-        "title": "Aufgaben eigener Coworkers",
-        "description": "Schreibgeschützte Ansicht von Aufgaben, bei denen Ihre Coworkers Bearbeiter oder Ersteller sind.",
+        "title": "Aufgaben zugänglicher Coworkers",
+        "description": "Schreibgeschützte Ansicht von Aufgaben, bei denen Ihre zugänglichen Coworkers Bearbeiter oder Ersteller sind.",
         "loadFailed": "Aufgaben konnten nicht geladen werden.",
         "List": {
           "totalCount": "{count, plural, one {# Aufgabe} other {# Aufgaben}}",
-          "empty": "Für Ihre Coworkers wurden noch keine Aufgaben gefunden.",
+          "empty": "Für Ihre zugänglichen Coworkers wurden noch keine Aufgaben gefunden.",
           "task": "Aufgabe",
           "status": "Status",
           "coworkers": "Coworkers",
@@ -4227,6 +4228,48 @@
           "backToList": "Zurück zu Aufgaben",
           "personalWorkspace": "Persönlicher Arbeitsbereich"
         }
+      },
+      "Vendors": {
+        "title": "Anbieterverwaltung",
+        "description": "Verwalten Sie Anbieterprofil und Entwicklerzuweisungen für Anbieter, bei denen Sie Administrator sind.",
+        "loading": "Anbieterdaten werden geladen…",
+        "vendorSelect": {
+          "label": "Anbieter",
+          "placeholder": "Anbieter auswählen"
+        },
+        "profile": {
+          "title": "Anbieterprofil",
+          "description": "Aktualisieren Sie Name und Logos des Anbieters. Der Slug kann nicht geändert werden.",
+          "nameLabel": "Name",
+          "slugLabel": "Slug",
+          "slugHint": "Der Slug ist schreibgeschützt.",
+          "save": "Änderungen speichern",
+          "saveSuccess": "Anbieterprofil aktualisiert.",
+          "logos": {
+            "lightLabel": "Logo (heller Modus)",
+            "darkLabel": "Logo (dunkler Modus)",
+            "upload": "Logo hochladen",
+            "replace": "Logo ersetzen",
+            "remove": "Logo entfernen",
+            "previewAlt": "Vorschau des Anbieterlogos",
+            "fileTooLarge": "Die Logodatei ist zu groß.",
+            "fileTypeNotAccepted": "Der Logodateityp wird nicht unterstützt.",
+            "maxFilesExceeded": "Es kann jeweils nur eine Logodatei hochgeladen werden.",
+            "uploadError": "Logo konnte nicht hochgeladen werden."
+          }
+        },
+        "assignments": {
+          "title": "Entwicklerzuweisungen",
+          "description": "Weisen Sie Anbieter-Entwickler Coworkers zu. Es können nur Entwicklermitglieder zugewiesen werden.",
+          "emptyCoworkers": "Dieser Anbieter hat noch keine aktiven Coworkers.",
+          "noAssignments": "Keine Entwickler zugewiesen.",
+          "noDevelopers": "Dieser Anbieter hat keine Entwicklermitglieder zum Zuweisen.",
+          "assignPlaceholder": "Entwickler zuweisen",
+          "assignSuccess": "Entwickler zugewiesen.",
+          "unassignSuccess": "Entwicklerzuweisung entfernt.",
+          "unassign": "{developer} entfernen"
+        },
+        "loadFailed": "Anbieterdaten konnten nicht geladen werden."
       }
     },
     "Connections": {

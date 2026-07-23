@@ -41,6 +41,7 @@ import type {
   PatchNotificationsByIdReadData,
   PatchProjectsByIdData,
   PatchTasksByIdData,
+  PatchVendorData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
@@ -61,6 +62,7 @@ import type {
 import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
+  assignCoworkerDeveloper as coreAssignCoworkerDeveloper,
   claimCoupon as coreClaimCoupon,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
@@ -163,8 +165,11 @@ import {
   listAdminOrganizations as coreListAdminOrganizations,
   listAdminTasks as coreListAdminTasks,
   listAdminUsers as coreListAdminUsers,
+  listCoworkerAssignments as coreListCoworkerAssignments,
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
+  listMyVendorMemberships as coreListMyVendorMemberships,
+  listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
@@ -180,6 +185,7 @@ import {
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
+  patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -232,6 +238,7 @@ import {
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
+  unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
   NoticeKind,
 } from "@/lib/clients/generated/core";
@@ -2031,6 +2038,96 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function listMyVendorMemberships() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListMyVendorMemberships({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch vendor memberships",
+    );
+  }
+
+  async function patchVendor(
+    id: string,
+    body: NonNullable<PatchVendorData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchVendor({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update vendor",
+    );
+  }
+
+  async function listVendorMembers(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListVendorMembers({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch vendor members",
+    );
+  }
+
+  async function listCoworkerAssignments(vendorId: string, coworkerId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListCoworkerAssignments({
+          client,
+          path: { id: vendorId, coworkerId },
+          cache: "no-store",
+        }),
+      "Failed to fetch coworker assignments",
+    );
+  }
+
+  async function assignCoworkerDeveloper(
+    vendorId: string,
+    coworkerId: string,
+    userId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreAssignCoworkerDeveloper({
+          client,
+          path: { id: vendorId, coworkerId },
+          body: { userId },
+          cache: "no-store",
+        }),
+      "Failed to assign developer to coworker",
+    );
+  }
+
+  async function unassignCoworkerDeveloper(
+    vendorId: string,
+    coworkerId: string,
+    userId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreUnassignCoworkerDeveloper({
+          client,
+          path: { id: vendorId, coworkerId, userId },
+          cache: "no-store",
+        }),
+      "Failed to unassign developer from coworker",
+    );
+  }
+
   async function createTask(body: NonNullable<PostTasksData["body"]>) {
     return executeOperation(
       getClient,
@@ -3280,6 +3377,12 @@ export function createCoreClient(getClient: GetClient) {
     denyMyVendorGrant,
     revokeMyVendorGrant,
     listVendors,
+    listMyVendorMemberships,
+    patchVendor,
+    listVendorMembers,
+    listCoworkerAssignments,
+    assignCoworkerDeveloper,
+    unassignCoworkerDeveloper,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
