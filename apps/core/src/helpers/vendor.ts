@@ -1,6 +1,6 @@
 import { type Vendor } from "@sokosumi/database";
 
-import { vendorSchema } from "@/schemas/vendor.schema";
+import { vendorMemberSchema, vendorSchema } from "@/schemas/vendor.schema";
 
 export function mapVendor(vendor: Vendor) {
   return vendorSchema.parse({
@@ -13,6 +13,22 @@ export function mapVendor(vendor: Vendor) {
       light: vendor.logoLight,
       dark: vendor.logoDark,
     },
+  });
+}
+
+export function mapVendorMember(member: {
+  role: "admin" | "developer";
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
+}) {
+  return vendorMemberSchema.parse({
+    id: member.user.id,
+    email: member.user.email,
+    name: member.user.name,
+    role: member.role,
   });
 }
 

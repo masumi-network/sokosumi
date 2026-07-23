@@ -3,21 +3,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import {
+  assertCanRemoveOrDemoteVendorAdmin,
   buildAccessibleCoworkerMembershipOr,
   buildAccessibleCoworkersWhere,
   requireAssignableVendorMembership,
   requireCoworkerBelongsToVendor,
   requireVendorAdminMembership,
+  resolveUserIdFromIdentity,
+  resolveUserIdFromUserIdOrEmail,
 } from "./vendor-membership";
 
 const {
   vendorFindUniqueMock,
   vendorMemberFindFirstMock,
+  vendorMemberCountMock,
   coworkerFindFirstMock,
+  userFindUniqueMock,
+  userFindFirstMock,
 } = vi.hoisted(() => ({
   vendorFindUniqueMock: vi.fn(),
   vendorMemberFindFirstMock: vi.fn(),
+  vendorMemberCountMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  userFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -27,9 +36,14 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     vendorMember: {
       findFirst: vendorMemberFindFirstMock,
+      count: vendorMemberCountMock,
     },
     coworker: {
       findFirst: coworkerFindFirstMock,
+    },
+    user: {
+      findUnique: userFindUniqueMock,
+      findFirst: userFindFirstMock,
     },
   },
 }));
@@ -152,6 +166,87 @@ describe("requireCoworkerBelongsToVendor", () => {
     ).rejects.toMatchObject({
       status: 404,
       message: "Coworker not found",
+    });
+  });
+});
+
+describe("resolveUserIdFromIdentity", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves by userId", async () => {
+    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+
+    await expect(
+      resolveUserIdFromIdentity({ userId: "user_123" }),
+    ).resolves.toBe("user_123");
+  });
+
+  it("resolves by email case-insensitively", async () => {
+    userFindFirstMock.mockResolvedValue({ id: "user_123" });
+
+    await expect(
+      resolveUserIdFromIdentity({ email: "Dev@Example.com" }),
+    ).resolves.toBe("user_123");
+    expect(userFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        email: { equals: "Dev@Example.com", mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+  });
+
+  it("throws when both identifiers are provided", async () => {
+    await expect(
+      resolveUserIdFromIdentity({
+        userId: "user_123",
+        email: "dev@example.com",
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Provide exactly one of userId or email",
+    });
+  });
+});
+
+describe("resolveUserIdFromUserIdOrEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("treats values with @ as email", async () => {
+    userFindFirstMock.mockResolvedValue({ id: "user_123" });
+
+    await expect(
+      resolveUserIdFromUserIdOrEmail("dev%40example.com"),
+    ).resolves.toBe("user_123");
+  });
+});
+
+describe("assertCanRemoveOrDemoteVendorAdmin", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows demoting a non-last admin", async () => {
+    vendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
+    vendorMemberCountMock.mockResolvedValue(2);
+
+    await expect(
+      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("blocks demoting the last admin", async () => {
+    vendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
+    vendorMemberCountMock.mockResolvedValue(1);
+
+    await expect(
+      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123"),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Cannot remove or demote the last vendor admin",
     });
   });
 });

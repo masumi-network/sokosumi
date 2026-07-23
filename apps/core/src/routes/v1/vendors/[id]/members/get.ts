@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapVendorMember } from "@/helpers/vendor";
 import { requireVendorAdminMembership } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -75,12 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       vendorMemberListSchema.parse(
-        members.map((member) => ({
-          id: member.user.id,
-          email: member.user.email,
-          name: member.user.name,
-          role: member.role,
-        })),
+        members.map((member) => mapVendorMember(member)),
       ),
     );
   });

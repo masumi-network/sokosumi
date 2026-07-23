@@ -11497,6 +11497,40 @@ export const VendorMemberSchema = {
     ]
 } as const;
 
+export const AddVendorMemberRequestSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            example: 'user_123'
+        },
+        email: {
+            type: 'string',
+            format: 'email',
+            example: 'dev@example.com'
+        },
+        role: {
+            $ref: '#/components/schemas/VendorMemberRole'
+        }
+    },
+    required: [
+        'role'
+    ]
+} as const;
+
+export const PatchVendorMemberRoleRequestSchema = {
+    type: 'object',
+    properties: {
+        role: {
+            $ref: '#/components/schemas/VendorMemberRole'
+        }
+    },
+    required: [
+        'role'
+    ]
+} as const;
+
 export const CoworkerAssignmentListSchema = {
     type: 'array',
     items: {
@@ -11539,11 +11573,13 @@ export const AssignCoworkerRequestSchema = {
             type: 'string',
             minLength: 1,
             example: 'user_123'
+        },
+        email: {
+            type: 'string',
+            format: 'email',
+            example: 'dev@example.com'
         }
-    },
-    required: [
-        'userId'
-    ]
+    }
 } as const;
 
 export const EffectiveDesignMdSchema = {

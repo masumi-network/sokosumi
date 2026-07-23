@@ -9,7 +9,10 @@ import { testVendor } from "@/test-fixtures/vendor";
 import mountDeleteCoworkerAssignment from "./[id]/coworkers/[coworkerId]/assignments/[userId]/delete";
 import mountListCoworkerAssignments from "./[id]/coworkers/[coworkerId]/assignments/get";
 import mountPutCoworkerAssignment from "./[id]/coworkers/[coworkerId]/assignments/put";
+import mountRemoveVendorMember from "./[id]/members/[userId]/delete";
+import mountPatchVendorMemberRole from "./[id]/members/[userId]/patch";
 import mountListVendorMembers from "./[id]/members/get";
+import mountAddVendorMember from "./[id]/members/post";
 import mountPatchVendor from "./[id]/patch";
 import mountListMyVendorMemberships from "./me/get";
 
@@ -18,19 +21,35 @@ const {
   vendorUpdateMock,
   vendorMemberFindManyMock,
   vendorMemberFindFirstMock,
+  vendorMemberFindUniqueMock,
+  vendorMemberCreateMock,
+  vendorMemberUpdateMock,
+  vendorMemberCountMock,
+  vendorMemberDeleteMock,
   coworkerFindFirstMock,
   coworkerAssignmentUpsertMock,
   coworkerAssignmentFindManyMock,
   coworkerAssignmentDeleteManyMock,
+  userFindUniqueMock,
+  userFindFirstMock,
+  transactionMock,
 } = vi.hoisted(() => ({
   vendorFindUniqueMock: vi.fn(),
   vendorUpdateMock: vi.fn(),
   vendorMemberFindManyMock: vi.fn(),
   vendorMemberFindFirstMock: vi.fn(),
+  vendorMemberFindUniqueMock: vi.fn(),
+  vendorMemberCreateMock: vi.fn(),
+  vendorMemberUpdateMock: vi.fn(),
+  vendorMemberCountMock: vi.fn(),
+  vendorMemberDeleteMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   coworkerAssignmentUpsertMock: vi.fn(),
   coworkerAssignmentFindManyMock: vi.fn(),
   coworkerAssignmentDeleteManyMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  userFindFirstMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -42,6 +61,11 @@ vi.mock("@/lib/db/prisma", () => ({
     vendorMember: {
       findMany: vendorMemberFindManyMock,
       findFirst: vendorMemberFindFirstMock,
+      findUnique: vendorMemberFindUniqueMock,
+      create: vendorMemberCreateMock,
+      update: vendorMemberUpdateMock,
+      count: vendorMemberCountMock,
+      delete: vendorMemberDeleteMock,
     },
     coworker: {
       findFirst: coworkerFindFirstMock,
@@ -51,6 +75,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: coworkerAssignmentFindManyMock,
       deleteMany: coworkerAssignmentDeleteManyMock,
     },
+    user: {
+      findUnique: userFindUniqueMock,
+      findFirst: userFindFirstMock,
+    },
+    $transaction: transactionMock,
   },
 }));
 
@@ -72,6 +101,9 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountListMyVendorMemberships(app as unknown as OpenAPIHonoWithAuth);
   mountPatchVendor(app as unknown as OpenAPIHonoWithAuth);
   mountListVendorMembers(app as unknown as OpenAPIHonoWithAuth);
+  mountAddVendorMember(app as unknown as OpenAPIHonoWithAuth);
+  mountPatchVendorMemberRole(app as unknown as OpenAPIHonoWithAuth);
+  mountRemoveVendorMember(app as unknown as OpenAPIHonoWithAuth);
   mountListCoworkerAssignments(app as unknown as OpenAPIHonoWithAuth);
   mountPutCoworkerAssignment(app as unknown as OpenAPIHonoWithAuth);
   mountDeleteCoworkerAssignment(app as unknown as OpenAPIHonoWithAuth);
@@ -109,7 +141,22 @@ describe("vendor admin APIs", () => {
     vi.clearAllMocks();
     vendorFindUniqueMock.mockResolvedValue({ id: testVendor.id });
     vendorMemberFindFirstMock.mockResolvedValue(null);
+    vendorMemberFindUniqueMock.mockResolvedValue(null);
+    vendorMemberCountMock.mockResolvedValue(2);
     coworkerFindFirstMock.mockResolvedValue({ id: "cow_123" });
+    userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
+    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
+    transactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({
+          coworkerAssignment: {
+            deleteMany: coworkerAssignmentDeleteManyMock,
+          },
+          vendorMember: {
+            delete: vendorMemberDeleteMock,
+          },
+        }),
+    );
     vendorMemberFindManyMock.mockResolvedValue([
       {
         role: "developer",
@@ -120,6 +167,22 @@ describe("vendor admin APIs", () => {
         },
       },
     ]);
+    vendorMemberCreateMock.mockResolvedValue({
+      role: "developer",
+      user: {
+        id: "dev_user",
+        email: "dev@example.com",
+        name: "Dev User",
+      },
+    });
+    vendorMemberUpdateMock.mockResolvedValue({
+      role: "admin",
+      user: {
+        id: "dev_user",
+        email: "dev@example.com",
+        name: "Dev User",
+      },
+    });
     vendorUpdateMock.mockResolvedValue({
       ...testVendor,
       name: "Updated Vendor",
@@ -141,6 +204,7 @@ describe("vendor admin APIs", () => {
       },
     ]);
     coworkerAssignmentDeleteManyMock.mockResolvedValue({ count: 1 });
+    vendorMemberDeleteMock.mockResolvedValue({ id: "vm_dev" });
   });
 
   it("lists vendor memberships for the authenticated user", async () => {
@@ -222,8 +286,128 @@ describe("vendor admin APIs", () => {
     });
   });
 
+  it("adds a vendor member by email", async () => {
+    mockVendorAdmin();
+    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
+    vendorMemberFindUniqueMock.mockResolvedValue(null);
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "dev@example.com",
+          role: "developer",
+        }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(vendorMemberCreateMock).toHaveBeenCalledWith({
+      data: {
+        vendorId: testVendor.id,
+        userId: "dev_user",
+        role: "developer",
+      },
+      include: {
+        user: {
+          select: { id: true, email: true, name: true },
+        },
+      },
+    });
+    expect(body.data.role).toBe("developer");
+  });
+
+  it("rejects add when both userId and email are provided", async () => {
+    mockVendorAdmin();
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: "dev_user",
+          email: "dev@example.com",
+          role: "developer",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(422);
+    expect(vendorMemberCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("patches vendor member role by user id", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
+    vendorMemberFindUniqueMock.mockResolvedValue({ role: "developer" });
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members/dev_user`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "admin" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(vendorMemberUpdateMock).toHaveBeenCalledWith({
+      where: {
+        vendorId_userId: {
+          vendorId: testVendor.id,
+          userId: "dev_user",
+        },
+      },
+      data: { role: "admin" },
+      include: {
+        user: {
+          select: { id: true, email: true, name: true },
+        },
+      },
+    });
+  });
+
+  it("removes a vendor member and clears coworker assignments", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
+    vendorMemberFindFirstMock
+      .mockResolvedValueOnce({ id: "vm_admin" })
+      .mockResolvedValueOnce({ role: "developer" });
+    vendorMemberFindUniqueMock.mockResolvedValue({ id: "vm_dev" });
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members/dev_user`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(204);
+    expect(coworkerAssignmentDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        userId: "dev_user",
+        coworker: { vendorId: testVendor.id },
+      },
+    });
+    expect(vendorMemberDeleteMock).toHaveBeenCalledWith({
+      where: {
+        vendorId_userId: {
+          vendorId: testVendor.id,
+          userId: "dev_user",
+        },
+      },
+    });
+  });
+
   it("assigns a developer member to a vendor coworker", async () => {
     mockVendorDeveloperTarget();
+    userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
 
     const app = createApp(userAuth);
     const response = await app.request(
@@ -251,8 +435,30 @@ describe("vendor admin APIs", () => {
     });
   });
 
+  it("assigns a vendor member to a coworker by email", async () => {
+    mockVendorDeveloperTarget();
+    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/coworkers/cow_123/assignments`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "dev@example.com" }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(userFindFirstMock).toHaveBeenCalledWith({
+      where: { email: { equals: "dev@example.com", mode: "insensitive" } },
+      select: { id: true },
+    });
+  });
+
   it("assigns a vendor admin member to a coworker", async () => {
     mockVendorDeveloperTarget();
+    userFindUniqueMock.mockResolvedValue({ id: "admin_user" });
 
     const app = createApp(userAuth);
     const response = await app.request(
@@ -282,6 +488,7 @@ describe("vendor admin APIs", () => {
 
   it("rejects assignment when target user is not a vendor member", async () => {
     mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "outsider" });
     vendorMemberFindFirstMock
       .mockResolvedValueOnce({ id: "vm_admin" })
       .mockResolvedValueOnce(null);
@@ -317,10 +524,30 @@ describe("vendor admin APIs", () => {
 
   it("unassigns a developer from a coworker idempotently", async () => {
     mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
 
     const app = createApp(userAuth);
     const response = await app.request(
       `http://localhost/${testVendor.id}/coworkers/cow_123/assignments/dev_user`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(204);
+    expect(coworkerAssignmentDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        coworkerId: "cow_123",
+        userId: "dev_user",
+      },
+    });
+  });
+
+  it("unassigns a developer by email path", async () => {
+    mockVendorAdmin();
+    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/coworkers/cow_123/assignments/${encodeURIComponent("dev@example.com")}`,
       { method: "DELETE" },
     );
 

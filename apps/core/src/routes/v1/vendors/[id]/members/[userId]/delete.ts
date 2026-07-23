@@ -1,8 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import {
-  requireCoworkerBelongsToVendor,
+  assertCanRemoveOrDemoteVendorAdmin,
   requireVendorAdminMembership,
   resolveUserIdFromUserIdOrEmail,
 } from "@/helpers/vendor-membership";
@@ -16,31 +17,26 @@ const params = z.object({
     description: "Vendor ID",
     example: "01960001-0001-7001-8001-000000000001",
   }),
-  coworkerId: z.string().openapi({
-    param: { name: "coworkerId", in: "path" },
-    description: "Coworker ID",
-    example: "cow_123",
-  }),
   userId: z.string().openapi({
     param: { name: "userId", in: "path" },
-    description: "Assigned user ID or email address",
+    description: "Member user ID or email address",
     example: "user_123",
   }),
 });
 
 const route = createRoute({
   method: "delete",
-  path: "/{id}/coworkers/{coworkerId}/assignments/{userId}",
-  operationId: "unassignCoworkerDeveloper",
+  path: "/{id}/members/{userId}",
+  operationId: "removeVendorMember",
   description:
-    "Remove a developer assignment from a vendor coworker by user ID or email (vendor admin only). Idempotent when the assignment is already absent.",
+    "Remove a vendor member (vendor admin only). Path accepts user ID or email. Also removes that user's coworker assignments for this vendor. Cannot remove the last admin.",
   tags: ["Vendors"],
   request: {
     params,
   },
   responses: {
     204: {
-      description: "Assignment removed or already absent",
+      description: "Member removed",
     },
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
@@ -51,19 +47,43 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { id, coworkerId, userId: userIdOrEmail } = c.req.valid("param");
+    const { id, userId: userIdOrEmail } = c.req.valid("param");
     const userAuth = requireUserAuthContext(c.var.authContext);
 
     await requireVendorAdminMembership(userAuth.userId, id);
-    await requireCoworkerBelongsToVendor(coworkerId, id);
 
     const targetUserId = await resolveUserIdFromUserIdOrEmail(userIdOrEmail);
 
-    await prisma.coworkerAssignment.deleteMany({
+    await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId);
+
+    const existing = await prisma.vendorMember.findUnique({
       where: {
-        coworkerId,
-        userId: targetUserId,
+        vendorId_userId: {
+          vendorId: id,
+          userId: targetUserId,
+        },
       },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw notFound("Vendor member not found");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.coworkerAssignment.deleteMany({
+        where: {
+          userId: targetUserId,
+          coworker: { vendorId: id },
+        },
+      });
+      await tx.vendorMember.delete({
+        where: {
+          vendorId_userId: {
+            vendorId: id,
+            userId: targetUserId,
+          },
+        },
+      });
     });
 
     return c.body(null, 204);

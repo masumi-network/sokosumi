@@ -3336,6 +3336,16 @@ export type VendorMember = {
     role: VendorMemberRole;
 };
 
+export type AddVendorMemberRequest = {
+    userId?: string;
+    email?: string;
+    role: VendorMemberRole;
+};
+
+export type PatchVendorMemberRoleRequest = {
+    role: VendorMemberRole;
+};
+
 export type CoworkerAssignmentList = Array<CoworkerAssignment>;
 
 export type CoworkerAssignment = {
@@ -3346,7 +3356,8 @@ export type CoworkerAssignment = {
 };
 
 export type AssignCoworkerRequest = {
-    userId: string;
+    userId?: string;
+    email?: string;
 };
 
 export type EffectiveDesignMd = {
@@ -25798,6 +25809,288 @@ export type ListVendorMembersResponses = {
 
 export type ListVendorMembersResponse = ListVendorMembersResponses[keyof ListVendorMembersResponses];
 
+export type AddVendorMemberData = {
+    body?: AddVendorMemberRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/members';
+};
+
+export type AddVendorMemberErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddVendorMemberError = AddVendorMemberErrors[keyof AddVendorMemberErrors];
+
+export type AddVendorMemberResponses = {
+    /**
+     * Vendor member created
+     */
+    201: {
+        data: VendorMember;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddVendorMemberResponse = AddVendorMemberResponses[keyof AddVendorMemberResponses];
+
+export type RemoveVendorMemberData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+        /**
+         * Member user ID or email address
+         */
+        userId: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/members/{userId}';
+};
+
+export type RemoveVendorMemberErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveVendorMemberError = RemoveVendorMemberErrors[keyof RemoveVendorMemberErrors];
+
+export type RemoveVendorMemberResponses = {
+    /**
+     * Member removed
+     */
+    204: void;
+};
+
+export type RemoveVendorMemberResponse = RemoveVendorMemberResponses[keyof RemoveVendorMemberResponses];
+
+export type PatchVendorMemberRoleData = {
+    body?: PatchVendorMemberRoleRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+        /**
+         * Member user ID or email address
+         */
+        userId: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/members/{userId}';
+};
+
+export type PatchVendorMemberRoleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchVendorMemberRoleError = PatchVendorMemberRoleErrors[keyof PatchVendorMemberRoleErrors];
+
+export type PatchVendorMemberRoleResponses = {
+    /**
+     * Updated vendor member
+     */
+    200: {
+        data: VendorMember;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchVendorMemberRoleResponse = PatchVendorMemberRoleResponses[keyof PatchVendorMemberRoleResponses];
+
 export type ListCoworkerAssignmentsData = {
     body?: never;
     path: {
@@ -25982,7 +26275,7 @@ export type UnassignCoworkerDeveloperData = {
          */
         coworkerId: string;
         /**
-         * Assigned user ID
+         * Assigned user ID or email address
          */
         userId: string;
     };
@@ -25991,6 +26284,20 @@ export type UnassignCoworkerDeveloperData = {
 };
 
 export type UnassignCoworkerDeveloperErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
