@@ -4,9 +4,9 @@ import { Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useTransition } from "react";
 import { toast } from "sonner";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -52,15 +52,15 @@ export function VendorCoworkerAssignments({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="space-y-1">
         <h3 className="text-base font-semibold">{t("title")}</h3>
         <p className="text-muted-foreground text-sm">{t("description")}</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="divide-border divide-y rounded-lg border">
         {coworkerAssignments.map(({ coworker, assignments }) => (
-          <CoworkerAssignmentCard
+          <CoworkerAssignmentRow
             key={coworker.id}
             vendorId={vendorId}
             coworkerId={coworker.id}
@@ -76,7 +76,7 @@ export function VendorCoworkerAssignments({
   );
 }
 
-interface CoworkerAssignmentCardProps {
+interface CoworkerAssignmentRowProps {
   vendorId: string;
   coworkerId: string;
   coworkerName: string;
@@ -86,7 +86,7 @@ interface CoworkerAssignmentCardProps {
   onAssignmentsChange: () => void;
 }
 
-function CoworkerAssignmentCard({
+function CoworkerAssignmentRow({
   vendorId,
   coworkerId,
   coworkerName,
@@ -94,7 +94,7 @@ function CoworkerAssignmentCard({
   assignments,
   isLoading,
   onAssignmentsChange,
-}: CoworkerAssignmentCardProps) {
+}: CoworkerAssignmentRowProps) {
   const t = useTranslations("App.Developer.Vendors.assignments");
   const [isMutating, startMutation] = useTransition();
 
@@ -159,46 +159,48 @@ function CoworkerAssignmentCard({
     [coworkerId, onAssignmentsChange, t, vendorId, startMutation],
   );
 
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">{coworkerName}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {assignedMembers.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {t("noAssignments")}
-            </p>
-          ) : (
-            assignedMembers.map((member) => (
-              <Badge key={member.id} variant="secondary" className="gap-1 pr-1">
-                {memberLabel(member)}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-5"
-                  disabled={isLoading || isMutating}
-                  onClick={() => handleUnassign(member.id)}
-                  aria-label={t("unassign", { developer: memberLabel(member) })}
-                >
-                  <X className="size-3" />
-                </Button>
-              </Badge>
-            ))
-          )}
-        </div>
+  const busy = isLoading || isMutating;
 
-        {developerMembers.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("noDevelopers")}</p>
-        ) : availableMembers.length > 0 ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Select
-              disabled={isLoading || isMutating}
-              onValueChange={handleAssign}
+  return (
+    <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
+      <p className="min-w-0 shrink-0 text-sm font-medium sm:w-28">
+        {coworkerName}
+      </p>
+
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+        {assignedMembers.length === 0 ? (
+          <p className="text-muted-foreground text-xs">{t("noAssignments")}</p>
+        ) : (
+          assignedMembers.map((member) => (
+            <Badge
+              key={member.id}
+              variant="secondary"
+              className="h-6 gap-0.5 py-0 pr-0.5 text-xs font-normal"
             >
-              <SelectTrigger className="w-full sm:max-w-xs">
+              {memberLabel(member)}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-4"
+                disabled={busy}
+                onClick={() => handleUnassign(member.id)}
+                aria-label={t("unassign", { developer: memberLabel(member) })}
+              >
+                <X className="size-2.5" />
+              </Button>
+            </Badge>
+          ))
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
+        {developerMembers.length === 0 ? (
+          <p className="text-muted-foreground text-xs">{t("noDevelopers")}</p>
+        ) : availableMembers.length > 0 ? (
+          <>
+            <Select disabled={busy} onValueChange={handleAssign}>
+              <SelectTrigger size="sm" className="h-8 w-full min-w-40 sm:w-44">
                 <SelectValue placeholder={t("assignPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
@@ -210,11 +212,11 @@ function CoworkerAssignmentCard({
               </SelectContent>
             </Select>
             {isMutating ? (
-              <Loader2 className="text-muted-foreground size-4 animate-spin" />
+              <Loader2 className="text-muted-foreground size-3.5 animate-spin" />
             ) : null}
-          </div>
+          </>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
