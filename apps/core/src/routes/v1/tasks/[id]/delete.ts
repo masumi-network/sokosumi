@@ -12,7 +12,7 @@ import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { forbidCoworkerActor, requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -45,8 +45,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    forbidCoworkerActor(authContext);
-    const userContext = requireUserContext(authContext);
+    const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {

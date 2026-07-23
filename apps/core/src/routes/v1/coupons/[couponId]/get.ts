@@ -4,7 +4,7 @@ import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { couponDetailsSchema } from "@/schemas/billing.schema";
 import {
   CouponNotFoundError,
@@ -52,7 +52,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
     const { couponId } = c.req.valid("param");
 
     try {

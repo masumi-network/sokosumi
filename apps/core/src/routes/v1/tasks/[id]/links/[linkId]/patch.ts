@@ -10,7 +10,7 @@ import {
 } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { forbidCoworkerActor, requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   patchTaskLinkRequestSchema,
@@ -56,8 +56,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    forbidCoworkerActor(authContext);
-    const userContext = requireUserContext(authContext);
+    const userContext = requireOwnerUserContext(authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id, linkId } = c.req.valid("param");
     const { relation, note } = c.req.valid("json");

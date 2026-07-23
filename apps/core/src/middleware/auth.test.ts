@@ -7,6 +7,7 @@ import {
   authMiddleware,
   forbidCoworkerActor,
   requireAdminAuthContext,
+  requireOwnerUserContext,
 } from "./auth";
 
 const {
@@ -505,6 +506,50 @@ describe("forbidCoworkerActor", () => {
   it("rejects coworker actors", () => {
     expect(() =>
       forbidCoworkerActor({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: "user_123", organizationId: null },
+      }),
+    ).toThrowError("Coworker authentication cannot perform this owner action");
+  });
+});
+
+describe("requireOwnerUserContext", () => {
+  it("returns session user context", () => {
+    expect(
+      requireOwnerUserContext({
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_1",
+        role: "user",
+      }),
+    ).toEqual({
+      source: "session",
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_1",
+      role: "user",
+    });
+  });
+
+  it("returns orchestrator contextual user", () => {
+    expect(
+      requireOwnerUserContext({
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: "user_123", organizationId: "org_1" },
+      }),
+    ).toEqual({
+      source: "context",
+      userId: "user_123",
+      organizationId: "org_1",
+    });
+  });
+
+  it("rejects coworker even with matching context user", () => {
+    expect(() =>
+      requireOwnerUserContext({
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,

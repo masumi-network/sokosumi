@@ -5,11 +5,16 @@ import {
   type AuthenticationContext,
   hasAdminRole,
   requireUserAuthContext,
-  type UserContext,
+  type UserAuthenticationContext,
 } from "@/middleware/auth";
 
 /** Path segment meaning "the authenticated session user" (Better Auth only). */
 export const USERS_PATH_ME = "me" as const;
+
+/** Session-only user context returned from user-path access checks. */
+export type SessionUserContext = {
+  source: "session";
+} & UserAuthenticationContext;
 
 /** OpenAPI path param: `me` or a concrete user id (see {@link resolveUsersPathUserId}). */
 export const usersRoutePathUserIdSchema = z.string().openapi({
@@ -26,7 +31,7 @@ export const usersRoutePathUserIdSchema = z.string().openapi({
 export function resolveUsersPathUserId(
   authContext: AuthenticationContext,
   pathUserSegment: string,
-): { resolvedUserId: string; userContext: UserContext } {
+): { resolvedUserId: string; userContext: SessionUserContext } {
   if (pathUserSegment === USERS_PATH_ME) {
     const session = requireUserAuthContext(authContext);
     return {
@@ -50,7 +55,7 @@ export function resolveUsersPathUserId(
 export function requireAccessToTargetUserData(
   authContext: AuthenticationContext,
   resolvedUserId: string,
-): UserContext {
+): SessionUserContext {
   const session = requireUserAuthContext(authContext);
   if (session.userId === resolvedUserId) {
     return { source: "session", ...session };

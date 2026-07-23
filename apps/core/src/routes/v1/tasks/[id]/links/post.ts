@@ -12,7 +12,7 @@ import {
 } from "@/helpers/task-link";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { forbidCoworkerActor, requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createTaskLinkRequestSchema,
@@ -55,8 +55,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    forbidCoworkerActor(authContext);
-    const userContext = requireUserContext(authContext);
+    const userContext = requireOwnerUserContext(authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");

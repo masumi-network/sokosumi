@@ -17,7 +17,7 @@ const {
 }));
 
 vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
+  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, {
         message: "User authentication required",
@@ -106,6 +106,18 @@ describe("GET /organizations/{id}/billing-details", () => {
     const response = await createApp(COWORKER_AUTH_CONTEXT).request(
       "http://localhost/org_123/billing-details",
     );
+
+    expect(response.status).toBe(403);
+    expect(getOrganizationBillingDetailsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for coworker with X-Context-User-Id matching a user", async () => {
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_123", organizationId: "org_123" },
+    }).request("http://localhost/org_123/billing-details");
 
     expect(response.status).toBe(403);
     expect(getOrganizationBillingDetailsMock).not.toHaveBeenCalled();
