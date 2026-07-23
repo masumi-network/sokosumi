@@ -1,6 +1,9 @@
 "use client";
 
-import { buildOAuthClientScopeParam } from "@sokosumi/utils";
+import {
+  buildOAuthClientGrantTypes,
+  buildOAuthClientScopeParam,
+} from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -59,13 +62,16 @@ export function useOAuthClients(): UseOAuthClientsReturn {
       data: CreateOAuthClientRequest,
     ): Promise<CreateOAuthClientResult> => {
       try {
+        const includeCoreApi = data.includeCoreApi ?? false;
+        const includeOfflineAccess = data.includeOfflineAccess ?? false;
         const result = await authClient.oauth2.createClient({
           redirect_uris: data.redirectUris,
           client_name: data.name,
           scope: buildOAuthClientScopeParam({
-            includeCoreApi: data.includeCoreApi ?? false,
-            includeOfflineAccess: false,
+            includeCoreApi,
+            includeOfflineAccess,
           }),
+          grant_types: buildOAuthClientGrantTypes(includeOfflineAccess),
         });
 
         if (result.error) {
@@ -112,17 +118,24 @@ export function useOAuthClients(): UseOAuthClientsReturn {
   const update = useCallback(
     async (data: UpdateOAuthClientRequest): Promise<boolean> => {
       try {
+        const hasScopeFlags =
+          typeof data.includeCoreApi === "boolean" ||
+          typeof data.includeOfflineAccess === "boolean";
+
         const result = await authClient.oauth2.updateClient({
           client_id: data.clientId,
           update: {
             client_name: data.name,
             redirect_uris: data.redirectUris,
-            ...(typeof data.includeCoreApi === "boolean"
+            ...(hasScopeFlags
               ? {
                   scope: buildOAuthClientScopeParam({
-                    includeCoreApi: data.includeCoreApi,
-                    includeOfflineAccess: false,
+                    includeCoreApi: data.includeCoreApi ?? false,
+                    includeOfflineAccess: data.includeOfflineAccess ?? false,
                   }),
+                  grant_types: buildOAuthClientGrantTypes(
+                    data.includeOfflineAccess ?? false,
+                  ),
                 }
               : {}),
           },

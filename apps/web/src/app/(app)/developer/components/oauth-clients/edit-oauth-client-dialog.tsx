@@ -1,7 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { hasCoreApiOAuthScope } from "@sokosumi/utils";
+import {
+  hasCoreApiOAuthScope,
+  hasOfflineAccessOAuthScope,
+} from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
@@ -60,6 +63,7 @@ export function EditOAuthClientDialog({
         name: client.client_name ?? "",
         redirectUris: (client.redirect_uris ?? []).join("\n"),
         includeCoreApi: hasCoreApiOAuthScope(client.scope),
+        includeOfflineAccess: hasOfflineAccessOAuthScope(client.scope),
       });
     }
   }, [client, form]);
@@ -76,6 +80,7 @@ export function EditOAuthClientDialog({
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
       includeCoreApi: values.includeCoreApi,
+      includeOfflineAccess: values.includeOfflineAccess,
     });
 
     if (success) {

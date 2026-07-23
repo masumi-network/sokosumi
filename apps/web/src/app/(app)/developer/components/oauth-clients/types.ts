@@ -11,19 +11,24 @@ export interface CreateOAuthClientFormData {
   redirectUris: string;
   /** When true, client may request `sokosumi:api` (Core `/v1` access). */
   includeCoreApi: boolean;
+  /** When true, client may request `offline_access` and use refresh tokens. */
+  includeOfflineAccess: boolean;
 }
 
 export interface EditOAuthClientFormData {
   name: string;
   redirectUris: string;
   includeCoreApi: boolean;
+  includeOfflineAccess: boolean;
 }
 
 export interface CreateOAuthClientRequest {
   name: string;
   redirectUris: string[];
-  /** When true, register with `openid sokosumi:api`; otherwise `openid` only. */
+  /** When true, register with `sokosumi:api`; otherwise omit Core API scope. */
   includeCoreApi?: boolean;
+  /** When true, register with `offline_access` + `refresh_token` grant. */
+  includeOfflineAccess?: boolean;
 }
 
 export interface CreateOAuthClientResult {
@@ -41,8 +46,14 @@ export interface UpdateOAuthClientRequest {
   clientId: string;
   name: string;
   redirectUris: string[];
-  /** When true, allow `openid sokosumi:api`; when false, `openid` only. Omit to leave scopes unchanged. */
+  /**
+   * When true, allow `sokosumi:api`; when false, omit it.
+   * If either scope flag is set, both `scope` and `grant_types` are rebuilt.
+   * Omit both flags to leave scopes/grants unchanged.
+   */
   includeCoreApi?: boolean;
+  /** When true, allow `offline_access` + `refresh_token`; when false, strip them. */
+  includeOfflineAccess?: boolean;
 }
 
 export interface DeleteOAuthClientRequest {

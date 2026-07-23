@@ -81,6 +81,7 @@ export function CreateOAuthClientDialog({
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
       includeCoreApi: values.includeCoreApi,
+      includeOfflineAccess: values.includeOfflineAccess,
     });
 
     if (result.success && result.data) {

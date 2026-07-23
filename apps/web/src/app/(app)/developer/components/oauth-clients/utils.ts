@@ -8,12 +8,14 @@ export const DEFAULT_CREATE_FORM_VALUES = {
   name: "",
   redirectUris: "",
   includeCoreApi: false,
+  includeOfflineAccess: false,
 };
 
 export const DEFAULT_EDIT_FORM_VALUES = {
   name: "",
   redirectUris: "",
   includeCoreApi: false,
+  includeOfflineAccess: false,
 };
 
 /** Schemes Better Auth's SafeUrlSchema rejects. */
@@ -123,6 +125,7 @@ export function createOAuthClientSchema(t: TranslationFunction) {
         message: t("Validation.redirectUrisInvalid"),
       }),
     includeCoreApi: z.boolean(),
+    includeOfflineAccess: z.boolean(),
   });
 }
 

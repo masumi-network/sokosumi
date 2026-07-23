@@ -59,6 +59,7 @@ describe("createOAuthClientSchema", () => {
       name: "My App",
       redirectUris: "https://example.com/callback",
       includeCoreApi: false,
+      includeOfflineAccess: false,
     });
     expect(result.success).toBe(true);
   });
@@ -68,6 +69,7 @@ describe("createOAuthClientSchema", () => {
       name: "",
       redirectUris: "https://example.com/callback",
       includeCoreApi: false,
+      includeOfflineAccess: false,
     });
     expect(result.success).toBe(false);
   });
@@ -77,6 +79,7 @@ describe("createOAuthClientSchema", () => {
       name: "   ",
       redirectUris: "https://example.com/callback",
       includeCoreApi: false,
+      includeOfflineAccess: false,
     });
     expect(result.success).toBe(false);
   });
@@ -86,11 +89,13 @@ describe("createOAuthClientSchema", () => {
       name: "  My App  ",
       redirectUris: "https://example.com/callback",
       includeCoreApi: true,
+      includeOfflineAccess: false,
     });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.name).toBe("My App");
       expect(result.data.includeCoreApi).toBe(true);
+      expect(result.data.includeOfflineAccess).toBe(false);
     }
   });
 
@@ -99,6 +104,7 @@ describe("createOAuthClientSchema", () => {
       name: "My App",
       redirectUris: "not-a-url",
       includeCoreApi: false,
+      includeOfflineAccess: false,
     });
     expect(result.success).toBe(false);
   });
@@ -107,6 +113,16 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "My App",
       redirectUris: "http://example.com/callback",
+      includeCoreApi: false,
+      includeOfflineAccess: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing includeOfflineAccess", () => {
+    const result = schema.safeParse({
+      name: "My App",
+      redirectUris: "https://example.com/callback",
       includeCoreApi: false,
     });
     expect(result.success).toBe(false);
