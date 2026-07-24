@@ -13,7 +13,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { agentMyReviewResponseSchema } from "@/schemas/agent.schema";
 
 const params = z.object({
@@ -27,7 +27,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/reviews/me",
-    description: "Get the authenticated caller's own review for an agent",
+    description:
+      "Get the authenticated caller's own review for an agent. Session user or orchestrator/coworker with context headers.",
     tags: ["Agents"],
     request: {
       params,
@@ -38,6 +39,7 @@ const route = withGlobalHeaderParameters(
         "The caller's own review for the agent, or null if they have not rated it",
       ),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
     },
   }),
@@ -45,7 +47,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const review = await prisma.$transaction(async (tx) => {

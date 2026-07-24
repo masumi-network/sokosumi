@@ -9,7 +9,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { agentRatingEligibilitySchema } from "@/schemas/agent.schema";
 
 const params = z.object({
@@ -24,7 +24,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/{id}/ratings/eligibility",
     description:
-      "Check whether the authenticated caller is eligible to rate an agent (has finished at least one job with it)",
+      "Check whether the authenticated caller is eligible to rate an agent (has finished at least one job with it). Session user or orchestrator/coworker with context headers.",
     tags: ["Agents"],
     request: {
       params,
@@ -35,6 +35,7 @@ const route = withGlobalHeaderParameters(
         "Whether the caller may rate the agent",
       ),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
     },
   }),
@@ -42,7 +43,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const eligible = await prisma.$transaction(async (tx) => {
