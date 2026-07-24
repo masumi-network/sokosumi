@@ -128,6 +128,7 @@ export default function RunningState({
     isReplying,
     isReplyingRef,
     progressChips,
+    thinkingState,
     reasoning,
     streamingId,
     requestStartedAt,
@@ -270,6 +271,7 @@ export default function RunningState({
                 userName={userName}
                 isReplying={isReplying}
                 progressChips={progressChips}
+                thinkingState={thinkingState}
                 requestStartedAt={requestStartedAt}
                 reasoning={reasoning}
                 pendingCards={pendingCards}

@@ -8,6 +8,41 @@ import { cn } from "@/lib/utils";
 /** Brand wisteria — fallback when the CSS variable can't be resolved. */
 const FALLBACK_PURPLE = "#6400ff";
 
+/** The orb state shown before the first status frame lands / for a plain
+ * "thinking" turn with no tool use. */
+export const DEFAULT_THINKING_STATE: OrbState = "solving";
+
+/**
+ * Map an orchestrator streaming phase to a thinking-orbs activity state, so
+ * the orb visibly changes through a turn instead of sitting on one animation:
+ * reasoning reads as solving, a tool call as searching, drafting the reply as
+ * composing. `tool_done` returns null — keep whatever state was running rather
+ * than flicker between tool completions.
+ */
+export function orbStateForPhase(
+  phase:
+    | "thinking"
+    | "reasoning"
+    | "tool"
+    | "tool_done"
+    | "working"
+    | "answering",
+): OrbState | null {
+  switch (phase) {
+    case "reasoning":
+    case "thinking":
+      return "solving";
+    case "tool":
+      return "searching";
+    case "working":
+      return "working";
+    case "answering":
+      return "composing";
+    case "tool_done":
+      return null;
+  }
+}
+
 /** Resolve the theme's primary colour for canvas use. Modern canvases accept
  * any CSS color string, so the raw var value works as a fillStyle. */
 function resolvePrimary(): string {
@@ -26,8 +61,8 @@ function resolvePrimary(): string {
  * One rAF loop — only ever one instance on screen (the active indicator).
  */
 export function ThinkingOrb({
-  size = 32,
-  state = "solving",
+  size = 64,
+  state = DEFAULT_THINKING_STATE,
   className,
 }: {
   /** Display size in CSS px; paints at the nearest tuned preset (20/64). */

@@ -3,6 +3,7 @@
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import type { OrbState } from "thinking-orbs";
 
 import RotatingMessages from "@/app/personal-assistant/components/rotating-messages";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
@@ -27,16 +28,17 @@ export function ReasoningLine({ snippet }: { snippet: string }) {
 export function ProgressChips({
   chips,
   startedAt,
+  orbState,
 }: {
   chips: ProgressStep[];
   startedAt?: number | null;
+  orbState: OrbState;
 }) {
   return (
     <div className="flex w-full items-start gap-3 px-4 py-1.5">
       {/* While a tool runs the profile picture gives way to the purple
-          thinking orb — "working" (orbiting particles) instead of the
-          typing indicator's "solving". */}
-      <ThinkingOrb size={32} state="working" className="shrink-0" />
+          thinking orb, in whatever activity state the live phase reports. */}
+      <ThinkingOrb size={64} state={orbState} className="shrink-0" />
       <div className="flex min-w-0 flex-col gap-1.5 pt-1">
         {chips.map((chip, i) => {
           const isLast = i === chips.length - 1;
@@ -101,7 +103,13 @@ function ElapsedTimer({ startedAt }: { startedAt: number }) {
   );
 }
 
-export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
+export function AssistantTyping({
+  startedAt,
+  orbState,
+}: {
+  startedAt?: number | null;
+  orbState: OrbState;
+}) {
   const t = useTranslations("App.Hermes.Running");
   const thinkingMessages = orderedMessageList(
     t.raw("thinkingMessages") as Record<string, string>,
@@ -124,7 +132,7 @@ export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
       {/* The profile picture gives way to the purple thinking orb for the
           duration of the turn — the orb IS the thinking signal, so no ping
           ring or extra dots needed. */}
-      <ThinkingOrb size={32} state="solving" className="shrink-0" />
+      <ThinkingOrb size={64} state={orbState} className="shrink-0" />
 
       {/* Rotating phrase; change has its own fade (from RotatingMessages). */}
       <div className="flex min-h-5 items-center gap-1.5 pt-2">
