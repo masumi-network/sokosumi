@@ -10,11 +10,11 @@ describe("getDeveloperNavItems", () => {
     const items = getDeveloperNavItems({ showVendors: false });
 
     expect(items.map((item) => item.key)).toEqual([
+      "docs",
       "oauthClients",
       "apiKeys",
       "coworkers",
       "tasks",
-      "docs",
     ]);
   });
 
@@ -22,12 +22,12 @@ describe("getDeveloperNavItems", () => {
     const items = getDeveloperNavItems({ showVendors: true });
 
     expect(items.map((item) => item.key)).toEqual([
+      "docs",
       "oauthClients",
       "apiKeys",
       "vendors",
       "coworkers",
       "tasks",
-      "docs",
     ]);
   });
 });

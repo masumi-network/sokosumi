@@ -25,6 +25,12 @@ export interface DeveloperNavItem {
 
 const BASE_DEVELOPER_NAV_ITEMS: DeveloperNavItem[] = [
   {
+    key: "docs",
+    href: "/developer/docs",
+    translationKey: "docs",
+    Icon: BookOpen,
+  },
+  {
     key: "oauthClients",
     href: "/developer/oauth-clients",
     translationKey: "oauthClients",
@@ -47,12 +53,6 @@ const BASE_DEVELOPER_NAV_ITEMS: DeveloperNavItem[] = [
     href: "/developer/tasks",
     translationKey: "tasks",
     Icon: ListTodo,
-  },
-  {
-    key: "docs",
-    href: "/developer/docs",
-    translationKey: "docs",
-    Icon: BookOpen,
   },
 ];
 
