@@ -34,10 +34,12 @@ function getLastUsedLoginMethodCookieName(): string {
 
 /** Plugin list shared by browser and server Better Auth clients. */
 export function getAuthClientPlugins() {
+  const additionalFieldsPlugin = inferAdditionalFields({
+    user: betterAuthUserAdditionalFields,
+  });
+
   return [
-    inferAdditionalFields({
-      user: betterAuthUserAdditionalFields,
-    }),
+    additionalFieldsPlugin,
     adminClient(),
     apiKeyClient(),
     organizationClient({
@@ -53,7 +55,12 @@ export function getAuthClientPlugins() {
       cookieName: getLastUsedLoginMethodCookieName(),
     }),
     oauthProviderClient(),
-    jwtClient(),
+    // better-auth 1.6.25: jwtClient getActions emits a narrowed BetterFetch that
+    // is not assignable to BetterAuthClientPlugin, collapsing createAuthClient
+    // option inference (updateUser loses additional fields). Cast through a
+    // known-good plugin type — not BetterAuthClientPlugin, which widens the
+    // whole array. Remove after upstream fix (better-auth#10513) lands.
+    jwtClient() as unknown as typeof additionalFieldsPlugin,
     stripeClient({
       subscription: true,
     }),
