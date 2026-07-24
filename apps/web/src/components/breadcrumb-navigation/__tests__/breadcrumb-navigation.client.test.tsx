@@ -1,10 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BreadcrumbNavigationClient from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
-import type {
-  CoreAgentDto,
-  OrganizationWithLimitedInfo,
-} from "@/lib/types/core-dto";
+import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 const usePathnameMock = vi.fn();
 
@@ -49,7 +46,6 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
       />,
@@ -59,21 +55,14 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.queryByText("Organizations")).not.toBeInTheDocument();
   });
 
-  it("resolves agent names from agent id path segments", () => {
+  it("resolves agent path segments from segmentLabels", () => {
     usePathnameMock.mockReturnValue("/agents/agent-1");
 
     render(
       <BreadcrumbNavigationClient
-        agents={
-          [
-            {
-              id: "agent-1",
-              name: "Research Copilot",
-            },
-          ] as CoreAgentDto[]
-        }
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
+        segmentLabels={{ "agent-1": "Research Copilot" }}
       />,
     );
 
@@ -85,7 +74,6 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
       />,
@@ -100,7 +88,6 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
         segmentLabels={{ "acme-corp": "Acme Corp" }}
@@ -117,7 +104,6 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
       />,
@@ -134,7 +120,6 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
       />,
@@ -151,7 +136,6 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={{
           ...breadcrumbMessages,
@@ -177,7 +161,6 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={{
           ...breadcrumbMessages,

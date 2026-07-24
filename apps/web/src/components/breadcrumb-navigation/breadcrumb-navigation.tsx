@@ -78,7 +78,6 @@ async function BreadcrumbNavigationInner({
 
   return (
     <BreadcrumbNavigationClient
-      agents={[]}
       breadcrumbMessages={breadcrumbMessages}
       organizations={organizations}
       className={className}
