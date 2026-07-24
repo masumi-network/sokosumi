@@ -202,7 +202,7 @@ let domains = [
     #{ id: "users", path: "apps/core/src/routes/v1/users", focus: "/users/me and /users/{id} including credits, prefs, design-md, orgs, grants" },
     #{ id: "organizations", path: "apps/core/src/routes/v1/organizations", focus: "org detail, members, billing, seats, vendor-grants, design-md" },
     #{ id: "agents", path: "apps/core/src/routes/v1/agents", focus: "agent catalog, jobs, ratings, reviews/me" },
-    #{ id: "conversations-chat", path: "apps/core/src/routes/v1/conversations and apps/core/src/routes/v1/chat", focus: "marketplace conversations + chat stream; expect intentional orchestrator forbid" },
+    #{ id: "conversations-chat", path: "apps/core/src/routes/v1/conversations and apps/core/src/routes/v1/chat", focus: "marketplace conversations + chat stream; orch+context should be parity_ok (acts as context user)" },
     #{ id: "notifications", path: "apps/core/src/routes/v1/notifications", focus: "list, read, unread-count" },
     #{ id: "checkout-products-coupons", path: "apps/core/src/routes/v1/checkout, products, coupons", focus: "billing checkout, products catalog, coupon claim" },
     #{ id: "workspaces-history-misc", path: "apps/core/src/routes/v1/workspaces, history, invitations, categories, share, hermes, developer, vendors, credit-costs", focus: "remaining user-facing mounts; hermes is user-session product surface" },
@@ -225,7 +225,7 @@ for d in domains {
     p += "- requireCoworkerAuthContext / requireOrchestratorAuthContext: actor-specific (n_a for user parity).\n\n";
     p += "Documented intentional orchestrator denials (from docs/orchestrator/hermes-orchestrator-actor.md):\n";
     p += "- /v1/hermes/* product chat: user session only (orchestrator 403)\n";
-    p += "- marketplace chat / conversations: orchestrator 403\n";
+    p += "- marketplace chat / conversations: ALLOW orch+context (parity_ok); bare orch denied\n";
     p += "- POST /v1/tasks/{id}/jobs: coworker only (orchestrator 403)\n";
     p += "Session-bound ops (PII, Stripe checkout, coupon claim, notifications) may use requireUserAuthContext\n";
     p += "by design — still list them as unexpected_deny IF they look like general user workspace APIs that\n";
@@ -375,8 +375,8 @@ if to_verify.len() > 0 {
         vp += "2. An orchestrator with service token + X-Context-User-Id is rejected by this guard\n";
         vp += "   (or equivalent logic).\n";
         vp += "3. The denial is NOT justified by documented product rules in\n";
-        vp += "   docs/orchestrator/hermes-orchestrator-actor.md (hermes product, marketplace chat,\n";
-        vp += "   conversations, POST tasks/{id}/jobs coworker-only).\n";
+        vp += "   docs/orchestrator/hermes-orchestrator-actor.md (hermes product session-only,\n";
+        vp += "   POST tasks/{id}/jobs coworker-only). Marketplace chat/conversations ALLOW orch+ctx.\n";
         vp += "4. If guard is requireUserAuthContext for clear session-bound billing/consent/PII,\n";
         vp += "   set real=false severity=invalid — intentional session-only, not a bug.\n";
         vp += "5. If Hermes/workspace orchestration would reasonably need this user surface,\n";
@@ -454,9 +454,9 @@ report_prompt += "INVARIANT under test:\n";
 report_prompt += "An orchestrator authenticated with ORCHESTRATOR_SERVICE_TOKEN that sends\n";
 report_prompt += "X-Context-User-Id / X-Context-Organization-Id must be able to call every Core API\n";
 report_prompt += "endpoint available to that user, except documented intentional exclusions\n";
-report_prompt += "(Hermes product /v1/hermes/*, marketplace chat/conversations, coworker-only\n";
-report_prompt += "POST /v1/tasks/{id}/jobs) and clearly session-bound surfaces (Stripe checkout,\n";
-report_prompt += "OAuth consent, admin).\n\n";
+report_prompt += "(Hermes product /v1/hermes/*, coworker-only POST /v1/tasks/{id}/jobs) and\n";
+report_prompt += "clearly session-bound surfaces (Stripe checkout, OAuth consent, admin).\n";
+report_prompt += "Marketplace chat/conversations SHOULD allow orch+context.\n\n";
 report_prompt += "Use ONLY this JSON evidence (do not invent endpoints):\n";
 report_prompt += payload_json + "\n\n";
 report_prompt += "Report structure (markdown):\n";

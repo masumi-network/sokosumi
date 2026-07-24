@@ -666,10 +666,18 @@ export async function requireConversationCoworkerAccess(
   metadata: Prisma.JsonValue | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
+    return;
+  }
+
+  // Orchestrator acts as the context user; ownership is enforced by the
+  // caller’s userId-scoped query. Bare service token has no user scope.
+  if (isOrchestratorAuthContext(authContext)) {
+    if (!authContext.context) {
+      throw forbidden(
+        "Context headers (X-Context-User-Id) are required for this resource",
+      );
+    }
     return;
   }
 
@@ -700,7 +708,7 @@ export async function requireConversationCoworkerAccess(
  * authenticated coworker and drops any client-supplied `coworker_slug`, so the
  * binding cannot diverge (the chat handler resolves the coworker from
  * `coworker_id`; the real slug is derived from it). No-op for user sessions and
- * orchestrator context actors.
+ * orchestrator context actors. Bare orchestrator is rejected.
  *
  * Mutates and returns the passed metadata object.
  */
@@ -708,10 +716,16 @@ export function pinCoworkerConversationBinding(
   authContext: AuthenticationContext,
   metadata: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
+    return metadata;
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    if (!authContext.context) {
+      throw forbidden(
+        "Context headers (X-Context-User-Id) are required for this resource",
+      );
+    }
     return metadata;
   }
 

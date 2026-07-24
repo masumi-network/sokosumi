@@ -1313,6 +1313,20 @@ describe("requireConversationCoworkerAccess", () => {
     expect(tx.coworker.findFirst).not.toHaveBeenCalled();
   });
 
+  it("rejects bare orchestrator without context headers", async () => {
+    const tx = createTransactionClient();
+    const bareOrchestrator: OrchestratorAuthenticationContext = {
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+    };
+
+    await expect(
+      requireConversationCoworkerAccess(bareOrchestrator, null, tx),
+    ).rejects.toThrow(
+      "Context headers (X-Context-User-Id) are required for this resource",
+    );
+  });
+
   it("allows a delegated coworker on its own conversation (coworker_id)", async () => {
     const tx = createTransactionClient();
 
