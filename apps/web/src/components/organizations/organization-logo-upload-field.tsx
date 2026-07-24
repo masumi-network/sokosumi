@@ -103,7 +103,7 @@ export function OrganizationLogoUploadField({
                 <AvatarImage
                   src={logoValue || undefined}
                   alt={labels.previewAlt}
-                  className="object-cover"
+                  className="object-contain"
                 />
                 <AvatarFallback className="bg-muted text-muted-foreground rounded-none">
                   {fallbackIcon ?? <Building2 className="size-8" />}
