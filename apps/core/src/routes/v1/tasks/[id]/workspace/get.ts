@@ -6,7 +6,7 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { taskWorkspaceSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
@@ -19,7 +19,8 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "get",
   path: "/{id}/workspace",
-  description: "Resolve a task id to its workspace and organization id",
+  description:
+    "Resolve a task id to its workspace and organization id. Session user or orchestrator/coworker with context headers.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -45,7 +46,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userAuthContext = requireUserAuthContext(authContext);
+    const userContext = requireUserContext(authContext);
     const { id } = c.req.valid("param");
 
     const task = await prisma.task.findUnique({
@@ -72,10 +73,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (task.workspace.organizationId) {
       await resolveMemberOrganizationById({
         id: task.workspace.organizationId,
-        userId: userAuthContext.userId,
+        userId: userContext.userId,
         tx: prisma,
       });
-    } else if (task.ownerId !== userAuthContext.userId) {
+    } else if (task.ownerId !== userContext.userId) {
       throw forbidden("You do not have access to this task");
     }
 
