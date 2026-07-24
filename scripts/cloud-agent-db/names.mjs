@@ -60,12 +60,31 @@ export function expiresAtIso(nowMs = Date.now()) {
 }
 
 /**
- * @param {string} createdAtIso
+ * Whether an agent branch is past its idle TTL and safe for `--idle-gc`.
+ *
+ * Prefer Neon `expires_at` (refreshed on provision resume). Falling back to
+ * `created_at + 72h` would delete long-lived resumed branches early and defeat
+ * the TTL refresh — only use created_at when expires_at is missing.
+ *
+ * @param {{ expiresAt?: string | null, createdAt?: string | null }} input
  * @param {number} [nowMs]
  * @returns {boolean}
  */
-export function isIdlePastTtl(createdAtIso, nowMs = Date.now()) {
-  const created = Date.parse(createdAtIso);
-  if (Number.isNaN(created)) return false;
-  return nowMs - created >= IDLE_TTL_MS;
+export function isIdlePastTtl(input, nowMs = Date.now()) {
+  const expiresAt = input?.expiresAt ?? null;
+  const createdAt = input?.createdAt ?? null;
+
+  if (expiresAt) {
+    const expires = Date.parse(expiresAt);
+    if (Number.isNaN(expires)) return false;
+    return nowMs >= expires;
+  }
+
+  if (createdAt) {
+    const created = Date.parse(createdAt);
+    if (Number.isNaN(created)) return false;
+    return nowMs - created >= IDLE_TTL_MS;
+  }
+
+  return false;
 }

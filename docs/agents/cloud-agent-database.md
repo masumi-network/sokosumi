@@ -106,7 +106,7 @@ production / `main` parent (or any non-agent branch).
 | PR closed without merge | Same workflow |
 | Agent finishes with **no PR** | Agent runs `node scripts/cloud-agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`) |
 | Agent archived | Same explicit teardown when possible; otherwise idle TTL |
-| Idle **72h** | Neon `expires_at` on create/resume **and** scheduled Action `--idle-gc` every 6h as backup |
+| Idle **72h** | Neon `expires_at` on create/resume **and** scheduled Action `--idle-gc` every 6h as backup (GC deletes when `expires_at` has passed, not when `created_at` is old) |
 
 Manual:
 

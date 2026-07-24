@@ -178,7 +178,16 @@ async function main() {
       for (const branch of branches) {
         if (!isAgentBranchName(branch.name)) continue;
         if (branch.default === true || branch.protected === true) continue;
-        if (!isIdlePastTtl(branch.created_at)) continue;
+        // Honor Neon expires_at (refreshed on resume). created_at alone would
+        // delete active agent DBs after 72h from create despite TTL refresh.
+        if (
+          !isIdlePastTtl({
+            expiresAt: branch.expires_at,
+            createdAt: branch.created_at,
+          })
+        ) {
+          continue;
+        }
         if (await safeDeleteBranch(config, branch)) deleted += 1;
       }
     }

@@ -4,7 +4,9 @@ on:
   pull_request:
     types: [closed]
   schedule:
-    # Backup for Neon expires_at (72h idle TTL). Runs every 6 hours.
+    # Backup for Neon expires_at (72h idle TTL). Runs every 6h.
+    # Deletes cloud-agent-* branches whose expires_at has passed
+    # (falls back to created_at + 72h only when expires_at is missing).
     - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
@@ -13,7 +15,7 @@ on:
         required: false
         type: string
       idle_gc:
-        description: Delete agent branches older than 72h
+        description: Delete agent branches past Neon expires_at (72h idle TTL)
         required: false
         type: boolean
         default: true

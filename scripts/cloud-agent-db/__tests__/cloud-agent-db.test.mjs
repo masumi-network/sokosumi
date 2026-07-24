@@ -45,12 +45,46 @@ bc-0c091101-a060-4ad6-856c-c903c59dde1b
     assert.deepEqual(extractAgentIdsFromText(""), []);
   });
 
-  it("computes 72h idle TTL", () => {
+  it("computes 72h idle TTL from expires_at (not created_at when both set)", () => {
     const now = Date.parse("2026-07-22T12:00:00.000Z");
     assert.equal(expiresAtIso(now), "2026-07-25T12:00:00.000Z");
     assert.equal(IDLE_TTL_MS, 72 * 60 * 60 * 1000);
-    assert.equal(isIdlePastTtl("2026-07-19T12:00:00.000Z", now), true);
-    assert.equal(isIdlePastTtl("2026-07-20T12:00:00.000Z", now), false);
+
+    // Expired: expires_at in the past
+    assert.equal(
+      isIdlePastTtl(
+        {
+          expiresAt: "2026-07-22T11:00:00.000Z",
+          createdAt: "2026-07-20T12:00:00.000Z",
+        },
+        now,
+      ),
+      true,
+    );
+
+    // Still live: resume refreshed expires_at even though created_at is old
+    assert.equal(
+      isIdlePastTtl(
+        {
+          expiresAt: "2026-07-25T12:00:00.000Z",
+          createdAt: "2026-07-18T12:00:00.000Z",
+        },
+        now,
+      ),
+      false,
+    );
+
+    // Fallback when expires_at missing: created_at + 72h
+    assert.equal(
+      isIdlePastTtl({ createdAt: "2026-07-19T12:00:00.000Z" }, now),
+      true,
+    );
+    assert.equal(
+      isIdlePastTtl({ createdAt: "2026-07-20T12:00:00.000Z" }, now),
+      false,
+    );
+
+    assert.equal(isIdlePastTtl({}, now), false);
   });
 });
 
