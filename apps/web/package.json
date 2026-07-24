@@ -27,7 +27,7 @@
     "@ai-sdk/react": "4.0.40",
     "@better-auth/api-key": "1.6.23",
     "@better-auth/i18n": "1.6.23",
-    "@better-auth/oauth-provider": "1.6.23",
+    "@better-auth/oauth-provider": "1.6.25",
     "@better-auth/passkey": "1.6.23",
     "@better-auth/stripe": "1.6.23",
     "@dnd-kit/core": "6.3.1",
