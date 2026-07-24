@@ -58,14 +58,3 @@ export function extractAgentIdsFromText(text) {
 export function expiresAtIso(nowMs = Date.now()) {
   return new Date(nowMs + IDLE_TTL_MS).toISOString();
 }
-
-/**
- * @param {string} createdAtIso
- * @param {number} [nowMs]
- * @returns {boolean}
- */
-export function isIdlePastTtl(createdAtIso, nowMs = Date.now()) {
-  const created = Date.parse(createdAtIso);
-  if (Number.isNaN(created)) return false;
-  return nowMs - created >= IDLE_TTL_MS;
-}
