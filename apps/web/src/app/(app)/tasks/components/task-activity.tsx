@@ -554,6 +554,7 @@ export function TaskActivitySection({
                   ) : showAssistantOrb ? (
                     <AssistantOrb
                       seed={actorInfo?.avatarSeed ?? null}
+                      expression="idle"
                       animate={false}
                       size={24}
                       className="size-6 shrink-0 self-start"

@@ -130,8 +130,12 @@ export function DottedOrb({
     return (
       <canvas
         ref={canvasRef}
-        role="img"
-        aria-label={alt}
+        // Same labelled-vs-decorative split the aurora components used:
+        // an empty alt means decorative, so hide it from the a11y tree
+        // instead of exposing an unnamed image.
+        role={alt ? "img" : undefined}
+        aria-label={alt || undefined}
+        aria-hidden={alt ? undefined : true}
         className={cn("rounded-full", className)}
       />
     );

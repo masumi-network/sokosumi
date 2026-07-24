@@ -277,6 +277,7 @@ function MetadataAvatarValue({
             seed={avatarSeed}
             animate={false}
             size={20}
+            expression="idle"
             className="size-5 shrink-0"
             alt={name}
           />

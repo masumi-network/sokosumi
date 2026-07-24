@@ -221,7 +221,7 @@ function mulberry32(a: number): () => number {
   };
 }
 
-function faceTraits(seed: string, placeholder: boolean): OrbFaceTraits {
+export function faceTraits(seed: string, placeholder: boolean): OrbFaceTraits {
   const r = mulberry32(xmur3(`${placeholder ? "placeholder" : seed}:face`)());
   return {
     eyeSpacing: 0.9 + r() * 0.2,
