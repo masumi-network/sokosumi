@@ -8,6 +8,7 @@ import RotatingMessages from "@/app/personal-assistant/components/rotating-messa
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 
 import { AssistantAvatar } from "./assistant-context";
+import { ThinkingOrb } from "./thinking-orb";
 import type { ProgressStep } from "./types";
 
 /** Transient chain-of-thought beat, shown live and superseded by the next
@@ -136,10 +137,10 @@ export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
         <AssistantAvatar animated expression="thinking" />
       </span>
 
-      {/* Rotating phrase + three pulsing dots. Phrase change has its own
-          fade (from RotatingMessages); the dots run independently so there
-          is always something animating even between fades. */}
-      <div className="flex min-h-5 items-center gap-1 pt-2">
+      {/* Rotating phrase + the purple thinking orb. Phrase change has its
+          own fade (from RotatingMessages); the orb animates independently so
+          there is always something moving even between fades. */}
+      <div className="flex min-h-5 items-center gap-1.5 pt-2">
         {escalation ? (
           <span className="reasoning-text-shine text-foreground text-sm leading-5">
             {escalation}
@@ -151,15 +152,7 @@ export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
             className="reasoning-text-shine text-foreground text-sm leading-5"
           />
         )}
-        <span aria-hidden className="text-foreground/70 inline-flex gap-0.5">
-          <span className="animate-thinking-dot inline-block">.</span>
-          <span className="animate-thinking-dot inline-block [animation-delay:200ms]">
-            .
-          </span>
-          <span className="animate-thinking-dot inline-block [animation-delay:400ms]">
-            .
-          </span>
-        </span>
+        <ThinkingOrb size={20} state="solving" />
         {startedAt ? <ElapsedTimer startedAt={startedAt} /> : null}
       </div>
     </div>

@@ -799,29 +799,9 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
   }
 }
 
-/* Three staggered pulsing dots after the "Thinking" phrase in the chat.
- * Each dot uses the same keyframe; the JSX adds per-dot animation-delay so
- * they fire in sequence and the row reads as a typing indicator. */
-@keyframes thinking-dot {
-  0%,
-  80%,
-  100% {
-    opacity: 0.2;
-    transform: translateY(0);
-  }
-  40% {
-    opacity: 1;
-    transform: translateY(-1px);
-  }
-}
-
-.animate-thinking-dot {
-  animation: thinking-dot 1.2s ease-in-out infinite;
-}
-
 /* Respect reduced-motion for the chat "thinking" indicator: freeze the
- * reasoning shimmer to plain foreground text and hold the dots steady
- * (visible, not pulsing). Defined after the rules above so source order wins. */
+ * reasoning shimmer to plain foreground text. Defined after the rules
+ * above so source order wins. */
 @media (prefers-reduced-motion: reduce) {
   .reasoning-text-shine {
     animation: none;
@@ -829,11 +809,6 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
     -webkit-background-clip: border-box;
     background-clip: border-box;
     color: var(--foreground);
-  }
-  .animate-thinking-dot {
-    animation: none;
-    opacity: 0.6;
-    transform: none;
   }
 }
 
