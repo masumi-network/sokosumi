@@ -5,6 +5,8 @@ import { getAllCoreAgents } from "@/lib/agents/core-loaders";
 import type { Agent } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
+import { developerCoworkerService } from "@/lib/services/developer-coworker.service";
+import { vendorService } from "@/lib/services/vendor.service";
 import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
@@ -16,6 +18,8 @@ interface BreadcrumbNavigationProps {
 }
 
 const ADMIN_ORGANIZATION_DETAIL_PATH = /^\/admin\/organizations\/([^/]+)\/?$/;
+const DEVELOPER_VENDOR_DETAIL_PATH = /^\/developer\/vendors\/([^/]+)\/?$/;
+const DEVELOPER_COWORKER_DETAIL_PATH = /^\/developer\/coworkers\/([^/]+)\/?$/;
 
 export default async function BreadcrumbNavigation({
   className,
@@ -97,14 +101,26 @@ async function resolveSegmentLabels(
   segmentLabels?: Record<string, string>,
 ): Promise<Record<string, string>> {
   const labels = { ...segmentLabels };
+
+  await resolveAdminOrganizationLabel(pathname, labels);
+  await resolveDeveloperVendorLabel(pathname, labels);
+  await resolveDeveloperCoworkerLabel(pathname, labels);
+
+  return labels;
+}
+
+async function resolveAdminOrganizationLabel(
+  pathname: string,
+  labels: Record<string, string>,
+): Promise<void> {
   const match = pathname.match(ADMIN_ORGANIZATION_DETAIL_PATH);
   if (!match) {
-    return labels;
+    return;
   }
 
   const slug = decodeURIComponent(match[1]);
   if (labels[slug]) {
-    return labels;
+    return;
   }
 
   try {
@@ -119,6 +135,59 @@ async function resolveSegmentLabels(
       { message: (error as Error)?.message, slug },
     );
   }
+}
 
-  return labels;
+async function resolveDeveloperVendorLabel(
+  pathname: string,
+  labels: Record<string, string>,
+): Promise<void> {
+  const match = pathname.match(DEVELOPER_VENDOR_DETAIL_PATH);
+  if (!match) {
+    return;
+  }
+
+  const vendorId = decodeURIComponent(match[1]);
+  if (labels[vendorId]) {
+    return;
+  }
+
+  try {
+    const panelData = await vendorService.getVendorAdminPanelData(vendorId);
+    if (panelData) {
+      labels[vendorId] = panelData.vendor.name;
+    }
+  } catch (error) {
+    console.warn(
+      "[breadcrumb] developer vendor lookup failed, using id fallback",
+      { message: (error as Error)?.message, vendorId },
+    );
+  }
+}
+
+async function resolveDeveloperCoworkerLabel(
+  pathname: string,
+  labels: Record<string, string>,
+): Promise<void> {
+  const match = pathname.match(DEVELOPER_COWORKER_DETAIL_PATH);
+  if (!match) {
+    return;
+  }
+
+  const coworkerId = decodeURIComponent(match[1]);
+  if (labels[coworkerId]) {
+    return;
+  }
+
+  try {
+    const coworker =
+      await developerCoworkerService.getOwnedCoworkerById(coworkerId);
+    if (coworker) {
+      labels[coworkerId] = coworker.name;
+    }
+  } catch (error) {
+    console.warn(
+      "[breadcrumb] developer coworker lookup failed, using id fallback",
+      { message: (error as Error)?.message, coworkerId },
+    );
+  }
 }

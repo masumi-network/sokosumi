@@ -4,6 +4,7 @@ import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-st
 import UserCredits, {
   type UserCreditsData,
 } from "@/app/components/user-credits";
+import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -62,12 +63,15 @@ export default async function Sidebar({
     members = [];
   }
 
-  const planLabel = await resolvePlanSecondaryLabel({
-    plan: planForLabel,
-    organizationName: activeOrganizationId
-      ? (organizationName ?? tCredit("unavailable"))
-      : null,
-  });
+  const [{ showVendors: showDeveloperVendors }, planLabel] = await Promise.all([
+    getDeveloperVendorAdminAccess(),
+    resolvePlanSecondaryLabel({
+      plan: planForLabel,
+      organizationName: activeOrganizationId
+        ? (organizationName ?? tCredit("unavailable"))
+        : null,
+    }),
+  ]);
 
   return (
     <ShadcnSidebar collapsible="icon">
@@ -84,6 +88,7 @@ export default async function Sidebar({
             members={members}
             activeOrganizationId={activeOrganizationId}
             planLabel={planLabel}
+            showDeveloperVendors={showDeveloperVendors}
           >
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
             {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}

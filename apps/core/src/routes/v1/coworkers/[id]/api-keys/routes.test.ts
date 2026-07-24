@@ -12,11 +12,15 @@ import mountPostCoworkerApiKey from "./post";
 const {
   userFindUniqueMock,
   coworkerFindFirstMock,
+  vendorMemberFindFirstMock,
+  coworkerAssignmentFindFirstMock,
   coworkerApiKeyFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
+  vendorMemberFindFirstMock: vi.fn(),
+  coworkerAssignmentFindFirstMock: vi.fn(),
   coworkerApiKeyFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
@@ -28,6 +32,12 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     coworker: {
       findFirst: coworkerFindFirstMock,
+    },
+    vendorMember: {
+      findFirst: vendorMemberFindFirstMock,
+    },
+    coworkerAssignment: {
+      findFirst: coworkerAssignmentFindFirstMock,
     },
     coworkerApiKey: {
       findMany: coworkerApiKeyFindManyMock,
@@ -93,16 +103,24 @@ function mockTransaction(tx: TransactionMock) {
   });
 }
 
+const vendorId = "01960001-0001-7001-8001-000000000001";
+
+function mockAssignedDeveloperAccess() {
+  coworkerFindFirstMock.mockResolvedValue({
+    id: "cow_123",
+    vendorId,
+  });
+  vendorMemberFindFirstMock.mockResolvedValue(null);
+  coworkerAssignmentFindFirstMock.mockResolvedValue({ id: "assign_1" });
+}
+
 describe("coworker API key protected endpoints", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({
       role: "user",
     });
-    coworkerFindFirstMock.mockResolvedValue({
-      id: "cow_123",
-      userId: "owner_123",
-    });
+    mockAssignedDeveloperAccess();
   });
 
   it("creates a key and only returns creation fields", async () => {
@@ -316,10 +334,10 @@ describe("coworker API key protected endpoints", () => {
     });
   });
 
-  it("allows admin to create an API key for another user's coworker", async () => {
+  it("allows platform admin to create an API key for any coworker", async () => {
     coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
-      userId: "owner_999",
+      vendorId,
     });
 
     const tx: TransactionMock = {
@@ -375,8 +393,15 @@ describe("coworker API key protected endpoints", () => {
     },
     { method: "DELETE", path: "/cow_123/api-keys/cokey_123" },
   ])(
-    "returns 403 when non-owner non-admin calls $method $path",
+    "returns 403 when user lacks membership access and calls $method $path",
     async ({ method, path, body }) => {
+      coworkerFindFirstMock.mockResolvedValue({
+        id: "cow_123",
+        vendorId,
+      });
+      vendorMemberFindFirstMock.mockResolvedValue(null);
+      coworkerAssignmentFindFirstMock.mockResolvedValue(null);
+
       const app = createApp("user_999");
 
       const response = await app.request(`http://localhost${path}`, {

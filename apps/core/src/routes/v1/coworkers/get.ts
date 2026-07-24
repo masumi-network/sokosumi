@@ -7,6 +7,7 @@ import {
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
+import { buildAccessibleCoworkersWhere } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -36,7 +37,7 @@ const querySchema = z.object({
     .openapi({
       param: { name: "scope", in: "query" },
       description:
-        "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers owned by the authenticated user (user-authenticated only; admins see only their own).",
+        "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned coworkers only; user-authenticated only).",
       example: "whitelisted",
     }),
   capability: capabilityQuerySchema,
@@ -74,7 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const userAuthContext = requireUserAuthContext(authContext);
       baseScope = {
         archivedAt: null,
-        userId: userAuthContext.userId,
+        ...buildAccessibleCoworkersWhere(userAuthContext.userId),
       };
     } else if (scope === "archived") {
       baseScope = { archivedAt: { not: null } };

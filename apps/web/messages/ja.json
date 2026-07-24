@@ -263,7 +263,12 @@
       "new": "新規",
       "notifications": "通知",
       "projects": "プロジェクト",
-      "invoices": "請求書"
+      "invoices": "請求書",
+      "oauth-clients": "OAuth クライアント",
+      "api-keys": "API キー",
+      "coworkers": "コワーカー",
+      "vendors": "ベンダー",
+      "docs": "ドキュメント"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2467,7 +2472,7 @@
         "eyebrow": "エージェントを準備中",
         "title": "アシスタントをあなた用に準備しています",
         "subtitle": "数分かかります。このタブを閉じても構いません。アシスタントはバックグラウンドでセットアップを続けます。",
-        "etaLabel": "残り約 {seconds} 秒",
+        "etaMinutesLabel": "残り約{minutes, plural, other {#分}}",
         "etaSettling": "もうすぐ完了…",
         "stepFallbackLabel": "準備中",
         "footerHint": "完了すると、アシスタントからのパーソナライズされたイントロ付きでチャットが開きます。",
@@ -2936,6 +2941,10 @@
           "coworkers": {
             "title": "Coworkers",
             "description": "すべてのコワーカーの機能、優先度、ホワイトリスト、アーカイブ、表示メタデータを管理します。"
+          },
+          "vendors": {
+            "title": "ベンダー",
+            "description": "マーケットプレイスのベンダーを作成・編集します（名前とロゴを含む）。"
           }
         }
       },
@@ -3318,6 +3327,54 @@
           "submitting": "クレジットを付与中…",
           "grantSuccess": "無料クレジットを付与しました",
           "grantError": "無料クレジットの付与に失敗しました"
+        }
+      },
+      "Vendors": {
+        "title": "ベンダー",
+        "description": "マーケットプレイスのベンダーを作成・編集します（名前とロゴを含む）。",
+        "loadFailed": "ベンダーの読み込みに失敗しました。",
+        "backToList": "一覧に戻る",
+        "createVendor": "ベンダーを作成",
+        "createTitle": "新しいベンダー",
+        "createDescription": "マーケットプレイスのベンダーを作成します。スラッグは後から変更できません。",
+        "editDescription": "ベンダー名とロゴを更新します。スラッグは変更できません。",
+        "Table": {
+          "name": "名前",
+          "slug": "スラッグ",
+          "created": "作成日時",
+          "updated": "更新日時",
+          "actions": "操作",
+          "edit": "編集",
+          "empty": "ベンダーが見つかりません。",
+          "searchPlaceholder": "名前またはスラッグで検索…",
+          "totalCount": "{count, plural, other {# 件のベンダー}}",
+          "filteredCount": "{total} 件中 {shown} 件を表示",
+          "emptySearch": "検索に一致するベンダーはありません。"
+        },
+        "Form": {
+          "nameLabel": "名前",
+          "slugLabel": "スラッグ",
+          "slugHintCreate": "小文字・数字・ハイフンを使用してください。作成後はスラッグを変更できません。",
+          "slugHintEdit": "スラッグは読み取り専用です。",
+          "create": "ベンダーを作成",
+          "save": "変更を保存",
+          "createSuccess": "ベンダーを作成しました。",
+          "saveSuccess": "ベンダーを更新しました。",
+          "saveFailed": "ベンダーの保存に失敗しました。",
+          "invalidInput": "ベンダーの入力内容を確認して、もう一度お試しください。",
+          "notFound": "ベンダーが見つかりません。",
+          "logos": {
+            "lightLabel": "ロゴ（ライトモード）",
+            "darkLabel": "ロゴ（ダークモード）",
+            "upload": "ロゴをアップロード",
+            "replace": "ロゴを差し替え",
+            "remove": "ロゴを削除",
+            "previewAlt": "ベンダーロゴのプレビュー",
+            "fileTooLarge": "ロゴファイルが大きすぎます。",
+            "fileTypeNotAccepted": "このロゴのファイル形式はサポートされていません。",
+            "maxFilesExceeded": "一度にアップロードできるロゴファイルは 1 つだけです。",
+            "uploadError": "ロゴのアップロードに失敗しました。"
+          }
         }
       }
     },
@@ -4168,7 +4225,8 @@
         "apiKeys": "APIキー",
         "docs": "ドキュメント",
         "coworkers": "コワーカー",
-        "tasks": "タスク"
+        "tasks": "タスク",
+        "vendors": "ベンダー"
       },
       "Docs": {
         "title": "デベロッパー向けドキュメント",
@@ -4190,7 +4248,7 @@
       },
       "Coworkers": {
         "title": "あなたのコワーカー",
-        "description": "所有するコワーカーの表示設定を管理します。",
+        "description": "ベンダーメンバーシップでアクセスできるコワーカーの表示設定を管理します。",
         "loadFailed": "コワーカーを読み込めませんでした。",
         "backToList": "コワーカー一覧に戻る",
         "editDescription": "Sokosumi でのこのコワーカーの表示を更新します。",
@@ -4198,22 +4256,22 @@
           "notFound": "コワーカーが見つかりません。"
         },
         "List": {
-          "empty": "アクティブなコワーカーをまだ所有していません。",
+          "empty": "アクセス可能なアクティブなコワーカーはまだありません。",
           "noCaption": "キャプションなし",
           "edit": "編集"
         },
         "Metadata": {
           "title": "コワーカーを編集",
-          "description": "所有するコワーカーの表示フィールドを編集"
+          "description": "アクセス可能なコワーカーの表示項目を編集"
         }
       },
       "Tasks": {
-        "title": "所有コワーカーのタスク",
-        "description": "あなたのコワーカーが担当者または作成者であるタスクの読み取り専用ビュー。",
+        "title": "アクセス可能なコワーカーのタスク",
+        "description": "アクセス可能なコワーカーが担当または作成したタスクの読み取り専用ビューです。",
         "loadFailed": "タスクを読み込めませんでした。",
         "List": {
           "totalCount": "{count, plural, one {# 件のタスク} other {# 件のタスク}}",
-          "empty": "コワーカーのタスクはまだ見つかりません。",
+          "empty": "アクセス可能なコワーカーのタスクはまだ見つかりません。",
           "task": "タスク",
           "status": "ステータス",
           "coworkers": "コワーカー",
@@ -4226,6 +4284,35 @@
         "TaskDetail": {
           "backToList": "タスク一覧に戻る",
           "personalWorkspace": "個人ワークスペース"
+        }
+      },
+      "Vendors": {
+        "title": "ベンダー",
+        "description": "プロフィールを管理するベンダーを選択してください。",
+        "profile": {
+          "nameLabel": "名前",
+          "slugLabel": "スラッグ",
+          "slugHint": "スラッグは読み取り専用です。",
+          "save": "変更を保存",
+          "saveSuccess": "ベンダープロフィールを更新しました。",
+          "logos": {
+            "lightLabel": "ロゴ（ライトモード）",
+            "darkLabel": "ロゴ（ダークモード）",
+            "upload": "ロゴをアップロード",
+            "replace": "ロゴを置き換え",
+            "remove": "ロゴを削除",
+            "previewAlt": "ベンダーロゴのプレビュー",
+            "fileTooLarge": "ロゴファイルが大きすぎます。",
+            "fileTypeNotAccepted": "ロゴファイルの形式はサポートされていません。",
+            "maxFilesExceeded": "一度にアップロードできるロゴは1つだけです。",
+            "uploadError": "ロゴのアップロードに失敗しました。"
+          }
+        },
+        "editDescription": "ベンダー名とロゴを更新します。スラッグは変更できません。",
+        "backToList": "ベンダー一覧に戻る",
+        "List": {
+          "manage": "管理",
+          "empty": "管理しているベンダーはありません。"
         }
       }
     },

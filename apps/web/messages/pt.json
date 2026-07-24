@@ -263,7 +263,12 @@
       "new": "Novo",
       "notifications": "Notificações",
       "projects": "Projetos",
-      "invoices": "Faturas"
+      "invoices": "Faturas",
+      "oauth-clients": "Clientes OAuth",
+      "api-keys": "Chaves API",
+      "coworkers": "Coworkers",
+      "vendors": "Vendors",
+      "docs": "Documentação"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2467,7 +2472,7 @@
         "eyebrow": "A preparar o seu agente",
         "title": "A preparar o seu assistente para si",
         "subtitle": "Isto demora alguns minutos. Pode fechar este separador; o seu assistente continua a configurar-se em segundo plano.",
-        "etaLabel": "Cerca de {seconds} segundos restantes",
+        "etaMinutesLabel": "Cerca de {minutes, plural, one {# minuto} other {# minutos}} restantes",
         "etaSettling": "Quase pronto…",
         "stepFallbackLabel": "A aquecer",
         "footerHint": "Quando terminar, o chat abrirá com uma introdução personalizada do seu assistente.",
@@ -2936,6 +2941,10 @@
           "coworkers": {
             "title": "Coworkers",
             "description": "Gerir capacidades, prioridade, lista branca, arquivo e metadados de apresentação de todos os coworkers."
+          },
+          "vendors": {
+            "title": "Vendors",
+            "description": "Crie e edite vendors do marketplace, incluindo nome e logótipos."
           }
         }
       },
@@ -3318,6 +3327,54 @@
           "submitting": "A conceder créditos…",
           "grantSuccess": "Créditos gratuitos concedidos",
           "grantError": "Falha ao conceder créditos gratuitos"
+        }
+      },
+      "Vendors": {
+        "title": "Vendors",
+        "description": "Crie e edite vendors do marketplace, incluindo nome e logótipos.",
+        "loadFailed": "Falha ao carregar vendors.",
+        "backToList": "Voltar à lista",
+        "createVendor": "Criar vendor",
+        "createTitle": "Novo vendor",
+        "createDescription": "Crie um vendor do marketplace. O slug não pode ser alterado depois.",
+        "editDescription": "Atualize o nome e os logótipos do vendor. O slug não pode ser alterado.",
+        "Table": {
+          "name": "Nome",
+          "slug": "Slug",
+          "created": "Criado",
+          "updated": "Atualizado",
+          "actions": "Ações",
+          "edit": "Editar",
+          "empty": "Nenhum vendor encontrado.",
+          "searchPlaceholder": "Pesquisar por nome ou slug…",
+          "totalCount": "{count, plural, one {# vendor} other {# vendors}}",
+          "filteredCount": "A mostrar {shown} de {total}",
+          "emptySearch": "Nenhum vendor corresponde à pesquisa."
+        },
+        "Form": {
+          "nameLabel": "Nome",
+          "slugLabel": "Slug",
+          "slugHintCreate": "Use letras minúsculas, números e hífenes. O slug não pode ser alterado após a criação.",
+          "slugHintEdit": "O slug é apenas de leitura.",
+          "create": "Criar vendor",
+          "save": "Guardar alterações",
+          "createSuccess": "Vendor criado.",
+          "saveSuccess": "Vendor atualizado.",
+          "saveFailed": "Falha ao guardar o vendor.",
+          "invalidInput": "Verifique os campos do vendor e tente novamente.",
+          "notFound": "Vendor não encontrado.",
+          "logos": {
+            "lightLabel": "Logótipo (modo claro)",
+            "darkLabel": "Logótipo (modo escuro)",
+            "upload": "Carregar logótipo",
+            "replace": "Substituir logótipo",
+            "remove": "Remover logótipo",
+            "previewAlt": "Pré-visualização do logótipo do vendor",
+            "fileTooLarge": "O ficheiro do logótipo é demasiado grande.",
+            "fileTypeNotAccepted": "O tipo de ficheiro do logótipo não é suportado.",
+            "maxFilesExceeded": "Só é possível carregar um ficheiro de logótipo de cada vez.",
+            "uploadError": "Falha ao carregar o logótipo."
+          }
         }
       }
     },
@@ -4168,7 +4225,8 @@
         "apiKeys": "Chaves de API",
         "docs": "Documentação",
         "coworkers": "Coworkers",
-        "tasks": "Tarefas"
+        "tasks": "Tarefas",
+        "vendors": "Fornecedores"
       },
       "Docs": {
         "title": "Documentação para programadores",
@@ -4190,7 +4248,7 @@
       },
       "Coworkers": {
         "title": "Os seus coworkers",
-        "description": "Gira as definições de apresentação dos coworkers que possui.",
+        "description": "Gerir definições de apresentação dos coworkers a que pode aceder através da adesão ao fornecedor.",
         "loadFailed": "Falha ao carregar os seus coworkers.",
         "backToList": "Voltar aos coworkers",
         "editDescription": "Atualize como este coworker aparece no Sokosumi.",
@@ -4198,22 +4256,22 @@
           "notFound": "Coworker não encontrado."
         },
         "List": {
-          "empty": "Ainda não possui coworkers ativos.",
+          "empty": "Ainda não tem coworkers ativos acessíveis.",
           "noCaption": "Sem legenda",
           "edit": "Editar"
         },
         "Metadata": {
           "title": "Editar coworker",
-          "description": "Editar os campos de apresentação dos seus coworkers"
+          "description": "Editar campos de apresentação de coworkers acessíveis"
         }
       },
       "Tasks": {
-        "title": "Tarefas dos coworkers próprios",
-        "description": "Vista só de leitura de tarefas em que os seus coworkers são responsáveis ou criadores.",
+        "title": "Tarefas de coworkers acessíveis",
+        "description": "Vista só de leitura de tarefas em que os seus coworkers acessíveis são responsáveis ou criadores.",
         "loadFailed": "Não foi possível carregar as tarefas.",
         "List": {
           "totalCount": "{count, plural, one {# tarefa} other {# tarefas}}",
-          "empty": "Ainda não foram encontradas tarefas para os seus coworkers.",
+          "empty": "Ainda não foram encontradas tarefas para os seus coworkers acessíveis.",
           "task": "Tarefa",
           "status": "Estado",
           "coworkers": "Coworkers",
@@ -4226,6 +4284,35 @@
         "TaskDetail": {
           "backToList": "Voltar às tarefas",
           "personalWorkspace": "Área de trabalho pessoal"
+        }
+      },
+      "Vendors": {
+        "title": "Fornecedores",
+        "description": "Escolha um fornecedor para gerir o respetivo perfil.",
+        "profile": {
+          "nameLabel": "Nome",
+          "slugLabel": "Slug",
+          "slugHint": "O slug é só de leitura.",
+          "save": "Guardar alterações",
+          "saveSuccess": "Perfil do fornecedor atualizado.",
+          "logos": {
+            "lightLabel": "Logótipo (modo claro)",
+            "darkLabel": "Logótipo (modo escuro)",
+            "upload": "Carregar logótipo",
+            "replace": "Substituir logótipo",
+            "remove": "Remover logótipo",
+            "previewAlt": "Pré-visualização do logótipo do fornecedor",
+            "fileTooLarge": "O ficheiro do logótipo é demasiado grande.",
+            "fileTypeNotAccepted": "O tipo de ficheiro do logótipo não é suportado.",
+            "maxFilesExceeded": "Só pode ser carregado um ficheiro de logótipo de cada vez.",
+            "uploadError": "Falha ao carregar o logótipo."
+          }
+        },
+        "editDescription": "Atualize o nome e os logótipos do fornecedor. O slug não pode ser alterado.",
+        "backToList": "Voltar aos fornecedores",
+        "List": {
+          "manage": "Gerir",
+          "empty": "Não é admin de nenhum fornecedor."
         }
       }
     },

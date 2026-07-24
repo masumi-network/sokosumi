@@ -279,7 +279,12 @@
       "history": "History",
       "new": "New",
       "notifications": "Notifications",
-      "projects": "Projects"
+      "projects": "Projects",
+      "oauth-clients": "OAuth Clients",
+      "api-keys": "API Keys",
+      "coworkers": "Coworkers",
+      "vendors": "Vendors",
+      "docs": "Documentation"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2483,7 +2488,7 @@
         "eyebrow": "Preparing your agent",
         "title": "Getting your assistant ready for you",
         "subtitle": "This takes a few minutes. You can close this tab; your assistant keeps setting up in the background.",
-        "etaLabel": "About {seconds} seconds remaining",
+        "etaMinutesLabel": "About {minutes, plural, one {# minute} other {# minutes}} remaining",
         "etaSettling": "Almost done…",
         "stepFallbackLabel": "Warming things up",
         "footerHint": "When this finishes, the chat will open with a personalized intro from your assistant.",
@@ -3104,6 +3109,10 @@
             "title": "Coworkers",
             "description": "Manage capabilities, priority, whitelist, archive state, and display metadata for all coworkers."
           },
+          "vendors": {
+            "title": "Vendors",
+            "description": "Create and edit marketplace vendors, including name and logos."
+          },
           "agents": {
             "title": "Agents",
             "description": "Browse all marketplace agents and manage Sokosumi display metadata overrides."
@@ -3313,6 +3322,54 @@
           "whitelist": "Whitelist",
           "whitelisted": "Whitelisted",
           "notWhitelisted": "Not whitelisted"
+        }
+      },
+      "Vendors": {
+        "title": "Vendors",
+        "description": "Create and edit marketplace vendors, including name and logos.",
+        "loadFailed": "Failed to load vendors.",
+        "backToList": "Back to list",
+        "createVendor": "Create vendor",
+        "createTitle": "New vendor",
+        "createDescription": "Create a marketplace vendor. The slug cannot be changed later.",
+        "editDescription": "Update the vendor name and logos. The slug cannot be changed.",
+        "Table": {
+          "name": "Name",
+          "slug": "Slug",
+          "created": "Created",
+          "updated": "Updated",
+          "actions": "Actions",
+          "edit": "Edit",
+          "empty": "No vendors found.",
+          "searchPlaceholder": "Search by name or slug…",
+          "totalCount": "{count, plural, one {# vendor} other {# vendors}}",
+          "filteredCount": "Showing {shown} of {total}",
+          "emptySearch": "No vendors match your search."
+        },
+        "Form": {
+          "nameLabel": "Name",
+          "slugLabel": "Slug",
+          "slugHintCreate": "Use lowercase letters, numbers, and hyphens. The slug cannot be changed after creation.",
+          "slugHintEdit": "The slug is read-only.",
+          "create": "Create vendor",
+          "save": "Save changes",
+          "createSuccess": "Vendor created.",
+          "saveSuccess": "Vendor updated.",
+          "saveFailed": "Failed to save vendor.",
+          "invalidInput": "Check the vendor fields and try again.",
+          "notFound": "Vendor not found.",
+          "logos": {
+            "lightLabel": "Logo (light mode)",
+            "darkLabel": "Logo (dark mode)",
+            "upload": "Upload logo",
+            "replace": "Replace logo",
+            "remove": "Remove logo",
+            "previewAlt": "Vendor logo preview",
+            "fileTooLarge": "Logo file is too large.",
+            "fileTypeNotAccepted": "Logo file type is not supported.",
+            "maxFilesExceeded": "Only one logo file can be uploaded at a time.",
+            "uploadError": "Failed to upload logo."
+          }
         }
       },
       "Agents": {
@@ -4333,11 +4390,12 @@
         "apiKeys": "API Keys",
         "coworkers": "Coworkers",
         "tasks": "Tasks",
+        "vendors": "Vendors",
         "docs": "Documentation"
       },
       "Coworkers": {
         "title": "Your coworkers",
-        "description": "Manage display settings for coworkers you own.",
+        "description": "Manage display settings for coworkers you can access through vendor membership.",
         "loadFailed": "Failed to load your coworkers.",
         "backToList": "Back to coworkers",
         "editDescription": "Update how this coworker appears in Sokosumi.",
@@ -4345,22 +4403,22 @@
           "notFound": "Coworker not found."
         },
         "List": {
-          "empty": "You do not own any active coworkers yet.",
+          "empty": "You do not have any active accessible coworkers yet.",
           "noCaption": "No caption",
           "edit": "Edit"
         },
         "Metadata": {
           "title": "Edit coworker",
-          "description": "Edit owned coworker display fields"
+          "description": "Edit accessible coworker display fields"
         }
       },
       "Tasks": {
-        "title": "Owned coworker tasks",
-        "description": "Read-only view of tasks where your coworkers are assignee or creator.",
+        "title": "Accessible coworker tasks",
+        "description": "Read-only view of tasks where your accessible coworkers are assignee or creator.",
         "loadFailed": "Failed to load tasks.",
         "List": {
           "totalCount": "{count, plural, one {# task} other {# tasks}}",
-          "empty": "No tasks found for your coworkers yet.",
+          "empty": "No tasks found for your accessible coworkers yet.",
           "task": "Task",
           "status": "Status",
           "coworkers": "Coworkers",
@@ -4373,6 +4431,35 @@
         "TaskDetail": {
           "backToList": "Back to tasks",
           "personalWorkspace": "Personal workspace"
+        }
+      },
+      "Vendors": {
+        "title": "Vendors",
+        "description": "Choose a vendor to manage its profile.",
+        "profile": {
+          "nameLabel": "Name",
+          "slugLabel": "Slug",
+          "slugHint": "The slug is read-only.",
+          "save": "Save changes",
+          "saveSuccess": "Vendor profile updated.",
+          "logos": {
+            "lightLabel": "Logo (light mode)",
+            "darkLabel": "Logo (dark mode)",
+            "upload": "Upload logo",
+            "replace": "Replace logo",
+            "remove": "Remove logo",
+            "previewAlt": "Vendor logo preview",
+            "fileTooLarge": "Logo file is too large.",
+            "fileTypeNotAccepted": "Logo file type is not supported.",
+            "maxFilesExceeded": "Only one logo file can be uploaded at a time.",
+            "uploadError": "Failed to upload logo."
+          }
+        },
+        "editDescription": "Update the vendor name and logos. The slug cannot be changed.",
+        "backToList": "Back to vendors",
+        "List": {
+          "manage": "Manage",
+          "empty": "You are not an admin of any vendor."
         }
       },
       "Docs": {

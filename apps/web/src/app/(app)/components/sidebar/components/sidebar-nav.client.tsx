@@ -20,6 +20,7 @@ import {
   LEGAL_LINKS,
   type LegalLinkItem,
 } from "./account-menu-config";
+import { DeveloperSubmenuContent } from "./developer-submenu-content";
 import {
   SettingsPanelHeader,
   SettingsSubmenuContent,
@@ -31,6 +32,7 @@ interface SidebarNavProps {
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
   planLabel: string;
+  showDeveloperVendors: boolean;
   children: ReactNode;
 }
 
@@ -92,6 +94,7 @@ function SidebarNavInner({
   members,
   activeOrganizationId,
   planLabel,
+  showDeveloperVendors,
   activeId,
   onActiveIdChange,
   children,
@@ -112,6 +115,16 @@ function SidebarNavInner({
             activeOrganizationId={activeOrganizationId}
           />
         ),
+      },
+      {
+        id: "developer",
+        parentId: "settings",
+        header: (
+          <span className="block min-w-0 w-full truncate text-sm font-medium">
+            {tUserAvatar("developer")}
+          </span>
+        ),
+        content: <DeveloperSubmenuContent showVendors={showDeveloperVendors} />,
       },
       {
         id: "help",
@@ -148,7 +161,14 @@ function SidebarNavInner({
         ),
       },
     ],
-    [activeOrganizationId, members, planLabel, sessionUser, tUserAvatar],
+    [
+      activeOrganizationId,
+      members,
+      planLabel,
+      sessionUser,
+      showDeveloperVendors,
+      tUserAvatar,
+    ],
   );
 
   return (
@@ -168,6 +188,7 @@ export default function SidebarNav({
   members,
   activeOrganizationId,
   planLabel,
+  showDeveloperVendors,
   children,
 }: SidebarNavProps) {
   const { state, isMobile, openMobile } = useSidebar();
@@ -187,6 +208,7 @@ export default function SidebarNav({
       members={members}
       activeOrganizationId={activeOrganizationId}
       planLabel={planLabel}
+      showDeveloperVendors={showDeveloperVendors}
       activeId={activeId}
       onActiveIdChange={setActiveId}
     >

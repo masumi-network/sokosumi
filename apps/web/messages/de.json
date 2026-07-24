@@ -263,7 +263,12 @@
       "new": "Neu",
       "notifications": "Benachrichtigungen",
       "projects": "Projekte",
-      "invoices": "Rechnungen"
+      "invoices": "Rechnungen",
+      "oauth-clients": "OAuth-Clients",
+      "api-keys": "API-Schlüssel",
+      "coworkers": "Coworkers",
+      "vendors": "Vendors",
+      "docs": "Dokumentation"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2467,7 +2472,7 @@
         "eyebrow": "Dein Agent wird vorbereitet",
         "title": "Dein Assistent wird für dich bereit gemacht",
         "subtitle": "Das dauert ein paar Minuten. Du kannst diesen Tab schließen; dein Assistent richtet sich im Hintergrund weiter ein.",
-        "etaLabel": "Noch etwa {seconds} Sekunden",
+        "etaMinutesLabel": "Noch etwa {minutes, plural, one {# Minute} other {# Minuten}}",
         "etaSettling": "Fast fertig…",
         "stepFallbackLabel": "Wird vorbereitet",
         "footerHint": "Wenn es fertig ist, öffnet sich der Chat mit einer personalisierten Intro von deinem Assistenten.",
@@ -2902,6 +2907,10 @@
             "title": "Coworkers",
             "description": "Fähigkeiten, Priorität, Whitelist, Archivstatus und Anzeigemetadaten für alle Coworker verwalten."
           },
+          "vendors": {
+            "title": "Vendors",
+            "description": "Marketplace-Vendors erstellen und bearbeiten, einschließlich Name und Logos."
+          },
           "agents": {
             "title": "Agenten",
             "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
@@ -3287,6 +3296,54 @@
           },
           "hasOverride": "Überschreibungszeile vorhanden",
           "noOverride": "Nur Registry-Werte"
+        }
+      },
+      "Vendors": {
+        "title": "Vendors",
+        "description": "Marketplace-Vendors erstellen und bearbeiten, einschließlich Name und Logos.",
+        "loadFailed": "Vendors konnten nicht geladen werden.",
+        "backToList": "Zurück zur Liste",
+        "createVendor": "Vendor erstellen",
+        "createTitle": "Neuer Vendor",
+        "createDescription": "Einen Marketplace-Vendor erstellen. Der Slug kann später nicht geändert werden.",
+        "editDescription": "Vendor-Name und Logos aktualisieren. Der Slug kann nicht geändert werden.",
+        "Table": {
+          "name": "Name",
+          "slug": "Slug",
+          "created": "Erstellt",
+          "updated": "Aktualisiert",
+          "actions": "Aktionen",
+          "edit": "Bearbeiten",
+          "empty": "Keine Vendors gefunden.",
+          "searchPlaceholder": "Nach Name oder Slug suchen…",
+          "totalCount": "{count, plural, one {# Vendor} other {# Vendors}}",
+          "filteredCount": "{shown} von {total} angezeigt",
+          "emptySearch": "Keine Vendors entsprechen deiner Suche."
+        },
+        "Form": {
+          "nameLabel": "Name",
+          "slugLabel": "Slug",
+          "slugHintCreate": "Kleinbuchstaben, Zahlen und Bindestriche verwenden. Der Slug kann nach der Erstellung nicht geändert werden.",
+          "slugHintEdit": "Der Slug ist schreibgeschützt.",
+          "create": "Vendor erstellen",
+          "save": "Änderungen speichern",
+          "createSuccess": "Vendor erstellt.",
+          "saveSuccess": "Vendor aktualisiert.",
+          "saveFailed": "Vendor konnte nicht gespeichert werden.",
+          "invalidInput": "Prüfe die Vendor-Felder und versuche es erneut.",
+          "notFound": "Vendor nicht gefunden.",
+          "logos": {
+            "lightLabel": "Logo (Hellmodus)",
+            "darkLabel": "Logo (Dunkelmodus)",
+            "upload": "Logo hochladen",
+            "replace": "Logo ersetzen",
+            "remove": "Logo entfernen",
+            "previewAlt": "Vendor-Logo-Vorschau",
+            "fileTooLarge": "Logo-Datei ist zu groß.",
+            "fileTypeNotAccepted": "Logo-Dateityp wird nicht unterstützt.",
+            "maxFilesExceeded": "Es kann jeweils nur eine Logo-Datei hochgeladen werden.",
+            "uploadError": "Logo konnte nicht hochgeladen werden."
+          }
         }
       }
     },
@@ -4168,7 +4225,8 @@
         "apiKeys": "API-Keys",
         "docs": "Dokumentation",
         "coworkers": "Coworkers",
-        "tasks": "Aufgaben"
+        "tasks": "Aufgaben",
+        "vendors": "Anbieter"
       },
       "Docs": {
         "title": "Entwicklerdokumentation",
@@ -4190,7 +4248,7 @@
       },
       "Coworkers": {
         "title": "Ihre Coworkers",
-        "description": "Verwalten Sie die Anzeigeeinstellungen Ihrer Coworkers.",
+        "description": "Verwalten Sie die Anzeigeeinstellungen für Coworkers, auf die Sie über die Anbieter-Mitgliedschaft zugreifen können.",
         "loadFailed": "Ihre Coworkers konnten nicht geladen werden.",
         "backToList": "Zurück zu Coworkers",
         "editDescription": "Aktualisieren Sie, wie dieser Coworker in Sokosumi erscheint.",
@@ -4198,22 +4256,22 @@
           "notFound": "Coworker nicht gefunden."
         },
         "List": {
-          "empty": "Sie besitzen noch keine aktiven Coworkers.",
+          "empty": "Sie haben noch keine aktiven zugänglichen Coworkers.",
           "noCaption": "Kein Untertitel",
           "edit": "Bearbeiten"
         },
         "Metadata": {
           "title": "Coworker bearbeiten",
-          "description": "Anzeigefelder Ihrer Coworkers bearbeiten"
+          "description": "Anzeigefelder zugänglicher Coworkers bearbeiten"
         }
       },
       "Tasks": {
-        "title": "Aufgaben eigener Coworkers",
-        "description": "Schreibgeschützte Ansicht von Aufgaben, bei denen Ihre Coworkers Bearbeiter oder Ersteller sind.",
+        "title": "Aufgaben zugänglicher Coworkers",
+        "description": "Schreibgeschützte Ansicht von Aufgaben, bei denen Ihre zugänglichen Coworkers Bearbeiter oder Ersteller sind.",
         "loadFailed": "Aufgaben konnten nicht geladen werden.",
         "List": {
           "totalCount": "{count, plural, one {# Aufgabe} other {# Aufgaben}}",
-          "empty": "Für Ihre Coworkers wurden noch keine Aufgaben gefunden.",
+          "empty": "Für Ihre zugänglichen Coworkers wurden noch keine Aufgaben gefunden.",
           "task": "Aufgabe",
           "status": "Status",
           "coworkers": "Coworkers",
@@ -4226,6 +4284,35 @@
         "TaskDetail": {
           "backToList": "Zurück zu Aufgaben",
           "personalWorkspace": "Persönlicher Arbeitsbereich"
+        }
+      },
+      "Vendors": {
+        "title": "Anbieter",
+        "description": "Wähle einen Anbieter, um dessen Profil zu verwalten.",
+        "profile": {
+          "nameLabel": "Name",
+          "slugLabel": "Slug",
+          "slugHint": "Der Slug ist schreibgeschützt.",
+          "save": "Änderungen speichern",
+          "saveSuccess": "Anbieterprofil aktualisiert.",
+          "logos": {
+            "lightLabel": "Logo (heller Modus)",
+            "darkLabel": "Logo (dunkler Modus)",
+            "upload": "Logo hochladen",
+            "replace": "Logo ersetzen",
+            "remove": "Logo entfernen",
+            "previewAlt": "Vorschau des Anbieterlogos",
+            "fileTooLarge": "Die Logodatei ist zu groß.",
+            "fileTypeNotAccepted": "Der Logodateityp wird nicht unterstützt.",
+            "maxFilesExceeded": "Es kann jeweils nur eine Logodatei hochgeladen werden.",
+            "uploadError": "Logo konnte nicht hochgeladen werden."
+          }
+        },
+        "editDescription": "Aktualisiere Name und Logos des Anbieters. Der Slug kann nicht geändert werden.",
+        "backToList": "Zurück zu Anbietern",
+        "List": {
+          "manage": "Verwalten",
+          "empty": "Du bist kein Admin eines Anbieters."
         }
       }
     },

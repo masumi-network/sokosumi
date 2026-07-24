@@ -6,8 +6,14 @@ import {
   requireCoworkerManagementAccess,
 } from "./coworker-management-access";
 
-const { coworkerFindFirstMock } = vi.hoisted(() => ({
+const {
+  coworkerFindFirstMock,
+  vendorMemberFindFirstMock,
+  coworkerAssignmentFindFirstMock,
+} = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
+  vendorMemberFindFirstMock: vi.fn(),
+  coworkerAssignmentFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -15,8 +21,26 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: {
       findFirst: coworkerFindFirstMock,
     },
+    vendorMember: {
+      findFirst: vendorMemberFindFirstMock,
+    },
+    coworkerAssignment: {
+      findFirst: coworkerAssignmentFindFirstMock,
+    },
   },
 }));
+
+function mockMembershipAccess(options: {
+  vendorAdmin?: boolean;
+  assigned?: boolean;
+}) {
+  vendorMemberFindFirstMock.mockResolvedValue(
+    options.vendorAdmin ? { id: "vm_admin" } : null,
+  );
+  coworkerAssignmentFindFirstMock.mockResolvedValue(
+    options.assigned ? { id: "assign_1" } : null,
+  );
+}
 
 describe("buildCoworkerMutationWhere", () => {
   it("requires active coworker when archived is not allowed", () => {
@@ -36,13 +60,14 @@ describe("buildCoworkerMutationWhere", () => {
 describe("requireCoworkerManagementAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("allows coworker owner when user is not admin", async () => {
     coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
-      userId: "user_123",
+      vendorId: TEST_VENDOR_ID,
     });
+  });
+
+  it("allows vendor admin when user is not platform admin", async () => {
+    mockMembershipAccess({ vendorAdmin: true });
 
     await expect(
       requireCoworkerManagementAccess(
@@ -62,11 +87,29 @@ describe("requireCoworkerManagementAccess", () => {
     });
   });
 
-  it("rejects non-owner when user is not admin", async () => {
-    coworkerFindFirstMock.mockResolvedValue({
-      id: "cow_123",
-      userId: "user_999",
+  it("allows assigned developer when user is not platform admin", async () => {
+    mockMembershipAccess({ assigned: true });
+
+    await expect(
+      requireCoworkerManagementAccess(
+        {
+          actor: "user",
+          userId: "user_123",
+          organizationId: null,
+          role: "user",
+        },
+        "cow_123",
+      ),
+    ).resolves.toEqual({
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+      role: "user",
     });
+  });
+
+  it("rejects user without vendor admin or assignment when not platform admin", async () => {
+    mockMembershipAccess({});
 
     await expect(
       requireCoworkerManagementAccess(
@@ -80,11 +123,11 @@ describe("requireCoworkerManagementAccess", () => {
       ),
     ).rejects.toMatchObject({
       status: 403,
-      message: "You can only manage your own coworkers",
+      message: "You do not have permission to manage this coworker",
     } satisfies Partial<HTTPException>);
   });
 
-  it("allows admin regardless of coworker ownership", async () => {
+  it("allows platform admin regardless of vendor membership", async () => {
     await expect(
       requireCoworkerManagementAccess(
         {
