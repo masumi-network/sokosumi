@@ -5,7 +5,6 @@ import {
   use,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -35,11 +34,9 @@ export function AccountNoticeProvider({
   sessionId,
   children,
 }: AccountNoticeProviderProps) {
+  // Hydrate path owns updates after mount — avoid prop→state effect that
+  // would clobber shell-hydrated notices when layout re-renders with null.
   const [notice, setNotice] = useState<AccountNotice | null>(initialNotice);
-
-  useEffect(() => {
-    setNotice(initialNotice);
-  }, [initialNotice]);
 
   const hydrateAccountNotice = useCallback(
     (nextNotice: AccountNotice | null) => {

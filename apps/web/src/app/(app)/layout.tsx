@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
+import type { Coworker } from "@/app/chat/utils/types";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -16,6 +16,7 @@ import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import QueryProvider from "@/contexts/query-provider";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import type { Notice } from "@/lib/clients/generated/core";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import AppChatRailShell from "./components/app-chat-rail-shell";
@@ -27,6 +28,10 @@ import { LoginAccountNoticeToast } from "./components/login-account-notice-toast
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
 import { NotificationToaster } from "./components/notification-toaster.client";
+
+/** Stable empties so client providers do not see a new [] reference each RSC pass. */
+const EMPTY_COWORKERS: Coworker[] = [];
+const EMPTY_NOTICES: Notice[] = [];
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -73,10 +78,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         <DynamicAblyProvider>
           <NotificationProvider userId={session.user.id}>
             <AccountNoticeProvider notice={null} sessionId={session.session.id}>
-              <CoworkersProvider initialCoworkers={[]}>
+              <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
                 <NoticeDialogProvider
-                  legalNotices={[]}
-                  announcementNotices={[]}
+                  legalNotices={EMPTY_NOTICES}
+                  announcementNotices={EMPTY_NOTICES}
                 >
                   <NotificationToaster />
                   <NotificationToastListener userId={session.user.id} />

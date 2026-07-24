@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -29,11 +28,9 @@ export function CoworkersProvider({
   children,
   initialCoworkers,
 }: CoworkersProviderProps) {
+  // Hydrate path owns updates after mount — do not sync props via effect
+  // (layout may re-pass a fresh empty array and wipe hydrated state).
   const [coworkers, setCoworkers] = useState<Coworker[]>(initialCoworkers);
-
-  useEffect(() => {
-    setCoworkers(initialCoworkers);
-  }, [initialCoworkers]);
 
   const hydrateCoworkers = useCallback((nextCoworkers: Coworker[]) => {
     setCoworkers(nextCoworkers);

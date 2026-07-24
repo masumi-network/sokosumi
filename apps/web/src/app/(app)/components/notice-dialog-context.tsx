@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -41,19 +40,13 @@ export function NoticeDialogProvider({
   legalNotices: initialLegalNotices,
   announcementNotices: initialAnnouncementNotices,
 }: NoticeDialogProviderProps) {
+  // Hydrate path owns updates after mount — avoid prop→state effects that
+  // wipe notices when layout re-passes fresh empty arrays.
   const [legalNotices, setLegalNotices] = useState(initialLegalNotices);
   const [announcementNotices, setAnnouncementNotices] = useState(
     initialAnnouncementNotices,
   );
   const [noticeToShow, setNoticeToShow] = useState<Notice | null>(null);
-
-  useEffect(() => {
-    setLegalNotices(initialLegalNotices);
-  }, [initialLegalNotices]);
-
-  useEffect(() => {
-    setAnnouncementNotices(initialAnnouncementNotices);
-  }, [initialAnnouncementNotices]);
 
   const hydrateNotices = useCallback(
     (notices: { announcementNotices: Notice[]; legalNotices: Notice[] }) => {
