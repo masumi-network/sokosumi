@@ -144,4 +144,51 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.getByText("Users")).toBeInTheDocument();
     expect(screen.queryByText("users")).not.toBeInTheDocument();
   });
+
+  it("shows developer vendor detail breadcrumbs with resolved name", () => {
+    const vendorId = "01960001-0001-7001-8001-000000000001";
+    usePathnameMock.mockReturnValue(`/developer/vendors/${vendorId}`);
+
+    render(
+      <BreadcrumbNavigationClient
+        agents={[] as CoreAgentDto[]}
+        organizations={organizations}
+        breadcrumbMessages={{
+          ...breadcrumbMessages,
+          developer: "Developer",
+          vendors: "Vendors",
+        }}
+        segmentLabels={{ [vendorId]: "Masumi" }}
+      />,
+    );
+
+    expect(screen.getByText("Developer")).toBeInTheDocument();
+    expect(screen.getByText("Vendors")).toBeInTheDocument();
+    expect(screen.getByText("Masumi")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vendors" })).toHaveAttribute(
+      "href",
+      "/developer/vendors",
+    );
+  });
+
+  it("hides unresolved vendor uuid segments from breadcrumbs", () => {
+    const vendorId = "01960001-0001-7001-8001-000000000001";
+    usePathnameMock.mockReturnValue(`/developer/vendors/${vendorId}`);
+
+    render(
+      <BreadcrumbNavigationClient
+        agents={[] as CoreAgentDto[]}
+        organizations={organizations}
+        breadcrumbMessages={{
+          ...breadcrumbMessages,
+          developer: "Developer",
+          vendors: "Vendors",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Developer")).toBeInTheDocument();
+    expect(screen.getByText("Vendors")).toBeInTheDocument();
+    expect(screen.queryByText(vendorId)).not.toBeInTheDocument();
+  });
 });

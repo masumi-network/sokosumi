@@ -8,13 +8,21 @@ import { VendorAdminDetail } from "@/app/developer/components/vendors/vendor-adm
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { Button } from "@/components/ui/button";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Developer.tabs");
-  return { title: t("vendors") };
-}
-
 interface DeveloperVendorDetailPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: DeveloperVendorDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const tTabs = await getTranslations("App.Developer.tabs");
+  const { adminVendors } = await getDeveloperVendorAdminAccess();
+  const vendor = adminVendors.find((membership) => membership.id === id);
+
+  return {
+    title: vendor ? `${vendor.name} · ${tTabs("vendors")}` : tTabs("vendors"),
+  };
 }
 
 export default async function DeveloperVendorDetailPage({
