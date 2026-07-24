@@ -3,13 +3,14 @@
  * Tear down Cloud agent Neon branch(es).
  *
  * Only deletes branches named cloud-agent-* (never production/main parent).
+ * Idle expiry is owned by Neon `expires_at` (set/refreshed on provision) —
+ * this script does not sweep expired branches.
  *
  * Usage:
  *   node scripts/cloud-agent-db/teardown.mjs
  *   node scripts/cloud-agent-db/teardown.mjs --agent-id bc-…
  *   node scripts/cloud-agent-db/teardown.mjs --branch-name cloud-agent-bc-…
  *   node scripts/cloud-agent-db/teardown.mjs --from-text "$PR_BODY"
- *   node scripts/cloud-agent-db/teardown.mjs --idle-gc
  */
 
 import path from "node:path";
@@ -20,14 +21,8 @@ import {
   agentBranchName,
   extractAgentIdsFromText,
   isAgentBranchName,
-  isIdlePastTtl,
 } from "./names.mjs";
-import {
-  deleteBranch,
-  findBranchByName,
-  listBranches,
-  readNeonConfig,
-} from "./neon-api.mjs";
+import { deleteBranch, findBranchByName, readNeonConfig } from "./neon-api.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
@@ -49,19 +44,17 @@ function fail(message) {
  * @param {string[]} argv
  */
 function parseArgs(argv) {
-  /** @type {{ agentIds: string[], branchNames: string[], fromText: string | null, idleGc: boolean, help: boolean }} */
+  /** @type {{ agentIds: string[], branchNames: string[], fromText: string | null, help: boolean }} */
   const opts = {
     agentIds: [],
     branchNames: [],
     fromText: null,
-    idleGc: false,
     help: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") opts.help = true;
-    else if (arg === "--idle-gc") opts.idleGc = true;
     else if (arg === "--agent-id") opts.agentIds.push(argv[++i] ?? "");
     else if (arg === "--branch-name") opts.branchNames.push(argv[++i] ?? "");
     else if (arg === "--from-text") opts.fromText = argv[++i] ?? "";
@@ -86,7 +79,6 @@ function printHelp() {
   node scripts/cloud-agent-db/teardown.mjs --agent-id <bc-…>
   node scripts/cloud-agent-db/teardown.mjs --branch-name cloud-agent-<bc-…>
   node scripts/cloud-agent-db/teardown.mjs --from-text "<pr body>"
-  node scripts/cloud-agent-db/teardown.mjs --idle-gc
 `);
 }
 
@@ -155,8 +147,7 @@ async function main() {
   }
 
   const state = await readState(REPO_ROOT);
-  const useStateFallback =
-    branchNames.size === 0 && !opts.idleGc && !opts.fromText;
+  const useStateFallback = branchNames.size === 0 && !opts.fromText;
 
   if (useStateFallback && state?.branchName) {
     branchNames.add(state.branchName);
@@ -173,28 +164,15 @@ async function main() {
   let deleted = 0;
 
   try {
-    if (opts.idleGc) {
-      const branches = await listBranches(config);
-      for (const branch of branches) {
-        if (!isAgentBranchName(branch.name)) continue;
-        if (branch.default === true || branch.protected === true) continue;
-        if (!isIdlePastTtl(branch.created_at)) continue;
-        if (await safeDeleteBranch(config, branch)) deleted += 1;
-      }
-    }
-
     for (const name of branchNames) {
       if (await deleteByName(config, name)) deleted += 1;
     }
 
-    if (
-      state?.branchName &&
-      (branchNames.has(state.branchName) || opts.idleGc)
-    ) {
+    if (state?.branchName && branchNames.has(state.branchName)) {
       await clearState(REPO_ROOT);
     }
 
-    if (deleted === 0 && branchNames.size === 0 && !opts.idleGc) {
+    if (deleted === 0 && branchNames.size === 0) {
       warn("Nothing to tear down (no agent id / branch / PR text / state)");
     } else {
       log(`Teardown complete (${deleted} branch(es) deleted)`);
