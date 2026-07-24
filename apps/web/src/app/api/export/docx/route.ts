@@ -24,8 +24,14 @@ import remarkMath from "remark-math";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 
+import { getSession } from "@/lib/auth/auth.server";
+import {
+  MAX_MARKDOWN_BYTES,
+  withDocxExportFetchGuard,
+} from "@/lib/utils/docx-export-ssrf";
 import { setupDomContext } from "@/lib/utils/dom-context";
 import { hasHtmlContent } from "@/lib/utils/html-detection";
+import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -129,23 +135,48 @@ function createHeaderElements(
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = await readRequestJsonWithByteLimit<GenerateDocxRequest>(
+    request,
+    MAX_MARKDOWN_BYTES,
+  );
+  if (!parsed.ok) {
+    if (parsed.error === "too_large") {
+      return NextResponse.json(
+        { error: "Markdown payload too large" },
+        { status: 413 },
+      );
+    }
+    if (parsed.error === "invalid_json") {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Missing 'markdown'" }, { status: 400 });
+  }
+
+  const markdown = (parsed.value.markdown ?? "").toString();
+  if (!markdown) {
+    return NextResponse.json({ error: "Missing 'markdown'" }, { status: 400 });
+  }
+
+  if (Buffer.byteLength(markdown, "utf8") > MAX_MARKDOWN_BYTES) {
+    return NextResponse.json(
+      { error: "Markdown payload too large" },
+      { status: 413 },
+    );
+  }
+
   // Set up DOM context for server-side HTML processing (inject if needed)
   const cleanup = await setupDomContext();
 
   try {
-    const json = (await request.json()) as GenerateDocxRequest;
-    const markdown = (json.markdown ?? "").toString();
-    if (!markdown) {
-      return NextResponse.json(
-        { error: "Missing 'markdown'" },
-        { status: 400 },
-      );
-    }
-
     // Check if markdown contains HTML content
     const hasHtml = hasHtmlContent(markdown);
-    const logoBuffer = dataUrlToBuffer(json.logoPng);
-    const kanjiLogoBuffer = dataUrlToBuffer(json.kanjiLogoPng);
+    const logoBuffer = dataUrlToBuffer(parsed.value.logoPng);
+    const kanjiLogoBuffer = dataUrlToBuffer(parsed.value.kanjiLogoPng);
     const mdast = unified()
       .use(remarkParse)
       .use(remarkGfm)
@@ -170,29 +201,35 @@ export async function POST(request: NextRequest) {
       alignment: AlignmentType.RIGHT,
       children: [new TextRun({ children: [PageNumber.CURRENT] })],
     });
-    const blob = await toDocx(
-      mdast,
-      {
-        title: docTitle,
-        author: docAuthor,
-        styles: defaultStyles,
-      } as unknown as Record<string, unknown>,
-      {
-        plugins: [
-          tablePlugin(),
-          imagePlugin(),
-          listPlugin(),
-          mathPlugin(),
-          ...(hasHtml ? [htmlPlugin()] : []),
-        ] as IPlugin<EmptyNode>[],
-        headers: { default: new Header({ children: headerElements }) },
-        footers: {
-          default: new Footer({ children: [footerLeft, footerRight] }),
+
+    // @m2d/image uses global fetch for remote markdown images — wrap so
+    // private/link-local/metadata targets are blocked at connect time.
+    const blob = await withDocxExportFetchGuard(() =>
+      toDocx(
+        mdast,
+        {
+          title: docTitle,
+          author: docAuthor,
+          styles: defaultStyles,
+        } as unknown as Record<string, unknown>,
+        {
+          plugins: [
+            tablePlugin(),
+            imagePlugin(),
+            listPlugin(),
+            mathPlugin(),
+            ...(hasHtml ? [htmlPlugin()] : []),
+          ] as IPlugin<EmptyNode>[],
+          headers: { default: new Header({ children: headerElements }) },
+          footers: {
+            default: new Footer({ children: [footerLeft, footerRight] }),
+          },
         },
-      },
+      ),
     );
 
-    const fileName = sanitizeFileName(json.fileName ?? "output") + ".docx";
+    const fileName =
+      sanitizeFileName(parsed.value.fileName ?? "output") + ".docx";
     const body =
       blob instanceof Blob
         ? blob
