@@ -2472,6 +2472,7 @@
         "eyebrow": "Preparando tu agente",
         "title": "Preparando tu asistente para ti",
         "subtitle": "Esto tarda unos minutos. Puedes cerrar esta pestaña; tu asistente sigue configurándose en segundo plano.",
+        "etaMinutesLabel": "Quedan unos {minutes, plural, one {# minuto} other {# minutos}}",
         "etaSettling": "Casi listo…",
         "stepFallbackLabel": "Calentando motores",
         "footerHint": "Cuando termine, se abrirá el chat con una intro personalizada de tu asistente.",

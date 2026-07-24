@@ -154,7 +154,12 @@ describe("OnboardingProgress", () => {
     await waitFor(() =>
       expect(screen.getByText("Saving your details")).toBeInTheDocument(),
     );
-    expect(screen.getByText("Inbox not connected")).toBeInTheDocument();
+    const skippedLabel = screen.getByText("Inbox not connected");
+    expect(skippedLabel).toBeInTheDocument();
+    // Skipped labels are status explanations ("Inbox not connected"); a
+    // line-through would visually negate them. Assert the class contract so
+    // re-adding line-through fails the suite.
+    expect(skippedLabel).not.toHaveClass("line-through");
     expect(screen.getByText("Drafting your intro")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
     // 95s rounds up to a 2-minute coarse ETA.
