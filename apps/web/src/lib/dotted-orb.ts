@@ -85,14 +85,18 @@ export function drawDottedOrb(
   MODE_DRAWS[mode](ctx, size, t, dark, frameOpts);
 
   // One material: the same radial body gradient the solid discs use
-  // (light point at 38%/30%), applied to every dot. Exceptions keep the
-  // painter's native theme-aware neutral ink: porcelain (white dots would
-  // vanish on light pages — and neutral doubles as the "no colour chosen"
-  // signal) and the ink palette in dark mode (its near-black stops would
-  // vanish on the dark page).
-  const keepNativeInk =
-    paletteId === "porcelain" || (paletteId === "ink" && dark);
-  if (!keepNativeInk) {
+  // (light point at 38%/30%), applied to every dot. Two special cases:
+  // porcelain keeps the painter's native theme-aware neutral (white dots
+  // would vanish on light pages — and neutral doubles as the "no colour
+  // chosen" signal); the ink palette in dark mode gets a graphite lift —
+  // its true near-black stops would vanish on the dark page, but the
+  // native light neutral would make "black" indistinguishable from the
+  // unset porcelain, losing the user's chosen colour.
+  const inkOnDark = paletteId === "ink" && dark;
+  const materialStops: [string, string, string] = inkOnDark
+    ? ["#b7b7c0", "#73737d", "#52525b"]
+    : [paint.stops[0], paint.stops[1], dark ? paint.stops[1] : paint.stops[2]];
+  if (paletteId !== "porcelain") {
     const cx = size / 2;
     const cy = size / 2;
     const R = size * 0.46;
@@ -104,9 +108,9 @@ export function drawDottedOrb(
       cy - R * 0.4,
       R * 1.7,
     );
-    material.addColorStop(0, paint.stops[0]);
-    material.addColorStop(0.55, paint.stops[1]);
-    material.addColorStop(1, dark ? paint.stops[1] : paint.stops[2]);
+    material.addColorStop(0, materialStops[0]);
+    material.addColorStop(0.55, materialStops[1]);
+    material.addColorStop(1, materialStops[2]);
     ctx.globalCompositeOperation = "source-in";
     ctx.fillStyle = material;
     ctx.fillRect(0, 0, size, size);
