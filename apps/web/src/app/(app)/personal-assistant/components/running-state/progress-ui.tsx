@@ -38,7 +38,7 @@ export function ProgressChips({
     <div className="flex w-full items-start gap-3 px-4 py-1.5">
       {/* While a tool runs the profile picture gives way to the purple
           thinking orb, in whatever activity state the live phase reports. */}
-      <ThinkingOrb size={64} state={orbState} className="shrink-0" />
+      <ThinkingOrb size={32} state={orbState} className="shrink-0" />
       <div className="flex min-w-0 flex-col gap-1.5 pt-1">
         {chips.map((chip, i) => {
           const isLast = i === chips.length - 1;
@@ -132,7 +132,7 @@ export function AssistantTyping({
       {/* The profile picture gives way to the purple thinking orb for the
           duration of the turn — the orb IS the thinking signal, so no ping
           ring or extra dots needed. */}
-      <ThinkingOrb size={64} state={orbState} className="shrink-0" />
+      <ThinkingOrb size={32} state={orbState} className="shrink-0" />
 
       {/* Rotating phrase; change has its own fade (from RotatingMessages). */}
       <div className="flex min-h-5 items-center gap-1.5 pt-2">
