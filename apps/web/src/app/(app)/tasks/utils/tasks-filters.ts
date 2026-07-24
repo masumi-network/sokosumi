@@ -98,7 +98,11 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 export function getDefaultTasksScope(
   activeOrganizationId: string | null,
 ): TasksScope {
-  return "owned";
+  // Inside an organization the board defaults to the whole workspace so
+  // members see the shared board first; personal context has no workspace
+  // to show, so it stays on the user's own tasks. Drives Tasks + Jobs,
+  // server render + client, and the initial fetch (scope feeds the query).
+  return activeOrganizationId ? "workspace" : "owned";
 }
 
 /**
@@ -244,10 +248,11 @@ export function getTasksFiltersResetKey(
  * Determines whether to show the active filter indicator dot.
  *
  * Business logic:
- * - Organization boards: Show the dot when `scope` is "owned" or "workspace",
- *   even though "owned" is the default. This signals the board is filtered
- *   (either "My Tasks" or "All workspace tasks") as opposed to a hypothetical
- *   unfiltered view. Also show when assigneeId, status, or projectId is set.
+ * - Organization boards: Show the dot when `scope` is "owned" or "workspace"
+ *   (either explicit choice signals the board is scoped — "My Tasks" or "All
+ *   workspace tasks" — as opposed to a hypothetical unfiltered view). The
+ *   default here is "workspace". Also show when assigneeId, status, or
+ *   projectId is set.
  * - Personal boards: Show the dot only when a non-default filter is applied
  *   (assigneeId, status, or projectId). The default "owned" scope alone does
  *   not show the dot, as there's no workspace context to distinguish from.

@@ -18,10 +18,10 @@ const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
 
 describe("tasks-filters", () => {
-  it("defaults to owned scope when an organization is active", () => {
-    expect(getDefaultTasksScope("org-1")).toBe("owned");
+  it("defaults to workspace scope when an organization is active", () => {
+    expect(getDefaultTasksScope("org-1")).toBe("workspace");
     expect(parseTasksFilters({}, "org-1")).toEqual({
-      scope: "owned",
+      scope: "workspace",
       assigneeId: null,
       status: null,
       projectId: null,
@@ -49,10 +49,13 @@ describe("tasks-filters", () => {
 
   describe("sanitizeTasksScopeInput", () => {
     it("returns default scope for non-strings and unknown labels", () => {
-      expect(sanitizeTasksScopeInput(undefined, "org-1")).toBe("owned");
-      expect(sanitizeTasksScopeInput(123, "org-1")).toBe("owned");
-      expect(sanitizeTasksScopeInput("not-a-scope", "org-1")).toBe("owned");
-      expect(sanitizeTasksScopeInput("", "org-1")).toBe("owned");
+      // In an org the default is now workspace.
+      expect(sanitizeTasksScopeInput(undefined, "org-1")).toBe("workspace");
+      expect(sanitizeTasksScopeInput(123, "org-1")).toBe("workspace");
+      expect(sanitizeTasksScopeInput("not-a-scope", "org-1")).toBe("workspace");
+      expect(sanitizeTasksScopeInput("", "org-1")).toBe("workspace");
+      // Personal context stays on owned.
+      expect(sanitizeTasksScopeInput("not-a-scope", null)).toBe("owned");
     });
 
     it("allows workspace only when an organization is active", () => {
@@ -124,7 +127,7 @@ describe("tasks-filters", () => {
     expect(
       getTasksFiltersFromSearchParams(params, "org-1", [], projectOptions),
     ).toEqual({
-      scope: "owned",
+      scope: "workspace",
       assigneeId: null,
       status: null,
       projectId: PROJECT_ID,
@@ -138,7 +141,7 @@ describe("tasks-filters", () => {
         [{ id: "44444444-4444-4444-8444-444444444444", name: "Other" }],
       ),
     ).toEqual({
-      scope: "owned",
+      scope: "workspace",
       assigneeId: null,
       status: null,
       projectId: null,
@@ -200,8 +203,9 @@ describe("tasks-filters", () => {
       "org-1",
     );
 
+    // `owned` is now the non-default in an org, so it is written explicitly.
     expect(nextSearchParams.toString()).toBe(
-      "create=true&coworker=elena&assigneeId=coworker-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
+      "create=true&coworker=elena&scope=owned&assigneeId=coworker-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
     );
   });
 
@@ -214,7 +218,7 @@ describe("tasks-filters", () => {
         "org-1",
       ),
     ).toEqual({
-      scope: "owned",
+      scope: "workspace",
       assigneeId: "coworker-1",
       status: null,
       projectId: null,
@@ -239,7 +243,8 @@ describe("tasks-filters", () => {
       "org-1",
     );
 
-    expect(nextSearchParams.toString()).toBe("scope=workspace");
+    // `workspace` is now the org default, so it is dropped from the URL.
+    expect(nextSearchParams.toString()).toBe("");
   });
 
   it("derives stable reset keys", () => {
