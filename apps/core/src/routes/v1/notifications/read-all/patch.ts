@@ -7,7 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 
 const responseSchema = z
   .object({
@@ -22,7 +22,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "patch",
     path: "/read-all",
-    description: "Mark all notifications as read for the authenticated user",
+    description:
+      "Mark all notifications as read for the effective user (session user, or orchestrator/coworker with context headers)",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(
@@ -44,7 +45,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
 
     const result = await prisma.notification.updateMany({
       where: {

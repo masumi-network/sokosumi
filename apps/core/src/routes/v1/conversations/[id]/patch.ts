@@ -12,7 +12,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { forbidOrchestratorActor, requireUserContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   conversationSchema,
   updateConversationRequestSchema,
@@ -75,10 +75,6 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    forbidOrchestratorActor(
-      c.var.authContext,
-      "Orchestrator cannot access marketplace conversations",
-    );
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireConversationCoworkerAccess } from "@/helpers/access-control";
 import {
   conversationMessageToApiContent,
   imageGenerationFromMessageMetadata,
@@ -20,7 +21,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { conversationMessageSchema } from "@/schemas/conversation-message.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -28,7 +29,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/messages",
-    description: "Get messages for a conversation (paginated)",
+    description:
+      "Get messages for a conversation (paginated). Session user or orchestrator/coworker with context headers; coworkers must be bound to the conversation.",
     tags: ["Conversations"],
     request: {
       params: z.object({
@@ -82,7 +84,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
       const { id } = c.req.valid("param");
       const queryParams = c.req.valid("query");
 
@@ -93,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const conversation = await tx.conversation.findFirst({
           where: {
             id,
-            userId: authContext.userId,
+            userId: userContext.userId,
             archivedAt: null,
           },
         });
@@ -101,6 +103,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!conversation) {
           throw notFound("Conversation not found");
         }
+
+        // Per-resource delegation check: a delegated coworker may only read a
+        // conversation bound to it (no-op for user sessions / orch+context).
+        await requireConversationCoworkerAccess(
+          c.var.authContext,
+          conversation.metadata,
+          tx,
+        );
 
         const where = {
           conversationId: conversation.id,

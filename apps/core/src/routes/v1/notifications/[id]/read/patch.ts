@@ -8,7 +8,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { notificationItemSchema } from "@/schemas/notification.schema";
 
 const paramsSchema = z.object({
@@ -23,7 +23,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "patch",
     path: "/{id}/read",
-    description: "Mark a single notification as read (owner only)",
+    description:
+      "Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only)",
     tags: ["Notifications"],
     request: {
       params: paramsSchema,
@@ -65,7 +66,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     // Check ownership

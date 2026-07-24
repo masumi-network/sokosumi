@@ -97,4 +97,50 @@ describe("usersPathUserContextMiddleware", () => {
     expect(response.status).toBe(403);
     expect(userFindUniqueMock).not.toHaveBeenCalled();
   });
+
+  it("allows orchestrator with context headers for matching user id", async () => {
+    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    const app = createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+      context: { userId: "user_123", organizationId: null },
+    });
+
+    const response = await app.request("http://localhost/user_123/uploads");
+
+    expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
+  });
+
+  it("allows orchestrator with context headers for me", async () => {
+    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    const app = createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+      context: { userId: "user_123", organizationId: null },
+    });
+
+    const response = await app.request("http://localhost/me/uploads");
+
+    expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
+  });
+
+  it("returns 403 for bare orchestrator without context headers", async () => {
+    const app = createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+    });
+
+    const response = await app.request("http://localhost/me/uploads");
+
+    expect(response.status).toBe(403);
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+  });
 });

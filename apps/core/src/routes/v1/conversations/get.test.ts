@@ -97,4 +97,36 @@ describe("GET /conversations", () => {
     expect(response.status).toBe(200);
     expect(body.data.map((c) => c.id)).toEqual([idA]);
   });
+
+  it("returns every conversation for orchestrator with context headers", async () => {
+    conversationFindManyMock.mockResolvedValueOnce([
+      conversation(idA, { coworker_id: "cow_123" }),
+      conversation(idB, { coworker_id: "cow_other" }),
+    ]);
+
+    const response = await createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+      context: { userId: "user_123", organizationId: null },
+    }).request("http://localhost/");
+    const body = (await response.json()) as { data: Array<{ id: string }> };
+
+    expect(response.status).toBe(200);
+    expect(conversationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123", archivedAt: null },
+      }),
+    );
+    expect(body.data.map((c) => c.id)).toEqual([idA, idB]);
+  });
+
+  it("returns 403 for bare orchestrator without context headers", async () => {
+    const response = await createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+    }).request("http://localhost/");
+
+    expect(response.status).toBe(403);
+    expect(conversationFindManyMock).not.toHaveBeenCalled();
+  });
 });
