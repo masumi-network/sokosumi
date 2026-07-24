@@ -38,13 +38,41 @@ describe("requireAccessToTargetUserData", () => {
     ).toThrow();
   });
 
-  it("rejects orchestrator context even when user id matches", () => {
+  it("allows orchestrator context when user id matches", () => {
+    const ctx = requireAccessToTargetUserData(
+      {
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: target, organizationId: "org_1" },
+      },
+      target,
+    );
+    expect(ctx).toEqual({
+      source: "context",
+      userId: target,
+      organizationId: "org_1",
+    });
+  });
+
+  it("rejects bare orchestrator without context headers", () => {
     expect(() =>
       requireAccessToTargetUserData(
         {
           actor: "orchestrator",
           orchestratorId: "orch_1",
-          context: { userId: target, organizationId: null },
+        },
+        target,
+      ),
+    ).toThrow();
+  });
+
+  it("rejects orchestrator context for a different user id", () => {
+    expect(() =>
+      requireAccessToTargetUserData(
+        {
+          actor: "orchestrator",
+          orchestratorId: "orch_1",
+          context: { userId: "usr_other", organizationId: null },
         },
         target,
       ),
@@ -110,6 +138,35 @@ describe("resolveUsersPathUserId", () => {
     expect(userContext.userId).toBe("usr_self");
   });
 
+  it("resolves me to the orchestrator context user id", () => {
+    const { resolvedUserId, userContext } = resolveUsersPathUserId(
+      {
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: "usr_ctx", organizationId: null },
+      },
+      USERS_PATH_ME,
+    );
+    expect(resolvedUserId).toBe("usr_ctx");
+    expect(userContext).toEqual({
+      source: "context",
+      userId: "usr_ctx",
+      organizationId: null,
+    });
+  });
+
+  it("rejects bare orchestrator for me", () => {
+    expect(() =>
+      resolveUsersPathUserId(
+        {
+          actor: "orchestrator",
+          orchestratorId: "orch_1",
+        },
+        USERS_PATH_ME,
+      ),
+    ).toThrow();
+  });
+
   it("rejects coworker for me", () => {
     expect(() =>
       resolveUsersPathUserId(
@@ -135,6 +192,20 @@ describe("resolveUsersPathUserId", () => {
       "usr_self",
     );
     expect(resolvedUserId).toBe("usr_self");
+    expect(userContext.userId).toBe("usr_self");
+  });
+
+  it("allows orchestrator with matching concrete user id", () => {
+    const { resolvedUserId, userContext } = resolveUsersPathUserId(
+      {
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: "usr_self", organizationId: null },
+      },
+      "usr_self",
+    );
+    expect(resolvedUserId).toBe("usr_self");
+    expect(userContext.source).toBe("context");
     expect(userContext.userId).toBe("usr_self");
   });
 });
