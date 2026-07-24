@@ -10,7 +10,7 @@ const { prismaTransactionMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/middleware/auth", () => ({
-  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
+  requireUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext) {
       throw new HTTPException(403, {
         message: "User authentication required",
@@ -25,7 +25,8 @@ vi.mock("@/middleware/auth", () => ({
     }
 
     if (
-      authContext.actor === "coworker" &&
+      (authContext.actor === "coworker" ||
+        authContext.actor === "orchestrator") &&
       "context" in authContext &&
       authContext.context
     ) {
@@ -37,7 +38,8 @@ vi.mock("@/middleware/auth", () => ({
     }
 
     throw new HTTPException(403, {
-      message: "User authentication required",
+      message:
+        "Context headers (X-Context-User-Id) are required for this resource",
     });
   },
 }));

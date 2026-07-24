@@ -93,7 +93,9 @@ describe("GET /organizations/{id}/subscription", () => {
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 for coworker with X-Context-User-Id matching a member", async () => {
+  it("allows coworker with context headers as the context user", async () => {
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+
     const response = await createApp({
       actor: "coworker",
       coworkerId: "cow_1",
@@ -101,8 +103,25 @@ describe("GET /organizations/{id}/subscription", () => {
       context: { userId: "user_1", organizationId: "org_1" },
     }).request("http://localhost/org_1/subscription");
 
-    expect(response.status).toBe(403);
-    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_1", id: "org_1" }),
+    );
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+
+    const response = await createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_1",
+      context: { userId: "user_1", organizationId: "org_1" },
+    }).request("http://localhost/org_1/subscription");
+
+    expect(response.status).toBe(200);
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_1", id: "org_1" }),
+    );
   });
 
   it("returns 404 when the organization does not exist", async () => {
