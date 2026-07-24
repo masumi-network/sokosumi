@@ -39,7 +39,7 @@ const historyScopeQuerySchema = z
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "Workspace visibility scope for task and job rows. Conversations are always scoped to the authenticated user.",
+      "Workspace visibility scope for task and job rows. Conversations are always scoped to the effective user (session or context headers).",
     example: "workspace",
   });
 

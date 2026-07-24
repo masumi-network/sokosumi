@@ -65,7 +65,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List notifications for the authenticated user with cursor pagination",
+      "List notifications for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination",
     tags: ["Notifications"],
     request: {
       query,

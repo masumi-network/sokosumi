@@ -29,7 +29,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/messages",
-    description: "Get messages for a conversation (paginated)",
+    description:
+      "Get messages for a conversation (paginated). Session user or orchestrator/coworker with context headers; coworkers must be bound to the conversation.",
     tags: ["Conversations"],
     request: {
       params: z.object({

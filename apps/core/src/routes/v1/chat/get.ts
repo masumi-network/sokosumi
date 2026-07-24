@@ -26,7 +26,7 @@ const route = createRoute({
   method: "get",
   path: "/",
   description:
-    "Load persisted messages as AI SDK UIMessage[] for the chat UI (same source as POST /chat persistence).",
+    "Load persisted messages as AI SDK UIMessage[] for the chat UI (same source as POST /chat persistence). Session user or orchestrator/coworker with context headers.",
   tags: ["Chat"],
   request: {
     query: getChatUiMessagesQuerySchema,

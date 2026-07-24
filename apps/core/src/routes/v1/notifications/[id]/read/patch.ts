@@ -23,7 +23,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "patch",
     path: "/{id}/read",
-    description: "Mark a single notification as read (owner only)",
+    description:
+      "Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only)",
     tags: ["Notifications"],
     request: {
       params: paramsSchema,

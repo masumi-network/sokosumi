@@ -3,7 +3,7 @@ let meta = #{
     description: "Audit that orchestrator service token + X-Context-* headers can access every user-available Core API surface (flag unexpected session-only gates)",
     when_to_use: "Verify Hermes orchestrator impersonation parity: service token + context headers should reach user-scoped endpoints. Invoke as /orchestrator-impersonation-audit",
     phases: [
-        #{ title: "Map auth primitives", detail: "requireUserContext vs requireUserAuthContext vs forbidOrchestratorActor" },
+        #{ title: "Map auth primitives", detail: "requireUserContext vs requireUserAuthContext vs requireOwnerUserContext" },
         #{ title: "Inventory domains", detail: "parallel scan of Core v1 route trees by domain" },
         #{ title: "Cross-check policy", detail: "docs + intentional exclusions vs code" },
         #{ title: "Verify gaps", detail: "adversarial check that each gap is real and unexpected" },
@@ -161,7 +161,7 @@ prim_prompt += "Repo root is the workspace. Focus under: " + root + "\n\n";
 prim_prompt += "MUST use tools (grep, read_file, list_dir). Do not answer from memory.\n\n";
 prim_prompt += "Read and summarize these files thoroughly:\n";
 prim_prompt += "1. apps/core/src/middleware/auth.ts — requireUserContext, requireUserAuthContext,\n";
-prim_prompt += "   requireOwnerUserContext, forbidOrchestratorActor, requireOrchestratorAuthContext,\n";
+prim_prompt += "   requireOwnerUserContext, requireOrchestratorAuthContext,\n";
 prim_prompt += "   requireAdminAuthContext, isOrchestratorAuthContext, UserContext type.\n";
 prim_prompt += "2. apps/core/src/middleware/coworker-context.ts — X-Context-User-Id / X-Context-Organization-Id\n";
 prim_prompt += "   binding for coworker AND orchestrator; orchestratorId binding.\n";
@@ -221,7 +221,6 @@ for d in domains {
     p += "- With X-Context-User-Id (+ optional X-Context-Organization-Id), Core binds workspace user.\n";
     p += "- requireUserContext / requireOwnerUserContext: ALLOW orchestrator+context.\n";
     p += "- requireUserAuthContext / requireAdminAuthContext: DENY orchestrator (session/API-key only).\n";
-    p += "- forbidOrchestratorActor: explicit DENY even with context.\n";
     p += "- requireCoworkerAuthContext / requireOrchestratorAuthContext: actor-specific (n_a for user parity).\n\n";
     p += "Documented intentional orchestrator denials (from docs/orchestrator/hermes-orchestrator-actor.md):\n";
     p += "- /v1/hermes/* product chat: user session only (orchestrator 403)\n";
@@ -319,9 +318,9 @@ policy_prompt += "Cross-check orchestrator impersonation policy docs against Cor
 policy_prompt += "MUST read with tools:\n";
 policy_prompt += "- docs/orchestrator/hermes-orchestrator-actor.md\n";
 policy_prompt += "- docs/hermes-orchestrator-approve-overrides.md if present\n";
-policy_prompt += "- apps/core/src/middleware/auth.ts (forbidOrchestratorActor, requireUserContext)\n";
+policy_prompt += "- apps/core/src/middleware/auth.ts (requireUserContext, requireUserAuthContext)\n";
 policy_prompt += "- apps/core/src/routes/v1/auth-actor-guards.test.ts\n";
-policy_prompt += "- grep forbidOrchestratorActor and requireUserAuthContext under apps/core/src/routes\n\n";
+policy_prompt += "- grep requireUserAuthContext under apps/core/src/routes\n\n";
 policy_prompt += "Summarize the product policy: when orchestrator+context may act as user.\n";
 policy_prompt += "List documented exclusions with source path.\n";
 policy_prompt += "gaps_vs_docs: places where code deny/allow diverges from docs, or docs are silent\n";

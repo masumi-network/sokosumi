@@ -19,7 +19,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
-    description: "List all conversations for the authenticated user",
+    description:
+      "List all conversations for the effective user (session user, or orchestrator/coworker with context headers). Delegated coworkers only see conversations bound to their coworker id.",
     tags: ["Conversations"],
     responses: {
       200: jsonSuccessResponse(

@@ -22,7 +22,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "patch",
     path: "/read-all",
-    description: "Mark all notifications as read for the authenticated user",
+    description:
+      "Mark all notifications as read for the effective user (session user, or orchestrator/coworker with context headers)",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(

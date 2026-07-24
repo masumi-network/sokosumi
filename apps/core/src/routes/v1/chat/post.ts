@@ -491,7 +491,7 @@ const route = createRoute({
   method: "post",
   path: "/",
   description:
-    "Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint.",
+    "Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint. Session user or orchestrator/coworker with context headers (coworkers require an assigned conversationId).",
   tags: ["Chat"],
   request: {
     body: {

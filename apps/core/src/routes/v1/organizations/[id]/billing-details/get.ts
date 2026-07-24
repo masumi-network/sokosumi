@@ -19,7 +19,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/billing-details",
   description:
-    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins, or platform admins with a session, may access this route.",
+    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins (session user or orchestrator/coworker with context headers), or platform admins with a user session, may access this route.",
   tags: ["Organizations"],
   request: {
     params,

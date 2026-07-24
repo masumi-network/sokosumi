@@ -15,7 +15,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/unread-count",
     description:
-      "Get the count of unread notifications for the authenticated user",
+      "Get the count of unread notifications for the effective user (session user, or orchestrator/coworker with context headers)",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(unreadCountSchema, "Unread count retrieved", {
