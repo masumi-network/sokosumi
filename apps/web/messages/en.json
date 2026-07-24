@@ -4434,17 +4434,9 @@
         }
       },
       "Vendors": {
-        "title": "Vendor administration",
-        "description": "Manage vendor profile for vendors where you are an admin.",
-        "loading": "Loading vendor data…",
-        "loadFailed": "Failed to load vendor data.",
-        "vendorSelect": {
-          "label": "Vendor",
-          "placeholder": "Select a vendor"
-        },
+        "title": "Vendors",
+        "description": "Choose a vendor to manage its profile.",
         "profile": {
-          "title": "Vendor profile",
-          "description": "Update the vendor name and logos. The slug cannot be changed.",
           "nameLabel": "Name",
           "slugLabel": "Slug",
           "slugHint": "The slug is read-only.",
@@ -4462,6 +4454,12 @@
             "maxFilesExceeded": "Only one logo file can be uploaded at a time.",
             "uploadError": "Failed to upload logo."
           }
+        },
+        "editDescription": "Update the vendor name and logos. The slug cannot be changed.",
+        "backToList": "Back to vendors",
+        "List": {
+          "manage": "Manage",
+          "empty": "You are not an admin of any vendor."
         }
       },
       "Docs": {

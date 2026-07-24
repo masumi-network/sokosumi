@@ -158,11 +158,6 @@ export function VendorProfileForm({
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold">{t("title")}</h3>
-          <p className="text-muted-foreground text-sm">{t("description")}</p>
-        </div>
-
         <FormField
           control={form.control}
           name="name"

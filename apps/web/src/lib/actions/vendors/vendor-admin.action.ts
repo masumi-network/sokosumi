@@ -6,10 +6,7 @@ import { z } from "zod";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type { Vendor } from "@/lib/clients/generated/core";
-import {
-  type VendorAdminPanelData,
-  vendorService,
-} from "@/lib/services/vendor.service";
+import { vendorService } from "@/lib/services/vendor.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -36,42 +33,12 @@ const patchVendorProfileSchema = z.object({
   }),
 });
 
-function revalidateDeveloperVendorRoutes() {
+function revalidateDeveloperVendorRoutes(vendorId?: string) {
   revalidatePath("/developer/vendors");
-}
-
-interface LoadVendorAdminPanelParameters extends AuthenticatedRequest {
-  vendorId: unknown;
-}
-
-export const loadVendorAdminPanelAction = withSession<
-  LoadVendorAdminPanelParameters,
-  Result<VendorAdminPanelData, ActionError>
->(async ({ vendorId }) => {
-  try {
-    const parsedVendorId = vendorIdSchema.safeParse(vendorId);
-    if (!parsedVendorId.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Invalid vendor id",
-      });
-    }
-
-    const data = await vendorService.getVendorAdminPanelData(
-      parsedVendorId.data,
-    );
-    if (!data) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "Vendor admin access required",
-      });
-    }
-
-    return Ok(data);
-  } catch (error) {
-    return Err(toCoreApiActionError(error));
+  if (vendorId) {
+    revalidatePath(`/developer/vendors/${vendorId}`);
   }
-});
+}
 
 interface PatchVendorProfileParameters extends AuthenticatedRequest {
   input: unknown;
@@ -116,7 +83,7 @@ export const patchVendorProfileAction = withSession<
       },
     );
 
-    revalidateDeveloperVendorRoutes();
+    revalidateDeveloperVendorRoutes(parsed.data.vendorId);
     return Ok(vendor);
   } catch (error) {
     return Err(toCoreApiActionError(error));

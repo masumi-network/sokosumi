@@ -4287,16 +4287,9 @@
         }
       },
       "Vendors": {
-        "title": "ベンダー管理",
-        "description": "管理者であるベンダーのプロフィールを管理します。",
-        "loading": "ベンダーデータを読み込み中…",
-        "vendorSelect": {
-          "label": "ベンダー",
-          "placeholder": "ベンダーを選択"
-        },
+        "title": "ベンダー",
+        "description": "プロフィールを管理するベンダーを選択してください。",
         "profile": {
-          "title": "ベンダープロフィール",
-          "description": "ベンダー名とロゴを更新します。スラッグは変更できません。",
           "nameLabel": "名前",
           "slugLabel": "スラッグ",
           "slugHint": "スラッグは読み取り専用です。",
@@ -4315,7 +4308,12 @@
             "uploadError": "ロゴのアップロードに失敗しました。"
           }
         },
-        "loadFailed": "ベンダーデータの読み込みに失敗しました。"
+        "editDescription": "ベンダー名とロゴを更新します。スラッグは変更できません。",
+        "backToList": "ベンダー一覧に戻る",
+        "List": {
+          "manage": "管理",
+          "empty": "管理しているベンダーはありません。"
+        }
       }
     },
     "Connections": {

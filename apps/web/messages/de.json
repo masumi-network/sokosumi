@@ -4287,16 +4287,9 @@
         }
       },
       "Vendors": {
-        "title": "Anbieterverwaltung",
-        "description": "Verwalte das Vendor-Profil für Vendors, bei denen du Admin bist.",
-        "loading": "Anbieterdaten werden geladen…",
-        "vendorSelect": {
-          "label": "Anbieter",
-          "placeholder": "Anbieter auswählen"
-        },
+        "title": "Anbieter",
+        "description": "Wähle einen Anbieter, um dessen Profil zu verwalten.",
         "profile": {
-          "title": "Anbieterprofil",
-          "description": "Aktualisieren Sie Name und Logos des Anbieters. Der Slug kann nicht geändert werden.",
           "nameLabel": "Name",
           "slugLabel": "Slug",
           "slugHint": "Der Slug ist schreibgeschützt.",
@@ -4315,7 +4308,12 @@
             "uploadError": "Logo konnte nicht hochgeladen werden."
           }
         },
-        "loadFailed": "Anbieterdaten konnten nicht geladen werden."
+        "editDescription": "Aktualisiere Name und Logos des Anbieters. Der Slug kann nicht geändert werden.",
+        "backToList": "Zurück zu Anbietern",
+        "List": {
+          "manage": "Verwalten",
+          "empty": "Du bist kein Admin eines Anbieters."
+        }
       }
     },
     "Connections": {

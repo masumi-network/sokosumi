@@ -4287,16 +4287,9 @@
         }
       },
       "Vendors": {
-        "title": "供应商管理",
-        "description": "管理您担任管理员的供应商资料。",
-        "loading": "正在加载供应商数据…",
-        "vendorSelect": {
-          "label": "供应商",
-          "placeholder": "选择供应商"
-        },
+        "title": "供应商",
+        "description": "选择要管理资料的供应商。",
         "profile": {
-          "title": "供应商资料",
-          "description": "更新供应商名称和徽标。slug 无法更改。",
           "nameLabel": "名称",
           "slugLabel": "Slug",
           "slugHint": "Slug 为只读。",
@@ -4315,7 +4308,12 @@
             "uploadError": "徽标上传失败。"
           }
         },
-        "loadFailed": "加载供应商数据失败。"
+        "editDescription": "更新供应商名称和徽标。别名不可更改。",
+        "backToList": "返回供应商列表",
+        "List": {
+          "manage": "管理",
+          "empty": "你不是任何供应商的管理员。"
+        }
       }
     },
     "Connections": {

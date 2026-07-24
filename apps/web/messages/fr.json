@@ -4287,16 +4287,9 @@
         }
       },
       "Vendors": {
-        "title": "Administration fournisseur",
-        "description": "Gérez le profil du vendor pour les vendors dont vous êtes administrateur.",
-        "loading": "Chargement des données fournisseur…",
-        "vendorSelect": {
-          "label": "Fournisseur",
-          "placeholder": "Sélectionner un fournisseur"
-        },
+        "title": "Fournisseurs",
+        "description": "Choisissez un fournisseur pour gérer son profil.",
         "profile": {
-          "title": "Profil fournisseur",
-          "description": "Mettez à jour le nom et les logos du fournisseur. Le slug ne peut pas être modifié.",
           "nameLabel": "Nom",
           "slugLabel": "Slug",
           "slugHint": "Le slug est en lecture seule.",
@@ -4315,7 +4308,12 @@
             "uploadError": "Échec du téléversement du logo."
           }
         },
-        "loadFailed": "Échec du chargement des données fournisseur."
+        "editDescription": "Mettez à jour le nom et les logos du fournisseur. Le slug ne peut pas être modifié.",
+        "backToList": "Retour aux fournisseurs",
+        "List": {
+          "manage": "Gérer",
+          "empty": "Vous n’êtes admin d’aucun fournisseur."
+        }
       }
     },
     "Connections": {

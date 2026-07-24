@@ -4287,16 +4287,9 @@
         }
       },
       "Vendors": {
-        "title": "Administração de fornecedores",
-        "description": "Faça a gestão do perfil do vendor nos vendors em que é administrador.",
-        "loading": "A carregar dados do fornecedor…",
-        "vendorSelect": {
-          "label": "Fornecedor",
-          "placeholder": "Selecionar um fornecedor"
-        },
+        "title": "Fornecedores",
+        "description": "Escolha um fornecedor para gerir o respetivo perfil.",
         "profile": {
-          "title": "Perfil do fornecedor",
-          "description": "Atualize o nome e os logótipos do fornecedor. O slug não pode ser alterado.",
           "nameLabel": "Nome",
           "slugLabel": "Slug",
           "slugHint": "O slug é só de leitura.",
@@ -4315,7 +4308,12 @@
             "uploadError": "Falha ao carregar o logótipo."
           }
         },
-        "loadFailed": "Falha ao carregar os dados do fornecedor."
+        "editDescription": "Atualize o nome e os logótipos do fornecedor. O slug não pode ser alterado.",
+        "backToList": "Voltar aos fornecedores",
+        "List": {
+          "manage": "Gerir",
+          "empty": "Não é admin de nenhum fornecedor."
+        }
       }
     },
     "Connections": {

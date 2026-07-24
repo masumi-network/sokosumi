@@ -4287,16 +4287,9 @@
         }
       },
       "Vendors": {
-        "title": "Administração de fornecedores",
-        "description": "Gerencie o perfil do fornecedor nos fornecedores em que você é administrador.",
-        "loading": "Carregando dados do fornecedor…",
-        "vendorSelect": {
-          "label": "Fornecedor",
-          "placeholder": "Selecionar um fornecedor"
-        },
+        "title": "Fornecedores",
+        "description": "Escolha um fornecedor para gerenciar o perfil.",
         "profile": {
-          "title": "Perfil do fornecedor",
-          "description": "Atualize o nome e os logotipos do fornecedor. O slug não pode ser alterado.",
           "nameLabel": "Nome",
           "slugLabel": "Slug",
           "slugHint": "O slug é somente leitura.",
@@ -4315,7 +4308,12 @@
             "uploadError": "Falha ao enviar o logotipo."
           }
         },
-        "loadFailed": "Falha ao carregar os dados do fornecedor."
+        "editDescription": "Atualize o nome e os logos do fornecedor. O slug não pode ser alterado.",
+        "backToList": "Voltar aos fornecedores",
+        "List": {
+          "manage": "Gerenciar",
+          "empty": "Você não é admin de nenhum fornecedor."
+        }
       }
     },
     "Connections": {

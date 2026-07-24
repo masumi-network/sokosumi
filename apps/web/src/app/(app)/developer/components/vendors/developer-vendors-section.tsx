@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import type { VendorMembership } from "@/lib/clients/generated/core";
 
-import { VendorAdminPanel } from "./vendor-admin-panel";
+import { DeveloperVendorsList } from "./developer-vendors-list";
 
 interface DeveloperVendorsSectionProps {
   adminVendors: VendorMembership[];
@@ -19,7 +19,7 @@ export async function DeveloperVendorsSection({
         <h2 className="text-lg font-semibold">{t("title")}</h2>
         <p className="text-muted-foreground text-sm">{t("description")}</p>
       </div>
-      <VendorAdminPanel adminVendors={adminVendors} />
+      <DeveloperVendorsList adminVendors={adminVendors} />
     </div>
   );
 }

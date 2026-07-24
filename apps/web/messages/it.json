@@ -4287,16 +4287,9 @@
         }
       },
       "Vendors": {
-        "title": "Amministrazione vendor",
-        "description": "Gestisci il profilo del vendor per i vendor di cui sei amministratore.",
-        "loading": "Caricamento dati vendor…",
-        "vendorSelect": {
-          "label": "Vendor",
-          "placeholder": "Seleziona un vendor"
-        },
+        "title": "Vendor",
+        "description": "Scegli un vendor per gestirne il profilo.",
         "profile": {
-          "title": "Profilo vendor",
-          "description": "Aggiorna nome e loghi del vendor. Lo slug non può essere modificato.",
           "nameLabel": "Nome",
           "slugLabel": "Slug",
           "slugHint": "Lo slug è di sola lettura.",
@@ -4315,7 +4308,12 @@
             "uploadError": "Impossibile caricare il logo."
           }
         },
-        "loadFailed": "Impossibile caricare i dati del vendor."
+        "editDescription": "Aggiorna nome e loghi del vendor. Lo slug non può essere modificato.",
+        "backToList": "Torna ai vendor",
+        "List": {
+          "manage": "Gestisci",
+          "empty": "Non sei admin di nessun vendor."
+        }
       }
     },
     "Connections": {
