@@ -11511,12 +11511,17 @@ export const AddVendorMemberRequestSchema = {
             example: 'dev@example.com'
         },
         role: {
-            $ref: '#/components/schemas/VendorMemberRole'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/VendorMemberRole'
+                },
+                {
+                    description: 'Member role. Defaults to developer when omitted.',
+                    example: 'developer'
+                }
+            ]
         }
-    },
-    required: [
-        'role'
-    ]
+    }
 } as const;
 
 export const PatchVendorMemberRoleRequestSchema = {

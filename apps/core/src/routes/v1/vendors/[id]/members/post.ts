@@ -29,7 +29,7 @@ const route = createRoute({
   path: "/{id}/members",
   operationId: "addVendorMember",
   description:
-    "Add an existing user as a vendor member by userId or email (vendor admin only).",
+    "Add an existing user as a vendor member by userId or email (vendor admin only). Role is optional and defaults to developer.",
   tags: ["Vendors"],
   request: {
     params,

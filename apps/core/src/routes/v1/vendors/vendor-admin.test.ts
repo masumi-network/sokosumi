@@ -286,7 +286,7 @@ describe("vendor admin APIs", () => {
     });
   });
 
-  it("adds a vendor member by email", async () => {
+  it("adds a vendor member by email and defaults role to developer", async () => {
     mockVendorAdmin();
     userFindFirstMock.mockResolvedValue({ id: "dev_user" });
     vendorMemberFindUniqueMock.mockResolvedValue(null);
@@ -299,7 +299,6 @@ describe("vendor admin APIs", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: "dev@example.com",
-          role: "developer",
         }),
       },
     );
@@ -319,6 +318,45 @@ describe("vendor admin APIs", () => {
       },
     });
     expect(body.data.role).toBe("developer");
+  });
+
+  it("adds a vendor member as admin when role is provided", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "admin_user" });
+    vendorMemberFindUniqueMock.mockResolvedValue(null);
+    vendorMemberCreateMock.mockResolvedValue({
+      role: "admin",
+      user: {
+        id: "admin_user",
+        email: "admin@example.com",
+        name: "Admin User",
+      },
+    });
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: "admin_user",
+          role: "admin",
+        }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(vendorMemberCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "admin_user",
+          role: "admin",
+        }),
+      }),
+    );
+    expect(body.data.role).toBe("admin");
   });
 
   it("rejects add when both userId and email are provided", async () => {
@@ -372,6 +410,42 @@ describe("vendor admin APIs", () => {
         },
       },
     });
+  });
+
+  it("demotes an admin to developer when another admin remains", async () => {
+    vendorFindUniqueMock.mockResolvedValue({ id: testVendor.id });
+    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
+    vendorMemberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    vendorMemberFindFirstMock
+      .mockResolvedValueOnce({ id: "vm_admin" })
+      .mockResolvedValueOnce({ role: "admin" });
+    vendorMemberCountMock.mockResolvedValue(2);
+    vendorMemberUpdateMock.mockResolvedValue({
+      role: "developer",
+      user: {
+        id: "other_admin",
+        email: "other@example.com",
+        name: "Other Admin",
+      },
+    });
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members/other_admin`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "developer" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(vendorMemberCountMock).toHaveBeenCalled();
+    expect(vendorMemberUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { role: "developer" },
+      }),
+    );
   });
 
   it("removes a vendor member and clears coworker assignments", async () => {

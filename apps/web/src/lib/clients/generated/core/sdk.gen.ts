@@ -2226,7 +2226,7 @@ export const listVendorMembers = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Add an existing user as a vendor member by userId or email (vendor admin only).
+ * Add an existing user as a vendor member by userId or email (vendor admin only). Role is optional and defaults to developer.
  */
 export const addVendorMember = <ThrowOnError extends boolean = false>(options: Options<AddVendorMemberData, ThrowOnError>): RequestResult<AddVendorMemberResponses, AddVendorMemberErrors, ThrowOnError> => (options.client ?? client).post<AddVendorMemberResponses, AddVendorMemberErrors, ThrowOnError>({
     responseTransformer: addVendorMemberResponseTransformer,
@@ -2244,7 +2244,7 @@ export const addVendorMember = <ThrowOnError extends boolean = false>(options: O
 export const removeVendorMember = <ThrowOnError extends boolean = false>(options: Options<RemoveVendorMemberData, ThrowOnError>): RequestResult<RemoveVendorMemberResponses, RemoveVendorMemberErrors, ThrowOnError> => (options.client ?? client).delete<RemoveVendorMemberResponses, RemoveVendorMemberErrors, ThrowOnError>({ url: '/vendors/{id}/members/{userId}', ...options });
 
 /**
- * Change a vendor member role (vendor admin only). Path accepts user ID or email. Cannot demote the last admin.
+ * Change a vendor member role between admin and developer (vendor admin only). Path accepts user ID or email. Cannot demote the last admin.
  */
 export const patchVendorMemberRole = <ThrowOnError extends boolean = false>(options: Options<PatchVendorMemberRoleData, ThrowOnError>): RequestResult<PatchVendorMemberRoleResponses, PatchVendorMemberRoleErrors, ThrowOnError> => (options.client ?? client).patch<PatchVendorMemberRoleResponses, PatchVendorMemberRoleErrors, ThrowOnError>({
     responseTransformer: patchVendorMemberRoleResponseTransformer,

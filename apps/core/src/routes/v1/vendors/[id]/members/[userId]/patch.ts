@@ -35,7 +35,7 @@ const route = createRoute({
   path: "/{id}/members/{userId}",
   operationId: "patchVendorMemberRole",
   description:
-    "Change a vendor member role (vendor admin only). Path accepts user ID or email. Cannot demote the last admin.",
+    "Change a vendor member role between admin and developer (vendor admin only). Path accepts user ID or email. Cannot demote the last admin.",
   tags: ["Vendors"],
   request: {
     params,

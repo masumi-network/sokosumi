@@ -3339,7 +3339,7 @@ export type VendorMember = {
 export type AddVendorMemberRequest = {
     userId?: string;
     email?: string;
-    role: VendorMemberRole;
+    role?: VendorMemberRole & unknown;
 };
 
 export type PatchVendorMemberRoleRequest = {

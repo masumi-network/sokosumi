@@ -90,7 +90,10 @@ const userIdentityFields = {
 export const addVendorMemberRequestSchema = z
   .object({
     ...userIdentityFields,
-    role: vendorMemberRoleSchema,
+    role: vendorMemberRoleSchema.default("developer").openapi({
+      description: "Member role. Defaults to developer when omitted.",
+      example: "developer",
+    }),
   })
   .refine(exactlyOneUserIdentity, {
     message: "Provide exactly one of userId or email",
