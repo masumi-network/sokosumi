@@ -4,11 +4,10 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { getEnvPublicConfig } from "@/config/env.public";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
@@ -16,32 +15,18 @@ import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import QueryProvider from "@/contexts/query-provider";
-import { getPendingNoticesAction } from "@/lib/actions/notice";
-import { hasAdminRole } from "@/lib/auth/admin-access";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-import { coreClient } from "@/lib/clients/core.client";
-import type {
-  GetUsersByIdCreditsResponse,
-  Notice,
-} from "@/lib/clients/generated/core";
-import { NoticeKind } from "@/lib/clients/generated/core";
-import { userService } from "@/lib/services";
-import { coworkerService } from "@/lib/services/coworker.service";
-import {
-  hasSubscriptionOnboardingGateBeenServedForSession,
-  SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
-} from "@/lib/subscription-onboarding-gate-cookie";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
-import { resolveAccountNotice } from "./components/account-notice-state";
+
+import AppChatRailShell from "./components/app-chat-rail-shell";
+import AppShellChrome from "./components/app-shell-chrome";
+import { AppSidebarFallback } from "./components/app-sidebar-fallback";
 import { AuthSessionGuard } from "./components/auth-session-guard";
-import ChatRail from "./components/chat-rail";
 import Header from "./components/header";
 import { LoginAccountNoticeToast } from "./components/login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
 import { NotificationToaster } from "./components/notification-toaster.client";
-import { OnboardingDialogLoader } from "./components/onboarding-dialog-loader";
-import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -63,8 +48,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const headersList = await headers();
   const pathname = headersList.get("x-pathname");
 
-  // Redirect before rendering client providers. A redirect-only `/` page leaves
-  // the router on `/` during client navigation and triggers hook mismatches.
   if (pathname === "/") {
     redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
   }
@@ -76,127 +59,12 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const defaultChatRailOpen =
     cookieStore.get("chat_sidebar_state")?.value === "true";
-
-  // Critical shared data only. design.md is unused by chat UI and was blocking
-  // LCP on every (app) route. Coverage checks run inside OnboardingDialogLoader
-  // (Suspense) so paid-user Stripe work does not delay page paint.
-  const [
-    shouldShowOnboarding,
-    pendingNoticesResult,
-    activeOrganization,
-    creditsResultRaw,
-    coworkersResult,
-  ] = await Promise.all([
-    userService.showOnboarding(session),
-    getPendingNoticesAction(),
-    userService.getActiveOrganization(),
-    coreClient.getMyCredits().catch(() => null),
-    coworkerService.listCoworkers().catch(() => []),
-  ]);
-  const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
-  const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
-  const pendingNotices = pendingNoticesResult.ok
-    ? pendingNoticesResult.data
-    : [];
-  const legalNotices = pendingNotices.filter(
-    (notice: Notice) => notice.kind === NoticeKind.LEGAL_TERMS,
-  );
-  const announcementNotices = pendingNotices.filter(
-    (notice: Notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
-  );
   const userImageUrl =
     session.user.image ??
     gravatarUrl(session.user.email ?? "", {
       size: 80,
       default: "404",
     });
-  const adminMenuEnabled = hasAdminRole(
-    (session.user as typeof session.user & { role?: string | null }).role,
-  );
-  const creditsData = creditsResult?.data.credits ?? null;
-  // Do not default to "free" when credits failed to load — that would show the
-  // subscription-only onboarding gate (and Stripe/org work) for paid users.
-  const currentPlan =
-    creditsResult != null
-      ? (creditsResult.data.subscription?.plan ?? "free")
-      : null;
-  const shouldShowFreeSubscriptionGate =
-    !shouldShowOnboarding && currentPlan === "free";
-  const subscriptionOnboardingGateCookie = cookieStore.get(
-    SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
-  )?.value;
-  const subscriptionOnboardingGateAlreadyServed =
-    hasSubscriptionOnboardingGateBeenServedForSession(
-      subscriptionOnboardingGateCookie,
-      session.session.id,
-    );
-  const shouldLoadSubscriptionOnboarding =
-    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed;
-  const currentTimestampMs = creditsResult?.meta?.timestamp
-    ? new Date(creditsResult.meta.timestamp).getTime()
-    : 0;
-  const lowCreditsThreshold =
-    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  const accountNotice = resolveAccountNotice({
-    credits: creditsData?.total ?? null,
-    currentPlan,
-    email: session.user.email,
-    emailVerified: session.user.emailVerified,
-    threshold: lowCreditsThreshold,
-  });
-
-  const content = (
-    <NoticeDialogProvider
-      legalNotices={legalNotices}
-      announcementNotices={announcementNotices}
-    >
-      <SidebarProvider
-        defaultOpen={defaultOpen}
-        data-app-shell
-        className="flex max-w-svw overflow-clip"
-      >
-        <HistorySearchDialogProvider
-          activeOrganizationId={session.session.activeOrganizationId ?? null}
-        >
-          <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
-            <Sidebar
-              adminMenuEnabled={adminMenuEnabled}
-              creditsData={creditsData}
-              currentTimestampMs={currentTimestampMs}
-              organizationName={activeOrganization?.name ?? null}
-              session={session}
-              lowCreditsThreshold={lowCreditsThreshold}
-            />
-            <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
-              <div
-                className="flex min-w-0 flex-1 flex-col overflow-clip"
-                data-app-content-inner
-              >
-                <Header className="h-16 p-4" session={session} />
-                <main
-                  className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
-                  data-app-main
-                >
-                  <EmergencyDialog />
-                  <div
-                    className="flex h-full flex-1 flex-col overflow-visible"
-                    data-app-main-inner
-                  >
-                    {children}
-                  </div>
-                </main>
-              </div>
-              <ChatRail
-                organizationSlug={activeOrganization?.slug ?? null}
-                userImageUrl={userImageUrl}
-                userName={session.user.name ?? undefined}
-              />
-            </div>
-          </AppChatRailProvider>
-        </HistorySearchDialogProvider>
-      </SidebarProvider>
-    </NoticeDialogProvider>
-  );
 
   return (
     <QueryProvider>
@@ -204,32 +72,62 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <ConversationsProvider>
         <DynamicAblyProvider>
           <NotificationProvider userId={session.user.id}>
-            <AccountNoticeProvider
-              notice={accountNotice}
-              sessionId={session.session.id}
-            >
-              <NotificationToaster />
-              <NotificationToastListener userId={session.user.id} />
-              <LoginAccountNoticeToast />
-              <CoworkersProvider initialCoworkers={coworkers}>
-                {content}
-                {shouldShowOnboarding ? (
-                  <Suspense fallback={null}>
-                    <OnboardingDialogLoader
-                      activeOrganization={activeOrganization}
-                      loginId={session.session.id}
-                      subscriptionOnly={false}
-                    />
-                  </Suspense>
-                ) : shouldLoadSubscriptionOnboarding ? (
-                  <Suspense fallback={null}>
-                    <OnboardingDialogLoader
-                      activeOrganization={activeOrganization}
-                      loginId={session.session.id}
-                      subscriptionOnly
-                    />
-                  </Suspense>
-                ) : null}
+            <AccountNoticeProvider notice={null} sessionId={session.session.id}>
+              <CoworkersProvider initialCoworkers={[]}>
+                <NoticeDialogProvider
+                  legalNotices={[]}
+                  announcementNotices={[]}
+                >
+                  <NotificationToaster />
+                  <NotificationToastListener userId={session.user.id} />
+                  <LoginAccountNoticeToast />
+                  <SidebarProvider
+                    defaultOpen={defaultOpen}
+                    data-app-shell
+                    className="flex max-w-svw overflow-clip"
+                  >
+                    <HistorySearchDialogProvider
+                      activeOrganizationId={
+                        session.session.activeOrganizationId ?? null
+                      }
+                    >
+                      <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
+                        <Suspense fallback={<AppSidebarFallback />}>
+                          <AppShellChrome session={session} />
+                        </Suspense>
+                        <div
+                          className="flex min-w-0 flex-1 overflow-clip"
+                          data-app-content
+                        >
+                          <div
+                            className="flex min-w-0 flex-1 flex-col overflow-clip"
+                            data-app-content-inner
+                          >
+                            <Header className="h-16 p-4" session={session} />
+                            <main
+                              className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
+                              data-app-main
+                            >
+                              <EmergencyDialog />
+                              <div
+                                className="flex h-full flex-1 flex-col overflow-visible"
+                                data-app-main-inner
+                              >
+                                {children}
+                              </div>
+                            </main>
+                          </div>
+                          <Suspense fallback={null}>
+                            <AppChatRailShell
+                              session={session}
+                              userImageUrl={userImageUrl}
+                            />
+                          </Suspense>
+                        </div>
+                      </AppChatRailProvider>
+                    </HistorySearchDialogProvider>
+                  </SidebarProvider>
+                </NoticeDialogProvider>
               </CoworkersProvider>
             </AccountNoticeProvider>
           </NotificationProvider>

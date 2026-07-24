@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
 import type { Notice } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
@@ -15,6 +22,13 @@ interface NoticeDialogContextValue {
 const NoticeDialogContext = createContext<NoticeDialogContextValue | null>(
   null,
 );
+const NoticeDialogHydrationContext = createContext<
+  | ((notices: {
+      announcementNotices: Notice[];
+      legalNotices: Notice[];
+    }) => void)
+  | null
+>(null);
 
 interface NoticeDialogProviderProps {
   children: React.ReactNode;
@@ -32,6 +46,22 @@ export function NoticeDialogProvider({
     initialAnnouncementNotices,
   );
   const [noticeToShow, setNoticeToShow] = useState<Notice | null>(null);
+
+  useEffect(() => {
+    setLegalNotices(initialLegalNotices);
+  }, [initialLegalNotices]);
+
+  useEffect(() => {
+    setAnnouncementNotices(initialAnnouncementNotices);
+  }, [initialAnnouncementNotices]);
+
+  const hydrateNotices = useCallback(
+    (notices: { announcementNotices: Notice[]; legalNotices: Notice[] }) => {
+      setLegalNotices(notices.legalNotices);
+      setAnnouncementNotices(notices.announcementNotices);
+    },
+    [],
+  );
 
   const value = useMemo<NoticeDialogContextValue>(
     () => ({
@@ -63,16 +93,33 @@ export function NoticeDialogProvider({
   }
 
   return (
-    <NoticeDialogContext.Provider value={value}>
-      {children}
-      <NoticeDialog
-        pendingNotices={legalNotices}
-        noticeToShow={noticeToShow}
-        onNoticeClose={handleNoticeClose}
-        onNoticeAcknowledged={handleNoticeAcknowledged}
-      />
-    </NoticeDialogContext.Provider>
+    <NoticeDialogHydrationContext.Provider value={hydrateNotices}>
+      <NoticeDialogContext.Provider value={value}>
+        {children}
+        <NoticeDialog
+          pendingNotices={legalNotices}
+          noticeToShow={noticeToShow}
+          onNoticeClose={handleNoticeClose}
+          onNoticeAcknowledged={handleNoticeAcknowledged}
+        />
+      </NoticeDialogContext.Provider>
+    </NoticeDialogHydrationContext.Provider>
   );
+}
+
+export function useNoticeDialogHydration(): (notices: {
+  announcementNotices: Notice[];
+  legalNotices: Notice[];
+}) => void {
+  const hydrateNotices = useContext(NoticeDialogHydrationContext);
+
+  if (!hydrateNotices) {
+    throw new Error(
+      "useNoticeDialogHydration must be used within a NoticeDialogProvider.",
+    );
+  }
+
+  return hydrateNotices;
 }
 
 export function useNoticeDialog() {

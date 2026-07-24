@@ -1,8 +1,6 @@
 import { headers } from "next/headers";
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
-import { getAllCoreAgents } from "@/lib/agents/core-loaders";
-import type { Agent } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 import { developerCoworkerService } from "@/lib/services/developer-coworker.service";
@@ -49,15 +47,8 @@ async function BreadcrumbNavigationInner({
     segmentLabels,
   );
 
-  const [messages, agents, organizations] = await Promise.all([
+  const [messages, organizations] = await Promise.all([
     getMessages(),
-    getAllCoreAgents().catch((error) => {
-      console.warn(
-        "[breadcrumb] agent catalog fetch failed, using empty fallback",
-        { message: (error as Error)?.message },
-      );
-      return [] as Agent[];
-    }),
     userService
       .getMyMembersWithOrganizations()
       .then((members) =>
@@ -87,7 +78,7 @@ async function BreadcrumbNavigationInner({
 
   return (
     <BreadcrumbNavigationClient
-      agents={agents}
+      agents={[]}
       breadcrumbMessages={breadcrumbMessages}
       organizations={organizations}
       className={className}
