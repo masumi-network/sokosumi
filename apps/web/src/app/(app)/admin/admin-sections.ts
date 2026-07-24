@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   ListTodo,
   type LucideIcon,
+  Store,
   Users,
 } from "lucide-react";
 
@@ -84,6 +85,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "coworkers",
     href: "/admin/coworkers",
     Icon: BotMessageSquare,
+    group: "catalog",
+  },
+  {
+    key: "vendors",
+    href: "/admin/vendors",
+    Icon: Store,
     group: "catalog",
   },
   {

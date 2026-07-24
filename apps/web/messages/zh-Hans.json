@@ -263,7 +263,12 @@
       "new": "新建",
       "notifications": "通知",
       "projects": "项目",
-      "invoices": "发票"
+      "invoices": "发票",
+      "oauth-clients": "OAuth 客户端",
+      "api-keys": "API 密钥",
+      "coworkers": "同事",
+      "vendors": "供应商",
+      "docs": "文档"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2935,6 +2940,10 @@
           "coworkers": {
             "title": "Coworkers",
             "description": "管理所有同事的能力、优先级、白名单、归档和显示元数据。"
+          },
+          "vendors": {
+            "title": "供应商",
+            "description": "创建和编辑市场供应商，包括名称和徽标。"
           }
         }
       },
@@ -3317,6 +3326,54 @@
           "submitting": "正在发放积分…",
           "grantSuccess": "免费积分已发放",
           "grantError": "发放免费积分失败"
+        }
+      },
+      "Vendors": {
+        "title": "供应商",
+        "description": "创建和编辑市场供应商，包括名称和徽标。",
+        "loadFailed": "加载供应商失败。",
+        "backToList": "返回列表",
+        "createVendor": "创建供应商",
+        "createTitle": "新建供应商",
+        "createDescription": "创建市场供应商。创建后无法更改 slug。",
+        "editDescription": "更新供应商名称和徽标。slug 无法更改。",
+        "Table": {
+          "name": "名称",
+          "slug": "Slug",
+          "created": "创建时间",
+          "updated": "更新时间",
+          "actions": "操作",
+          "edit": "编辑",
+          "empty": "未找到供应商。",
+          "searchPlaceholder": "按名称或 slug 搜索…",
+          "totalCount": "{count, plural, other {# 个供应商}}",
+          "filteredCount": "显示 {shown} / {total}",
+          "emptySearch": "没有与搜索匹配的供应商。"
+        },
+        "Form": {
+          "nameLabel": "名称",
+          "slugLabel": "Slug",
+          "slugHintCreate": "使用小写字母、数字和连字符。创建后无法更改 slug。",
+          "slugHintEdit": "Slug 为只读。",
+          "create": "创建供应商",
+          "save": "保存更改",
+          "createSuccess": "供应商已创建。",
+          "saveSuccess": "供应商已更新。",
+          "saveFailed": "保存供应商失败。",
+          "invalidInput": "请检查供应商字段后重试。",
+          "notFound": "未找到供应商。",
+          "logos": {
+            "lightLabel": "徽标（浅色模式）",
+            "darkLabel": "徽标（深色模式）",
+            "upload": "上传徽标",
+            "replace": "替换徽标",
+            "remove": "移除徽标",
+            "previewAlt": "供应商徽标预览",
+            "fileTooLarge": "徽标文件过大。",
+            "fileTypeNotAccepted": "不支持该徽标文件类型。",
+            "maxFilesExceeded": "一次只能上传一个徽标文件。",
+            "uploadError": "上传徽标失败。"
+          }
         }
       }
     },
@@ -4167,7 +4224,8 @@
         "apiKeys": "API 密钥",
         "docs": "文档",
         "coworkers": "Coworkers",
-        "tasks": "任务"
+        "tasks": "任务",
+        "vendors": "供应商"
       },
       "Docs": {
         "title": "开发者文档",
@@ -4189,7 +4247,7 @@
       },
       "Coworkers": {
         "title": "你的 coworkers",
-        "description": "管理你拥有的 coworkers 的展示设置。",
+        "description": "管理您通过供应商成员身份可访问的协作者的显示设置。",
         "loadFailed": "加载你的 coworkers 失败。",
         "backToList": "返回 coworkers",
         "editDescription": "更新此 coworker 在 Sokosumi 中的展示方式。",
@@ -4197,22 +4255,22 @@
           "notFound": "未找到 coworker。"
         },
         "List": {
-          "empty": "你还没有任何活跃的 coworkers。",
+          "empty": "您还没有任何可访问的活跃协作者。",
           "noCaption": "无副标题",
           "edit": "编辑"
         },
         "Metadata": {
           "title": "编辑 coworker",
-          "description": "编辑你拥有的 coworker 展示字段"
+          "description": "编辑可访问协作者的显示字段"
         }
       },
       "Tasks": {
-        "title": "自有 coworker 的任务",
-        "description": "只读查看你的 coworker 作为负责人或创建者的任务。",
+        "title": "可访问协作者的任务",
+        "description": "只读查看您的可访问协作者作为负责人或创建者的任务。",
         "loadFailed": "加载任务失败。",
         "List": {
           "totalCount": "{count, plural, one {# 个任务} other {# 个任务}}",
-          "empty": "尚未找到你的 coworker 相关任务。",
+          "empty": "尚未找到您的可访问协作者的任务。",
           "task": "任务",
           "status": "状态",
           "coworkers": "Coworkers",
@@ -4225,6 +4283,35 @@
         "TaskDetail": {
           "backToList": "返回任务列表",
           "personalWorkspace": "个人工作区"
+        }
+      },
+      "Vendors": {
+        "title": "供应商",
+        "description": "选择要管理资料的供应商。",
+        "profile": {
+          "nameLabel": "名称",
+          "slugLabel": "Slug",
+          "slugHint": "Slug 为只读。",
+          "save": "保存更改",
+          "saveSuccess": "供应商资料已更新。",
+          "logos": {
+            "lightLabel": "徽标（浅色模式）",
+            "darkLabel": "徽标（深色模式）",
+            "upload": "上传徽标",
+            "replace": "替换徽标",
+            "remove": "移除徽标",
+            "previewAlt": "供应商徽标预览",
+            "fileTooLarge": "徽标文件过大。",
+            "fileTypeNotAccepted": "不支持该徽标文件类型。",
+            "maxFilesExceeded": "一次只能上传一个徽标文件。",
+            "uploadError": "徽标上传失败。"
+          }
+        },
+        "editDescription": "更新供应商名称和徽标。别名不可更改。",
+        "backToList": "返回供应商列表",
+        "List": {
+          "manage": "管理",
+          "empty": "你不是任何供应商的管理员。"
         }
       }
     },

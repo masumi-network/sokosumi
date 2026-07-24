@@ -1,7 +1,13 @@
 import type { Prisma } from "@sokosumi/database";
-
 import { notFound } from "@/helpers/error";
+import { buildAccessibleCoworkersWhere } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
+
+function buildAccessibleCoworkerRelationWhere(
+  userId: string,
+): Prisma.CoworkerWhereInput {
+  return buildAccessibleCoworkersWhere(userId);
+}
 
 export function buildDeveloperOwnedCoworkerTaskWhere(
   userId: string,
@@ -18,9 +24,14 @@ export function buildDeveloperOwnedCoworkerTaskWhere(
     };
   }
 
+  const accessibleCoworkerWhere = buildAccessibleCoworkerRelationWhere(userId);
+
   return {
     ...base,
-    OR: [{ assignee: { userId } }, { creatorCoworker: { userId } }],
+    OR: [
+      { assignee: accessibleCoworkerWhere },
+      { creatorCoworker: accessibleCoworkerWhere },
+    ],
   };
 }
 
@@ -31,7 +42,8 @@ export async function requireOwnedCoworkerForFilter(
   const coworker = await prisma.coworker.findFirst({
     where: {
       id: coworkerId,
-      userId,
+      archivedAt: null,
+      ...buildAccessibleCoworkersWhere(userId),
     },
     select: { id: true },
   });

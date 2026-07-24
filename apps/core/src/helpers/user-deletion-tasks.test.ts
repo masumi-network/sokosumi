@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
 const {
-  coworkerFindManyMock,
+  coworkerAssignmentFindManyMock,
   taskFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
   transactionMock,
 } = vi.hoisted(() => ({
-  coworkerFindManyMock: vi.fn(),
+  coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
@@ -21,8 +21,8 @@ describe("prepareTasksForUserDeletion", () => {
     vi.clearAllMocks();
     transactionMock.mockImplementation(async (callback) =>
       callback({
-        coworker: {
-          findMany: coworkerFindManyMock,
+        coworkerAssignment: {
+          findMany: coworkerAssignmentFindManyMock,
         },
         task: {
           findMany: taskFindManyMock,
@@ -34,7 +34,7 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("reassigns foreign-owned user creators then deletes owned tasks", async () => {
-    coworkerFindManyMock.mockResolvedValue([]);
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
     taskFindManyMock.mockResolvedValue([
       { id: "tsk_owned", ownerId: "user_delete" },
       { id: "tsk_other", ownerId: "user_other" },
@@ -46,6 +46,10 @@ describe("prepareTasksForUserDeletion", () => {
       $transaction: transactionMock,
     } as never);
 
+    expect(coworkerAssignmentFindManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_delete" },
+      select: { coworkerId: true },
+    });
     expect(taskFindManyMock).toHaveBeenCalledWith({
       where: {
         OR: [{ creatorUserId: "user_delete" }],
@@ -67,7 +71,7 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("clears coworker-creator RESTRICT refs for foreign-owned tasks", async () => {
-    coworkerFindManyMock.mockResolvedValue([{ id: "cow_1" }]);
+    coworkerAssignmentFindManyMock.mockResolvedValue([{ coworkerId: "cow_1" }]);
     taskFindManyMock.mockResolvedValue([
       { id: "tsk_foreign", ownerId: "user_other" },
     ]);

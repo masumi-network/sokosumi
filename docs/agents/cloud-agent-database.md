@@ -105,8 +105,8 @@ production / `main` parent (or any non-agent branch).
 | PR merged | GitHub Action `cloud-agent-db-teardown.yml` on `pull_request` closed; extracts `bc-…` ids from PR body (Cursor agent links) |
 | PR closed without merge | Same workflow |
 | Agent finishes with **no PR** | Agent runs `node scripts/cloud-agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`) |
-| Agent archived | Same explicit teardown when possible; otherwise idle TTL |
-| Idle **72h** | Neon `expires_at` on create/resume **and** scheduled Action `--idle-gc` every 6h as backup |
+| Agent archived | Same explicit teardown when possible; otherwise Neon idle TTL |
+| Idle **72h** | Neon `expires_at` on create/resume only (no scheduled Action backup) |
 
 Manual:
 
@@ -114,7 +114,6 @@ Manual:
 node scripts/cloud-agent-db/teardown.mjs
 node scripts/cloud-agent-db/teardown.mjs --agent-id bc-…
 node scripts/cloud-agent-db/teardown.mjs --from-text "$(gh pr view 123 --json body -q .body)"
-node scripts/cloud-agent-db/teardown.mjs --idle-gc
 ```
 
 ### PR body convention

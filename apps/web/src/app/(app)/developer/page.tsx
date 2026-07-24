@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 
-import { DeveloperPage } from "./components/developer-page";
+import {
+  DEVELOPER_DEFAULT_HREF,
+  DEVELOPER_TAB_REDIRECTS,
+} from "@/app/components/sidebar/components/developer-menu-config";
 
 interface DeveloperRouteProps {
   searchParams: Promise<{
@@ -14,10 +17,9 @@ export default async function DeveloperRoute({
   const params = await searchParams;
   const tabValue = Array.isArray(params.tab) ? params.tab[0] : params.tab;
 
-  // MCP stays under Connections.
-  if (tabValue === "mcp") {
-    redirect("/connections?tab=mcp");
+  if (tabValue && tabValue in DEVELOPER_TAB_REDIRECTS) {
+    redirect(DEVELOPER_TAB_REDIRECTS[tabValue]);
   }
 
-  return <DeveloperPage />;
+  redirect(DEVELOPER_DEFAULT_HREF);
 }
