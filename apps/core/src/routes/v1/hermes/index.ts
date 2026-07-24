@@ -93,6 +93,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { conflictWithData, ok } from "@/helpers/response";
+import { buildAccessibleCoworkerMembershipOr } from "@/helpers/vendor-membership";
 
 import prisma from "@/lib/db/prisma";
 import { isTransientFetchError } from "@/lib/external-service-errors";
@@ -432,9 +433,10 @@ function buildPersistedUserContent(
  * (e.g. "assign to coworker 0e8c93b0-…") into coworker / organization
  * records so the UI can render avatar + name chips instead of raw ids.
  *
- * Scoped to the caller — we only look up rows the user owns / belongs
- * to, so an attacker can't enumerate someone else's coworkers by
- * feeding crafted summaries through the orchestrator.
+ * Scoped to the caller — coworkers must be marketplace-whitelisted or
+ * accessible via vendor-admin / assignment membership; organizations
+ * require membership. Prevents enumerating private rows by feeding
+ * crafted summaries through the orchestrator.
  *
  * Best-effort: a DB hiccup here must not 500 the whole instance fetch.
  */
@@ -458,7 +460,13 @@ async function enrichPendingConfirmations(
   try {
     [coworkers, organizations] = await Promise.all([
       prisma.coworker.findMany({
-        where: { id: { in: ids }, userId },
+        where: {
+          id: { in: ids },
+          OR: [
+            { isWhitelisted: true },
+            ...buildAccessibleCoworkerMembershipOr(userId),
+          ],
+        },
         select: { id: true, name: true, image: true },
       }),
       prisma.organization.findMany({

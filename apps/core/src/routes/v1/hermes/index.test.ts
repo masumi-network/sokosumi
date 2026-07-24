@@ -1099,10 +1099,29 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          userId: "user_123",
+        where: {
           id: { in: expect.arrayContaining([coworkerId, orgId, strangerId]) },
-        }),
+          OR: [
+            { isWhitelisted: true },
+            {
+              vendor: {
+                vendorMembers: {
+                  some: {
+                    userId: "user_123",
+                    role: "admin",
+                  },
+                },
+              },
+            },
+            {
+              assignments: {
+                some: {
+                  userId: "user_123",
+                },
+              },
+            },
+          ],
+        },
       }),
     );
     const data = body.data as {
