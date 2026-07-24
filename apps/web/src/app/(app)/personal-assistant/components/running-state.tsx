@@ -313,6 +313,8 @@ export default function RunningState({
             onOpenChange={setSettingsOpen}
             previewMode={previewMode}
             integrations={instance?.integrations ?? []}
+            model={instance?.model ?? null}
+            modelProvider={instance?.modelProvider ?? null}
             lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
             lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
             assistantName={instance?.assistantName ?? null}

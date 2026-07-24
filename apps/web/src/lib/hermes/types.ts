@@ -109,6 +109,14 @@ export interface HermesInstancePublic {
    */
   autonomyLevel: HermesAutonomyLevel;
   /**
+   * The LLM the orchestrator is currently serving (e.g. "xiaomi/mimo-v2.5")
+   * and its provider label (e.g. "OpenRouter (managed)"), reported live so
+   * Settings shows the real model. Null when the orchestrator omits them —
+   * the UI falls back to i18n copy.
+   */
+  model: string | null;
+  modelProvider: string | null;
+  /**
    * Integrations the orchestrator currently knows about for this user. May
    * be empty if the user skipped onboarding or hasn't connected anything yet.
    */
