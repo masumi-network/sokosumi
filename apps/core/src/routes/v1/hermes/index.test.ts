@@ -1099,10 +1099,29 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          userId: "user_123",
+        where: {
           id: { in: expect.arrayContaining([coworkerId, orgId, strangerId]) },
-        }),
+          OR: [
+            { isWhitelisted: true },
+            {
+              vendor: {
+                vendorMembers: {
+                  some: {
+                    userId: "user_123",
+                    role: "admin",
+                  },
+                },
+              },
+            },
+            {
+              assignments: {
+                some: {
+                  userId: "user_123",
+                },
+              },
+            },
+          ],
+        },
       }),
     );
     const data = body.data as {
@@ -1120,6 +1139,88 @@ describe("Hermes route contracts", () => {
     expect(conf.referencedOrganizations).toEqual([
       { id: orgId, name: "Sokosumi Inc", slug: "sokosumi" },
     ]);
+  });
+
+  it("does not enrich private coworker ids excluded by the access filter", async () => {
+    // Private / non-whitelisted / unassigned coworker UUID in a crafted
+    // summary must not become a name/image chip. The mock returns [] to
+    // simulate Prisma applying isWhitelisted|membership OR — the gate is
+    // the where clause, not client-side filtering after an open lookup.
+    const privateCoworkerId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+    vi.mocked(getInstance).mockResolvedValue({
+      status: "ready",
+      endpointUrl: null,
+      lastActivityAt: null,
+      onboardedAt: null,
+      autonomyLevel: "medium",
+      integrations: [],
+      transitioning: false,
+      welcomeMessage: null,
+      welcomeKind: null,
+      lastSokosumiSyncAt: null,
+      lastInboxRefreshAt: null,
+      timezone: null,
+      pendingConfirmations: [
+        {
+          id: "conf_private",
+          toolName: "sokosumi_create_task",
+          summary: `Assign work to coworker ${privateCoworkerId}.`,
+          createdAt: "2026-05-25T10:00:00.000Z",
+          referencedCoworkers: [],
+          referencedOrganizations: [],
+          organizationId: null,
+          organizationName: null,
+        },
+      ],
+    });
+    coworkerFindManyMock.mockResolvedValue([]);
+    organizationFindManyMock.mockResolvedValue([]);
+
+    const response = await createApp().request("/me/instance", {
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: { in: [privateCoworkerId] },
+          OR: [
+            { isWhitelisted: true },
+            {
+              vendor: {
+                vendorMembers: {
+                  some: {
+                    userId: "user_123",
+                    role: "admin",
+                  },
+                },
+              },
+            },
+            {
+              assignments: {
+                some: {
+                  userId: "user_123",
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    const data = body.data as {
+      instance: {
+        pendingConfirmations: Array<{
+          referencedCoworkers: Array<{ id: string; name: string }>;
+          referencedOrganizations: Array<{ id: string; name: string }>;
+        }>;
+      };
+    };
+    const [conf] = data.instance.pendingConfirmations;
+    expect(conf.referencedCoworkers).toEqual([]);
+    expect(conf.referencedOrganizations).toEqual([]);
   });
 
   it("does NOT delete local state when the orchestrator reports no instance", async () => {
