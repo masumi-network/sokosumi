@@ -11,11 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { getAgentName } from "@/lib/helpers/agent";
-import type {
-  CoreAgentDto,
-  OrganizationWithLimitedInfo,
-} from "@/lib/types/core-dto";
+import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 interface BreadcrumbSegment {
   label: string;
@@ -24,10 +20,6 @@ interface BreadcrumbSegment {
 }
 
 interface BreadcrumbNavigationClientProps {
-  /**
-   * Agents for resolving agent IDs to names
-   */
-  agents: CoreAgentDto[];
   /**
    * Messages for resolving path segments to their display labels
    */
@@ -44,7 +36,6 @@ interface BreadcrumbNavigationClientProps {
 }
 
 export default function BreadcrumbNavigationClient({
-  agents,
   breadcrumbMessages,
   organizations,
   segmentLabels = {},
@@ -56,7 +47,6 @@ export default function BreadcrumbNavigationClient({
     generateSegments(
       pathname,
       segmentLabels,
-      agents,
       organizations,
       breadcrumbMessages,
     ),
@@ -100,7 +90,6 @@ function resolveCurrentSegment(
 function generateSegments(
   pathname: string,
   segmentLabels: Record<string, string>,
-  agents: CoreAgentDto[],
   organizations: OrganizationWithLimitedInfo[],
   breadcrumbMessages?: Record<string, string>,
 ): BreadcrumbSegment[] {
@@ -140,11 +129,9 @@ function generateSegments(
 
       // Try to resolve the segment label in the following order:
       // 1. Custom segment labels map
-      // 2. Agent name resolution
-      // 3. Organization name resolution
-      // 4. Translation key
-      // 5. Fallback to the segment itself
-      const agent = agents.find((a) => a.id === segment);
+      // 2. Organization name resolution
+      // 3. Translation key
+      // 4. Fallback to the segment itself
       const organization = organizations.find(
         (o) => o.slug === decodeURIComponent(segment),
       );
@@ -153,7 +140,6 @@ function generateSegments(
       const label =
         segmentLabels[segment] ??
         (isDesignMdEditor ? breadcrumbMessages?.editor : undefined) ??
-        (agent && getAgentName(agent)) ??
         (organization && organization.name) ??
         (breadcrumbMessages && segment in breadcrumbMessages
           ? breadcrumbMessages[segment]

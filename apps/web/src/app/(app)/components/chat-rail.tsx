@@ -1,11 +1,11 @@
 "use client";
 
 import { PanelRightIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import ChatInterface from "@/app/chat-ui/components/chat-interface";
 import { isChatShellPathname } from "@/app/chat-ui/utils/chat-route-base";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,11 @@ import {
   CHAT_RAIL_READY_POLL_MS,
   CHAT_RAIL_READY_TIMEOUT_MS,
 } from "@/lib/constants/chat-rail-ready";
+
+const ChatInterface = dynamic(
+  () => import("@/app/chat-ui/components/chat-interface"),
+  { ssr: false },
+);
 
 interface ChatRailProps {
   organizationSlug: string | null;
@@ -180,7 +185,9 @@ export default function ChatRail({
     return null;
   }
 
-  const railBody = (
+  const shouldMountChat = open || openMobile;
+
+  const railBody = shouldMountChat ? (
     <div
       className="bg-background flex h-full min-h-0 w-full flex-col"
       data-chat-rail-anchor
@@ -213,7 +220,7 @@ export default function ChatRail({
         />
       </div>
     </div>
-  );
+  ) : null;
 
   return (
     <>
@@ -235,7 +242,7 @@ export default function ChatRail({
           transform: isVisible ? "translateX(0)" : "translateX(100%)",
         }}
       >
-        {railBody}
+        {isVisible ? railBody : null}
       </div>
 
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
@@ -248,7 +255,7 @@ export default function ChatRail({
           showCloseButton={false}
           className="w-full max-w-none gap-0 border-l p-0 sm:max-w-3xl"
         >
-          {railBody}
+          {openMobile ? railBody : null}
         </SheetContent>
       </Sheet>
     </>

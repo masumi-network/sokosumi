@@ -1,8 +1,13 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
-import { useCoworkers } from "@/app/chat/hooks/use-coworkers";
 import type { Coworker } from "@/app/chat/utils/types";
 
 export interface CoworkersContextValue {
@@ -10,6 +15,9 @@ export interface CoworkersContextValue {
 }
 
 const CoworkersContext = createContext<CoworkersContextValue | null>(null);
+const CoworkersHydrationContext = createContext<
+  ((coworkers: Coworker[]) => void) | null
+>(null);
 
 interface CoworkersProviderProps {
   children: React.ReactNode;
@@ -20,12 +28,35 @@ export function CoworkersProvider({
   children,
   initialCoworkers,
 }: CoworkersProviderProps) {
-  const value = useCoworkers(initialCoworkers);
+  // Hydrate path owns updates after mount — do not sync props via effect
+  // (layout may re-pass a fresh empty array and wipe hydrated state).
+  const [coworkers, setCoworkers] = useState<Coworker[]>(initialCoworkers);
+
+  const hydrateCoworkers = useCallback((nextCoworkers: Coworker[]) => {
+    setCoworkers(nextCoworkers);
+  }, []);
+
+  const value = useMemo(() => ({ coworkers }), [coworkers]);
+
   return (
-    <CoworkersContext.Provider value={value}>
-      {children}
-    </CoworkersContext.Provider>
+    <CoworkersHydrationContext.Provider value={hydrateCoworkers}>
+      <CoworkersContext.Provider value={value}>
+        {children}
+      </CoworkersContext.Provider>
+    </CoworkersHydrationContext.Provider>
   );
+}
+
+export function useCoworkersHydration(): (coworkers: Coworker[]) => void {
+  const hydrateCoworkers = useContext(CoworkersHydrationContext);
+
+  if (!hydrateCoworkers) {
+    throw new Error(
+      "useCoworkersHydration must be used within a CoworkersProvider",
+    );
+  }
+
+  return hydrateCoworkers;
 }
 
 export function useCoworkersContext(): CoworkersContextValue {
