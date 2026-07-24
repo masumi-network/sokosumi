@@ -9,8 +9,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import {
-  forbidOrchestratorActor,
-  isUserAuthContext,
+  isCoworkerAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -53,10 +52,6 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      forbidOrchestratorActor(
-        c.var.authContext,
-        "Orchestrator cannot access marketplace conversations",
-      );
       const userContext = requireUserContext(c.var.authContext);
 
       // Database is the source of truth - fetch conversations
@@ -71,9 +66,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // A delegated coworker may only see conversations assigned to it. Scope
       // by the stable `metadata.coworker_id` binding (no slug resolution here);
       // conversations without that binding are excluded for coworker actors.
+      // Orchestrator+context acts as the context user and sees the full user list.
       const authContext = c.var.authContext;
       let visibleConversations = conversations;
-      if (!isUserAuthContext(authContext)) {
+      if (isCoworkerAuthContext(authContext)) {
         const { coworkerId } = requireCoworkerAuthContext(authContext);
         visibleConversations = conversations.filter((conv) => {
           const meta = (conv.metadata as Record<string, unknown> | null) ?? {};

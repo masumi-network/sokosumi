@@ -43,7 +43,7 @@ After context is validated, Core binds `orchestratorId` to that user’s **activ
 | DRAFT tasks | Hidden | Visible (user-like in workspace) |
 | Status transitions | Agent table (assignee) or user table (delegated) | **DRAFT ↔ READY only** (task events); schedule put/delete may still move `QUEUED` |
 | `POST /v1/tasks/{id}/jobs` | Assigned coworker | **403** (coworker only) |
-| Marketplace chat / conversations | User or assigned coworker | **403** (use `/v1/hermes/*`) |
+| Marketplace chat / conversations | User or assigned coworker | With context headers (acts as context user); use `/v1/hermes/*` for Hermes product chat |
 | Task assignee (`assigneeId`) | Marketplace coworker | Never the orchestrator |
 | Task creator | `creator.type = "coworker"` | `creator.type = "orchestrator"` → **user’s** orchestrator row |
 | Event attribution | `coworkerId` on events | `orchestratorId` on events (per-user row) |

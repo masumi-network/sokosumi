@@ -1300,7 +1300,7 @@ describe("requireConversationCoworkerAccess", () => {
     expect(tx.coworker.findFirst).not.toHaveBeenCalled();
   });
 
-  it("rejects orchestrator actors (marketplace chat is out of scope)", async () => {
+  it("is a no-op for orchestrator with context (acts as context user)", async () => {
     const tx = createTransactionClient();
     const orchestratorContext: OrchestratorAuthenticationContext = {
       actor: "orchestrator",
@@ -1308,9 +1308,9 @@ describe("requireConversationCoworkerAccess", () => {
       context: { userId: "user_123", organizationId: null },
     };
 
-    await expect(
-      requireConversationCoworkerAccess(orchestratorContext, null, tx),
-    ).rejects.toThrow("Orchestrator cannot access marketplace conversations");
+    await requireConversationCoworkerAccess(orchestratorContext, null, tx);
+
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
   });
 
   it("allows a delegated coworker on its own conversation (coworker_id)", async () => {

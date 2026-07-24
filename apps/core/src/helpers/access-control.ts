@@ -649,7 +649,8 @@ export async function resolveConversationCoworkerId(
  *
  * - User actors: no-op — ownership is already enforced by the `userId`-scoped
  *   query that loaded the conversation.
- * - Orchestrator actors: always forbidden (marketplace chat is out of scope).
+ * - Orchestrator with context headers: no-op — acts as the context user; ownership
+ *   is enforced by the same `userId`-scoped query via {@link requireUserContext}.
  * - Delegated coworker actors: the conversation's bound coworker
  *   (`metadata.coworker_id` / `coworker_slug`) must equal the authenticated
  *   `coworkerId`. Delegation alone (user-exists + org-membership) is not enough;
@@ -658,19 +659,17 @@ export async function resolveConversationCoworkerId(
  * Non-delegated coworkers never reach this on user-scoped routes
  * (`requireUserContext` throws first); the delegation branch guards defensively.
  *
- * @throws {forbidden} When the actor is an orchestrator, or a delegated coworker
- *   is not the conversation's coworker.
+ * @throws {forbidden} When a delegated coworker is not the conversation's coworker.
  */
 export async function requireConversationCoworkerAccess(
   authContext: AuthenticationContext,
   metadata: Prisma.JsonValue | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  if (isOrchestratorAuthContext(authContext)) {
-    throw forbidden("Orchestrator cannot access marketplace conversations");
-  }
-
-  if (isUserAuthContext(authContext)) {
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
     return;
   }
 
@@ -700,7 +699,8 @@ export async function requireConversationCoworkerAccess(
  * is delegated. For coworker actors this stamps `coworker_id` to the
  * authenticated coworker and drops any client-supplied `coworker_slug`, so the
  * binding cannot diverge (the chat handler resolves the coworker from
- * `coworker_id`; the real slug is derived from it). No-op for user sessions.
+ * `coworker_id`; the real slug is derived from it). No-op for user sessions and
+ * orchestrator context actors.
  *
  * Mutates and returns the passed metadata object.
  */
@@ -708,11 +708,10 @@ export function pinCoworkerConversationBinding(
   authContext: AuthenticationContext,
   metadata: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (isOrchestratorAuthContext(authContext)) {
-    throw forbidden("Orchestrator cannot access marketplace conversations");
-  }
-
-  if (isUserAuthContext(authContext)) {
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
     return metadata;
   }
 

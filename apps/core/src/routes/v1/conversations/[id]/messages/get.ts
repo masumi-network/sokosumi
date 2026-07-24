@@ -20,7 +20,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { conversationMessageSchema } from "@/schemas/conversation-message.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -82,7 +82,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
       const { id } = c.req.valid("param");
       const queryParams = c.req.valid("query");
 
@@ -93,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const conversation = await tx.conversation.findFirst({
           where: {
             id,
-            userId: authContext.userId,
+            userId: userContext.userId,
             archivedAt: null,
           },
         });
