@@ -44,7 +44,7 @@ export default async function DeveloperTaskDetailPage({
             </span>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/developer?tab=tasks">{t("backToList")}</Link>
+            <Link href="/developer/tasks">{t("backToList")}</Link>
           </Button>
         </div>
       </div>

@@ -6,9 +6,9 @@ type PrismaClient = ReturnType<typeof createPrismaClient>;
  * Clear creator RESTRICT blockers before deleting a user.
  *
  * - Owned tasks are deleted (owner cascade would anyway).
- * - Tasks this user (or their coworkers) created but do not own keep the
+ * - Tasks this user (or their assigned coworkers) created but do not own keep the
  *   row and re-point creator to the task owner as a user creator.
- * - Coworker rows cascade-delete with the user; creatorCoworkerId is
+ * - Coworker assignments cascade-delete with the user; creatorCoworkerId is
  *   RESTRICT, so those refs must be cleared first.
  */
 export async function prepareTasksForUserDeletion(
@@ -17,11 +17,11 @@ export async function prepareTasksForUserDeletion(
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const coworkerIds = (
-      await tx.coworker.findMany({
+      await tx.coworkerAssignment.findMany({
         where: { userId },
-        select: { id: true },
+        select: { coworkerId: true },
       })
-    ).map((coworker) => coworker.id);
+    ).map((assignment) => assignment.coworkerId);
 
     const createdTasks = await tx.task.findMany({
       where: {

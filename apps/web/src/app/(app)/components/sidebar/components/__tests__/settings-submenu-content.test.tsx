@@ -129,4 +129,19 @@ describe("SettingsSubmenuContent", () => {
     expect(setOpenMobileMock).toHaveBeenCalledWith(false);
     expect(showLogoutModalMock).toHaveBeenCalledWith("user@example.com");
   });
+
+  it("opens the developer submenu instead of navigating", () => {
+    render(
+      <SettingsSubmenuContent
+        sessionUser={sessionUser}
+        members={[]}
+        activeOrganizationId={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "developer" }));
+
+    expect(openSubmenuMock).toHaveBeenCalledWith("developer");
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 });

@@ -228,7 +228,7 @@ describe("GET /coworkers", () => {
     expect(coworkerFindManyMock).toHaveBeenCalled();
   });
 
-  it("returns active coworkers owned by the authenticated user via scope=owned", async () => {
+  it("returns active coworkers accessible via membership via scope=owned", async () => {
     coworkerFindManyMock.mockResolvedValue([]);
 
     const app = createApp({
@@ -243,14 +243,32 @@ describe("GET /coworkers", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         archivedAt: null,
-        userId: "user_123",
+        OR: [
+          {
+            vendor: {
+              vendorMembers: {
+                some: {
+                  userId: "user_123",
+                  role: "admin",
+                },
+              },
+            },
+          },
+          {
+            assignments: {
+              some: {
+                userId: "user_123",
+              },
+            },
+          },
+        ],
       },
       orderBy: expectedOrderBy,
       include: coworkerInclude,
     });
   });
 
-  it("scopes owned coworkers to the admin session user id", async () => {
+  it("scopes owned coworkers to the authenticated user membership", async () => {
     coworkerFindManyMock.mockResolvedValue([]);
 
     const app = createApp({
@@ -265,7 +283,25 @@ describe("GET /coworkers", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         archivedAt: null,
-        userId: "admin_456",
+        OR: [
+          {
+            vendor: {
+              vendorMembers: {
+                some: {
+                  userId: "admin_456",
+                  role: "admin",
+                },
+              },
+            },
+          },
+          {
+            assignments: {
+              some: {
+                userId: "admin_456",
+              },
+            },
+          },
+        ],
       },
       orderBy: expectedOrderBy,
       include: coworkerInclude,
@@ -293,7 +329,25 @@ describe("GET /coworkers", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         archivedAt: null,
-        userId: "user_123",
+        OR: [
+          {
+            vendor: {
+              vendorMembers: {
+                some: {
+                  userId: "user_123",
+                  role: "admin",
+                },
+              },
+            },
+          },
+          {
+            assignments: {
+              some: {
+                userId: "user_123",
+              },
+            },
+          },
+        ],
         capabilities: {
           hasEvery: ["tasks"],
         },

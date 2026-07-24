@@ -17,13 +17,35 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const accessibleCoworkerWhere = {
+  OR: [
+    {
+      vendor: {
+        vendorMembers: {
+          some: {
+            userId: "user_123",
+            role: "admin",
+          },
+        },
+      },
+    },
+    {
+      assignments: {
+        some: {
+          userId: "user_123",
+        },
+      },
+    },
+  ],
+};
+
 describe("buildDeveloperOwnedCoworkerTaskWhere", () => {
-  it("scopes to non-archived tasks owned via assignee or creator coworker", () => {
+  it("scopes to non-archived tasks for accessible assignee or creator coworkers", () => {
     expect(buildDeveloperOwnedCoworkerTaskWhere("user_123")).toEqual({
       archivedAt: null,
       OR: [
-        { assignee: { userId: "user_123" } },
-        { creatorCoworker: { userId: "user_123" } },
+        { assignee: accessibleCoworkerWhere },
+        { creatorCoworker: accessibleCoworkerWhere },
       ],
     });
   });
@@ -43,7 +65,7 @@ describe("requireOwnedCoworkerForFilter", () => {
     vi.clearAllMocks();
   });
 
-  it("resolves when the coworker is owned by the user", async () => {
+  it("resolves when the coworker is accessible to the user", async () => {
     coworkerFindFirstMock.mockResolvedValue({ id: "cow_456" });
 
     await expect(
@@ -51,12 +73,16 @@ describe("requireOwnedCoworkerForFilter", () => {
     ).resolves.toBeUndefined();
 
     expect(coworkerFindFirstMock).toHaveBeenCalledWith({
-      where: { id: "cow_456", userId: "user_123" },
+      where: {
+        id: "cow_456",
+        archivedAt: null,
+        ...accessibleCoworkerWhere,
+      },
       select: { id: true },
     });
   });
 
-  it("throws 404 when the coworker is not owned by the user", async () => {
+  it("throws 404 when the coworker is not accessible to the user", async () => {
     coworkerFindFirstMock.mockResolvedValue(null);
 
     await expect(

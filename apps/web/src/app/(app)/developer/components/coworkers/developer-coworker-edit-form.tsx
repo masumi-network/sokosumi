@@ -20,13 +20,13 @@ export function DeveloperCoworkerEditForm({
 
   function handleNotFound() {
     toast.error(t("errors.notFound"));
-    router.push("/developer?tab=coworkers");
+    router.push("/developer/coworkers");
   }
 
   return (
     <CoworkerDisplayForm
       coworker={coworker}
-      cancelHref="/developer?tab=coworkers"
+      cancelHref="/developer/coworkers"
       updateAction={updateDeveloperCoworkerDisplayAction}
       onNotFound={handleNotFound}
     />

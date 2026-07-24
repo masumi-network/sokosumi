@@ -263,7 +263,12 @@
       "new": "Nouveau",
       "notifications": "Notifications",
       "projects": "Projets",
-      "invoices": "Factures"
+      "invoices": "Factures",
+      "oauth-clients": "Clients OAuth",
+      "api-keys": "Clés API",
+      "coworkers": "Coworkers",
+      "vendors": "Vendors",
+      "docs": "Documentation"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2936,6 +2941,10 @@
           "coworkers": {
             "title": "Coworkers",
             "description": "Gérez les capacités, la priorité, la liste blanche, l’archivage et les métadonnées d’affichage de tous les coworkers."
+          },
+          "vendors": {
+            "title": "Vendors",
+            "description": "Créez et modifiez les vendors du marketplace, y compris le nom et les logos."
           }
         }
       },
@@ -3318,6 +3327,54 @@
           "submitting": "Attribution des crédits…",
           "grantSuccess": "Crédits gratuits accordés",
           "grantError": "Impossible d'accorder les crédits gratuits"
+        }
+      },
+      "Vendors": {
+        "title": "Vendors",
+        "description": "Créez et modifiez les vendors du marketplace, y compris le nom et les logos.",
+        "loadFailed": "Échec du chargement des vendors.",
+        "backToList": "Retour à la liste",
+        "createVendor": "Créer un vendor",
+        "createTitle": "Nouveau vendor",
+        "createDescription": "Créer un vendor du marketplace. Le slug ne pourra plus être modifié ensuite.",
+        "editDescription": "Mettre à jour le nom et les logos du vendor. Le slug ne peut pas être modifié.",
+        "Table": {
+          "name": "Nom",
+          "slug": "Slug",
+          "created": "Créé",
+          "updated": "Mis à jour",
+          "actions": "Actions",
+          "edit": "Modifier",
+          "empty": "Aucun vendor trouvé.",
+          "searchPlaceholder": "Rechercher par nom ou slug…",
+          "totalCount": "{count, plural, one {# vendor} other {# vendors}}",
+          "filteredCount": "Affichage de {shown} sur {total}",
+          "emptySearch": "Aucun vendor ne correspond à votre recherche."
+        },
+        "Form": {
+          "nameLabel": "Nom",
+          "slugLabel": "Slug",
+          "slugHintCreate": "Utilisez des minuscules, des chiffres et des tirets. Le slug ne peut pas être modifié après la création.",
+          "slugHintEdit": "Le slug est en lecture seule.",
+          "create": "Créer le vendor",
+          "save": "Enregistrer les modifications",
+          "createSuccess": "Vendor créé.",
+          "saveSuccess": "Vendor mis à jour.",
+          "saveFailed": "Échec de l’enregistrement du vendor.",
+          "invalidInput": "Vérifiez les champs du vendor et réessayez.",
+          "notFound": "Vendor introuvable.",
+          "logos": {
+            "lightLabel": "Logo (mode clair)",
+            "darkLabel": "Logo (mode sombre)",
+            "upload": "Téléverser un logo",
+            "replace": "Remplacer le logo",
+            "remove": "Supprimer le logo",
+            "previewAlt": "Aperçu du logo du vendor",
+            "fileTooLarge": "Le fichier du logo est trop volumineux.",
+            "fileTypeNotAccepted": "Le type de fichier du logo n’est pas pris en charge.",
+            "maxFilesExceeded": "Un seul fichier de logo peut être téléversé à la fois.",
+            "uploadError": "Échec du téléversement du logo."
+          }
         }
       }
     },
@@ -4168,7 +4225,8 @@
         "apiKeys": "Clés API",
         "docs": "Documentation",
         "coworkers": "Coworkers",
-        "tasks": "Tâches"
+        "tasks": "Tâches",
+        "vendors": "Fournisseurs"
       },
       "Docs": {
         "title": "Documentation développeur",
@@ -4190,7 +4248,7 @@
       },
       "Coworkers": {
         "title": "Vos coworkers",
-        "description": "Gérez les paramètres d’affichage des coworkers que vous possédez.",
+        "description": "Gérez les paramètres d'affichage des coworkers auxquels vous avez accès via l'adhésion fournisseur.",
         "loadFailed": "Échec du chargement de vos coworkers.",
         "backToList": "Retour aux coworkers",
         "editDescription": "Mettez à jour la façon dont ce coworker apparaît dans Sokosumi.",
@@ -4198,22 +4256,22 @@
           "notFound": "Coworker introuvable."
         },
         "List": {
-          "empty": "Vous ne possédez encore aucun coworker actif.",
+          "empty": "Vous n'avez pas encore de coworkers actifs accessibles.",
           "noCaption": "Aucune légende",
           "edit": "Modifier"
         },
         "Metadata": {
           "title": "Modifier le coworker",
-          "description": "Modifier les champs d’affichage de vos coworkers"
+          "description": "Modifier les champs d'affichage des coworkers accessibles"
         }
       },
       "Tasks": {
-        "title": "Tâches des coworkers possédés",
-        "description": "Vue en lecture seule des tâches où vos coworkers sont assignés ou créateurs.",
+        "title": "Tâches des coworkers accessibles",
+        "description": "Vue en lecture seule des tâches où vos coworkers accessibles sont assignés ou créateurs.",
         "loadFailed": "Impossible de charger les tâches.",
         "List": {
           "totalCount": "{count, plural, one {# tâche} other {# tâches}}",
-          "empty": "Aucune tâche trouvée pour vos coworkers.",
+          "empty": "Aucune tâche trouvée pour vos coworkers accessibles.",
           "task": "Tâche",
           "status": "Statut",
           "coworkers": "Coworkers",
@@ -4226,6 +4284,35 @@
         "TaskDetail": {
           "backToList": "Retour aux tâches",
           "personalWorkspace": "Espace de travail personnel"
+        }
+      },
+      "Vendors": {
+        "title": "Fournisseurs",
+        "description": "Choisissez un fournisseur pour gérer son profil.",
+        "profile": {
+          "nameLabel": "Nom",
+          "slugLabel": "Slug",
+          "slugHint": "Le slug est en lecture seule.",
+          "save": "Enregistrer les modifications",
+          "saveSuccess": "Profil fournisseur mis à jour.",
+          "logos": {
+            "lightLabel": "Logo (mode clair)",
+            "darkLabel": "Logo (mode sombre)",
+            "upload": "Téléverser le logo",
+            "replace": "Remplacer le logo",
+            "remove": "Supprimer le logo",
+            "previewAlt": "Aperçu du logo fournisseur",
+            "fileTooLarge": "Le fichier logo est trop volumineux.",
+            "fileTypeNotAccepted": "Le type de fichier logo n'est pas pris en charge.",
+            "maxFilesExceeded": "Un seul fichier logo peut être téléversé à la fois.",
+            "uploadError": "Échec du téléversement du logo."
+          }
+        },
+        "editDescription": "Mettez à jour le nom et les logos du fournisseur. Le slug ne peut pas être modifié.",
+        "backToList": "Retour aux fournisseurs",
+        "List": {
+          "manage": "Gérer",
+          "empty": "Vous n’êtes admin d’aucun fournisseur."
         }
       }
     },

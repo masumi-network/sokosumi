@@ -14,11 +14,15 @@ const {
   updateManyMock,
   uploadCoworkerImageMock,
   deleteCoworkerImageIfOwnedMock,
+  vendorMemberFindFirstMock,
+  coworkerAssignmentFindFirstMock,
 } = vi.hoisted(() => ({
   findFirstMock: vi.fn(),
   updateManyMock: vi.fn(),
   uploadCoworkerImageMock: vi.fn(),
   deleteCoworkerImageIfOwnedMock: vi.fn(),
+  vendorMemberFindFirstMock: vi.fn(),
+  coworkerAssignmentFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -26,6 +30,12 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: {
       findFirst: findFirstMock,
       updateMany: updateManyMock,
+    },
+    vendorMember: {
+      findFirst: vendorMemberFindFirstMock,
+    },
+    coworkerAssignment: {
+      findFirst: coworkerAssignmentFindFirstMock,
     },
   },
 }));
@@ -103,6 +113,24 @@ function pngFormData(filename = "logo.png", type = "image/png") {
   const form = new FormData();
   form.append("file", new File([PNG_BYTES], filename, { type }));
   return form;
+}
+
+function mockMembershipAccess(
+  options: { assigned?: boolean; vendorAdmin?: boolean } = {},
+) {
+  vendorMemberFindFirstMock.mockResolvedValue(
+    options.vendorAdmin ? { id: "vm_admin" } : null,
+  );
+  coworkerAssignmentFindFirstMock.mockResolvedValue(
+    options.assigned ? { id: "assign_1" } : null,
+  );
+}
+
+function mockCoworkerManagementLookup() {
+  findFirstMock.mockResolvedValueOnce({
+    id: COWORKER_ID,
+    vendorId: TEST_VENDOR_ID,
+  });
 }
 
 describe("POST /coworkers/{id}/image", () => {
@@ -218,11 +246,9 @@ describe("POST /coworkers/{id}/image", () => {
     expect(uploadCoworkerImageMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 for non-admin non-owner", async () => {
-    findFirstMock.mockResolvedValue({
-      id: COWORKER_ID,
-      userId: "other_owner",
-    });
+  it("returns 403 for non-admin user without membership access", async () => {
+    mockCoworkerManagementLookup();
+    mockMembershipAccess({ assigned: false, vendorAdmin: false });
 
     const app = createApp({ role: "user", userId: "user_1" });
     const response = await app.request(`/${COWORKER_ID}/image`, {
@@ -261,10 +287,10 @@ describe("POST /coworkers/{id}/image", () => {
     expect(updateManyMock).not.toHaveBeenCalled();
   });
 
-  it("allows the coworker owner to upload an image", async () => {
+  it("allows an assigned developer to upload an image", async () => {
+    mockCoworkerManagementLookup();
+    mockMembershipAccess({ assigned: true });
     findFirstMock
-      // requireCoworkerManagementAccess ownership check
-      .mockResolvedValueOnce({ id: COWORKER_ID, userId: "user_owner" })
       // route loads current image
       .mockResolvedValueOnce({ id: COWORKER_ID, image: PREVIOUS_IMAGE })
       // route reloads coworker after update
@@ -368,9 +394,10 @@ describe("DELETE /coworkers/{id}/image", () => {
     );
   });
 
-  it("allows the coworker owner to remove an image", async () => {
+  it("allows an assigned developer to remove an image", async () => {
+    mockCoworkerManagementLookup();
+    mockMembershipAccess({ assigned: true });
     findFirstMock
-      .mockResolvedValueOnce({ id: COWORKER_ID, userId: "user_owner" })
       .mockResolvedValueOnce({ id: COWORKER_ID, image: PREVIOUS_IMAGE })
       .mockResolvedValueOnce(baseCoworker({ image: null }));
     updateManyMock.mockResolvedValue({ count: 1 });

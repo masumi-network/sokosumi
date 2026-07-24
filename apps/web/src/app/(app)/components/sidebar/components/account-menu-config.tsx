@@ -4,7 +4,6 @@ import {
   Building2,
   Cable,
   CircleHelp,
-  Code2,
   Landmark,
   ListChecks,
   ReceiptText,
@@ -134,13 +133,6 @@ export function getAccountNavItems({
     href: "/connections",
     translationKey: "connections",
     Icon: Cable,
-  });
-
-  items.push({
-    key: "developer",
-    href: "/developer",
-    translationKey: "developer",
-    Icon: Code2,
   });
 
   return items;
