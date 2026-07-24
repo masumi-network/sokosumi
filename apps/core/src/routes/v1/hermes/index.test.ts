@@ -1099,9 +1099,19 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          userId: "user_123",
+        where: {
           id: { in: expect.arrayContaining([coworkerId, orgId, strangerId]) },
+        },
+      }),
+    );
+    expect(coworkerFindManyMock.mock.calls[0]?.[0]?.where).not.toHaveProperty(
+      "userId",
+    );
+    expect(organizationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: expect.arrayContaining([coworkerId, orgId, strangerId]) },
+          members: { some: { userId: "user_123" } },
         }),
       }),
     );

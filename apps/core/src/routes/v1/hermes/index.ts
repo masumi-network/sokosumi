@@ -457,8 +457,10 @@ async function enrichPendingConfirmations(
     [];
   try {
     [coworkers, organizations] = await Promise.all([
+      // Coworker has no userId — ownership is via assignments / vendor
+      // membership. Lookup by id only (same as GET /v1/coworkers/{id}).
       prisma.coworker.findMany({
-        where: { id: { in: ids }, userId },
+        where: { id: { in: ids } },
         select: { id: true, name: true, image: true },
       }),
       prisma.organization.findMany({
