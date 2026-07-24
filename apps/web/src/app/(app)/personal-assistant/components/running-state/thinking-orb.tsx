@@ -19,18 +19,19 @@ function resolvePrimary(): string {
 
 /**
  * The chat's thinking animation: a thinking-orbs state rendered in the
- * brand primary purple — dots only, no face. Sits inline next to the
- * rotating "Thinking…" phrase, replacing the three pulsing dots.
+ * brand primary purple — dots only, no face. Stands in for the assistant's
+ * profile picture in the typing/tool-progress rows while a turn runs.
  *
- * Decorative (aria-hidden): the surrounding text carries the meaning.
+ * Decorative (aria-hidden): the phrase beside it carries the meaning.
  * One rAF loop — only ever one instance on screen (the active indicator).
  */
 export function ThinkingOrb({
-  size = 20,
+  size = 32,
   state = "solving",
   className,
 }: {
-  size?: 64 | 20;
+  /** Display size in CSS px; paints at the nearest tuned preset (20/64). */
+  size?: number;
   state?: OrbState;
   className?: string;
 }) {
@@ -42,10 +43,11 @@ export function ThinkingOrb({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
+    const paintSize = size <= 20 ? 20 : 64;
+    canvas.width = paintSize * dpr;
+    canvas.height = paintSize * dpr;
 
-    const { mode, speed, opts } = resolvePreset(state, size);
+    const { mode, speed, opts } = resolvePreset(state, paintSize);
     const purple = resolvePrimary();
 
     let raf = 0;
@@ -53,13 +55,13 @@ export function ThinkingOrb({
     const tick = (now: number) => {
       const seconds = (now - started) / 1000;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, paintSize, paintSize);
       // Theme-agnostic: the purple fill below replaces the painter's ink
       // either way, so `dark` only affects intermediate alpha ramps.
-      MODE_DRAWS[mode](ctx, size, seconds * speed, false, opts);
+      MODE_DRAWS[mode](ctx, paintSize, seconds * speed, false, opts);
       ctx.globalCompositeOperation = "source-in";
       ctx.fillStyle = purple;
-      ctx.fillRect(0, 0, size, size);
+      ctx.fillRect(0, 0, paintSize, paintSize);
       ctx.globalCompositeOperation = "source-over";
       raf = requestAnimationFrame(tick);
     };
