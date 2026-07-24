@@ -2472,7 +2472,7 @@
         "eyebrow": "Dein Agent wird vorbereitet",
         "title": "Dein Assistent wird für dich bereit gemacht",
         "subtitle": "Das dauert ein paar Minuten. Du kannst diesen Tab schließen; dein Assistent richtet sich im Hintergrund weiter ein.",
-        "etaLabel": "Noch etwa {seconds} Sekunden",
+        "etaMinutesLabel": "Noch etwa {minutes, plural, one {# Minute} other {# Minuten}}",
         "etaSettling": "Fast fertig…",
         "stepFallbackLabel": "Wird vorbereitet",
         "footerHint": "Wenn es fertig ist, öffnet sich der Chat mit einer personalisierten Intro von deinem Assistenten.",

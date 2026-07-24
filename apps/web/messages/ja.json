@@ -2472,7 +2472,7 @@
         "eyebrow": "エージェントを準備中",
         "title": "アシスタントをあなた用に準備しています",
         "subtitle": "数分かかります。このタブを閉じても構いません。アシスタントはバックグラウンドでセットアップを続けます。",
-        "etaLabel": "残り約 {seconds} 秒",
+        "etaMinutesLabel": "残り約{minutes, plural, other {#分}}",
         "etaSettling": "もうすぐ完了…",
         "stepFallbackLabel": "準備中",
         "footerHint": "完了すると、アシスタントからのパーソナライズされたイントロ付きでチャットが開きます。",

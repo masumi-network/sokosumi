@@ -2472,7 +2472,7 @@
         "eyebrow": "正在准备你的智能体",
         "title": "正在为你准备个人助手",
         "subtitle": "这需要几分钟。你可以关闭此标签页；你的助手会在后台继续设置。",
-        "etaLabel": "大约还剩 {seconds} 秒",
+        "etaMinutesLabel": "大约还剩 {minutes, plural, other {# 分钟}}",
         "etaSettling": "快完成了…",
         "stepFallbackLabel": "正在预热",
         "footerHint": "完成后，聊天将打开并显示来自你的助手的个性化介绍。",

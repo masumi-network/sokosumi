@@ -2472,7 +2472,7 @@
         "eyebrow": "A preparar o seu agente",
         "title": "A preparar o seu assistente para si",
         "subtitle": "Isto demora alguns minutos. Pode fechar este separador; o seu assistente continua a configurar-se em segundo plano.",
-        "etaLabel": "Cerca de {seconds} segundos restantes",
+        "etaMinutesLabel": "Cerca de {minutes, plural, one {# minuto} other {# minutos}} restantes",
         "etaSettling": "Quase pronto…",
         "stepFallbackLabel": "A aquecer",
         "footerHint": "Quando terminar, o chat abrirá com uma introdução personalizada do seu assistente.",
