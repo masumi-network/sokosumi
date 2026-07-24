@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { AssistantAvatar } from "./assistant-context";
 import { parseConfirmationResolved, TaskResultCard } from "./task-result-card";
+import { ThinkingOrbAvatar } from "./thinking-orb-avatar";
 import type { Message, ProgressStep } from "./types";
 
 /**
@@ -121,7 +122,18 @@ export function MessageRow({
 
   return (
     <div className="group/message flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
-      <AssistantAvatar accent={Boolean(chip)} />
+      {/* While the reply streams in, the avatar dissolves into the
+          "composing" activity state; settled messages keep the static orb. */}
+      {isStreaming ? (
+        <ThinkingOrbAvatar
+          state="composing"
+          expression="focused"
+          accent={Boolean(chip)}
+          className="shrink-0"
+        />
+      ) : (
+        <AssistantAvatar accent={Boolean(chip)} />
+      )}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {chip ? (
           <span className="border-border/60 text-tertiary-foreground bg-muted/40 inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wider">

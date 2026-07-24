@@ -302,6 +302,7 @@ apps/web/src/app/(app)/personal-assistant/
     ├── onboarding-progress.tsx          ← orchestrator step poll UI
     ├── running-state.tsx                ← chat shell (hooks + panels + layout)
     ├── running-state/                   ← timeline, composer, confirmations, scroll/send/inbox hooks, stream
+    │   └── thinking-orb-avatar.tsx      ← avatar dissolves into thinking-orbs activity states (typing/tools/streaming)
     ├── error-state.tsx                  ← retry / start-over from error
     │
     ├── autonomy-selector.tsx            ← shared low/medium/high radio cards

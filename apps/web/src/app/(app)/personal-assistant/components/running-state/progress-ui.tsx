@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import RotatingMessages from "@/app/personal-assistant/components/rotating-messages";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 
-import { AssistantAvatar } from "./assistant-context";
+import { ThinkingOrbAvatar } from "./thinking-orb-avatar";
 import type { ProgressStep } from "./types";
 
 /** Transient chain-of-thought beat, shown live and superseded by the next
@@ -33,16 +33,13 @@ export function ProgressChips({
 }) {
   return (
     <div className="flex w-full items-start gap-3 px-4 py-1.5">
-      {/* The active avatar — "focused" eyes while a tool runs, so it reads as
-          working rather than just drafting (the typing indicator stays
-          "thinking"). */}
-      <span className="relative shrink-0">
-        <span
-          aria-hidden
-          className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
-        />
-        <AssistantAvatar animated expression="focused" />
-      </span>
+      {/* The avatar dissolved into the "working" activity state — focused
+          eyes while a tool runs (the typing indicator uses "solving"). */}
+      <ThinkingOrbAvatar
+        state="working"
+        expression="focused"
+        className="shrink-0"
+      />
       <div className="flex min-w-0 flex-col gap-1.5 pt-1">
         {chips.map((chip, i) => {
           const isLast = i === chips.length - 1;
@@ -127,18 +124,15 @@ export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
-      {/* Avatar with a slow pulse ring so it reads as "working" at a glance */}
-      <span className="relative shrink-0">
-        <span
-          aria-hidden
-          className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
-        />
-        <AssistantAvatar animated expression="thinking" />
-      </span>
+      {/* The avatar dissolved into the "solving" state — the orb itself is
+          the animation now, no ping ring or pulsing dots needed. */}
+      <ThinkingOrbAvatar
+        state="solving"
+        expression="thinking"
+        className="shrink-0"
+      />
 
-      {/* Rotating phrase + three pulsing dots. Phrase change has its own
-          fade (from RotatingMessages); the dots run independently so there
-          is always something animating even between fades. */}
+      {/* Rotating phrase; change has its own fade (from RotatingMessages). */}
       <div className="flex min-h-5 items-center gap-1 pt-2">
         {escalation ? (
           <span className="reasoning-text-shine text-foreground text-sm leading-5">
@@ -151,15 +145,6 @@ export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
             className="reasoning-text-shine text-foreground text-sm leading-5"
           />
         )}
-        <span aria-hidden className="text-foreground/70 inline-flex gap-0.5">
-          <span className="animate-thinking-dot inline-block">.</span>
-          <span className="animate-thinking-dot inline-block [animation-delay:200ms]">
-            .
-          </span>
-          <span className="animate-thinking-dot inline-block [animation-delay:400ms]">
-            .
-          </span>
-        </span>
         {startedAt ? <ElapsedTimer startedAt={startedAt} /> : null}
       </div>
     </div>
