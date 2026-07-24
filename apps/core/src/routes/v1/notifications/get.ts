@@ -20,7 +20,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   notificationKindSchema,
   notificationListSchema,
@@ -65,7 +65,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List notifications for the authenticated user with cursor pagination",
+      "List notifications for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination",
     tags: ["Notifications"],
     request: {
       query,
@@ -147,7 +147,7 @@ function mapNotificationToItem(notification: {
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 

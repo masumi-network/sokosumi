@@ -7,7 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { unreadCountSchema } from "@/schemas/notification.schema";
 
 const route = withGlobalHeaderParameters(
@@ -15,7 +15,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/unread-count",
     description:
-      "Get the count of unread notifications for the authenticated user",
+      "Get the count of unread notifications for the effective user (session user, or orchestrator/coworker with context headers)",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(unreadCountSchema, "Unread count retrieved", {
@@ -33,7 +33,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
 
     const count = await prisma.notification.count({
       where: {

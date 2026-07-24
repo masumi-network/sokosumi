@@ -38,6 +38,17 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/middleware/auth", () => ({
+  hasAdminRole: (role: string | null | undefined) =>
+    role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
+    false,
+  isUserAuthContext: (
+    authContext: AuthenticationContext | null,
+  ): authContext is Extract<AuthenticationContext, { actor: "user" }> =>
+    authContext?.actor === "user",
+  isOrchestratorAuthContext: (
+    authContext: AuthenticationContext | null,
+  ): authContext is Extract<AuthenticationContext, { actor: "orchestrator" }> =>
+    authContext?.actor === "orchestrator",
   requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, {
@@ -46,6 +57,31 @@ vi.mock("@/middleware/auth", () => ({
     }
 
     return authContext;
+  },
+  requireUserContext: (authContext: AuthenticationContext | null) => {
+    if (!authContext) {
+      throw new HTTPException(403, {
+        message: "User authentication required",
+      });
+    }
+    if (authContext.actor === "user") {
+      return { source: "session" as const, ...authContext };
+    }
+    if (
+      (authContext.actor === "orchestrator" ||
+        authContext.actor === "coworker") &&
+      authContext.context
+    ) {
+      return {
+        source: "context" as const,
+        userId: authContext.context.userId,
+        organizationId: authContext.context.organizationId,
+      };
+    }
+    throw new HTTPException(403, {
+      message:
+        "Context headers (X-Context-User-Id) are required for this resource",
+    });
   },
 }));
 

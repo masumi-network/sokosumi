@@ -40,7 +40,14 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp() {
+function createApp(
+  authContext: AuthVariables["authContext"] = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>({
@@ -54,12 +61,7 @@ function createApp() {
   app.use("*", async (c, next) => {
     c.set("requestId", "test-req-id");
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     return await next();
   });
 
@@ -146,5 +148,47 @@ describe("POST /agents/{id}/ratings", () => {
 
     expect(response.status).toBe(422);
     expect(requireAvailableAgentOrThrowMock).not.toHaveBeenCalled();
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    const app = createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+      context: { userId: "user_123", organizationId: null },
+    });
+    const response = await app.request(
+      postRating({ rating: 5, comment: "Great results." }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(doesUserHaveFinishedJobWithAgentMock).toHaveBeenCalledWith(
+      "user_123",
+      "agent_123",
+      expect.anything(),
+    );
+    expect(upsertUserAgentReviewMock).toHaveBeenCalledWith(
+      "agent_123",
+      "user_123",
+      5,
+      "Great results.",
+      expect.anything(),
+    );
+    expect(body.data).toEqual({
+      id: "rating_123",
+      rating: 5,
+      comment: "Great results.",
+    });
+  });
+
+  it("returns 403 for bare orchestrator without context headers", async () => {
+    const app = createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+    });
+    const response = await app.request(postRating({ rating: 5 }));
+
+    expect(response.status).toBe(403);
+    expect(upsertUserAgentReviewMock).not.toHaveBeenCalled();
   });
 });

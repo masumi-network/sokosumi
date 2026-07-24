@@ -5,7 +5,7 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { provisionedStripeCustomerSchema } from "@/schemas/stripe.schema";
 import { provisionOrganizationStripeCustomer } from "@/services/stripe-customer-provision.service";
 
@@ -21,7 +21,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/stripe-customer",
   description:
-    "Ensure a Stripe customer exists for an organization. Any member of the organization may call it. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.",
+    "Ensure a Stripe customer exists for an organization. Any member of the organization may call it (session user, or orchestrator/coworker with context headers). Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.",
   tags: ["Organizations"],
   request: {
     params,
@@ -49,7 +49,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const { organization } = await resolveMemberOrganizationById({

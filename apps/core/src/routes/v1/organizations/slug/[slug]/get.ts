@@ -5,7 +5,7 @@ import { resolveMemberOrganizationBySlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { organizationRecordSchema } from "@/schemas/organization.schema";
 
 const params = z.object({
@@ -20,7 +20,8 @@ const route = createRoute({
   method: "get",
   path: "/slug/{slug}",
   operationId: "getOrganizationBySlug",
-  description: "Get the raw organization record by slug for the current member",
+  description:
+    "Get the raw organization record by slug for the effective user when they are a member (session user, or orchestrator/coworker with context headers)",
   tags: ["Organizations"],
   request: {
     params,
@@ -56,7 +57,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { slug } = c.req.valid("param");
 
     const organization = await prisma.$transaction(async (tx) => {

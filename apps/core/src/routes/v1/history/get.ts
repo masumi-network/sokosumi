@@ -25,7 +25,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext, type UserContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   historyListResponseExample,
@@ -39,7 +39,7 @@ const historyScopeQuerySchema = z
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "Workspace visibility scope for task and job rows. Conversations are always scoped to the authenticated user.",
+      "Workspace visibility scope for task and job rows. Conversations are always scoped to the effective user (session or context headers).",
     example: "workspace",
   });
 
@@ -144,8 +144,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const session = requireUserAuthContext(c.var.authContext);
-    const userContext: UserContext = { source: "session", ...session };
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);

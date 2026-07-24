@@ -201,7 +201,9 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
   });
 
-  it("rejects coworker context with 403 via real requireUserAuthContext", async () => {
+  it("allows coworker context as the context user via requireUserContext", async () => {
+    vendorGrantUpsertMock.mockResolvedValue(baseGrant());
+
     const coworkerAuth: AuthenticationContext = {
       actor: "coworker",
       coworkerId: "coworker_1",
@@ -218,8 +220,28 @@ describe("POST /organizations/{id}/vendor-grants", () => {
       },
     );
 
-    expect(response.status).toBe(403);
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_123", id: orgId }),
+    );
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    vendorGrantUpsertMock.mockResolvedValue(baseGrant());
+
+    const response = await createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_1",
+      context: { userId: "user_123", organizationId: orgId },
+    }).request(`http://localhost/${orgId}/vendor-grants`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vendorId }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_123", id: orgId }),
+    );
   });
 });

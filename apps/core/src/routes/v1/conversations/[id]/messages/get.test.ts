@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetConversationMessages from "./get";
 
@@ -30,7 +31,14 @@ interface ConversationMessagesTestTransaction {
   };
 }
 
-function createApp() {
+function createApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & { requestId: string };
   }>({
@@ -39,18 +47,43 @@ function createApp() {
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("requestId", "req_test");
     return await next();
   });
 
   mountGetConversationMessages(app as unknown as OpenAPIHonoWithAuth);
   return app;
+}
+
+function mockConversationWithMessages(
+  metadata: Record<string, unknown> | null = null,
+) {
+  prismaTransactionMock.mockImplementation(
+    (callback: (tx: ConversationMessagesTestTransaction) => Promise<unknown>) =>
+      callback({
+        conversation: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: CONVERSATION_ID,
+            userId: "user_123",
+            metadata,
+          }),
+        },
+        conversationMessage: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: ASSISTANT_MESSAGE_ID,
+              role: "assistant",
+              contentType: "output_text",
+              contentText: "Hello",
+              createdAt: new Date("2026-05-01T17:00:00.000Z"),
+              metadata: null,
+            },
+          ]),
+          count: vi.fn().mockResolvedValue(1),
+        },
+      }),
+  );
 }
 
 describe("GET /conversations/{id}/messages", () => {
@@ -130,5 +163,41 @@ describe("GET /conversations/{id}/messages", () => {
         createdAt: 1777654800,
       },
     ]);
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    mockConversationWithMessages({ coworker_id: "cow_123" });
+
+    const response = await createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+      context: { userId: "user_123", organizationId: null },
+    }).request(`http://localhost/${CONVERSATION_ID}/messages`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it("returns 403 for bare orchestrator without context headers", async () => {
+    mockConversationWithMessages();
+
+    const response = await createApp({
+      actor: "orchestrator",
+      orchestratorId: "orch_123",
+    }).request(`http://localhost/${CONVERSATION_ID}/messages`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("returns 403 for delegated coworker on another coworker's conversation", async () => {
+    mockConversationWithMessages({ coworker_id: "cow_other" });
+
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_123", organizationId: null },
+    }).request(`http://localhost/${CONVERSATION_ID}/messages`);
+
+    expect(response.status).toBe(403);
   });
 });

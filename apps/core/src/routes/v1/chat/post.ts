@@ -80,11 +80,7 @@ import {
   getOpenRouterChatApiKeyForProvider,
   getSokosumiProvider,
 } from "@/lib/sokosumi-ai-provider";
-import {
-  forbidOrchestratorActor,
-  isUserAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import {
   AI_SDK_CHAT_MESSAGES_REQUIREMENT,
   aiSdkChatRequestSchema,
@@ -495,7 +491,7 @@ const route = createRoute({
   method: "post",
   path: "/",
   description:
-    "Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint.",
+    "Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint. Session user or orchestrator/coworker with context headers (coworkers require an assigned conversationId).",
   tags: ["Chat"],
   request: {
     body: {
@@ -542,10 +538,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(release());
     };
     try {
-      forbidOrchestratorActor(
-        c.var.authContext,
-        "Orchestrator cannot access marketplace conversations",
-      );
       const userContext = requireUserContext(c.var.authContext);
 
       const {
@@ -561,7 +553,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // A delegated coworker may only act on a conversation assigned to it.
       // Without a conversationId there is no resource to authorize against, so a
       // coworker would be driving a transient chat as the delegated user — deny.
-      if (!isUserAuthContext(c.var.authContext) && !conversationId) {
+      // Orchestrator+context may start a new chat like a user session.
+      if (isCoworkerAuthContext(c.var.authContext) && !conversationId) {
         throw forbidden(
           "You can only access conversations assigned to your coworker",
         );

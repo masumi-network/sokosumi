@@ -165,21 +165,40 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
     );
   });
 
-  it("rejects coworker context with 403 via real requireUserAuthContext", async () => {
-    const coworkerAuth: AuthenticationContext = {
+  it("allows coworker context as the context user via requireUserContext", async () => {
+    const existing = {
+      id: grantId,
+      vendorId,
+      workspaceId,
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.PENDING,
+      requestedByUserId: null,
+      resolvedAt: null,
+      resolvedById: null,
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+      vendor: { name: "Acme", slug: "acme" },
+    };
+    vendorGrantFindFirstMock.mockResolvedValue(existing);
+    vendorGrantUpdateMock.mockResolvedValue({
+      ...existing,
+      status: VendorGrantStatus.DENIED,
+      resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
+      resolvedById: "user_123",
+    });
+
+    const response = await createApp({
       actor: "coworker",
       coworkerId: "coworker_1",
       vendorId,
       context: { userId: "user_123", organizationId: orgId },
-    };
+    }).request(`http://localhost/${orgId}/vendor-grants/${grantId}/deny`, {
+      method: "POST",
+    });
 
-    const response = await createApp(coworkerAuth).request(
-      `http://localhost/${orgId}/vendor-grants/${grantId}/deny`,
-      { method: "POST" },
+    expect(response.status).toBe(200);
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_123" }),
     );
-
-    expect(response.status).toBe(403);
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
   });
 });
