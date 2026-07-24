@@ -6,9 +6,12 @@ import {
   type MountHandle,
   mount,
   type OrbExpression,
+  orbSeedFor,
   toDataURL,
 } from "@/lib/aurora-orb";
 import { cn } from "@/lib/utils";
+
+import { DottedOrb } from "./dotted-orb";
 
 export interface OrbEvent {
   expr: OrbExpression;
@@ -238,63 +241,46 @@ export function PlaceholderOrb({
 }
 
 interface AssistantOrbProps {
-  /** The committed orb seed, or null for the white placeholder. */
+  /** The committed orb seed, or null for the neutral unset identity. */
   seed: string | null;
   /** Eyes expression. Null → no eyes. */
   expression?: OrbExpression | null;
-  /** Fire a one-shot transient expression — bump `nonce` to trigger. */
-  event?: OrbEvent | null;
   size?: number;
   speed?: number;
   className?: string;
   alt?: string;
   /**
-   * Live rAF loop. Default true (PA hero / nav). Pass false for list rows —
-   * static PNG when seeded, single-frame placeholder when not.
+   * Live rAF loop — reserved for the few "alive" surfaces (sidenav,
+   * thinking states). Everywhere else pass false for a static frame.
    */
   animate?: boolean;
 }
 
 /**
- * The assistant's avatar at any point in its lifecycle: the white
- * `PlaceholderOrb` when no colour has been committed (`seed === null`),
- * otherwise the chosen `AuroraOrb`. One component so every surface renders
- * the same identity + eyes. Defaults to animated; pass `animate={false}` for
- * lists and other repeated small avatars.
+ * The assistant's avatar at any point in its lifecycle — the dotted
+ * identity orb (thinking-orbs globe sampled in the seed's palette
+ * material). `seed === null` renders the neutral porcelain/ink variant
+ * until the user commits a colour. One component so every surface renders
+ * the same identity + eyes.
  */
 export function AssistantOrb({
   seed,
   expression = null,
-  event = null,
   size = 64,
   speed = 1.2,
   className,
   alt = "",
   animate = true,
 }: AssistantOrbProps) {
-  if (seed === null) {
-    return (
-      <PlaceholderOrb
-        size={size}
-        speed={speed}
-        expression={expression}
-        event={event}
-        className={className}
-        alt={alt}
-        animate={animate}
-      />
-    );
-  }
   return (
-    <AuroraOrb
-      seed={seed}
-      animate={animate}
+    <DottedOrb
+      seed={seed ?? orbSeedFor("porcelain")}
       size={size}
       speed={speed}
       expression={expression}
-      event={event}
       className={className}
       alt={alt}
+      animate={animate}
     />
   );
 }

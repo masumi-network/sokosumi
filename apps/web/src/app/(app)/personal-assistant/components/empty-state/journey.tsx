@@ -4,7 +4,7 @@ import { Check, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ComponentType, useContext } from "react";
 
-import { AuroraOrb } from "@/components/aurora-orb";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +28,9 @@ function ActivationVisual() {
         className="bg-foreground/5 absolute size-28 rounded-full blur-2xl"
       />
       <div className="border-border/60 bg-background/80 relative flex flex-col items-center gap-3 rounded-xl border px-5 py-4">
-        <AuroraOrb
+        <AssistantOrb
           seed={seed}
+          animate={false}
           size={96}
           expression="happy"
           className="size-12"
@@ -90,8 +91,9 @@ function ConnectionVisual() {
       </svg>
       {/* Center: Hermes */}
       <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-        <AuroraOrb
+        <AssistantOrb
           seed={seed}
+          animate={false}
           size={96}
           expression="idle"
           className="size-12"

@@ -4,7 +4,7 @@ import { ArrowRight, ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import FlowBackground from "@/app/personal-assistant/components/flow-background";
-import { PlaceholderOrb } from "@/components/aurora-orb";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 
 import { DEMO_ORB_SEED, EmptyStateSeedContext } from "./empty-state/demo-orb";
@@ -64,7 +64,9 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
                   aria-hidden
                   className="border-primary/20 motion-safe:animate-pulse absolute size-52 rounded-full border"
                 />
-                <PlaceholderOrb
+                <AssistantOrb
+                  seed={null}
+                  animate={false}
                   size={280}
                   expression="happy"
                   className="relative size-32 md:size-40"
@@ -252,7 +254,9 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
                     aria-hidden
                     className="border-primary/20 motion-safe:animate-pulse absolute size-28 rounded-full border"
                   />
-                  <PlaceholderOrb
+                  <AssistantOrb
+                    seed={null}
+                    animate={false}
                     size={200}
                     expression="happy"
                     className="relative size-20"

@@ -11,13 +11,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import ConnectInterstitial from "@/app/personal-assistant/components/connect-interstitial";
 import FlowBackground from "@/app/personal-assistant/components/flow-background";
 import { hermesOAuthConnectErrorMessage } from "@/app/personal-assistant/components/hermes-oauth-messages";
 import ProgressPips from "@/app/personal-assistant/components/progress-pips";
-import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { disconnectHermesIntegrationAction } from "@/lib/actions/hermes";
@@ -182,12 +182,11 @@ export default function OnboardingScreen({
     [],
   );
 
-  // ── Orb animation driven by the chosen personality ───────────────────────
-  // Playful + warm → faster, livelier motion; detail makes the movement more
-  // deliberate. Applied from the combined look/personality step on, so dragging
-  // the sliders visibly changes how the orb animates. The chat reuses the same
-  // mapping so they match.
-  const { speed: personalitySpeed, restExpression: personalityExpr } =
+  // ── Hero eyes driven by the chosen personality ───────────────────────────
+  // The dotted identity frame is static everywhere outside the sidenav and
+  // thinking states, but its EXPRESSION still follows the sliders — dragging
+  // personality re-renders the frame with the matching resting eyes.
+  const { restExpression: personalityExpr } =
     personalityToOrbMotion(personality);
   const heroExpression =
     step === 1
@@ -197,22 +196,6 @@ export default function OnboardingScreen({
       : step === TOTAL_STEPS
         ? "happy"
         : personalityExpr;
-  const heroSpeed = step >= 2 ? personalitySpeed : 1.3;
-  const [heroEvent, setHeroEvent] = useState<{
-    expr: "happy";
-    nonce: number;
-    ms: number;
-  } | null>(null);
-  const heroEventNonce = useRef(0);
-  useEffect(() => {
-    if (step !== TOTAL_STEPS) return;
-    heroEventNonce.current += 1;
-    setHeroEvent({
-      expr: "happy",
-      nonce: heroEventNonce.current,
-      ms: 1400,
-    });
-  }, [step]);
 
   /**
    * Local status overlay per provider. Any entry here wins over the
@@ -334,25 +317,13 @@ export default function OnboardingScreen({
             key={selectedSeed === null ? "placeholder" : "chosen"}
             className="animate-in fade-in zoom-in-95 duration-500"
           >
-            {selectedSeed === null ? (
-              <PlaceholderOrb
-                size={160}
-                speed={heroSpeed}
-                expression={heroExpression}
-                event={heroEvent}
-                className="size-20 md:size-24"
-              />
-            ) : (
-              <AuroraOrb
-                seed={selectedSeed}
-                size={160}
-                animate
-                speed={heroSpeed}
-                expression={heroExpression}
-                event={heroEvent}
-                className="size-20 md:size-24"
-              />
-            )}
+            <AssistantOrb
+              seed={selectedSeed}
+              animate={false}
+              size={160}
+              expression={heroExpression}
+              className="size-20 md:size-24"
+            />
           </div>
           <h1 className="text-foreground mt-3 text-xl font-light tracking-tight md:text-2xl">
             {t("title")}
@@ -422,7 +393,12 @@ export default function OnboardingScreen({
                         : "ring-border/60 hover:ring-foreground/30 ring-1",
                     )}
                   >
-                    <PlaceholderOrb size={96} className="size-11" />
+                    <AssistantOrb
+                      seed={null}
+                      animate={false}
+                      size={96}
+                      className="size-11"
+                    />
                   </button>
                   {orbSeeds.map((s, i) => (
                     <button
@@ -438,7 +414,12 @@ export default function OnboardingScreen({
                           : "ring-border/60 hover:ring-foreground/30 ring-1",
                       )}
                     >
-                      <AuroraOrb seed={s} size={96} className="size-11" />
+                      <AssistantOrb
+                        seed={s}
+                        animate={false}
+                        size={96}
+                        className="size-11"
+                      />
                     </button>
                   ))}
                 </div>

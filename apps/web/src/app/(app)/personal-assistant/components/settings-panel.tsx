@@ -11,7 +11,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { hermesOAuthConnectErrorMessage } from "@/app/personal-assistant/components/hermes-oauth-messages";
-import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
+import { AssistantOrb } from "@/components/aurora-orb";
 
 import {
   AlertDialog,
@@ -430,7 +430,12 @@ export default function SettingsPanel({
                       : "ring-border/60 hover:ring-foreground/30 ring-1",
                   )}
                 >
-                  <PlaceholderOrb size={80} className="size-9" />
+                  <AssistantOrb
+                    seed={null}
+                    animate={false}
+                    size={80}
+                    className="size-9"
+                  />
                 </button>
                 {orbSeeds.map((seed, index) => (
                   <button
@@ -449,7 +454,12 @@ export default function SettingsPanel({
                         : "ring-border/60 hover:ring-foreground/30 ring-1",
                     )}
                   >
-                    <AuroraOrb seed={seed} size={80} className="size-9" />
+                    <AssistantOrb
+                      seed={seed}
+                      animate={false}
+                      size={80}
+                      className="size-9"
+                    />
                   </button>
                 ))}
               </div>

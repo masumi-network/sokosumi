@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import FlowBackground from "@/app/personal-assistant/components/flow-background";
-import { AuroraOrb } from "@/components/aurora-orb";
+import { AssistantOrb } from "@/components/aurora-orb";
 
 /**
  * Initial load shell — shown while we fetch instance state (and during
@@ -31,10 +31,10 @@ export default function LoadingState({
         aria-live="polite"
         aria-busy="true"
       >
-        <AuroraOrb
+        <AssistantOrb
           seed={seed}
+          animate={false}
           size={96}
-          animate
           className="size-20 md:size-24"
           alt={tCommon("hermesAvatarAlt")}
         />

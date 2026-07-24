@@ -70,7 +70,12 @@ export default function ProvisioningState({
 
         {/* ── Hero with the assistant's orb ───────────────────────── */}
         <div className="flex flex-col items-center text-center">
-          <AssistantOrb seed={seed} size={160} className="size-20 md:size-24" />
+          <AssistantOrb
+            seed={seed}
+            animate={false}
+            size={160}
+            className="size-20 md:size-24"
+          />
           <h1 className="text-foreground mt-6 text-3xl font-light tracking-tight md:text-4xl">
             {t("title")}
           </h1>

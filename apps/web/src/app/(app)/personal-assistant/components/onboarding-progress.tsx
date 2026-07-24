@@ -261,6 +261,7 @@ export default function OnboardingProgress({
         <div className="mb-6 flex flex-col items-center text-center md:mb-8">
           <AssistantOrb
             seed={seed}
+            animate={false}
             size={160}
             expression="happy"
             className="size-20 md:size-24"

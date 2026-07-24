@@ -4,7 +4,7 @@ import { ArrowRight, ListTodo, Mail, Repeat, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ComponentType, useContext, useState } from "react";
 
-import { AuroraOrb } from "@/components/aurora-orb";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -103,8 +103,9 @@ export function ExamplesCarousel({ onActivate }: { onActivate: () => void }) {
             aria-hidden
             className="bg-card border-border ring-background relative mt-0.5 size-8 shrink-0 overflow-hidden rounded-full border ring-2"
           >
-            <AuroraOrb
+            <AssistantOrb
               seed={seed}
+              animate={false}
               size={64}
               expression="happy"
               className="size-full"

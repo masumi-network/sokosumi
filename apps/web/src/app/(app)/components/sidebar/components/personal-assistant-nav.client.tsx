@@ -160,6 +160,7 @@ export default function PersonalAssistantNav({
                   <AssistantOrb
                     seed={avatarSeed}
                     size={48}
+                    speed={0.5}
                     expression="idle"
                     className="ring-border size-7 shrink-0 ring-2 group-data-[collapsible=icon]:size-4 group-data-[collapsible=icon]:ring-1"
                   />

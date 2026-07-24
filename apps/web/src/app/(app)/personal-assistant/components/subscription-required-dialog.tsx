@@ -11,7 +11,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { PlaceholderOrb } from "@/components/aurora-orb";
+import { AssistantOrb } from "@/components/aurora-orb";
 import {
   formatPlanPrice,
   resolvePlanFeatureItems,
@@ -135,7 +135,9 @@ export function SubscriptionRequiredDialog({
               aria-hidden
               className="bg-primary/10 absolute size-24 rounded-full blur-2xl"
             />
-            <PlaceholderOrb
+            <AssistantOrb
+              seed={null}
+              animate={false}
               size={144}
               expression="happy"
               className="relative size-16"

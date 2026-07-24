@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { createContext, useContext } from "react";
 
-import { AuroraOrb } from "@/components/aurora-orb";
+import { DottedOrb } from "@/components/dotted-orb";
 import type { OrbExpression } from "@/lib/aurora-orb";
 import {
   DEFAULT_ORB_MOTION,
@@ -21,32 +21,27 @@ export const AssistantSeedContext = createContext<string>("personal-assistant");
 export const AssistantMotionContext =
   createContext<OrbMotion>(DEFAULT_ORB_MOTION);
 
+/**
+ * The assistant's resting avatar in chat rows: a static frame of the dotted
+ * identity orb. Activity (typing/tools/streaming) renders through
+ * `ThinkingOrbAvatar`, which is the same material in motion.
+ */
 export function AssistantAvatar({
   accent = false,
-  animated = false,
   expression,
 }: {
   accent?: boolean;
-  /** Live canvas (one rAF loop) — use only for the single "thinking" avatar. */
-  animated?: boolean;
-  /** Eyes override — "thinking" while it writes. Omit to use the personality's
-   * resting expression. */
+  /** Eyes override. Omit to use the personality's resting expression. */
   expression?: OrbExpression;
 } = {}) {
   const tCommon = useTranslations("App.Hermes.Common");
   const seed = useContext(AssistantSeedContext);
   const motion = useContext(AssistantMotionContext);
-  const speed =
-    expression === "thinking" || expression === "focused"
-      ? motion.activeSpeed
-      : motion.speed;
 
   return (
-    <AuroraOrb
+    <DottedOrb
       seed={seed}
       size={64}
-      animate={animated}
-      speed={speed}
       expression={expression ?? motion.restExpression}
       alt={tCommon("hermesAvatarAlt")}
       className={cn(
