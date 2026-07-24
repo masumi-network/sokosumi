@@ -82,9 +82,9 @@ const PREVIEW_TICK_MS = 7_000;
 const PREVIEW_TOTAL_SECONDS = 75;
 
 /** After this many consecutive failed polls we surface a soft warning
- * instead of leaving the user staring at unchanging skeleton rows
- * indefinitely. Three because a single hiccup is noise; three in a row
- * is something the user deserves to know about. */
+ * instead of leaving the user staring at the warming-up line or last
+ * checklist indefinitely. Three because a single hiccup is noise; three
+ * in a row is something the user deserves to know about. */
 const POLL_ERROR_THRESHOLD = 3;
 
 interface ProgressState {
@@ -327,10 +327,10 @@ export default function OnboardingProgress({
         </div>
 
         {/* Surface persistent progress-poll failures rather than leaving the
-            user staring at skeleton rows forever. Soft inline notice, not a
-            full error state, because the orchestrator usually recovers on
-            its own and the parent's instance polling still catches the
-            terminal status flip. */}
+            user staring at the warming-up line or last checklist forever.
+            Soft inline notice, not a full error state, because the
+            orchestrator usually recovers on its own and the parent's
+            instance polling still catches the terminal status flip. */}
         {pollError ? (
           <div className="border-amber-500/30 bg-amber-500/6 text-amber-700 dark:text-amber-400 mx-auto mt-3 flex max-w-md items-center gap-2 rounded-lg border px-3 py-2">
             <AlertCircle className="size-3.5 shrink-0" aria-hidden />

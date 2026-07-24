@@ -207,7 +207,7 @@ describe("OnboardingProgress", () => {
     expect(screen.queryByText("etaSettling")).not.toBeInTheDocument();
   });
 
-  it("hands the ETA off to the settling copy when under a minute", async () => {
+  it("hands the ETA off to the settling copy when etaSeconds is ≤ 30s", async () => {
     getProgressMock.mockResolvedValue({
       ok: true,
       data: {
