@@ -103,9 +103,9 @@ export default function MenuItems() {
 
   return (
     <>
-      <SidebarGroup className="w-full">
+      <SidebarGroup className="w-full p-0">
         <SidebarGroupContent>
-          <SidebarMenu className="gap-0">
+          <SidebarMenu className="gap-0 py-2">
             {items.map(
               ({
                 key,
@@ -158,7 +158,7 @@ export default function MenuItems() {
 
                 return (
                   <Fragment key={key}>
-                    <SidebarMenuItem>
+                    <SidebarMenuItem className="px-2">
                       {href ? (
                         <SidebarMenuButton asChild isActive={isActive}>
                           <SheetClose asChild>
@@ -216,7 +216,7 @@ export default function MenuItems() {
                     {separatorAfter ? (
                       <SidebarMenuItem
                         aria-hidden
-                        className="-mx-2 py-1 group-data-[collapsible=icon]:hidden"
+                        className="py-1 group-data-[collapsible=icon]:hidden"
                       >
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>
