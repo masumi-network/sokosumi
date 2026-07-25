@@ -93,7 +93,7 @@ export default async function Sidebar({
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
             {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}
             <NewChatTaskActions />
-            <SidebarSeparator className="mx-0 mt-2" />
+            <SidebarSeparator className="mx-0 mt-2 w-full" />
             <MenuItems />
             <SidebarSeparator className="mx-0" />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
