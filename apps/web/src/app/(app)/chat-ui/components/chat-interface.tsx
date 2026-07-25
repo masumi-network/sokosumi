@@ -47,7 +47,6 @@ import {
   filterCoworkersForComposeKind,
   findCoworkerBySlugOrId,
   findDefaultCoworker,
-  getCoworkerImageUrl,
 } from "@/app/chat/utils/coworker-utils";
 import type {
   Chat,
@@ -100,7 +99,6 @@ import {
   shouldRejectCoworkerMessageRegression,
   syncCoworkerSlotFromDbWithRetry,
 } from "@/app/chat-ui/utils/sync-coworker-slot-from-db";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -379,7 +377,6 @@ interface CoworkerChatHeaderProps {
   bucketSlug: string;
   conversations: Conversation[];
   currentConversationId: string;
-  coworker: Coworker;
   displayName: string;
   onCreateConversation: () => Promise<boolean>;
 }
@@ -388,40 +385,27 @@ function CoworkerChatHeader({
   bucketSlug,
   conversations,
   currentConversationId,
-  coworker,
   displayName,
   onCreateConversation,
 }: CoworkerChatHeaderProps) {
-  const avatarUrl = coworker.avatar ?? getCoworkerImageUrl(coworker.id);
-
   return (
-    <header className="bg-background/95 absolute inset-x-0 top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6 backdrop-blur">
-      <div className="flex min-w-0 items-center gap-3">
-        <Avatar className="size-8 shrink-0">
-          <AvatarImage src={avatarUrl ?? undefined} alt="" />
-          <AvatarFallback className="text-xs">
-            {displayName.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0">
-          <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-            <span className="truncate">{displayName}</span>
-            <Bot className="text-muted-foreground size-3.5 shrink-0" />
-          </p>
-          {coworker.caption ? (
-            <p className="text-muted-foreground truncate text-xs">
-              {coworker.caption}
-            </p>
-          ) : null}
-        </div>
+    <header className="bg-background absolute inset-x-0 top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
+      <div className="flex min-w-0 items-center gap-2">
+        <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+        <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 truncate text-sm">
+          <span className="truncate">{displayName}</span>
+          <Bot className="size-3.5 shrink-0" aria-label="AI coworker" />
+        </p>
       </div>
-      <CoworkerConversationSwitcher
-        bucketSlug={bucketSlug}
-        conversations={conversations}
-        currentConversationId={currentConversationId}
-        displayName={displayName}
-        onCreateConversation={onCreateConversation}
-      />
+      <div className="flex shrink-0 items-center gap-2">
+        <CoworkerConversationSwitcher
+          bucketSlug={bucketSlug}
+          conversations={conversations}
+          currentConversationId={currentConversationId}
+          displayName={displayName}
+          onCreateConversation={onCreateConversation}
+        />
+      </div>
     </header>
   );
 }
@@ -2559,7 +2543,6 @@ export default function ChatInterface({
                 bucketSlug={selectedCoworkerBucketSlug}
                 conversations={selectedCoworkerConversations}
                 currentConversationId={selectedChatId}
-                coworker={selectedChatCoworker}
                 displayName={selectedCoworkerDisplayName}
                 onCreateConversation={handleCreateSelectedCoworkerConversation}
               />
