@@ -47,7 +47,7 @@ export type { MentionRecordEntry, NormalizedMention };
 export interface MentionTextareaHandle {
   focus: () => void;
   insertText: (text: string) => void;
-  openMentions: () => void;
+  openMentions: (anchorElement?: HTMLElement | null) => void;
 }
 
 interface MentionTextareaProps<TData = unknown> {
@@ -256,6 +256,61 @@ function insertPlainTextAtSelection(root: HTMLElement, text: string): void {
   const textNode = document.createTextNode(text);
   range.insertNode(textNode);
   setCaretAfterNode(root, textNode);
+}
+
+function insertMentionAtSelection<TData>(
+  root: HTMLElement,
+  mention: NormalizedMention<TData>,
+  prependSpace: boolean,
+  appendSpace: boolean,
+  resolveDisplay: MentionDisplayResolver,
+): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  let range: Range;
+  if (selection.rangeCount > 0) {
+    range = selection.getRangeAt(0);
+    if (!root.contains(range.startContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(root);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  } else {
+    range = document.createRange();
+    range.selectNodeContents(root);
+    range.collapse(false);
+    selection.addRange(range);
+  }
+
+  const { displayName, isKnown } = resolveDisplay(mention.key, mention.slug);
+  const mentionSpan = createMentionSpan(
+    mention.key,
+    mention.slug,
+    displayName,
+    isKnown,
+    {
+      mentionClassName: MENTION_CLASSNAME,
+      unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+    },
+  );
+
+  range.deleteContents();
+  const fragment = document.createDocumentFragment();
+  if (prependSpace) {
+    fragment.appendChild(document.createTextNode(" "));
+  }
+  fragment.appendChild(mentionSpan);
+  let caretNode: Node = mentionSpan;
+  if (appendSpace) {
+    const spaceNode = document.createTextNode(" ");
+    fragment.appendChild(spaceNode);
+    caretNode = spaceNode;
+  }
+  range.insertNode(fragment);
+  setCaretAfterNode(root, caretNode);
 }
 
 function MentionTextareaInner<TData = unknown>(
@@ -502,7 +557,18 @@ function MentionTextareaInner<TData = unknown>(
       const { text, caret } = serializeEditor(editor);
       const trigger = getActiveTrigger(text, caret);
       if (!trigger) {
+        const previousChar = text[caret - 1];
+        const nextChar = text[caret];
+        insertMentionAtSelection(
+          editor,
+          mention,
+          caret > 0 && !isWhitespaceChar(previousChar ?? ""),
+          shouldAppendTrailingSpace(nextChar),
+          resolveDisplay,
+        );
+        syncEditorValue();
         closeSuggestions();
+        editor.focus();
         return;
       }
 
@@ -538,17 +604,27 @@ function MentionTextareaInner<TData = unknown>(
     [syncEditorValueAndMentions],
   );
 
-  const openMentionSuggestions = useCallback(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
+  const openMentionSuggestions = useCallback(
+    (anchorElement?: HTMLElement | null) => {
+      const editor = editorRef.current;
+      if (!editor) return;
 
-    editor.focus();
-    const { text, caret } = serializeEditor(editor);
-    const prefix =
-      caret > 0 && !isWhitespaceChar(text[caret - 1] ?? "") ? " @" : "@";
-    insertPlainTextAtSelection(editor, prefix);
-    syncEditorValueAndMentions();
-  }, [syncEditorValueAndMentions]);
+      isSelectingRef.current = true;
+      const anchorRect =
+        anchorElement?.getBoundingClientRect() ??
+        getCaretRect(editor) ??
+        editor.getBoundingClientRect();
+      openSuggestions({
+        nextQuery: "",
+        nextTriggerPosition: getPopupPositionFromRect(anchorRect),
+      });
+
+      setTimeout(() => {
+        editor.focus();
+      }, 0);
+    },
+    [openSuggestions],
+  );
 
   useImperativeHandle(
     ref,

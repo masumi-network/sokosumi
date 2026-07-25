@@ -51,7 +51,9 @@ function ImperativeMentionTextarea({
     <>
       <button
         type="button"
-        onClick={() => textareaRef.current?.openMentions()}
+        onClick={(event) =>
+          textareaRef.current?.openMentions(event.currentTarget)
+        }
       >
         mention
       </button>
@@ -114,7 +116,11 @@ describe("MentionTextarea", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "mention" }));
 
-    expect(onChange).toHaveBeenLastCalledWith("@");
+    expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByText("Elena")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Elena"));
+
+    expect(onChange).toHaveBeenLastCalledWith("@coworker_elena:elena ");
   });
 });

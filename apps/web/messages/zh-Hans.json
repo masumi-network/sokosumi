@@ -4437,7 +4437,6 @@
         "attach": "Attach file",
         "emoji": "Emoji",
         "format": "Formatting",
-        "bold": "Bold",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",

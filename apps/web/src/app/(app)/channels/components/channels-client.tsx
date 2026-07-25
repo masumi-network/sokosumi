@@ -8,7 +8,6 @@ import {
 import {
   ArrowUp,
   AtSign,
-  Bot,
   CheckCircle2,
   Hash,
   Loader2,
@@ -18,7 +17,6 @@ import {
   Search,
   Settings2,
   SmilePlus,
-  Type,
   Users,
   X,
 } from "lucide-react";
@@ -662,7 +660,9 @@ function ChannelComposer({
                   className="size-8 rounded-full"
                   title={t("Toolbar.mention")}
                   aria-label={t("Toolbar.mention")}
-                  onClick={() => textareaRef.current?.openMentions()}
+                  onClick={(event) =>
+                    textareaRef.current?.openMentions(event.currentTarget)
+                  }
                 >
                   <AtSign className="size-4" aria-hidden />
                 </Button>
@@ -720,17 +720,6 @@ function ChannelComposer({
                     </div>
                   </PopoverContent>
                 </Popover>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 rounded-full"
-                  title={t("Toolbar.bold")}
-                  aria-label={t("Toolbar.bold")}
-                  onClick={() => textareaRef.current?.insertText("**bold**")}
-                >
-                  <Type className="size-4" aria-hidden />
-                </Button>
               </div>
               <Button
                 type="submit"
@@ -827,11 +816,6 @@ function ChatMessageRow({
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span className="truncate text-sm font-semibold">{sender.name}</span>
-          {sender.kind === "coworker" ? (
-            <Badge variant="secondary" className="h-5">
-              {t("coworkerBadge")}
-            </Badge>
-          ) : null}
           <time className="text-muted-foreground text-xs">
             {formatMessageTime(message.createdAt)}
           </time>
@@ -1092,7 +1076,6 @@ function ParticipantCheckboxes({
 
       <div className="min-w-0 space-y-2">
         <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
-          <Bot className="size-3.5" aria-hidden />
           {t("Dialog.coworkers")}
         </div>
         <ScrollArea className="h-52 rounded-md border">
