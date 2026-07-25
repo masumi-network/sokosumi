@@ -275,6 +275,9 @@ function MetadataAvatarValue({
         {avatarSeed !== undefined ? (
           <AssistantOrb
             seed={avatarSeed}
+            // Resting eyes so the creator chip reads as the assistant's
+            // face, not a blank disc.
+            expression="idle"
             animate={false}
             size={20}
             className="size-5 shrink-0"

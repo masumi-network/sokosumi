@@ -554,6 +554,9 @@ export function TaskActivitySection({
                   ) : showAssistantOrb ? (
                     <AssistantOrb
                       seed={actorInfo?.avatarSeed ?? null}
+                      // Resting eyes so the assistant's comment avatar reads
+                      // as a face, not a blank disc.
+                      expression="idle"
                       animate={false}
                       size={24}
                       className="size-6 shrink-0 self-start"
