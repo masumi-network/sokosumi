@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import { updateCurrentUserViaCore } from "@/lib/auth/core-auth-http.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  Member,
   MemberRecord,
   MemberWithOrganization,
   Organization,
@@ -99,6 +100,17 @@ export const userService = (() => {
     return response?.data ?? null;
   }
 
+  const getOrganizationMembers = cache(
+    async (organizationId: string): Promise<Member[]> => {
+      const session = await getSession();
+      if (!session) {
+        return [];
+      }
+      const response = await coreClient.getOrganizationMembers(organizationId);
+      return response.data;
+    },
+  );
+
   /**
    * Determines whether the onboarding flow should be shown for the current user.
    *
@@ -164,6 +176,7 @@ export const userService = (() => {
     getActiveOrganization,
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
+    getOrganizationMembers,
     showOnboarding,
     markOnboardingCompleteForMe,
   };

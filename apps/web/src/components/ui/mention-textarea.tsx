@@ -1,7 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
@@ -36,6 +44,12 @@ import {
 
 export type { MentionRecordEntry, NormalizedMention };
 
+export interface MentionTextareaHandle {
+  focus: () => void;
+  insertText: (text: string) => void;
+  openMentions: () => void;
+}
+
 interface MentionTextareaProps<TData = unknown> {
   id?: string;
   value: string;
@@ -43,6 +57,8 @@ interface MentionTextareaProps<TData = unknown> {
   mentions: Record<string, MentionRecordEntry<TData>>;
   placeholder?: string;
   className?: string;
+  submitOnEnter?: boolean;
+  onSubmitShortcut?: () => void;
   renderItem?: (
     mention: NormalizedMention<TData>,
     isActive: boolean,
@@ -215,16 +231,48 @@ function insertLineBreak(root: HTMLElement): void {
   setCaretAfterNode(root, br);
 }
 
-export function MentionTextarea<TData = unknown>({
-  id,
-  value,
-  onChange,
-  mentions,
-  placeholder,
-  className,
-  renderItem,
-  onSelectedKeysChange,
-}: MentionTextareaProps<TData>) {
+function insertPlainTextAtSelection(root: HTMLElement, text: string): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  let range: Range;
+  if (selection.rangeCount > 0) {
+    range = selection.getRangeAt(0);
+    if (!root.contains(range.startContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(root);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  } else {
+    range = document.createRange();
+    range.selectNodeContents(root);
+    range.collapse(false);
+    selection.addRange(range);
+  }
+
+  range.deleteContents();
+  const textNode = document.createTextNode(text);
+  range.insertNode(textNode);
+  setCaretAfterNode(root, textNode);
+}
+
+function MentionTextareaInner<TData = unknown>(
+  {
+    id,
+    value,
+    onChange,
+    mentions,
+    placeholder,
+    className,
+    submitOnEnter = false,
+    onSubmitShortcut,
+    renderItem,
+    onSelectedKeysChange,
+  }: MentionTextareaProps<TData>,
+  ref: Ref<MentionTextareaHandle>,
+) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -373,6 +421,31 @@ export function MentionTextarea<TData = unknown>({
     return result;
   }, [onChange]);
 
+  const syncEditorValueAndMentions = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const { text, caret } = syncEditorValue();
+    editingMentionRef.current = null;
+
+    const trigger = getActiveTrigger(text, caret);
+    if (trigger) {
+      const caretRect = getCaretRect(editor);
+      const fallbackRect = editor.getBoundingClientRect();
+      const position = caretRect
+        ? getPopupPositionFromRect(caretRect)
+        : getPopupPositionFromRect(fallbackRect);
+      openSuggestions({
+        nextQuery: trigger.query,
+        nextTriggerPosition: position,
+        nextActiveIndex: 0,
+      });
+      return;
+    }
+
+    closeSuggestions();
+  }, [closeSuggestions, openSuggestions, syncEditorValue]);
+
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -451,28 +524,43 @@ export function MentionTextarea<TData = unknown>({
   );
 
   const handleInput = useCallback(() => {
+    syncEditorValueAndMentions();
+  }, [syncEditorValueAndMentions]);
+
+  const insertText = useCallback(
+    (text: string) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      editor.focus();
+      insertPlainTextAtSelection(editor, text);
+      syncEditorValueAndMentions();
+    },
+    [syncEditorValueAndMentions],
+  );
+
+  const openMentionSuggestions = useCallback(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    const { text, caret } = syncEditorValue();
-    editingMentionRef.current = null;
 
-    const trigger = getActiveTrigger(text, caret);
-    if (trigger) {
-      const caretRect = getCaretRect(editor);
-      const fallbackRect = editor.getBoundingClientRect();
-      const position = caretRect
-        ? getPopupPositionFromRect(caretRect)
-        : getPopupPositionFromRect(fallbackRect);
-      openSuggestions({
-        nextQuery: trigger.query,
-        nextTriggerPosition: position,
-        nextActiveIndex: 0,
-      });
-      return;
-    }
+    editor.focus();
+    const { text, caret } = serializeEditor(editor);
+    const prefix =
+      caret > 0 && !isWhitespaceChar(text[caret - 1] ?? "") ? " @" : "@";
+    insertPlainTextAtSelection(editor, prefix);
+    syncEditorValueAndMentions();
+  }, [syncEditorValueAndMentions]);
 
-    closeSuggestions();
-  }, [closeSuggestions, openSuggestions, syncEditorValue]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => {
+        editorRef.current?.focus();
+      },
+      insertText,
+      openMentions: openMentionSuggestions,
+    }),
+    [insertText, openMentionSuggestions],
+  );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -498,7 +586,12 @@ export function MentionTextarea<TData = unknown>({
       }
 
       if (event.key === "Enter" && !isOpen) {
+        if (event.nativeEvent.isComposing) return;
         event.preventDefault();
+        if (submitOnEnter && !event.shiftKey) {
+          onSubmitShortcut?.();
+          return;
+        }
         insertLineBreak(editor);
         syncEditorValue();
         return;
@@ -531,6 +624,7 @@ export function MentionTextarea<TData = unknown>({
       }
 
       if (event.key === "Enter" || event.key === "Tab") {
+        if (event.nativeEvent.isComposing) return;
         event.preventDefault();
         const mention = filteredMentions[activeIndex];
         if (mention) {
@@ -544,6 +638,8 @@ export function MentionTextarea<TData = unknown>({
       filteredMentions,
       insertMention,
       isOpen,
+      onSubmitShortcut,
+      submitOnEnter,
       syncEditorValue,
     ],
   );
@@ -717,3 +813,9 @@ export function MentionTextarea<TData = unknown>({
     </div>
   );
 }
+
+export const MentionTextarea = forwardRef(MentionTextareaInner) as <
+  TData = unknown,
+>(
+  props: MentionTextareaProps<TData> & { ref?: Ref<MentionTextareaHandle> },
+) => ReactElement;

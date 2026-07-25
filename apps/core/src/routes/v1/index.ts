@@ -8,6 +8,7 @@ import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
 import chatRouter from "./chat/index.js";
+import chatChannelsRouter from "./chat-channels/index.js";
 import checkoutRouter from "./checkout/index.js";
 import conversationsRouter from "./conversations/index.js";
 import couponsRouter from "./coupons/index.js";
@@ -114,6 +115,7 @@ app.doc31("/openapi.json", {
 app.route("/admin", adminRouter);
 app.route("/agents", agentsRouter);
 app.route("/categories", categoriesRouter);
+app.route("/chat-channels", chatChannelsRouter);
 app.route("/chat", chatRouter);
 app.route("/checkout", checkoutRouter);
 app.route("/conversations", conversationsRouter);

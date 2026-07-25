@@ -1109,6 +1109,148 @@ export type AgentRatingRequest = {
     comment?: string | null;
 };
 
+export type ChatChannel = {
+    /**
+     * Channel ID
+     */
+    id: string;
+    organizationId: string;
+    name: string;
+    slug: string;
+    kind: 'channel' | 'direct';
+    /**
+     * Deterministic key for direct channels; null for normal channels.
+     */
+    directKey: string | null;
+    topic: string | null;
+    createdByUserId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userMembers: Array<ChatChannelUserParticipant>;
+    coworkerMembers: Array<ChatChannelCoworkerParticipant>;
+};
+
+export type ChatChannelUserParticipant = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    presence: ChatChannelPresence;
+};
+
+export const ChatChannelPresence = {
+    ONLINE: 'online',
+    AFK: 'afk',
+    OFFLINE: 'offline'
+} as const;
+
+export type ChatChannelPresence = typeof ChatChannelPresence[keyof typeof ChatChannelPresence];
+
+export type ChatChannelCoworkerParticipant = {
+    id: string;
+    name: string;
+    slug: string;
+    caption: string | null;
+    image: string | null;
+    presence: ChatChannelPresence;
+};
+
+export type CreateChatChannelRequest = {
+    organizationId: string;
+    name: string;
+    topic?: string;
+    memberUserIds?: Array<string>;
+    coworkerIds?: Array<string>;
+};
+
+export type CreateDirectChatChannelRequest = {
+    organizationId: string;
+    /**
+     * Deprecated one-to-one organization member user ID. Use memberUserIds for new clients.
+     */
+    memberUserId?: string;
+    /**
+     * Deprecated one-to-one AI coworker ID. Use coworkerIds for new clients.
+     */
+    coworkerId?: string;
+    /**
+     * Organization member user IDs to include in the direct message.
+     */
+    memberUserIds?: Array<string>;
+    /**
+     * AI coworker IDs to include in the direct message.
+     */
+    coworkerIds?: Array<string>;
+};
+
+export type UpdateChatChannelRequest = {
+    name?: string;
+    topic?: string | null;
+    memberUserIds?: Array<string>;
+    coworkerIds?: Array<string>;
+};
+
+export type ChatChannelMessage = {
+    id: string;
+    channelId: string;
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+    sender: ChatChannelMessageSender;
+    mentions: Array<ChatChannelMessageMention>;
+    reactions: Array<ChatChannelMessageReaction>;
+    threadReplyCount: number;
+    threadLastReplyAt: Date | null;
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+};
+
+export type ChatChannelMessageSender = {
+    type: 'user';
+    user: ChatChannelUserParticipant;
+} | {
+    type: 'coworker';
+    coworker: ChatChannelCoworkerParticipant;
+} | {
+    type: 'unknown';
+};
+
+export type ChatChannelMessageMention = {
+    id: string;
+    coworkerId: string;
+    status: ChatChannelMentionStatus;
+    responseMessageId: string | null;
+};
+
+export const ChatChannelMentionStatus = {
+    PENDING: 'pending',
+    SENT: 'sent',
+    RESPONDED: 'responded',
+    FAILED: 'failed'
+} as const;
+
+export type ChatChannelMentionStatus = typeof ChatChannelMentionStatus[keyof typeof ChatChannelMentionStatus];
+
+export type ChatChannelMessageReaction = {
+    emoji: string;
+    count: number;
+    reactedByCurrentUser: boolean;
+};
+
+export type CreateChatChannelMessageRequest = {
+    content: string;
+    mentionedCoworkerIds?: Array<string>;
+    /**
+     * Root message ID when posting a threaded reply.
+     */
+    parentMessageId?: string;
+};
+
+export type ReactToChatChannelMessageRequest = {
+    emoji: string;
+};
+
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
 };
@@ -5861,6 +6003,20 @@ export type GetAgentsByIdReviewsMeErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Not Found
      */
     404: {
@@ -5922,6 +6078,20 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
@@ -8343,6 +8513,939 @@ export type GetCategoriesResponses = {
 };
 
 export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
+
+export type GetChatChannelsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        organizationId: string;
+    };
+    url: '/chat-channels';
+};
+
+export type GetChatChannelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatChannelsError = GetChatChannelsErrors[keyof GetChatChannelsErrors];
+
+export type GetChatChannelsResponses = {
+    /**
+     * List chat channels
+     */
+    200: {
+        data: Array<ChatChannel>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatChannelsResponse = GetChatChannelsResponses[keyof GetChatChannelsResponses];
+
+export type PostChatChannelsData = {
+    body?: CreateChatChannelRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chat-channels';
+};
+
+export type PostChatChannelsErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatChannelsError = PostChatChannelsErrors[keyof PostChatChannelsErrors];
+
+export type PostChatChannelsResponses = {
+    /**
+     * Chat channel created
+     */
+    201: {
+        data: ChatChannel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatChannelsResponse = PostChatChannelsResponses[keyof PostChatChannelsResponses];
+
+export type PostChatChannelsDirectData = {
+    body?: CreateDirectChatChannelRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chat-channels/direct';
+};
+
+export type PostChatChannelsDirectErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Direct channel already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatChannelsDirectError = PostChatChannelsDirectErrors[keyof PostChatChannelsDirectErrors];
+
+export type PostChatChannelsDirectResponses = {
+    /**
+     * Direct chat channel found
+     */
+    200: {
+        data: ChatChannel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Direct chat channel created
+     */
+    201: {
+        data: ChatChannel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatChannelsDirectResponse = PostChatChannelsDirectResponses[keyof PostChatChannelsDirectResponses];
+
+export type GetChatChannelsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chat-channels/{id}';
+};
+
+export type GetChatChannelsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatChannelsByIdError = GetChatChannelsByIdErrors[keyof GetChatChannelsByIdErrors];
+
+export type GetChatChannelsByIdResponses = {
+    /**
+     * Chat channel retrieved
+     */
+    200: {
+        data: ChatChannel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatChannelsByIdResponse = GetChatChannelsByIdResponses[keyof GetChatChannelsByIdResponses];
+
+export type PatchChatChannelsByIdData = {
+    body?: UpdateChatChannelRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chat-channels/{id}';
+};
+
+export type PatchChatChannelsByIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchChatChannelsByIdError = PatchChatChannelsByIdErrors[keyof PatchChatChannelsByIdErrors];
+
+export type PatchChatChannelsByIdResponses = {
+    /**
+     * Chat channel updated
+     */
+    200: {
+        data: ChatChannel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchChatChannelsByIdResponse = PatchChatChannelsByIdResponses[keyof PatchChatChannelsByIdResponses];
+
+export type GetChatChannelsByIdMessagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * When provided, returns replies for this root message. Otherwise returns top-level channel messages.
+         */
+        parentMessageId?: string;
+    };
+    url: '/chat-channels/{id}/messages';
+};
+
+export type GetChatChannelsByIdMessagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatChannelsByIdMessagesError = GetChatChannelsByIdMessagesErrors[keyof GetChatChannelsByIdMessagesErrors];
+
+export type GetChatChannelsByIdMessagesResponses = {
+    /**
+     * Channel messages retrieved
+     */
+    200: {
+        data: Array<ChatChannelMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatChannelsByIdMessagesResponse = GetChatChannelsByIdMessagesResponses[keyof GetChatChannelsByIdMessagesResponses];
+
+export type PostChatChannelsByIdMessagesData = {
+    body?: CreateChatChannelMessageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chat-channels/{id}/messages';
+};
+
+export type PostChatChannelsByIdMessagesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatChannelsByIdMessagesError = PostChatChannelsByIdMessagesErrors[keyof PostChatChannelsByIdMessagesErrors];
+
+export type PostChatChannelsByIdMessagesResponses = {
+    /**
+     * Channel message created
+     */
+    201: {
+        data: ChatChannelMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatChannelsByIdMessagesResponse = PostChatChannelsByIdMessagesResponses[keyof PostChatChannelsByIdMessagesResponses];
+
+export type PostChatChannelsByIdMessagesByMessageIdReactionsData = {
+    body?: ReactToChatChannelMessageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chat-channels/{id}/messages/{messageId}/reactions';
+};
+
+export type PostChatChannelsByIdMessagesByMessageIdReactionsErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatChannelsByIdMessagesByMessageIdReactionsError = PostChatChannelsByIdMessagesByMessageIdReactionsErrors[keyof PostChatChannelsByIdMessagesByMessageIdReactionsErrors];
+
+export type PostChatChannelsByIdMessagesByMessageIdReactionsResponses = {
+    /**
+     * Channel message reaction toggled
+     */
+    200: {
+        data: ChatChannelMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatChannelsByIdMessagesByMessageIdReactionsResponse = PostChatChannelsByIdMessagesByMessageIdReactionsResponses[keyof PostChatChannelsByIdMessagesByMessageIdReactionsResponses];
 
 export type GetChatData = {
     body?: never;
@@ -13582,7 +14685,7 @@ export type GetHistoryData = {
          */
         q?: string;
         /**
-         * Workspace visibility scope for task and job rows. Conversations are always scoped to the authenticated user.
+         * Workspace visibility scope for task and job rows. Conversations are always scoped to the effective user (session or context headers).
          */
         scope?: 'workspace' | 'owned';
         /**
@@ -13784,7 +14887,7 @@ export type GetUsersByIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -13935,7 +15038,7 @@ export type GetUsersByIdDesignMdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14024,7 +15127,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14141,7 +15244,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14230,7 +15333,7 @@ export type GetUsersByIdOrganizationsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14319,7 +15422,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14474,7 +15577,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14567,7 +15670,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14674,7 +15777,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14772,7 +15875,7 @@ export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14875,7 +15978,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14989,7 +16092,7 @@ export type GetUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15083,7 +16186,7 @@ export type PostUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15177,7 +16280,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15268,7 +16371,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -15379,7 +16482,7 @@ export type GetUsersByIdUploadsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15487,7 +16590,7 @@ export type PostUsersByIdUploadsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15618,7 +16721,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15707,7 +16810,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15801,7 +16904,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15890,7 +16993,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -15983,7 +17086,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16073,7 +17176,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16177,7 +17280,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16280,7 +17383,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16383,7 +17486,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16486,7 +17589,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16575,7 +17678,7 @@ export type GetUsersByIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };

@@ -21,7 +21,7 @@ export function getPendingConversationStorageKey(): string {
   return PENDING_CONVERSATION_STORAGE_KEY;
 }
 
-/** Full-page chat routes where the floating chat rail should stay hidden. */
+/** Full-page chat routes. */
 export function isChatShellPathname(
   pathname: string | null | undefined,
 ): boolean {

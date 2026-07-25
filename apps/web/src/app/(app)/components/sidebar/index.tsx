@@ -15,13 +15,10 @@ import {
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
-
 import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
 import AnnouncementCards from "./components/announcement-cards";
-import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
-import NewChatTaskActions from "./components/new-chat-task-actions";
 import PersonalAssistantNav from "./components/personal-assistant-nav.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
@@ -92,13 +89,9 @@ export default async function Sidebar({
           >
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
             {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}
-            <NewChatTaskActions />
-            <SidebarSeparator className="mx-0 mt-2" />
             <MenuItems />
             <SidebarSeparator className="mx-0" />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
-            <SidebarSeparator className="mx-0" />
-            <ChatListsClient />
           </SidebarNav>
         </div>
       </SidebarContent>

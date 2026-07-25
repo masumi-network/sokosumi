@@ -1255,9 +1255,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "Chat"
-    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1267,7 +1264,6 @@
       "description": "Chatte mit deinen KI-Coworkern",
       "Chat": {
         "newChat": "Neuer Chat",
-        "sidebarNew": "Neu",
         "noChats": "Noch keine Chats",
         "noCoworkersAvailable": "Keine Coworker verfügbar. Bitte versuche es später erneut.",
         "welcomeSendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
@@ -1438,22 +1434,7 @@
         "add": "Hinzufügen",
         "addTask": "Task hinzufügen",
         "loading": "Wird geladen...",
-        "loadMore": "Mehr laden",
-        "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "Oder nutze den Chat, um eine Aufgabe zu starten",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
+        "loadMore": "Mehr laden"
       },
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
@@ -2630,15 +2611,7 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "Letzte Chats",
-          "noChats": "Noch keine Chats",
-          "untitledChat": "Unbenannter Chat",
-          "modelAlt": "Modell",
-          "coworkerAlt": "Mitarbeiter"
-        },
         "MenuItems": {
-          "chat": "Chat",
           "search": "Suche",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
@@ -4366,6 +4339,104 @@
           "saveFailed": "Coworker-Anzeige konnte nicht gespeichert werden.",
           "imageSaveFailed": "Bild konnte nicht aktualisiert werden."
         }
+      }
+    },
+    "Channels": {
+      "Metadata": {
+        "title": "Channels",
+        "description": "Organization chat channels for humans and AI coworkers."
+      },
+      "title": "Channels",
+      "createChannel": "Create channel",
+      "editChannel": "Edit channel",
+      "send": "Send message",
+      "noTopic": "No topic set.",
+      "coworkerBadge": "AI coworker",
+      "humanCount": "{count, plural, one {# human} other {# humans}}",
+      "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "participantOverflow": "and {count} more",
+      "directParticipantCount": "{count, plural, one {# participant} other {# participants}}",
+      "directMessages": "Direct Messages",
+      "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
+      "NoOrganization": {
+        "title": "Organization required",
+        "description": "Switch to an organization workspace to use chat channels."
+      },
+      "Empty": {
+        "noChannels": "No channels yet.",
+        "noDirectMessages": "No direct messages yet.",
+        "onlyInOrganizations": "Only in organisations",
+        "noMessagesTitle": "No messages yet",
+        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noChannelTitle": "Create a channel",
+        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+      },
+      "Dialog": {
+        "createTitle": "Create channel",
+        "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
+        "editTitle": "Edit channel",
+        "editDescription": "Update the channel details and participant list.",
+        "name": "Name",
+        "namePlaceholder": "Launch planning",
+        "topic": "Topic",
+        "topicPlaceholder": "What this channel is for",
+        "humans": "Humans",
+        "coworkers": "AI coworkers",
+        "cancel": "Cancel",
+        "create": "Create",
+        "save": "Save changes"
+      },
+      "MentionStatus": {
+        "pending": "Calling coworker",
+        "sent": "Coworker thinking",
+        "responded": "Coworker replied",
+        "failed": "Coworker failed"
+      },
+      "composerPlaceholderWithChannel": "Message #{channel}",
+      "directComposerPlaceholder": "Message {member}",
+      "Draft": {
+        "breadcrumb": "New direct message",
+        "to": "To:",
+        "searchPlaceholder": "Search people or AI coworkers",
+        "searchPlaceholderMore": "Add more people",
+        "noResults": "No matches",
+        "title": "New direct message",
+        "empty": "Choose who should be in this conversation.",
+        "ready": "{count, plural, one {# recipient selected} other {# recipients selected}}",
+        "chooseRecipientError": "Choose at least one recipient.",
+        "removeRecipient": "Remove {name}",
+        "composerPlaceholder": "Write the first message",
+        "composerPlaceholderNoRecipients": "Add recipients to start"
+      },
+      "Toolbar": {
+        "mention": "Mention coworker",
+        "attach": "Attach file",
+        "emoji": "Emoji",
+        "format": "Formatting",
+        "bold": "Bold",
+        "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
+        "uploadFailed": "File upload failed",
+        "removeAttachment": "Remove {name}",
+        "attachmentFallback": "file"
+      },
+      "Reactions": {
+        "add": "Add reaction",
+        "toggle": "React with {emoji}"
+      },
+      "Presence": {
+        "online": "Online",
+        "afk": "Away",
+        "offline": "Offline"
+      },
+      "Thread": {
+        "title": "Thread",
+        "open": "Open thread",
+        "close": "Close thread",
+        "loading": "Loading replies",
+        "empty": "No replies yet",
+        "replyPlaceholder": "Reply in thread",
+        "replyCount": "{count, plural, one {# reply} other {# replies}}"
       }
     }
   },

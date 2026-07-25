@@ -1,0 +1,125 @@
+import { createRoute, z } from "@hono/zod-openapi";
+
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
+import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
+import { requireUserContext } from "@/middleware/auth";
+import { chatChannelMessageSchema } from "@/schemas/chat-channel.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+
+import {
+  chatChannelMessageInclude,
+  mapChatChannelMessage,
+  requireChatChannelUserAccess,
+} from "../../helpers";
+
+const paramsSchema = z.object({
+  id: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "id", in: "path" },
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+});
+
+const querySchema = cursorPaginationQuerySchema.extend({
+  parentMessageId: z
+    .string()
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "parentMessageId", in: "query" },
+      description:
+        "When provided, returns replies for this root message. Otherwise returns top-level channel messages.",
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+});
+
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/{id}/messages",
+    description: "Get messages for an organization chat channel.",
+    tags: ["Chat Channels"],
+    request: {
+      params: paramsSchema,
+      query: querySchema,
+    },
+    responses: {
+      200: jsonPaginatedSuccessResponse(
+        z.array(chatChannelMessageSchema),
+        "Channel messages retrieved",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Channel not found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const userContext = requireUserContext(c.var.authContext);
+    const { id } = c.req.valid("param");
+    const queryParams = c.req.valid("query");
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const takePlusOne = take + 1;
+
+    const { messages, count } = await prisma.$transaction(async (tx) => {
+      await requireChatChannelUserAccess(id, userContext.userId, tx);
+      const where = {
+        channelId: id,
+        parentMessageId: queryParams.parentMessageId ?? null,
+      };
+
+      const [messages, count] = await Promise.all([
+        tx.chatChannelMessage.findMany({
+          where,
+          take: takePlusOne,
+          skip,
+          cursor: cursor ? { id: cursor } : undefined,
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          include: chatChannelMessageInclude,
+        }),
+        tx.chatChannelMessage.count({ where }),
+      ]);
+
+      return { messages, count };
+    });
+
+    const hasMore = messages.length === takePlusOne;
+    const pageMessages = messages.slice(0, take);
+    const paginationMeta = createPaginationMeta(
+      pageMessages,
+      count,
+      take,
+      hasMore,
+      cursor,
+    );
+
+    return ok(
+      c,
+      z
+        .array(chatChannelMessageSchema)
+        .parse(
+          pageMessages.map((message) =>
+            mapChatChannelMessage(message, userContext.userId),
+          ),
+        ),
+      paginationMeta,
+    );
+  });
+}

@@ -4053,6 +4053,560 @@ export const AgentRatingRequestSchema = {
     ]
 } as const;
 
+export const ChatChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Channel ID',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Launch Room'
+        },
+        slug: {
+            type: 'string',
+            example: 'launch-room'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ],
+            example: 'channel'
+        },
+        directKey: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Deterministic key for direct channels; null for normal channels.',
+            example: 'user_123:user_456'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Weekly launch planning'
+        },
+        createdByUserId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        userMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatChannelUserParticipant'
+            }
+        },
+        coworkerMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatChannelCoworkerParticipant'
+            }
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'name',
+        'slug',
+        'kind',
+        'directKey',
+        'topic',
+        'createdByUserId',
+        'createdAt',
+        'updatedAt',
+        'userMembers',
+        'coworkerMembers'
+    ]
+} as const;
+
+export const ChatChannelUserParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatChannelPresence'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'image',
+        'presence'
+    ]
+} as const;
+
+export const ChatChannelPresenceSchema = {
+    type: 'string',
+    enum: [
+        'online',
+        'afk',
+        'offline'
+    ],
+    example: 'online'
+} as const;
+
+export const ChatChannelCoworkerParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Elena'
+        },
+        slug: {
+            type: 'string',
+            example: 'elena'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Research partner'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/coworker.png'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatChannelPresence'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'caption',
+        'image',
+        'presence'
+    ]
+} as const;
+
+export const CreateChatChannelRequestSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80,
+            example: 'Launch Room'
+        },
+        topic: {
+            type: 'string',
+            maxLength: 200,
+            example: 'Launch planning with design and AI research partners'
+        },
+        memberUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            example: [
+                'user_123',
+                'user_456'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            example: [
+                'cow_123'
+            ]
+        }
+    },
+    required: [
+        'organizationId',
+        'name'
+    ]
+} as const;
+
+export const CreateDirectChatChannelRequestSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            example: 'org_123'
+        },
+        memberUserId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Deprecated one-to-one organization member user ID. Use memberUserIds for new clients.',
+            example: 'user_456'
+        },
+        coworkerId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Deprecated one-to-one AI coworker ID. Use coworkerIds for new clients.',
+            example: 'cow_123'
+        },
+        memberUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            description: 'Organization member user IDs to include in the direct message.',
+            example: [
+                'user_456',
+                'user_789'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            description: 'AI coworker IDs to include in the direct message.',
+            example: [
+                'cow_123'
+            ]
+        }
+    },
+    required: [
+        'organizationId'
+    ]
+} as const;
+
+export const UpdateChatChannelRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80,
+            example: 'Launch Room'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            example: 'Launch planning with design and AI research partners'
+        },
+        memberUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            example: [
+                'user_123',
+                'user_456'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            example: [
+                'cow_123'
+            ]
+        }
+    }
+} as const;
+
+export const ChatChannelMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        channelId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        content: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sender: {
+            $ref: '#/components/schemas/ChatChannelMessageSender'
+        },
+        mentions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatChannelMessageMention'
+            }
+        },
+        reactions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatChannelMessageReaction'
+            }
+        },
+        threadReplyCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        threadLastReplyAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        metadata: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
+        }
+    },
+    required: [
+        'id',
+        'channelId',
+        'parentMessageId',
+        'content',
+        'createdAt',
+        'sender',
+        'mentions',
+        'reactions',
+        'threadReplyCount',
+        'threadLastReplyAt',
+        'metadata'
+    ]
+} as const;
+
+export const ChatChannelMessageSenderSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'user'
+                    ]
+                },
+                user: {
+                    $ref: '#/components/schemas/ChatChannelUserParticipant'
+                }
+            },
+            required: [
+                'type',
+                'user'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'coworker'
+                    ]
+                },
+                coworker: {
+                    $ref: '#/components/schemas/ChatChannelCoworkerParticipant'
+                }
+            },
+            required: [
+                'type',
+                'coworker'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'unknown'
+                    ]
+                }
+            },
+            required: [
+                'type'
+            ]
+        }
+    ]
+} as const;
+
+export const ChatChannelMessageMentionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        coworkerId: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/ChatChannelMentionStatus'
+        },
+        responseMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        }
+    },
+    required: [
+        'id',
+        'coworkerId',
+        'status',
+        'responseMessageId'
+    ]
+} as const;
+
+export const ChatChannelMentionStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'sent',
+        'responded',
+        'failed'
+    ]
+} as const;
+
+export const ChatChannelMessageReactionSchema = {
+    type: 'object',
+    properties: {
+        emoji: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 24,
+            example: '👍'
+        },
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 3
+        },
+        reactedByCurrentUser: {
+            type: 'boolean',
+            example: true
+        }
+    },
+    required: [
+        'emoji',
+        'count',
+        'reactedByCurrentUser'
+    ]
+} as const;
+
+export const CreateChatChannelMessageRequestSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: '@coworker:elena Can you summarize this launch risk?'
+        },
+        mentionedCoworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            example: [
+                'cow_123'
+            ]
+        },
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Root message ID when posting a threaded reply.',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        }
+    },
+    required: [
+        'content'
+    ]
+} as const;
+
+export const ReactToChatChannelMessageRequestSchema = {
+    type: 'object',
+    properties: {
+        emoji: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 24,
+            example: '👍'
+        }
+    },
+    required: [
+        'emoji'
+    ]
+} as const;
+
 export const GetChatUiMessagesResponseDataSchema = {
     type: 'object',
     properties: {

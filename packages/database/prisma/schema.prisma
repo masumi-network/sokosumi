@@ -82,6 +82,10 @@ model User {
 
   // Conversations
   conversations         Conversation[]
+  createdChatChannels   ChatChannel[]           @relation("ChatChannelCreator")
+  chatChannelMemberships ChatChannelUserMember[]
+  chatChannelMessages   ChatChannelMessage[]    @relation("ChatChannelUserSender")
+  chatChannelReactions  ChatChannelReaction[]
   noticeAcknowledgments NoticeAcknowledgment[]
 
   // Hermes (per-user private agent — single conversation)
@@ -209,6 +213,7 @@ model Organization {
   transactions   Transaction[]
   coworkerUsages CoworkerUsage[]
   orchestratorUsages OrchestratorUsage[]
+  chatChannels   ChatChannel[]
 
   stripeCustomerId String?
 
@@ -1266,6 +1271,9 @@ model Coworker {
   createdTasks   Task[] @relation("TaskCreatorCoworker")
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
+  chatChannelMemberships ChatChannelCoworkerMember[]
+  chatChannelMessages    ChatChannelMessage[]        @relation("ChatChannelCoworkerSender")
+  chatChannelMentions    ChatChannelMention[]
 
   @@index([archivedAt])
   @@index([vendorId])
@@ -1571,6 +1579,134 @@ model OrchestratorUsage {
   @@unique([orchestratorId, idempotencyKey])
   @@index([userId, organizationId, createdAt])
   @@map("orchestrator_usage")
+}
+
+model ChatChannel {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  slug        String
+  kind        String   @default("channel")
+  directKey   String?
+  topic       String?
+  archivedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdByUserId String
+  createdByUser   User   @relation("ChatChannelCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  userMembers     ChatChannelUserMember[]
+  coworkerMembers ChatChannelCoworkerMember[]
+  messages        ChatChannelMessage[]
+
+  @@unique([organizationId, slug])
+  @@unique([organizationId, directKey])
+  @@index([organizationId, archivedAt, updatedAt])
+  @@index([organizationId, kind, updatedAt])
+  @@map("chat_channel")
+}
+
+model ChatChannelUserMember {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  channelId String   @db.Uuid
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@map("chat_channel_user_member")
+}
+
+model ChatChannelCoworkerMember {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  channelId String   @db.Uuid
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([channelId, coworkerId])
+  @@index([coworkerId])
+  @@map("chat_channel_coworker_member")
+}
+
+model ChatChannelMessage {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  channelId String      @db.Uuid
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  parentMessageId String?              @db.Uuid
+  parentMessage   ChatChannelMessage?  @relation("ChatChannelThread", fields: [parentMessageId], references: [id], onDelete: Cascade)
+  replies         ChatChannelMessage[] @relation("ChatChannelThread")
+
+  senderUserId     String?
+  senderUser       User?     @relation("ChatChannelUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  senderCoworkerId String?
+  senderCoworker   Coworker? @relation("ChatChannelCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
+
+  content  String
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  mentionsAsSource   ChatChannelMention[] @relation("ChatChannelMentionSource")
+  mentionResponseFor ChatChannelMention?  @relation("ChatChannelMentionResponse")
+  reactions          ChatChannelReaction[]
+
+  @@index([channelId, createdAt])
+  @@index([channelId, parentMessageId, createdAt])
+  @@index([parentMessageId, createdAt])
+  @@index([senderUserId])
+  @@index([senderCoworkerId])
+  @@map("chat_channel_message")
+}
+
+model ChatChannelReaction {
+  id        String             @id @default(uuid(7)) @db.Uuid
+  messageId String             @db.Uuid
+  message   ChatChannelMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId, emoji])
+  @@index([userId])
+  @@map("chat_channel_reaction")
+}
+
+model ChatChannelMention {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  messageId String   @db.Uuid
+  message   ChatChannelMessage @relation("ChatChannelMentionSource", fields: [messageId], references: [id], onDelete: Cascade)
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  status                 String   @default("pending")
+  error                  String?
+  providerConversationId String?
+  providerResponseId     String?
+  responseMessageId      String?  @unique @db.Uuid
+  responseMessage        ChatChannelMessage? @relation("ChatChannelMentionResponse", fields: [responseMessageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([messageId, coworkerId])
+  @@index([coworkerId, status])
+  @@map("chat_channel_mention")
 }
 
 model Conversation {

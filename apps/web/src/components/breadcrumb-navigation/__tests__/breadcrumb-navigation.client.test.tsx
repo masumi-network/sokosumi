@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BreadcrumbNavigationClient from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
+import {
+  BreadcrumbOverrideProvider,
+  useRegisterBreadcrumbOverride,
+} from "@/contexts/breadcrumb-override-context";
 import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 const usePathnameMock = vi.fn();
@@ -34,7 +38,35 @@ const breadcrumbMessages = {
   agents: "Agents",
   account: "Account",
   editor: "Editor",
+  chat: "Chat",
 };
+
+function BreadcrumbOverrideFixture({ label }: { label: string }) {
+  useRegisterBreadcrumbOverride({
+    pathname: "/channels",
+    segments: [
+      {
+        label: "Chat",
+        href: "/chat",
+      },
+      {
+        label,
+        href: "/channels?channel=direct-1",
+      },
+    ],
+  });
+
+  return (
+    <BreadcrumbNavigationClient
+      organizations={organizations}
+      breadcrumbMessages={breadcrumbMessages}
+      segmentLabels={{
+        __chatChannelLabel: "Test Channel",
+        __chatChannelHref: "/channels?channel=stale-channel",
+      }}
+    />
+  );
+}
 
 describe("BreadcrumbNavigationClient", () => {
   beforeEach(() => {
@@ -67,6 +99,41 @@ describe("BreadcrumbNavigationClient", () => {
     );
 
     expect(screen.getByText("Research Copilot")).toBeInTheDocument();
+  });
+
+  it("shows selected chat channel under Chat breadcrumbs", () => {
+    usePathnameMock.mockReturnValue("/channels");
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+        segmentLabels={{
+          __chatChannelLabel: "Test Channel",
+          __chatChannelHref: "/channels?channel=channel-1",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute(
+      "href",
+      "/chat",
+    );
+    expect(screen.getByText("Test Channel")).toBeInTheDocument();
+    expect(screen.queryByText("channels")).not.toBeInTheDocument();
+  });
+
+  it("uses registered channel breadcrumb over stale server labels", async () => {
+    usePathnameMock.mockReturnValue("/channels");
+
+    render(
+      <BreadcrumbOverrideProvider>
+        <BreadcrumbOverrideFixture label="Andreas" />
+      </BreadcrumbOverrideProvider>,
+    );
+
+    expect(await screen.findByText("Andreas")).toBeInTheDocument();
+    expect(screen.queryByText("Test Channel")).not.toBeInTheDocument();
   });
 
   it("shows admin organizations list breadcrumbs", () => {
