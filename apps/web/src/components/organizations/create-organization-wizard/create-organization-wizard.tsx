@@ -5,9 +5,12 @@ import { buildOrganizationMetadataWithUrl } from "@sokosumi/utils";
 import {
   ArrowLeft,
   ArrowRight,
+  Building2,
   Check,
   Copy,
+  FileText,
   Info,
+  Link2,
   Loader2,
   RotateCw,
   Sparkles,
@@ -23,7 +26,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useForm } from "react-hook-form";
+import { type Control, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -44,13 +47,12 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -69,6 +71,7 @@ import {
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
+import { cn } from "@/lib/utils";
 import {
   ClientTimeoutError,
   raceWithTimeout,
@@ -104,6 +107,33 @@ function getDomainLabel(url: string): string {
   } catch {
     return url;
   }
+}
+
+interface DetailsFormValues {
+  name: string;
+  url: string;
+}
+
+/**
+ * The 96px hero tile on step 1. It fills with the organization's initial as the
+ * name is typed, so the object exists before we finish asking for it — the same
+ * tile then carries the fetched favicon on step 2. `useWatch` keeps the
+ * keystroke re-render scoped to this tile instead of the whole wizard.
+ */
+function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
+  const name = useWatch({ control, name: "name" })?.trim() ?? "";
+
+  return (
+    <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
+      {name ? (
+        <span className="text-muted-foreground text-[36px] leading-none font-semibold tracking-tight">
+          {name.charAt(0).toUpperCase()}
+        </span>
+      ) : (
+        <Building2 className="text-muted-foreground/50 size-8" />
+      )}
+    </div>
+  );
 }
 
 interface CreateOrganizationWizardProps {
@@ -146,18 +176,22 @@ export function CreateOrganizationWizard({
   const detailsSchema = useMemo(
     () =>
       z.object({
-        name: z.string().trim().min(2).max(50),
+        name: z
+          .string()
+          .trim()
+          .min(2, { message: t("Details.nameInvalid") })
+          .max(50, { message: t("Details.nameInvalid") }),
         url: z
           .string()
           .trim()
           .refine((value) => normalizeWebsiteUrl(value) !== null, {
-            message: t("Details.urlHint"),
+            message: t("Details.urlInvalid"),
           }),
       }),
     [t],
   );
 
-  const form = useForm<z.infer<typeof detailsSchema>>({
+  const form = useForm<DetailsFormValues>({
     resolver: zodResolver(detailsSchema),
     defaultValues: { name: "", url: "" },
   });
@@ -457,96 +491,141 @@ export function CreateOrganizationWizard({
 
   return (
     <Dialog open={open} onOpenChange={handleRequestClose}>
-      <DialogContent className="w-[95vw] max-w-md! gap-0 overflow-hidden p-0 sm:max-w-md!">
+      <DialogContent className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[600px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-2xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6">
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         <DialogDescription className="sr-only">
           {t("description")}
         </DialogDescription>
 
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-1.5 pt-6">
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 rounded-full transition-all ${
-                i === step
-                  ? "bg-primary w-5"
-                  : i < step
-                    ? "bg-primary/40 w-1.5"
-                    : "bg-muted-foreground/20 w-1.5"
-              }`}
-            />
-          ))}
+        {/* Progress rail + slide counter */}
+        <div className="relative flex items-center px-6 py-5 sm:px-8 sm:py-6">
+          <div className="absolute inset-x-0 top-0 flex h-[3px] gap-1">
+            {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
+              <span
+                key={index}
+                className="bg-border h-full flex-1 overflow-hidden"
+              >
+                <span
+                  className={cn(
+                    "bg-primary block h-full w-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
+                    index <= step ? "scale-x-100" : "scale-x-0",
+                  )}
+                />
+              </span>
+            ))}
+          </div>
+          <span className="text-muted-foreground/60 text-[11px] font-medium tracking-[0.16em] tabular-nums">
+            {String(step + 1).padStart(2, "0")} /{" "}
+            {String(TOTAL_STEPS).padStart(2, "0")}
+          </span>
+          <span className="sr-only" aria-live="polite">
+            {step + 1} / {TOTAL_STEPS}
+          </span>
         </div>
 
-        <div className="min-h-[320px] px-6 py-8">
-          {/* Step 0 — Details */}
-          {step === 0 && (
-            <div className="space-y-6">
-              <div className="space-y-1.5 text-center">
-                <h2 className="text-xl font-semibold tracking-tight">
-                  {t("Details.title")}
-                </h2>
-                <p className="text-muted-foreground text-sm">
-                  {t("Details.subtitle")}
-                </p>
-              </div>
+        {/* Stage — one focal object per step, fixed height so nothing jumps */}
+        <div className="flex min-h-0 flex-col items-center justify-center overflow-y-auto px-6 pb-6 text-center sm:px-16">
+          <div
+            key={step}
+            className="animate-in fade-in-0 slide-in-from-bottom-1 w-full duration-200 ease-out motion-reduce:animate-none"
+          >
+            {/* Step 1 — Details */}
+            {step === 0 && (
               <Form {...form}>
-                <form
-                  id="create-org-details"
-                  onSubmit={handleDetailsContinue}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("Details.nameLabel")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            autoFocus
-                            placeholder={t("Details.namePlaceholder")}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("Details.urlLabel")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            inputMode="url"
-                            placeholder={t("Details.urlPlaceholder")}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("Details.urlHint")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <form id="create-org-details" onSubmit={handleDetailsContinue}>
+                  <div className="flex min-h-24 flex-none items-center justify-center">
+                    <OrgInitialTile control={form.control} />
+                  </div>
+                  <h2 className="mt-8 text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
+                    {t("Details.title")}
+                  </h2>
+                  <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
+                    {t("Details.subtitle")}
+                  </p>
+
+                  <div className="mx-auto mt-10 w-full max-w-md">
+                    <div className="bg-card has-[:focus-visible]:ring-ring divide-y overflow-hidden rounded-xl border text-left has-[:focus-visible]:ring-2">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem className="focus-within:bg-accent/40 grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
+                            <FormLabel className="text-muted-foreground text-[13px] font-normal">
+                              {t("Details.nameLabel")}
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                autoFocus
+                                placeholder={t("Details.namePlaceholder")}
+                                className="placeholder:text-muted-foreground/50 h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[15px] shadow-none focus-visible:ring-0"
+                                {...field}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="url"
+                        render={({ field }) => (
+                          <FormItem className="focus-within:bg-accent/40 grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
+                            <FormLabel className="text-muted-foreground text-[13px] font-normal">
+                              {t("Details.urlLabel")}
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                inputMode="url"
+                                placeholder={t("Details.urlPlaceholder")}
+                                className="placeholder:text-muted-foreground/50 h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[15px] shadow-none focus-visible:ring-0"
+                                {...field}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    {/* Fixed slot so a validation message never resizes the stage */}
+                    <div className="min-h-5 text-left">
+                      {/* Plain <p>, not <FormMessage>: this slot sits outside
+                          any <FormField>, so it has no field context to read. */}
+                      <p className="text-destructive text-[13px]">
+                        {form.formState.errors.name?.message ??
+                          form.formState.errors.url?.message}
+                      </p>
+                    </div>
+                    <p className="text-muted-foreground/70 text-left text-[13px]">
+                      {t("Details.urlHint")}
+                    </p>
+                  </div>
                 </form>
               </Form>
-            </div>
-          )}
+            )}
 
-          {/* Step 1 — Logo */}
-          {step === 1 && (
-            <div className="space-y-6">
-              <div className="space-y-1.5 text-center">
-                <h2 className="text-xl font-semibold tracking-tight">
+            {/* Step 2 — Logo */}
+            {step === 1 && (
+              <>
+                <div className="flex min-h-24 flex-none items-center justify-center">
+                  {isResolvingLogo ? (
+                    <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
+                      <Loader2 className="text-muted-foreground size-6 animate-spin" />
+                    </div>
+                  ) : (
+                    <OrganizationLogoUploadField
+                      disabled={isUploadingLogo}
+                      isUploading={isUploadingLogo}
+                      labels={logoLabels}
+                      logoValue={logoUrl}
+                      onPendingLogoFilesChange={setPendingLogoFiles}
+                      onRemove={handleRemoveLogo}
+                      onUpload={handleLogoUpload}
+                      pendingLogoFiles={pendingLogoFiles}
+                    />
+                  )}
+                </div>
+                <h2 className="mt-8 text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
                   {t("Logo.title")}
                 </h2>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
                   {isResolvingLogo
                     ? t("Logo.generating")
                     : logoUrl
@@ -557,75 +636,77 @@ export function CreateOrganizationWizard({
                         })
                       : t("Logo.notFound")}
                 </p>
-              </div>
-              {isResolvingLogo ? (
-                <div className="flex items-center justify-center py-6">
-                  <div className="bg-muted flex size-24 items-center justify-center rounded-2xl">
-                    <Loader2 className="text-muted-foreground size-6 animate-spin" />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-center">
-                  <OrganizationLogoUploadField
-                    disabled={isUploadingLogo}
-                    isUploading={isUploadingLogo}
-                    labels={logoLabels}
-                    logoValue={logoUrl}
-                    onPendingLogoFilesChange={setPendingLogoFiles}
-                    onRemove={handleRemoveLogo}
-                    onUpload={handleLogoUpload}
-                    pendingLogoFiles={pendingLogoFiles}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+              </>
+            )}
 
-          {/* Step 2 — Brand Guidelines */}
-          {step === 2 && (
-            <div className="space-y-6">
-              <div className="space-y-1.5 text-center">
-                <div className="flex items-center justify-center gap-1.5">
-                  <h2 className="text-xl font-semibold tracking-tight">
-                    {t("Brand.title")}
-                  </h2>
+            {/* Step 3 — Brand Guidelines */}
+            {step === 2 && (
+              <>
+                <div className="flex min-h-24 flex-none items-center justify-center">
+                  {brand.status === "completed" ? (
+                    <div className="bg-primary/10 border-primary/20 flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
+                      <Check className="text-primary animate-in fade-in-0 size-7 duration-200" />
+                    </div>
+                  ) : brand.status === "failed" ? (
+                    <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
+                      <Sparkles className="text-muted-foreground size-6" />
+                    </div>
+                  ) : (
+                    <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
+                      <Loader2 className="text-primary size-6 animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                <h2 className="mt-8 text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
+                  {t("Brand.title")}
+                </h2>
+
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
+                  {brand.status === "completed"
+                    ? t("Brand.generated")
+                    : brand.status === "failed"
+                      ? t("Brand.failedTitle")
+                      : t("Brand.generating")}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="text-muted-foreground hover:text-foreground transition-colors"
                         aria-label={t("Brand.title")}
+                        className="focus-visible:ring-ring ml-1.5 inline-flex size-5 translate-y-[3px] items-center justify-center rounded-md outline-none focus-visible:ring-2"
                       >
-                        <Info className="size-4" />
+                        <Info className="text-muted-foreground/60 hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-center">
+                    <TooltipContent className="max-w-xs">
                       {t("Brand.tooltip")}
                     </TooltipContent>
                   </Tooltip>
-                </div>
-                <p className="text-muted-foreground text-sm">
-                  {t("Brand.subtitle")}
                 </p>
-              </div>
 
-              <div className="flex flex-col items-center gap-4 py-4">
-                {brand.status === "failed" ? (
-                  <>
-                    <div className="bg-muted flex size-16 items-center justify-center rounded-2xl">
-                      <Sparkles className="text-muted-foreground size-6" />
+                {brand.status !== "completed" && (
+                  <p className="text-muted-foreground/70 mt-3 text-[13px]">
+                    {brand.status === "failed"
+                      ? t("Brand.failedSubtitle")
+                      : t("Brand.skipHint")}
+                  </p>
+                )}
+
+                {brand.status === "completed" && (
+                  <div className="mt-10">
+                    <div className="bg-muted/60 text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
+                      <FileText className="size-4" />
+                      <span className="font-mono text-[13px]">DESIGN.md</span>
                     </div>
-                    <div className="space-y-1 text-center">
-                      <p className="text-sm font-medium">
-                        {t("Brand.failedTitle")}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {t("Brand.failedSubtitle")}
-                      </p>
-                    </div>
+                  </div>
+                )}
+
+                {brand.status === "failed" && (
+                  <div className="mt-10">
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="lg"
+                      className="h-11 px-6"
                       onClick={() => {
                         if (normalizedUrl) {
                           void brand.generate({
@@ -638,120 +719,100 @@ export function CreateOrganizationWizard({
                       <RotateCw className="size-4" />
                       {t("Brand.retry")}
                     </Button>
-                  </>
-                ) : brand.status === "completed" ? (
-                  <>
-                    <div className="bg-primary/10 flex size-16 items-center justify-center rounded-2xl">
-                      <Check className="text-primary size-7" />
-                    </div>
-                    <p className="text-sm font-medium">
-                      {t("Brand.generated")}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="bg-muted relative flex size-16 items-center justify-center rounded-2xl">
-                      <Sparkles className="text-primary size-6 animate-pulse" />
-                    </div>
-                    <p className="text-muted-foreground text-sm">
-                      {t("Brand.generating")}
-                    </p>
-                    <p className="text-muted-foreground/70 text-xs">
-                      {t("Brand.skipHint")}
-                    </p>
-                  </>
+                  </div>
                 )}
-              </div>
-            </div>
-          )}
+              </>
+            )}
 
-          {/* Step 3 — Invite */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div className="space-y-1.5 text-center">
-                <h2 className="text-xl font-semibold tracking-tight">
+            {/* Step 4 — Invite */}
+            {step === 3 && (
+              <>
+                <h2 className="text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
                   {t("Invite.title")}
                 </h2>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
                   {t("Invite.subtitle")}
                 </p>
-              </div>
 
-              <div className="space-y-2">
-                <span className="text-sm font-medium">
-                  {t("Invite.linkLabel")}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Input
-                    readOnly
-                    value={
-                      isCreatingLink
-                        ? t("Invite.creatingLink")
-                        : (inviteLink ?? "")
-                    }
-                    className="text-muted-foreground font-mono text-xs"
-                    onFocus={(event) => event.currentTarget.select()}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={!inviteLink || isCreatingLink}
-                    onClick={() => void handleCopyLink()}
-                    aria-label={copied ? t("Invite.copied") : t("Invite.copy")}
-                  >
-                    {copied ? (
-                      <Check className="size-4" />
+                <div className="mx-auto mt-10 w-full max-w-md">
+                  <div className="bg-muted/60 has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
+                    <Link2 className="text-muted-foreground size-4 shrink-0" />
+                    {isCreatingLink ? (
+                      <Skeleton className="h-4 w-56 rounded-sm" />
                     ) : (
-                      <Copy className="size-4" />
+                      <Input
+                        readOnly
+                        value={inviteLink ?? ""}
+                        onFocus={(event) => event.currentTarget.select()}
+                        className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono text-[13px] shadow-none focus-visible:ring-0"
+                      />
                     )}
-                  </Button>
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  {t("Invite.linkHint")}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-sm font-medium">
-                  {t("Invite.emailsLabel")}
-                </span>
-                <Textarea
-                  rows={3}
-                  value={emails}
-                  onChange={(event) => setEmails(event.target.value)}
-                  placeholder={t("Invite.emailsPlaceholder")}
-                  className="resize-none"
-                />
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-muted-foreground text-xs">
-                    {t("Invite.emailsHint")}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto h-9 shrink-0 transition-colors duration-200"
+                      disabled={!inviteLink || isCreatingLink}
+                      onClick={() => void handleCopyLink()}
+                      aria-label={
+                        copied ? t("Invite.copied") : t("Invite.copy")
+                      }
+                    >
+                      {copied ? (
+                        <Check className="text-primary size-4" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {copied ? t("Invite.copied") : t("Invite.copy")}
+                      </span>
+                    </Button>
+                  </div>
+                  <p className="text-muted-foreground/70 mt-3 text-left text-[13px]">
+                    {t("Invite.linkHint")}
                   </p>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={!emails.trim() || isSendingInvites}
-                    onClick={() => void handleSendInvites()}
-                  >
-                    {isSendingInvites && (
-                      <Loader2 className="size-4 animate-spin" />
-                    )}
-                    {isSendingInvites
-                      ? t("Invite.sending")
-                      : t("Invite.sendInvites")}
-                  </Button>
+
+                  <div className="bg-border my-8 h-px w-full" />
+
+                  <Textarea
+                    rows={2}
+                    value={emails}
+                    onChange={(event) => setEmails(event.target.value)}
+                    placeholder={t("Invite.emailsPlaceholder")}
+                    className="bg-muted/60 min-h-[72px] dark:bg-muted/60 resize-none rounded-xl border px-4 py-3 text-[15px] shadow-none"
+                  />
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <p className="text-muted-foreground/70 text-left text-[13px]">
+                      {t("Invite.emailsHint")}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 shrink-0"
+                      disabled={!emails.trim() || isSendingInvites}
+                      onClick={() => void handleSendInvites()}
+                    >
+                      {isSendingInvites && (
+                        <Loader2 className="size-4 animate-spin" />
+                      )}
+                      {isSendingInvites
+                        ? t("Invite.sending")
+                        : t("Invite.sendInvites")}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Footer navigation */}
-        <div className="flex items-center justify-between border-t px-6 py-4">
+        {/* Footer — exactly one filled action on screen */}
+        <div className="bg-background flex items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-6 sm:pb-6">
           {step > 0 ? (
             <Button
               variant="ghost"
+              className="text-muted-foreground h-11 px-4"
               onClick={() => setStep((current) => current - 1)}
               disabled={isBusy}
             >
@@ -767,6 +828,8 @@ export function CreateOrganizationWizard({
               type="submit"
               form="create-org-details"
               variant="primary"
+              size="lg"
+              className="h-11 px-6"
               disabled={isBusy}
             >
               {isCreatingOrg && <Loader2 className="size-4 animate-spin" />}
@@ -777,6 +840,8 @@ export function CreateOrganizationWizard({
           {(step === 1 || step === 2) && (
             <Button
               variant="primary"
+              size="lg"
+              className="h-11 px-6"
               onClick={() => setStep((current) => current + 1)}
               disabled={isBusy}
             >
@@ -785,7 +850,12 @@ export function CreateOrganizationWizard({
             </Button>
           )}
           {step === 3 && (
-            <Button variant="primary" onClick={handleFinish}>
+            <Button
+              variant="primary"
+              size="lg"
+              className="h-11 px-6"
+              onClick={handleFinish}
+            >
               {t("Nav.finish")}
             </Button>
           )}

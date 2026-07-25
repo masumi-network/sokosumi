@@ -593,12 +593,14 @@
         },
         "Details": {
           "title": "Name your organization",
-          "subtitle": "Add your name and website — we'll set up the rest for you.",
+          "subtitle": "Add your name and website. We'll set up the rest.",
           "nameLabel": "Name",
           "namePlaceholder": "Acme Inc.",
           "urlLabel": "Website",
           "urlPlaceholder": "https://acme.com",
-          "urlHint": "We use this to fetch your logo and brand guidelines."
+          "urlHint": "We use this to fetch your logo and brand guidelines.",
+          "nameInvalid": "Enter a name with at least 2 characters.",
+          "urlInvalid": "Enter a valid website, like https://acme.com"
         },
         "Logo": {
           "title": "Your logo",
@@ -625,13 +627,10 @@
         "Invite": {
           "title": "Invite your team",
           "subtitle": "Share a link or send email invites. You can always do this later.",
-          "linkLabel": "Invite link",
           "linkHint": "Anyone with this link can join as a member.",
-          "creatingLink": "Creating link…",
           "copy": "Copy",
           "copied": "Copied",
           "regenerate": "Reset link",
-          "emailsLabel": "Invite by email",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Separate emails with commas, semicolons, or new lines.",
           "sendInvites": "Send invites",
