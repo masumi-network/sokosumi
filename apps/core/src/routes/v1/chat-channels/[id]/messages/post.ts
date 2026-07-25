@@ -21,6 +21,7 @@ import {
   mapChatChannelMessage,
   requireChatChannelUserAccess,
   resolveMentionedCoworkerIds,
+  resolveThreadReplyCoworkerMention,
 } from "../../helpers";
 
 const paramsSchema = z.object({
@@ -80,18 +81,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         channel.kind === "direct"
           ? channel.coworkerMembers.map(({ coworker }) => coworker.id)
           : [];
-      const mentionedCoworkerIds = resolveMentionedCoworkerIds({
-        content: body.content,
-        explicitCoworkerIds: [
-          ...(body.mentionedCoworkerIds ?? []),
-          ...directCoworkerIds,
-        ],
-        channelCoworkers: channel.coworkerMembers.map(({ coworker }) => ({
-          id: coworker.id,
-          name: coworker.name,
-          slug: coworker.slug,
-        })),
-      });
+      const channelCoworkers = channel.coworkerMembers.map(({ coworker }) => ({
+        id: coworker.id,
+        name: coworker.name,
+        slug: coworker.slug,
+      }));
+      const channelCoworkerIds = channelCoworkers.map(({ id }) => id);
+      let implicitThreadMention: {
+        coworkerId: string;
+        providerConversationId: string | null;
+      } | null = null;
       let parentMessageId: string | null = null;
       if (body.parentMessageId) {
         const parentMessage = await tx.chatChannelMessage.findFirst({
@@ -102,12 +101,39 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           select: {
             id: true,
             parentMessageId: true,
+            senderCoworkerId: true,
+            mentionResponseFor: {
+              select: {
+                coworkerId: true,
+                providerConversationId: true,
+              },
+            },
           },
         });
         if (!parentMessage) {
           throw badRequest("Thread message not found");
         }
         parentMessageId = parentMessage.parentMessageId ?? parentMessage.id;
+        implicitThreadMention = resolveThreadReplyCoworkerMention({
+          parentMessage,
+          channelCoworkerIds,
+        });
+      }
+      const mentionedCoworkerIds = resolveMentionedCoworkerIds({
+        content: body.content,
+        explicitCoworkerIds: [
+          ...(body.mentionedCoworkerIds ?? []),
+          ...directCoworkerIds,
+          ...(implicitThreadMention ? [implicitThreadMention.coworkerId] : []),
+        ],
+        channelCoworkers,
+      });
+      const providerConversationIdByCoworkerId = new Map<string, string>();
+      if (implicitThreadMention?.providerConversationId) {
+        providerConversationIdByCoworkerId.set(
+          implicitThreadMention.coworkerId,
+          implicitThreadMention.providerConversationId,
+        );
       }
 
       const message = await tx.chatChannelMessage.create({
@@ -117,9 +143,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           senderUserId: userContext.userId,
           content: body.content,
           mentionsAsSource: {
-            create: mentionedCoworkerIds.map((coworkerId) => ({
-              coworkerId,
-            })),
+            create: mentionedCoworkerIds.map((coworkerId) => {
+              const providerConversationId =
+                providerConversationIdByCoworkerId.get(coworkerId);
+              return {
+                coworkerId,
+                ...(providerConversationId && { providerConversationId }),
+              };
+            }),
           },
         },
         include: chatChannelMessageInclude,

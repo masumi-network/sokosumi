@@ -62,6 +62,21 @@ export async function dispatchChatChannelMention(
               name: true,
             },
           },
+          parentMessage: {
+            select: {
+              content: true,
+              senderUser: {
+                select: {
+                  name: true,
+                },
+              },
+              senderCoworker: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -120,7 +135,25 @@ export async function dispatchChatChannelMention(
       },
     };
 
-    const prompt = `${senderName} mentioned you in #${mention.message.channel.name}:\n\n${mention.message.content}`;
+    const threadRoot = mention.message.parentMessage
+      ? [
+          `Thread root from ${
+            mention.message.parentMessage.senderUser?.name ??
+            mention.message.parentMessage.senderCoworker?.name ??
+            "a teammate"
+          }:`,
+          mention.message.parentMessage.content,
+          "",
+        ].join("\n")
+      : "";
+    const prompt = mention.message.parentMessageId
+      ? [
+          `${senderName} replied in a thread in #${mention.message.channel.name}:`,
+          "",
+          `${threadRoot}${senderName}:`,
+          mention.message.content,
+        ].join("\n")
+      : `${senderName} mentioned you in #${mention.message.channel.name}:\n\n${mention.message.content}`;
 
     const { text } = await generateText({
       model: getSokosumiProvider()(null),

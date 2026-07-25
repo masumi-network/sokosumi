@@ -6,6 +6,7 @@ import {
   buildDirectCoworkerChannelKey,
   buildDirectParticipantChannelKey,
   resolveMentionedCoworkerIds,
+  resolveThreadReplyCoworkerMention,
 } from "./helpers";
 
 const channelCoworkers = [
@@ -31,6 +32,62 @@ describe("resolveMentionedCoworkerIds", () => {
         channelCoworkers,
       }),
     ).toEqual(["coworker_hannah", "coworker_elena"]);
+  });
+});
+
+describe("resolveThreadReplyCoworkerMention", () => {
+  it("mentions the coworker who authored the thread root", () => {
+    expect(
+      resolveThreadReplyCoworkerMention({
+        parentMessage: {
+          senderCoworkerId: "coworker_elena",
+          mentionResponseFor: null,
+        },
+        channelCoworkerIds: ["coworker_elena", "coworker_hannah"],
+      }),
+    ).toEqual({
+      coworkerId: "coworker_elena",
+      providerConversationId: null,
+    });
+  });
+
+  it("reuses the provider conversation from the coworker response mention", () => {
+    expect(
+      resolveThreadReplyCoworkerMention({
+        parentMessage: {
+          senderCoworkerId: "coworker_elena",
+          mentionResponseFor: {
+            coworkerId: "coworker_elena",
+            providerConversationId: "provider-conversation-1",
+          },
+        },
+        channelCoworkerIds: ["coworker_elena"],
+      }),
+    ).toEqual({
+      coworkerId: "coworker_elena",
+      providerConversationId: "provider-conversation-1",
+    });
+  });
+
+  it("does not mention humans or coworkers outside the channel", () => {
+    expect(
+      resolveThreadReplyCoworkerMention({
+        parentMessage: {
+          senderCoworkerId: null,
+          mentionResponseFor: null,
+        },
+        channelCoworkerIds: ["coworker_elena"],
+      }),
+    ).toBeNull();
+    expect(
+      resolveThreadReplyCoworkerMention({
+        parentMessage: {
+          senderCoworkerId: "coworker_outside",
+          mentionResponseFor: null,
+        },
+        channelCoworkerIds: ["coworker_elena"],
+      }),
+    ).toBeNull();
   });
 });
 

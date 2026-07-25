@@ -1978,6 +1978,7 @@ export function ChannelsClient({
 
       const shouldPoll =
         threadMentionedCoworkerIds.length > 0 ||
+        threadParentMessage.sender.type === "coworker" ||
         (isDirectChannel && selectedChannel.coworkerMembers.length > 0);
       if (shouldPoll) {
         refreshThreadForCoworkers(threadParentMessage.id);

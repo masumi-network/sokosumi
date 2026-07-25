@@ -460,3 +460,37 @@ export function resolveMentionedCoworkerIds(params: {
   const allowedIds = new Set(params.channelCoworkers.map(({ id }) => id));
   return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
 }
+
+export interface ThreadReplyCoworkerMention {
+  coworkerId: string;
+  providerConversationId: string | null;
+}
+
+export function resolveThreadReplyCoworkerMention(params: {
+  parentMessage: {
+    senderCoworkerId: string | null;
+    mentionResponseFor: {
+      coworkerId: string;
+      providerConversationId: string | null;
+    } | null;
+  } | null;
+  channelCoworkerIds: readonly string[];
+}): ThreadReplyCoworkerMention | null {
+  const senderCoworkerId = params.parentMessage?.senderCoworkerId;
+  if (
+    !senderCoworkerId ||
+    !params.channelCoworkerIds.includes(senderCoworkerId)
+  ) {
+    return null;
+  }
+
+  const providerConversationId =
+    params.parentMessage?.mentionResponseFor?.coworkerId === senderCoworkerId
+      ? params.parentMessage.mentionResponseFor.providerConversationId
+      : null;
+
+  return {
+    coworkerId: senderCoworkerId,
+    providerConversationId,
+  };
+}
