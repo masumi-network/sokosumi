@@ -103,7 +103,7 @@ export default async function Sidebar({
             showDeveloperVendors={showDeveloperVendors}
           >
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
-            {hermesMenuEnabled ? <SidebarSeparator /> : null}
+            {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
             <MenuItems />
             <SidebarSeparator />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
