@@ -308,6 +308,11 @@ export async function uploadOrganizationLogoBytes(params: {
       contentType: params.contentType,
       token: env.BLOB_READ_WRITE_TOKEN,
       addRandomSuffix: false,
+      // The pathname is a content hash, so re-uploading the same icon (a
+      // retry, or a second organization whose site uses the same logo) targets
+      // an existing blob. Without this, `put` throws on that collision and the
+      // caller silently falls back to no logo.
+      allowOverwrite: true,
     });
     return blob.url;
   } catch (error) {

@@ -606,33 +606,39 @@
           "title": "Your logo",
           "subtitle": "We pulled the best icon we could find from your website.",
           "generating": "Finding your logo…",
-          "found": "Logo set from {domain}",
-          "notFound": "We couldn't find a logo — upload one or skip.",
-          "replace": "Replace",
+          "found": "We found this on {domain}. Not right? Upload your own.",
+          "foundNoDomain": "We found this on your website. Not right? Upload your own.",
+          "notFound": "We couldn't find a logo on your website. Upload one, or skip for now.",
+          "upload": "Upload a logo",
+          "replace": "Replace logo",
           "remove": "Remove",
+          "uploadHint": "PNG, JPG, or SVG. Up to 2 MB.",
           "uploadError": "Failed to upload logo",
           "previewAlt": "Organization logo preview"
         },
         "Brand": {
           "title": "Brand Guidelines",
-          "subtitle": "We're reading your website to draft your brand guidelines.",
-          "tooltip": "Brand Guidelines (a DESIGN.md file) capture your colors, tone, and style so your coworkers stay on-brand in everything they make.",
-          "generating": "Generating your brand guidelines…",
-          "generated": "Brand guidelines ready",
-          "failedTitle": "Couldn't generate brand guidelines",
-          "failedSubtitle": "No problem — you can add them later from settings.",
+          "tooltip": "Brand Guidelines are a DESIGN.md file: your colors, fonts, tone, and style in one place. Your coworkers read it so everything they make for you looks and sounds like you.",
+          "generating": "Reading {domain} to build your brand style…",
+          "generatingNoDomain": "Reading your website to build your brand style…",
+          "generated": "We generated your brand style from {domain}.",
+          "generatedNoDomain": "We generated your brand style from your website.",
+          "failedTitle": "Couldn't read your website",
+          "failedSubtitle": "No problem — you can add your brand guidelines later.",
           "retry": "Try again",
-          "skipHint": "This runs in the background — you can continue any time."
+          "skipHint": "This keeps running in the background — you can continue any time.",
+          "editHint": "You can edit, replace, or remove this later in organization settings."
         },
         "Invite": {
-          "title": "Invite your team",
-          "subtitle": "Share a link or send email invites. You can always do this later.",
+          "title": "{organization} is ready",
+          "titleFallback": "You're all set",
+          "subtitle": "Your organization is set up. Invite your team, or do it later.",
           "linkHint": "Anyone with this link can join as a member.",
           "copy": "Copy",
           "copied": "Copied",
           "regenerate": "Reset link",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
-          "emailsHint": "Separate emails with commas, semicolons, or new lines.",
+          "emailsHint": "Commas, semicolons, or new lines.",
           "sendInvites": "Send invites",
           "sending": "Sending…",
           "inviteSuccess": "Invites sent",
@@ -643,9 +649,6 @@
         "Errors": {
           "createFailed": "Failed to create organization",
           "unauthorizedAction": "Login"
-        },
-        "Success": {
-          "created": "Organization created"
         }
       },
       "RemoveModal": {

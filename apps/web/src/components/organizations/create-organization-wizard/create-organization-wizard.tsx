@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Building2,
   Check,
+  CloudUpload,
   Copy,
   FileText,
   Info,
@@ -44,6 +45,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FileUpload, FileUploadTrigger } from "@/components/ui/file-upload";
 import {
   Form,
   FormControl,
@@ -67,6 +69,7 @@ import {
 } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import {
+  ORGANIZATION_LOGO_ACCEPT,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
@@ -154,6 +157,7 @@ export function CreateOrganizationWizard({
 
   const [step, setStep] = useState(0);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [organizationName, setOrganizationName] = useState("");
   const [normalizedUrl, setNormalizedUrl] = useState<string | null>(null);
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
@@ -172,6 +176,14 @@ export function CreateOrganizationWizard({
   const brandStartedRef = useRef(false);
   const linkStartedRef = useRef(false);
   const orgCreateInFlightRef = useRef(false);
+  /** Last values actually persisted, so a step-back edit can be detected. */
+  const savedValuesRef = useRef<{ name: string; url: string } | null>(null);
+  /**
+   * Set when the website changed after a guide was already generated. Without
+   * `force`, the service short-circuits and returns the guide built from the
+   * previous URL.
+   */
+  const brandForceRef = useRef(false);
 
   const detailsSchema = useMemo(
     () =>
@@ -213,6 +225,7 @@ export function CreateOrganizationWizard({
   const resetAll = useCallback(() => {
     setStep(0);
     setOrganizationId(null);
+    setOrganizationName("");
     setNormalizedUrl(null);
     setIsCreatingOrg(false);
     setLogoUrl("");
@@ -228,6 +241,8 @@ export function CreateOrganizationWizard({
     brandStartedRef.current = false;
     linkStartedRef.current = false;
     orgCreateInFlightRef.current = false;
+    savedValuesRef.current = null;
+    brandForceRef.current = false;
     brand.reset();
     form.reset({ name: "", url: "" });
   }, [brand, form]);
@@ -273,15 +288,74 @@ export function CreateOrganizationWizard({
     [],
   );
 
+  /**
+   * Creates the organization on first continue, and on later passes applies
+   * any edits made after stepping back. A changed website invalidates both
+   * derived artifacts, so the logo and brand guidelines are re-derived from
+   * the new site rather than silently keeping the first one.
+   */
   const handleCreateOrganization = useCallback(async (): Promise<
     string | null
   > => {
-    if (organizationId) return organizationId;
     if (orgCreateInFlightRef.current) return null;
 
     const values = form.getValues();
     const url = normalizeWebsiteUrl(values.url);
     if (!url) return null;
+
+    if (organizationId) {
+      const saved = savedValuesRef.current;
+      const nameChanged = saved?.name !== values.name;
+      const urlChanged = saved?.url !== url;
+      if (!nameChanged && !urlChanged) return organizationId;
+
+      orgCreateInFlightRef.current = true;
+      setIsCreatingOrg(true);
+      try {
+        const result = await authClient.organization.update({
+          organizationId,
+          data: {
+            name: values.name,
+            // Only rewrite metadata when the website itself changed. The
+            // DESIGN.md pointer it drops described the previous site, and
+            // step 3 regenerates it for the new one.
+            ...(urlChanged
+              ? {
+                  metadata:
+                    buildOrganizationMetadataWithUrl(null, url) ?? undefined,
+                }
+              : {}),
+          },
+        });
+
+        if (result.error) {
+          toast.error(result.error.message ?? t("Errors.createFailed"));
+          return null;
+        }
+
+        savedValuesRef.current = { name: values.name, url };
+        setOrganizationName(values.name);
+
+        if (urlChanged) {
+          setNormalizedUrl(url);
+          setLogoUrl("");
+          setPendingLogoFiles([]);
+          logoStartedRef.current = false;
+          brandStartedRef.current = false;
+          brandForceRef.current = true;
+          brand.reset();
+        }
+
+        return organizationId;
+      } catch (error) {
+        console.error("Failed to update organization", error);
+        toast.error(t("Errors.createFailed"));
+        return null;
+      } finally {
+        orgCreateInFlightRef.current = false;
+        setIsCreatingOrg(false);
+      }
+    }
 
     orgCreateInFlightRef.current = true;
     setIsCreatingOrg(true);
@@ -320,7 +394,7 @@ export function CreateOrganizationWizard({
 
       setOrganizationId(created.data.id);
       setNormalizedUrl(url);
-      toast.success(t("Success.created"));
+      savedValuesRef.current = { name: values.name, url };
       return created.data.id;
     } catch (error) {
       console.error("Failed to create organization", error);
@@ -330,7 +404,7 @@ export function CreateOrganizationWizard({
       orgCreateInFlightRef.current = false;
       setIsCreatingOrg(false);
     }
-  }, [form, organizationId, router, t]);
+  }, [brand, form, organizationId, router, t]);
 
   const handleDetailsContinue = form.handleSubmit(async () => {
     const orgId = await handleCreateOrganization();
@@ -359,7 +433,9 @@ export function CreateOrganizationWizard({
       !brandStartedRef.current
     ) {
       brandStartedRef.current = true;
-      void brand.generate({ url: normalizedUrl });
+      const force = brandForceRef.current;
+      brandForceRef.current = false;
+      void brand.generate({ force, url: normalizedUrl });
     }
   }, [step, organizationId, normalizedUrl, brand]);
 
@@ -472,6 +548,7 @@ export function CreateOrganizationWizard({
   }, [handleSelectWorkspace, onOpenChange, organizationId]);
 
   const isBusy = isCreatingOrg || isUploadingLogo;
+  const brandDomain = normalizedUrl ? getDomainLabel(normalizedUrl) : "";
 
   const handleRequestClose = (nextOpen: boolean) => {
     if (isBusy) return;
@@ -524,10 +601,13 @@ export function CreateOrganizationWizard({
         </div>
 
         {/* Stage — one focal object per step, fixed height so nothing jumps */}
-        <div className="flex min-h-0 flex-col items-center justify-center overflow-y-auto px-6 pb-6 text-center sm:px-16">
+        {/* `m-auto` on the child, not `justify-center` on the scroller: a
+            centered flex child that outgrows its container gets clipped at the
+            top with no way to scroll back up. */}
+        <div className="flex min-h-0 flex-col items-center overflow-y-auto px-6 py-6 text-center sm:px-16">
           <div
             key={step}
-            className="animate-in fade-in-0 slide-in-from-bottom-1 w-full duration-200 ease-out motion-reduce:animate-none"
+            className="animate-in fade-in-0 slide-in-from-bottom-1 my-auto w-full duration-200 ease-out motion-reduce:animate-none"
           >
             {/* Step 1 — Details */}
             {step === 0 && (
@@ -629,13 +709,51 @@ export function CreateOrganizationWizard({
                   {isResolvingLogo
                     ? t("Logo.generating")
                     : logoUrl
-                      ? t("Logo.found", {
-                          domain: normalizedUrl
-                            ? getDomainLabel(normalizedUrl)
-                            : "",
-                        })
+                      ? brandDomain
+                        ? t("Logo.found", { domain: brandDomain })
+                        : t("Logo.foundNoDomain")
                       : t("Logo.notFound")}
                 </p>
+
+                {/* The hover overlay alone reads as decoration, so the upload
+                    target gets an explicit labelled control. */}
+                {!isResolvingLogo && (
+                  <div className="mt-8 flex flex-col items-center gap-2">
+                    <FileUpload
+                      value={pendingLogoFiles}
+                      onValueChange={setPendingLogoFiles}
+                      accept={ORGANIZATION_LOGO_ACCEPT}
+                      maxFiles={1}
+                      maxSize={ORGANIZATION_LOGO_MAX_SIZE_BYTES}
+                      multiple={false}
+                      disabled={isUploadingLogo}
+                      onAccept={handleLogoUpload}
+                      onFileReject={(_file: File, message?: string) => {
+                        toast.error(message ?? t("Logo.uploadError"));
+                      }}
+                    >
+                      <FileUploadTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="lg"
+                          className="h-11 px-6"
+                          disabled={isUploadingLogo}
+                        >
+                          {isUploadingLogo ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <CloudUpload className="size-4" />
+                          )}
+                          {logoUrl ? t("Logo.replace") : t("Logo.upload")}
+                        </Button>
+                      </FileUploadTrigger>
+                    </FileUpload>
+                    <p className="text-muted-foreground/70 text-[13px]">
+                      {t("Logo.uploadHint")}
+                    </p>
+                  </div>
+                )}
               </>
             )}
 
@@ -664,10 +782,14 @@ export function CreateOrganizationWizard({
 
                 <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
                   {brand.status === "completed"
-                    ? t("Brand.generated")
+                    ? brandDomain
+                      ? t("Brand.generated", { domain: brandDomain })
+                      : t("Brand.generatedNoDomain")
                     : brand.status === "failed"
                       ? t("Brand.failedTitle")
-                      : t("Brand.generating")}
+                      : brandDomain
+                        ? t("Brand.generating", { domain: brandDomain })
+                        : t("Brand.generatingNoDomain")}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -698,6 +820,9 @@ export function CreateOrganizationWizard({
                       <FileText className="size-4" />
                       <span className="font-mono text-[13px]">DESIGN.md</span>
                     </div>
+                    <p className="text-muted-foreground/70 mt-4 text-[13px]">
+                      {t("Brand.editHint")}
+                    </p>
                   </div>
                 )}
 
@@ -724,17 +849,24 @@ export function CreateOrganizationWizard({
               </>
             )}
 
-            {/* Step 4 — Invite */}
+            {/* Step 4 — Created, now invite */}
             {step === 3 && (
               <>
-                <h2 className="text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
-                  {t("Invite.title")}
+                <div className="flex min-h-16 flex-none items-center justify-center">
+                  <div className="bg-primary/10 border-primary/20 flex size-16 items-center justify-center rounded-lg border">
+                    <Check className="text-primary animate-in fade-in-0 size-7 duration-200" />
+                  </div>
+                </div>
+                <h2 className="mt-5 text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
+                  {organizationName
+                    ? t("Invite.title", { organization: organizationName })
+                    : t("Invite.titleFallback")}
                 </h2>
                 <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
                   {t("Invite.subtitle")}
                 </p>
 
-                <div className="mx-auto mt-10 w-full max-w-md">
+                <div className="mx-auto mt-6 w-full max-w-md">
                   <div className="bg-muted/60 has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
                     <Link2 className="text-muted-foreground size-4 shrink-0" />
                     {isCreatingLink ? (
@@ -772,14 +904,14 @@ export function CreateOrganizationWizard({
                     {t("Invite.linkHint")}
                   </p>
 
-                  <div className="bg-border my-8 h-px w-full" />
+                  <div className="bg-border my-4 h-px w-full" />
 
                   <Textarea
                     rows={2}
                     value={emails}
                     onChange={(event) => setEmails(event.target.value)}
                     placeholder={t("Invite.emailsPlaceholder")}
-                    className="bg-muted/60 min-h-[72px] dark:bg-muted/60 resize-none rounded-xl border px-4 py-3 text-[15px] shadow-none"
+                    className="bg-muted/60 dark:bg-muted/60 min-h-16 resize-none rounded-xl border px-4 py-3 text-[15px] shadow-none"
                   />
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <p className="text-muted-foreground/70 text-left text-[13px]">
