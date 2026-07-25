@@ -4,6 +4,7 @@ import {
   memberRepository,
   organizationInviteLinkRepository,
 } from "@sokosumi/database/repositories";
+import { APIError } from "better-auth/api";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -12,7 +13,7 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { acceptOrganizationInviteLinkResponseSchema } from "@/schemas/organization-invite-link.schema";
 import {
   ensureCanAcceptOrganizationInvitation,
@@ -47,7 +48,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    // Session-only: joining an org via a link is a self-service consent
+    // action, so a coworker/orchestrator key with X-Context-User-Id must not
+    // be able to enroll an arbitrary user.
+    const userContext = requireUserAuthContext(c.var.authContext);
     const { token } = c.req.valid("param");
     const now = new Date();
 
@@ -79,8 +83,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Billing seat gate — identical to a normal invitation accept, so a link
-    // can never sneak a member past the org's plan limits.
-    await ensureCanAcceptOrganizationInvitation(organizationId);
+    // can never sneak a member past the org's plan limits. The gate throws a
+    // better-auth APIError (a plain Error), which the route error handler would
+    // otherwise surface as a 500; translate it to the documented 400.
+    try {
+      await ensureCanAcceptOrganizationInvitation(organizationId);
+    } catch (error) {
+      // Only the gate's BAD_REQUEST verdicts (no subscription / no seats) are a
+      // client error; anything else stays a 500 so real failures aren't hidden.
+      if (error instanceof APIError && error.status === "BAD_REQUEST") {
+        const message =
+          typeof error.body?.message === "string"
+            ? error.body.message
+            : "An active organization subscription is required before adding members.";
+        throw badRequest(message);
+      }
+      throw error;
+    }
 
     let outcome: "joined" | "already_member" | "depleted";
     try {

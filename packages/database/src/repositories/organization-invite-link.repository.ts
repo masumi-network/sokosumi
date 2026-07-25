@@ -40,16 +40,6 @@ export const organizationInviteLinkRepository = (() => {
     return await tx.organizationInviteLink.findUnique({ where: { token } });
   }
 
-  async function getInviteLinksByOrganizationId(
-    organizationId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<OrganizationInviteLink[]> {
-    return await tx.organizationInviteLink.findMany({
-      where: { organizationId },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
   /**
    * Atomically reserve one use of the link: increment `useCount` only if the
    * link is still live (not revoked, not expired, and — when capped — below
@@ -87,7 +77,6 @@ export const organizationInviteLinkRepository = (() => {
   return {
     createInviteLink,
     getInviteLinkByToken,
-    getInviteLinksByOrganizationId,
     tryConsumeInviteLink,
     revokeInviteLink,
   };

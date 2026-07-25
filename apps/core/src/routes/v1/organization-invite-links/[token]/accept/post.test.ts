@@ -1,3 +1,4 @@
+import { APIError } from "better-auth/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -20,12 +21,20 @@ const {
       userId: "user_123",
       organizationId: null,
       role: "user",
-    } as {
-      actor: "user";
-      userId: string;
-      organizationId: string | null;
-      role: string;
-    } | null,
+    } as
+      | {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+          role: string;
+        }
+      | {
+          actor: "coworker";
+          coworkerId: string;
+          vendorId?: string;
+          context?: { userId: string; organizationId: string | null };
+        }
+      | null,
   },
   getInviteLinkByTokenMock: vi.fn(),
   tryConsumeInviteLinkMock: vi.fn(),
@@ -139,6 +148,37 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     const response = await post();
     expect(response.status).toBe(401);
     expect(getInviteLinkByTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a coworker/context actor so it cannot enroll arbitrary users", async () => {
+    // A coworker key carrying X-Context-User-Id must not be able to join a
+    // victim user to an org via a shared link.
+    authContextState.current = {
+      actor: "coworker",
+      coworkerId: "cow_1",
+      vendorId: "vendor_1",
+      context: { userId: "victim_999", organizationId: null },
+    };
+    getInviteLinkByTokenMock.mockResolvedValue(liveLink());
+
+    const response = await post();
+    expect(response.status).toBe(403);
+    expect(createMemberMock).not.toHaveBeenCalled();
+    expect(tryConsumeInviteLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("maps the billing-gate rejection to 400, not 500", async () => {
+    getInviteLinkByTokenMock.mockResolvedValue(liveLink());
+    ensureGateMock.mockRejectedValue(
+      new APIError("BAD_REQUEST", {
+        message: "An active organization subscription is required.",
+      }),
+    );
+
+    const response = await post();
+    expect(response.status).toBe(400);
+    expect(createMemberMock).not.toHaveBeenCalled();
+    expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
   it("joins a valid link, enforcing the seat gate then syncing seats", async () => {

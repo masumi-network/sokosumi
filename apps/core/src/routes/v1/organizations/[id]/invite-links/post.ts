@@ -10,7 +10,7 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import {
   createOrganizationInviteLinkRequestSchema,
   organizationInviteLinkSchema,
@@ -54,7 +54,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    // Session-only owner/admin action: a coworker/orchestrator key must not be
+    // able to mint org invite links on behalf of an impersonated user.
+    const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
