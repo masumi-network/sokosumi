@@ -1,3 +1,4 @@
+import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -9,6 +10,7 @@ import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
@@ -18,6 +20,7 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import type { Notice } from "@/lib/clients/generated/core";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
+import AppChatRailShell from "./components/app-chat-rail-shell";
 import AppShellChrome from "./components/app-shell-chrome";
 import { AppSidebarFallback } from "./components/app-sidebar-fallback";
 import { AuthSessionGuard } from "./components/auth-session-guard";
@@ -60,6 +63,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   const cookieStore = await cookieStorePromise;
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  const defaultChatRailOpen =
+    cookieStore.get("chat_sidebar_state")?.value === "true";
+  const userImageUrl =
+    session.user.image ??
+    gravatarUrl(session.user.email ?? "", {
+      size: 80,
+      default: "404",
+    });
 
   return (
     <QueryProvider>
@@ -86,34 +97,42 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                         session.session.activeOrganizationId ?? null
                       }
                     >
-                      <BreadcrumbOverrideProvider>
-                        <Suspense fallback={<AppSidebarFallback />}>
-                          <AppShellChrome session={session} />
-                        </Suspense>
-                        <div
-                          className="flex min-w-0 flex-1 overflow-clip"
-                          data-app-content
-                        >
+                      <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
+                        <BreadcrumbOverrideProvider>
+                          <Suspense fallback={<AppSidebarFallback />}>
+                            <AppShellChrome session={session} />
+                          </Suspense>
                           <div
-                            className="flex min-w-0 flex-1 flex-col overflow-clip"
-                            data-app-content-inner
+                            className="flex min-w-0 flex-1 overflow-clip"
+                            data-app-content
                           >
-                            <Header className="h-16 p-4" session={session} />
-                            <main
-                              className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
-                              data-app-main
+                            <div
+                              className="flex min-w-0 flex-1 flex-col overflow-clip"
+                              data-app-content-inner
                             >
-                              <EmergencyDialog />
-                              <div
-                                className="flex h-full flex-1 flex-col overflow-visible"
-                                data-app-main-inner
+                              <Header className="h-16 p-4" session={session} />
+                              <main
+                                className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
+                                data-app-main
                               >
-                                {children}
-                              </div>
-                            </main>
+                                <EmergencyDialog />
+                                <div
+                                  className="flex h-full flex-1 flex-col overflow-visible"
+                                  data-app-main-inner
+                                >
+                                  {children}
+                                </div>
+                              </main>
+                            </div>
+                            <Suspense fallback={null}>
+                              <AppChatRailShell
+                                session={session}
+                                userImageUrl={userImageUrl}
+                              />
+                            </Suspense>
                           </div>
-                        </div>
-                      </BreadcrumbOverrideProvider>
+                        </BreadcrumbOverrideProvider>
+                      </AppChatRailProvider>
                     </HistorySearchDialogProvider>
                   </SidebarProvider>
                 </NoticeDialogProvider>

@@ -1398,7 +1398,8 @@
         "errorTitle": "Erro",
         "errorDescription": "Ocorreu um erro ao processar a sua mensagem. Tente novamente.",
         "tryAgain": "Tentar novamente",
-        "networkErrorAfterRetry": "Não foi possível contactar o servidor após algumas tentativas. Verifique a ligação e tente novamente."
+        "networkErrorAfterRetry": "Não foi possível contactar o servidor após algumas tentativas. Verifique a ligação e tente novamente.",
+        "sidebarNew": "Novo"
       }
     },
     "Tasks": {
@@ -1434,7 +1435,8 @@
         "add": "Adicionar",
         "addTask": "Adicionar tarefa",
         "loading": "A carregar...",
-        "loadMore": "Carregar mais"
+        "loadMore": "Carregar mais",
+        "showGuide": "Show guide"
       },
       "Errors": {
         "updateStatus": "Falha ao atualizar o estado da tarefa",
@@ -1833,6 +1835,20 @@
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
+      },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "chatTitle": "Ou use o chat para iniciar uma tarefa",
+        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
+        "getStartedTitle": "You're all set!",
+        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
+        "getStartedButton": "Get Started",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "chatHint": "Use chat to shape the next task",
+        "elenaAvatarAlt": "Elena avatar"
       }
     },
     "Projects": {
@@ -2623,7 +2639,15 @@
           "history": "Histórico",
           "admin": "Administração",
           "settings": "Definições",
-          "back": "Voltar"
+          "back": "Voltar",
+          "chat": "Chat"
+        },
+        "ChatLists": {
+          "title": "Chats Recentes",
+          "noChats": "Ainda sem chats",
+          "untitledChat": "Chat Sem Título",
+          "modelAlt": "Modelo",
+          "coworkerAlt": "Colaborador"
         }
       }
     },
@@ -4438,6 +4462,9 @@
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       }
+    },
+    "ChatRail": {
+      "chat": "Chat"
     }
   },
   "Share": {
