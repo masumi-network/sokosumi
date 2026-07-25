@@ -2514,6 +2514,25 @@ export const InvitationStatus = {
  */
 export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
 
+export type OrganizationInviteLink = {
+    token: string;
+    url: string;
+    role: string;
+    expiresAt: Date;
+    revokedAt: Date | null;
+    maxUses: number | null;
+    useCount: number;
+};
+
+export type CreateOrganizationInviteLinkRequest = {
+    expiresInDays?: number;
+    maxUses?: number | null;
+};
+
+export type RevokeResult = {
+    ok: boolean;
+};
+
 export type OrganizationSeatSummary = {
     /**
      * Number of members with an assigned seat (0 when the organization has no paid plan)
@@ -2591,6 +2610,21 @@ export type UpdateOrganizationSubscriptionSeats = {
      * Desired purchased seat count
      */
     seats: number;
+};
+
+export type ResolveOrganizationInviteLink = {
+    status: 'valid' | 'expired' | 'revoked' | 'depleted' | 'not_found';
+    organization: {
+        name: string;
+        slug: string;
+        logo: string | null;
+    } | null;
+};
+
+export type AcceptOrganizationInviteLink = {
+    status: 'joined' | 'already_member';
+    organizationSlug: string;
+    organizationId: string;
 };
 
 export type ProjectListItem = Project & {
@@ -3274,6 +3308,10 @@ export type MasumiTaskPaymentSource = {
     network: 'Preprod' | 'Mainnet';
     smartContractAddress: string;
     policyId: string;
+};
+
+export type SiteIconResult = {
+    url: string | null;
 };
 
 export type CreditPriceOption = {
@@ -5861,6 +5899,20 @@ export type GetAgentsByIdReviewsMeErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Not Found
      */
     404: {
@@ -5922,6 +5974,20 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
@@ -13582,7 +13648,7 @@ export type GetHistoryData = {
          */
         q?: string;
         /**
-         * Workspace visibility scope for task and job rows. Conversations are always scoped to the authenticated user.
+         * Workspace visibility scope for task and job rows. Conversations are always scoped to the effective user (session or context headers).
          */
         scope?: 'workspace' | 'owned';
         /**
@@ -13784,7 +13850,7 @@ export type GetUsersByIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -13935,7 +14001,7 @@ export type GetUsersByIdDesignMdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14024,7 +14090,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14141,7 +14207,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14230,7 +14296,7 @@ export type GetUsersByIdOrganizationsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14319,7 +14385,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14474,7 +14540,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14567,7 +14633,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14674,7 +14740,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14772,7 +14838,7 @@ export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14875,7 +14941,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14989,7 +15055,7 @@ export type GetUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15083,7 +15149,7 @@ export type PostUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15177,7 +15243,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15268,7 +15334,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -15379,7 +15445,7 @@ export type GetUsersByIdUploadsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15487,7 +15553,7 @@ export type PostUsersByIdUploadsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15618,7 +15684,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15707,7 +15773,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15801,7 +15867,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15890,7 +15956,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -15983,7 +16049,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16073,7 +16139,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16177,7 +16243,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16280,7 +16346,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16383,7 +16449,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16486,7 +16552,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16575,7 +16641,7 @@ export type GetUsersByIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -17215,6 +17281,188 @@ export type GetOrganizationsByIdInvitationsResponses = {
 };
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
+
+export type PostOrganizationsByIdInviteLinksData = {
+    body?: CreateOrganizationInviteLinkRequest;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/invite-links';
+};
+
+export type PostOrganizationsByIdInviteLinksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - owner or admin only
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdInviteLinksError = PostOrganizationsByIdInviteLinksErrors[keyof PostOrganizationsByIdInviteLinksErrors];
+
+export type PostOrganizationsByIdInviteLinksResponses = {
+    /**
+     * The created invite link
+     */
+    201: {
+        data: OrganizationInviteLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdInviteLinksResponse = PostOrganizationsByIdInviteLinksResponses[keyof PostOrganizationsByIdInviteLinksResponses];
+
+export type DeleteOrganizationsByIdInviteLinksByTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Invite link token to revoke
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/invite-links/{token}';
+};
+
+export type DeleteOrganizationsByIdInviteLinksByTokenErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - owner or admin only
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrganizationsByIdInviteLinksByTokenError = DeleteOrganizationsByIdInviteLinksByTokenErrors[keyof DeleteOrganizationsByIdInviteLinksByTokenErrors];
+
+export type DeleteOrganizationsByIdInviteLinksByTokenResponses = {
+    /**
+     * Revoked
+     */
+    200: {
+        data: RevokeResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrganizationsByIdInviteLinksByTokenResponse = DeleteOrganizationsByIdInviteLinksByTokenResponses[keyof DeleteOrganizationsByIdInviteLinksByTokenResponses];
 
 export type GetOrganizationsByIdVendorGrantsData = {
     body?: never;
@@ -18589,6 +18837,142 @@ export type PutOrganizationsByIdDesignMdResponses = {
 };
 
 export type PutOrganizationsByIdDesignMdResponse = PutOrganizationsByIdDesignMdResponses[keyof PutOrganizationsByIdDesignMdResponses];
+
+export type GetOrganizationInviteLinksByTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Invite link capability token from the /join URL
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/organization-invite-links/{token}';
+};
+
+export type GetOrganizationInviteLinksByTokenErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationInviteLinksByTokenError = GetOrganizationInviteLinksByTokenErrors[keyof GetOrganizationInviteLinksByTokenErrors];
+
+export type GetOrganizationInviteLinksByTokenResponses = {
+    /**
+     * The invite link status and (when valid) an org preview
+     */
+    200: {
+        data: ResolveOrganizationInviteLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationInviteLinksByTokenResponse = GetOrganizationInviteLinksByTokenResponses[keyof GetOrganizationInviteLinksByTokenResponses];
+
+export type PostOrganizationInviteLinksByTokenAcceptData = {
+    body?: never;
+    path: {
+        /**
+         * Invite link capability token from the /join URL
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/organization-invite-links/{token}/accept';
+};
+
+export type PostOrganizationInviteLinksByTokenAcceptErrors = {
+    /**
+     * Bad Request - link expired, revoked, or depleted
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - invalid link or organization
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationInviteLinksByTokenAcceptError = PostOrganizationInviteLinksByTokenAcceptErrors[keyof PostOrganizationInviteLinksByTokenAcceptErrors];
+
+export type PostOrganizationInviteLinksByTokenAcceptResponses = {
+    /**
+     * Joined, or already a member
+     */
+    200: {
+        data: AcceptOrganizationInviteLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationInviteLinksByTokenAcceptResponse = PostOrganizationInviteLinksByTokenAcceptResponses[keyof PostOrganizationInviteLinksByTokenAcceptResponses];
 
 export type GetProjectsData = {
     body?: never;
@@ -25364,6 +25748,67 @@ export type PostTasksByIdJobsResponses = {
 };
 
 export type PostTasksByIdJobsResponse = PostTasksByIdJobsResponses[keyof PostTasksByIdJobsResponses];
+
+export type GetToolsSiteIconData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Website URL to scrape a high-quality icon from.
+         */
+        url: string;
+    };
+    url: '/tools/site-icon';
+};
+
+export type GetToolsSiteIconErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetToolsSiteIconError = GetToolsSiteIconErrors[keyof GetToolsSiteIconErrors];
+
+export type GetToolsSiteIconResponses = {
+    /**
+     * The stored icon URL, or null when none could be resolved
+     */
+    200: {
+        data: SiteIconResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetToolsSiteIconResponse = GetToolsSiteIconResponses[keyof GetToolsSiteIconResponses];
 
 export type ListCreditPricesData = {
     body?: never;

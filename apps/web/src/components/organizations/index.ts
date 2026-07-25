@@ -1,3 +1,4 @@
+export * from "./create-organization-wizard";
 export * from "./leave-organization-modal";
 export * from "./organization-bulk-invite";
 export * from "./organization-information";
