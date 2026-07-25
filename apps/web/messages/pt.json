@@ -1255,9 +1255,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "Chat"
-    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1267,7 +1264,6 @@
       "description": "Converse com os seus colegas de trabalho de IA",
       "Chat": {
         "newChat": "Novo chat",
-        "sidebarNew": "Novo",
         "noChats": "Ainda não existem chats",
         "noCoworkersAvailable": "Não existem colegas de trabalho disponíveis. Tente novamente mais tarde.",
         "welcomeSendFailed": "Não foi possível enviar a sua mensagem. Tente novamente.",
@@ -1438,22 +1434,7 @@
         "add": "Adicionar",
         "addTask": "Adicionar tarefa",
         "loading": "A carregar...",
-        "loadMore": "Carregar mais",
-        "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "Ou use o chat para iniciar uma tarefa",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
+        "loadMore": "Carregar mais"
       },
       "Errors": {
         "updateStatus": "Falha ao atualizar o estado da tarefa",
@@ -2630,15 +2611,7 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "Chats Recentes",
-          "noChats": "Ainda sem chats",
-          "untitledChat": "Chat Sem Título",
-          "modelAlt": "Modelo",
-          "coworkerAlt": "Colaborador"
-        },
         "MenuItems": {
-          "chat": "Chat",
           "search": "Pesquisar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Ficheiros e outputs",

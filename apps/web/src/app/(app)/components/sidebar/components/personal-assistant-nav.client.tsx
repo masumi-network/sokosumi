@@ -88,10 +88,9 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
 
 /**
  * The Personal Assistant — a normal nav item at the very top of the sidebar,
- * set apart from "New" by a divider (rendered in the sidebar composition). Its
- * live orb carries its identity, and the label becomes the assistant's chosen
- * name once it has one. Hidden entirely while the Hermes beta gate excludes
- * the user (see `isHermesBetaAccessEmail`).
+ * with a live orb that carries its identity. The label becomes the assistant's
+ * chosen name once it has one. Hidden entirely while the Hermes beta gate
+ * excludes the user (see `isHermesBetaAccessEmail`).
  */
 export default function PersonalAssistantNav({
   enabled,

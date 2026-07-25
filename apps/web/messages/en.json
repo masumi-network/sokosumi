@@ -1266,9 +1266,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "Chat"
-    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1278,7 +1275,6 @@
       "description": "Chat with your AI coworkers",
       "Chat": {
         "newChat": "New Chat",
-        "sidebarNew": "New",
         "noChats": "No chats yet",
         "noCoworkersAvailable": "No coworkers available. Please try again later.",
         "welcomeSendFailed": "Your message could not be sent. Please try again.",
@@ -1449,22 +1445,7 @@
         "add": "Add",
         "addTask": "Add Task",
         "loading": "Loading...",
-        "loadMore": "Load More",
-        "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "Or use the chat to start a task",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
+        "loadMore": "Load More"
       },
       "Errors": {
         "updateStatus": "Failed to update task status",
@@ -2654,15 +2635,7 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "Recent Chats",
-          "noChats": "No chats yet",
-          "untitledChat": "Untitled Chat",
-          "modelAlt": "Model",
-          "coworkerAlt": "Coworker"
-        },
         "MenuItems": {
-          "chat": "Chat",
           "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",

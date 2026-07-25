@@ -1255,9 +1255,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "聊天"
-    },
     "Chat": {
       "Metadata": {
         "title": "聊天",
@@ -1267,7 +1264,6 @@
       "description": "与您的 AI 协作伙伴聊天",
       "Chat": {
         "newChat": "新建聊天",
-        "sidebarNew": "新建",
         "noChats": "暂无聊天",
         "noCoworkersAvailable": "暂无可用协作伙伴。请稍后重试。",
         "welcomeSendFailed": "无法发送您的消息。请重试。",
@@ -1438,22 +1434,7 @@
         "add": "添加",
         "addTask": "添加任务",
         "loading": "加载中...",
-        "loadMore": "加载更多",
-        "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "或使用聊天开始任务",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
+        "loadMore": "加载更多"
       },
       "Errors": {
         "updateStatus": "更新任务状态失败",
@@ -2630,15 +2611,7 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "最近的对话",
-          "noChats": "还没有对话",
-          "untitledChat": "无标题对话",
-          "modelAlt": "模型",
-          "coworkerAlt": "协作者"
-        },
         "MenuItems": {
-          "chat": "聊天",
           "search": "搜索",
           "exploreAgents": "智能体",
           "filesAndOutputs": "文件与输出",

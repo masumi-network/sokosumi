@@ -1255,9 +1255,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "Chat"
-    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1267,7 +1264,6 @@
       "description": "Chatea con tus AI Coworkers",
       "Chat": {
         "newChat": "Nuevo chat",
-        "sidebarNew": "Nuevo",
         "noChats": "Aún sin chats",
         "noCoworkersAvailable": "No hay Coworkers disponibles. Por favor, inténtalo más tarde.",
         "welcomeSendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
@@ -1438,22 +1434,7 @@
         "add": "Añadir",
         "addTask": "Añadir Task",
         "loading": "Cargando...",
-        "loadMore": "Cargar más",
-        "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "O usa el chat para empezar una tarea",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
+        "loadMore": "Cargar más"
       },
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
@@ -2630,15 +2611,7 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "Chats Recientes",
-          "noChats": "Aún no hay chats",
-          "untitledChat": "Chat sin título",
-          "modelAlt": "Modelo",
-          "coworkerAlt": "Colaborador"
-        },
         "MenuItems": {
-          "chat": "Chat",
           "search": "Buscar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",

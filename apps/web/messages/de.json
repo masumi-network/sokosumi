@@ -1255,9 +1255,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "Chat"
-    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1267,7 +1264,6 @@
       "description": "Chatte mit deinen KI-Coworkern",
       "Chat": {
         "newChat": "Neuer Chat",
-        "sidebarNew": "Neu",
         "noChats": "Noch keine Chats",
         "noCoworkersAvailable": "Keine Coworker verfügbar. Bitte versuche es später erneut.",
         "welcomeSendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
@@ -1438,22 +1434,7 @@
         "add": "Hinzufügen",
         "addTask": "Task hinzufügen",
         "loading": "Wird geladen...",
-        "loadMore": "Mehr laden",
-        "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "Oder nutze den Chat, um eine Aufgabe zu starten",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
+        "loadMore": "Mehr laden"
       },
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
@@ -2630,15 +2611,7 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "Letzte Chats",
-          "noChats": "Noch keine Chats",
-          "untitledChat": "Unbenannter Chat",
-          "modelAlt": "Modell",
-          "coworkerAlt": "Mitarbeiter"
-        },
         "MenuItems": {
-          "chat": "Chat",
           "search": "Suche",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",

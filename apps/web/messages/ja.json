@@ -1255,9 +1255,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "チャット"
-    },
     "Chat": {
       "Metadata": {
         "title": "チャット",
@@ -1267,7 +1264,6 @@
       "description": "AI同僚とチャット",
       "Chat": {
         "newChat": "新しいチャット",
-        "sidebarNew": "新規",
         "noChats": "チャットはまだありません",
         "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
         "welcomeSendFailed": "メッセージを送信できませんでした。もう一度お試しください。",
@@ -1438,22 +1434,7 @@
         "add": "追加",
         "addTask": "タスクを追加",
         "loading": "読み込み中...",
-        "loadMore": "さらに読み込む",
-        "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "またはチャットでタスクを開始する",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
+        "loadMore": "さらに読み込む"
       },
       "Errors": {
         "updateStatus": "タスクステータスの更新に失敗しました",
@@ -2630,15 +2611,7 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "最近のチャット",
-          "noChats": "まだチャットがありません",
-          "untitledChat": "無題のチャット",
-          "modelAlt": "モデル",
-          "coworkerAlt": "同僚"
-        },
         "MenuItems": {
-          "chat": "チャット",
           "search": "検索",
           "exploreAgents": "エージェント",
           "filesAndOutputs": "ファイルと出力",
