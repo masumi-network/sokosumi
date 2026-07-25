@@ -588,6 +588,7 @@
           "back": "Back",
           "next": "Continue",
           "skip": "Skip",
+          "finishSetup": "Finish setup",
           "finish": "Go to workspace",
           "creating": "Creating…"
         },

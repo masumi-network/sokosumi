@@ -85,6 +85,11 @@ import {
 } from "@/lib/utils/user-file-upload.client";
 
 const TOTAL_STEPS = 4;
+/**
+ * Index of the terminal step. Setup ends with the brand guidelines; this step
+ * only confirms the result and offers invites, so it has no way back.
+ */
+const SUCCESS_STEP = 3;
 const COPIED_RESET_MS = 2000;
 
 function normalizeWebsiteUrl(rawUrl: string): string | null {
@@ -849,8 +854,8 @@ export function CreateOrganizationWizard({
               </>
             )}
 
-            {/* Step 4 — Created, now invite */}
-            {step === 3 && (
+            {/* Step 4 — created; confirm and invite */}
+            {step === SUCCESS_STEP && (
               <>
                 <div className="flex min-h-16 flex-none items-center justify-center">
                   <div className="bg-primary/10 border-primary/20 flex size-16 items-center justify-center rounded-lg border">
@@ -941,7 +946,10 @@ export function CreateOrganizationWizard({
 
         {/* Footer — exactly one filled action on screen */}
         <div className="bg-background flex items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-6 sm:pb-6">
-          {step > 0 ? (
+          {/* Back stops at the last setup step. Past it there is nothing left
+              to configure, and the organization already exists — offering
+              "Back" there would imply the creation can be undone. */}
+          {step > 0 && step < SUCCESS_STEP ? (
             <Button
               variant="ghost"
               className="text-muted-foreground h-11 px-4"
@@ -951,9 +959,9 @@ export function CreateOrganizationWizard({
               <ArrowLeft className="size-4" />
               {t("Nav.back")}
             </Button>
-          ) : (
+          ) : step < SUCCESS_STEP ? (
             <div />
-          )}
+          ) : null}
 
           {step === 0 && (
             <Button
@@ -969,7 +977,7 @@ export function CreateOrganizationWizard({
               {!isCreatingOrg && <ArrowRight className="size-4" />}
             </Button>
           )}
-          {(step === 1 || step === 2) && (
+          {step === 1 && (
             <Button
               variant="primary"
               size="lg"
@@ -981,11 +989,24 @@ export function CreateOrganizationWizard({
               <ArrowRight className="size-4" />
             </Button>
           )}
-          {step === 3 && (
+          {/* Last configurable step: the label says so, and drops the forward
+              arrow so it doesn't read as just another "next". */}
+          {step === 2 && (
             <Button
               variant="primary"
               size="lg"
               className="h-11 px-6"
+              onClick={() => setStep((current) => current + 1)}
+              disabled={isBusy}
+            >
+              {t("Nav.finishSetup")}
+            </Button>
+          )}
+          {step === SUCCESS_STEP && (
+            <Button
+              variant="primary"
+              size="lg"
+              className="h-11 w-full px-6"
               onClick={handleFinish}
             >
               {t("Nav.finish")}
