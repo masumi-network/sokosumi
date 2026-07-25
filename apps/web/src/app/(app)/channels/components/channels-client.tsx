@@ -667,7 +667,7 @@ function ChannelComposer({
               suggestionsAnchor="editor"
               submitOnEnter
               onSubmitShortcut={() => formRef.current?.requestSubmit()}
-              className="min-h-20 resize-none rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 md:text-sm"
+              className="min-h-20 resize-none rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
               renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
             />
             <div className="flex items-center justify-between px-3 pb-3">
