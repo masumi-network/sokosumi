@@ -10,12 +10,17 @@ import {
 } from "../welcome-compose-preferences";
 
 function baseCoworker(over: Partial<Coworker> = {}): Coworker {
+  const capabilities = over.capabilities ?? [];
   return {
     id: "cow_1",
     name: "Alex",
     description: "d",
     useCase: "u",
     slug: "alex",
+    capabilities,
+    archivedAt: null,
+    isWhitelisted: true,
+    canChat: capabilities.includes("chat"),
     ...over,
   };
 }
@@ -266,6 +271,37 @@ describe("resolveHydratedWelcomeSelection", () => {
     expect(r.composeKind).toBe("chat");
     expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
     expect(r.coworker?.slug).toBe("alex");
+  });
+
+  it("for chat compose, skips stored coworker without runnable chat endpoint", () => {
+    const coworkersWithUnavailableChat = [
+      baseCoworker({
+        id: "a",
+        slug: "alex",
+        capabilities: ["chat"],
+        canChat: false,
+      }),
+      baseCoworker({
+        id: "h",
+        slug: "hannah",
+        capabilities: ["chat"],
+      }),
+    ];
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: null,
+      coworkerSlugOrId: "alex",
+    };
+    const r = resolveHydratedWelcomeSelection(
+      coworkersWithUnavailableChat,
+      stored,
+      {
+        urlCoworkerSlug: false,
+      },
+    );
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.slug).toBe("hannah");
   });
 
   it("for chat compose with null coworkerSlugOrId, picks first chat-capable coworker", () => {

@@ -5,6 +5,7 @@ import UserCredits, {
   type UserCreditsData,
 } from "@/app/components/user-credits";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
+import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -13,15 +14,13 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import { userService } from "@/lib/services";
+import { chatChannelService, userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
 import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
 import AnnouncementCards from "./components/announcement-cards";
-import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
-import NewChatTaskActions from "./components/new-chat-task-actions";
 import PersonalAssistantNav from "./components/personal-assistant-nav.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
@@ -57,10 +56,23 @@ export default async function Sidebar({
   let members: Awaited<
     ReturnType<typeof userService.getMyMembersWithOrganizations>
   > = [];
+  let chatChannels: Awaited<
+    ReturnType<typeof chatChannelService.listChannels>
+  > = [];
+
   try {
     members = await userService.getMyMembersWithOrganizations();
   } catch (_error) {
     members = [];
+  }
+
+  if (activeOrganizationId) {
+    try {
+      chatChannels =
+        await chatChannelService.listChannels(activeOrganizationId);
+    } catch (_error) {
+      chatChannels = [];
+    }
   }
 
   const [{ showVendors: showDeveloperVendors }, planLabel] = await Promise.all([
@@ -91,14 +103,16 @@ export default async function Sidebar({
             showDeveloperVendors={showDeveloperVendors}
           >
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
-            {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}
-            <NewChatTaskActions />
-            <SidebarSeparator className="mx-0 mt-2 w-full" />
+            {hermesMenuEnabled ? <SidebarSeparator /> : null}
             <MenuItems />
-            <SidebarSeparator className="mx-0" />
+            <SidebarSeparator />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
-            <SidebarSeparator className="mx-0" />
-            <ChatListsClient />
+            <SidebarSeparator />
+            <OrganizationChatList
+              channels={chatChannels}
+              currentUserId={session.user.id}
+              hasOrganization={Boolean(activeOrganizationId)}
+            />
           </SidebarNav>
         </div>
       </SidebarContent>

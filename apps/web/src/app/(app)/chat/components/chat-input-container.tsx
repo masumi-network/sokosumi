@@ -10,6 +10,7 @@ import type {
   Coworker,
 } from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
+import { cn } from "@/lib/utils";
 
 interface ChatInputContainerProps {
   selectedChatId: string | null;
@@ -33,6 +34,7 @@ interface ChatInputContainerProps {
   mobileKeyboardOptimized?: boolean;
   persistentImageGeneration?: boolean;
   submitBlocked?: boolean;
+  fullWidth?: boolean;
 }
 
 export default function ChatInputContainer({
@@ -52,10 +54,21 @@ export default function ChatInputContainer({
   mobileKeyboardOptimized = false,
   persistentImageGeneration = false,
   submitBlocked = false,
+  fullWidth = false,
 }: ChatInputContainerProps) {
   return (
-    <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible px-8 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0">
-      <div className="w-full max-w-4xl overflow-visible">
+    <div
+      className={cn(
+        "bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0",
+        fullWidth ? "px-5" : "px-8",
+      )}
+    >
+      <div
+        className={cn(
+          "w-full overflow-visible",
+          fullWidth ? "max-w-none" : "max-w-4xl",
+        )}
+      >
         <MultimodalInput
           blurOnSendOnMobile={mobileKeyboardOptimized}
           chatId={selectedChatId || undefined}

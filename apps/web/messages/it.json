@@ -1264,6 +1264,7 @@
       "description": "Chatta con i tuoi coworker IA",
       "Chat": {
         "newChat": "Nuova chat",
+        "conversationSwitcher": "Conversazioni",
         "noChats": "Ancora nessuna chat",
         "noCoworkersAvailable": "Nessun coworker disponibile. Riprova più tardi.",
         "welcomeSendFailed": "Impossibile inviare il messaggio. Riprova.",
@@ -1432,8 +1433,8 @@
         "approvePartialError": "Approvati {approved} vendor su {total}. Alcune approvazioni non sono riuscite — aggiorna e riprova."
       },
       "Actions": {
-        "add": "Aggiungi",
-        "addTask": "Aggiungi task",
+        "add": "Nuova attività",
+        "addTask": "Nuova attività",
         "loading": "Caricamento...",
         "loadMore": "Carica altro",
         "showGuide": "Show guide"
@@ -2628,6 +2629,7 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
+          "newTask": "Nuova attività",
           "search": "Cerca",
           "exploreAgents": "Agenti",
           "filesAndOutputs": "File e output",
@@ -4392,6 +4394,8 @@
         "onlyInOrganizations": "Only in organisations",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4401,9 +4405,12 @@
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
         "name": "Name",
+        "nameRequired": "Il nome del canale è obbligatorio.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
         "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",

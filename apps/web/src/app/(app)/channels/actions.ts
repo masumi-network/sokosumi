@@ -40,6 +40,15 @@ interface SendNewDirectMessageInput {
   mentionedCoworkerIds?: string[];
 }
 
+interface SendNewChannelMessageInput {
+  name: string;
+  topic?: string;
+  memberUserIds?: string[];
+  coworkerIds?: string[];
+  content: string;
+  mentionedCoworkerIds?: string[];
+}
+
 interface SendNewDirectMessageResult {
   channel: ChatChannel;
   message: ChatChannelMessage;
@@ -170,6 +179,46 @@ export async function sendNewDirectMessageAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not start direct message."),
+    };
+  }
+}
+
+export async function sendNewChannelMessageAction(
+  input: SendNewChannelMessageInput,
+): Promise<ChannelActionResult<SendNewDirectMessageResult>> {
+  const activeOrganization = await userService.getActiveOrganization();
+  if (!activeOrganization) {
+    return { ok: false, message: "Select an organization first." };
+  }
+
+  const name = cleanString(input.name);
+  if (!name) {
+    return { ok: false, message: "Channel name is required." };
+  }
+
+  const cleanContent = cleanString(input.content);
+  if (!cleanContent) {
+    return { ok: false, message: "Message is required." };
+  }
+
+  try {
+    const channel = await chatChannelService.createChannel({
+      organizationId: activeOrganization.id,
+      name,
+      topic: cleanString(input.topic),
+      memberUserIds: cleanIds(input.memberUserIds),
+      coworkerIds: cleanIds(input.coworkerIds),
+    });
+    const message = await chatChannelService.sendMessage(channel.id, {
+      content: cleanContent,
+      mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
+    });
+    revalidatePath("/channels");
+    return { ok: true, data: { channel, message } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not create channel."),
     };
   }
 }

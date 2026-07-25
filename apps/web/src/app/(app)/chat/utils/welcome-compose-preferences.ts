@@ -2,7 +2,8 @@ import { CHAT_MODELS } from "@sokosumi/chat";
 
 import {
   type CoworkerCapability,
-  coworkerHasCapability,
+  coworkerCanChat,
+  coworkerCanHandleTasks,
 } from "./coworker-utils";
 import type { ChatComposeKind, Coworker } from "./types";
 
@@ -24,7 +25,18 @@ function firstCoworkerWithCapability(
   coworkers: Coworker[],
   capability: CoworkerCapability,
 ): Coworker | null {
-  return coworkers.find((x) => coworkerHasCapability(x, capability)) ?? null;
+  return coworkers.find((x) => coworkerCanUseCapability(x, capability)) ?? null;
+}
+
+function coworkerCanUseCapability(
+  coworker: Coworker,
+  capability: CoworkerCapability,
+): boolean {
+  if (capability === "chat") {
+    return coworkerCanChat(coworker);
+  }
+
+  return coworkerCanHandleTasks(coworker);
 }
 
 export function readWelcomeComposePreferences(): WelcomeComposeStoredV1 | null {
@@ -133,7 +145,7 @@ export function resolveHydratedWelcomeSelection(
         x.id.toLowerCase() === key.toLowerCase(),
     );
     if (c) {
-      if (coworkerHasCapability(c, "chat")) {
+      if (coworkerCanUseCapability(c, "chat")) {
         return { composeKind: "chat", coworker: c, model: null };
       }
       return {

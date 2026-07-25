@@ -1,10 +1,17 @@
 "use client";
 
-import { Bot, FolderKanban, History, ListTodo, Search } from "lucide-react";
+import {
+  Bot,
+  FolderKanban,
+  History,
+  ListTodo,
+  Plus,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { ComponentType, SVGProps } from "react";
+import { type ComponentType, Fragment, type SVGProps } from "react";
 import { useHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -28,6 +35,7 @@ interface MenuItemConfig {
   onClick?: () => void;
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
+  separatorAfter?: boolean;
 }
 
 export default function MenuItems() {
@@ -52,6 +60,13 @@ export default function MenuItems() {
   };
 
   const items: MenuItemConfig[] = [
+    {
+      key: "new-task",
+      href: "/tasks?create=true",
+      label: t("newTask"),
+      Icon: Plus,
+      separatorAfter: true,
+    },
     {
       key: "search",
       label: t("search"),
@@ -103,6 +118,7 @@ export default function MenuItems() {
                 onClick,
                 shortcutLabel,
                 ariaKeyshortcuts,
+                separatorAfter,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
                 const showUnread = (unreadCount ?? 0) > 0;
@@ -141,61 +157,71 @@ export default function MenuItems() {
                 );
 
                 return (
-                  <SidebarMenuItem key={key}>
-                    {href ? (
-                      <SidebarMenuButton asChild isActive={isActive}>
-                        <SheetClose asChild>
-                          <Link
-                            href={href}
-                            aria-current={isActive ? "page" : undefined}
-                            className={cn(
-                              "flex min-h-auto w-full items-center gap-2 px-3",
-                              isActive
-                                ? "text-primary-foreground"
-                                : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                            )}
-                          >
-                            {content}
-                          </Link>
-                        </SheetClose>
-                      </SidebarMenuButton>
-                    ) : (
-                      <SidebarMenuButton
-                        type="button"
-                        onClick={onClick}
-                        aria-keyshortcuts={ariaKeyshortcuts}
-                        tooltip={
-                          shortcutLabel
-                            ? {
-                                children: (
-                                  <span className="flex items-center gap-2">
-                                    <span>{label}</span>
-                                    <span className="text-muted-foreground text-xs tracking-widest">
-                                      {shortcutLabel}
+                  <Fragment key={key}>
+                    <SidebarMenuItem>
+                      {href ? (
+                        <SidebarMenuButton asChild isActive={isActive}>
+                          <SheetClose asChild>
+                            <Link
+                              href={href}
+                              aria-current={isActive ? "page" : undefined}
+                              className={cn(
+                                "flex min-h-auto w-full items-center gap-2 px-3",
+                                isActive
+                                  ? "text-primary-foreground"
+                                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                              )}
+                            >
+                              {content}
+                            </Link>
+                          </SheetClose>
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton
+                          type="button"
+                          onClick={onClick}
+                          aria-keyshortcuts={ariaKeyshortcuts}
+                          tooltip={
+                            shortcutLabel
+                              ? {
+                                  children: (
+                                    <span className="flex items-center gap-2">
+                                      <span>{label}</span>
+                                      <span className="text-muted-foreground text-xs tracking-widest">
+                                        {shortcutLabel}
+                                      </span>
                                     </span>
-                                  </span>
-                                ),
-                              }
-                            : undefined
-                        }
-                        className={cn(
-                          "flex min-h-auto w-full items-center gap-2 px-3",
-                          "text-tertiary-foreground dark:text-muted-foreground",
-                          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        )}
+                                  ),
+                                }
+                              : undefined
+                          }
+                          className={cn(
+                            "flex min-h-auto w-full items-center gap-2 px-3",
+                            "text-tertiary-foreground dark:text-muted-foreground",
+                            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          )}
+                        >
+                          {content}
+                          {shortcutLabel ? (
+                            <span
+                              aria-hidden
+                              className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
+                            >
+                              {shortcutLabel}
+                            </span>
+                          ) : null}
+                        </SidebarMenuButton>
+                      )}
+                    </SidebarMenuItem>
+                    {separatorAfter ? (
+                      <SidebarMenuItem
+                        aria-hidden
+                        className="-mx-2 py-1 group-data-[collapsible=icon]:hidden"
                       >
-                        {content}
-                        {shortcutLabel ? (
-                          <span
-                            aria-hidden
-                            className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
-                          >
-                            {shortcutLabel}
-                          </span>
-                        ) : null}
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
+                        <div className="bg-sidebar-border h-px w-full" />
+                      </SidebarMenuItem>
+                    ) : null}
+                  </Fragment>
                 );
               },
             )}

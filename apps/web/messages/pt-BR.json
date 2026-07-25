@@ -1264,6 +1264,7 @@
       "description": "Converse com seus coworkers de IA",
       "Chat": {
         "newChat": "Novo chat",
+        "conversationSwitcher": "Conversas",
         "noChats": "Ainda não há chats",
         "noCoworkersAvailable": "Nenhum coworker disponível. Tente novamente mais tarde.",
         "welcomeSendFailed": "Não foi possível enviar a sua mensagem. Tente novamente.",
@@ -1432,8 +1433,8 @@
         "approvePartialError": "Acesso aprovado para {approved} de {total} fornecedores. Algumas aprovações falharam — atualize e tente novamente."
       },
       "Actions": {
-        "add": "Adicionar",
-        "addTask": "Adicionar tarefa",
+        "add": "Nova tarefa",
+        "addTask": "Nova tarefa",
         "loading": "Carregando...",
         "loadMore": "Carregar mais",
         "showGuide": "Show guide"
@@ -2628,6 +2629,7 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
+          "newTask": "Nova tarefa",
           "search": "Pesquisar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Arquivos e saídas",
@@ -4392,6 +4394,8 @@
         "onlyInOrganizations": "Only in organisations",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4401,9 +4405,12 @@
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
         "name": "Name",
+        "nameRequired": "O nome do canal é obrigatório.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
         "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",

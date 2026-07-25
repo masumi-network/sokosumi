@@ -108,6 +108,10 @@ interface MessageListProps {
   listRevision?: number;
   warmupPending?: boolean;
   warmupCoworkerName?: string;
+  hasTopHeader?: boolean;
+  fullWidth?: boolean;
+  leftAlignedUserMessages?: boolean;
+  showSenderHeaders?: boolean;
 }
 
 const MessageList = forwardRef<MessageListHandle, MessageListProps>(
@@ -131,6 +135,10 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       listRevision = 0,
       warmupPending = false,
       warmupCoworkerName,
+      hasTopHeader = false,
+      fullWidth = false,
+      leftAlignedUserMessages = false,
+      showSenderHeaders = false,
     },
     ref,
   ) {
@@ -444,6 +452,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                 modelName={modelName}
                 modelId={modelId}
                 isStreaming={isStreaming}
+                leftAlignedUser={leftAlignedUserMessages}
+                showSenderHeader={showSenderHeaders}
               />
             </div>
           )}
@@ -461,8 +471,19 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{ overflowAnchor: "none" }}
         >
-          <div className="flex flex-col items-center pt-20 pb-40 md:pt-4">
-            <div className="flex w-full max-w-4xl flex-col">
+          <div
+            className={cn(
+              "flex flex-col pb-40",
+              hasTopHeader ? "pt-20" : "pt-20 md:pt-4",
+              fullWidth ? "items-stretch px-5" : "items-center",
+            )}
+          >
+            <div
+              className={cn(
+                "flex w-full flex-col",
+                fullWidth ? "max-w-none" : "max-w-4xl",
+              )}
+            >
               {showEmptyStateLoaders && (
                 <>
                   {showReasoningLoaders && (

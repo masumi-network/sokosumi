@@ -1275,6 +1275,7 @@
       "description": "Chat with your AI coworkers",
       "Chat": {
         "newChat": "New Chat",
+        "conversationSwitcher": "Conversations",
         "noChats": "No chats yet",
         "noCoworkersAvailable": "No coworkers available. Please try again later.",
         "welcomeSendFailed": "Your message could not be sent. Please try again.",
@@ -1443,8 +1444,8 @@
         "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
       },
       "Actions": {
-        "add": "Add",
-        "addTask": "Add Task",
+        "add": "New Task",
+        "addTask": "New Task",
         "loading": "Loading...",
         "loadMore": "Load More",
         "showGuide": "Show guide"
@@ -2652,6 +2653,7 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
+          "newTask": "New Task",
           "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
@@ -4511,6 +4513,8 @@
         "onlyInOrganizations": "Only in organisations",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4520,9 +4524,12 @@
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
         "name": "Name",
+        "nameRequired": "Channel name is required.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
         "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",

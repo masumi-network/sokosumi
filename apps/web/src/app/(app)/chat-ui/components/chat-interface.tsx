@@ -4,7 +4,14 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
-import { Loader2 } from "lucide-react";
+import {
+  Bot,
+  ChevronDown,
+  Loader2,
+  MessageCircle,
+  MessagesSquare,
+  Plus,
+} from "lucide-react";
 import {
   useParams,
   usePathname,
@@ -30,12 +37,17 @@ import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { useConversationWarmup } from "@/app/chat/hooks/use-conversation-warmup";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
-import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
+import {
+  displaySlugFromMetadata,
+  getBucketKeyFromMetadata,
+  slugify,
+} from "@/app/chat/utils/bucket-slug";
 import {
   coworkerHasCapability,
   filterCoworkersForComposeKind,
   findCoworkerBySlugOrId,
   findDefaultCoworker,
+  getCoworkerImageUrl,
 } from "@/app/chat/utils/coworker-utils";
 import type {
   Chat,
@@ -59,6 +71,7 @@ import {
 import {
   CHAT_API_PATH,
   CHAT_APP_ROUTE_PREFIX,
+  getBucketSlugFromChatPathname,
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
   isChatShellPathname,
@@ -75,15 +88,30 @@ import {
   reconcileSlotMessagesWithDb,
 } from "@/app/chat-ui/utils/message-utils";
 import {
+  clearPendingCoworkerDirectMessage,
+  isPendingCoworkerDirectMessageFresh,
+  pendingCoworkerDirectMessageMatchesBucket,
+  readPendingCoworkerDirectMessage,
+} from "@/app/chat-ui/utils/pending-coworker-direct-message";
+import {
   cancelCoworkerDbSync,
   hasGoodCoworkerAssistantTail,
   isStaleCoworkerAssistantTail,
   shouldRejectCoworkerMessageRegression,
   syncCoworkerSlotFromDbWithRetry,
 } from "@/app/chat-ui/utils/sync-coworker-slot-from-db";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
+import { cn } from "@/lib/utils";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { isCoworkerWarmupReadyForWelcomeSend } from "../utils/welcome-send-warmup";
 import MessageList from "./message-list";
 
@@ -210,6 +238,192 @@ function buildResendMessage(message: UIMessage): ChatSendMessage | null {
 interface SlotPayload {
   conversationId: string | null;
   model: { id: string; name: string } | null;
+}
+
+function getConversationListTitle(
+  conversation: Conversation,
+  fallbackTitle: string,
+): string {
+  const title = conversation.title?.trim();
+  if (title && title !== fallbackTitle) {
+    return title;
+  }
+  return fallbackTitle;
+}
+
+interface CoworkerConversationSwitcherProps {
+  bucketSlug: string;
+  conversations: Conversation[];
+  currentConversationId: string;
+  displayName: string;
+  onCreateConversation: () => Promise<boolean>;
+}
+
+function CoworkerConversationSwitcher({
+  bucketSlug,
+  conversations,
+  currentConversationId,
+  displayName,
+  onCreateConversation,
+}: CoworkerConversationSwitcherProps) {
+  const t = useTranslations("App.Chat.Chat");
+  const router = useRouter();
+  const { formatTimeAgo } = useLocalizedDateTime();
+  const [open, setOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreateConversation = useCallback(async () => {
+    if (isCreating) {
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const created = await onCreateConversation();
+      if (created) {
+        setOpen(false);
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  }, [isCreating, onCreateConversation]);
+
+  const handleSelectConversation = useCallback(
+    (conversationId: string) => {
+      setOpen(false);
+      router.push(
+        `${CHAT_APP_ROUTE_PREFIX}/${bucketSlug}/conversation/${conversationId}`,
+        {
+          scroll: false,
+        },
+      );
+    },
+    [bucketSlug, router],
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 rounded-full px-2.5"
+          aria-label={t("conversationSwitcher")}
+          title={t("conversationSwitcher")}
+        >
+          <MessagesSquare className="size-4" aria-hidden />
+          <span className="hidden sm:inline">{t("conversationSwitcher")}</span>
+          <span className="text-muted-foreground text-xs">
+            {conversations.length}
+          </span>
+          <ChevronDown className="size-3.5" aria-hidden />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-2">
+        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+          <p className="text-sm font-semibold">{t("conversationSwitcher")}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full"
+            onClick={() => {
+              void handleCreateConversation();
+            }}
+            disabled={isCreating}
+            aria-label={t("newChat")}
+            title={t("newChat")}
+          >
+            {isCreating ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Plus className="size-4" aria-hidden />
+            )}
+          </Button>
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          <div className="space-y-1 p-1">
+            {conversations.map((conversation) => {
+              const isActive = conversation.id === currentConversationId;
+              return (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  className={cn(
+                    "hover:bg-muted/70 flex w-full items-start gap-2 rounded-md px-2.5 py-2 text-left transition-colors",
+                    isActive && "bg-muted",
+                  )}
+                  onClick={() => handleSelectConversation(conversation.id)}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <MessageCircle className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {getConversationListTitle(conversation, displayName)}
+                    </span>
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {formatTimeAgo(conversation.updatedAt)}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+interface CoworkerChatHeaderProps {
+  bucketSlug: string;
+  conversations: Conversation[];
+  currentConversationId: string;
+  coworker: Coworker;
+  displayName: string;
+  onCreateConversation: () => Promise<boolean>;
+}
+
+function CoworkerChatHeader({
+  bucketSlug,
+  conversations,
+  currentConversationId,
+  coworker,
+  displayName,
+  onCreateConversation,
+}: CoworkerChatHeaderProps) {
+  const avatarUrl = coworker.avatar ?? getCoworkerImageUrl(coworker.id);
+
+  return (
+    <header className="bg-background/95 absolute inset-x-0 top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6 backdrop-blur">
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar className="size-8 shrink-0">
+          <AvatarImage src={avatarUrl ?? undefined} alt="" />
+          <AvatarFallback className="text-xs">
+            {displayName.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+            <span className="truncate">{displayName}</span>
+            <Bot className="text-muted-foreground size-3.5 shrink-0" />
+          </p>
+          {coworker.caption ? (
+            <p className="text-muted-foreground truncate text-xs">
+              {coworker.caption}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <CoworkerConversationSwitcher
+        bucketSlug={bucketSlug}
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        displayName={displayName}
+        onCreateConversation={onCreateConversation}
+      />
+    </header>
+  );
 }
 
 function readPreviousResponseIdFromMetadata(
@@ -409,6 +623,7 @@ export default function ChatInterface({
   const [isWelcomeSubmitting, setIsWelcomeSubmitting] = useState(false);
   const [welcomeSendRetryTick, setWelcomeSendRetryTick] = useState(0);
   const welcomeCreationInFlightRef = useRef(false);
+  const pendingCoworkerDirectMessageKeyRef = useRef<string | null>(null);
   const pendingWelcomeSendRef = useRef<{
     conversationId: string;
     bucketSlug: string;
@@ -2080,6 +2295,70 @@ export default function ChatInterface({
     ],
   );
 
+  useEffect(() => {
+    if (!isRouteDriven || !isChatPath || isConversationsLoading) {
+      return;
+    }
+
+    const pending = readPendingCoworkerDirectMessage();
+    if (!pending) {
+      return;
+    }
+
+    if (!isPendingCoworkerDirectMessageFresh(pending)) {
+      clearPendingCoworkerDirectMessage();
+      return;
+    }
+
+    const pathBucketSlug = getBucketSlugFromChatPathname(pathname ?? "");
+    if (
+      pathBucketSlug &&
+      !pendingCoworkerDirectMessageMatchesBucket(pending, {
+        bucketSlug: pathBucketSlug,
+      })
+    ) {
+      return;
+    }
+
+    const coworker =
+      findCoworkerBySlugOrId(coworkers, pending.coworkerSlug) ??
+      findCoworkerBySlugOrId(coworkers, pending.coworkerId);
+    if (!coworker || !coworkerHasCapability(coworker, "chat")) {
+      return;
+    }
+
+    const routeConversationId = getConversationIdFromChatPathname(
+      pathname ?? "",
+    );
+    if (routeConversationId && selectedChatId !== routeConversationId) {
+      return;
+    }
+
+    const pendingKey = `${pending.createdAt}:${pending.coworkerId}:${pending.content}`;
+    if (pendingCoworkerDirectMessageKeyRef.current === pendingKey) {
+      return;
+    }
+
+    pendingCoworkerDirectMessageKeyRef.current = pendingKey;
+    void handleSendMessage(pending.content, coworker, undefined, {
+      kind: "chat",
+    }).then((sent) => {
+      if (sent) {
+        clearPendingCoworkerDirectMessage();
+        return;
+      }
+      pendingCoworkerDirectMessageKeyRef.current = null;
+    });
+  }, [
+    coworkers,
+    handleSendMessage,
+    isChatPath,
+    isConversationsLoading,
+    isRouteDriven,
+    pathname,
+    selectedChatId,
+  ]);
+
   const selectedChatStatus = useMemo(() => {
     if (!selectedChatId) return "ready" as const;
     const slot = conversationToSlot.get(selectedChatId);
@@ -2211,11 +2490,80 @@ export default function ChatInterface({
     selectedChat?.coworker,
   ]);
 
+  const selectedConversationForView = useMemo(() => {
+    if (!selectedChatId) {
+      return null;
+    }
+    if (selectedConversation?.id === selectedChatId) {
+      return selectedConversation;
+    }
+    return (
+      conversations.find(
+        (conversation) => conversation.id === selectedChatId,
+      ) ?? null
+    );
+  }, [conversations, selectedChatId, selectedConversation]);
+
+  const selectedConversationMetadata =
+    (selectedConversationForView?.metadata as Record<string, unknown> | null) ??
+    null;
+  const selectedConversationBucketKey = getBucketKeyFromMetadata(
+    selectedConversationMetadata,
+  );
+  const selectedCoworkerConversations = useMemo(() => {
+    if (!selectedConversationBucketKey.startsWith("coworker:")) {
+      return [];
+    }
+    return conversations
+      .filter((conversation) => {
+        const meta =
+          (conversation.metadata as Record<string, unknown> | null) ?? null;
+        return getBucketKeyFromMetadata(meta) === selectedConversationBucketKey;
+      })
+      .toSorted(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
+  }, [conversations, selectedConversationBucketKey]);
+  const selectedCoworkerBucketSlug =
+    displaySlugFromMetadata(selectedConversationMetadata) ||
+    slugify(selectedChatCoworker?.slug ?? "") ||
+    slugify(selectedChatCoworker?.name ?? "");
+  const selectedCoworkerDisplayName =
+    selectedChatCoworker?.name ??
+    (selectedConversationMetadata?.coworker_name as string | undefined) ??
+    selectedChat?.title ??
+    t("coworkerNameFallback");
+  const showCoworkerChatHeader = Boolean(
+    selectedChatId &&
+      isSelectedChatCoworker &&
+      selectedChatCoworker &&
+      selectedCoworkerBucketSlug &&
+      selectedConversationBucketKey.startsWith("coworker:"),
+  );
+  const handleCreateSelectedCoworkerConversation = useCallback(async () => {
+    if (!selectedChatCoworker) {
+      return false;
+    }
+    const conversation = await createCoworkerChat(selectedChatCoworker);
+    return conversation != null;
+  }, [createCoworkerChat, selectedChatCoworker]);
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-visible rounded-lg">
       <div className="relative flex h-full min-h-0 w-full flex-col">
         {selectedChatId ? (
           <>
+            {showCoworkerChatHeader && selectedChatCoworker ? (
+              <CoworkerChatHeader
+                bucketSlug={selectedCoworkerBucketSlug}
+                conversations={selectedCoworkerConversations}
+                currentConversationId={selectedChatId}
+                coworker={selectedChatCoworker}
+                displayName={selectedCoworkerDisplayName}
+                onCreateConversation={handleCreateSelectedCoworkerConversation}
+              />
+            ) : null}
             {showMessagesAfterTransition && (
               <>
                 {isConversationLoading &&
@@ -2252,6 +2600,10 @@ export default function ChatInterface({
                     listRevision={messageListRevision}
                     warmupPending={coworkerWarmupUiPending}
                     warmupCoworkerName={selectedChatCoworker?.name}
+                    hasTopHeader={showCoworkerChatHeader}
+                    fullWidth={isSelectedChatCoworker}
+                    leftAlignedUserMessages={isSelectedChatCoworker}
+                    showSenderHeaders={isSelectedChatCoworker}
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
                       selectedChatReasoningStartedAt ?? undefined
@@ -2289,6 +2641,7 @@ export default function ChatInterface({
                   persistentImageGeneration={
                     selectedConversationImageGeneration
                   }
+                  fullWidth={isSelectedChatCoworker}
                   submitBlocked={
                     coworkerWarmupUiPending ||
                     isPendingWelcomeSendBlocked ||

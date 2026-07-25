@@ -14,11 +14,9 @@ import {
   Loader2,
   MessageCircle,
   Paperclip,
-  Plus,
   Search,
   Settings2,
   SmilePlus,
-  Type,
   Users,
   X,
 } from "lucide-react";
@@ -38,15 +36,18 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
-  createChannelAction,
   listThreadMessagesAction,
   sendChannelMessageAction,
+  sendNewChannelMessageAction,
   sendNewDirectMessageAction,
   toggleMessageReactionAction,
   updateChannelAction,
 } from "@/app/channels/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { slugify } from "@/app/chat/utils/bucket-slug";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
+import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
+import { writePendingCoworkerDirectMessage } from "@/app/chat-ui/utils/pending-coworker-direct-message";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -106,7 +107,9 @@ interface ChannelsClientProps {
   currentUserId: string;
   coworkers: Coworker[];
   selectedChannelId: string | null;
+  isCreateChannelRequested: boolean;
   isNewDirectMessage: boolean;
+  messageLoadFailed: boolean;
   messages: ChatChannelMessage[];
 }
 
@@ -147,6 +150,17 @@ function initials(value: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function AiCoworkerIcon({ className }: { className?: string }) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <Bot
+      className={cn("text-muted-foreground size-3.5 shrink-0", className)}
+      aria-label={t("coworkerBadge")}
+    />
+  );
 }
 
 function toggleId(ids: string[], id: string, checked: boolean): string[] {
@@ -265,7 +279,6 @@ function getDirectChannelSubtitle(
   channel: ChatChannel,
   currentUserId: string,
   options: {
-    aiCoworkerLabel: string;
     fallback: string;
     participantCountLabel: (count: number) => string;
   },
@@ -275,7 +288,7 @@ function getDirectChannelSubtitle(
   if (participants.length === 1) {
     const participant = participants[0];
     if (participant.kind === "coworker") {
-      return participant.detail ?? options.aiCoworkerLabel;
+      return participant.detail ?? options.fallback;
     }
     return participant.detail ?? options.fallback;
   }
@@ -506,7 +519,10 @@ function CoworkerSuggestion({
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
-        <div className="truncate font-medium">{mention.value}</div>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate font-medium">{mention.value}</span>
+          <AiCoworkerIcon />
+        </div>
         <div className="text-muted-foreground truncate text-xs">
           @{mention.slug}
         </div>
@@ -648,6 +664,7 @@ function ChannelComposer({
               onSelectedKeysChange={onSelectedKeysChange}
               mentions={mentions}
               placeholder={placeholder}
+              suggestionsAnchor="editor"
               submitOnEnter
               onSubmitShortcut={() => formRef.current?.requestSubmit()}
               className="min-h-20 resize-none rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 md:text-sm"
@@ -720,17 +737,6 @@ function ChannelComposer({
                     </div>
                   </PopoverContent>
                 </Popover>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 rounded-full"
-                  title={t("Toolbar.bold")}
-                  aria-label={t("Toolbar.bold")}
-                  onClick={() => textareaRef.current?.insertText("**bold**")}
-                >
-                  <Type className="size-4" aria-hidden />
-                </Button>
               </div>
               <Button
                 type="submit"
@@ -827,11 +833,7 @@ function ChatMessageRow({
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span className="truncate text-sm font-semibold">{sender.name}</span>
-          {sender.kind === "coworker" ? (
-            <Badge variant="secondary" className="h-5">
-              {t("coworkerBadge")}
-            </Badge>
-          ) : null}
+          {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
           <time className="text-muted-foreground text-xs">
             {formatMessageTime(message.createdAt)}
           </time>
@@ -1047,196 +1049,175 @@ function ParticipantCheckboxes({
   onCoworkerIdsChange: (ids: string[]) => void;
 }) {
   const t = useTranslations("App.Channels");
+  const [participantQuery, setParticipantQuery] = useState("");
+  const normalizedQuery = participantQuery.trim().toLowerCase();
+  const selectedCount = memberIds.length + coworkerIds.length;
+  const filteredMembers = useMemo(() => {
+    if (!normalizedQuery) {
+      return members;
+    }
+
+    return members.filter((member) =>
+      [member.user.name, member.user.email]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [members, normalizedQuery]);
+  const filteredCoworkers = useMemo(() => {
+    if (!normalizedQuery) {
+      return coworkers;
+    }
+
+    return coworkers.filter((coworker) =>
+      [coworker.name, coworker.slug, coworker.caption]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [coworkers, normalizedQuery]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="min-w-0 space-y-2">
-        <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
-          <Users className="size-3.5" aria-hidden />
-          {t("Dialog.humans")}
-        </div>
-        <ScrollArea className="h-52 rounded-md border">
-          <div className="space-y-1 p-2">
-            {members.map((member) => (
-              <label
-                key={member.user.id}
-                className="hover:bg-muted/70 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5"
-              >
-                <Checkbox
-                  checked={memberIds.includes(member.user.id)}
-                  onCheckedChange={(checked) =>
-                    onMemberIdsChange(
-                      toggleId(memberIds, member.user.id, checked === true),
-                    )
-                  }
-                />
-                <Avatar className="size-6">
-                  <AvatarImage src={member.user.image ?? undefined} alt="" />
-                  <AvatarFallback className="text-[10px]">
-                    {initials(member.user.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm">
-                    {member.user.name}
-                  </span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    {member.user.email}
-                  </span>
-                </span>
-              </label>
-            ))}
+    <div className="rounded-lg border bg-background">
+      <div className="border-b px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">{t("Dialog.participants")}</p>
+            <p className="text-muted-foreground text-xs">
+              {selectedCount > 0
+                ? t("Dialog.selectedParticipants", { count: selectedCount })
+                : t("Dialog.createDescription")}
+            </p>
           </div>
-        </ScrollArea>
+          <Users className="text-muted-foreground size-4 shrink-0" />
+        </div>
+        <div className="relative mt-3">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            value={participantQuery}
+            onChange={(event) => setParticipantQuery(event.target.value)}
+            placeholder={t("Draft.searchPlaceholder")}
+            className="h-9 rounded-full border-0 bg-muted/60 pr-4 pl-9 shadow-none focus-visible:ring-1"
+          />
+        </div>
       </div>
 
-      <div className="min-w-0 space-y-2">
-        <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
-          <Bot className="size-3.5" aria-hidden />
-          {t("Dialog.coworkers")}
+      <ScrollArea className="h-[300px]">
+        <div className="p-2">
+          {filteredMembers.length > 0 ? (
+            <div className="pb-2">
+              <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[11px] font-medium">
+                {t("Dialog.humans")}
+              </div>
+              <div className="space-y-0.5">
+                {filteredMembers.map((member) => {
+                  const checked = memberIds.includes(member.user.id);
+                  const displayName = member.user.name || member.user.email;
+
+                  return (
+                    <label
+                      key={member.user.id}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
+                        checked ? "bg-muted/70" : "hover:bg-muted/50",
+                      )}
+                    >
+                      <Avatar className="size-8">
+                        <AvatarImage
+                          src={member.user.image ?? undefined}
+                          alt=""
+                        />
+                        <AvatarFallback className="text-xs">
+                          {initials(displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {displayName}
+                        </span>
+                        <span className="text-muted-foreground block truncate text-xs">
+                          {member.user.email}
+                        </span>
+                      </span>
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(nextChecked) =>
+                          onMemberIdsChange(
+                            toggleId(
+                              memberIds,
+                              member.user.id,
+                              nextChecked === true,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {filteredCoworkers.length > 0 ? (
+            <div className="pt-1">
+              <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-[11px] font-medium">
+                <Bot className="size-3" aria-hidden />
+                {t("Dialog.coworkers")}
+              </div>
+              <div className="space-y-0.5">
+                {filteredCoworkers.map((coworker) => {
+                  const checked = coworkerIds.includes(coworker.id);
+
+                  return (
+                    <label
+                      key={coworker.id}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
+                        checked ? "bg-muted/70" : "hover:bg-muted/50",
+                      )}
+                    >
+                      <Avatar className="size-8">
+                        <AvatarImage src={coworker.image ?? undefined} alt="" />
+                        <AvatarFallback className="text-xs">
+                          {initials(coworker.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium">
+                            {coworker.name}
+                          </span>
+                          <AiCoworkerIcon />
+                        </span>
+                        <span className="text-muted-foreground block truncate text-xs">
+                          @{coworker.slug}
+                        </span>
+                      </span>
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(nextChecked) =>
+                          onCoworkerIdsChange(
+                            toggleId(
+                              coworkerIds,
+                              coworker.id,
+                              nextChecked === true,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {filteredMembers.length === 0 && filteredCoworkers.length === 0 ? (
+            <div className="text-muted-foreground px-4 py-12 text-center text-sm">
+              {t("Draft.noResults")}
+            </div>
+          ) : null}
         </div>
-        <ScrollArea className="h-52 rounded-md border">
-          <div className="space-y-1 p-2">
-            {coworkers.map((coworker) => (
-              <label
-                key={coworker.id}
-                className="hover:bg-muted/70 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5"
-              >
-                <Checkbox
-                  checked={coworkerIds.includes(coworker.id)}
-                  onCheckedChange={(checked) =>
-                    onCoworkerIdsChange(
-                      toggleId(coworkerIds, coworker.id, checked === true),
-                    )
-                  }
-                />
-                <Avatar className="size-6">
-                  <AvatarImage src={coworker.image ?? undefined} alt="" />
-                  <AvatarFallback className="text-[10px]">
-                    {initials(coworker.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm">
-                    {coworker.name}
-                  </span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    @{coworker.slug}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
+      </ScrollArea>
     </div>
-  );
-}
-
-function CreateChannelDialog({
-  members,
-  coworkers,
-}: {
-  members: Member[];
-  coworkers: Coworker[];
-}) {
-  const t = useTranslations("App.Channels");
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [topic, setTopic] = useState("");
-  const [memberIds, setMemberIds] = useState<string[]>([]);
-  const [coworkerIds, setCoworkerIds] = useState<string[]>([]);
-  const [isPending, startTransition] = useTransition();
-
-  function reset() {
-    setName("");
-    setTopic("");
-    setMemberIds([]);
-    setCoworkerIds([]);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    startTransition(async () => {
-      const result = await createChannelAction({
-        name,
-        topic,
-        memberUserIds: memberIds,
-        coworkerIds,
-      });
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-      reset();
-      setOpen(false);
-      router.replace(`/channels?channel=${result.data.id}`);
-      router.refresh();
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="icon" variant="ghost" aria-label={t("createChannel")}>
-          <Plus className="size-4" aria-hidden />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{t("Dialog.createTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("Dialog.createDescription")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="channel-name">{t("Dialog.name")}</Label>
-              <Input
-                id="channel-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder={t("Dialog.namePlaceholder")}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="channel-topic">{t("Dialog.topic")}</Label>
-              <Textarea
-                id="channel-topic"
-                value={topic}
-                onChange={(event) => setTopic(event.target.value)}
-                placeholder={t("Dialog.topicPlaceholder")}
-                rows={3}
-              />
-            </div>
-            <ParticipantCheckboxes
-              members={members}
-              coworkers={coworkers}
-              memberIds={memberIds}
-              coworkerIds={coworkerIds}
-              onMemberIdsChange={setMemberIds}
-              onCoworkerIdsChange={setCoworkerIds}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-            >
-              {t("Dialog.cancel")}
-            </Button>
-            <Button type="submit" variant="primary" disabled={isPending}>
-              {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-              {t("Dialog.create")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -1301,7 +1282,7 @@ function EditChannelDialog({
           <Settings2 className="size-4" aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="shadow-none sm:max-w-2xl">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
@@ -1370,9 +1351,19 @@ function buildDirectDraftTargets(
   members: Member[],
   coworkers: Coworker[],
   currentUserId: string,
-  aiCoworkerLabel: string,
 ): DirectDraftTarget[] {
   return [
+    ...coworkers.map((coworker) => ({
+      key: `coworker:${coworker.id}`,
+      id: coworker.id,
+      name: coworker.name,
+      detail: coworker.caption ?? (coworker.slug ? `@${coworker.slug}` : ""),
+      image: coworker.image ?? null,
+      kind: "coworker" as const,
+      slug: coworker.slug,
+      caption: coworker.caption,
+      presence: "online" as const,
+    })),
     ...members
       .filter((member) => member.user.id !== currentUserId)
       .map((member) => ({
@@ -1383,17 +1374,6 @@ function buildDirectDraftTargets(
         image: member.user.image ?? null,
         kind: "human" as const,
       })),
-    ...coworkers.map((coworker) => ({
-      key: `coworker:${coworker.id}`,
-      id: coworker.id,
-      name: coworker.name,
-      detail: coworker.caption ?? aiCoworkerLabel,
-      image: coworker.image ?? null,
-      kind: "coworker" as const,
-      slug: coworker.slug,
-      caption: coworker.caption,
-      presence: "online" as const,
-    })),
   ];
 }
 
@@ -1420,14 +1400,320 @@ function DirectDraftTargetRow({
         </AvatarFallback>
       </Avatar>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">
-          {target.name}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-sm font-medium">{target.name}</span>
+          {target.kind === "coworker" ? <AiCoworkerIcon /> : null}
         </span>
-        <span className="text-muted-foreground block truncate text-xs">
-          {target.detail}
-        </span>
+        {target.detail ? (
+          <span className="text-muted-foreground block truncate text-xs">
+            {target.detail}
+          </span>
+        ) : null}
       </span>
     </button>
+  );
+}
+
+function DraftChannel({
+  members,
+  coworkers,
+  currentUserId,
+}: {
+  members: Member[];
+  coworkers: Coworker[];
+  currentUserId: string;
+}) {
+  const t = useTranslations("App.Channels");
+  const router = useRouter();
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [name, setName] = useState("");
+  const [topic, setTopic] = useState("");
+  const [recipientQuery, setRecipientQuery] = useState("");
+  const [isRecipientPickerOpen, setIsRecipientPickerOpen] = useState(true);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [composerValue, setComposerValue] = useState("");
+  const [composerAttachments, setComposerAttachments] = useState<
+    ChannelComposerAttachment[]
+  >([]);
+  const [mentionedCoworkerIds, setMentionedCoworkerIds] = useState<string[]>(
+    [],
+  );
+  const [isCreating, startCreatingTransition] = useTransition();
+  const targets = useMemo(
+    () => buildDirectDraftTargets(members, coworkers, currentUserId),
+    [members, coworkers, currentUserId],
+  );
+  const selectedTargets = useMemo(() => {
+    const byKey = new Map(targets.map((target) => [target.key, target]));
+    return selectedKeys
+      .map((key) => byKey.get(key))
+      .filter((target): target is DirectDraftTarget => Boolean(target));
+  }, [selectedKeys, targets]);
+  const selectedKeySet = useMemo(() => new Set(selectedKeys), [selectedKeys]);
+  const normalizedQuery = recipientQuery.trim().toLowerCase();
+  const candidateTargets = useMemo(() => {
+    return targets
+      .filter((target) => !selectedKeySet.has(target.key))
+      .filter((target) => {
+        if (!normalizedQuery) {
+          return true;
+        }
+        return [target.name, target.detail, target.slug ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery);
+      })
+      .slice(0, 8);
+  }, [normalizedQuery, selectedKeySet, targets]);
+  const selectedCoworkerParticipants = useMemo<
+    Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>
+  >(() => {
+    return Object.fromEntries(
+      selectedTargets
+        .filter((target) => target.kind === "coworker" && target.slug)
+        .map((target) => [
+          target.id,
+          {
+            value: target.name,
+            slug: target.slug ?? target.id,
+            data: {
+              id: target.id,
+              name: target.name,
+              slug: target.slug ?? target.id,
+              caption: target.caption ?? null,
+              image: target.image,
+              presence: target.presence ?? "online",
+            },
+          },
+        ]),
+    );
+  }, [selectedTargets]);
+  const selectedMemberUserIds = selectedTargets
+    .filter((target) => target.kind === "human")
+    .map((target) => target.id);
+  const selectedCoworkerIds = selectedTargets
+    .filter((target) => target.kind === "coworker")
+    .map((target) => target.id);
+  const trimmedName = name.trim();
+  const displayName = trimmedName || t("Dialog.createTitle");
+
+  function addTarget(target: DirectDraftTarget) {
+    setSelectedKeys((current) =>
+      current.includes(target.key) ? current : [...current, target.key],
+    );
+    setRecipientQuery("");
+    setIsRecipientPickerOpen(true);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
+  function removeTarget(key: string) {
+    setSelectedKeys((current) => current.filter((item) => item !== key));
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
+  function refreshForCoworkers() {
+    [2000, 5000, 10000].forEach((delay) => {
+      window.setTimeout(() => router.refresh(), delay);
+    });
+  }
+
+  function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const content = composerValue.trim();
+    if (!trimmedName) {
+      toast.error(t("Dialog.nameRequired"));
+      nameInputRef.current?.focus();
+      return;
+    }
+    if (!content) {
+      return;
+    }
+
+    startCreatingTransition(async () => {
+      const result = await sendNewChannelMessageAction({
+        name: trimmedName,
+        topic,
+        memberUserIds: selectedMemberUserIds,
+        coworkerIds: selectedCoworkerIds,
+        content,
+        mentionedCoworkerIds,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setName("");
+      setTopic("");
+      setSelectedKeys([]);
+      setComposerValue("");
+      setComposerAttachments([]);
+      setMentionedCoworkerIds([]);
+      router.replace(`/channels?channel=${result.data.channel.id}`);
+      router.refresh();
+      if (mentionedCoworkerIds.length > 0) {
+        refreshForCoworkers();
+      }
+    });
+  }
+
+  return (
+    <>
+      <header className="min-h-14 shrink-0 border-b px-5 py-2">
+        <div className="space-y-2">
+          <div className="flex w-full items-start gap-2">
+            <Hash
+              className="text-muted-foreground mt-2 size-4 shrink-0"
+              aria-hidden
+            />
+            <div className="min-w-0 flex-1">
+              <input
+                ref={nameInputRef}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t("Dialog.namePlaceholder")}
+                className="placeholder:text-muted-foreground h-8 w-full bg-transparent text-sm font-medium outline-none"
+              />
+              <input
+                value={topic}
+                onChange={(event) => setTopic(event.target.value)}
+                placeholder={t("Dialog.topicPlaceholder")}
+                className="placeholder:text-muted-foreground/80 h-6 w-full bg-transparent text-xs text-muted-foreground outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="relative flex w-full items-start gap-2">
+            <span className="text-muted-foreground pt-2 text-sm font-medium">
+              {t("Dialog.participants")}
+            </span>
+            <div className="flex min-h-10 min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              {selectedTargets.map((target) => (
+                <span
+                  key={target.key}
+                  className="bg-muted text-foreground inline-flex max-w-56 items-center gap-1.5 rounded-full py-1 pr-1 pl-1.5 text-sm"
+                >
+                  <Avatar className="size-5">
+                    <AvatarImage src={target.image ?? undefined} alt="" />
+                    <AvatarFallback className="text-[9px]">
+                      {initials(target.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="truncate">{target.name}</span>
+                    {target.kind === "coworker" ? (
+                      <AiCoworkerIcon className="size-3" />
+                    ) : null}
+                  </span>
+                  <button
+                    type="button"
+                    className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
+                    onClick={() => removeTarget(target.key)}
+                    aria-label={t("Draft.removeRecipient", {
+                      name: target.name,
+                    })}
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                </span>
+              ))}
+              <div className="relative min-w-44 flex-1">
+                <Search
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-0 size-4 -translate-y-1/2"
+                  aria-hidden
+                />
+                <input
+                  ref={searchInputRef}
+                  value={recipientQuery}
+                  onChange={(event) => {
+                    setRecipientQuery(event.target.value);
+                    setIsRecipientPickerOpen(true);
+                  }}
+                  onFocus={() => setIsRecipientPickerOpen(true)}
+                  onBlur={() => {
+                    window.setTimeout(
+                      () => setIsRecipientPickerOpen(false),
+                      120,
+                    );
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && candidateTargets[0]) {
+                      event.preventDefault();
+                      addTarget(candidateTargets[0]);
+                    }
+                    if (
+                      event.key === "Backspace" &&
+                      recipientQuery.length === 0 &&
+                      selectedKeys.length > 0
+                    ) {
+                      removeTarget(selectedKeys[selectedKeys.length - 1]);
+                    }
+                  }}
+                  placeholder={
+                    selectedTargets.length === 0
+                      ? t("Draft.searchPlaceholder")
+                      : t("Draft.searchPlaceholderMore")
+                  }
+                  className="placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 text-sm outline-none"
+                />
+              </div>
+            </div>
+            {isRecipientPickerOpen ? (
+              <div className="bg-popover text-popover-foreground border-border absolute top-full right-0 left-0 z-20 mt-1 max-h-72 overflow-y-auto rounded-md border p-1 shadow-lg">
+                {candidateTargets.length > 0 ? (
+                  candidateTargets.map((target) => (
+                    <DirectDraftTargetRow
+                      key={target.key}
+                      target={target}
+                      onSelect={addTarget}
+                    />
+                  ))
+                ) : (
+                  <p className="text-muted-foreground px-3 py-4 text-sm">
+                    {t("Draft.noResults")}
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </header>
+
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex min-h-full w-full items-center justify-center px-5 py-10">
+          <div className="max-w-md text-center">
+            <Hash className="text-muted-foreground mx-auto size-8" />
+            <h2 className="mt-4 text-lg font-semibold">
+              {trimmedName ? `# ${displayName}` : t("Dialog.createTitle")}
+            </h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              {selectedTargets.length > 0
+                ? t("Dialog.selectedParticipants", {
+                    count: selectedTargets.length,
+                  })
+                : t("Empty.noChannelDescription")}
+            </p>
+          </div>
+        </div>
+      </ScrollArea>
+
+      <ChannelComposer
+        value={composerValue}
+        onValueChange={setComposerValue}
+        mentions={selectedCoworkerParticipants}
+        onSelectedKeysChange={setMentionedCoworkerIds}
+        placeholder={
+          trimmedName
+            ? t("Draft.composerPlaceholder")
+            : t("Dialog.namePlaceholder")
+        }
+        attachments={composerAttachments}
+        onAttachmentsChange={setComposerAttachments}
+        onSubmit={handleCreate}
+        isSending={isCreating}
+        sendDisabled={trimmedName.length === 0 || composerValue.trim() === ""}
+      />
+    </>
   );
 }
 
@@ -1455,14 +1741,8 @@ function DraftDirectMessage({
   );
   const [isSending, startSendingTransition] = useTransition();
   const targets = useMemo(
-    () =>
-      buildDirectDraftTargets(
-        members,
-        coworkers,
-        currentUserId,
-        t("coworkerBadge"),
-      ),
-    [members, coworkers, currentUserId, t],
+    () => buildDirectDraftTargets(members, coworkers, currentUserId),
+    [members, coworkers, currentUserId],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));
@@ -1548,6 +1828,32 @@ function DraftDirectMessage({
       return;
     }
 
+    if (
+      selectedMemberUserIds.length === 0 &&
+      selectedCoworkerIds.length === 1
+    ) {
+      const coworkerTarget = selectedTargets.find(
+        (target) => target.kind === "coworker",
+      );
+      if (coworkerTarget) {
+        const coworkerRouteId = coworkerTarget.slug || coworkerTarget.id;
+        const coworkerRouteSlug =
+          slugify(coworkerRouteId) ||
+          slugify(coworkerTarget.name) ||
+          coworkerTarget.id;
+        writePendingCoworkerDirectMessage({
+          coworkerId: coworkerTarget.id,
+          coworkerSlug: coworkerRouteId,
+          content,
+          createdAt: Date.now(),
+        });
+        router.push(
+          `${CHAT_APP_ROUTE_PREFIX}/${coworkerRouteSlug}?coworker=${encodeURIComponent(coworkerRouteId)}`,
+        );
+        return;
+      }
+    }
+
     startSendingTransition(async () => {
       const result = await sendNewDirectMessageAction({
         memberUserIds: selectedMemberUserIds,
@@ -1589,7 +1895,12 @@ function DraftDirectMessage({
                     {initials(target.name)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="truncate">{target.name}</span>
+                <span className="flex min-w-0 items-center gap-1">
+                  <span className="truncate">{target.name}</span>
+                  {target.kind === "coworker" ? (
+                    <AiCoworkerIcon className="size-3" />
+                  ) : null}
+                </span>
                 <button
                   type="button"
                   className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
@@ -1703,7 +2014,9 @@ export function ChannelsClient({
   currentUserId,
   coworkers,
   selectedChannelId,
+  isCreateChannelRequested,
   isNewDirectMessage,
+  messageLoadFailed,
   messages,
 }: ChannelsClientProps) {
   const t = useTranslations("App.Channels");
@@ -1758,19 +2071,27 @@ export function ChannelsClient({
                 href: `/channels?channel=${selectedChannel.id}`,
               },
             ]
-          : isNewDirectMessage
+          : isCreateChannelRequested
             ? [
                 {
-                  label: t("Draft.breadcrumb"),
-                  href: "/channels?dm=new",
+                  label: t("Dialog.createTitle"),
+                  href: "/channels?create=channel",
                 },
               ]
-            : []),
+            : isNewDirectMessage
+              ? [
+                  {
+                    label: t("Draft.breadcrumb"),
+                    href: "/channels?dm=new",
+                  },
+                ]
+              : []),
       ],
     }),
     [
       selectedChannel,
       selectedChannelDisplayName,
+      isCreateChannelRequested,
       isNewDirectMessage,
       t,
       tBreadcrumb,
@@ -1826,7 +2147,7 @@ export function ChannelsClient({
     setThreadComposerValue("");
     setThreadComposerAttachments([]);
     setThreadMentionedCoworkerIds([]);
-  }, [selectedChannelId, isNewDirectMessage]);
+  }, [selectedChannelId, isNewDirectMessage, isCreateChannelRequested]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -1989,7 +2310,13 @@ export function ChannelsClient({
     <div className="-m-4 flex h-[calc(100svh-64px)] min-h-0 flex-col overflow-hidden bg-background">
       <main className="flex min-h-0 flex-1">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {isNewDirectMessage ? (
+          {isCreateChannelRequested ? (
+            <DraftChannel
+              members={organizationMembers}
+              coworkers={coworkers}
+              currentUserId={currentUserId}
+            />
+          ) : isNewDirectMessage ? (
             <DraftDirectMessage
               members={organizationMembers}
               coworkers={coworkers}
@@ -2010,7 +2337,6 @@ export function ChannelsClient({
                           selectedChannel,
                           currentUserId,
                           {
-                            aiCoworkerLabel: t("coworkerBadge"),
                             fallback: activeOrganization.name,
                             participantCountLabel: (count) =>
                               t("directParticipantCount", { count }),
@@ -2033,7 +2359,16 @@ export function ChannelsClient({
 
               <ScrollArea className="min-h-0 flex-1">
                 <div className="flex w-full flex-col px-5 pt-6 pb-8">
-                  {messagesState.length === 0 ? (
+                  {messageLoadFailed ? (
+                    <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
+                      <p className="font-medium">
+                        {t("Empty.messagesLoadFailedTitle")}
+                      </p>
+                      <p className="text-muted-foreground mt-1 text-sm">
+                        {t("Empty.messagesLoadFailedDescription")}
+                      </p>
+                    </div>
+                  ) : messagesState.length === 0 ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
                       <p className="font-medium">
                         {t("Empty.noMessagesTitle")}
@@ -2103,10 +2438,13 @@ export function ChannelsClient({
                   {t("Empty.noChannelDescription")}
                 </p>
                 <div className="mt-5">
-                  <CreateChannelDialog
-                    members={organizationMembers}
-                    coworkers={coworkers}
-                  />
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => router.push("/channels?create=channel")}
+                  >
+                    {t("createChannel")}
+                  </Button>
                 </div>
               </div>
             </div>

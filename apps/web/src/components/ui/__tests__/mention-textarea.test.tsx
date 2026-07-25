@@ -40,11 +40,13 @@ function StatefulMentionTextarea({
 }
 
 function ImperativeMentionTextarea({
+  initialValue = "",
   onChange,
 }: {
+  initialValue?: string;
   onChange: (value: string) => void;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
 
   return (
@@ -114,7 +116,22 @@ describe("MentionTextarea", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "mention" }));
 
-    expect(onChange).toHaveBeenLastCalledWith("@");
+    expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByText("Elena")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Elena"));
+
+    expect(onChange).toHaveBeenLastCalledWith("@coworker_elena:elena ");
+  });
+
+  it("inserts manual mentions with spacing after existing text", () => {
+    const onChange = vi.fn();
+
+    render(<ImperativeMentionTextarea initialValue="Hello" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "mention" }));
+    fireEvent.click(screen.getByText("Elena"));
+
+    expect(onChange).toHaveBeenLastCalledWith("Hello @coworker_elena:elena ");
   });
 });

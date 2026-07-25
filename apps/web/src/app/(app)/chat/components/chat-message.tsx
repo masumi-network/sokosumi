@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Bot, ChevronDown, ChevronUp } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
@@ -44,6 +44,8 @@ interface ChatMessageProps {
   modelId?: string;
   modelName?: string;
   isStreaming?: boolean;
+  leftAlignedUser?: boolean;
+  showSenderHeader?: boolean;
 }
 
 function isImageFilePart(part: MessageFilePart): boolean {
@@ -63,6 +65,8 @@ export default function ChatMessage({
   modelId,
   modelName,
   isStreaming = false,
+  leftAlignedUser = false,
+  showSenderHeader = false,
 }: ChatMessageProps) {
   const t = useTranslations("App.Chat.Chat");
   const isUser = role === "user";
@@ -82,11 +86,18 @@ export default function ChatMessage({
   const userContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isUser || isPromptExpanded || !userContentRef.current) return;
+    if (
+      !isUser ||
+      leftAlignedUser ||
+      isPromptExpanded ||
+      !userContentRef.current
+    ) {
+      return;
+    }
     const el = userContentRef.current;
     const overflow = el.scrollHeight > el.clientHeight;
     setShowPromptToggle(overflow);
-  }, [isUser, isPromptExpanded, displayContent]);
+  }, [isUser, leftAlignedUser, isPromptExpanded, displayContent]);
 
   // `null` on the server and first client render so SSR and hydration agree;
   // resolves to the client timezone after mount.
@@ -153,14 +164,38 @@ export default function ChatMessage({
   const assistantOtherFileParts = isUser
     ? []
     : fileParts.filter((part) => !isImageFilePart(part));
+  const shouldLeftAlignUser = isUser && leftAlignedUser;
+  const senderName = isUser
+    ? (userName ?? "You")
+    : (coworkerName ?? modelName ?? t("assistant"));
+  const showCoworkerIcon = !isUser && Boolean(coworkerName);
+
+  const userAvatar = (
+    <Avatar className="size-8 shrink-0">
+      {userImageUrl ? (
+        <AvatarImage
+          src={userImageUrl}
+          alt={userName ?? t("userAvatarAlt")}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
+      <AvatarFallback className="bg-muted">
+        {userName ? userName.charAt(0).toUpperCase() : "U"}
+      </AvatarFallback>
+    </Avatar>
+  );
 
   return (
     <div
       className={cn(
         "flex w-full gap-3 px-4",
-        isUser
-          ? "justify-end py-0.5"
-          : "min-h-11 items-start justify-start py-1.5",
+        shouldLeftAlignUser
+          ? "min-h-11 items-start justify-start py-1.5"
+          : isUser
+            ? "justify-end py-0.5"
+            : "min-h-11 items-start justify-start py-1.5",
       )}
     >
       {!isUser && (
@@ -173,20 +208,47 @@ export default function ChatMessage({
           {getAssistantAvatar()}
         </Avatar>
       )}
+      {shouldLeftAlignUser ? userAvatar : null}
       <div
         className={cn(
           "flex w-full min-w-0",
-          isUser
-            ? "items-end justify-end"
-            : "min-h-5 items-start justify-start",
+          shouldLeftAlignUser
+            ? "min-h-5 items-start justify-start"
+            : isUser
+              ? "items-end justify-end"
+              : "min-h-5 items-start justify-start",
         )}
       >
         <div
           className={cn(
             "flex flex-col gap-0.5",
-            isUser ? "max-w-[70%] items-end" : "max-w-full items-start",
+            shouldLeftAlignUser
+              ? "max-w-full items-start"
+              : isUser
+                ? "max-w-[70%] items-end"
+                : "max-w-full items-start",
           )}
         >
+          {showSenderHeader ? (
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-sm font-semibold">
+                  {senderName}
+                </span>
+                {showCoworkerIcon ? (
+                  <Bot
+                    className="text-muted-foreground size-3.5 shrink-0"
+                    aria-hidden
+                  />
+                ) : null}
+              </span>
+              {timestamp ? (
+                <time className="text-muted-foreground text-xs">
+                  {timestamp}
+                </time>
+              ) : null}
+            </div>
+          ) : null}
           {showStreamingDotsOnly ? (
             <div className="flex min-h-5 items-start pt-1">
               <span className="reasoning-text-shine text-sm leading-5">
@@ -197,7 +259,7 @@ export default function ChatMessage({
             <div
               className={cn(
                 "rounded-lg",
-                isUser
+                isUser && !shouldLeftAlignUser
                   ? "bg-muted-foreground/10 text-foreground min-h-6 px-3 py-3"
                   : "text-foreground min-h-5 bg-transparent pt-1 pr-10 pb-3",
               )}
@@ -214,7 +276,9 @@ export default function ChatMessage({
                   "[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold",
                   "[&_strong]:font-semibold [&_strong]:text-inherit",
                   "[&_br]:block [&_br]:h-3",
-                  isUser && "prose-invert [&_strong]:text-primary-foreground",
+                  isUser &&
+                    !shouldLeftAlignUser &&
+                    "prose-invert [&_strong]:text-primary-foreground",
                 )}
                 style={{ fontSize: "0.875rem" }}
               >
@@ -237,12 +301,17 @@ export default function ChatMessage({
                       {hasDisplayContent ? (
                         <div
                           ref={userContentRef}
-                          className={cn(!isPromptExpanded && "line-clamp-3")}
+                          className={cn(
+                            !shouldLeftAlignUser &&
+                              !isPromptExpanded &&
+                              "line-clamp-3",
+                          )}
                         >
                           <Markdown>{displayContent}</Markdown>
                         </div>
                       ) : null}
-                      {(showPromptToggle || isPromptExpanded) && (
+                      {!shouldLeftAlignUser &&
+                      (showPromptToggle || isPromptExpanded) ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
@@ -273,7 +342,7 @@ export default function ChatMessage({
                               : t("expandPrompt")}
                           </TooltipContent>
                         </Tooltip>
-                      )}
+                      ) : null}
                     </>
                   ) : (
                     <>
@@ -347,6 +416,7 @@ export default function ChatMessage({
             </div>
           )}
           {timestamp &&
+            !showSenderHeader &&
             (isUser ||
               (!isAssistantStreaming &&
                 content.length > 0 &&
@@ -362,22 +432,7 @@ export default function ChatMessage({
             )}
         </div>
       </div>
-      {isUser && (
-        <Avatar className="size-8 shrink-0">
-          {userImageUrl ? (
-            <AvatarImage
-              src={userImageUrl}
-              alt={userName ?? t("userAvatarAlt")}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          ) : null}
-          <AvatarFallback className="bg-muted">
-            {userName ? userName.charAt(0).toUpperCase() : "U"}
-          </AvatarFallback>
-        </Avatar>
-      )}
+      {isUser && !shouldLeftAlignUser ? userAvatar : null}
     </div>
   );
 }

@@ -1264,6 +1264,7 @@
       "description": "AI同僚とチャット",
       "Chat": {
         "newChat": "新しいチャット",
+        "conversationSwitcher": "会話",
         "noChats": "チャットはまだありません",
         "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
         "welcomeSendFailed": "メッセージを送信できませんでした。もう一度お試しください。",
@@ -1432,8 +1433,8 @@
         "approvePartialError": "{total} 件中 {approved} 件のベンダーアクセスを承認しました。一部の承認に失敗したため、更新して再度お試しください。"
       },
       "Actions": {
-        "add": "追加",
-        "addTask": "タスクを追加",
+        "add": "新しいタスク",
+        "addTask": "新しいタスク",
         "loading": "読み込み中...",
         "loadMore": "さらに読み込む",
         "showGuide": "Show guide"
@@ -2628,6 +2629,7 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
+          "newTask": "新しいタスク",
           "search": "検索",
           "exploreAgents": "エージェント",
           "filesAndOutputs": "ファイルと出力",
@@ -4392,6 +4394,8 @@
         "onlyInOrganizations": "Only in organisations",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4401,9 +4405,12 @@
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
         "name": "Name",
+        "nameRequired": "チャンネル名は必須です。",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
         "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",

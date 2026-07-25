@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import {
   getBucketKeyFromMetadata,
   resolveBucketKeyFromDisplaySlug,
@@ -13,6 +13,11 @@ import {
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
 } from "@/app/chat-ui/utils/chat-route-base";
+import {
+  isPendingCoworkerDirectMessageFresh,
+  pendingCoworkerDirectMessageMatchesBucket,
+  readPendingCoworkerDirectMessage,
+} from "@/app/chat-ui/utils/pending-coworker-direct-message";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
@@ -30,6 +35,7 @@ export function ChatLayoutClient({
   userName,
 }: ChatLayoutClientProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { conversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
 
@@ -57,9 +63,6 @@ export function ChatLayoutClient({
       }
     })();
 
-  const showSecondarySidebar =
-    Boolean(bucketSlug) && !isJustCreatedConversation;
-
   const bucket = useMemo(() => {
     return resolveBucketKeyFromDisplaySlug(
       conversations,
@@ -67,13 +70,35 @@ export function ChatLayoutClient({
       bucketSlug,
     );
   }, [bucketSlug, conversations, coworkers]);
+  const isCoworkerBucket = bucket?.startsWith("coworker:") ?? false;
+  const hasPendingCoworkerDirectMessage = useMemo(() => {
+    if (!bucketSlug || !isCoworkerBucket) {
+      return false;
+    }
+
+    const pending = readPendingCoworkerDirectMessage();
+    return (
+      pending != null &&
+      isPendingCoworkerDirectMessageFresh(pending) &&
+      pendingCoworkerDirectMessageMatchesBucket(pending, {
+        bucketKey: bucket,
+        bucketSlug,
+      })
+    );
+  }, [bucket, bucketSlug, isCoworkerBucket]);
 
   const bucketData = useMemo(() => {
     if (!bucket) return null;
-    const list = conversations.filter((c) => {
-      const meta = (c.metadata as Record<string, unknown> | null) ?? null;
-      return getBucketKeyFromMetadata(meta) === bucket;
-    });
+    const list = conversations
+      .filter((c) => {
+        const meta = (c.metadata as Record<string, unknown> | null) ?? null;
+        return getBucketKeyFromMetadata(meta) === bucket;
+      })
+      .toSorted((a, b) => {
+        return (
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+      });
     const meta =
       list.length > 0
         ? ((list[0].metadata as Record<string, unknown> | null) ?? null)
@@ -85,6 +110,33 @@ export function ChatLayoutClient({
       "Chat";
     return { displayName, conversations: list };
   }, [bucket, conversations]);
+
+  useEffect(() => {
+    if (
+      !isCoworkerBucket ||
+      hasPendingCoworkerDirectMessage ||
+      !bucketSlug ||
+      conversationIdFromPath ||
+      !bucketData?.conversations[0]
+    ) {
+      return;
+    }
+
+    router.replace(
+      `/chat/${bucketSlug}/conversation/${bucketData.conversations[0].id}`,
+      { scroll: false },
+    );
+  }, [
+    bucketData,
+    bucketSlug,
+    conversationIdFromPath,
+    hasPendingCoworkerDirectMessage,
+    isCoworkerBucket,
+    router,
+  ]);
+
+  const showSecondarySidebar =
+    Boolean(bucketSlug) && !isJustCreatedConversation && !isCoworkerBucket;
 
   const showTwoColumn = Boolean(bucketSlug) && showSecondarySidebar;
 
@@ -127,12 +179,16 @@ export function ChatLayoutClient({
       <div
         className={
           mobileChatOnly
-            ? "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col px-0 md:px-2 lg:static lg:z-auto lg:mx-auto lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:pt-0"
+            ? isCoworkerBucket
+              ? "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col px-0 lg:static lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:pt-0"
+              : "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col px-0 md:px-2 lg:static lg:z-auto lg:mx-auto lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:pt-0"
             : mobileListOnly
               ? "hidden lg:mx-auto lg:flex lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:flex-col lg:pt-0 lg:pl-4"
               : showTwoColumn
                 ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col pt-20 md:pt-4 md:pl-4 lg:min-w-0 lg:pt-0"
-                : "mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-0 md:px-2"
+                : isCoworkerBucket
+                  ? "flex h-full w-full flex-1 flex-col px-0"
+                  : "mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-0 md:px-2"
         }
       >
         <div

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { ChatChannelMessage } from "@/lib/clients/generated/core";
 import { chatChannelService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
@@ -10,6 +11,7 @@ import { ChannelsClient } from "./components/channels-client";
 interface ChannelsPageProps {
   searchParams: Promise<{
     channel?: string | string[];
+    create?: string | string[];
     dm?: string | string[];
   }>;
 }
@@ -19,6 +21,32 @@ function firstSearchValue(value: string | string[] | undefined): string | null {
     return value[0] ?? null;
   }
   return value ?? null;
+}
+
+async function loadChannelMessages(
+  channelId: string | null,
+): Promise<{ messages: ChatChannelMessage[]; failed: boolean }> {
+  if (!channelId) {
+    return { messages: [], failed: false };
+  }
+
+  try {
+    return {
+      messages: await chatChannelService.listMessages(channelId),
+      failed: false,
+    };
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      console.error("Failed to load channel messages", {
+        channelId,
+        status: error.status,
+        kind: error.kind,
+      });
+      return { messages: [], failed: true };
+    }
+
+    throw error;
+  }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -69,15 +97,17 @@ export default async function ChannelsPage({
     ]);
 
   const requestedChannelId = firstSearchValue(query.channel);
+  const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
   const isNewDirectMessage = firstSearchValue(query.dm) === "new";
-  const selectedChannel = isNewDirectMessage
-    ? null
-    : (channels.find((channel) => channel.id === requestedChannelId) ??
-      channels[0] ??
-      null);
-  const messages = selectedChannel
-    ? await chatChannelService.listMessages(selectedChannel.id)
-    : [];
+  const selectedChannel =
+    isCreateChannelRequested || isNewDirectMessage
+      ? null
+      : (channels.find((channel) => channel.id === requestedChannelId) ??
+        channels[0] ??
+        null);
+  const { messages, failed: messageLoadFailed } = await loadChannelMessages(
+    selectedChannel?.id ?? null,
+  );
 
   return (
     <ChannelsClient
@@ -87,7 +117,9 @@ export default async function ChannelsPage({
       currentUserId={currentMember?.userId ?? ""}
       coworkers={coworkers}
       selectedChannelId={selectedChannel?.id ?? null}
+      isCreateChannelRequested={isCreateChannelRequested}
       isNewDirectMessage={isNewDirectMessage}
+      messageLoadFailed={messageLoadFailed}
       messages={messages}
     />
   );

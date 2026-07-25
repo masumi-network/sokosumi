@@ -27,15 +27,12 @@ import {
   isMentionSpan,
   isWhitespaceChar,
   MENTION_CLASSNAME,
-  POPUP_HEIGHT_PX,
-  POPUP_WIDTH_PX,
   serializeEditor,
   serializeEditorText,
   setCaretAfterNode,
   setEditorFromRaw,
   shouldAppendTrailingSpace,
   UNKNOWN_MENTION_CLASSNAME,
-  VIEWPORT_PADDING_PX,
   type MentionDisplayResolver,
   type MentionRecordEntry,
   type NormalizedMention,
@@ -57,6 +54,7 @@ interface MentionTextareaProps<TData = unknown> {
   mentions: Record<string, MentionRecordEntry<TData>>;
   placeholder?: string;
   className?: string;
+  suggestionsAnchor?: "caret" | "editor";
   submitOnEnter?: boolean;
   onSubmitShortcut?: () => void;
   renderItem?: (
@@ -258,6 +256,24 @@ function insertPlainTextAtSelection(root: HTMLElement, text: string): void {
   setCaretAfterNode(root, textNode);
 }
 
+function selectionIsInside(root: HTMLElement): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return false;
+  }
+  return root.contains(selection.getRangeAt(0).endContainer);
+}
+
+function setCaretAtEnd(root: HTMLElement): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(root);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function MentionTextareaInner<TData = unknown>(
   {
     id,
@@ -266,6 +282,7 @@ function MentionTextareaInner<TData = unknown>(
     mentions,
     placeholder,
     className,
+    suggestionsAnchor = "caret",
     submitOnEnter = false,
     onSubmitShortcut,
     renderItem,
@@ -285,6 +302,7 @@ function MentionTextareaInner<TData = unknown>(
     useState<TriggerPosition | null>(null);
   const isSelectingRef = useRef(false);
   const editingMentionRef = useRef<HTMLSpanElement | null>(null);
+  const manualMentionOpenRef = useRef(false);
   const lastSerializedValueRef = useRef<string>(value);
 
   useEffect(() => {
@@ -409,8 +427,25 @@ function MentionTextareaInner<TData = unknown>(
     setQuery(null);
     setActiveIndex(0);
     setTriggerPosition(null);
+    manualMentionOpenRef.current = false;
     editingMentionRef.current = null;
   }, []);
+
+  const resolveSuggestionsPosition = useCallback(
+    (anchorRect: DOMRect | null): TriggerPosition | null => {
+      const editor = editorRef.current;
+      if (suggestionsAnchor === "editor" && editor) {
+        return getPopupPositionFromRect(editor.getBoundingClientRect());
+      }
+      if (anchorRect) {
+        return getPopupPositionFromRect(anchorRect);
+      }
+      return editor
+        ? getPopupPositionFromRect(editor.getBoundingClientRect())
+        : null;
+    },
+    [suggestionsAnchor],
+  );
 
   const syncEditorValue = useCallback(() => {
     const editor = editorRef.current;
@@ -432,9 +467,8 @@ function MentionTextareaInner<TData = unknown>(
     if (trigger) {
       const caretRect = getCaretRect(editor);
       const fallbackRect = editor.getBoundingClientRect();
-      const position = caretRect
-        ? getPopupPositionFromRect(caretRect)
-        : getPopupPositionFromRect(fallbackRect);
+      const position = resolveSuggestionsPosition(caretRect ?? fallbackRect);
+      manualMentionOpenRef.current = false;
       openSuggestions({
         nextQuery: trigger.query,
         nextTriggerPosition: position,
@@ -444,7 +478,12 @@ function MentionTextareaInner<TData = unknown>(
     }
 
     closeSuggestions();
-  }, [closeSuggestions, openSuggestions, syncEditorValue]);
+  }, [
+    closeSuggestions,
+    openSuggestions,
+    resolveSuggestionsPosition,
+    syncEditorValue,
+  ]);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -502,7 +541,35 @@ function MentionTextareaInner<TData = unknown>(
       const { text, caret } = serializeEditor(editor);
       const trigger = getActiveTrigger(text, caret);
       if (!trigger) {
+        if (!manualMentionOpenRef.current) {
+          closeSuggestions();
+          return;
+        }
+
+        let insertionText = text;
+        let insertionCaret = caret;
+        if (
+          insertionCaret > 0 &&
+          !isWhitespaceChar(insertionText[insertionCaret - 1] ?? "")
+        ) {
+          insertPlainTextAtSelection(editor, " ");
+          const result = serializeEditor(editor);
+          insertionText = result.text;
+          insertionCaret = result.caret;
+        }
+
+        const nextChar = insertionText[insertionCaret];
+        replaceRangeWithMention(
+          editor,
+          insertionCaret,
+          insertionCaret,
+          mention,
+          shouldAppendTrailingSpace(nextChar),
+          resolveDisplay,
+        );
+        syncEditorValue();
         closeSuggestions();
+        editor.focus();
         return;
       }
 
@@ -542,13 +609,18 @@ function MentionTextareaInner<TData = unknown>(
     const editor = editorRef.current;
     if (!editor) return;
 
+    const hadEditorSelection = selectionIsInside(editor);
     editor.focus();
-    const { text, caret } = serializeEditor(editor);
-    const prefix =
-      caret > 0 && !isWhitespaceChar(text[caret - 1] ?? "") ? " @" : "@";
-    insertPlainTextAtSelection(editor, prefix);
-    syncEditorValueAndMentions();
-  }, [syncEditorValueAndMentions]);
+    if (!hadEditorSelection) {
+      setCaretAtEnd(editor);
+    }
+    manualMentionOpenRef.current = true;
+    openSuggestions({
+      nextQuery: "",
+      nextTriggerPosition: resolveSuggestionsPosition(null),
+      nextActiveIndex: 0,
+    });
+  }, [openSuggestions, resolveSuggestionsPosition]);
 
   useImperativeHandle(
     ref,

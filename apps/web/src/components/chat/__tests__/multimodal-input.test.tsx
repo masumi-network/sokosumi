@@ -30,6 +30,9 @@ const elenaCoworker: Coworker = {
   description: "",
   useCase: "",
   capabilities: ["chat", "tasks"],
+  archivedAt: null,
+  isWhitelisted: true,
+  canChat: true,
 };
 
 function WelcomeMultimodalInput({

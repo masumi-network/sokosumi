@@ -1264,6 +1264,7 @@
       "description": "与您的 AI 协作伙伴聊天",
       "Chat": {
         "newChat": "新建聊天",
+        "conversationSwitcher": "对话",
         "noChats": "暂无聊天",
         "noCoworkersAvailable": "暂无可用协作伙伴。请稍后重试。",
         "welcomeSendFailed": "无法发送您的消息。请重试。",
@@ -1432,8 +1433,8 @@
         "approvePartialError": "已批准 {approved}/{total} 个供应商。部分批准失败，请刷新后重试。"
       },
       "Actions": {
-        "add": "添加",
-        "addTask": "添加任务",
+        "add": "新建任务",
+        "addTask": "新建任务",
         "loading": "加载中...",
         "loadMore": "加载更多",
         "showGuide": "Show guide"
@@ -2628,6 +2629,7 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
+          "newTask": "新建任务",
           "search": "搜索",
           "exploreAgents": "智能体",
           "filesAndOutputs": "文件与输出",
@@ -4392,6 +4394,8 @@
         "onlyInOrganizations": "Only in organisations",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4401,9 +4405,12 @@
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
         "name": "Name",
+        "nameRequired": "频道名称为必填项。",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
         "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",
