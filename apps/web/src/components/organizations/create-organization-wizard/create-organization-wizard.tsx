@@ -573,7 +573,7 @@ export function CreateOrganizationWizard({
 
   return (
     <Dialog open={open} onOpenChange={handleRequestClose}>
-      <DialogContent className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[600px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-2xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6">
+      <DialogContent className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[640px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-2xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6">
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         <DialogDescription className="sr-only">
           {t("description")}
@@ -857,21 +857,24 @@ export function CreateOrganizationWizard({
             {/* Step 4 — created; confirm and invite */}
             {step === SUCCESS_STEP && (
               <>
-                <div className="flex min-h-16 flex-none items-center justify-center">
-                  <div className="bg-primary/10 border-primary/20 flex size-16 items-center justify-center rounded-lg border">
-                    <Check className="text-primary animate-in fade-in-0 size-7 duration-200" />
+                {/* Tighter than the setup steps: this slide stacks the link
+                    row AND the email box, and with a two-line title it must
+                    still fit the stage without scrolling. */}
+                <div className="flex min-h-14 flex-none items-center justify-center">
+                  <div className="bg-primary/10 border-primary/20 flex size-14 items-center justify-center rounded-lg border">
+                    <Check className="text-primary animate-in fade-in-0 size-6 duration-200" />
                   </div>
                 </div>
-                <h2 className="mt-5 text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
+                <h2 className="mt-4 text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[30px]">
                   {organizationName
                     ? t("Invite.title", { organization: organizationName })
                     : t("Invite.titleFallback")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-2 max-w-[46ch] text-[15px] leading-[1.6] text-balance">
                   {t("Invite.subtitle")}
                 </p>
 
-                <div className="mx-auto mt-6 w-full max-w-md">
+                <div className="mx-auto mt-5 w-full max-w-md">
                   <div className="bg-muted/60 has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
                     <Link2 className="text-muted-foreground size-4 shrink-0" />
                     {isCreatingLink ? (
@@ -905,20 +908,20 @@ export function CreateOrganizationWizard({
                       </span>
                     </Button>
                   </div>
-                  <p className="text-muted-foreground/70 mt-3 text-left text-[13px]">
+                  <p className="text-muted-foreground/70 mt-2 text-left text-[13px]">
                     {t("Invite.linkHint")}
                   </p>
 
-                  <div className="bg-border my-4 h-px w-full" />
+                  <div className="bg-border my-3 h-px w-full" />
 
                   <Textarea
                     rows={2}
                     value={emails}
                     onChange={(event) => setEmails(event.target.value)}
                     placeholder={t("Invite.emailsPlaceholder")}
-                    className="bg-muted/60 dark:bg-muted/60 min-h-16 resize-none rounded-xl border px-4 py-3 text-[15px] shadow-none"
+                    className="bg-muted/60 dark:bg-muted/60 min-h-14 resize-none rounded-xl border px-4 py-3 text-[15px] shadow-none"
                   />
-                  <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="mt-2 flex items-center justify-between gap-3">
                     <p className="text-muted-foreground/70 text-left text-[13px]">
                       {t("Invite.emailsHint")}
                     </p>
