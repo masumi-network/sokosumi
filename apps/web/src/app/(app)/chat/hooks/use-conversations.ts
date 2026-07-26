@@ -17,6 +17,38 @@ import {
 
 const CONVERSATION_RETRY_ATTEMPTS = 2;
 const CONVERSATION_RETRY_DELAY_MS = 1500;
+/**
+ * A server action dispatched while a router transition restarts can be
+ * dropped with a promise that never settles. Without a deadline that dead
+ * promise stays in the in-flight map and every later select of the same
+ * conversation joins it — an unrecoverable spinner.
+ */
+const SELECT_CONVERSATION_TIMEOUT_MS = 15_000;
+
+class SelectConversationTimeoutError extends Error {
+  constructor() {
+    super("Conversation request timed out");
+    this.name = "SelectConversationTimeoutError";
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new SelectConversationTimeoutError());
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 function isRetryableNetworkError(message: string): boolean {
   const lower = message.toLowerCase();
@@ -91,6 +123,7 @@ export function useConversations(): UseConversationsReturn {
   const [error, setError] = useState<ActionError | null>(null);
   const networkErrorToastMessage = t("networkErrorAfterRetry");
   const refreshGenerationRef = useRef(0);
+  const latestSelectRequestIdRef = useRef<string | null>(null);
   const selectConversationPromisesRef = useRef(
     new Map<string, Promise<ConversationWithMessages | null>>(),
   );
@@ -337,6 +370,11 @@ export function useConversations(): UseConversationsReturn {
    */
   const selectConversation = useCallback(
     async (id: string): Promise<ConversationWithMessages | null> => {
+      // Latest-request guard: several selects can be in flight at once (the
+      // route sync and the load effect both fire around a switch). Only the
+      // most recently requested conversation may become the selected one, so
+      // a slow response for a chat the user already left cannot clobber it.
+      latestSelectRequestIdRef.current = id;
       const pending = selectConversationPromisesRef.current.get(id);
       if (pending) {
         return pending;
@@ -346,10 +384,13 @@ export function useConversations(): UseConversationsReturn {
         setError(null);
 
         try {
-          const rawResult = await withRetry(() => getConversation({ id }), {
-            retries: CONVERSATION_RETRY_ATTEMPTS,
-            delayMs: CONVERSATION_RETRY_DELAY_MS,
-          });
+          const rawResult = await withTimeout(
+            withRetry(() => getConversation({ id }), {
+              retries: CONVERSATION_RETRY_ATTEMPTS,
+              delayMs: CONVERSATION_RETRY_DELAY_MS,
+            }),
+            SELECT_CONVERSATION_TIMEOUT_MS,
+          );
           const result = parseServerActionResult<
             ConversationWithMessages,
             ActionError
@@ -365,7 +406,9 @@ export function useConversations(): UseConversationsReturn {
             return null;
           }
 
-          setSelectedConversation(conversation);
+          if (latestSelectRequestIdRef.current === id) {
+            setSelectedConversation(conversation);
+          }
           setConversations((prev) =>
             prev.some((c) => c.id === conversation.id)
               ? prev
@@ -382,15 +425,18 @@ export function useConversations(): UseConversationsReturn {
             code: CommonErrorCode.INTERNAL_SERVER_ERROR,
           });
 
-          const toastMessage = getConversationToastMessage(
-            errorMessage,
-            networkErrorToastMessage,
-          );
-          toast.error(toastMessage, {
-            description: errorMessage.includes("unavailable")
-              ? "The conversation service is temporarily unavailable. Please try again in a moment."
-              : undefined,
-          });
+          // Timeouts are retried by the caller; a toast per attempt is noise.
+          if (!(error instanceof SelectConversationTimeoutError)) {
+            const toastMessage = getConversationToastMessage(
+              errorMessage,
+              networkErrorToastMessage,
+            );
+            toast.error(toastMessage, {
+              description: errorMessage.includes("unavailable")
+                ? "The conversation service is temporarily unavailable. Please try again in a moment."
+                : undefined,
+            });
+          }
 
           return null;
         }

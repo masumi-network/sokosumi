@@ -118,10 +118,16 @@ export function useChatSelection({
     setSelectedChatId(chatId);
     currentChatIdRef.current = chatId;
     pendingUrlConversationIdRef.current = chatId;
-    isUpdatingUrlRef.current = true;
-    const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
-    const targetPath = `${CHAT_APP_ROUTE_PREFIX}/${segment}/conversation/${chatId}`;
-    router.push(withSearch(targetPath), { scroll: false });
+    // Pushing a route we are already on restarts the transition, and a server
+    // action dispatched in the same tick can be dropped by the router with a
+    // promise that never settles — which left the conversation spinner up
+    // forever when switching chats. Only navigate when the URL must change.
+    if (urlConversationId !== chatId) {
+      isUpdatingUrlRef.current = true;
+      const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
+      const targetPath = `${CHAT_APP_ROUTE_PREFIX}/${segment}/conversation/${chatId}`;
+      router.push(withSearch(targetPath), { scroll: false });
+    }
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
     const listConversation = conversations.find((c) => c.id === chatId);
@@ -145,6 +151,13 @@ export function useChatSelection({
     }
 
     if (loadedConversation === null) {
+      // A conversation that is still in the loaded list exists — the fetch
+      // failed transiently (timeout, dropped action, Core hiccup). Keep the
+      // selection so the load effect can retry instead of bouncing the user
+      // out of a conversation that is actually there.
+      if (conversations.some((c) => c.id === chatId)) {
+        return;
+      }
       setSelectedChatId(null);
       currentChatIdRef.current = null;
       pendingUrlConversationIdRef.current = null;

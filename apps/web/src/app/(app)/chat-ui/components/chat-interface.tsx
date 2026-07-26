@@ -139,6 +139,9 @@ function isConversationUuid(value: string): boolean {
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
 
+const SELECT_CONVERSATION_MAX_RETRIES = 3;
+const SELECT_CONVERSATION_RETRY_DELAY_MS = 1500;
+
 /** Stable no-op for inputs that do not wire `useChat` stop; avoids breaking memo equality on `stop`. */
 function noopChatComposerStop() {}
 
@@ -532,11 +535,21 @@ export default function ChatInterface({
 
   const loadingConversationIdRef = useRef<string | null>(null);
   const hydratedRouteConversationKeyRef = useRef<string | null>(null);
+  const selectRetryRef = useRef<{ id: string; attempts: number }>({
+    id: "",
+    attempts: 0,
+  });
+  const [selectRetryTick, setSelectRetryTick] = useState(0);
   useEffect(() => {
     if (!selectedChatId) return;
     if (isRouteDriven && !isChatPath) return;
+    // pathname and selectedChatId update on different ticks while switching
+    // conversations. Keying hydration on the pair while they disagree forced a
+    // spurious re-fetch of the *previous* conversation on every switch (whose
+    // late response could clobber the newly selected one), so the route key
+    // only exists once both point at the same conversation.
     const routeConversationKey =
-      isRouteDriven && isChatPath
+      isRouteDriven && isChatPath && conversationIdFromPath === selectedChatId
         ? `${pathname ?? ""}:${selectedChatId}`
         : null;
     const needsRouteHydration =
@@ -555,18 +568,41 @@ export default function ChatInterface({
       hydratedRouteConversationKeyRef.current = routeConversationKey;
     }
     loadingConversationIdRef.current = selectedChatId;
-    void selectConversation(selectedChatId).finally(() => {
-      if (loadingConversationIdRef.current === selectedChatId) {
-        loadingConversationIdRef.current = null;
-      }
-    });
+    void selectConversation(selectedChatId)
+      .then((conversation) => {
+        if (conversation != null) {
+          selectRetryRef.current = { id: selectedChatId, attempts: 0 };
+          return;
+        }
+        // A failed select (timeout, dropped server action, transient Core
+        // error) must not leave the spinner up forever — retry a bounded
+        // number of times while this conversation is still selected.
+        const attempts =
+          selectRetryRef.current.id === selectedChatId
+            ? selectRetryRef.current.attempts
+            : 0;
+        if (attempts >= SELECT_CONVERSATION_MAX_RETRIES) {
+          return;
+        }
+        selectRetryRef.current = { id: selectedChatId, attempts: attempts + 1 };
+        window.setTimeout(() => {
+          setSelectRetryTick((tick) => tick + 1);
+        }, SELECT_CONVERSATION_RETRY_DELAY_MS);
+      })
+      .finally(() => {
+        if (loadingConversationIdRef.current === selectedChatId) {
+          loadingConversationIdRef.current = null;
+        }
+      });
   }, [
+    conversationIdFromPath,
     isChatPath,
     isRouteDriven,
     pathname,
     selectedChatId,
     selectedConversation?.id,
     selectConversation,
+    selectRetryTick,
   ]);
 
   const { coworkers } = useCoworkersContext();
