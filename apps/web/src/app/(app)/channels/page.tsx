@@ -86,6 +86,14 @@ export default async function ChannelsPage({
     );
   }
 
+  const requestedChannelId = firstSearchValue(query.channel);
+  const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
+  const isNewDirectMessage = firstSearchValue(query.dm) === "new";
+  const requestedMessagesPromise =
+    requestedChannelId && !isCreateChannelRequested && !isNewDirectMessage
+      ? loadChannelMessages(requestedChannelId)
+      : null;
+
   const [channels, organizationMembers, coworkers, currentMember] =
     await Promise.all([
       chatChannelService.listChannels(activeOrganization.id),
@@ -96,18 +104,27 @@ export default async function ChannelsPage({
       userService.getMyMemberInOrganization(activeOrganization.id),
     ]);
 
-  const requestedChannelId = firstSearchValue(query.channel);
-  const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
-  const isNewDirectMessage = firstSearchValue(query.dm) === "new";
   const selectedChannel =
     isCreateChannelRequested || isNewDirectMessage
       ? null
       : (channels.find((channel) => channel.id === requestedChannelId) ??
         channels[0] ??
         null);
-  const { messages, failed: messageLoadFailed } = await loadChannelMessages(
-    selectedChannel?.id ?? null,
-  );
+  const selectedChannelId = selectedChannel?.id ?? null;
+  if (requestedMessagesPromise && requestedChannelId !== selectedChannelId) {
+    void requestedMessagesPromise.catch((error) => {
+      console.error("Failed to load requested channel messages", {
+        requestedChannelId,
+        error,
+      });
+    });
+  }
+  const { messages, failed: messageLoadFailed } =
+    selectedChannelId &&
+    requestedChannelId === selectedChannelId &&
+    requestedMessagesPromise
+      ? await requestedMessagesPromise
+      : await loadChannelMessages(selectedChannelId);
 
   return (
     <ChannelsClient
@@ -116,7 +133,7 @@ export default async function ChannelsPage({
       organizationMembers={organizationMembers}
       currentUserId={currentMember?.userId ?? ""}
       coworkers={coworkers}
-      selectedChannelId={selectedChannel?.id ?? null}
+      selectedChannelId={selectedChannelId}
       isCreateChannelRequested={isCreateChannelRequested}
       isNewDirectMessage={isNewDirectMessage}
       messageLoadFailed={messageLoadFailed}

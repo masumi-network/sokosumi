@@ -55,7 +55,7 @@ interface CoworkerDirectConversation {
   href: string;
   image: string | null;
   name: string;
-  updatedAt: string;
+  updatedAtMs: number;
 }
 
 function isCoworkerOnlyDirectChannel(
@@ -66,11 +66,17 @@ function isCoworkerOnlyDirectChannel(
     return false;
   }
 
-  const otherHumans = channel.userMembers.filter(
-    (member) => member.id !== currentUserId,
-  );
+  let otherHumanCount = 0;
+  for (const member of channel.userMembers) {
+    if (member.id !== currentUserId) {
+      otherHumanCount += 1;
+      if (otherHumanCount > 0) {
+        break;
+      }
+    }
+  }
 
-  return otherHumans.length === 0 && channel.coworkerMembers.length === 1;
+  return otherHumanCount === 0 && channel.coworkerMembers.length === 1;
 }
 
 function getDirectParticipants(
@@ -111,6 +117,12 @@ function buildCoworkerDirectConversations(
   coworkers: ReturnType<typeof useCoworkersContext>["coworkers"],
 ): CoworkerDirectConversation[] {
   const byBucket = new Map<string, CoworkerDirectConversation>();
+  const coworkersById = new Map(
+    coworkers.map((coworker) => [coworker.id, coworker]),
+  );
+  const coworkersBySlug = new Map(
+    coworkers.map((coworker) => [coworker.slug, coworker]),
+  );
 
   for (const conversation of conversations) {
     const metadata =
@@ -123,16 +135,16 @@ function buildCoworkerDirectConversations(
     const coworkerId = metadata?.coworker_id as string | undefined;
     const coworkerSlug = metadata?.coworker_slug as string | undefined;
     const coworkerName = metadata?.coworker_name as string | undefined;
-    const coworker = coworkers.find(
-      (candidate) =>
-        candidate.id === coworkerId || candidate.slug === coworkerSlug,
-    );
+    const coworker =
+      (coworkerId ? coworkersById.get(coworkerId) : undefined) ??
+      (coworkerSlug ? coworkersBySlug.get(coworkerSlug) : undefined);
     const displaySlug =
       displaySlugFromMetadata(metadata) ||
       slugify(coworker?.slug ?? coworkerSlug ?? coworkerName ?? bucket);
     if (!displaySlug) {
       continue;
     }
+    const updatedAtMs = new Date(conversation.updatedAt).getTime();
 
     const row = {
       conversationId: conversation.id,
@@ -140,21 +152,17 @@ function buildCoworkerDirectConversations(
       href: `${CHAT_APP_ROUTE_PREFIX}/${displaySlug}/conversation/${conversation.id}`,
       image: coworker?.avatar ?? null,
       name: coworker?.name ?? coworkerName ?? "Coworker",
-      updatedAt: conversation.updatedAt,
+      updatedAtMs,
     };
 
     const existing = byBucket.get(bucket);
-    if (
-      !existing ||
-      new Date(row.updatedAt).getTime() > new Date(existing.updatedAt).getTime()
-    ) {
+    if (!existing || row.updatedAtMs > existing.updatedAtMs) {
       byBucket.set(bucket, row);
     }
   }
 
   return Array.from(byBucket.values()).sort(
-    (left, right) =>
-      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+    (left, right) => right.updatedAtMs - left.updatedAtMs,
   );
 }
 
@@ -296,17 +304,26 @@ export function OrganizationChatList({
   const isChannelsPath = pathname === "/channels";
   const activeConversationId = pathname?.split("/").filter(Boolean).at(-1);
 
-  const { directMessages, publicChannels } = useMemo(
-    () => ({
-      directMessages: channels.filter(
-        (channel) =>
-          channel.kind === "direct" &&
-          !isCoworkerOnlyDirectChannel(channel, currentUserId),
-      ),
-      publicChannels: channels.filter((channel) => channel.kind === "channel"),
-    }),
-    [channels, currentUserId],
-  );
+  const { directMessages, publicChannels } = useMemo(() => {
+    const directMessages: ChatChannel[] = [];
+    const publicChannels: ChatChannel[] = [];
+
+    for (const channel of channels) {
+      if (channel.kind === "channel") {
+        publicChannels.push(channel);
+        continue;
+      }
+
+      if (
+        channel.kind === "direct" &&
+        !isCoworkerOnlyDirectChannel(channel, currentUserId)
+      ) {
+        directMessages.push(channel);
+      }
+    }
+
+    return { directMessages, publicChannels };
+  }, [channels, currentUserId]);
   const coworkerDirectMessages = useMemo(
     () => buildCoworkerDirectConversations(conversations, coworkers),
     [conversations, coworkers],

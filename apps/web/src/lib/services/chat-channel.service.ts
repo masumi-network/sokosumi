@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   ChatChannel,
@@ -13,12 +14,16 @@ import type {
 const CHANNEL_MESSAGE_LIMIT = 100;
 
 export const chatChannelService = (() => {
-  async function listChannels(organizationId: string): Promise<ChatChannel[]> {
+  const listChannels = cache(async function listChannels(
+    organizationId: string,
+  ): Promise<ChatChannel[]> {
     const response = await coreClient.getChatChannels({ organizationId });
     return response.data;
-  }
+  });
 
-  async function getChannel(id: string): Promise<ChatChannel | null> {
+  const getChannel = cache(async function getChannel(
+    id: string,
+  ): Promise<ChatChannel | null> {
     try {
       const response = await coreClient.getChatChannel(id);
       return response.data;
@@ -28,7 +33,7 @@ export const chatChannelService = (() => {
       }
       throw error;
     }
-  }
+  });
 
   async function createChannel(
     body: CreateChatChannelRequest,
@@ -52,16 +57,16 @@ export const chatChannelService = (() => {
     return response.data;
   }
 
-  async function listMessages(
+  const listMessages = cache(async function listMessages(
     channelId: string,
   ): Promise<ChatChannelMessage[]> {
     const response = await coreClient.getChatChannelMessages(channelId, {
       limit: CHANNEL_MESSAGE_LIMIT,
     });
     return response.data;
-  }
+  });
 
-  async function listThreadMessages(
+  const listThreadMessages = cache(async function listThreadMessages(
     channelId: string,
     parentMessageId: string,
   ): Promise<ChatChannelMessage[]> {
@@ -70,7 +75,7 @@ export const chatChannelService = (() => {
       parentMessageId,
     });
     return response.data;
-  }
+  });
 
   async function sendMessage(
     channelId: string,

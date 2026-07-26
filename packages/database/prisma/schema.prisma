@@ -116,6 +116,7 @@ model Session {
 
   activeOrganizationId String?
 
+  @@index([userId, updatedAt(sort: Desc)])
   @@unique([token])
   @@map("session")
 }

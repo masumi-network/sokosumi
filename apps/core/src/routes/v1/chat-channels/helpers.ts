@@ -352,6 +352,38 @@ export async function requireChatChannelUserAccess(
   return channel;
 }
 
+export async function requireChatChannelUserMembership(
+  channelId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<{ id: string; organizationId: string }> {
+  const channel = await tx.chatChannel.findFirst({
+    where: {
+      id: channelId,
+      archivedAt: null,
+      userMembers: {
+        some: { userId },
+      },
+    },
+    select: {
+      id: true,
+      organizationId: true,
+    },
+  });
+
+  if (!channel) {
+    throw notFound("Channel not found");
+  }
+
+  await resolveMemberOrganizationById({
+    id: channel.organizationId,
+    userId,
+    tx,
+  });
+
+  return channel;
+}
+
 export async function validateOrganizationUserIds(
   organizationId: string,
   userIds: readonly string[],

@@ -43,8 +43,8 @@ export default async function Sidebar({
   session,
   lowCreditsThreshold,
 }: SidebarProps) {
-  const tCredit = await getTranslations("App.Header.Credit");
-  const tPlan = await getTranslations("App.Header.Plan");
+  const tCreditPromise = getTranslations("App.Header.Credit");
+  const tPlanPromise = getTranslations("App.Header.Plan");
   // Hermes beta gate: the Personal Assistant entry only renders for
   // whitelisted email domains; /personal-assistant itself 404s in its layout.
   const hermesMenuEnabled = isHermesBetaAccessEmail(session.user.email);
@@ -53,36 +53,33 @@ export default async function Sidebar({
   const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
-  let members: Awaited<
-    ReturnType<typeof userService.getMyMembersWithOrganizations>
-  > = [];
-  let chatChannels: Awaited<
-    ReturnType<typeof chatChannelService.listChannels>
-  > = [];
-
-  try {
-    members = await userService.getMyMembersWithOrganizations();
-  } catch (_error) {
-    members = [];
-  }
-
-  if (activeOrganizationId) {
-    try {
-      chatChannels =
-        await chatChannelService.listChannels(activeOrganizationId);
-    } catch (_error) {
-      chatChannels = [];
-    }
-  }
-
-  const [{ showVendors: showDeveloperVendors }, planLabel] = await Promise.all([
-    getDeveloperVendorAdminAccess(),
+  const membersPromise = userService
+    .getMyMembersWithOrganizations()
+    .catch(() => []);
+  const chatChannelsPromise = activeOrganizationId
+    ? chatChannelService.listChannels(activeOrganizationId).catch(() => [])
+    : Promise.resolve([]);
+  const planLabelPromise = tCreditPromise.then((tCredit) =>
     resolvePlanSecondaryLabel({
       plan: planForLabel,
       organizationName: activeOrganizationId
         ? (organizationName ?? tCredit("unavailable"))
         : null,
     }),
+  );
+
+  const [
+    tPlan,
+    members,
+    chatChannels,
+    { showVendors: showDeveloperVendors },
+    planLabel,
+  ] = await Promise.all([
+    tPlanPromise,
+    membersPromise,
+    chatChannelsPromise,
+    getDeveloperVendorAdminAccess(),
+    planLabelPromise,
   ]);
 
   return (

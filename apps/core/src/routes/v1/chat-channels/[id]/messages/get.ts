@@ -21,7 +21,7 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   chatChannelMessageInclude,
   mapChatChannelMessage,
-  requireChatChannelUserAccess,
+  requireChatChannelUserMembership,
 } from "../../helpers";
 
 const paramsSchema = z.object({
@@ -79,7 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
 
     const { messages, count } = await prisma.$transaction(async (tx) => {
-      await requireChatChannelUserAccess(id, userContext.userId, tx);
+      await requireChatChannelUserMembership(id, userContext.userId, tx);
       const where = {
         channelId: id,
         parentMessageId: queryParams.parentMessageId ?? null,

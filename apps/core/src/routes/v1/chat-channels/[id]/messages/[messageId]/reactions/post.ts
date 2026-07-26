@@ -17,7 +17,7 @@ import {
 import {
   chatChannelMessageInclude,
   mapChatChannelMessage,
-  requireChatChannelUserAccess,
+  requireChatChannelUserMembership,
 } from "../../../../helpers";
 
 const paramsSchema = z.object({
@@ -76,7 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const emoji = body.emoji.trim();
 
     const message = await prisma.$transaction(async (tx) => {
-      await requireChatChannelUserAccess(id, userContext.userId, tx);
+      await requireChatChannelUserMembership(id, userContext.userId, tx);
       const existingMessage = await tx.chatChannelMessage.findFirst({
         where: {
           id: messageId,

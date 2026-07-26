@@ -91,6 +91,9 @@ export function useConversations(): UseConversationsReturn {
   const [error, setError] = useState<ActionError | null>(null);
   const networkErrorToastMessage = t("networkErrorAfterRetry");
   const refreshGenerationRef = useRef(0);
+  const selectConversationPromisesRef = useRef(
+    new Map<string, Promise<ConversationWithMessages | null>>(),
+  );
   const pendingCreatedConversationsRef = useRef(
     new Map<string, Conversation>(),
   );
@@ -334,56 +337,72 @@ export function useConversations(): UseConversationsReturn {
    */
   const selectConversation = useCallback(
     async (id: string): Promise<ConversationWithMessages | null> => {
-      setError(null);
+      const pending = selectConversationPromisesRef.current.get(id);
+      if (pending) {
+        return pending;
+      }
 
+      const selectPromise = (async () => {
+        setError(null);
+
+        try {
+          const rawResult = await withRetry(() => getConversation({ id }), {
+            retries: CONVERSATION_RETRY_ATTEMPTS,
+            delayMs: CONVERSATION_RETRY_DELAY_MS,
+          });
+          const result = parseServerActionResult<
+            ConversationWithMessages,
+            ActionError
+          >(rawResult);
+
+          if (result.isErr) {
+            setError(result.error);
+            return null;
+          }
+
+          const conversation = result.value;
+          if (conversation == null) {
+            return null;
+          }
+
+          setSelectedConversation(conversation);
+          setConversations((prev) =>
+            prev.some((c) => c.id === conversation.id)
+              ? prev
+              : [conversation, ...prev],
+          );
+          return conversation;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to select conversation";
+          setError({
+            message: errorMessage,
+            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+          });
+
+          const toastMessage = getConversationToastMessage(
+            errorMessage,
+            networkErrorToastMessage,
+          );
+          toast.error(toastMessage, {
+            description: errorMessage.includes("unavailable")
+              ? "The conversation service is temporarily unavailable. Please try again in a moment."
+              : undefined,
+          });
+
+          return null;
+        }
+      })();
+
+      selectConversationPromisesRef.current.set(id, selectPromise);
       try {
-        const rawResult = await withRetry(() => getConversation({ id }), {
-          retries: CONVERSATION_RETRY_ATTEMPTS,
-          delayMs: CONVERSATION_RETRY_DELAY_MS,
-        });
-        const result = parseServerActionResult<
-          ConversationWithMessages,
-          ActionError
-        >(rawResult);
-
-        if (result.isErr) {
-          setError(result.error);
-          return null;
+        return await selectPromise;
+      } finally {
+        if (selectConversationPromisesRef.current.get(id) === selectPromise) {
+          selectConversationPromisesRef.current.delete(id);
         }
-
-        const conversation = result.value;
-        if (conversation == null) {
-          return null;
-        }
-
-        setSelectedConversation(conversation);
-        setConversations((prev) =>
-          prev.some((c) => c.id === conversation.id)
-            ? prev
-            : [conversation, ...prev],
-        );
-        return conversation;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "Failed to select conversation";
-        setError({
-          message: errorMessage,
-          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        });
-
-        const toastMessage = getConversationToastMessage(
-          errorMessage,
-          networkErrorToastMessage,
-        );
-        toast.error(toastMessage, {
-          description: errorMessage.includes("unavailable")
-            ? "The conversation service is temporarily unavailable. Please try again in a moment."
-            : undefined,
-        });
-
-        return null;
       }
     },
     [parseServerActionResult, networkErrorToastMessage],
