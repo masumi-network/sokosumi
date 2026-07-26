@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { ChatChannelMessage } from "@/lib/clients/generated/core";
 import { chatChannelService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -97,9 +97,7 @@ export default async function ChannelsPage({
   const [channels, organizationMembers, coworkers, currentMember] =
     await Promise.all([
       chatChannelService.listChannels(activeOrganization.id),
-      coreClient
-        .getOrganizationMembers(activeOrganization.id)
-        .then((response) => response.data),
+      userService.getOrganizationMembers(activeOrganization.id),
       coworkerService.listCoworkers("chat"),
       userService.getMyMemberInOrganization(activeOrganization.id),
     ]);

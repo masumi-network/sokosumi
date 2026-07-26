@@ -1,7 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { MemberRole } from "@sokosumi/database";
 
-import { badRequest, conflict } from "@/helpers/error";
+import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -87,6 +89,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Direct channels cannot be edited.");
         }
 
+        // Membership alone only proves the caller can read the channel. Editing
+        // rewrites the whole roster, so a plain member could otherwise evict
+        // everyone else from a channel they merely belong to.
+        const { role } = await resolveMemberOrganizationById({
+          id: existing.organizationId,
+          userId: userContext.userId,
+          tx,
+        });
+        const canManageChannel =
+          existing.createdByUserId === userContext.userId ||
+          role === MemberRole.OWNER ||
+          role === MemberRole.ADMIN;
+
+        if (!canManageChannel) {
+          throw forbidden(
+            "Only the channel creator or an organization owner or admin can update this channel.",
+          );
+        }
+
         const updateData: {
           name?: string;
           slug?: string;
@@ -124,14 +145,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               userId: { notIn: memberUserIds },
             },
           });
-          for (const memberUserId of memberUserIds) {
-            await tx.chatChannelUserMember.create({
-              data: {
-                channelId: existing.id,
-                userId: memberUserId,
-              },
-            });
-          }
+          await tx.chatChannelUserMember.createMany({
+            data: memberUserIds.map((memberUserId) => ({
+              channelId: existing.id,
+              userId: memberUserId,
+            })),
+          });
           await tx.chatChannelReadState.createMany({
             data: memberUserIds.map((memberUserId) => ({
               channelId: existing.id,
@@ -149,12 +168,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           await tx.chatChannelCoworkerMember.deleteMany({
             where: { channelId: existing.id },
           });
-          for (const coworkerId of coworkerIds) {
-            await tx.chatChannelCoworkerMember.create({
-              data: {
+          if (coworkerIds.length > 0) {
+            await tx.chatChannelCoworkerMember.createMany({
+              data: coworkerIds.map((coworkerId) => ({
                 channelId: existing.id,
                 coworkerId,
-              },
+              })),
             });
           }
         }

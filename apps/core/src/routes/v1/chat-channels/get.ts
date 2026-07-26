@@ -1,7 +1,15 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { LIMITS } from "@/config/constants";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -10,6 +18,7 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatChannelSchema } from "@/schemas/chat-channel.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import {
   chatChannelInclude,
@@ -17,13 +26,31 @@ import {
   mapChatChannel,
 } from "./helpers";
 
-const querySchema = z.object({
+/**
+ * Higher than the shared default because the sidebar renders the full list in
+ * one pass: a page this size covers virtually every membership without a second
+ * round trip, while still bounding the per-channel member/presence hydration.
+ */
+const CHANNEL_LIST_DEFAULT_LIMIT = 50;
+
+const querySchema = cursorPaginationQuerySchema.extend({
   organizationId: z
     .string()
     .min(1)
     .openapi({
       param: { name: "organizationId", in: "query" },
       example: "org_123",
+    }),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LIMITS.MAX_PAGINATION_LIMIT)
+    .default(CHANNEL_LIST_DEFAULT_LIMIT)
+    .openapi({
+      param: { name: "limit", in: "query" },
+      description: `Number of channels to return (max ${LIMITS.MAX_PAGINATION_LIMIT})`,
+      example: CHANNEL_LIST_DEFAULT_LIMIT,
     }),
 });
 
@@ -38,7 +65,7 @@ const route = withGlobalHeaderParameters(
       query: querySchema,
     },
     responses: {
-      200: jsonSuccessResponse(
+      200: jsonPaginatedSuccessResponse(
         z.array(chatChannelSchema),
         "List chat channels",
       ),
@@ -53,35 +80,63 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
-    const { organizationId } = c.req.valid("query");
+    const queryParams = c.req.valid("query");
+    const { organizationId } = queryParams;
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const takePlusOne = take + 1;
 
-    const { channels, unreadCounts } = await prisma.$transaction(async (tx) => {
-      await resolveMemberOrganizationById({
-        id: organizationId,
-        userId: userContext.userId,
-        tx,
-      });
+    const { channels, unreadCounts, count, hasMore } =
+      await prisma.$transaction(async (tx) => {
+        await resolveMemberOrganizationById({
+          id: organizationId,
+          userId: userContext.userId,
+          tx,
+        });
 
-      const channels = await tx.chatChannel.findMany({
-        where: {
+        const where = {
           organizationId,
           archivedAt: null,
           userMembers: {
             some: { userId: userContext.userId },
           },
-        },
-        include: chatChannelInclude,
-        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        };
+
+        const [rows, count] = await Promise.all([
+          tx.chatChannel.findMany({
+            where,
+            take: takePlusOne,
+            skip,
+            cursor: cursor ? { id: cursor } : undefined,
+            include: chatChannelInclude,
+            // `id` breaks ties so the cursor walk is a total order; `updatedAt`
+            // alone is not unique and would drop or repeat rows across pages.
+            orderBy: [
+              { updatedAt: "desc" },
+              { createdAt: "desc" },
+              { id: "desc" },
+            ],
+          }),
+          tx.chatChannel.count({ where }),
+        ]);
+
+        const hasMore = rows.length === takePlusOne;
+        const channels = rows.slice(0, take);
+        const unreadCounts = await getChatChannelUnreadCounts(
+          channels.map((channel) => channel.id),
+          userContext.userId,
+          tx,
+        );
+
+        return { channels, unreadCounts, count, hasMore };
       });
 
-      const unreadCounts = await getChatChannelUnreadCounts(
-        channels.map((channel) => channel.id),
-        userContext.userId,
-        tx,
-      );
-
-      return { channels, unreadCounts };
-    });
+    const paginationMeta = createPaginationMeta(
+      channels,
+      count,
+      take,
+      hasMore,
+      cursor,
+    );
 
     return ok(
       c,
@@ -96,6 +151,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ),
           ),
         ),
+      paginationMeta,
     );
   });
 }

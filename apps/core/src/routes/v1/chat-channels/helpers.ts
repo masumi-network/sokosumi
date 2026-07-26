@@ -392,6 +392,62 @@ export async function requireChatChannelUserAccess(
   return channel;
 }
 
+// Write paths only need the channel's identity plus the coworker roster used
+// for mention dispatch. Hydrating the full include here would pull every user
+// member, their user rows, and a session-presence lookup into the write
+// transaction — hundreds of unused rows per message on a large channel.
+const chatChannelWriteSelect = {
+  id: true,
+  organizationId: true,
+  slug: true,
+  kind: true,
+  coworkerMembers: {
+    select: {
+      coworker: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  },
+} as const satisfies Prisma.ChatChannelSelect;
+
+type ChatChannelForWrite = Prisma.ChatChannelGetPayload<{
+  select: typeof chatChannelWriteSelect;
+}>;
+
+export async function requireChatChannelUserWriteAccess(
+  channelId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatChannelForWrite> {
+  const channel = await tx.chatChannel.findFirst({
+    where: {
+      id: channelId,
+      archivedAt: null,
+      userMembers: {
+        some: { userId },
+      },
+    },
+    select: chatChannelWriteSelect,
+  });
+
+  if (!channel) {
+    throw notFound("Channel not found");
+  }
+
+  await resolveMemberOrganizationById({
+    id: channel.organizationId,
+    userId,
+    tx,
+  });
+
+  return channel;
+}
+
 export async function requireChatChannelUserMembership(
   channelId: string,
   userId: string,

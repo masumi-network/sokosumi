@@ -69,17 +69,11 @@ function isCoworkerOnlyDirectChannel(
     return false;
   }
 
-  let otherHumanCount = 0;
-  for (const member of channel.userMembers) {
-    if (member.id !== currentUserId) {
-      otherHumanCount += 1;
-      if (otherHumanCount > 0) {
-        break;
-      }
-    }
-  }
+  const hasOtherHuman = channel.userMembers.some(
+    (member) => member.id !== currentUserId,
+  );
 
-  return otherHumanCount === 0 && channel.coworkerMembers.length === 1;
+  return !hasOtherHuman && channel.coworkerMembers.length === 1;
 }
 
 function getDirectParticipants(
@@ -105,14 +99,38 @@ function getDirectParticipants(
   return [...humans, ...coworkers];
 }
 
-function getDirectName(channel: ChatChannel, currentUserId: string) {
-  const participants = getDirectParticipants(channel, currentUserId);
+const DIRECT_NAME_PREVIEW_LIMIT = 3;
 
-  if (participants.length === 0) {
+/**
+ * Single source of truth for direct-channel titles: the sidebar and the
+ * channels pane must never label the same conversation differently.
+ */
+export function getDirectChannelDisplayName(
+  channel: ChatChannel,
+  currentUserId: string,
+): string {
+  if (channel.kind !== "direct") {
     return channel.name;
   }
 
-  return participants.map((participant) => participant.name).join(", ");
+  const names = [
+    ...channel.userMembers
+      .filter((member) => member.id !== currentUserId)
+      .map((member) => member.name || member.email),
+    ...channel.coworkerMembers.map((coworker) => coworker.name),
+  ];
+
+  if (names.length === 0) {
+    const self = channel.userMembers[0] ?? null;
+    return self?.name || channel.name;
+  }
+
+  if (names.length <= DIRECT_NAME_PREVIEW_LIMIT) {
+    return names.join(", ");
+  }
+
+  const shown = names.slice(0, DIRECT_NAME_PREVIEW_LIMIT);
+  return `${shown.join(", ")} and ${names.length - shown.length} more`;
 }
 
 function buildCoworkerDirectConversations(
@@ -475,7 +493,10 @@ export function OrganizationChatList({
               {directMessages.map((channel) => {
                 const isActive =
                   isChannelsPath && selectedChannelId === channel.id;
-                const label = getDirectName(channel, currentUserId);
+                const label = getDirectChannelDisplayName(
+                  channel,
+                  currentUserId,
+                );
                 const unreadCount = isActive ? 0 : channel.unreadCount;
                 return (
                   <SidebarMenuItem key={channel.id}>

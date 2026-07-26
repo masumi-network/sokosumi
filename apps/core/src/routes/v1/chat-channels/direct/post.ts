@@ -79,6 +79,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Choose another organization member");
     }
 
+    // Holds the key computed inside the transaction so the retry below can
+    // reuse it; a plain `let` would be narrowed to `never` by control flow
+    // analysis because the assignment happens inside the callback.
+    const directKeyRef: { current: string | null } = { current: null };
+
     try {
       const result = await prisma.$transaction(async (tx) => {
         await resolveMemberOrganizationById({
@@ -108,6 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberUserIds,
           coworkerIds,
         });
+        directKeyRef.current = directKey;
 
         const existing = await tx.chatChannel.findFirst({
           where: {
@@ -190,12 +196,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
       return result.created ? created(c, payload) : ok(c, payload);
     } catch (error) {
-      if (
-        isSlugUniqueConstraintError(error) ||
-        isPrismaUniqueViolation(error)
-      ) {
+      if (isSlugUniqueConstraintError(error)) {
         throw conflict("Direct channel already exists");
       }
+
+      if (isPrismaUniqueViolation(error) && directKeyRef.current) {
+        // A concurrent request inserted the same direct channel between our
+        // lookup and our insert. Return the winner instead of failing the
+        // loser. The transaction is aborted here, so re-read outside of it.
+        const existing = await prisma.chatChannel.findFirst({
+          where: {
+            organizationId: body.organizationId,
+            directKey: directKeyRef.current,
+            archivedAt: null,
+          },
+          include: chatChannelInclude,
+        });
+
+        if (existing) {
+          return ok(
+            c,
+            chatChannelSchema.parse(
+              mapChatChannel(existing, userContext.userId),
+            ),
+          );
+        }
+      }
+
+      if (isPrismaUniqueViolation(error)) {
+        throw conflict("Direct channel already exists");
+      }
+
       throw error;
     }
   });

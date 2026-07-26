@@ -98,6 +98,7 @@ import {
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
 } from "@/lib/utils/task-attachments";
+import { getInitials } from "@/lib/utils/text";
 import {
   getUserFileUploadErrorMessage,
   uploadUserFileDirect,
@@ -131,6 +132,8 @@ const CHANNEL_COMPOSER_EMOJIS = [
   "😅",
 ];
 const COWORKER_RESPONSE_POLL_MS = 2500;
+/** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
+const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
 
 interface ChannelComposerAttachment {
   url: string;
@@ -145,15 +148,6 @@ function appendComposerBlock(value: string, block: string): string {
 
   const trimmedRight = value.trimEnd();
   return `${trimmedRight}\n${block}`;
-}
-
-function initials(value: string): string {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 function AiCoworkerIcon({ className }: { className?: string }) {
@@ -224,6 +218,13 @@ function formatMessageTime(value: Date | string): string {
 function messageDayKey(value: Date | string): string {
   return new Date(value).toDateString();
 }
+
+/**
+ * Day separators are derived from the local date, so a message written near
+ * midnight can land in a different bucket on the server than in the browser.
+ * The separator text itself is marked as client-resolved for the same reason
+ * the timestamps are.
+ */
 
 function getDirectChannelTarget(channel: ChatChannel, currentUserId: string) {
   return (
@@ -399,7 +400,7 @@ function ChannelParticipantStack({ channel }: { channel: ChatChannel }) {
                     : "bg-muted text-muted-foreground",
                 )}
               >
-                {initials(participant.name) || "?"}
+                {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
             <PresenceDot
@@ -557,7 +558,7 @@ function CoworkerSuggestion({
       <Avatar className="size-6">
         <AvatarImage src={mention.data?.image ?? undefined} alt="" />
         <AvatarFallback className="text-[10px]">
-          {initials(mention.value)}
+          {getInitials(mention.value)}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
@@ -869,14 +870,20 @@ function ChatMessageRow({
       <Avatar className="mt-0.5 size-8 shrink-0">
         <AvatarImage src={sender.image ?? undefined} alt="" />
         <AvatarFallback className="text-xs">
-          {initials(sender.name)}
+          {getInitials(sender.name)}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span className="truncate text-sm font-semibold">{sender.name}</span>
           {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
-          <time className="text-muted-foreground text-xs">
+          {/* Formatted in the viewer's locale and timezone, which the server
+              does not share, so the SSR text differs from the hydrated text by
+              design. */}
+          <time
+            className="text-muted-foreground text-xs"
+            suppressHydrationWarning
+          >
             {formatMessageTime(message.createdAt)}
           </time>
         </div>
@@ -1168,7 +1175,7 @@ function ParticipantCheckboxes({
                           alt=""
                         />
                         <AvatarFallback className="text-xs">
-                          {initials(displayName)}
+                          {getInitials(displayName)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="min-w-0 flex-1">
@@ -1219,7 +1226,7 @@ function ParticipantCheckboxes({
                       <Avatar className="size-8">
                         <AvatarImage src={coworker.image ?? undefined} alt="" />
                         <AvatarFallback className="text-xs">
-                          {initials(coworker.name)}
+                          {getInitials(coworker.name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="min-w-0 flex-1">
@@ -1438,7 +1445,7 @@ function DirectDraftTargetRow({
       <Avatar className="size-7 shrink-0">
         <AvatarImage src={target.image ?? undefined} alt="" />
         <AvatarFallback className="text-[10px]">
-          {initials(target.name)}
+          {getInitials(target.name)}
         </AvatarFallback>
       </Avatar>
       <span className="min-w-0 flex-1">
@@ -1554,12 +1561,6 @@ function DraftChannel({
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
   }
 
-  function refreshForCoworkers() {
-    [2000, 5000, 10000].forEach((delay) => {
-      window.setTimeout(() => router.refresh(), delay);
-    });
-  }
-
   function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = composerValue.trim();
@@ -1592,10 +1593,11 @@ function DraftChannel({
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
       router.replace(`/channels?channel=${result.data.channel.id}`);
+      // No speculative refresh burst for coworker replies: the destination
+      // view already polls while a mention is unresolved, and these timers
+      // outlived the component — they fired against whatever page the user had
+      // navigated to.
       router.refresh();
-      if (mentionedCoworkerIds.length > 0) {
-        refreshForCoworkers();
-      }
     });
   }
 
@@ -1638,7 +1640,7 @@ function DraftChannel({
                   <Avatar className="size-5">
                     <AvatarImage src={target.image ?? undefined} alt="" />
                     <AvatarFallback className="text-[9px]">
-                      {initials(target.name)}
+                      {getInitials(target.name)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="flex min-w-0 items-center gap-1">
@@ -1852,12 +1854,6 @@ function DraftDirectMessage({
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
   }
 
-  function refreshForCoworkers() {
-    [2000, 5000, 10000].forEach((delay) => {
-      window.setTimeout(() => router.refresh(), delay);
-    });
-  }
-
   function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = composerValue.trim();
@@ -1911,10 +1907,11 @@ function DraftDirectMessage({
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
       router.replace(`/channels?channel=${result.data.channel.id}`);
+      // No speculative refresh burst for coworker replies: the destination
+      // view already polls while a mention is unresolved, and these timers
+      // outlived the component — they fired against whatever page the user had
+      // navigated to.
       router.refresh();
-      if (selectedCoworkerIds.length > 0) {
-        refreshForCoworkers();
-      }
     });
   }
 
@@ -1934,7 +1931,7 @@ function DraftDirectMessage({
                 <Avatar className="size-5">
                   <AvatarImage src={target.image ?? undefined} alt="" />
                   <AvatarFallback className="text-[9px]">
-                    {initials(target.name)}
+                    {getInitials(target.name)}
                   </AvatarFallback>
                 </Avatar>
                 <span className="flex min-w-0 items-center gap-1">
@@ -2092,6 +2089,7 @@ export function ChannelsClient({
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
     useTransition();
   const [_isReacting, startReactionTransition] = useTransition();
+  const pendingReactionsRef = useRef<Set<string>>(new Set());
   const selectedChannel = isNewDirectMessage
     ? null
     : (channels.find((channel) => channel.id === selectedChannelId) ?? null);
@@ -2247,7 +2245,20 @@ export function ChannelsClient({
     let cancelled = false;
     let timeoutId: number | undefined;
 
+    let attempts = 0;
+
     const pollMessages = async () => {
+      // A mention that never reaches a terminal state used to poll forever, in
+      // background tabs too. Skip ticks while hidden and give up after a bound;
+      // `visibilitychange` restarts the loop when the user comes back.
+      if (document.visibilityState !== "visible") {
+        timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
+        return;
+      }
+      if (attempts >= COWORKER_RESPONSE_POLL_MAX_ATTEMPTS) {
+        return;
+      }
+      attempts += 1;
       const result = await listChannelMessagesAction(channelId);
       if (cancelled) {
         return;
@@ -2264,10 +2275,18 @@ export function ChannelsClient({
       timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
     };
 
+    const restartWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        attempts = 0;
+      }
+    };
+    document.addEventListener("visibilitychange", restartWhenVisible);
+
     timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
 
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", restartWhenVisible);
       if (timeoutId) {
         window.clearTimeout(timeoutId);
       }
@@ -2288,7 +2307,21 @@ export function ChannelsClient({
     let cancelled = false;
     let timeoutId: number | undefined;
 
+    let threadAttempts = 0;
+
     const pollThreadMessages = async () => {
+      // Same gating as the channel poll above.
+      if (document.visibilityState !== "visible") {
+        timeoutId = window.setTimeout(
+          pollThreadMessages,
+          COWORKER_RESPONSE_POLL_MS,
+        );
+        return;
+      }
+      if (threadAttempts >= COWORKER_RESPONSE_POLL_MAX_ATTEMPTS) {
+        return;
+      }
+      threadAttempts += 1;
       const [threadResult, channelResult] = await Promise.all([
         listThreadMessagesAction(channelId, parentMessageId),
         listChannelMessagesAction(channelId),
@@ -2320,8 +2353,19 @@ export function ChannelsClient({
       COWORKER_RESPONSE_POLL_MS,
     );
 
+    const restartThreadWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        threadAttempts = 0;
+      }
+    };
+    document.addEventListener("visibilitychange", restartThreadWhenVisible);
+
     return () => {
       cancelled = true;
+      document.removeEventListener(
+        "visibilitychange",
+        restartThreadWhenVisible,
+      );
       if (timeoutId) {
         window.clearTimeout(timeoutId);
       }
@@ -2386,12 +2430,19 @@ export function ChannelsClient({
 
   function handleToggleReaction(message: ChatChannelMessage, emoji: string) {
     if (!selectedChannel) return;
+    // Guard the in-flight toggle: on a slow connection nothing changed
+    // visibly, so users tapped again and the second call flipped the reaction
+    // straight back off.
+    const pendingKey = `${message.id}:${emoji}`;
+    if (pendingReactionsRef.current.has(pendingKey)) return;
+    pendingReactionsRef.current.add(pendingKey);
     startReactionTransition(async () => {
       const result = await toggleMessageReactionAction(
         selectedChannel.id,
         message.id,
         emoji,
       );
+      pendingReactionsRef.current.delete(pendingKey);
       if (!result.ok) {
         toast.error(result.message);
         return;

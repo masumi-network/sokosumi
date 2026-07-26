@@ -20,6 +20,7 @@ import {
   deslugifyMentionSlug,
   findPositionForOffset,
   getActiveTrigger,
+  getCaretOffset,
   getCaretRect,
   getMentionToken,
   getPopupPositionFromRect,
@@ -274,6 +275,17 @@ function setCaretAtEnd(root: HTMLElement): void {
   selection.addRange(range);
 }
 
+function setCaretAtOffset(root: HTMLElement, offset: number): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const position = findPositionForOffset(root, offset);
+  const range = document.createRange();
+  range.setStart(position.node, position.offset);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function MentionTextareaInner<TData = unknown>(
   {
     id,
@@ -492,11 +504,21 @@ function MentionTextareaInner<TData = unknown>(
       lastSerializedValueRef.current = value;
       return;
     }
+    // Rebuilding the editor DOM drops the selection, so remember where the
+    // caret was and put it back. Without this, an external value update (e.g.
+    // attaching a file) sends the caret to the start of the editor.
+    const caretOffset =
+      document.activeElement === editor ? getCaretOffset(editor) : null;
+
     setEditorFromRaw(editor, value, resolveDisplay, {
       mentionClassName: MENTION_CLASSNAME,
       unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
     });
     lastSerializedValueRef.current = value;
+
+    if (caretOffset !== null) {
+      setCaretAtOffset(editor, caretOffset);
+    }
   }, [resolveDisplay, value]);
 
   const insertMention = useCallback(

@@ -2,6 +2,14 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
+/**
+ * Roster writes fan out to one row per id, so an unbounded array turns a
+ * single request into an arbitrarily long transaction. These caps are far
+ * above any real channel and keep that bounded.
+ */
+const MAX_CHANNEL_MEMBERS = 500;
+const MAX_CHANNEL_COWORKERS = 50;
+
 export const chatChannelPresenceSchema = z
   .enum(["online", "afk", "offline"])
   .openapi("ChatChannelPresence");
@@ -73,12 +81,14 @@ export const createChatChannelRequestSchema = z
     }),
     memberUserIds: z
       .array(z.string().min(1))
+      .max(MAX_CHANNEL_MEMBERS)
       .optional()
       .openapi({
         example: ["user_123", "user_456"],
       }),
     coworkerIds: z
       .array(z.string().min(1))
+      .max(MAX_CHANNEL_COWORKERS)
       .optional()
       .openapi({
         example: ["cow_123"],
@@ -101,6 +111,7 @@ export const createDirectChatChannelRequestSchema = z
     }),
     memberUserIds: z
       .array(z.string().min(1))
+      .max(MAX_CHANNEL_MEMBERS)
       .optional()
       .openapi({
         description:
@@ -109,6 +120,7 @@ export const createDirectChatChannelRequestSchema = z
       }),
     coworkerIds: z
       .array(z.string().min(1))
+      .max(MAX_CHANNEL_COWORKERS)
       .optional()
       .openapi({
         description: "AI coworker IDs to include in the direct message.",
@@ -140,12 +152,14 @@ export const updateChatChannelRequestSchema = z
     }),
     memberUserIds: z
       .array(z.string().min(1))
+      .max(MAX_CHANNEL_MEMBERS)
       .optional()
       .openapi({
         example: ["user_123", "user_456"],
       }),
     coworkerIds: z
       .array(z.string().min(1))
+      .max(MAX_CHANNEL_COWORKERS)
       .optional()
       .openapi({
         example: ["cow_123"],

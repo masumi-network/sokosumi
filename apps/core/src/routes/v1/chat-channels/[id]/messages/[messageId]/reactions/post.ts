@@ -88,26 +88,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Message not found");
       }
 
-      const existingReaction = await tx.chatChannelReaction.findFirst({
+      // Toggle without a read-then-write: concurrent taps on the same emoji
+      // would otherwise race on the (messageId, userId, emoji) unique index.
+      // `deleteMany` reports a count instead of throwing P2025 when the
+      // reaction is already gone, and `skipDuplicates` turns the insert into
+      // ON CONFLICT DO NOTHING so a lost create race cannot abort the
+      // surrounding transaction with P2002.
+      const removed = await tx.chatChannelReaction.deleteMany({
         where: {
           messageId,
           userId: userContext.userId,
           emoji,
         },
-        select: { id: true },
       });
 
-      if (existingReaction) {
-        await tx.chatChannelReaction.delete({
-          where: { id: existingReaction.id },
-        });
-      } else {
-        await tx.chatChannelReaction.create({
+      if (removed.count === 0) {
+        await tx.chatChannelReaction.createMany({
           data: {
             messageId,
             userId: userContext.userId,
             emoji,
           },
+          skipDuplicates: true,
         });
       }
 
