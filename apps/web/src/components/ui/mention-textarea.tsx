@@ -802,6 +802,12 @@ function MentionTextareaInner<TData = unknown>(
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, isOpen]);
 
+  const popupPosition =
+    triggerPosition ??
+    (isMounted && isOpen && editorRef.current
+      ? getPopupPositionFromRect(editorRef.current.getBoundingClientRect())
+      : null);
+
   return (
     <div className="relative" ref={containerRef}>
       <div
@@ -841,18 +847,17 @@ function MentionTextareaInner<TData = unknown>(
           <div
             ref={listRef}
             style={
-              triggerPosition
-                ? { top: triggerPosition.top, left: triggerPosition.left }
-                : editorRef.current
-                  ? {
-                      top: editorRef.current.getBoundingClientRect().bottom,
-                      left: editorRef.current.getBoundingClientRect().left,
-                    }
-                  : undefined
+              popupPosition
+                ? {
+                    top: popupPosition.top,
+                    left: popupPosition.left,
+                    maxHeight: popupPosition.maxHeight,
+                  }
+                : undefined
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
-              !triggerPosition && "mt-1",
+              "bg-popover text-popover-foreground fixed z-50 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              popupPosition?.side === "top" && "-translate-y-full",
             )}
           >
             {filteredMentions.map((mention, index) => (
