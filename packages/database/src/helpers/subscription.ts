@@ -101,7 +101,12 @@ export interface TransitionToNextLocalFreeSubscriptionParams {
 
 interface EnsureInitialLocalFreeSubscriptionPeriodBaseParams {
   createdAt: Date;
-  stripeCustomerId: string;
+  /**
+   * Null when seeding happens before the Stripe customer exists (synchronous
+   * seeding at organization creation). The customer.created webhook re-runs
+   * the same idempotent ensure once the customer id is known.
+   */
+  stripeCustomerId: string | null;
 }
 
 export interface EnsureInitialLocalFreeUserSubscriptionPeriodParams

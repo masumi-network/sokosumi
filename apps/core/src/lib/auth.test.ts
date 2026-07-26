@@ -21,6 +21,7 @@ const {
   getBetterAuthProductionUrlMock,
   getBetterAuthSubscriptionPlansMock,
   getWebAppBaseUrlMock,
+  ensureInitialLocalFreeSubscriptionPeriodMock,
   grantSignupBonusCreditsMock,
   hasConsumableEnterpriseContractMock,
   handleSubscriptionDeletedEventMock,
@@ -82,6 +83,7 @@ const {
     getBetterAuthProductionUrlMock: vi.fn(),
     getBetterAuthSubscriptionPlansMock: vi.fn(),
     getWebAppBaseUrlMock: vi.fn(),
+    ensureInitialLocalFreeSubscriptionPeriodMock: vi.fn(),
     grantSignupBonusCreditsMock: vi.fn(),
     hasConsumableEnterpriseContractMock: vi.fn(),
     handleSubscriptionDeletedEventMock: vi.fn(),
@@ -213,6 +215,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
+    ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+      ensureInitialLocalFreeSubscriptionPeriodMock(...args),
     grantSignupBonusCredits: (...args: unknown[]) =>
       grantSignupBonusCreditsMock(...args),
     hasConsumableEnterpriseContract: (...args: unknown[]) =>
@@ -1716,6 +1720,93 @@ describe("core auth config", () => {
       },
       tags: {
         context: "workspace_organization_creation",
+      },
+    });
+  });
+
+  it("seeds the local free subscription when an organization is created", async () => {
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                name: string;
+                slug: string;
+                createdAt: Date;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    const createdAt = new Date("2026-07-01T00:00:00.000Z");
+    await config.organizationHooks.afterCreateOrganization({
+      organization: {
+        id: "org_123",
+        name: "Org One",
+        slug: "org-one",
+        createdAt,
+      },
+    });
+
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        createdAt,
+        kind: "organization",
+        organizationId: "org_123",
+        stripeCustomerId: null,
+      },
+      expect.anything(),
+    );
+  });
+
+  it("reports free subscription seeding failures to Sentry without failing creation", async () => {
+    ensureInitialLocalFreeSubscriptionPeriodMock.mockRejectedValueOnce(
+      new Error("seed failed"),
+    );
+
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                name: string;
+                slug: string;
+                createdAt: Date;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.afterCreateOrganization({
+        organization: {
+          id: "org_123",
+          name: "Org One",
+          slug: "org-one",
+          createdAt: new Date("2026-07-01T00:00:00.000Z"),
+        },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        organizationId: "org_123",
+        organizationName: "Org One",
+      },
+      tags: {
+        context: "organization_free_subscription_seed",
       },
     });
   });

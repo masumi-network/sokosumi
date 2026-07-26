@@ -9,6 +9,7 @@ import * as Sentry from "@sentry/node";
 import { MemberRole, type User } from "@sokosumi/database";
 import {
   ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+  ensureInitialLocalFreeSubscriptionPeriod,
   getCreditExpiryDate,
   grantSignupBonusCredits,
   hasConsumableEnterpriseContract,
@@ -190,6 +191,47 @@ async function ensureStripeCustomerForCreatedOrganization(organization: {
     slug: organization.slug,
     name: organization.name,
   });
+}
+
+/**
+ * Seeds the local free subscription (and its member credit grants) the moment
+ * an organization exists. Previously this only happened when Stripe's
+ * customer.created webhook arrived, so a freshly created organization had no
+ * credits and rejected invitation accepts ("An active organization
+ * subscription is required") until the webhook round-trip completed — a race
+ * the create-organization wizard hits every time because it invites members
+ * seconds after creation. The webhook re-runs the same idempotent ensure
+ * later, finding this period and creating nothing.
+ */
+async function ensureFreeSubscriptionForCreatedOrganization(organization: {
+  id: string;
+  name: string;
+  createdAt: Date;
+}): Promise<void> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await ensureInitialLocalFreeSubscriptionPeriod(
+        {
+          createdAt: organization.createdAt,
+          kind: "organization",
+          organizationId: organization.id,
+          stripeCustomerId: null,
+        },
+        tx,
+      );
+    });
+  } catch (error) {
+    // Fail soft: the customer.created webhook still seeds it as a fallback.
+    Sentry.captureException(error, {
+      tags: {
+        context: "organization_free_subscription_seed",
+      },
+      extra: {
+        organizationId: organization.id,
+        organizationName: organization.name,
+      },
+    });
+  }
 }
 
 async function ensureOrganizationHasNoAdditionalMembers(
@@ -609,6 +651,7 @@ export const auth = betterAuth({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
           await ensureWorkspaceForCreatedOrganization(organization);
+          await ensureFreeSubscriptionForCreatedOrganization(organization);
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
               Sentry.captureException(error, {
