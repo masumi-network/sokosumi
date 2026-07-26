@@ -389,7 +389,9 @@ function CoworkerChatHeader({
   onCreateConversation,
 }: CoworkerChatHeaderProps) {
   return (
-    <header className="bg-background absolute inset-x-0 top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
+    // In flow, like the channels header: the surrounding column is
+    // header / list / composer, so nothing needs to reserve space for it.
+    <header className="bg-background z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
       <div className="flex min-w-0 items-center gap-2">
         <MessageCircle className="text-muted-foreground size-4 shrink-0" />
         <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 truncate text-sm">

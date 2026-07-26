@@ -483,7 +483,17 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     return (
       <div
         ref={setWrapperRef}
-        className="absolute inset-x-0 top-0 bottom-32 overflow-hidden"
+        className={cn(
+          "overflow-hidden",
+          // The centred chat floats its composer over the list, so the list is
+          // an overlay that reserves room for it. The full-width DM stacks
+          // header / list / composer in a flex column exactly like the channels
+          // view, so it is just the growing middle child — no reserved strip,
+          // no compensating padding.
+          fullWidth
+            ? "relative min-h-0 flex-1"
+            : "absolute inset-x-0 top-0 bottom-32",
+        )}
       >
         {/* Scrollbar left visible, as in the channels view — hiding it here was
             the most obvious way this list behaved unlike every other chat.
@@ -498,13 +508,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           <div
             className={cn(
               "flex flex-col",
-              hasTopHeader ? "pt-20" : "pt-20 md:pt-4",
-              // The centred chat floats its composer over the list, so it needs
-              // deep bottom padding to keep the last message clear of it. The
-              // full-width DM stacks the composer below the list instead, and
-              // the wrapper above already reserves `bottom-32` for it — so that
-              // padding is pure dead scroll space under the last message.
-              fullWidth ? "items-stretch px-5 pb-6" : "items-center pb-40",
+              // Full width mirrors the channels scroll body (`px-5 pt-6 pb-8`).
+              // The centred chat keeps its overlay offsets, which exist to clear
+              // the floating composer and the absolute header.
+              fullWidth
+                ? "items-stretch px-5 pt-6 pb-8"
+                : hasTopHeader
+                  ? "items-center pt-20 pb-40"
+                  : "items-center pt-20 pb-40 md:pt-4",
             )}
           >
             <div
