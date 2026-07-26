@@ -2448,7 +2448,16 @@ export default function ChatInterface({
         ) {
           return selectedChat.coworker;
         }
-        const fromList = coworkers.find((c) => c.id === coworkerId);
+        // Match on slug as well as id. A coworker row that gets recreated keeps
+        // its slug (which is globally unique) but takes a new id, so older
+        // conversations carry a `coworker_id` that no longer resolves. Matching
+        // by id alone dropped those to the synthetic object below, which lacks
+        // the availability fields the composer needs.
+        const fromList =
+          coworkers.find((c) => c.id === coworkerId) ??
+          (coworkerSlug
+            ? coworkers.find((c) => c.slug === coworkerSlug)
+            : undefined);
         if (fromList) return fromList;
         if (selectedChat?.coworker?.id === coworkerId) {
           return selectedChat.coworker;
@@ -2456,12 +2465,19 @@ export default function ChatInterface({
         if (!coworkerSlug) {
           return selectedChat?.coworker;
         }
+        // Metadata carries identity but no availability fields, and
+        // `coworkerCanChat` reads a missing `capabilities` array as "cannot
+        // chat" — which made the composer drop this coworker and silently
+        // re-address the message to the default one. An open conversation is
+        // proof enough that it chats; a genuinely dead endpoint fails loudly on
+        // send instead of quietly writing to someone else.
         return {
           id: coworkerId,
           slug: coworkerSlug,
           name: coworkerName,
           description: (meta?.coworker_description as string) ?? "",
           useCase: (meta?.coworker_useCase as string) ?? "",
+          canChat: true,
         };
       }
     }

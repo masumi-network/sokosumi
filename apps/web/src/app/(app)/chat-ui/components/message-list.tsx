@@ -534,8 +534,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               {sections.map((section, sectionIndex) => {
                 const isActiveNewSection =
                   sectionIndex > 0 && sectionIndex === sections.length - 1;
+                // Stretching the newest section to the full viewport gives the
+                // centred assistant chat its "answer fills the screen" feel, but
+                // in the full-width coworker DM — which sits in the same shell as
+                // channels — it just appends a screenful of blank space below the
+                // last message and strands it at the top. Bottom-anchor there
+                // instead, like every other direct message.
                 const sectionHeight =
-                  isActiveNewSection && contentHeight > 0
+                  !fullWidth && isActiveNewSection && contentHeight > 0
                     ? contentHeight
                     : undefined;
                 const sectionStyle = sectionHeight
