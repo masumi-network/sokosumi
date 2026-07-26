@@ -151,6 +151,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const wrapperRef = useRef<HTMLDivElement | null>(null);
     const roRef = useRef<ResizeObserver | null>(null);
     const [contentHeight, setContentHeight] = useState(0);
+    /** Conversation whose opening scroll-to-bottom has already run. */
+    const initialScrollChatIdRef = useRef<string | null>(null);
     const [warmupMessagePhase, setWarmupMessagePhase] =
       useState<WarmupMessagePhase>("ready");
 
@@ -347,6 +349,23 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         </div>
       </div>
     );
+
+    // Open on the newest message, the way the channels view does. The old rule
+    // only scrolled when there was more than one section, so a conversation
+    // that fit in a single section opened pinned to the very top with its whole
+    // history scrollable below it. `scrollToMax` also deliberately stops short
+    // of the end, which is right while a reply streams in but wrong on open.
+    useEffect(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      if (initialScrollChatIdRef.current === selectedChatId) return;
+      // Messages arrive after the id does, so wait until there is something to
+      // scroll before pinning — then do it once per conversation and leave the
+      // user's scroll position alone afterwards.
+      if (container.scrollHeight <= container.clientHeight) return;
+      container.scrollTop = container.scrollHeight;
+      initialScrollChatIdRef.current = selectedChatId ?? null;
+    }, [selectedChatId, contentHeight, messages.length, scrollContainerRef]);
 
     useEffect(() => {
       if (sections.length > 1) scrollToMax();
