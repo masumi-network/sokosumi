@@ -36,6 +36,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  listChannelMessagesAction,
   listThreadMessagesAction,
   sendChannelMessageAction,
   sendNewChannelMessageAction,
@@ -127,6 +128,7 @@ const CHANNEL_COMPOSER_EMOJIS = [
   "🙂",
   "😅",
 ];
+const COWORKER_RESPONSE_POLL_MS = 2500;
 
 interface ChannelComposerAttachment {
   url: string;
@@ -161,6 +163,24 @@ function AiCoworkerIcon({ className }: { className?: string }) {
       aria-label={t("coworkerBadge")}
     />
   );
+}
+
+function hasPendingCoworkerMention(messages: ChatChannelMessage[]): boolean {
+  return messages.some((message) =>
+    message.mentions.some(
+      (mention) => mention.status === "pending" || mention.status === "sent",
+    ),
+  );
+}
+
+function appendMessage(
+  messages: ChatChannelMessage[],
+  nextMessage: ChatChannelMessage,
+): ChatChannelMessage[] {
+  if (messages.some((message) => message.id === nextMessage.id)) {
+    return messages;
+  }
+  return [...messages, nextMessage];
 }
 
 function toggleId(ids: string[], id: string, checked: boolean): string[] {
@@ -2153,11 +2173,108 @@ export function ChannelsClient({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messagesState.length, selectedChannelId]);
 
-  function refreshForCoworkers() {
-    [2000, 5000, 10000].forEach((delay) => {
-      window.setTimeout(() => router.refresh(), delay);
-    });
-  }
+  const hasPendingChannelCoworkerMention = useMemo(
+    () => hasPendingCoworkerMention(messagesState),
+    [messagesState],
+  );
+  const hasPendingThreadCoworkerMention = useMemo(
+    () => hasPendingCoworkerMention(threadMessages),
+    [threadMessages],
+  );
+
+  useEffect(() => {
+    if (!selectedChannel || !hasPendingChannelCoworkerMention) {
+      return;
+    }
+
+    const channelId = selectedChannel.id;
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollMessages = async () => {
+      const result = await listChannelMessagesAction(channelId);
+      if (cancelled) {
+        return;
+      }
+      if (result.ok) {
+        setMessagesState(result.data);
+        setThreadParentMessage((current) =>
+          current
+            ? (result.data.find((message) => message.id === current.id) ??
+              current)
+            : current,
+        );
+      }
+      timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
+    };
+
+    timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [selectedChannel?.id, hasPendingChannelCoworkerMention]);
+
+  useEffect(() => {
+    if (
+      !selectedChannel ||
+      !threadParentMessage ||
+      !hasPendingThreadCoworkerMention
+    ) {
+      return;
+    }
+
+    const channelId = selectedChannel.id;
+    const parentMessageId = threadParentMessage.id;
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollThreadMessages = async () => {
+      const [threadResult, channelResult] = await Promise.all([
+        listThreadMessagesAction(channelId, parentMessageId),
+        listChannelMessagesAction(channelId),
+      ]);
+      if (cancelled) {
+        return;
+      }
+      if (threadResult.ok) {
+        setThreadMessages(threadResult.data);
+      }
+      if (channelResult.ok) {
+        setMessagesState(channelResult.data);
+        setThreadParentMessage((current) =>
+          current
+            ? (channelResult.data.find(
+                (message) => message.id === current.id,
+              ) ?? current)
+            : current,
+        );
+      }
+      timeoutId = window.setTimeout(
+        pollThreadMessages,
+        COWORKER_RESPONSE_POLL_MS,
+      );
+    };
+
+    timeoutId = window.setTimeout(
+      pollThreadMessages,
+      COWORKER_RESPONSE_POLL_MS,
+    );
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [
+    selectedChannel?.id,
+    threadParentMessage?.id,
+    hasPendingThreadCoworkerMention,
+  ]);
 
   function mergeUpdatedMessage(updatedMessage: ChatChannelMessage) {
     setMessagesState((current) =>
@@ -2211,22 +2328,6 @@ export function ChannelsClient({
     });
   }
 
-  function refreshThreadForCoworkers(parentMessageId: string) {
-    if (!selectedChannel) return;
-    [2000, 5000, 10000].forEach((delay) => {
-      window.setTimeout(() => {
-        router.refresh();
-        void listThreadMessagesAction(selectedChannel.id, parentMessageId).then(
-          (result) => {
-            if (result.ok) {
-              setThreadMessages(result.data);
-            }
-          },
-        );
-      }, delay);
-    });
-  }
-
   function handleToggleReaction(message: ChatChannelMessage, emoji: string) {
     if (!selectedChannel) return;
     startReactionTransition(async () => {
@@ -2259,16 +2360,11 @@ export function ChannelsClient({
         toast.error(result.message);
         return;
       }
-      const shouldPoll =
-        mentionedCoworkerIds.length > 0 ||
-        (isDirectChannel && selectedChannel.coworkerMembers.length > 0);
+      setMessagesState((current) => appendMessage(current, result.data));
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
       router.refresh();
-      if (shouldPoll) {
-        refreshForCoworkers();
-      }
     });
   }
 
@@ -2296,13 +2392,6 @@ export function ChannelsClient({
       setThreadComposerAttachments([]);
       setThreadMentionedCoworkerIds([]);
       router.refresh();
-
-      const shouldPoll =
-        threadMentionedCoworkerIds.length > 0 ||
-        (isDirectChannel && selectedChannel.coworkerMembers.length > 0);
-      if (shouldPoll) {
-        refreshThreadForCoworkers(threadParentMessage.id);
-      }
     });
   }
 

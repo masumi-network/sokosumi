@@ -277,6 +277,20 @@ export async function sendChannelMessageAction(
   }
 }
 
+export async function listChannelMessagesAction(
+  channelId: string,
+): Promise<ChannelActionResult<ChatChannelMessage[]>> {
+  try {
+    const messages = await chatChannelService.listMessages(channelId);
+    return { ok: true, data: messages };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not load messages."),
+    };
+  }
+}
+
 export async function listThreadMessagesAction(
   channelId: string,
   parentMessageId: string,
