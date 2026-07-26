@@ -451,7 +451,7 @@ export const getChatChannelsByIdMessages = <ThrowOnError extends boolean = false
 });
 
 /**
- * Post a channel message. Mentioned AI coworkers are called asynchronously and reply into the channel.
+ * Post a channel message. Mentioned AI coworkers — and, for thread replies, every coworker already part of the thread — are called asynchronously and reply into the channel. Coworker API keys may post as the coworker itself into channels it is a member of.
  */
 export const postChatChannelsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<PostChatChannelsByIdMessagesData, ThrowOnError>): RequestResult<PostChatChannelsByIdMessagesResponses, PostChatChannelsByIdMessagesErrors, ThrowOnError> => (options.client ?? client).post<PostChatChannelsByIdMessagesResponses, PostChatChannelsByIdMessagesErrors, ThrowOnError>({
     responseTransformer: postChatChannelsByIdMessagesResponseTransformer,

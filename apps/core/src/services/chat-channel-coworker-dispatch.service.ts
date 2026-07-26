@@ -8,6 +8,55 @@ import { createCoworkerConversation } from "@/routes/v1/chat/coworker-conversati
 
 const CHANNEL_COWORKER_TIMEOUT_MS = 90_000;
 
+/** How many prior messages the coworker sees as conversation context. */
+const CHANNEL_CONTEXT_MESSAGE_LIMIT = 10;
+/** Per-message cap inside the context block so one wall of text cannot eat the prompt. */
+const CHANNEL_CONTEXT_MESSAGE_MAX_CHARS = 500;
+
+export interface ChannelContextMessage {
+  senderName: string;
+  isCoworker: boolean;
+  content: string;
+}
+
+function formatContextLine(message: ChannelContextMessage): string {
+  const flattened = message.content.replace(/\s+/g, " ").trim();
+  const truncated =
+    flattened.length > CHANNEL_CONTEXT_MESSAGE_MAX_CHARS
+      ? `${flattened.slice(0, CHANNEL_CONTEXT_MESSAGE_MAX_CHARS)}…`
+      : flattened;
+  const senderLabel = message.isCoworker
+    ? `${message.senderName} (AI coworker)`
+    : message.senderName;
+  return `- ${senderLabel}: ${truncated}`;
+}
+
+/**
+ * Prompt sent to a coworker for a channel mention or thread reply. The
+ * CONTEXT block carries the recent messages the coworker never saw (it only
+ * receives what is addressed to it), oldest first. Nothing in it is secret —
+ * it is the same channel history the humans in the channel can read.
+ */
+export function buildChannelMentionPrompt(params: {
+  channelName: string;
+  senderName: string;
+  content: string;
+  isThreadReply: boolean;
+  contextMessages: readonly ChannelContextMessage[];
+}): string {
+  const action = params.isThreadReply
+    ? "replied to a thread you are part of"
+    : "mentioned you";
+  const messageBlock = `${params.senderName} ${action} in #${params.channelName}:\n\n${params.content}`;
+
+  if (params.contextMessages.length === 0) {
+    return messageBlock;
+  }
+
+  const contextLines = params.contextMessages.map(formatContextLine);
+  return `CONTEXT (last ${params.contextMessages.length} messages in #${params.channelName}):\n${contextLines.join("\n")}\n\n${messageBlock}`;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -102,10 +151,31 @@ async function runChatChannelMentionDispatch(mentionId: string): Promise<void> {
     mention.message.senderUserId ?? mention.message.channel.createdByUserId;
   const senderName = mention.message.senderUser?.name ?? "A teammate";
   const baseURL = coworker.baseURL.trim();
+  const threadRootId = mention.message.parentMessageId;
   let providerResponseId: string | null = null;
 
-  const providerConversation = mention.providerConversationId
-    ? { id: mention.providerConversationId }
+  // Inside a thread the same coworker keeps one provider conversation, so a
+  // back-and-forth stays a dialogue instead of a series of cold starts.
+  let existingProviderConversationId = mention.providerConversationId;
+  if (!existingProviderConversationId && threadRootId) {
+    const priorThreadMention = await prisma.chatChannelMention.findFirst({
+      where: {
+        coworkerId: coworker.id,
+        providerConversationId: { not: null },
+        message: {
+          channelId: mention.message.channelId,
+          OR: [{ id: threadRootId }, { parentMessageId: threadRootId }],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { providerConversationId: true },
+    });
+    existingProviderConversationId =
+      priorThreadMention?.providerConversationId ?? null;
+  }
+
+  const providerConversation = existingProviderConversationId
+    ? { id: existingProviderConversationId }
     : await createCoworkerConversation({
         responsesApiBaseUrl: baseURL,
         sokosumiUserId: userId,
@@ -135,7 +205,43 @@ async function runChatChannelMentionDispatch(mentionId: string): Promise<void> {
     },
   };
 
-  const prompt = `${senderName} mentioned you in #${mention.message.channel.name}:\n\n${mention.message.content}`;
+  // The coworker only ever receives what is addressed to it, so hand it the
+  // surrounding conversation: the last messages of the thread it is replying
+  // in, or of the channel for a top-level mention (oldest first).
+  const contextRows = await prisma.chatChannelMessage.findMany({
+    where: {
+      channelId: mention.message.channelId,
+      id: { not: mention.message.id },
+      createdAt: { lte: mention.message.createdAt },
+      ...(threadRootId
+        ? { OR: [{ id: threadRootId }, { parentMessageId: threadRootId }] }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: CHANNEL_CONTEXT_MESSAGE_LIMIT,
+    select: {
+      content: true,
+      senderUser: { select: { name: true } },
+      senderCoworker: { select: { name: true } },
+    },
+  });
+
+  const contextMessages: ChannelContextMessage[] = contextRows
+    .reverse()
+    .map((row) => ({
+      senderName:
+        row.senderCoworker?.name ?? row.senderUser?.name ?? "Unknown sender",
+      isCoworker: row.senderCoworker != null,
+      content: row.content,
+    }));
+
+  const prompt = buildChannelMentionPrompt({
+    channelName: mention.message.channel.name,
+    senderName,
+    content: mention.message.content,
+    isThreadReply: threadRootId != null,
+    contextMessages,
+  });
 
   // Bounds the coworker call: without it a stalled upstream keeps the mention
   // non-terminal forever. Aborting throws, which the caller turns into failed.

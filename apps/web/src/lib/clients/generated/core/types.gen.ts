@@ -8536,6 +8536,14 @@ export type GetChatChannelsData = {
     };
     path?: never;
     query: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of channels to return (max 100)
+         */
+        limit?: number;
         organizationId: string;
     };
     url: '/chat-channels';
@@ -8611,7 +8619,7 @@ export type GetChatChannelsResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination?: PaginationMetadata;
+            pagination: PaginationMetadata;
         };
     };
 };

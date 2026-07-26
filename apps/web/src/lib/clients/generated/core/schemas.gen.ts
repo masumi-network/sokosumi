@@ -4260,6 +4260,7 @@ export const CreateChatChannelRequestSchema = {
                 type: 'string',
                 minLength: 1
             },
+            maxItems: 500,
             example: [
                 'user_123',
                 'user_456'
@@ -4271,6 +4272,7 @@ export const CreateChatChannelRequestSchema = {
                 type: 'string',
                 minLength: 1
             },
+            maxItems: 50,
             example: [
                 'cow_123'
             ]
@@ -4308,6 +4310,7 @@ export const CreateDirectChatChannelRequestSchema = {
                 type: 'string',
                 minLength: 1
             },
+            maxItems: 500,
             description: 'Organization member user IDs to include in the direct message.',
             example: [
                 'user_456',
@@ -4320,6 +4323,7 @@ export const CreateDirectChatChannelRequestSchema = {
                 type: 'string',
                 minLength: 1
             },
+            maxItems: 50,
             description: 'AI coworker IDs to include in the direct message.',
             example: [
                 'cow_123'
@@ -4354,6 +4358,7 @@ export const UpdateChatChannelRequestSchema = {
                 type: 'string',
                 minLength: 1
             },
+            maxItems: 500,
             example: [
                 'user_123',
                 'user_456'
@@ -4365,6 +4370,7 @@ export const UpdateChatChannelRequestSchema = {
                 type: 'string',
                 minLength: 1
             },
+            maxItems: 50,
             example: [
                 'cow_123'
             ]
