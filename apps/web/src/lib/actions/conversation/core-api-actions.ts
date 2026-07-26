@@ -209,10 +209,14 @@ export const getConversation = withSession<
   GetConversationParameters,
   Result<ConversationWithMessages, ActionError>
 >(async ({ id }) => {
-  // Fetch conversation metadata
-  const conversationResult = await makeCoreApiRequest(() =>
-    coreClient.getConversation(id),
-  );
+  const [conversationResult, messagesResult] = await Promise.all([
+    makeCoreApiRequest(() => coreClient.getConversation(id)),
+    makeCoreApiRequest(() =>
+      coreClient.getConversationMessages(id, {
+        limit: 100,
+      }),
+    ),
+  ]);
 
   if (conversationResult.isErr()) {
     return {
@@ -221,47 +225,13 @@ export const getConversation = withSession<
     } as unknown as Result<ConversationWithMessages, ActionError>;
   }
 
-  // Fetch conversation messages from database (limit 100 so list/conversation view has full history)
-  const messagesResult = await getConversationMessages({
-    conversationId: id,
-    limit: 100,
-  });
-
-  // Handle serialized Result format from getConversationMessages
-  if (
-    messagesResult &&
-    typeof messagesResult === "object" &&
-    "ok" in messagesResult &&
-    messagesResult.ok === false
-  ) {
-    // If message fetch fails, return conversation without messages
-    return {
-      ok: true,
-      data: {
-        ...toConversation(conversationResult.value.data),
-        messages: [],
-      },
-    } as unknown as Result<ConversationWithMessages, ActionError>;
-  }
-
-  // Extract messages from serialized Result format
-  const messages =
-    messagesResult &&
-    typeof messagesResult === "object" &&
-    "ok" in messagesResult &&
-    messagesResult.ok === true &&
-    "data" in messagesResult &&
-    messagesResult.data &&
-    typeof messagesResult.data === "object" &&
-    "messages" in messagesResult.data
-      ? (messagesResult.data.messages as ConversationMessage[])
-      : [];
-
   return {
     ok: true,
     data: {
       ...toConversation(conversationResult.value.data),
-      messages,
+      messages: messagesResult.isOk()
+        ? ((messagesResult.value.data ?? []) as ConversationMessage[])
+        : [],
     },
   } as unknown as Result<ConversationWithMessages, ActionError>;
 });
