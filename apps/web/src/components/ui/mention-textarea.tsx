@@ -57,6 +57,12 @@ interface MentionTextareaProps<TData = unknown> {
   className?: string;
   suggestionsAnchor?: "caret" | "editor";
   submitOnEnter?: boolean;
+  /**
+   * When false, Enter inserts a line break instead of submitting on narrow
+   * (touch) viewports, where there is no Shift key to reach for and the send
+   * button is always visible. Mirrors `PromptInputTextarea`.
+   */
+  allowEnterToSubmitOnMobile?: boolean;
   onSubmitShortcut?: () => void;
   renderItem?: (
     mention: NormalizedMention<TData>,
@@ -296,6 +302,7 @@ function MentionTextareaInner<TData = unknown>(
     className,
     suggestionsAnchor = "caret",
     submitOnEnter = false,
+    allowEnterToSubmitOnMobile = true,
     onSubmitShortcut,
     renderItem,
     onSelectedKeysChange,
@@ -682,7 +689,11 @@ function MentionTextareaInner<TData = unknown>(
       if (event.key === "Enter" && !isOpen) {
         if (event.nativeEvent.isComposing) return;
         event.preventDefault();
-        if (submitOnEnter && !event.shiftKey) {
+        const isNarrowViewport =
+          typeof window !== "undefined" && window.innerWidth < 768;
+        const submitsOnEnter =
+          submitOnEnter && (allowEnterToSubmitOnMobile || !isNarrowViewport);
+        if (submitsOnEnter && !event.shiftKey) {
           onSubmitShortcut?.();
           return;
         }
@@ -728,6 +739,7 @@ function MentionTextareaInner<TData = unknown>(
     },
     [
       activeIndex,
+      allowEnterToSubmitOnMobile,
       closeSuggestions,
       filteredMentions,
       insertMention,

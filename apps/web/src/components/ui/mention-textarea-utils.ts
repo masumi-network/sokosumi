@@ -378,10 +378,20 @@ export function getActiveTrigger(
 }
 
 export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
-  const belowSpace = viewportHeight - rect.bottom - VIEWPORT_PADDING_PX;
-  const aboveSpace = rect.top - VIEWPORT_PADDING_PX;
+  // Measure against the visual viewport so an open virtual keyboard counts as
+  // unavailable space. `interactiveWidget: "resizes-content"` shrinks the
+  // layout viewport on Android, but iOS Safari resizes only the visual one, so
+  // `innerHeight` alone would place the suggestions behind the keyboard.
+  // offsetTop/offsetLeft put both edges back into the client coordinate space
+  // that `rect` uses.
+  const visual = window.visualViewport;
+  const viewportTop = visual ? visual.offsetTop : 0;
+  const viewportBottom = visual
+    ? visual.offsetTop + visual.height
+    : window.innerHeight;
+  const viewportWidth = visual ? visual.width : window.innerWidth;
+  const belowSpace = viewportBottom - rect.bottom - VIEWPORT_PADDING_PX;
+  const aboveSpace = rect.top - viewportTop - VIEWPORT_PADDING_PX;
   const side =
     belowSpace < Math.min(POPUP_HEIGHT_PX, 96) && aboveSpace > belowSpace
       ? "top"

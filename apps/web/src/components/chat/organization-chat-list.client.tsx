@@ -316,7 +316,10 @@ function SectionHeader({
       <SheetClose asChild>
         <Link
           aria-label={label}
-          className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex size-6 shrink-0 items-center justify-center rounded-md transition-colors"
+          // The only entry point for creating a channel or DM. 24px is well
+          // under a comfortable tap target, so widen the hit area on touch with
+          // an invisible inset rather than changing how the row looks.
+          className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
           href={href}
         >
           <Plus className="size-3.5" aria-hidden />

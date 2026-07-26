@@ -709,6 +709,9 @@ function ChannelComposer({
               placeholder={placeholder}
               suggestionsAnchor="editor"
               submitOnEnter
+              // On a phone Enter is the only newline key, and the send button is
+              // always visible — so Enter composes rather than sends.
+              allowEnterToSubmitOnMobile={false}
               onSubmitShortcut={() => formRef.current?.requestSubmit()}
               className="min-h-20 resize-none rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
               renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
@@ -719,7 +722,7 @@ function ChannelComposer({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8 rounded-full"
+                  className="size-9 rounded-full sm:size-8"
                   title={t("Toolbar.mention")}
                   aria-label={t("Toolbar.mention")}
                   onClick={() => textareaRef.current?.openMentions()}
@@ -740,7 +743,7 @@ function ChannelComposer({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8 rounded-full"
+                  className="size-9 rounded-full sm:size-8"
                   title={t("Toolbar.attach")}
                   aria-label={t("Toolbar.attach")}
                   disabled={isUploadingFiles}
@@ -758,7 +761,7 @@ function ChannelComposer({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-8 rounded-full"
+                      className="size-9 rounded-full sm:size-8"
                       title={t("Toolbar.emoji")}
                       aria-label={t("Toolbar.emoji")}
                     >
@@ -771,7 +774,7 @@ function ChannelComposer({
                         <button
                           key={emoji}
                           type="button"
-                          className="hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
+                          className="hover:bg-muted focus-visible:ring-ring flex size-10 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2 sm:size-8"
                           onClick={() => textareaRef.current?.insertText(emoji)}
                         >
                           {emoji}
@@ -785,7 +788,7 @@ function ChannelComposer({
                 type="submit"
                 variant="primary"
                 size="icon"
-                className="size-8 rounded-full"
+                className="size-9 rounded-full sm:size-8"
                 disabled={isSending || isUploadingFiles || sendDisabled}
                 aria-label={t("send")}
               >
@@ -819,7 +822,7 @@ function MessageEmojiPicker({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-7 rounded-full"
+          className="size-9 rounded-full sm:size-7"
           title={label}
           aria-label={label}
         >
@@ -902,7 +905,7 @@ function ChatMessageRow({
                 type="button"
                 onClick={() => onToggleReaction(message, reaction.emoji)}
                 className={cn(
-                  "border-border bg-background hover:bg-muted inline-flex h-7 items-center gap-1 rounded-full border px-2 text-xs font-medium transition-colors",
+                  "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                   reaction.reactedByCurrentUser &&
                     "border-primary/30 bg-primary/10 text-primary",
                 )}
@@ -917,7 +920,7 @@ function ChatMessageRow({
         {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
           <button
             type="button"
-            className="text-primary hover:text-primary/80 mt-1 text-xs font-medium"
+            className="text-primary hover:text-primary/80 -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0"
             onClick={() => onOpenThread(message)}
           >
             {t("Thread.replyCount", { count: message.threadReplyCount })}
@@ -943,7 +946,11 @@ function ChatMessageRow({
           </div>
         ) : null}
       </div>
-      <div className="border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      {/* Visible by default; only hover-capable pointers get the reveal-on-hover
+          treatment. Tailwind gates `group-hover` behind `@media (hover: hover)`,
+          so a touch device never fires it — leaving the only reaction and
+          thread controls permanently invisible on a phone. */}
+      <div className="border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
         <MessageEmojiPicker
           label={t("Reactions.add")}
           onSelect={(emoji) => onToggleReaction(message, emoji)}
@@ -953,7 +960,7 @@ function ChatMessageRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-7 rounded-full"
+            className="size-9 rounded-full sm:size-7"
             title={t("Thread.open")}
             aria-label={t("Thread.open")}
             onClick={() => onOpenThread(message)}
@@ -1007,7 +1014,11 @@ function ThreadPanel({
   const t = useTranslations("App.Channels");
 
   return (
-    <aside className="bg-background flex min-h-0 w-[420px] shrink-0 flex-col border-l">
+    // Below lg the thread takes over the whole pane: side-by-side would leave
+    // the message column ~0px wide and push the panel past the viewport edge,
+    // taking its close button with it. It has its own header and close button,
+    // so a full-screen takeover is self-contained.
+    <aside className="bg-background absolute inset-0 z-30 flex min-h-0 w-full shrink-0 flex-col lg:static lg:z-auto lg:w-[420px] lg:border-l">
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold">
@@ -1616,13 +1627,13 @@ function DraftChannel({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder={t("Dialog.namePlaceholder")}
-                className="placeholder:text-muted-foreground h-8 w-full bg-transparent text-sm font-medium outline-none"
+                className="placeholder:text-muted-foreground h-8 w-full bg-transparent text-base font-medium outline-none md:text-sm"
               />
               <input
                 value={topic}
                 onChange={(event) => setTopic(event.target.value)}
                 placeholder={t("Dialog.topicPlaceholder")}
-                className="placeholder:text-muted-foreground/80 h-6 w-full bg-transparent text-xs text-muted-foreground outline-none"
+                className="placeholder:text-muted-foreground/80 text-muted-foreground h-6 w-full bg-transparent text-base outline-none md:text-xs"
               />
             </div>
           </div>
@@ -1651,7 +1662,7 @@ function DraftChannel({
                   </span>
                   <button
                     type="button"
-                    className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
+                    className="hover:bg-background/80 relative flex size-5 items-center justify-center rounded-full before:absolute before:-inset-2 before:content-['']"
                     onClick={() => removeTarget(target.key)}
                     aria-label={t("Draft.removeRecipient", {
                       name: target.name,
@@ -1698,7 +1709,7 @@ function DraftChannel({
                       ? t("Draft.searchPlaceholder")
                       : t("Draft.searchPlaceholderMore")
                   }
-                  className="placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 text-sm outline-none"
+                  className="placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 text-base outline-none md:text-sm"
                 />
               </div>
             </div>
@@ -1986,7 +1997,7 @@ function DraftDirectMessage({
                     ? t("Draft.searchPlaceholder")
                     : t("Draft.searchPlaceholderMore")
                 }
-                className="placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 text-sm outline-none"
+                className="placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 text-base outline-none md:text-sm"
               />
             </div>
           </div>
@@ -2505,7 +2516,8 @@ export function ChannelsClient({
 
   return (
     <div className="-m-4 flex h-[calc(100svh-64px)] min-h-0 flex-col overflow-hidden bg-background">
-      <main className="flex min-h-0 flex-1">
+      {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
+      <main className="relative flex min-h-0 flex-1">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           {isCreateChannelRequested ? (
             <DraftChannel

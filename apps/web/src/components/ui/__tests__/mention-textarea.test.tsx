@@ -13,10 +13,12 @@ function StatefulMentionTextarea({
   onChange,
   onSubmitShortcut,
   submitOnEnter = false,
+  allowEnterToSubmitOnMobile,
 }: {
   onChange?: (value: string) => void;
   onSubmitShortcut?: () => void;
   submitOnEnter?: boolean;
+  allowEnterToSubmitOnMobile?: boolean;
 }) {
   const [value, setValue] = useState("");
 
@@ -34,6 +36,7 @@ function StatefulMentionTextarea({
         },
       }}
       submitOnEnter={submitOnEnter}
+      allowEnterToSubmitOnMobile={allowEnterToSubmitOnMobile}
       onSubmitShortcut={onSubmitShortcut}
     />
   );
@@ -89,6 +92,62 @@ describe("MentionTextarea", () => {
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
 
     expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+  });
+
+  it("composes instead of submitting on a narrow viewport when Enter-to-submit is disabled there", () => {
+    const onSubmitShortcut = vi.fn();
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 390,
+    });
+
+    try {
+      render(
+        <StatefulMentionTextarea
+          submitOnEnter
+          allowEnterToSubmitOnMobile={false}
+          onSubmitShortcut={onSubmitShortcut}
+        />,
+      );
+
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+      expect(onSubmitShortcut).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalInnerWidth,
+      });
+    }
+  });
+
+  it("still submits on Enter at desktop widths when mobile submit is disabled", () => {
+    const onSubmitShortcut = vi.fn();
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1280,
+    });
+
+    try {
+      render(
+        <StatefulMentionTextarea
+          submitOnEnter
+          allowEnterToSubmitOnMobile={false}
+          onSubmitShortcut={onSubmitShortcut}
+        />,
+      );
+
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+      expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalInnerWidth,
+      });
+    }
   });
 
   it("keeps Shift+Enter for multiline input", () => {

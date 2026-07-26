@@ -58,6 +58,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/**
+ * When the virtual keyboard opens on mobile, the layout viewport resizes so
+ * the channel composer stays above the keyboard. Mirrors the chat route.
+ */
+export const viewport = {
+  interactiveWidget: "resizes-content" as const,
+};
+
 export default async function ChannelsPage({
   searchParams,
 }: ChannelsPageProps) {

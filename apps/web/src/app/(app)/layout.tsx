@@ -111,8 +111,15 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                               data-app-content-inner
                             >
                               <Header className="h-16 p-4" session={session} />
+                              {/* Below md the header is `fixed` (out of flow), so
+                                  main starts at y=0 and must be a full viewport
+                                  tall — subtracting the header height there left
+                                  a dead 64px strip along the bottom of every
+                                  page, which a bottom-anchored composer sits on
+                                  top of. From md the header is `sticky` and does
+                                  occupy flow, so the subtraction is correct. */}
                               <main
-                                className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
+                                className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-64px)] md:min-h-[calc(100svh-64px)] md:pt-4"
                                 data-app-main
                               >
                                 <EmergencyDialog />

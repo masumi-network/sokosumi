@@ -190,7 +190,12 @@ export function ChatLayoutClient({
         className={
           mobileChatOnly
             ? isCoworkerBucket
-              ? "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col px-0 lg:static lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:pt-0"
+              ? // Starts below the app header (fixed, h-16, z-50) rather than at
+                // inset-0. The coworker pane renders its own header in flow, and
+                // at inset-0 that header lands underneath the app header, so on
+                // mobile it was never visible — taking the conversation switcher
+                // and new-chat button with it.
+                "bg-background fixed inset-x-0 top-16 bottom-0 z-10 flex w-full flex-col px-0 lg:static lg:inset-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:pt-0"
               : "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col px-0 md:px-2 lg:static lg:z-auto lg:mx-auto lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:pt-0"
             : mobileListOnly
               ? "hidden lg:mx-auto lg:flex lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:flex-col lg:pt-0 lg:pl-4"
