@@ -713,7 +713,9 @@ function ChannelComposer({
               // always visible — so Enter composes rather than sends.
               allowEnterToSubmitOnMobile={false}
               onSubmitShortcut={() => formRef.current?.requestSubmit()}
-              className="min-h-20 resize-none rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
+              // Capped so a long draft scrolls inside the composer instead of
+              // growing it until the toolbar and send button leave the screen.
+              className="max-h-40 min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
               renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
             />
             <div className="flex items-center justify-between px-3 pb-3">
@@ -1342,7 +1344,17 @@ function EditChannelDialog({
           <Settings2 className="size-4" aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent className="shadow-none sm:max-w-2xl">
+      {/* The fixed-height participant list makes this dialog ~755px tall, which
+          overflows a shorter phone — on a 667px iPhone SE the title and close
+          button were cut off above the viewport and Cancel below it, with
+          nothing to scroll. Cap it to the viewport and scroll the body. */}
+      {/* The fixed-height participant list makes this dialog ~755px tall, which
+          overflows a shorter phone — on a 667px iPhone SE the title and close
+          button sat above the viewport and Cancel below it, with nothing to
+          scroll. Cap the dialog to the viewport and scroll the form body rather
+          than the padded dialog box, whose children do not reflow around their
+          own scrollbar. */}
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto shadow-none sm:max-w-2xl">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
