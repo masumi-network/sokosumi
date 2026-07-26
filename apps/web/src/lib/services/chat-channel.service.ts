@@ -57,6 +57,11 @@ export const chatChannelService = (() => {
     return response.data;
   }
 
+  async function markRead(id: string): Promise<ChatChannel> {
+    const response = await coreClient.markChatChannelRead(id);
+    return response.data;
+  }
+
   const listMessages = cache(async function listMessages(
     channelId: string,
   ): Promise<ChatChannelMessage[]> {
@@ -105,6 +110,7 @@ export const chatChannelService = (() => {
     listChannels,
     listMessages,
     listThreadMessages,
+    markRead,
     sendMessage,
     toggleReaction,
     updateChannel,

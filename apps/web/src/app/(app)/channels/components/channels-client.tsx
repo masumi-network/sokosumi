@@ -49,6 +49,7 @@ import { slugify } from "@/app/chat/utils/bucket-slug";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { writePendingCoworkerDirectMessage } from "@/app/chat-ui/utils/pending-coworker-direct-message";
+import { markOrganizationChatChannelReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
@@ -2085,6 +2086,7 @@ export function ChannelsClient({
     string[]
   >([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const readMarkerRef = useRef<string | null>(null);
   const [isSending, startSendingTransition] = useTransition();
   const [isThreadLoading, startThreadLoadingTransition] = useTransition();
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
@@ -2193,6 +2195,39 @@ export function ChannelsClient({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messagesState.length, selectedChannelId]);
+
+  const latestVisibleMessageId = messagesState.at(-1)?.id ?? "empty";
+  const selectedChannelReadId = selectedChannel?.id ?? null;
+
+  useEffect(() => {
+    if (!selectedChannelReadId) {
+      return;
+    }
+
+    const marker = `${selectedChannelReadId}:${latestVisibleMessageId}`;
+    if (readMarkerRef.current === marker) {
+      return;
+    }
+    readMarkerRef.current = marker;
+
+    let cancelled = false;
+    markOrganizationChatChannelReadAction(selectedChannelReadId).then(
+      (result) => {
+        if (cancelled || !result.ok) {
+          return;
+        }
+        window.dispatchEvent(
+          new CustomEvent("organization-chat-channel-read", {
+            detail: { channel: result.data, channelId: selectedChannelReadId },
+          }),
+        );
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [latestVisibleMessageId, selectedChannelReadId]);
 
   const hasPendingChannelCoworkerMention = useMemo(
     () => hasPendingCoworkerMention(messagesState),

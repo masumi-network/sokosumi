@@ -169,6 +169,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 ...memberUserIds.map((userId) => ({ userId })),
               ],
             },
+            readStates: {
+              create: [
+                { userId: userContext.userId },
+                ...memberUserIds.map((userId) => ({ userId })),
+              ],
+            },
             coworkerMembers: {
               create: coworkerIds.map((coworkerId) => ({ coworkerId })),
             },

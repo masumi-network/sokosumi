@@ -1126,6 +1126,10 @@ export type ChatChannel = {
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Messages sent by others after the current user's read marker.
+     */
+    unreadCount: number;
     userMembers: Array<ChatChannelUserParticipant>;
     coworkerMembers: Array<ChatChannelCoworkerParticipant>;
 };
@@ -9104,6 +9108,106 @@ export type PatchChatChannelsByIdResponses = {
 };
 
 export type PatchChatChannelsByIdResponse = PatchChatChannelsByIdResponses[keyof PatchChatChannelsByIdResponses];
+
+export type PostChatChannelsByIdReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chat-channels/{id}/read';
+};
+
+export type PostChatChannelsByIdReadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatChannelsByIdReadError = PostChatChannelsByIdReadErrors[keyof PostChatChannelsByIdReadErrors];
+
+export type PostChatChannelsByIdReadResponses = {
+    /**
+     * Chat channel marked read
+     */
+    200: {
+        data: ChatChannel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatChannelsByIdReadResponse = PostChatChannelsByIdReadResponses[keyof PostChatChannelsByIdReadResponses];
 
 export type GetChatChannelsByIdMessagesData = {
     body?: never;

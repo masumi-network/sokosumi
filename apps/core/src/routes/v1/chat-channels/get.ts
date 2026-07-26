@@ -11,7 +11,11 @@ import {
 import { requireUserContext } from "@/middleware/auth";
 import { chatChannelSchema } from "@/schemas/chat-channel.schema";
 
-import { chatChannelInclude, mapChatChannel } from "./helpers";
+import {
+  chatChannelInclude,
+  getChatChannelUnreadCounts,
+  mapChatChannel,
+} from "./helpers";
 
 const querySchema = z.object({
   organizationId: z
@@ -51,14 +55,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const { organizationId } = c.req.valid("query");
 
-    const channels = await prisma.$transaction(async (tx) => {
+    const { channels, unreadCounts } = await prisma.$transaction(async (tx) => {
       await resolveMemberOrganizationById({
         id: organizationId,
         userId: userContext.userId,
         tx,
       });
 
-      return tx.chatChannel.findMany({
+      const channels = await tx.chatChannel.findMany({
         where: {
           organizationId,
           archivedAt: null,
@@ -69,6 +73,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: chatChannelInclude,
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
       });
+
+      const unreadCounts = await getChatChannelUnreadCounts(
+        channels.map((channel) => channel.id),
+        userContext.userId,
+        tx,
+      );
+
+      return { channels, unreadCounts };
     });
 
     return ok(
@@ -77,7 +89,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         .array(chatChannelSchema)
         .parse(
           channels.map((channel) =>
-            mapChatChannel(channel, userContext.userId),
+            mapChatChannel(
+              channel,
+              userContext.userId,
+              unreadCounts.get(channel.id) ?? 0,
+            ),
           ),
         ),
     );

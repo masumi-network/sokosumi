@@ -129,6 +129,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id: channel.id },
         data: { updatedAt: new Date() },
       });
+      await tx.chatChannelReadState.upsert({
+        where: {
+          channelId_userId: {
+            channelId: channel.id,
+            userId: userContext.userId,
+          },
+        },
+        update: { lastReadAt: message.createdAt },
+        create: {
+          channelId: channel.id,
+          userId: userContext.userId,
+          lastReadAt: message.createdAt,
+        },
+      });
 
       return {
         message,

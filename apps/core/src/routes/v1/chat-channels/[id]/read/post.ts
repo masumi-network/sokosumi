@@ -10,11 +10,7 @@ import {
 import { requireUserContext } from "@/middleware/auth";
 import { chatChannelSchema } from "@/schemas/chat-channel.schema";
 
-import {
-  getChatChannelUnreadCounts,
-  mapChatChannel,
-  requireChatChannelUserAccess,
-} from "../helpers";
+import { mapChatChannel, requireChatChannelUserAccess } from "../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -28,15 +24,16 @@ const paramsSchema = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-    method: "get",
-    path: "/{id}",
-    description: "Get an organization chat channel.",
+    method: "post",
+    path: "/{id}/read",
+    description:
+      "Mark an organization chat channel as read for the current user.",
     tags: ["Chat Channels"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(chatChannelSchema, "Chat channel retrieved"),
+      200: jsonSuccessResponse(chatChannelSchema, "Chat channel marked read"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Channel not found"),
@@ -49,30 +46,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
+    const readAt = new Date();
 
-    const { channel, unreadCounts } = await prisma.$transaction(async (tx) => {
+    const channel = await prisma.$transaction(async (tx) => {
       const channel = await requireChatChannelUserAccess(
         id,
         userContext.userId,
         tx,
       );
-      const unreadCounts = await getChatChannelUnreadCounts(
-        [channel.id],
-        userContext.userId,
-        tx,
-      );
-      return { channel, unreadCounts };
+
+      await tx.chatChannelReadState.upsert({
+        where: {
+          channelId_userId: {
+            channelId: channel.id,
+            userId: userContext.userId,
+          },
+        },
+        update: { lastReadAt: readAt },
+        create: {
+          channelId: channel.id,
+          userId: userContext.userId,
+          lastReadAt: readAt,
+        },
+      });
+
+      return channel;
     });
 
     return ok(
       c,
-      chatChannelSchema.parse(
-        mapChatChannel(
-          channel,
-          userContext.userId,
-          unreadCounts.get(channel.id) ?? 0,
-        ),
-      ),
+      chatChannelSchema.parse(mapChatChannel(channel, userContext.userId, 0)),
     );
   });
 }

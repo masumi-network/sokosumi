@@ -114,9 +114,48 @@ function resolveUserPresence(
   return "offline";
 }
 
+export async function getChatChannelUnreadCounts(
+  channelIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, number>> {
+  const uniqueChannelIds = normalizeUniqueStrings(channelIds);
+  if (uniqueChannelIds.length === 0) {
+    return new Map();
+  }
+
+  const channelIdPlaceholders = uniqueChannelIds
+    .map((_, index) => `$${index + 1}::uuid`)
+    .join(", ");
+  const userIdPlaceholder = `$${uniqueChannelIds.length + 1}`;
+
+  const rows = await tx.$queryRawUnsafe<
+    Array<{ channelId: string; unreadCount: number | bigint }>
+  >(
+    `
+    SELECT
+      message."channelId" AS "channelId",
+      COUNT(*)::int AS "unreadCount"
+    FROM "chat_channel_message" message
+    LEFT JOIN "chat_channel_read_state" read_state
+      ON read_state."channelId" = message."channelId"
+      AND read_state."userId" = ${userIdPlaceholder}
+    WHERE message."channelId" IN (${channelIdPlaceholders})
+      AND message."createdAt" > COALESCE(read_state."lastReadAt", '-infinity'::timestamp)
+      AND (message."senderUserId" IS NULL OR message."senderUserId" <> ${userIdPlaceholder})
+    GROUP BY message."channelId"
+  `,
+    ...uniqueChannelIds,
+    userId,
+  );
+
+  return new Map(rows.map((row) => [row.channelId, Number(row.unreadCount)]));
+}
+
 export function mapChatChannel(
   channel: ChatChannelWithMembers,
   currentUserId?: string,
+  unreadCount = 0,
 ) {
   return {
     id: channel.id,
@@ -129,6 +168,7 @@ export function mapChatChannel(
     createdByUserId: channel.createdByUserId,
     createdAt: channel.createdAt,
     updatedAt: channel.updatedAt,
+    unreadCount,
     userMembers: channel.userMembers.map(({ user }) => ({
       id: user.id,
       name: user.name,

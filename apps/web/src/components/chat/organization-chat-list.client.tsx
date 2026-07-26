@@ -4,7 +4,7 @@ import { ChevronDown, Hash, MessageCircle, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   displaySlugFromMetadata,
   getBucketKeyFromMetadata,
@@ -35,6 +35,9 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { listOrganizationChatChannelsAction } from "./organization-chat-list.actions";
+
+const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
 interface OrganizationChatListProps {
   channels: ChatChannel[];
@@ -252,6 +255,23 @@ function CoworkerDirectAvatar({ row }: { row: CoworkerDirectConversation }) {
   );
 }
 
+function UnreadBadge({ count }: { count: number }) {
+  if (count <= 0) {
+    return null;
+  }
+
+  const label = count > 99 ? "99+" : String(count);
+
+  return (
+    <span
+      aria-label={`${label} unread`}
+      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
+    >
+      {label}
+    </span>
+  );
+}
+
 function SectionHeader({
   children,
   href,
@@ -298,17 +318,79 @@ export function OrganizationChatList({
   const searchParams = useSearchParams();
   const { conversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
+  const [channelRows, setChannelRows] = useState(channels);
   const [channelsOpen, setChannelsOpen] = useState(true);
   const [directOpen, setDirectOpen] = useState(true);
   const selectedChannelId = searchParams.get("channel");
   const isChannelsPath = pathname === "/channels";
   const activeConversationId = pathname?.split("/").filter(Boolean).at(-1);
 
+  useEffect(() => {
+    setChannelRows(channels);
+  }, [channels]);
+
+  useEffect(() => {
+    if (!hasOrganization) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const refreshChannels = async () => {
+      const result = await listOrganizationChatChannelsAction();
+      if (!cancelled && result.ok) {
+        setChannelRows(result.data);
+      }
+    };
+
+    const intervalId = window.setInterval(
+      refreshChannels,
+      ORGANIZATION_CHAT_POLL_MS,
+    );
+    window.addEventListener("focus", refreshChannels);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshChannels);
+    };
+  }, [hasOrganization]);
+
+  useEffect(() => {
+    const handleChannelRead = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ channel?: ChatChannel; channelId?: string }>
+      ).detail;
+      if (!detail?.channelId) {
+        return;
+      }
+
+      setChannelRows((current) =>
+        current.map((channel) =>
+          channel.id === detail.channelId
+            ? (detail.channel ?? { ...channel, unreadCount: 0 })
+            : channel,
+        ),
+      );
+    };
+
+    window.addEventListener(
+      "organization-chat-channel-read",
+      handleChannelRead,
+    );
+    return () => {
+      window.removeEventListener(
+        "organization-chat-channel-read",
+        handleChannelRead,
+      );
+    };
+  }, []);
+
   const { directMessages, publicChannels } = useMemo(() => {
     const directMessages: ChatChannel[] = [];
     const publicChannels: ChatChannel[] = [];
 
-    for (const channel of channels) {
+    for (const channel of channelRows) {
       if (channel.kind === "channel") {
         publicChannels.push(channel);
         continue;
@@ -323,7 +405,7 @@ export function OrganizationChatList({
     }
 
     return { directMessages, publicChannels };
-  }, [channels, currentUserId]);
+  }, [channelRows, currentUserId]);
   const coworkerDirectMessages = useMemo(
     () => buildCoworkerDirectConversations(conversations, coworkers),
     [conversations, coworkers],
@@ -345,6 +427,7 @@ export function OrganizationChatList({
               {publicChannels.map((channel) => {
                 const isActive =
                   isChannelsPath && selectedChannelId === channel.id;
+                const unreadCount = isActive ? 0 : channel.unreadCount;
 
                 return (
                   <SidebarMenuItem key={channel.id}>
@@ -359,6 +442,7 @@ export function OrganizationChatList({
                           <span className="flex-1 truncate">
                             {channel.name}
                           </span>
+                          <UnreadBadge count={unreadCount} />
                         </Link>
                       </SheetClose>
                     </SidebarMenuButton>
@@ -392,6 +476,7 @@ export function OrganizationChatList({
                 const isActive =
                   isChannelsPath && selectedChannelId === channel.id;
                 const label = getDirectName(channel, currentUserId);
+                const unreadCount = isActive ? 0 : channel.unreadCount;
                 return (
                   <SidebarMenuItem key={channel.id}>
                     <SidebarMenuButton asChild isActive={isActive}>
@@ -408,6 +493,7 @@ export function OrganizationChatList({
                           <span className="min-w-0 flex-1 truncate">
                             {label}
                           </span>
+                          <UnreadBadge count={unreadCount} />
                         </Link>
                       </SheetClose>
                     </SidebarMenuButton>

@@ -5,6 +5,7 @@ import mountPostChatChannelMessageReaction from "./[id]/messages/[messageId]/rea
 import mountGetChatChannelMessages from "./[id]/messages/get.js";
 import mountPostChatChannelMessage from "./[id]/messages/post.js";
 import mountPatchChatChannel from "./[id]/patch.js";
+import mountPostChatChannelRead from "./[id]/read/post.js";
 import mountPostDirectChatChannel from "./direct/post.js";
 import mountGetChatChannels from "./get.js";
 import mountPostChatChannel from "./post.js";
@@ -16,6 +17,7 @@ mountPostChatChannel(app);
 mountPostDirectChatChannel(app);
 mountGetChatChannel(app);
 mountPatchChatChannel(app);
+mountPostChatChannelRead(app);
 mountGetChatChannelMessages(app);
 mountPostChatChannelMessage(app);
 mountPostChatChannelMessageReaction(app);

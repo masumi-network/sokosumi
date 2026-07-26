@@ -108,6 +108,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           await tx.chatChannelUserMember.deleteMany({
             where: { channelId: existing.id },
           });
+          await tx.chatChannelReadState.deleteMany({
+            where: {
+              channelId: existing.id,
+              userId: { notIn: memberUserIds },
+            },
+          });
           for (const memberUserId of memberUserIds) {
             await tx.chatChannelUserMember.create({
               data: {
@@ -116,6 +122,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               },
             });
           }
+          await tx.chatChannelReadState.createMany({
+            data: memberUserIds.map((memberUserId) => ({
+              channelId: existing.id,
+              userId: memberUserId,
+            })),
+            skipDuplicates: true,
+          });
         }
 
         if (body.coworkerIds !== undefined) {

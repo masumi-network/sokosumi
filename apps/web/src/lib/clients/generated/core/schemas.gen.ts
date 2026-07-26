@@ -4111,6 +4111,12 @@ export const ChatChannelSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        unreadCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Messages sent by others after the current user\'s read marker.',
+            example: 2
+        },
         userMembers: {
             type: 'array',
             items: {
@@ -4135,6 +4141,7 @@ export const ChatChannelSchema = {
         'createdByUserId',
         'createdAt',
         'updatedAt',
+        'unreadCount',
         'userMembers',
         'coworkerMembers'
     ]

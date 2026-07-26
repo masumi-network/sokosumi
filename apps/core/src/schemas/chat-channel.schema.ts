@@ -52,6 +52,11 @@ export const chatChannelSchema = z
     createdByUserId: z.string().openapi({ example: "user_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
+    unreadCount: z.number().int().min(0).openapi({
+      description:
+        "Messages sent by others after the current user's read marker.",
+      example: 2,
+    }),
     userMembers: z.array(chatChannelUserParticipantSchema),
     coworkerMembers: z.array(chatChannelCoworkerParticipantSchema),
   })

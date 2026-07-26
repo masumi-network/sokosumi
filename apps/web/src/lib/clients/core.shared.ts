@@ -210,6 +210,7 @@ import {
   postChatChannels as corePostChatChannels,
   postChatChannelsByIdMessages as corePostChatChannelsByIdMessages,
   postChatChannelsByIdMessagesByMessageIdReactions as corePostChatChannelsByIdMessagesByMessageIdReactions,
+  postChatChannelsByIdRead as corePostChatChannelsByIdRead,
   postChatChannelsDirect as corePostChatChannelsDirect,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
@@ -699,6 +700,18 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to update chat channel",
+    );
+  }
+
+  async function markChatChannelRead(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatChannelsByIdRead({
+          client,
+          path: { id },
+        }),
+      "Failed to mark chat channel read",
     );
   }
 
@@ -3461,6 +3474,7 @@ export function createCoreClient(getClient: GetClient) {
     getChatChannel,
     getChatChannelMessages,
     getChatChannels,
+    markChatChannelRead,
     toggleChatChannelMessageReaction,
     getConversation,
     getConversationMessages,
