@@ -216,7 +216,7 @@ export default function MenuItems() {
                     {separatorAfter ? (
                       <SidebarMenuItem
                         aria-hidden
-                        className="py-1 group-data-[collapsible=icon]:hidden"
+                        className="py-2 group-data-[collapsible=icon]:hidden"
                       >
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>
