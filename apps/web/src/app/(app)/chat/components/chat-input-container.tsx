@@ -60,7 +60,12 @@ export default function ChatInputContainer({
     <div
       className={cn(
         "bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0",
-        fullWidth ? "px-5" : "px-8",
+        // The full-width chat pane cancels the page padding with a negative
+        // margin so its header rule reaches the pane edges, and this bar is
+        // positioned against that bled pane — a plain `px-5` therefore loses
+        // 1rem of itself and the composer sits almost flush with the window.
+        // Add the bleed back so it lines up with the channels composer.
+        fullWidth ? "px-9" : "px-8",
       )}
     >
       <div

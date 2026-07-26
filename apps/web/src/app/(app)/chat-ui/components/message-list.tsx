@@ -497,9 +497,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         >
           <div
             className={cn(
-              "flex flex-col pb-40",
+              "flex flex-col",
               hasTopHeader ? "pt-20" : "pt-20 md:pt-4",
-              fullWidth ? "items-stretch px-5" : "items-center",
+              // The centred chat floats its composer over the list, so it needs
+              // deep bottom padding to keep the last message clear of it. The
+              // full-width DM stacks the composer below the list instead, and
+              // the wrapper above already reserves `bottom-32` for it — so that
+              // padding is pure dead scroll space under the last message.
+              fullWidth ? "items-stretch px-5 pb-6" : "items-center pb-40",
             )}
           >
             <div
