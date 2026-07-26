@@ -325,7 +325,8 @@ export async function toggleMessageReactionAction(
       messageId,
       cleanEmoji,
     );
-    revalidatePath("/channels");
+    // No revalidatePath: the updated message is returned and merged client
+    // side, so a full RSC re-render of /channels would only duplicate work.
     return { ok: true, data: message };
   } catch (error) {
     return {

@@ -466,9 +466,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         ref={setWrapperRef}
         className="absolute inset-x-0 top-0 bottom-32 overflow-hidden"
       >
+        {/* Scrollbar left visible, as in the channels view — hiding it here was
+            the most obvious way this list behaved unlike every other chat.
+            `overflow-anchor: none` stays: the stick-to-bottom logic below owns
+            scroll position while a reply streams in, and browser anchoring
+            fights it. */}
         <div
           ref={scrollContainerRef}
-          className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="h-full w-full overflow-x-hidden overflow-y-auto [overflow-anchor:none]"
           style={{ overflowAnchor: "none" }}
         >
           <div

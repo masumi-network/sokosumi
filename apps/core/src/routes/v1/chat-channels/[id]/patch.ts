@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { conflict } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
@@ -9,7 +9,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import {
   chatChannelSchema,
   updateChatChannelRequestSchema,
@@ -65,7 +65,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -76,6 +76,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userContext.userId,
           tx,
         );
+
+        // A direct channel's identity IS its participant set: `directKey` is
+        // derived from it, and `direct/post.ts` resolves an existing DM by that
+        // key alone. Renaming one or rewriting its roster here would leave the
+        // key pointing at a membership that no longer matches, so reopening the
+        // DM could hand someone a conversation they are no longer part of.
+        // Direct channels are created, never edited.
+        if (existing.kind === "direct") {
+          throw badRequest("Direct channels cannot be edited.");
+        }
 
         const updateData: {
           name?: string;

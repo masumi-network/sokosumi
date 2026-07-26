@@ -2420,7 +2420,8 @@ export function ChannelsClient({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
-      router.refresh();
+      // The action already calls revalidatePath("/channels"); refreshing here
+      // too would re-render the whole route a second time per message.
     });
   }
 
@@ -2447,7 +2448,7 @@ export function ChannelsClient({
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedCoworkerIds([]);
-      router.refresh();
+      // Same as the channel composer: the action's revalidatePath covers this.
     });
   }
 

@@ -14,7 +14,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { chatChannelMessageSchema } from "@/schemas/chat-channel.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -72,7 +72,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
@@ -91,7 +91,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           take: takePlusOne,
           skip,
           cursor: cursor ? { id: cursor } : undefined,
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          // Newest-first, so an uncursored request (what a channel does when it
+          // opens) returns the most recent page rather than the first page ever
+          // written. Paging with `nextCursor` then walks backwards through
+          // history. The page is reversed below so callers still receive it in
+          // reading order.
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           include: chatChannelMessageInclude,
         }),
         tx.chatChannelMessage.count({ where }),
@@ -102,6 +107,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const hasMore = messages.length === takePlusOne;
     const pageMessages = messages.slice(0, take);
+    // Built from the newest-first page, so `nextCursor` is this page's oldest
+    // message — the anchor for fetching the next older page.
     const paginationMeta = createPaginationMeta(
       pageMessages,
       count,
@@ -109,13 +116,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       hasMore,
       cursor,
     );
+    const orderedMessages = [...pageMessages].reverse();
 
     return ok(
       c,
       z
         .array(chatChannelMessageSchema)
         .parse(
-          pageMessages.map((message) =>
+          orderedMessages.map((message) =>
             mapChatChannelMessage(message, userContext.userId),
           ),
         ),
