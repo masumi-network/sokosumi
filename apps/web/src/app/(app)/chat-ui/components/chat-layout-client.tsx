@@ -147,13 +147,20 @@ export function ChatLayoutClient({
   const mobileChatOnly = Boolean(conversationIdFromPath) && !mobileListOnly;
 
   return (
+    // `<main>` pads every page by 1rem, so the chat pane cancels that padding
+    // to sit flush like the channels view. Every branch has to do it: `bucket`
+    // resolves from client-loaded conversations/coworkers, so a coworker chat
+    // renders through the two-column branch until that data arrives (and stays
+    // there when the coworker is filtered out of the list), and would otherwise
+    // draw its header rule inset on both sides. A negative margin alone does
+    // not widen a `w-full` box — the width has to grow with it.
     <div
       className={
         showTwoColumn
-          ? "-mt-20 -mr-4 -mb-4 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
+          ? "-mx-4 -mt-20 -mb-4 flex h-full min-h-0 w-[calc(100%+2rem)] min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
           : isFullBleedCoworkerChat
             ? "-m-4 flex h-[calc(100svh-64px)] min-h-0 w-[calc(100%+2rem)] flex-1 flex-col overflow-hidden bg-background"
-            : "flex h-full min-h-0 w-full flex-1 flex-col"
+            : "-mx-4 flex h-full min-h-0 w-[calc(100%+2rem)] flex-1 flex-col"
       }
     >
       {showTwoColumn && bucketSlug ? (
