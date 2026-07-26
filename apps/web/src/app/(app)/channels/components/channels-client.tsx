@@ -51,6 +51,7 @@ import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { writePendingCoworkerDirectMessage } from "@/app/chat-ui/utils/pending-coworker-direct-message";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -417,45 +418,68 @@ function ChannelParticipantStack({ channel }: { channel: ChatChannel }) {
   );
 }
 
-function renderMentionTextNodes({
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatChannelMarkdownMentions({
   content,
   coworkersById,
   coworkersBySlug,
-  keyPrefix,
 }: {
   content: string;
   coworkersById: Map<string, ChatChannelCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
-  keyPrefix: string;
-}): ReactNode[] {
+}): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
-    return [content];
+    return content;
   }
 
-  const nodes: ReactNode[] = [];
+  let formatted = "";
   let lastIndex = 0;
-  matches.forEach((match, index) => {
+  matches.forEach((match) => {
     if (match.start > lastIndex) {
-      nodes.push(content.slice(lastIndex, match.start));
+      formatted += content.slice(lastIndex, match.start);
     }
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
-    nodes.push(
-      <span
-        key={`${keyPrefix}-${match.start}-${index}`}
-        className="text-primary font-medium"
-      >
-        @{coworker?.name ?? match.id}
-      </span>,
-    );
+    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${coworker?.name ?? match.id}`)}</span>`;
     lastIndex = match.end;
   });
   if (lastIndex < content.length) {
-    nodes.push(content.slice(lastIndex));
+    formatted += content.slice(lastIndex);
   }
 
-  return nodes;
+  return formatted;
+}
+
+function ChannelMarkdownSegment({
+  content,
+  coworkersById,
+  coworkersBySlug,
+}: {
+  content: string;
+  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+}) {
+  if (!content.trim()) {
+    return null;
+  }
+
+  return (
+    <Markdown className="prose-p:my-0 prose-p:leading-7 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+      {formatChannelMarkdownMentions({
+        content,
+        coworkersById,
+        coworkersBySlug,
+      })}
+    </Markdown>
+  );
 }
 
 function ChannelMessageText({
@@ -476,14 +500,11 @@ function ChannelMessageText({
 
   if (fileLinks.length === 0) {
     return (
-      <>
-        {renderMentionTextNodes({
-          content,
-          coworkersById,
-          coworkersBySlug,
-          keyPrefix: "message",
-        })}
-      </>
+      <ChannelMarkdownSegment
+        content={content}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+      />
     );
   }
 
@@ -492,12 +513,12 @@ function ChannelMessageText({
   fileLinks.forEach((link, index) => {
     if (link.index > lastIndex) {
       nodes.push(
-        ...renderMentionTextNodes({
-          content: content.slice(lastIndex, link.index),
-          coworkersById,
-          coworkersBySlug,
-          keyPrefix: `message-${index}-before`,
-        }),
+        <ChannelMarkdownSegment
+          key={`message-${index}-before`}
+          content={content.slice(lastIndex, link.index)}
+          coworkersById={coworkersById}
+          coworkersBySlug={coworkersBySlug}
+        />,
       );
     }
     nodes.push(
@@ -513,12 +534,12 @@ function ChannelMessageText({
   });
   if (lastIndex < content.length) {
     nodes.push(
-      ...renderMentionTextNodes({
-        content: content.slice(lastIndex),
-        coworkersById,
-        coworkersBySlug,
-        keyPrefix: "message-after",
-      }),
+      <ChannelMarkdownSegment
+        key="message-after"
+        content={content.slice(lastIndex)}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+      />,
     );
   }
 
@@ -858,7 +879,7 @@ function ChatMessageRow({
             {formatMessageTime(message.createdAt)}
           </time>
         </div>
-        <div className="text-foreground whitespace-pre-wrap wrap-break-word text-sm leading-7">
+        <div className="text-foreground wrap-break-word text-sm leading-7">
           <ChannelMessageText
             content={message.content}
             coworkersById={coworkersById}
