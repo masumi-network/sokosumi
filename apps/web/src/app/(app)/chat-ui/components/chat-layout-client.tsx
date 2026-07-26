@@ -139,6 +139,7 @@ export function ChatLayoutClient({
     Boolean(bucketSlug) && !isJustCreatedConversation && !isCoworkerBucket;
 
   const showTwoColumn = Boolean(bucketSlug) && showSecondarySidebar;
+  const isFullBleedCoworkerChat = isCoworkerBucket && !showTwoColumn;
 
   // Mobile: bucket routes show the conversation list; conversation URLs show chat (bookmarks, refresh, shared links).
   const mobileListOnly =
@@ -150,7 +151,9 @@ export function ChatLayoutClient({
       className={
         showTwoColumn
           ? "-mt-20 -mr-4 -mb-4 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
-          : "flex h-full min-h-0 w-full flex-1 flex-col"
+          : isFullBleedCoworkerChat
+            ? "-m-4 flex h-[calc(100svh-64px)] min-h-0 w-[calc(100%+2rem)] flex-1 flex-col overflow-hidden bg-background"
+            : "flex h-full min-h-0 w-full flex-1 flex-col"
       }
     >
       {showTwoColumn && bucketSlug ? (
@@ -187,7 +190,7 @@ export function ChatLayoutClient({
               : showTwoColumn
                 ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col pt-20 md:pt-4 md:pl-4 lg:min-w-0 lg:pt-0"
                 : isCoworkerBucket
-                  ? "flex h-full w-full flex-1 flex-col px-0"
+                  ? "flex h-full min-h-0 w-full flex-1 flex-col px-0"
                   : "mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-0 md:px-2"
         }
       >
