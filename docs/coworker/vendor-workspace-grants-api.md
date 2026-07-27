@@ -98,8 +98,9 @@ and the task is **not DRAFT**.
   `apps/core/src/middleware/coworker-context.ts`)
 
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
-`/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth. Only humans
-approve, deny, or revoke.
+`/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth (bare or
+with context headers). Humans (session) or Hermes orchestrator with workspace
+context may create, approve, deny, or revoke.
 
 ---
 
