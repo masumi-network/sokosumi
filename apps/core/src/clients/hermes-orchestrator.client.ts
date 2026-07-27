@@ -76,6 +76,14 @@ export interface HermesInstancePublic {
    * for instances created before this field shipped.
    */
   autonomyLevel: HermesAutonomyLevel;
+  /**
+   * The LLM the orchestrator is currently serving (e.g. "xiaomi/mimo-v2.5")
+   * and its provider label (e.g. "OpenRouter (managed)"). Reported live so
+   * the settings panel shows the real model. Null when the orchestrator
+   * omits them.
+   */
+  model: string | null;
+  modelProvider: string | null;
   /** Currently-known integrations for this instance. May be empty. */
   integrations: HermesIntegration[];
   /**
@@ -247,6 +255,8 @@ interface InstanceFromOrchestrator {
   lastActivityAt?: string | null;
   onboardedAt?: string | null;
   autonomyLevel?: HermesAutonomyLevel | string | null;
+  model?: string | null;
+  modelProvider?: string | null;
   integrations?: HermesIntegration[];
   transitioning?: boolean | null;
   welcomeMessage?: string | null;
@@ -456,6 +466,8 @@ export async function getInstance(
     lastActivityAt: data.lastActivityAt ?? null,
     onboardedAt: data.onboardedAt ?? null,
     autonomyLevel: normalizeAutonomyLevel(data.autonomyLevel),
+    model: normalizeNullableNonEmptyString(data.model),
+    modelProvider: normalizeNullableNonEmptyString(data.modelProvider),
     integrations: (data.integrations ?? [])
       .map(normalizeIntegration)
       .filter((i): i is HermesIntegration => i !== null),

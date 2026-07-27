@@ -122,7 +122,7 @@ describe("jobs-filters", () => {
         projectOptions,
       ),
     ).toEqual({
-      scope: "owned",
+      scope: "workspace",
       agentId: null,
       jobStatus: null,
       projectId: PROJECT_ID,
@@ -133,7 +133,7 @@ describe("jobs-filters", () => {
         { id: "44444444-4444-4444-8444-444444444444", name: "Other" },
       ]),
     ).toEqual({
-      scope: "owned",
+      scope: "workspace",
       agentId: null,
       jobStatus: null,
       projectId: null,
@@ -157,8 +157,9 @@ describe("jobs-filters", () => {
       "org-1",
     );
 
+    // `owned` is now the non-default in an org, so it is written explicitly.
     expect(nextSearchParams.toString()).toBe(
-      "create=true&coworker=elena&agentId=agent-1&jobStatus=RUNNING&projectId=33333333-3333-4333-8333-333333333333",
+      "create=true&coworker=elena&scope=owned&agentId=agent-1&jobStatus=RUNNING&projectId=33333333-3333-4333-8333-333333333333",
     );
   });
 
@@ -180,7 +181,8 @@ describe("jobs-filters", () => {
       "org-1",
     );
 
-    expect(nextSearchParams.toString()).toBe("scope=workspace");
+    // `workspace` is now the org default, so it is dropped from the URL.
+    expect(nextSearchParams.toString()).toBe("");
   });
 
   it("sanitizes agent ids and job statuses", () => {

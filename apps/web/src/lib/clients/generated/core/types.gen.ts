@@ -1615,6 +1615,8 @@ export type HermesInstance = {
     avatarSeed?: string | null;
     personality?: HermesPersonality;
     autonomyLevel?: HermesAutonomyLevel;
+    model?: string | null;
+    modelProvider?: string | null;
     integrations: Array<HermesIntegration>;
     transitioning?: boolean;
     lastSokosumiSyncAt?: Date | null;

@@ -148,8 +148,10 @@ describe("loadMoreTasksColumn", () => {
       projectId: null,
     });
 
+    // Default session has an active org (org-1), so the fallback is now
+    // workspace, not owned.
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
-      scope: "owned",
+      scope: "workspace",
     });
   });
 
