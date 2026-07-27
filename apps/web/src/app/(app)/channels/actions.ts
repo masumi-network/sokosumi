@@ -2,11 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import type {
-  ChatChannel,
-  ChatChannelMessage,
-} from "@/lib/clients/generated/core";
-import { chatChannelService, userService } from "@/lib/services";
+import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
+import { chatRoomService, userService } from "@/lib/services";
 
 export type ChannelActionResult<T> =
   | { ok: true; data: T }
@@ -50,8 +47,8 @@ interface SendNewChannelMessageInput {
 }
 
 interface SendNewDirectMessageResult {
-  channel: ChatChannel;
-  message: ChatChannelMessage;
+  channel: ChatRoom;
+  message: ChatRoomMessage;
 }
 
 function cleanString(value: string | null | undefined): string {
@@ -76,7 +73,7 @@ function actionErrorMessage(error: unknown, fallback: string): string {
 
 export async function createChannelAction(
   input: CreateChannelInput,
-): Promise<ChannelActionResult<ChatChannel>> {
+): Promise<ChannelActionResult<ChatRoom>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
     return { ok: false, message: "Select an organization first." };
@@ -88,8 +85,8 @@ export async function createChannelAction(
   }
 
   try {
-    const channel = await chatChannelService.createChannel({
-      organizationId: activeOrganization.id,
+    const channel = await chatRoomService.createRoom({
+      kind: "channel",
       name,
       topic: cleanString(input.topic),
       memberUserIds: cleanIds(input.memberUserIds),
@@ -107,7 +104,7 @@ export async function createChannelAction(
 
 export async function createDirectChannelAction(
   input: CreateDirectChannelInput,
-): Promise<ChannelActionResult<ChatChannel>> {
+): Promise<ChannelActionResult<ChatRoom>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
     return { ok: false, message: "Select an organization first." };
@@ -129,8 +126,8 @@ export async function createDirectChannelAction(
   }
 
   try {
-    const channel = await chatChannelService.createDirectChannel({
-      organizationId: activeOrganization.id,
+    const channel = await chatRoomService.createRoom({
+      kind: "direct",
       memberUserIds,
       coworkerIds,
     });
@@ -164,12 +161,12 @@ export async function sendNewDirectMessageAction(
   }
 
   try {
-    const channel = await chatChannelService.createDirectChannel({
-      organizationId: activeOrganization.id,
+    const channel = await chatRoomService.createRoom({
+      kind: "direct",
       memberUserIds,
       coworkerIds,
     });
-    const message = await chatChannelService.sendMessage(channel.id, {
+    const message = await chatRoomService.sendMessage(channel.id, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
     });
@@ -202,14 +199,14 @@ export async function sendNewChannelMessageAction(
   }
 
   try {
-    const channel = await chatChannelService.createChannel({
-      organizationId: activeOrganization.id,
+    const channel = await chatRoomService.createRoom({
+      kind: "channel",
       name,
       topic: cleanString(input.topic),
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
-    const message = await chatChannelService.sendMessage(channel.id, {
+    const message = await chatRoomService.sendMessage(channel.id, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
     });
@@ -226,7 +223,7 @@ export async function sendNewChannelMessageAction(
 export async function updateChannelAction(
   channelId: string,
   input: UpdateChannelInput,
-): Promise<ChannelActionResult<ChatChannel>> {
+): Promise<ChannelActionResult<ChatRoom>> {
   const body = {
     ...(input.name !== undefined && { name: cleanString(input.name) }),
     ...(input.topic !== undefined && { topic: cleanString(input.topic) }),
@@ -239,7 +236,7 @@ export async function updateChannelAction(
   };
 
   try {
-    const channel = await chatChannelService.updateChannel(channelId, body);
+    const channel = await chatRoomService.updateRoom(channelId, body);
     revalidatePath("/channels");
     return { ok: true, data: channel };
   } catch (error) {
@@ -255,14 +252,14 @@ export async function sendChannelMessageAction(
   content: string,
   mentionedCoworkerIds: string[],
   parentMessageId?: string,
-): Promise<ChannelActionResult<ChatChannelMessage>> {
+): Promise<ChannelActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
   if (!cleanContent) {
     return { ok: false, message: "Message is required." };
   }
 
   try {
-    const message = await chatChannelService.sendMessage(channelId, {
+    const message = await chatRoomService.sendMessage(channelId, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(mentionedCoworkerIds),
       ...(parentMessageId && { parentMessageId }),
@@ -282,12 +279,12 @@ export async function listChannelMessagesAction(
   options?: { cursor?: string },
 ): Promise<
   ChannelActionResult<{
-    messages: ChatChannelMessage[];
+    messages: ChatRoomMessage[];
     nextCursor: string | null;
   }>
 > {
   try {
-    const page = await chatChannelService.listMessages(channelId, {
+    const page = await chatRoomService.listMessages(channelId, {
       cursor: options?.cursor,
     });
     return { ok: true, data: page };
@@ -302,9 +299,9 @@ export async function listChannelMessagesAction(
 export async function listThreadMessagesAction(
   channelId: string,
   parentMessageId: string,
-): Promise<ChannelActionResult<ChatChannelMessage[]>> {
+): Promise<ChannelActionResult<ChatRoomMessage[]>> {
   try {
-    const messages = await chatChannelService.listThreadMessages(
+    const messages = await chatRoomService.listThreadMessages(
       channelId,
       parentMessageId,
     );
@@ -321,14 +318,14 @@ export async function toggleMessageReactionAction(
   channelId: string,
   messageId: string,
   emoji: string,
-): Promise<ChannelActionResult<ChatChannelMessage>> {
+): Promise<ChannelActionResult<ChatRoomMessage>> {
   const cleanEmoji = cleanString(emoji);
   if (!cleanEmoji) {
     return { ok: false, message: "Reaction is required." };
   }
 
   try {
-    const message = await chatChannelService.toggleReaction(
+    const message = await chatRoomService.toggleReaction(
       channelId,
       messageId,
       cleanEmoji,

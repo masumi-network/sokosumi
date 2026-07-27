@@ -14,7 +14,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import { chatChannelService, userService } from "@/lib/services";
+import { chatRoomService, userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
 import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
@@ -57,7 +57,7 @@ export default async function Sidebar({
     .getMyMembersWithOrganizations()
     .catch(() => []);
   const chatChannelsPromise = activeOrganizationId
-    ? chatChannelService.listChannels(activeOrganizationId).catch(() => [])
+    ? chatRoomService.listRooms().catch(() => [])
     : Promise.resolve([]);
   const planLabelPromise = tCreditPromise.then((tCredit) =>
     resolvePlanSecondaryLabel({

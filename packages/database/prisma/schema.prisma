@@ -34,13 +34,13 @@ model User {
 
   userAgentRatings UserAgentRating[]
   transactions     Transaction[]
-  ownedJobs        Job[] @relation("JobOwner")
+  ownedJobs        Job[]             @relation("JobOwner")
 
   stripeCustomerId        String?
   preferredOrganizationId String?
 
-  members     Member[]
-  invitations Invitation[]
+  members                        Member[]
+  invitations                    Invitation[]
   createdOrganizationInviteLinks OrganizationInviteLink[]
 
   // OAuth Provider relations
@@ -64,15 +64,15 @@ model User {
   onboardingCompleted Boolean @default(false)
 
   // Vendor membership and coworker assignments
-  vendorMembers        VendorMember[]
-  coworkerAssignments  CoworkerAssignment[]
+  vendorMembers       VendorMember[]
+  coworkerAssignments CoworkerAssignment[]
 
   workspace Workspace?
 
-  ownedTasks     Task[] @relation("TaskOwner")
-  createdTasks   Task[] @relation("TaskCreatorUser")
-  taskEvents     TaskEvent[]
-  coworkerUsages CoworkerUsage[]
+  ownedTasks         Task[]              @relation("TaskOwner")
+  createdTasks       Task[]              @relation("TaskCreatorUser")
+  taskEvents         TaskEvent[]
+  coworkerUsages     CoworkerUsage[]
   orchestratorUsages OrchestratorUsage[]
 
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
@@ -83,11 +83,11 @@ model User {
 
   // Conversations
   conversations         Conversation[]
-  createdChatChannels   ChatChannel[]           @relation("ChatChannelCreator")
-  chatChannelMemberships ChatChannelUserMember[]
-  chatChannelMessages   ChatChannelMessage[]    @relation("ChatChannelUserSender")
-  chatChannelReactions  ChatChannelReaction[]
-  chatChannelReadStates ChatChannelReadState[]
+  createdChatRooms      ChatRoom[]             @relation("ChatRoomCreator")
+  chatRoomMemberships   ChatRoomUserMember[]
+  chatRoomMessages      ChatRoomMessage[]      @relation("ChatRoomUserSender")
+  chatRoomReactions     ChatRoomReaction[]
+  chatRoomReadStates    ChatRoomReadState[]
   noticeAcknowledgments NoticeAcknowledgment[]
 
   // Hermes (per-user private agent — single conversation)
@@ -118,8 +118,8 @@ model Session {
 
   activeOrganizationId String?
 
-  @@index([userId, updatedAt(sort: Desc)])
   @@unique([token])
+  @@index([userId, updatedAt(sort: Desc)])
   @@map("session")
 }
 
@@ -208,16 +208,16 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members        Member[]
-  invitations    Invitation[]
-  inviteLinks    OrganizationInviteLink[]
-  workspace      Workspace?
-  jobs           Job[]
-  tasks          Task[]
-  transactions   Transaction[]
-  coworkerUsages CoworkerUsage[]
+  members            Member[]
+  invitations        Invitation[]
+  inviteLinks        OrganizationInviteLink[]
+  workspace          Workspace?
+  jobs               Job[]
+  tasks              Task[]
+  transactions       Transaction[]
+  coworkerUsages     CoworkerUsage[]
   orchestratorUsages OrchestratorUsage[]
-  chatChannels   ChatChannel[]
+  chatRooms          ChatRoom[]
 
   stripeCustomerId String?
 
@@ -271,23 +271,23 @@ model Vendor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name String
-  slug String @unique
+  name      String
+  slug      String  @unique
   logoLight String?
   logoDark  String?
 
-  coworkers      Coworker[]
-  vendorGrants   VendorGrant[]
-  vendorMembers  VendorMember[]
+  coworkers     Coworker[]
+  vendorGrants  VendorGrant[]
+  vendorMembers VendorMember[]
 
   @@map("vendor")
 }
 
 /// Vendor team membership. One row per (vendorId, userId); role is admin or developer.
 model VendorMember {
-  id        String           @id @default(uuid(7))
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   vendorId String @db.Uuid
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
@@ -587,7 +587,7 @@ model ExampleOutput {
   mimeType  String
   url       String
 
-  agent   Agent? @relation("ExampleOutputAgent", fields: [agentId], references: [id])
+  agent   Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
   agentId String?
 
   metadataOverride   AgentMetadataOverride? @relation(fields: [metadataOverrideId], references: [id], onDelete: Cascade)
@@ -920,8 +920,8 @@ model Job {
   taskId String?
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
-  projectId String?    @db.Uuid
-  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
   @@index([jobType])
@@ -1299,13 +1299,13 @@ model Coworker {
   coworkerApiKeys CoworkerApiKey[]
   assignments     CoworkerAssignment[]
 
-  assignedTasks  Task[] @relation("TaskAssignee")
-  createdTasks   Task[] @relation("TaskCreatorCoworker")
-  taskEvents     TaskEvent[]
-  coworkerUsages CoworkerUsage[]
-  chatChannelMemberships ChatChannelCoworkerMember[]
-  chatChannelMessages    ChatChannelMessage[]        @relation("ChatChannelCoworkerSender")
-  chatChannelMentions    ChatChannelMention[]
+  assignedTasks       Task[]                   @relation("TaskAssignee")
+  createdTasks        Task[]                   @relation("TaskCreatorCoworker")
+  taskEvents          TaskEvent[]
+  coworkerUsages      CoworkerUsage[]
+  chatRoomMemberships ChatRoomCoworkerMember[]
+  chatRoomMessages    ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
+  chatRoomMentions    ChatRoomMention[]
 
   @@index([archivedAt])
   @@index([vendorId])
@@ -1358,9 +1358,9 @@ model Orchestrator {
   lastPolledAt          DateTime?
   lastInboxMessageAt    DateTime?
   lastSeenInboxAt       DateTime?
-  consecutivePollErrors Int      @default(0)
+  consecutivePollErrors Int       @default(0)
 
-  createdTasks       Task[]             @relation("TaskCreatorOrchestrator")
+  createdTasks       Task[]              @relation("TaskCreatorOrchestrator")
   taskEvents         TaskEvent[]
   orchestratorUsages OrchestratorUsage[]
 
@@ -1440,8 +1440,8 @@ model Task {
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
-  projectId String?    @db.Uuid
-  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   metadata  String?
   nextRunAt DateTime?
@@ -1613,99 +1613,101 @@ model OrchestratorUsage {
   @@map("orchestrator_usage")
 }
 
-model ChatChannel {
+model ChatRoom {
   id             String       @id @default(uuid(7)) @db.Uuid
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  name        String
-  slug        String
-  kind        String   @default("channel")
-  directKey   String?
-  topic       String?
-  archivedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  name       String
+  slug       String
+  kind       String    @default("channel")
+  directKey  String?
+  topic      String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   createdByUserId String
-  createdByUser   User   @relation("ChatChannelCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdByUser   User   @relation("ChatRoomCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  userMembers     ChatChannelUserMember[]
-  coworkerMembers ChatChannelCoworkerMember[]
-  messages        ChatChannelMessage[]
-  readStates      ChatChannelReadState[]
+  userMembers     ChatRoomUserMember[]
+  coworkerMembers ChatRoomCoworkerMember[]
+  messages        ChatRoomMessage[]
+  readStates      ChatRoomReadState[]
 
   @@unique([organizationId, slug])
+  // Future archive: create-or-get must unarchive-or-clear-directKey — archived
+  // rows still occupy this unique slot while archivedAt is filtered out.
   @@unique([organizationId, directKey])
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
-  @@map("chat_channel")
+  @@map("chat_room")
 }
 
-model ChatChannelUserMember {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  channelId String   @db.Uuid
-  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+model ChatRoomUserMember {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  @@unique([channelId, userId])
+  @@unique([roomId, userId])
   @@index([userId])
-  @@map("chat_channel_user_member")
+  @@map("chat_room_user_member")
 }
 
-model ChatChannelCoworkerMember {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  channelId String   @db.Uuid
-  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+model ChatRoomCoworkerMember {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   coworkerId String
   coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  @@unique([channelId, coworkerId])
+  @@unique([roomId, coworkerId])
   @@index([coworkerId])
-  @@map("chat_channel_coworker_member")
+  @@map("chat_room_coworker_member")
 }
 
-model ChatChannelMessage {
-  id        String      @id @default(uuid(7)) @db.Uuid
-  channelId String      @db.Uuid
-  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+model ChatRoomMessage {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  parentMessageId String?              @db.Uuid
-  parentMessage   ChatChannelMessage?  @relation("ChatChannelThread", fields: [parentMessageId], references: [id], onDelete: Cascade)
-  replies         ChatChannelMessage[] @relation("ChatChannelThread")
+  parentMessageId String?           @db.Uuid
+  parentMessage   ChatRoomMessage?  @relation("ChatRoomThread", fields: [parentMessageId], references: [id], onDelete: Cascade)
+  replies         ChatRoomMessage[] @relation("ChatRoomThread")
 
   senderUserId     String?
-  senderUser       User?     @relation("ChatChannelUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  senderUser       User?     @relation("ChatRoomUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
   senderCoworkerId String?
-  senderCoworker   Coworker? @relation("ChatChannelCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
+  senderCoworker   Coworker? @relation("ChatRoomCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
 
-  content  String
-  metadata Json?
+  content   String
+  metadata  Json?
   createdAt DateTime @default(now())
 
-  mentionsAsSource   ChatChannelMention[] @relation("ChatChannelMentionSource")
-  mentionResponseFor ChatChannelMention?  @relation("ChatChannelMentionResponse")
-  reactions          ChatChannelReaction[]
+  mentionsAsSource   ChatRoomMention[]  @relation("ChatRoomMentionSource")
+  mentionResponseFor ChatRoomMention?   @relation("ChatRoomMentionResponse")
+  reactions          ChatRoomReaction[]
 
-  @@index([channelId, createdAt])
-  @@index([channelId, parentMessageId, createdAt])
+  @@index([roomId, createdAt])
+  @@index([roomId, parentMessageId, createdAt])
   @@index([parentMessageId, createdAt])
   @@index([senderUserId])
   @@index([senderCoworkerId])
-  @@map("chat_channel_message")
+  @@map("chat_room_message")
 }
 
-model ChatChannelReaction {
-  id        String             @id @default(uuid(7)) @db.Uuid
-  messageId String             @db.Uuid
-  message   ChatChannelMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+model ChatRoomReaction {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1716,13 +1718,13 @@ model ChatChannelReaction {
   @@unique([messageId, userId, emoji])
   @@index([messageId, emoji])
   @@index([userId])
-  @@map("chat_channel_reaction")
+  @@map("chat_room_reaction")
 }
 
-model ChatChannelReadState {
-  id        String      @id @default(uuid(7)) @db.Uuid
-  channelId String      @db.Uuid
-  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+model ChatRoomReadState {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1731,33 +1733,33 @@ model ChatChannelReadState {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@unique([channelId, userId])
+  @@unique([roomId, userId])
   @@index([userId])
-  @@index([channelId, lastReadAt])
-  @@map("chat_channel_read_state")
+  @@index([roomId, lastReadAt])
+  @@map("chat_room_read_state")
 }
 
-model ChatChannelMention {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  messageId String   @db.Uuid
-  message   ChatChannelMessage @relation("ChatChannelMentionSource", fields: [messageId], references: [id], onDelete: Cascade)
+model ChatRoomMention {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation("ChatRoomMentionSource", fields: [messageId], references: [id], onDelete: Cascade)
 
   coworkerId String
   coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
 
-  status                 String   @default("pending")
+  status                 String           @default("pending")
   error                  String?
   providerConversationId String?
   providerResponseId     String?
-  responseMessageId      String?  @unique @db.Uuid
-  responseMessage        ChatChannelMessage? @relation("ChatChannelMentionResponse", fields: [responseMessageId], references: [id], onDelete: SetNull)
+  responseMessageId      String?          @unique @db.Uuid
+  responseMessage        ChatRoomMessage? @relation("ChatRoomMentionResponse", fields: [responseMessageId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([messageId, coworkerId])
   @@index([coworkerId, status])
-  @@map("chat_channel_mention")
+  @@map("chat_room_mention")
 }
 
 model Conversation {
@@ -1802,16 +1804,16 @@ model ConversationMessage {
 /// at most one logical conversation per user; messages are ordered by
 /// `createdAt`. Wiped when the user destroys their Hermes instance.
 model HermesMessage {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      String // "user" | "assistant" | "system"
-  content   String
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String // "user" | "assistant" | "system"
+  content    String
   /// Outbox message kind from the orchestrator: "text" | "task_result" |
   /// "reminder" | future. Null for user turns + assistant replies from the
   /// regular chat path. Drives the notification-style rendering for
   /// agent-initiated pushes.
-  kind      String?
+  kind       String?
   /// Progress steps (tool calls etc.) captured from the orchestrator's
   /// `hermes.status` frames during a streamed turn, so the collapsible "steps"
   /// disclosure survives a reload. Shape: `[{ label, detail? }]`. Null for
@@ -1900,8 +1902,8 @@ model EnterpriseContract {
 
   periods EnterpriseContractPeriod[]
 
-  @@index([organizationId, status])
   @@unique([organizationId], map: "enterprise_contract_one_active_per_org", where: { status: "active" })
+  @@index([organizationId, status])
   @@map("enterprise_contract")
 }
 

@@ -1,14 +1,14 @@
-import type { ChatChannelMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /**
  * Merge channel message pages by id. Incoming rows win (fresh reactions /
  * mention status). Result is sorted oldest → newest for reading order.
  */
 export function mergeChannelMessages(
-  existing: readonly ChatChannelMessage[],
-  incoming: readonly ChatChannelMessage[],
-): ChatChannelMessage[] {
-  const byId = new Map<string, ChatChannelMessage>();
+  existing: readonly ChatRoomMessage[],
+  incoming: readonly ChatRoomMessage[],
+): ChatRoomMessage[] {
+  const byId = new Map<string, ChatRoomMessage>();
   for (const message of existing) {
     byId.set(message.id, message);
   }

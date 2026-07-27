@@ -6,7 +6,6 @@ import {
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
 import {
-  ArrowUp,
   AtSign,
   Bot,
   CheckCircle2,
@@ -52,6 +51,14 @@ import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { writePendingCoworkerDirectMessage } from "@/app/chat-ui/utils/pending-coworker-direct-message";
 import { markOrganizationChatChannelReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import {
+  ROOM_COMPOSER_EMOJIS,
+  ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+  ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+  RoomComposerEmojiPicker,
+  RoomMessageComposer,
+  type RoomMessageComposerAttachment,
+} from "@/components/chat/room-message-composer";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,10 +91,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import type {
-  ChatChannel,
-  ChatChannelCoworkerParticipant,
-  ChatChannelMessage,
-  ChatChannelPresence,
+  ChatRoom,
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+  ChatRoomPresence,
   Coworker,
   Member,
   Organization,
@@ -106,8 +113,9 @@ import {
 } from "@/lib/utils/user-file-upload.client";
 
 interface ChannelsClientProps {
-  activeOrganization: Organization;
-  channels: ChatChannel[];
+  /** Null in personal workspace when mounting Start New DM only. */
+  activeOrganization: Organization | null;
+  channels: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
   coworkers: Coworker[];
@@ -115,34 +123,18 @@ interface ChannelsClientProps {
   isCreateChannelRequested: boolean;
   isNewDirectMessage: boolean;
   messageLoadFailed: boolean;
-  messages: ChatChannelMessage[];
+  messages: ChatRoomMessage[];
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
 }
 
-const CHANNEL_COMPOSER_EMOJIS = [
-  "👍",
-  "❤️",
-  "😂",
-  "🎉",
-  "🙏",
-  "🔥",
-  "✅",
-  "👀",
-  "💯",
-  "🚀",
-  "🙂",
-  "😅",
-];
 const COWORKER_RESPONSE_POLL_MS = 2500;
 /** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
 const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
 /** Match sidebar channel-list cadence for peer traffic while a channel is open. */
 const CHANNEL_LIVE_POLL_MS = 15_000;
 
-interface ChannelComposerAttachment {
-  url: string;
-  fileName: string;
+interface ChannelComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
@@ -166,7 +158,7 @@ function AiCoworkerIcon({ className }: { className?: string }) {
   );
 }
 
-function hasPendingCoworkerMention(messages: ChatChannelMessage[]): boolean {
+function hasPendingCoworkerMention(messages: ChatRoomMessage[]): boolean {
   return messages.some((message) =>
     message.mentions.some(
       (mention) => mention.status === "pending" || mention.status === "sent",
@@ -175,9 +167,9 @@ function hasPendingCoworkerMention(messages: ChatChannelMessage[]): boolean {
 }
 
 function appendMessage(
-  messages: ChatChannelMessage[],
-  nextMessage: ChatChannelMessage,
-): ChatChannelMessage[] {
+  messages: ChatRoomMessage[],
+  nextMessage: ChatRoomMessage,
+): ChatRoomMessage[] {
   if (messages.some((message) => message.id === nextMessage.id)) {
     return messages;
   }
@@ -191,7 +183,7 @@ function toggleId(ids: string[], id: string, checked: boolean): string[] {
   return ids.filter((item) => item !== id);
 }
 
-function messageSender(message: ChatChannelMessage) {
+function messageSender(message: ChatRoomMessage) {
   if (message.sender.type === "user") {
     return {
       name: message.sender.user.name,
@@ -231,7 +223,7 @@ function messageDayKey(value: Date | string): string {
  * the timestamps are.
  */
 
-function getDirectChannelTarget(channel: ChatChannel, currentUserId: string) {
+function getDirectChannelTarget(channel: ChatRoom, currentUserId: string) {
   return (
     channel.userMembers.find((member) => member.id !== currentUserId) ??
     channel.userMembers[0] ??
@@ -244,12 +236,12 @@ interface DirectParticipantPreview {
   name: string;
   detail: string | null;
   image: string | null;
-  presence: ChatChannelPresence;
+  presence: ChatRoomPresence;
   kind: "human" | "coworker";
 }
 
 function getDirectChannelParticipants(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
 ): DirectParticipantPreview[] {
   return [
@@ -274,6 +266,14 @@ function getDirectChannelParticipants(
   ];
 }
 
+/** Direct rooms: @ only when the roster has more than two people (incl. you). */
+function shouldShowRoomMentionShortcut(channel: ChatRoom): boolean {
+  if (channel.kind !== "direct") {
+    return true;
+  }
+  return channel.userMembers.length + channel.coworkerMembers.length > 2;
+}
+
 function formatDirectParticipantNames(
   participants: DirectParticipantPreview[],
   fallback: string,
@@ -291,7 +291,7 @@ function formatDirectParticipantNames(
 }
 
 function getChannelDisplayName(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
 ): string {
   if (channel.kind !== "direct") {
@@ -304,7 +304,7 @@ function getChannelDisplayName(
 }
 
 function getDirectChannelSubtitle(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
   options: {
     fallback: string;
@@ -332,12 +332,12 @@ interface ChannelParticipantPreview {
   id: string;
   name: string;
   image: string | null;
-  presence: ChatChannelPresence;
+  presence: ChatRoomPresence;
   kind: "human" | "coworker";
 }
 
 function getChannelParticipantPreviews(
-  channel: ChatChannel,
+  channel: ChatRoom,
 ): ChannelParticipantPreview[] {
   return [
     ...channel.userMembers.map((member) => ({
@@ -359,7 +359,7 @@ function getChannelParticipantPreviews(
 
 function presenceLabel(
   t: (key: "Presence.online" | "Presence.afk" | "Presence.offline") => string,
-  presence: ChatChannelPresence,
+  presence: ChatRoomPresence,
 ): string {
   if (presence === "online") {
     return t("Presence.online");
@@ -370,7 +370,7 @@ function presenceLabel(
   return t("Presence.offline");
 }
 
-function ChannelParticipantStack({ channel }: { channel: ChatChannel }) {
+function ChannelParticipantStack({ channel }: { channel: ChatRoom }) {
   const t = useTranslations("App.Channels");
   const participants = getChannelParticipantPreviews(channel);
   const visibleParticipants = participants.slice(0, 4);
@@ -439,8 +439,8 @@ function formatChannelMarkdownMentions({
   coworkersBySlug,
 }: {
   content: string;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
 }): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
@@ -471,8 +471,8 @@ function ChannelMarkdownSegment({
   coworkersBySlug,
 }: {
   content: string;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
 }) {
   if (!content.trim()) {
     return null;
@@ -495,8 +495,8 @@ function ChannelMessageText({
   coworkersBySlug,
 }: {
   content: string;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
 }) {
   const fileLinks = findMarkdownLinks(content)
     .map((link) => ({
@@ -556,7 +556,7 @@ function ChannelMessageText({
 function CoworkerSuggestion({
   mention,
 }: {
-  mention: NormalizedMention<ChatChannelCoworkerParticipant>;
+  mention: NormalizedMention<ChatRoomCoworkerParticipant>;
 }) {
   return (
     <>
@@ -590,10 +590,11 @@ function ChannelComposer({
   onSubmit,
   isSending,
   sendDisabled,
+  showMentionShortcut = true,
 }: {
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
-  mentions: Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>;
+  mentions: Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>;
   onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: ChannelComposerAttachment[];
@@ -601,12 +602,18 @@ function ChannelComposer({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   isSending: boolean;
   sendDisabled: boolean;
+  /** Channels always; direct rooms only when roster has more than two people. */
+  showMentionShortcut?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const composerMentions = showMentionShortcut ? mentions : {};
+  const handleSelectedKeysChange = showMentionShortcut
+    ? onSelectedKeysChange
+    : undefined;
 
   const handleFilesSelected = useCallback(
     async (files: FileList | null) => {
@@ -675,141 +682,89 @@ function ChannelComposer({
   }
 
   return (
-    <form ref={formRef} className="shrink-0 px-5 pt-3 pb-6" onSubmit={onSubmit}>
-      <div className="w-full">
-        <div
-          data-chat-input-border-anchor
-          className={cn(
-            "chat-input-border-anchor",
-            "relative rounded-xl",
-            "shadow-[0_0_16px_0] shadow-primary/15",
-            "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
-            "transition-shadow duration-300",
-          )}
-        >
-          <div className="bg-background relative z-10 overflow-hidden rounded-[calc(var(--radius-xl)-1.5px)] border-0 shadow-none transition-all duration-200">
-            {attachments.length > 0 ? (
-              <div className="flex flex-wrap gap-2 px-4 pt-4">
-                {attachments.map((attachment) => (
-                  <FileChipMiniPreviewWithMetadata
-                    key={attachment.url}
-                    url={attachment.url}
-                    fileName={attachment.fileName}
-                    mediaType={attachment.mediaType}
-                    sizeClass="size-16"
-                    onRemove={() => removeAttachment(attachment)}
-                    removeLabel={t("Toolbar.removeAttachment", {
-                      name: attachment.fileName,
-                    })}
-                  />
-                ))}
-              </div>
-            ) : null}
-            <MentionTextarea
-              ref={textareaRef}
-              value={value}
-              onChange={onValueChange}
-              onSelectedKeysChange={onSelectedKeysChange}
-              mentions={mentions}
-              placeholder={placeholder}
-              suggestionsAnchor="editor"
-              submitOnEnter
-              // On a phone Enter is the only newline key, and the send button is
-              // always visible — so Enter composes rather than sends.
-              allowEnterToSubmitOnMobile={false}
-              onSubmitShortcut={() => formRef.current?.requestSubmit()}
-              // Capped so a long draft scrolls inside the composer instead of
-              // growing it until the toolbar and send button leave the screen.
-              className="max-h-40 min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
-              renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
-            />
-            <div className="flex items-center justify-between px-3 pb-3">
-              <div className="text-muted-foreground flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 rounded-full sm:size-8"
-                  title={t("Toolbar.mention")}
-                  aria-label={t("Toolbar.mention")}
-                  onClick={() => textareaRef.current?.openMentions()}
-                >
-                  <AtSign className="size-4" aria-hidden />
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  tabIndex={-1}
-                  onChange={(event) => {
-                    void handleFilesSelected(event.currentTarget.files);
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 rounded-full sm:size-8"
-                  title={t("Toolbar.attach")}
-                  aria-label={t("Toolbar.attach")}
-                  disabled={isUploadingFiles}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {isUploadingFiles ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Paperclip className="size-4" aria-hidden />
-                  )}
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-9 rounded-full sm:size-8"
-                      title={t("Toolbar.emoji")}
-                      aria-label={t("Toolbar.emoji")}
-                    >
-                      <SmilePlus className="size-4" aria-hidden />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-2">
-                    <div className="grid grid-cols-6 gap-1">
-                      {CHANNEL_COMPOSER_EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          className="hover:bg-muted focus-visible:ring-ring flex size-10 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2 sm:size-8"
-                          onClick={() => textareaRef.current?.insertText(emoji)}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <Button
-                type="submit"
-                variant="primary"
-                size="icon"
-                className="size-9 rounded-full sm:size-8"
-                disabled={isSending || isUploadingFiles || sendDisabled}
-                aria-label={t("send")}
-              >
-                {isSending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <ArrowUp className="size-4" aria-hidden />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </form>
+    <RoomMessageComposer
+      formRef={formRef}
+      onSubmit={onSubmit}
+      attachments={attachments}
+      onRemoveAttachment={(attachment) =>
+        removeAttachment({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })
+      }
+      removeAttachmentLabel={(name) => t("Toolbar.removeAttachment", { name })}
+      isSending={isSending}
+      sendDisabled={isUploadingFiles || sendDisabled}
+      sendAriaLabel={t("send")}
+      toolbarStart={
+        <>
+          {showMentionShortcut ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+              title={t("Toolbar.mention")}
+              aria-label={t("Toolbar.mention")}
+              onClick={() => textareaRef.current?.openMentions()}
+            >
+              <AtSign className="size-4" aria-hidden />
+            </Button>
+          ) : null}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            tabIndex={-1}
+            onChange={(event) => {
+              void handleFilesSelected(event.currentTarget.files);
+            }}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+            title={t("Toolbar.attach")}
+            aria-label={t("Toolbar.attach")}
+            disabled={isUploadingFiles}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {isUploadingFiles ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Paperclip className="size-4" aria-hidden />
+            )}
+          </Button>
+          <RoomComposerEmojiPicker
+            title={t("Toolbar.emoji")}
+            ariaLabel={t("Toolbar.emoji")}
+            onPick={(emoji) => textareaRef.current?.insertText(emoji)}
+          />
+        </>
+      }
+    >
+      <MentionTextarea
+        ref={textareaRef}
+        value={value}
+        onChange={onValueChange}
+        onSelectedKeysChange={handleSelectedKeysChange}
+        mentions={composerMentions}
+        placeholder={placeholder}
+        suggestionsAnchor="editor"
+        submitOnEnter
+        // On a phone Enter is the only newline key, and the send button is
+        // always visible — so Enter composes rather than sends.
+        allowEnterToSubmitOnMobile={false}
+        onSubmitShortcut={() => formRef.current?.requestSubmit()}
+        // Capped so a long draft scrolls inside the composer instead of
+        // growing it until the toolbar and send button leave the screen.
+        className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
+        renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
+      />
+    </RoomMessageComposer>
   );
 }
 
@@ -838,7 +793,7 @@ function MessageEmojiPicker({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-2">
         <div className="grid grid-cols-6 gap-1">
-          {CHANNEL_COMPOSER_EMOJIS.map((emoji) => (
+          {ROOM_COMPOSER_EMOJIS.map((emoji) => (
             <button
               key={emoji}
               type="button"
@@ -865,11 +820,11 @@ function ChatMessageRow({
   onOpenThread,
   showThreadButton = true,
 }: {
-  message: ChatChannelMessage;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
-  onToggleReaction: (message: ChatChannelMessage, emoji: string) => void;
-  onOpenThread?: (message: ChatChannelMessage) => void;
+  message: ChatRoomMessage;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
 }) {
   const t = useTranslations("App.Channels");
@@ -996,15 +951,16 @@ function ThreadPanel({
   isSendingReply,
   onClose,
   onToggleReaction,
+  showMentionShortcut = true,
 }: {
-  parentMessage: ChatChannelMessage;
-  replies: ChatChannelMessage[];
+  parentMessage: ChatRoomMessage;
+  replies: ChatRoomMessage[];
   isLoading: boolean;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   mentionRecords: Record<
     string,
-    MentionRecordEntry<ChatChannelCoworkerParticipant>
+    MentionRecordEntry<ChatRoomCoworkerParticipant>
   >;
   replyValue: string;
   onReplyValueChange: Dispatch<SetStateAction<string>>;
@@ -1016,7 +972,8 @@ function ThreadPanel({
   onSubmitReply: (event: FormEvent<HTMLFormElement>) => void;
   isSendingReply: boolean;
   onClose: () => void;
-  onToggleReaction: (message: ChatChannelMessage, emoji: string) => void;
+  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  showMentionShortcut?: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
@@ -1095,6 +1052,7 @@ function ThreadPanel({
         onSubmit={onSubmitReply}
         isSending={isSendingReply}
         sendDisabled={replyValue.trim().length === 0}
+        showMentionShortcut={showMentionShortcut}
       />
     </aside>
   );
@@ -1293,7 +1251,7 @@ function EditChannelDialog({
   members,
   coworkers,
 }: {
-  channel: ChatChannel;
+  channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
 }) {
@@ -1421,7 +1379,7 @@ interface DirectDraftTarget {
   kind: "human" | "coworker";
   slug?: string;
   caption?: string | null;
-  presence?: ChatChannelPresence;
+  presence?: ChatRoomPresence;
 }
 
 function buildDirectDraftTargets(
@@ -1544,7 +1502,7 @@ function DraftChannel({
       .slice(0, 8);
   }, [normalizedQuery, selectedKeySet, targets]);
   const selectedCoworkerParticipants = useMemo<
-    Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>
+    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
     return Object.fromEntries(
       selectedTargets
@@ -1793,10 +1751,13 @@ function DraftDirectMessage({
   members,
   coworkers,
   currentUserId,
+  canCreateRoomDirect,
 }: {
   members: Member[];
   coworkers: Coworker[];
   currentUserId: string;
+  /** False in personal workspace — room-backed / multi-party DMs need an org. */
+  canCreateRoomDirect: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const router = useRouter();
@@ -1839,7 +1800,7 @@ function DraftDirectMessage({
       .slice(0, 8);
   }, [normalizedQuery, selectedKeySet, targets]);
   const selectedCoworkerParticipants = useMemo<
-    Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>
+    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
     return Object.fromEntries(
       selectedTargets
@@ -1918,6 +1879,11 @@ function DraftDirectMessage({
         );
         return;
       }
+    }
+
+    if (!canCreateRoomDirect) {
+      toast.error(t("Draft.organizationRequiredForGroup"));
+      return;
     }
 
     startSendingTransition(async () => {
@@ -2069,6 +2035,7 @@ function DraftDirectMessage({
         sendDisabled={
           composerValue.trim().length === 0 || selectedTargets.length === 0
         }
+        showMentionShortcut={selectedTargets.length > 1}
       />
     </>
   );
@@ -2098,15 +2065,13 @@ export function ChannelsClient({
     [],
   );
   const [messagesState, setMessagesState] =
-    useState<ChatChannelMessage[]>(messages);
+    useState<ChatRoomMessage[]>(messages);
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
     messagesNextCursor,
   );
   const [threadParentMessage, setThreadParentMessage] =
-    useState<ChatChannelMessage | null>(null);
-  const [threadMessages, setThreadMessages] = useState<ChatChannelMessage[]>(
-    [],
-  );
+    useState<ChatRoomMessage | null>(null);
+  const [threadMessages, setThreadMessages] = useState<ChatRoomMessage[]>([]);
   const [threadComposerValue, setThreadComposerValue] = useState("");
   const [threadComposerAttachments, setThreadComposerAttachments] = useState<
     ChannelComposerAttachment[]
@@ -2189,7 +2154,7 @@ export function ChannelsClient({
     );
   }, [selectedChannel]);
   const mentionRecords = useMemo<
-    Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>
+    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
     return Object.fromEntries(
       (selectedChannel?.coworkerMembers ?? []).map((coworker) => [
@@ -2465,7 +2430,7 @@ export function ChannelsClient({
     hasPendingThreadCoworkerMention,
   ]);
 
-  function mergeUpdatedMessage(updatedMessage: ChatChannelMessage) {
+  function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
     setMessagesState((current) =>
       current.map((message) =>
         message.id === updatedMessage.id ? updatedMessage : message,
@@ -2483,9 +2448,9 @@ export function ChannelsClient({
 
   function updateParentThreadPreview(
     parentMessageId: string,
-    reply: ChatChannelMessage,
+    reply: ChatRoomMessage,
   ) {
-    const updateParent = (message: ChatChannelMessage): ChatChannelMessage =>
+    const updateParent = (message: ChatRoomMessage): ChatRoomMessage =>
       message.id === parentMessageId
         ? {
             ...message,
@@ -2500,7 +2465,7 @@ export function ChannelsClient({
     );
   }
 
-  function loadThreadMessages(parentMessage: ChatChannelMessage) {
+  function loadThreadMessages(parentMessage: ChatRoomMessage) {
     if (!selectedChannel) return;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
@@ -2537,7 +2502,7 @@ export function ChannelsClient({
     });
   }
 
-  function handleToggleReaction(message: ChatChannelMessage, emoji: string) {
+  function handleToggleReaction(message: ChatRoomMessage, emoji: string) {
     if (!selectedChannel) return;
     // Guard the in-flight toggle: on a slow connection nothing changed
     // visibly, so users tapped again and the second call flipped the reaction
@@ -2628,6 +2593,7 @@ export function ChannelsClient({
               members={organizationMembers}
               coworkers={coworkers}
               currentUserId={currentUserId}
+              canCreateRoomDirect={activeOrganization != null}
             />
           ) : selectedChannel ? (
             <>
@@ -2644,7 +2610,7 @@ export function ChannelsClient({
                           selectedChannel,
                           currentUserId,
                           {
-                            fallback: activeOrganization.name,
+                            fallback: activeOrganization?.name ?? "",
                             participantCountLabel: (count) =>
                               t("directParticipantCount", { count }),
                           },
@@ -2752,6 +2718,9 @@ export function ChannelsClient({
                 onSubmit={handleSend}
                 isSending={isSending}
                 sendDisabled={composerValue.trim().length === 0}
+                showMentionShortcut={shouldShowRoomMentionShortcut(
+                  selectedChannel,
+                )}
               />
             </>
           ) : (
@@ -2794,6 +2763,7 @@ export function ChannelsClient({
             isSendingReply={isSendingThreadReply}
             onClose={() => setThreadParentMessage(null)}
             onToggleReaction={handleToggleReaction}
+            showMentionShortcut={shouldShowRoomMentionShortcut(selectedChannel)}
           />
         ) : null}
       </main>

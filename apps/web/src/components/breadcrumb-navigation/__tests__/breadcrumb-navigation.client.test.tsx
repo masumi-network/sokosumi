@@ -68,6 +68,35 @@ function BreadcrumbOverrideFixture({ label }: { label: string }) {
   );
 }
 
+function ChatBucketBreadcrumbFixture({
+  pathname,
+  label,
+}: {
+  pathname: string;
+  label: string;
+}) {
+  useRegisterBreadcrumbOverride({
+    pathname,
+    segments: [
+      {
+        label: "Chat",
+        href: "/chat",
+      },
+      {
+        label,
+        href: "/chat/elena",
+      },
+    ],
+  });
+
+  return (
+    <BreadcrumbNavigationClient
+      organizations={organizations}
+      breadcrumbMessages={breadcrumbMessages}
+    />
+  );
+}
+
 describe("BreadcrumbNavigationClient", () => {
   beforeEach(() => {
     usePathnameMock.mockReset();
@@ -134,6 +163,43 @@ describe("BreadcrumbNavigationClient", () => {
 
     expect(await screen.findByText("Andreas")).toBeInTheDocument();
     expect(screen.queryByText("Test Channel")).not.toBeInTheDocument();
+  });
+
+  it("uses coworker display name instead of URL slug on chat bucket routes", async () => {
+    usePathnameMock.mockReturnValue(
+      "/chat/elena/conversation/11111111-1111-4111-8111-111111111111",
+    );
+
+    render(
+      <BreadcrumbOverrideProvider>
+        <ChatBucketBreadcrumbFixture
+          pathname="/chat/elena/conversation/11111111-1111-4111-8111-111111111111"
+          label="Elena"
+        />
+      </BreadcrumbOverrideProvider>,
+    );
+
+    expect(await screen.findByText("Elena")).toBeInTheDocument();
+    expect(screen.queryByText("elena")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute(
+      "href",
+      "/chat",
+    );
+  });
+
+  it("shows raw chat bucket slug when no override is registered", () => {
+    usePathnameMock.mockReturnValue(
+      "/chat/elena/conversation/11111111-1111-4111-8111-111111111111",
+    );
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByText("elena")).toBeInTheDocument();
   });
 
   it("shows admin organizations list breadcrumbs", () => {

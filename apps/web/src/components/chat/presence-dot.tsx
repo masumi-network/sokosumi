@@ -1,8 +1,8 @@
-import type { ChatChannelPresence } from "@/lib/clients/generated/core";
+import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface PresenceDotProps {
-  presence: ChatChannelPresence;
+  presence: ChatRoomPresence;
   label: string;
   className?: string;
 }

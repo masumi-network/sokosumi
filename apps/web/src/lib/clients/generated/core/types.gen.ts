@@ -1109,9 +1109,9 @@ export type AgentRatingRequest = {
     comment?: string | null;
 };
 
-export type ChatChannel = {
+export type ChatRoom = {
     /**
-     * Channel ID
+     * Room ID
      */
     id: string;
     organizationId: string;
@@ -1119,7 +1119,7 @@ export type ChatChannel = {
     slug: string;
     kind: 'channel' | 'direct';
     /**
-     * Deterministic key for direct channels; null for normal channels.
+     * Deterministic key for direct rooms; null for normal rooms.
      */
     directKey: string | null;
     topic: string | null;
@@ -1130,79 +1130,100 @@ export type ChatChannel = {
      * Messages sent by others after the current user's read marker.
      */
     unreadCount: number;
-    userMembers: Array<ChatChannelUserParticipant>;
-    coworkerMembers: Array<ChatChannelCoworkerParticipant>;
+    userMembers: Array<ChatRoomUserParticipant>;
+    coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
 
-export type ChatChannelUserParticipant = {
+export type ChatRoomUserParticipant = {
     id: string;
     name: string;
     email: string;
     image: string | null;
-    presence: ChatChannelPresence;
+    presence: ChatRoomPresence;
 };
 
-export const ChatChannelPresence = {
+export const ChatRoomPresence = {
     ONLINE: 'online',
     AFK: 'afk',
     OFFLINE: 'offline'
 } as const;
 
-export type ChatChannelPresence = typeof ChatChannelPresence[keyof typeof ChatChannelPresence];
+export type ChatRoomPresence = typeof ChatRoomPresence[keyof typeof ChatRoomPresence];
 
-export type ChatChannelCoworkerParticipant = {
+export type ChatRoomCoworkerParticipant = {
     id: string;
     name: string;
     slug: string;
     caption: string | null;
     image: string | null;
-    presence: ChatChannelPresence;
+    presence: ChatRoomPresence;
 };
 
-export type CreateChatChannelRequest = {
-    organizationId: string;
+/**
+ * Filter rooms by kind. Omit to list every room.
+ */
+export const ChatRoomKind = { CHANNEL: 'channel', DIRECT: 'direct' } as const;
+
+/**
+ * Filter rooms by kind. Omit to list every room.
+ */
+export type ChatRoomKind = typeof ChatRoomKind[keyof typeof ChatRoomKind];
+
+export type ChatRoomSuccessResponse = {
+    data: ChatRoom;
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        pagination?: PaginationMetadata;
+    };
+};
+
+export type CreateChatRoomRequest = {
+    /**
+     * Creates a named room the whole roster can see.
+     */
+    kind: 'channel';
     name: string;
     topic?: string;
-    memberUserIds?: Array<string>;
-    coworkerIds?: Array<string>;
-};
-
-export type CreateDirectChatChannelRequest = {
-    organizationId: string;
     /**
-     * Deprecated one-to-one organization member user ID. Use memberUserIds for new clients.
-     */
-    memberUserId?: string;
-    /**
-     * Deprecated one-to-one AI coworker ID. Use coworkerIds for new clients.
-     */
-    coworkerId?: string;
-    /**
-     * Organization member user IDs to include in the direct message.
+     * Organization member user IDs to add to the room.
      */
     memberUserIds?: Array<string>;
     /**
-     * AI coworker IDs to include in the direct message.
+     * AI coworker IDs to add to the room.
+     */
+    coworkerIds?: Array<string>;
+} | {
+    /**
+     * Creates or returns the direct room for this participant set. The name is derived from the participants; the caller is always a participant.
+     */
+    kind: 'direct';
+    /**
+     * Organization member user IDs to add to the room.
+     */
+    memberUserIds?: Array<string>;
+    /**
+     * AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
 };
 
-export type UpdateChatChannelRequest = {
+export type UpdateChatRoomRequest = {
     name?: string;
     topic?: string | null;
     memberUserIds?: Array<string>;
     coworkerIds?: Array<string>;
 };
 
-export type ChatChannelMessage = {
+export type ChatRoomMessage = {
     id: string;
-    channelId: string;
+    roomId: string;
     parentMessageId: string | null;
     content: string;
     createdAt: Date;
-    sender: ChatChannelMessageSender;
-    mentions: Array<ChatChannelMessageMention>;
-    reactions: Array<ChatChannelMessageReaction>;
+    sender: ChatRoomMessageSender;
+    mentions: Array<ChatRoomMessageMention>;
+    reactions: Array<ChatRoomMessageReaction>;
     threadReplyCount: number;
     threadLastReplyAt: Date | null;
     metadata: {
@@ -1210,39 +1231,39 @@ export type ChatChannelMessage = {
     } | null;
 };
 
-export type ChatChannelMessageSender = {
+export type ChatRoomMessageSender = {
     type: 'user';
-    user: ChatChannelUserParticipant;
+    user: ChatRoomUserParticipant;
 } | {
     type: 'coworker';
-    coworker: ChatChannelCoworkerParticipant;
+    coworker: ChatRoomCoworkerParticipant;
 } | {
     type: 'unknown';
 };
 
-export type ChatChannelMessageMention = {
+export type ChatRoomMessageMention = {
     id: string;
     coworkerId: string;
-    status: ChatChannelMentionStatus;
+    status: ChatRoomMentionStatus;
     responseMessageId: string | null;
 };
 
-export const ChatChannelMentionStatus = {
+export const ChatRoomMentionStatus = {
     PENDING: 'pending',
     SENT: 'sent',
     RESPONDED: 'responded',
     FAILED: 'failed'
 } as const;
 
-export type ChatChannelMentionStatus = typeof ChatChannelMentionStatus[keyof typeof ChatChannelMentionStatus];
+export type ChatRoomMentionStatus = typeof ChatRoomMentionStatus[keyof typeof ChatRoomMentionStatus];
 
-export type ChatChannelMessageReaction = {
+export type ChatRoomMessageReaction = {
     emoji: string;
     count: number;
     reactedByCurrentUser: boolean;
 };
 
-export type CreateChatChannelMessageRequest = {
+export type CreateChatRoomMessageRequest = {
     content: string;
     mentionedCoworkerIds?: Array<string>;
     /**
@@ -1251,62 +1272,8 @@ export type CreateChatChannelMessageRequest = {
     parentMessageId?: string;
 };
 
-export type ReactToChatChannelMessageRequest = {
+export type ReactToChatRoomMessageRequest = {
     emoji: string;
-};
-
-export type GetChatUiMessagesResponseData = {
-    messages: Array<ChatUiMessage>;
-};
-
-export type ChatUiMessage = {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    parts: Array<{
-        type: 'file';
-        url: string;
-        mediaType: string;
-        filename?: string;
-    } | {
-        type: 'text';
-        text: string;
-    } | {
-        type: 'input_text';
-        text: string;
-    } | {
-        type: 'output_text';
-        text: string;
-    } | {
-        type: string;
-        text: string;
-    }>;
-    metadata?: {
-        thoughtStartedAtMs?: number;
-        thoughtEndedAtMs?: number;
-        imageGeneration?: boolean;
-    };
-};
-
-export type CreditCheckoutSession = {
-    url: string;
-};
-
-export type CreateCreditCheckoutSession = {
-    organizationId?: string | null;
-    credits: number;
-    returnPath?: string;
-    promotionCodeId?: string;
-};
-
-export type CheckoutSessionAnalytics = {
-    sessionId: string;
-    currency: string | null;
-    value: number | null;
-    items: Array<{
-        itemId: string;
-        itemName: string;
-        quantity: number | null;
-    }>;
 };
 
 export type ConversationList = Array<Conversation>;
@@ -1476,6 +1443,60 @@ export type CreateConversationMessageRequest = {
     } | {
         type: string;
         text: string;
+    }>;
+};
+
+export type GetChatUiMessagesResponseData = {
+    messages: Array<ChatUiMessage>;
+};
+
+export type ChatUiMessage = {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    parts: Array<{
+        type: 'file';
+        url: string;
+        mediaType: string;
+        filename?: string;
+    } | {
+        type: 'text';
+        text: string;
+    } | {
+        type: 'input_text';
+        text: string;
+    } | {
+        type: 'output_text';
+        text: string;
+    } | {
+        type: string;
+        text: string;
+    }>;
+    metadata?: {
+        thoughtStartedAtMs?: number;
+        thoughtEndedAtMs?: number;
+        imageGeneration?: boolean;
+    };
+};
+
+export type CreditCheckoutSession = {
+    url: string;
+};
+
+export type CreateCreditCheckoutSession = {
+    organizationId?: string | null;
+    credits: number;
+    returnPath?: string;
+    promotionCodeId?: string;
+};
+
+export type CheckoutSessionAnalytics = {
+    sessionId: string;
+    currency: string | null;
+    value: number | null;
+    items: Array<{
+        itemId: string;
+        itemName: string;
+        quantity: number | null;
     }>;
 };
 
@@ -8560,7 +8581,7 @@ export type GetCategoriesResponses = {
 
 export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
 
-export type GetChatChannelsData = {
+export type GetChatsRoomsData = {
     body?: never;
     headers?: {
         /**
@@ -8577,21 +8598,38 @@ export type GetChatChannelsData = {
         'X-Context-Organization-Id'?: string;
     };
     path?: never;
-    query: {
+    query?: {
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
         /**
-         * Number of channels to return (max 100)
+         * Number of rooms to return (max 100)
          */
         limit?: number;
-        organizationId: string;
+        /**
+         * Filter rooms by kind. Omit to list every room.
+         */
+        kind?: ChatRoomKind;
     };
-    url: '/chat-channels';
+    url: '/chats/rooms';
 };
 
-export type GetChatChannelsErrors = {
+export type GetChatsRoomsErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -8650,14 +8688,14 @@ export type GetChatChannelsErrors = {
     };
 };
 
-export type GetChatChannelsError = GetChatChannelsErrors[keyof GetChatChannelsErrors];
+export type GetChatsRoomsError = GetChatsRoomsErrors[keyof GetChatsRoomsErrors];
 
-export type GetChatChannelsResponses = {
+export type GetChatsRoomsResponses = {
     /**
-     * List chat channels
+     * List chat rooms
      */
     200: {
-        data: Array<ChatChannel>;
+        data: Array<ChatRoom>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8666,10 +8704,10 @@ export type GetChatChannelsResponses = {
     };
 };
 
-export type GetChatChannelsResponse = GetChatChannelsResponses[keyof GetChatChannelsResponses];
+export type GetChatsRoomsResponse = GetChatsRoomsResponses[keyof GetChatsRoomsResponses];
 
-export type PostChatChannelsData = {
-    body?: CreateChatChannelRequest;
+export type PostChatsRoomsData = {
+    body?: CreateChatRoomRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -8686,10 +8724,10 @@ export type PostChatChannelsData = {
     };
     path?: never;
     query?: never;
-    url: '/chat-channels';
+    url: '/chats/rooms';
 };
 
-export type PostChatChannelsErrors = {
+export type PostChatsRoomsErrors = {
     /**
      * Invalid request
      */
@@ -8747,7 +8785,7 @@ export type PostChatChannelsErrors = {
         };
     };
     /**
-     * Channel already exists
+     * Room already exists
      */
     409: {
         error: string;
@@ -8776,26 +8814,23 @@ export type PostChatChannelsErrors = {
     };
 };
 
-export type PostChatChannelsError = PostChatChannelsErrors[keyof PostChatChannelsErrors];
+export type PostChatsRoomsError = PostChatsRoomsErrors[keyof PostChatsRoomsErrors];
 
-export type PostChatChannelsResponses = {
+export type PostChatsRoomsResponses = {
     /**
-     * Chat channel created
+     * Direct chat room found
      */
-    201: {
-        data: ChatChannel;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
+    200: ChatRoomSuccessResponse;
+    /**
+     * Chat room created
+     */
+    201: ChatRoomSuccessResponse;
 };
 
-export type PostChatChannelsResponse = PostChatChannelsResponses[keyof PostChatChannelsResponses];
+export type PostChatsRoomsResponse = PostChatsRoomsResponses[keyof PostChatsRoomsResponses];
 
-export type PostChatChannelsDirectData = {
-    body?: CreateDirectChatChannelRequest;
+export type GetChatsRoomsByIdData = {
+    body?: never;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -8810,12 +8845,114 @@ export type PostChatChannelsDirectData = {
          */
         'X-Context-Organization-Id'?: string;
     };
-    path?: never;
+    path: {
+        id: string;
+    };
     query?: never;
-    url: '/chat-channels/direct';
+    url: '/chats/rooms/{id}';
 };
 
-export type PostChatChannelsDirectErrors = {
+export type GetChatsRoomsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdError = GetChatsRoomsByIdErrors[keyof GetChatsRoomsByIdErrors];
+
+export type GetChatsRoomsByIdResponses = {
+    /**
+     * Chat room retrieved
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdResponse = GetChatsRoomsByIdResponses[keyof GetChatsRoomsByIdResponses];
+
+export type PatchChatsRoomsByIdData = {
+    body?: UpdateChatRoomRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}';
+};
+
+export type PatchChatsRoomsByIdErrors = {
     /**
      * Invalid request
      */
@@ -8859,7 +8996,7 @@ export type PostChatChannelsDirectErrors = {
         };
     };
     /**
-     * Organization not found
+     * Room not found
      */
     404: {
         error: string;
@@ -8873,7 +9010,7 @@ export type PostChatChannelsDirectErrors = {
         };
     };
     /**
-     * Direct channel already exists
+     * Room already exists
      */
     409: {
         error: string;
@@ -8902,25 +9039,14 @@ export type PostChatChannelsDirectErrors = {
     };
 };
 
-export type PostChatChannelsDirectError = PostChatChannelsDirectErrors[keyof PostChatChannelsDirectErrors];
+export type PatchChatsRoomsByIdError = PatchChatsRoomsByIdErrors[keyof PatchChatsRoomsByIdErrors];
 
-export type PostChatChannelsDirectResponses = {
+export type PatchChatsRoomsByIdResponses = {
     /**
-     * Direct chat channel found
+     * Chat room updated
      */
     200: {
-        data: ChatChannel;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-    /**
-     * Direct chat channel created
-     */
-    201: {
-        data: ChatChannel;
+        data: ChatRoom;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8929,9 +9055,9 @@ export type PostChatChannelsDirectResponses = {
     };
 };
 
-export type PostChatChannelsDirectResponse = PostChatChannelsDirectResponses[keyof PostChatChannelsDirectResponses];
+export type PatchChatsRoomsByIdResponse = PatchChatsRoomsByIdResponses[keyof PatchChatsRoomsByIdResponses];
 
-export type GetChatChannelsByIdData = {
+export type PostChatsRoomsByIdReadData = {
     body?: never;
     headers?: {
         /**
@@ -8951,10 +9077,10 @@ export type GetChatChannelsByIdData = {
         id: string;
     };
     query?: never;
-    url: '/chat-channels/{id}';
+    url: '/chats/rooms/{id}/read';
 };
 
-export type GetChatChannelsByIdErrors = {
+export type PostChatsRoomsByIdReadErrors = {
     /**
      * Unauthorized
      */
@@ -8984,7 +9110,7 @@ export type GetChatChannelsByIdErrors = {
         };
     };
     /**
-     * Channel not found
+     * Room not found
      */
     404: {
         error: string;
@@ -9013,14 +9139,14 @@ export type GetChatChannelsByIdErrors = {
     };
 };
 
-export type GetChatChannelsByIdError = GetChatChannelsByIdErrors[keyof GetChatChannelsByIdErrors];
+export type PostChatsRoomsByIdReadError = PostChatsRoomsByIdReadErrors[keyof PostChatsRoomsByIdReadErrors];
 
-export type GetChatChannelsByIdResponses = {
+export type PostChatsRoomsByIdReadResponses = {
     /**
-     * Chat channel retrieved
+     * Chat room marked read
      */
     200: {
-        data: ChatChannel;
+        data: ChatRoom;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9029,237 +9155,9 @@ export type GetChatChannelsByIdResponses = {
     };
 };
 
-export type GetChatChannelsByIdResponse = GetChatChannelsByIdResponses[keyof GetChatChannelsByIdResponses];
+export type PostChatsRoomsByIdReadResponse = PostChatsRoomsByIdReadResponses[keyof PostChatsRoomsByIdReadResponses];
 
-export type PatchChatChannelsByIdData = {
-    body?: UpdateChatChannelRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/chat-channels/{id}';
-};
-
-export type PatchChatChannelsByIdErrors = {
-    /**
-     * Invalid request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Channel not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Channel already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchChatChannelsByIdError = PatchChatChannelsByIdErrors[keyof PatchChatChannelsByIdErrors];
-
-export type PatchChatChannelsByIdResponses = {
-    /**
-     * Chat channel updated
-     */
-    200: {
-        data: ChatChannel;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchChatChannelsByIdResponse = PatchChatChannelsByIdResponses[keyof PatchChatChannelsByIdResponses];
-
-export type PostChatChannelsByIdReadData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/chat-channels/{id}/read';
-};
-
-export type PostChatChannelsByIdReadErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Channel not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostChatChannelsByIdReadError = PostChatChannelsByIdReadErrors[keyof PostChatChannelsByIdReadErrors];
-
-export type PostChatChannelsByIdReadResponses = {
-    /**
-     * Chat channel marked read
-     */
-    200: {
-        data: ChatChannel;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostChatChannelsByIdReadResponse = PostChatChannelsByIdReadResponses[keyof PostChatChannelsByIdReadResponses];
-
-export type GetChatChannelsByIdMessagesData = {
+export type GetChatsRoomsByIdMessagesData = {
     body?: never;
     headers?: {
         /**
@@ -9288,14 +9186,14 @@ export type GetChatChannelsByIdMessagesData = {
          */
         limit?: number;
         /**
-         * When provided, returns replies for this root message. Otherwise returns top-level channel messages.
+         * When provided, returns replies for this root message. Otherwise returns top-level room messages.
          */
         parentMessageId?: string;
     };
-    url: '/chat-channels/{id}/messages';
+    url: '/chats/rooms/{id}/messages';
 };
 
-export type GetChatChannelsByIdMessagesErrors = {
+export type GetChatsRoomsByIdMessagesErrors = {
     /**
      * Unauthorized
      */
@@ -9325,7 +9223,7 @@ export type GetChatChannelsByIdMessagesErrors = {
         };
     };
     /**
-     * Channel not found
+     * Room not found
      */
     404: {
         error: string;
@@ -9354,14 +9252,14 @@ export type GetChatChannelsByIdMessagesErrors = {
     };
 };
 
-export type GetChatChannelsByIdMessagesError = GetChatChannelsByIdMessagesErrors[keyof GetChatChannelsByIdMessagesErrors];
+export type GetChatsRoomsByIdMessagesError = GetChatsRoomsByIdMessagesErrors[keyof GetChatsRoomsByIdMessagesErrors];
 
-export type GetChatChannelsByIdMessagesResponses = {
+export type GetChatsRoomsByIdMessagesResponses = {
     /**
-     * Channel messages retrieved
+     * Room messages retrieved
      */
     200: {
-        data: Array<ChatChannelMessage>;
+        data: Array<ChatRoomMessage>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9370,10 +9268,10 @@ export type GetChatChannelsByIdMessagesResponses = {
     };
 };
 
-export type GetChatChannelsByIdMessagesResponse = GetChatChannelsByIdMessagesResponses[keyof GetChatChannelsByIdMessagesResponses];
+export type GetChatsRoomsByIdMessagesResponse = GetChatsRoomsByIdMessagesResponses[keyof GetChatsRoomsByIdMessagesResponses];
 
-export type PostChatChannelsByIdMessagesData = {
-    body?: CreateChatChannelMessageRequest;
+export type PostChatsRoomsByIdMessagesData = {
+    body?: CreateChatRoomMessageRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -9392,10 +9290,10 @@ export type PostChatChannelsByIdMessagesData = {
         id: string;
     };
     query?: never;
-    url: '/chat-channels/{id}/messages';
+    url: '/chats/rooms/{id}/messages';
 };
 
-export type PostChatChannelsByIdMessagesErrors = {
+export type PostChatsRoomsByIdMessagesErrors = {
     /**
      * Invalid request
      */
@@ -9439,7 +9337,7 @@ export type PostChatChannelsByIdMessagesErrors = {
         };
     };
     /**
-     * Channel not found
+     * Room not found
      */
     404: {
         error: string;
@@ -9468,14 +9366,14 @@ export type PostChatChannelsByIdMessagesErrors = {
     };
 };
 
-export type PostChatChannelsByIdMessagesError = PostChatChannelsByIdMessagesErrors[keyof PostChatChannelsByIdMessagesErrors];
+export type PostChatsRoomsByIdMessagesError = PostChatsRoomsByIdMessagesErrors[keyof PostChatsRoomsByIdMessagesErrors];
 
-export type PostChatChannelsByIdMessagesResponses = {
+export type PostChatsRoomsByIdMessagesResponses = {
     /**
-     * Channel message created
+     * Room message created
      */
     201: {
-        data: ChatChannelMessage;
+        data: ChatRoomMessage;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9484,10 +9382,10 @@ export type PostChatChannelsByIdMessagesResponses = {
     };
 };
 
-export type PostChatChannelsByIdMessagesResponse = PostChatChannelsByIdMessagesResponses[keyof PostChatChannelsByIdMessagesResponses];
+export type PostChatsRoomsByIdMessagesResponse = PostChatsRoomsByIdMessagesResponses[keyof PostChatsRoomsByIdMessagesResponses];
 
-export type PostChatChannelsByIdMessagesByMessageIdReactionsData = {
-    body?: ReactToChatChannelMessageRequest;
+export type PostChatsRoomsByIdMessagesByMessageIdReactionsData = {
+    body?: ReactToChatRoomMessageRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -9507,10 +9405,10 @@ export type PostChatChannelsByIdMessagesByMessageIdReactionsData = {
         messageId: string;
     };
     query?: never;
-    url: '/chat-channels/{id}/messages/{messageId}/reactions';
+    url: '/chats/rooms/{id}/messages/{messageId}/reactions';
 };
 
-export type PostChatChannelsByIdMessagesByMessageIdReactionsErrors = {
+export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
     /**
      * Invalid request
      */
@@ -9583,14 +9481,14 @@ export type PostChatChannelsByIdMessagesByMessageIdReactionsErrors = {
     };
 };
 
-export type PostChatChannelsByIdMessagesByMessageIdReactionsError = PostChatChannelsByIdMessagesByMessageIdReactionsErrors[keyof PostChatChannelsByIdMessagesByMessageIdReactionsErrors];
+export type PostChatsRoomsByIdMessagesByMessageIdReactionsError = PostChatsRoomsByIdMessagesByMessageIdReactionsErrors[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsErrors];
 
-export type PostChatChannelsByIdMessagesByMessageIdReactionsResponses = {
+export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
     /**
-     * Channel message reaction toggled
+     * Room message reaction toggled
      */
     200: {
-        data: ChatChannelMessage;
+        data: ChatRoomMessage;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9599,9 +9497,818 @@ export type PostChatChannelsByIdMessagesByMessageIdReactionsResponses = {
     };
 };
 
-export type PostChatChannelsByIdMessagesByMessageIdReactionsResponse = PostChatChannelsByIdMessagesByMessageIdReactionsResponses[keyof PostChatChannelsByIdMessagesByMessageIdReactionsResponses];
+export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
 
-export type GetChatData = {
+export type GetChatsConversationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/conversations';
+};
+
+export type GetChatsConversationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsConversationsError = GetChatsConversationsErrors[keyof GetChatsConversationsErrors];
+
+export type GetChatsConversationsResponses = {
+    /**
+     * List of user's conversations
+     */
+    200: {
+        data: ConversationList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsConversationsResponse = GetChatsConversationsResponses[keyof GetChatsConversationsResponses];
+
+export type PostChatsConversationsData = {
+    body?: CreateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/conversations';
+};
+
+export type PostChatsConversationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsConversationsError = PostChatsConversationsErrors[keyof PostChatsConversationsErrors];
+
+export type PostChatsConversationsResponses = {
+    /**
+     * Conversation created successfully
+     */
+    201: {
+        data: Conversation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsConversationsResponse = PostChatsConversationsResponses[keyof PostChatsConversationsResponses];
+
+export type GetChatsConversationsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal database ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/chats/conversations/{id}';
+};
+
+export type GetChatsConversationsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsConversationsByIdError = GetChatsConversationsByIdErrors[keyof GetChatsConversationsByIdErrors];
+
+export type GetChatsConversationsByIdResponses = {
+    /**
+     * Conversation retrieved successfully
+     */
+    200: {
+        data: Conversation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsConversationsByIdResponse = GetChatsConversationsByIdResponses[keyof GetChatsConversationsByIdResponses];
+
+export type PatchChatsConversationsByIdData = {
+    body?: UpdateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal database ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/chats/conversations/{id}';
+};
+
+export type PatchChatsConversationsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchChatsConversationsByIdError = PatchChatsConversationsByIdErrors[keyof PatchChatsConversationsByIdErrors];
+
+export type PatchChatsConversationsByIdResponses = {
+    /**
+     * Conversation updated successfully
+     */
+    200: {
+        data: Conversation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchChatsConversationsByIdResponse = PatchChatsConversationsByIdResponses[keyof PatchChatsConversationsByIdResponses];
+
+export type GetChatsConversationsByIdWarmupData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal database ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/chats/conversations/{id}/warmup';
+};
+
+export type GetChatsConversationsByIdWarmupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsConversationsByIdWarmupError = GetChatsConversationsByIdWarmupErrors[keyof GetChatsConversationsByIdWarmupErrors];
+
+export type GetChatsConversationsByIdWarmupResponses = {
+    /**
+     * Warmup state retrieved successfully
+     */
+    200: {
+        data: ConversationWarmupState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsConversationsByIdWarmupResponse = GetChatsConversationsByIdWarmupResponses[keyof GetChatsConversationsByIdWarmupResponses];
+
+export type PatchChatsConversationsByIdArchiveData = {
+    body?: ArchiveConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal database ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/chats/conversations/{id}/archive';
+};
+
+export type PatchChatsConversationsByIdArchiveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchChatsConversationsByIdArchiveError = PatchChatsConversationsByIdArchiveErrors[keyof PatchChatsConversationsByIdArchiveErrors];
+
+export type PatchChatsConversationsByIdArchiveResponses = {
+    /**
+     * Conversation archived successfully
+     */
+    200: {
+        data: Conversation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchChatsConversationsByIdArchiveResponse = PatchChatsConversationsByIdArchiveResponses[keyof PatchChatsConversationsByIdArchiveResponses];
+
+export type GetChatsConversationsByIdMessagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal database ID
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/conversations/{id}/messages';
+};
+
+export type GetChatsConversationsByIdMessagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsConversationsByIdMessagesError = GetChatsConversationsByIdMessagesErrors[keyof GetChatsConversationsByIdMessagesErrors];
+
+export type GetChatsConversationsByIdMessagesResponses = {
+    /**
+     * Conversation messages retrieved successfully
+     */
+    200: {
+        data: Array<ConversationMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsConversationsByIdMessagesResponse = GetChatsConversationsByIdMessagesResponses[keyof GetChatsConversationsByIdMessagesResponses];
+
+export type PostChatsConversationsByIdMessagesData = {
+    body?: CreateConversationMessageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal database ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/chats/conversations/{id}/messages';
+};
+
+export type PostChatsConversationsByIdMessagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsConversationsByIdMessagesError = PostChatsConversationsByIdMessagesErrors[keyof PostChatsConversationsByIdMessagesErrors];
+
+export type PostChatsConversationsByIdMessagesResponses = {
+    /**
+     * Conversation message created successfully
+     */
+    201: {
+        data: ConversationMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsConversationsByIdMessagesResponse = PostChatsConversationsByIdMessagesResponses[keyof PostChatsConversationsByIdMessagesResponses];
+
+export type GetChatsStreamData = {
     body?: never;
     headers?: {
         /**
@@ -9632,10 +10339,10 @@ export type GetChatData = {
          */
         limit?: number;
     };
-    url: '/chat';
+    url: '/chats/stream';
 };
 
-export type GetChatErrors = {
+export type GetChatsStreamErrors = {
     /**
      * Invalid request
      */
@@ -9708,9 +10415,9 @@ export type GetChatErrors = {
     };
 };
 
-export type GetChatError = GetChatErrors[keyof GetChatErrors];
+export type GetChatsStreamError = GetChatsStreamErrors[keyof GetChatsStreamErrors];
 
-export type GetChatResponses = {
+export type GetChatsStreamResponses = {
     /**
      * UIMessages for the conversation (standard data + meta envelope; messages in data.messages)
      */
@@ -9724,9 +10431,9 @@ export type GetChatResponses = {
     };
 };
 
-export type GetChatResponse = GetChatResponses[keyof GetChatResponses];
+export type GetChatsStreamResponse = GetChatsStreamResponses[keyof GetChatsStreamResponses];
 
-export type PostChatData = {
+export type PostChatsStreamData = {
     body?: {
         messages?: Array<{
             role: 'user' | 'assistant' | 'system';
@@ -9840,10 +10547,10 @@ export type PostChatData = {
     };
     path?: never;
     query?: never;
-    url: '/chat';
+    url: '/chats/stream';
 };
 
-export type PostChatErrors = {
+export type PostChatsStreamErrors = {
     /**
      * Invalid request
      */
@@ -9958,18 +10665,18 @@ export type PostChatErrors = {
     };
 };
 
-export type PostChatError = PostChatErrors[keyof PostChatErrors];
+export type PostChatsStreamError = PostChatsStreamErrors[keyof PostChatsStreamErrors];
 
-export type PostChatResponses = {
+export type PostChatsStreamResponses = {
     /**
      * Streaming UI message response (AI SDK)
      */
     200: string;
 };
 
-export type PostChatResponse = PostChatResponses[keyof PostChatResponses];
+export type PostChatsStreamResponse = PostChatsStreamResponses[keyof PostChatsStreamResponses];
 
-export type GetChatStreamByConversationIdData = {
+export type GetChatsStreamByConversationIdData = {
     body?: never;
     headers?: {
         /**
@@ -9992,10 +10699,10 @@ export type GetChatStreamByConversationIdData = {
         conversationId: string;
     };
     query?: never;
-    url: '/chat/stream/{conversationId}';
+    url: '/chats/stream/{conversationId}';
 };
 
-export type GetChatStreamByConversationIdErrors = {
+export type GetChatsStreamByConversationIdErrors = {
     /**
      * Unauthorized
      */
@@ -10054,9 +10761,9 @@ export type GetChatStreamByConversationIdErrors = {
     };
 };
 
-export type GetChatStreamByConversationIdError = GetChatStreamByConversationIdErrors[keyof GetChatStreamByConversationIdErrors];
+export type GetChatsStreamByConversationIdError = GetChatsStreamByConversationIdErrors[keyof GetChatsStreamByConversationIdErrors];
 
-export type GetChatStreamByConversationIdResponses = {
+export type GetChatsStreamByConversationIdResponses = {
     /**
      * Resumable UI message stream (SSE)
      */
@@ -10067,7 +10774,7 @@ export type GetChatStreamByConversationIdResponses = {
     204: void;
 };
 
-export type GetChatStreamByConversationIdResponse = GetChatStreamByConversationIdResponses[keyof GetChatStreamByConversationIdResponses];
+export type GetChatsStreamByConversationIdResponse = GetChatsStreamByConversationIdResponses[keyof GetChatsStreamByConversationIdResponses];
 
 export type CreateCreditCheckoutSessionData = {
     body?: CreateCreditCheckoutSession;
@@ -10241,815 +10948,6 @@ export type GetCheckoutSessionAnalyticsResponses = {
 };
 
 export type GetCheckoutSessionAnalyticsResponse = GetCheckoutSessionAnalyticsResponses[keyof GetCheckoutSessionAnalyticsResponses];
-
-export type GetConversationsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/conversations';
-};
-
-export type GetConversationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetConversationsError = GetConversationsErrors[keyof GetConversationsErrors];
-
-export type GetConversationsResponses = {
-    /**
-     * List of user's conversations
-     */
-    200: {
-        data: ConversationList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetConversationsResponse = GetConversationsResponses[keyof GetConversationsResponses];
-
-export type PostConversationsData = {
-    body?: CreateConversationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/conversations';
-};
-
-export type PostConversationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostConversationsError = PostConversationsErrors[keyof PostConversationsErrors];
-
-export type PostConversationsResponses = {
-    /**
-     * Conversation created successfully
-     */
-    201: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostConversationsResponse = PostConversationsResponses[keyof PostConversationsResponses];
-
-export type GetConversationsByIdData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}';
-};
-
-export type GetConversationsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetConversationsByIdError = GetConversationsByIdErrors[keyof GetConversationsByIdErrors];
-
-export type GetConversationsByIdResponses = {
-    /**
-     * Conversation retrieved successfully
-     */
-    200: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetConversationsByIdResponse = GetConversationsByIdResponses[keyof GetConversationsByIdResponses];
-
-export type PatchConversationsByIdData = {
-    body?: UpdateConversationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}';
-};
-
-export type PatchConversationsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchConversationsByIdError = PatchConversationsByIdErrors[keyof PatchConversationsByIdErrors];
-
-export type PatchConversationsByIdResponses = {
-    /**
-     * Conversation updated successfully
-     */
-    200: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchConversationsByIdResponse = PatchConversationsByIdResponses[keyof PatchConversationsByIdResponses];
-
-export type GetConversationsByIdWarmupData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}/warmup';
-};
-
-export type GetConversationsByIdWarmupErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetConversationsByIdWarmupError = GetConversationsByIdWarmupErrors[keyof GetConversationsByIdWarmupErrors];
-
-export type GetConversationsByIdWarmupResponses = {
-    /**
-     * Warmup state retrieved successfully
-     */
-    200: {
-        data: ConversationWarmupState;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetConversationsByIdWarmupResponse = GetConversationsByIdWarmupResponses[keyof GetConversationsByIdWarmupResponses];
-
-export type PatchConversationsByIdArchiveData = {
-    body?: ArchiveConversationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}/archive';
-};
-
-export type PatchConversationsByIdArchiveErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchConversationsByIdArchiveError = PatchConversationsByIdArchiveErrors[keyof PatchConversationsByIdArchiveErrors];
-
-export type PatchConversationsByIdArchiveResponses = {
-    /**
-     * Conversation archived successfully
-     */
-    200: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchConversationsByIdArchiveResponse = PatchConversationsByIdArchiveResponses[keyof PatchConversationsByIdArchiveResponses];
-
-export type GetConversationsByIdMessagesData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: {
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 100)
-         */
-        limit?: number;
-    };
-    url: '/conversations/{id}/messages';
-};
-
-export type GetConversationsByIdMessagesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetConversationsByIdMessagesError = GetConversationsByIdMessagesErrors[keyof GetConversationsByIdMessagesErrors];
-
-export type GetConversationsByIdMessagesResponses = {
-    /**
-     * Conversation messages retrieved successfully
-     */
-    200: {
-        data: Array<ConversationMessage>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type GetConversationsByIdMessagesResponse = GetConversationsByIdMessagesResponses[keyof GetConversationsByIdMessagesResponses];
-
-export type PostConversationsByIdMessagesData = {
-    body?: CreateConversationMessageRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}/messages';
-};
-
-export type PostConversationsByIdMessagesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostConversationsByIdMessagesError = PostConversationsByIdMessagesErrors[keyof PostConversationsByIdMessagesErrors];
-
-export type PostConversationsByIdMessagesResponses = {
-    /**
-     * Conversation message created successfully
-     */
-    201: {
-        data: ConversationMessage;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostConversationsByIdMessagesResponse = PostConversationsByIdMessagesResponses[keyof PostConversationsByIdMessagesResponses];
 
 export type GetCouponDetailsData = {
     body?: never;

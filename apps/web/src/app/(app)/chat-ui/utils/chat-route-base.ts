@@ -4,7 +4,7 @@ export const CHAT_APP_ROUTE_PREFIX = "/chat" as const;
 /** URL segment when conversation metadata has no slugifiable coworker or model. */
 export const FALLBACK_BUCKET_SEGMENT = "_" as const;
 
-/** Next.js BFF for Core `GET` / `POST` `/v1/chat`. */
+/** Next.js BFF for Core `GET` / `POST` `/v1/chats/stream`. */
 export const CHAT_API_PATH = "/api/chat" as const;
 
 const PENDING_CONVERSATION_STORAGE_KEY = "chat-pending-conversation-id";

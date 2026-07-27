@@ -74,7 +74,7 @@ describe("chat route", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("forwards to Core GET /v1/chat with conversationId", async () => {
+    it("forwards to Core GET /v1/chats/stream with conversationId", async () => {
       getSessionMock.mockResolvedValue({
         session: { activeOrganizationId: null },
         user: { id: "user-1" },
@@ -120,7 +120,7 @@ describe("chat route", () => {
 
       expect(response.status).toBe(200);
       expect(url).toBe(
-        `https://core.example.com/v1/chat?${new URLSearchParams({ conversationId: convId })}`,
+        `https://core.example.com/v1/chats/stream?${new URLSearchParams({ conversationId: convId })}`,
       );
       expect(init.method).toBe("GET");
       expect(forwardedHeaders.get("cookie")).toBe("session=abc");
@@ -177,7 +177,7 @@ describe("chat route", () => {
       const forwardedHeaders = init.headers as Headers;
 
       expect(response.status).toBe(200);
-      expect(url).toBe("https://core.example.com/v1/chat");
+      expect(url).toBe("https://core.example.com/v1/chats/stream");
       expect(init.method).toBe("POST");
       expect(init.body).toBe(JSON.stringify(body));
       expect(forwardedHeaders).toBeInstanceOf(Headers);

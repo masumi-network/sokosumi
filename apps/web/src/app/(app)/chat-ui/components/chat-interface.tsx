@@ -2659,10 +2659,15 @@ export default function ChatInterface({
                 stays true indefinitely if it never does — so gating the input on
                 it left the user looking at a chat with no way to type. */}
             <>
-              <div
-                aria-hidden
-                className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-5 h-32 bg-linear-to-t to-transparent"
-              />
+              {/* Fade is for the floating centred composer (above z-10). Coworker
+                  full-width layout sits in the column like channels — the fade
+                  would paint over the composer and muddy the toolbar. */}
+              {isSelectedChatCoworker ? null : (
+                <div
+                  aria-hidden
+                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-5 h-32 bg-linear-to-t to-transparent"
+                />
+              )}
               <ChatInputContainer
                 key={selectedChatId}
                 mobileKeyboardOptimized={mobileKeyboardOptimized}

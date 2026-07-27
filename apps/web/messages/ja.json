@@ -4578,6 +4578,7 @@
         "empty": "Choose who should be in this conversation.",
         "ready": "{count, plural, one {# recipient selected} other {# recipients selected}}",
         "chooseRecipientError": "Choose at least one recipient.",
+        "organizationRequiredForGroup": "複数の相手と1つのチャットでやり取りするには、組織ワークスペースに切り替えてください。",
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Add recipients to start"
