@@ -315,7 +315,7 @@ describe("tasks-filters", () => {
       projectId: null,
     };
 
-    it("shows the indicator for org boards with owned scope (default)", () => {
+    it("shows the indicator for org boards with owned scope", () => {
       expect(hasActiveTasksFilters(defaultFilters, "org-1")).toBe(true);
     });
 

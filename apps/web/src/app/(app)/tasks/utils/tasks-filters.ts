@@ -102,7 +102,7 @@ export function getDefaultTasksScope(
   // members see the shared board first; personal context has no workspace
   // to show, so it stays on the user's own tasks. Drives Tasks + Jobs,
   // server render + client, and the initial fetch (scope feeds the query).
-  return activeOrganizationId ? "workspace" : "owned";
+  return activeOrganizationId !== null ? "workspace" : "owned";
 }
 
 /**
