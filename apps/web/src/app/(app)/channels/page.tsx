@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import type { ChatChannelMessage } from "@/lib/clients/generated/core";
+import type {
+  ChatChannel,
+  ChatChannelMessage,
+} from "@/lib/clients/generated/core";
 import { chatChannelService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
@@ -102,7 +106,7 @@ export default async function ChannelsPage({
       ? loadChannelMessages(requestedChannelId)
       : null;
 
-  const [channels, organizationMembers, coworkers, currentMember] =
+  const [listedChannels, organizationMembers, coworkers, currentMember] =
     await Promise.all([
       chatChannelService.listChannels(activeOrganization.id),
       userService.getOrganizationMembers(activeOrganization.id),
@@ -110,12 +114,26 @@ export default async function ChannelsPage({
       userService.getMyMemberInOrganization(activeOrganization.id),
     ]);
 
-  const selectedChannel =
-    isCreateChannelRequested || isNewDirectMessage
-      ? null
-      : (channels.find((channel) => channel.id === requestedChannelId) ??
-        channels[0] ??
-        null);
+  // List is capped (default 50). A deep-link outside that page must not fall
+  // back to channels[0] — that silently opens the wrong conversation.
+  let channels = listedChannels;
+  let selectedChannel: ChatChannel | null = null;
+  if (!isCreateChannelRequested && !isNewDirectMessage) {
+    if (requestedChannelId) {
+      selectedChannel =
+        channels.find((channel) => channel.id === requestedChannelId) ?? null;
+      if (!selectedChannel) {
+        const fetched = await chatChannelService.getChannel(requestedChannelId);
+        if (!fetched) {
+          notFound();
+        }
+        channels = [fetched, ...channels];
+        selectedChannel = fetched;
+      }
+    } else {
+      selectedChannel = channels[0] ?? null;
+    }
+  }
   const selectedChannelId = selectedChannel?.id ?? null;
   if (requestedMessagesPromise && requestedChannelId !== selectedChannelId) {
     void requestedMessagesPromise.catch((error) => {
