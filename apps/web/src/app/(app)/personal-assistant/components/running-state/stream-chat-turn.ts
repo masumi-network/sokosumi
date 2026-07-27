@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import type { OrbState } from "thinking-orbs";
 
 import { listHermesMessagesAction } from "@/lib/actions/hermes";
 import { mergeHermesMessageLists } from "@/lib/hermes/merge-persisted-messages";
@@ -17,6 +18,7 @@ import {
   hasSameMessageIds,
   persistedToMessages,
 } from "./message-helpers";
+import { orbStateForPhase } from "./thinking-orb";
 import type { ChatApiResponse, Message, ProgressStep } from "./types";
 
 interface StreamChatTurnOptions {
@@ -33,6 +35,7 @@ interface StreamChatTurnOptions {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setIsReplying: React.Dispatch<React.SetStateAction<boolean>>;
   setProgressChips: React.Dispatch<React.SetStateAction<ProgressStep[]>>;
+  setThinkingState: React.Dispatch<React.SetStateAction<OrbState>>;
   setReasoning: React.Dispatch<React.SetStateAction<string | null>>;
   setStreamingId: React.Dispatch<React.SetStateAction<string | null>>;
   setRequestStartedAt: React.Dispatch<React.SetStateAction<number | null>>;
@@ -59,6 +62,7 @@ export async function streamChatTurn({
   setMessages,
   setIsReplying,
   setProgressChips,
+  setThinkingState,
   setReasoning,
   setStreamingId,
   setRequestStartedAt,
@@ -173,6 +177,10 @@ export async function streamChatTurn({
         turnStepsRef.current.filter((s) => s.kind !== "reasoning");
 
       const applyStatus = (status: HermesStatusEvent) => {
+        // Swap the thinking-orb animation to match the live phase (kept even
+        // for reasoning/tool_done handled/short-circuited below).
+        const nextOrbState = orbStateForPhase(status.phase);
+        if (nextOrbState) setThinkingState(nextOrbState);
         if (status.phase === "reasoning") {
           showReasoning(status.detail ?? null);
           if (status.detail) {

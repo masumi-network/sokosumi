@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { OrbState } from "thinking-orbs";
 import { streamChatTurn } from "./stream-chat-turn";
+import { DEFAULT_THINKING_STATE } from "./thinking-orb";
 import type { Message, ProgressStep } from "./types";
 
 interface UseChatSendOptions {
@@ -31,6 +33,9 @@ export function useChatSend({
 }: UseChatSendOptions) {
   const [isReplying, setIsReplying] = useState(false);
   const [progressChips, setProgressChips] = useState<ProgressStep[]>([]);
+  const [thinkingState, setThinkingState] = useState<OrbState>(
+    DEFAULT_THINKING_STATE,
+  );
   const [reasoning, setReasoning] = useState<string | null>(null);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [requestStartedAt, setRequestStartedAt] = useState<number | null>(null);
@@ -95,6 +100,9 @@ export function useChatSend({
       setFiles([]);
       setIsReplying(true);
       setRequestStartedAt(now);
+      // Fresh turn: start on the default thinking animation; the stream's
+      // phase frames swap it as the assistant reasons / searches / drafts.
+      setThinkingState(DEFAULT_THINKING_STATE);
 
       // Preview mode: keep the mock setTimeout so design iteration via
       // ?state=running keeps working without an orchestrator round-trip.
@@ -136,6 +144,7 @@ export function useChatSend({
         setMessages,
         setIsReplying,
         setProgressChips,
+        setThinkingState,
         setReasoning,
         setStreamingId,
         setRequestStartedAt,
@@ -196,6 +205,7 @@ export function useChatSend({
     isReplying,
     isReplyingRef,
     progressChips,
+    thinkingState,
     reasoning,
     streamingId,
     requestStartedAt,

@@ -1,3 +1,5 @@
+import type { OrbState } from "thinking-orbs";
+
 import type {
   HermesOrganizationOption,
   HermesPendingConfirmation,
@@ -22,6 +24,8 @@ interface ChatTimelineProps {
   userName?: string | null;
   isReplying: boolean;
   progressChips: ProgressStep[];
+  /** Live thinking-orb activity state, driven by the stream's phase frames. */
+  thinkingState: OrbState;
   requestStartedAt: number | null;
   reasoning: string | null;
   pendingCards: HermesPendingConfirmation[];
@@ -46,6 +50,7 @@ export function ChatTimeline({
   userName,
   isReplying,
   progressChips,
+  thinkingState,
   requestStartedAt,
   reasoning,
   pendingCards,
@@ -57,7 +62,9 @@ export function ChatTimeline({
   onConfirmationResolved,
 }: ChatTimelineProps) {
   return (
-    <div className="flex flex-col items-center pt-12 pb-6 md:pt-8">
+    <div className="flex flex-col items-center pt-32 pb-6">
+      {/* Top pad clears the absolute vertical header chip stack
+          (Autonomy / Skills / Settings ≈ top-3 + 3×h-8 + gaps ≈ 7.5rem). */}
       <div className="flex w-full max-w-4xl flex-col gap-1">
         {timeline.map((item) =>
           item.kind === "message" ? (
@@ -96,9 +103,13 @@ export function ChatTimeline({
               <ProgressChips
                 chips={progressChips}
                 startedAt={requestStartedAt}
+                orbState={thinkingState}
               />
             ) : (
-              <AssistantTyping startedAt={requestStartedAt} />
+              <AssistantTyping
+                startedAt={requestStartedAt}
+                orbState={thinkingState}
+              />
             )}
             {reasoning ? <ReasoningLine snippet={reasoning} /> : null}
           </>

@@ -3,11 +3,12 @@
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import type { OrbState } from "thinking-orbs";
 
 import RotatingMessages from "@/app/personal-assistant/components/rotating-messages";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 
-import { AssistantAvatar } from "./assistant-context";
+import { ThinkingOrb } from "./thinking-orb";
 import type { ProgressStep } from "./types";
 
 /** Transient chain-of-thought beat, shown live and superseded by the next
@@ -27,22 +28,17 @@ export function ReasoningLine({ snippet }: { snippet: string }) {
 export function ProgressChips({
   chips,
   startedAt,
+  orbState,
 }: {
   chips: ProgressStep[];
   startedAt?: number | null;
+  orbState: OrbState;
 }) {
   return (
     <div className="flex w-full items-start gap-3 px-4 py-1.5">
-      {/* The active avatar — "focused" eyes while a tool runs, so it reads as
-          working rather than just drafting (the typing indicator stays
-          "thinking"). */}
-      <span className="relative shrink-0">
-        <span
-          aria-hidden
-          className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
-        />
-        <AssistantAvatar animated expression="focused" />
-      </span>
+      {/* While a tool runs the profile picture gives way to the purple
+          thinking orb, in whatever activity state the live phase reports. */}
+      <ThinkingOrb size={32} state={orbState} />
       <div className="flex min-w-0 flex-col gap-1.5 pt-1">
         {chips.map((chip, i) => {
           const isLast = i === chips.length - 1;
@@ -85,8 +81,8 @@ export function ProgressChips({
  * Pool of "thinking" messages that cycle while Hermes drafts a reply. Mix
  * of straight-faced and lightly silly so users have something to read
  * during long inference runs without it feeling robotic. Each phrase
- * stands on its own — no trailing ellipsis here, the typing dots animate
- * separately. New phrases welcome, just keep them short.
+ * stands on its own — no trailing ellipsis; the thinking orb is the motion
+ * signal. New phrases welcome, just keep them short.
  */
 /** Live "Ns" counter since the turn started — keeps a long wait legible. */
 function ElapsedTimer({ startedAt }: { startedAt: number }) {
@@ -107,7 +103,13 @@ function ElapsedTimer({ startedAt }: { startedAt: number }) {
   );
 }
 
-export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
+export function AssistantTyping({
+  startedAt,
+  orbState,
+}: {
+  startedAt?: number | null;
+  orbState: OrbState;
+}) {
   const t = useTranslations("App.Hermes.Running");
   const thinkingMessages = orderedMessageList(
     t.raw("thinkingMessages") as Record<string, string>,
@@ -127,19 +129,13 @@ export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
-      {/* Avatar with a slow pulse ring so it reads as "working" at a glance */}
-      <span className="relative shrink-0">
-        <span
-          aria-hidden
-          className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
-        />
-        <AssistantAvatar animated expression="thinking" />
-      </span>
+      {/* The profile picture gives way to the purple thinking orb for the
+          duration of the turn — the orb IS the thinking signal, so no ping
+          ring or extra dots needed. */}
+      <ThinkingOrb size={32} state={orbState} />
 
-      {/* Rotating phrase + three pulsing dots. Phrase change has its own
-          fade (from RotatingMessages); the dots run independently so there
-          is always something animating even between fades. */}
-      <div className="flex min-h-5 items-center gap-1 pt-2">
+      {/* Rotating phrase; change has its own fade (from RotatingMessages). */}
+      <div className="flex min-h-5 items-center gap-1.5 pt-2">
         {escalation ? (
           <span className="reasoning-text-shine text-foreground text-sm leading-5">
             {escalation}
@@ -151,15 +147,6 @@ export function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
             className="reasoning-text-shine text-foreground text-sm leading-5"
           />
         )}
-        <span aria-hidden className="text-foreground/70 inline-flex gap-0.5">
-          <span className="animate-thinking-dot inline-block">.</span>
-          <span className="animate-thinking-dot inline-block [animation-delay:200ms]">
-            .
-          </span>
-          <span className="animate-thinking-dot inline-block [animation-delay:400ms]">
-            .
-          </span>
-        </span>
         {startedAt ? <ElapsedTimer startedAt={startedAt} /> : null}
       </div>
     </div>
