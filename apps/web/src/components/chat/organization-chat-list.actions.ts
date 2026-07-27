@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 
@@ -36,7 +35,8 @@ export async function markOrganizationChatChannelReadAction(
 
   try {
     const channel = await chatRoomService.markRead(cleanChannelId);
-    revalidatePath("/channels");
+    // No revalidatePath: sidebar updates via custom event + poll. Revalidating
+    // /channels would re-fetch only the latest message page and wipe older ones.
     return { ok: true, data: channel };
   } catch {
     return { ok: false };

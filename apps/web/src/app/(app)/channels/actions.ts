@@ -264,7 +264,8 @@ export async function sendChannelMessageAction(
       mentionedCoworkerIds: cleanIds(mentionedCoworkerIds),
       ...(parentMessageId && { parentMessageId }),
     });
-    revalidatePath("/channels");
+    // No revalidatePath: client appends/merges the returned message. Revalidating
+    // would re-fetch only the latest page and wipe client-loaded older history.
     return { ok: true, data: message };
   } catch (error) {
     return {

@@ -12,6 +12,10 @@ import type {
 } from "@/lib/clients/generated/core";
 
 const ROOM_MESSAGE_LIMIT = 100;
+/** Matches Core `LIMITS.MAX_PAGINATION_LIMIT` for room list pages. */
+const ROOM_LIST_PAGE_LIMIT = 100;
+/** Hard stop so a bad nextCursor cannot loop forever. */
+const ROOM_LIST_MAX_PAGES = 50;
 
 export interface ChatRoomMessagesPage {
   messages: ChatRoomMessage[];
@@ -22,8 +26,24 @@ export const chatRoomService = (() => {
   const listRooms = cache(async function listRooms(
     kind?: ChatRoomKind,
   ): Promise<ChatRoom[]> {
-    const response = await coreClient.getChatRooms(kind ? { kind } : undefined);
-    return response.data;
+    const rooms: ChatRoom[] = [];
+    let cursor: string | undefined;
+
+    for (let page = 0; page < ROOM_LIST_MAX_PAGES; page += 1) {
+      const response = await coreClient.getChatRooms({
+        limit: ROOM_LIST_PAGE_LIMIT,
+        ...(kind ? { kind } : {}),
+        ...(cursor ? { cursor } : {}),
+      });
+      rooms.push(...response.data);
+      const nextCursor = response.meta?.pagination?.nextCursor ?? null;
+      if (!nextCursor) {
+        return rooms;
+      }
+      cursor = nextCursor;
+    }
+
+    return rooms;
   });
 
   const getRoom = cache(async function getRoom(

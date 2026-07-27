@@ -1,22 +1,113 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildRoomMentionPrompt } from "./chat-room-coworker-dispatch.service";
+const {
+  findUniqueMock,
+  updateManyMock,
+  updateMock,
+  findFirstMock,
+  findManyMock,
+  createMock,
+  generateTextMock,
+  createCoworkerConversationMock,
+  getSokosumiProviderMock,
+} = vi.hoisted(() => ({
+  findUniqueMock: vi.fn(),
+  updateManyMock: vi.fn(),
+  updateMock: vi.fn(),
+  findFirstMock: vi.fn(),
+  findManyMock: vi.fn(),
+  createMock: vi.fn(),
+  generateTextMock: vi.fn(),
+  createCoworkerConversationMock: vi.fn(),
+  getSokosumiProviderMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {},
+  default: {
+    chatRoomMention: {
+      findUnique: findUniqueMock,
+      updateMany: updateManyMock,
+      update: updateMock,
+      findFirst: findFirstMock,
+    },
+    chatRoomMessage: {
+      findMany: findManyMock,
+      create: createMock,
+    },
+    chatRoom: {
+      update: vi.fn(),
+    },
+    $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        chatRoomMessage: { create: createMock },
+        chatRoomMention: { update: updateMock },
+        chatRoom: { update: vi.fn() },
+      }),
+    ),
+  },
 }));
 
 vi.mock("@/lib/sokosumi-ai-provider", () => ({
-  getSokosumiProvider: vi.fn(),
+  getSokosumiProvider: getSokosumiProviderMock,
 }));
 
 vi.mock("@/routes/v1/chats/stream/coworker-conversation", () => ({
-  createCoworkerConversation: vi.fn(),
+  createCoworkerConversation: createCoworkerConversationMock,
 }));
 
 vi.mock("ai", () => ({
-  generateText: vi.fn(),
+  generateText: generateTextMock,
 }));
+
+import {
+  buildRoomMentionPrompt,
+  dispatchChatRoomMention,
+} from "./chat-room-coworker-dispatch.service";
+
+const MENTION_ID = "mention_1";
+
+function pendingMention() {
+  return {
+    id: MENTION_ID,
+    status: "pending",
+    providerConversationId: null,
+    coworkerId: "cow_1",
+    coworker: {
+      id: "cow_1",
+      slug: "hannah",
+      name: "Hannah",
+      baseURL: "https://coworker.example",
+      archivedAt: null,
+      isWhitelisted: true,
+      capabilities: ["chat"],
+    },
+    message: {
+      id: "msg_1",
+      roomId: "room_1",
+      content: "@hannah hi",
+      parentMessageId: null,
+      senderUserId: "user_1",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      senderUser: { id: "user_1", name: "Patrick" },
+      room: {
+        id: "room_1",
+        name: "general",
+        organizationId: "org_1",
+      },
+    },
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  getSokosumiProviderMock.mockReturnValue(() => "mock-model");
+  createCoworkerConversationMock.mockResolvedValue({ id: "provider_conv_1" });
+  findManyMock.mockResolvedValue([]);
+  generateTextMock.mockResolvedValue({ text: "Hello back" });
+  createMock.mockResolvedValue({ id: "reply_1" });
+  updateMock.mockResolvedValue({});
+  updateManyMock.mockResolvedValue({ count: 1 });
+});
 
 describe("buildRoomMentionPrompt", () => {
   it("returns the bare mention block when there is no context", () => {
@@ -85,5 +176,32 @@ describe("buildRoomMentionPrompt", () => {
 
     expect(prompt).toContain(`- Andreas: ${"x".repeat(500)}…`);
     expect(prompt).not.toContain("x".repeat(501));
+  });
+});
+
+describe("dispatchChatRoomMention claim", () => {
+  it("exits without provider work when claim loses (updateMany count 0)", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: "pending" },
+      data: { status: "sent", error: null },
+    });
+    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("runs provider work when claim wins (updateMany count 1)", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(generateTextMock).toHaveBeenCalled();
+    expect(createCoworkerConversationMock).toHaveBeenCalled();
   });
 });
