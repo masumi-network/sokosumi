@@ -6,10 +6,6 @@ import { organizationInviteLinkRepository } from "@sokosumi/database/repositorie
 import { getWebAppBaseUrl } from "@/config/env";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
-import {
-  evaluateInviteLinkStatus,
-  type InviteLinkStatus,
-} from "@/helpers/organization-invite-link";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -23,36 +19,6 @@ const params = z.object({
     example: "org_123",
   }),
 });
-
-const STATUS_SORT_PRIORITY: Record<
-  Exclude<InviteLinkStatus, "not_found">,
-  number
-> = {
-  valid: 0,
-  depleted: 1,
-  expired: 2,
-  revoked: 3,
-};
-
-function sortInviteLinks(
-  links: OrganizationInviteLink[],
-  now: Date,
-): OrganizationInviteLink[] {
-  return [...links].sort((a, b) => {
-    const statusA = evaluateInviteLinkStatus(a, now);
-    const statusB = evaluateInviteLinkStatus(b, now);
-    const priorityA =
-      STATUS_SORT_PRIORITY[statusA as Exclude<InviteLinkStatus, "not_found">];
-    const priorityB =
-      STATUS_SORT_PRIORITY[statusB as Exclude<InviteLinkStatus, "not_found">];
-
-    if (priorityA !== priorityB) {
-      return priorityA - priorityB;
-    }
-
-    return b.createdAt.getTime() - a.createdAt.getTime();
-  });
-}
 
 function toInviteLinkResponse(link: OrganizationInviteLink) {
   return organizationInviteLinkSchema.parse({
@@ -71,7 +37,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/invite-links",
   description:
-    "List shareable invite links for an organization. Owners and admins only. Sorted by usability (valid first) then newest first within each status.",
+    "List shareable invite links for an organization. Owners and admins only. Sorted by createdAt descending (newest first).",
   tags: ["Organizations"],
   request: {
     params,
@@ -126,9 +92,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma,
       );
 
-    const now = new Date();
-    const sorted = sortInviteLinks(links, now);
-    const payload = sorted.map(toInviteLinkResponse);
+    // Repository already returns createdAt desc; keep that order.
+    const payload = links.map(toInviteLinkResponse);
 
     return ok(c, z.array(organizationInviteLinkSchema).parse(payload));
   });

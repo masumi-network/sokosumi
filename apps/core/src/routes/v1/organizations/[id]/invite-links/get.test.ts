@@ -188,43 +188,31 @@ describe("GET /organizations/{id}/invite-links", () => {
     expect(body.data).toEqual([]);
   });
 
-  it("sorts links by status priority then createdAt descending within status", async () => {
-    const validOlder = liveLink({
-      id: "valid_old",
-      token: "tok_valid_old",
-      createdAt: new Date("2026-07-20T12:00:00.000Z"),
+  it("preserves repository createdAt descending order", async () => {
+    const newest = liveLink({
+      id: "newest",
+      token: "tok_newest",
+      createdAt: new Date("2026-07-25T10:00:00.000Z"),
+      revokedAt: new Date("2026-07-25T11:00:00.000Z"),
     });
-    const validNewer = liveLink({
-      id: "valid_new",
-      token: "tok_valid_new",
-      createdAt: new Date("2026-07-22T12:00:00.000Z"),
-    });
-    const depleted = liveLink({
-      id: "depleted",
-      token: "tok_depleted",
+    const middle = liveLink({
+      id: "middle",
+      token: "tok_middle",
       createdAt: new Date("2026-07-23T12:00:00.000Z"),
       maxUses: 5,
       useCount: 5,
     });
-    const expired = liveLink({
-      id: "expired",
-      token: "tok_expired",
-      createdAt: new Date("2026-07-24T12:00:00.000Z"),
-      expiresAt: new Date("2026-07-01T12:00:00.000Z"),
-    });
-    const revoked = liveLink({
-      id: "revoked",
-      token: "tok_revoked",
-      createdAt: new Date("2026-07-25T10:00:00.000Z"),
-      revokedAt: new Date("2026-07-25T11:00:00.000Z"),
+    const oldest = liveLink({
+      id: "oldest",
+      token: "tok_oldest",
+      createdAt: new Date("2026-07-20T12:00:00.000Z"),
     });
 
+    // Repository contract: already sorted by createdAt desc.
     listInviteLinksByOrganizationIdMock.mockResolvedValue([
-      revoked,
-      expired,
-      depleted,
-      validOlder,
-      validNewer,
+      newest,
+      middle,
+      oldest,
     ]);
 
     const response = await getList();
@@ -232,16 +220,14 @@ describe("GET /organizations/{id}/invite-links", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.map((row: { token: string }) => row.token)).toEqual([
-      "tok_valid_new",
-      "tok_valid_old",
-      "tok_depleted",
-      "tok_expired",
-      "tok_revoked",
+      "tok_newest",
+      "tok_middle",
+      "tok_oldest",
     ]);
     expect(body.data[0]).toMatchObject({
-      token: "tok_valid_new",
-      url: "https://app.sokosumi.test/join/tok_valid_new",
-      createdAt: "2026-07-22T12:00:00.000Z",
+      token: "tok_newest",
+      url: "https://app.sokosumi.test/join/tok_newest",
+      createdAt: "2026-07-25T10:00:00.000Z",
     });
   });
 });
