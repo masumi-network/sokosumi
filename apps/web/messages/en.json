@@ -1693,6 +1693,7 @@
         "actionCommented": "commented",
         "actionUpdatedStatus": "changed status to",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
+        "actionTriedChargedCredits": "tried to charge {credits, plural, =1 {# credit} other {# credits}}",
         "statusLabels": {
           "outOfCredits": "Out of credits",
           "creditsToppedUp": "Credits topped up"

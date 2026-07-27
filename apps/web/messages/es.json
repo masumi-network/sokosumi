@@ -1681,6 +1681,7 @@
         "actionCommented": "comentó",
         "actionUpdatedStatus": "Estado cambiado a",
         "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} cobrados",
+        "actionTriedChargedCredits": "intentó cobrar {credits, plural, =1 {# Credit} other {# Credits}}",
         "statusLabels": {
           "outOfCredits": "Sin Credits",
           "creditsToppedUp": "Credits recargados"
