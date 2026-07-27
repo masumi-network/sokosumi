@@ -790,16 +790,21 @@ function PureMultimodalInput({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : null}
-                <CoworkerModelSelector
-                  selectedCoworker={selectedCoworker}
-                  selectedModel={selectedModel}
-                  coworkers={availableCoworkers}
-                  coworkersLoading={propCoworkersLoading}
-                  onSelectCoworker={handleCoworkerSelect}
-                  onSelectModel={handleModelSelect}
-                  disabled={!!chatId}
-                  showModels
-                />
+                {/* Coworker DMs already show the name in the chat header; the
+                    locked selector duplicates it and fails the “plain channel
+                    composer” look. Keep the picker for new/model chats only. */}
+                {selectedCoworker && chatId ? null : (
+                  <CoworkerModelSelector
+                    selectedCoworker={selectedCoworker}
+                    selectedModel={selectedModel}
+                    coworkers={availableCoworkers}
+                    coworkersLoading={propCoworkersLoading}
+                    onSelectCoworker={handleCoworkerSelect}
+                    onSelectModel={handleModelSelect}
+                    disabled={!!chatId}
+                    showModels
+                  />
+                )}
               </PromptInputTools>
 
               {status === "submitted" ? (
