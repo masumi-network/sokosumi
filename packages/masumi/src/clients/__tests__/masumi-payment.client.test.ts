@@ -104,14 +104,17 @@ describe("createPurchase duplicate handling", () => {
     });
   });
 
-  it("treats a 409 duplicate as success by resolving the existing purchase", async () => {
+  it("returns the purchase from a 409 duplicate without resolving it", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
         status: "error",
         error: { message: "Purchase already exists" },
         id: "purchase_existing",
-        object: { id: "purchase_existing" },
+        object: {
+          id: "purchase_existing",
+          blockchainIdentifier: "job-chain-1",
+        },
       },
       response: { status: 409 },
     });
@@ -130,17 +133,46 @@ describe("createPurchase duplicate handling", () => {
 
     expect(result.isOk()).toBe(true);
     expect(result.isOk() && result.value.id).toBe("purchase_existing");
-    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: expect.objectContaining({
-          blockchainIdentifier: "job-chain-1",
-          network: "Preprod",
-        }),
-      }),
+    expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to resolving a 409 response without a purchase object", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: { id: "purchase_existing" },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value.id).toBe("purchase_existing");
+    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledTimes(
+      1,
     );
   });
 
-  it("returns an error when the 409 duplicate cannot be resolved", async () => {
+  it("returns an error when a malformed 409 cannot be resolved", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
@@ -246,23 +278,19 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
     );
   });
 
-  it("treats a 409 duplicate as success by resolving the existing purchase", async () => {
+  it("returns a 409 duplicate purchase without resolving it", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
         status: "error",
         error: { message: "Purchase already exists" },
         id: "task_purchase_existing",
-        object: { id: "task_purchase_existing" },
+        object: {
+          id: "task_purchase_existing",
+          blockchainIdentifier: "chain1",
+        },
       },
       response: { status: 409 },
-    });
-    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
-      data: {
-        data: { id: "task_purchase_existing" },
-      },
-      error: undefined,
-      response: { status: 200 },
     });
     const client = createPaymentClient(
       "Preprod",
@@ -285,5 +313,6 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
 
     expect(result.isOk()).toBe(true);
     expect(result.isOk() && result.value.id).toBe("task_purchase_existing");
+    expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
   });
 });

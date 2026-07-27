@@ -6,6 +6,7 @@ import { err, ok, type Result } from "neverthrow";
 
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
+  type PostPurchaseErrors,
   type PostPurchaseResolveBlockchainIdentifierResponses,
   type PostPurchaseResponses,
   postPurchase,
@@ -19,6 +20,29 @@ interface PaymentClientRequestOptions {
 
 type ResolvedPurchase =
   PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
+type CreatedPurchase = PostPurchaseResponses["200"]["data"];
+type DuplicatePurchase = PostPurchaseErrors["409"]["object"];
+
+function getDuplicatePurchase(
+  error: unknown,
+  blockchainIdentifier: string,
+): DuplicatePurchase | undefined {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("object" in error) ||
+    typeof error.object !== "object" ||
+    error.object === null ||
+    !("id" in error.object) ||
+    typeof error.object.id !== "string" ||
+    !("blockchainIdentifier" in error.object) ||
+    error.object.blockchainIdentifier !== blockchainIdentifier
+  ) {
+    return undefined;
+  }
+
+  return error.object as DuplicatePurchase;
+}
 
 interface MasumiTaskPurchaseInput {
   blockchainIdentifier: string;
@@ -71,6 +95,18 @@ export function createPaymentClient(
     } catch (error) {
       return err(String(error) || "Failed to get purchase");
     }
+  };
+
+  const recoverDuplicatePurchase = async (
+    error: unknown,
+    blockchainIdentifier: string,
+  ): Promise<Result<CreatedPurchase, string>> => {
+    const duplicatePurchase = getDuplicatePurchase(error, blockchainIdentifier);
+    if (duplicatePurchase) {
+      return ok(duplicatePurchase);
+    }
+
+    return resolvePurchase(blockchainIdentifier);
   };
 
   return {
@@ -131,14 +167,14 @@ export function createPaymentClient(
 
         if (response.error || !response.data) {
           if (response.response?.status === 409) {
-            // Duplicate blockchainIdentifier: the purchase already exists on
-            // the payment node (e.g. a retried request). Resolve it and treat
-            // the call as idempotent success.
             console.info(
-              "[masumi-payment] createPurchase: purchase already exists, resolving",
+              "[masumi-payment] createPurchase: purchase already exists",
               { blockchainIdentifier: startJobResponse.blockchainIdentifier },
             );
-            return resolvePurchase(startJobResponse.blockchainIdentifier);
+            return recoverDuplicatePurchase(
+              response.error,
+              startJobResponse.blockchainIdentifier,
+            );
           }
           console.error("Failed to create purchase request", response.error);
           return err("Failed to create purchase request");
@@ -186,13 +222,14 @@ export function createPaymentClient(
 
         if (response.error || !response.data) {
           if (response.response?.status === 409) {
-            // Duplicate blockchainIdentifier: idempotent retry — resolve the
-            // existing purchase instead of reporting an error.
-            console.info(`${logLabel} purchase already exists, resolving`, {
+            console.info(`${logLabel} purchase already exists`, {
               network,
               blockchainIdentifier: input.blockchainIdentifier,
             });
-            return resolvePurchase(input.blockchainIdentifier);
+            return recoverDuplicatePurchase(
+              response.error,
+              input.blockchainIdentifier,
+            );
           }
           console.error(`${logLabel} payment API error`, {
             network,
