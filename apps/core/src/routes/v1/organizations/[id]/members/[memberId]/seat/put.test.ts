@@ -43,17 +43,6 @@ vi.mock("@/services/subscription-seat-credits.service", () => ({
     getSubscriptionSeatCreditsMock(...args),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
@@ -125,8 +114,12 @@ function setMembership(role: string | null) {
   memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
 }
 
-function assignSeat(id: string, memberId: string) {
-  return createApp().request(
+function assignSeat(
+  id: string,
+  memberId: string,
+  authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
+) {
+  return createApp(authContext).request(
     `http://localhost/${id}/members/${memberId}/seat`,
     {
       method: "PUT",
@@ -317,6 +310,44 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain(
       "No unused seats available. Purchase more seats or unassign another member.",
+    );
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    setMembership("owner");
+
+    const response = await assignSeat("org_123", "member_456", {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId: "vendor_1",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+
+    expect(response.status).toBe(403);
+    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(assignSeatMock).not.toHaveBeenCalled();
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    setMembership("owner");
+
+    const response = await assignSeat("org_123", "member_456", {
+      actor: "orchestrator",
+      orchestratorId: "orch_1",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({
+      memberId: "member_456",
+      seatAssignedAt: "2026-05-01T00:00:00.000Z",
+    });
+    expect(assignSeatMock).toHaveBeenCalledWith(
+      "member_456",
+      "org_123",
+      3,
+      expect.anything(),
     );
   });
 });

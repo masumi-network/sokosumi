@@ -17,17 +17,6 @@ const {
   uploadDesignMdContentMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     organization: { findUnique: organizationFindUniqueMock },
@@ -85,8 +74,9 @@ function setMembership(role: string | null, metadata: unknown) {
 function putDesignMd(
   id: string,
   body: { content: string | null; extractionId: string | null },
+  authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  return createApp().request(`http://localhost/${id}/design-md`, {
+  return createApp(authContext).request(`http://localhost/${id}/design-md`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -186,5 +176,50 @@ describe("PUT /organizations/{id}/design-md", () => {
 
     expect(response.status).toBe(503);
     expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    setMembership("owner", JSON.stringify({}));
+
+    const response = await putDesignMd(
+      "org_123",
+      { content: "# Brand", extractionId: null },
+      {
+        actor: "coworker",
+        coworkerId: "coworker_1",
+        vendorId: "vendor_1",
+        context: { userId: "user_123", organizationId: "org_123" },
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
+    expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    setMembership("owner", JSON.stringify({ invoiceEmail: "b@acme.example" }));
+    uploadDesignMdContentMock.mockResolvedValueOnce(
+      "https://blob.example/org.md",
+    );
+
+    const response = await putDesignMd(
+      "org_123",
+      { content: "# Brand", extractionId: "55" },
+      {
+        actor: "orchestrator",
+        orchestratorId: "orch_1",
+        context: { userId: "user_123", organizationId: "org_123" },
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(uploadDesignMdContentMock).toHaveBeenCalledWith("# Brand", "55");
+    expect(body.data.designMd).toEqual({
+      url: "https://blob.example/org.md",
+      extractionId: "55",
+    });
   });
 });
