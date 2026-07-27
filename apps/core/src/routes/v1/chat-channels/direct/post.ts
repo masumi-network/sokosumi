@@ -196,14 +196,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
       return result.created ? created(c, payload) : ok(c, payload);
     } catch (error) {
-      if (isSlugUniqueConstraintError(error)) {
-        throw conflict("Direct channel already exists");
-      }
-
-      if (isPrismaUniqueViolation(error) && directKeyRef.current) {
-        // A concurrent request inserted the same direct channel between our
-        // lookup and our insert. Return the winner instead of failing the
-        // loser. The transaction is aborted here, so re-read outside of it.
+      // Slug and directKey unique races both mean another request won the
+      // create. Prefer returning that channel over a 409 — including when the
+      // loser hits the slug constraint first (isSlugUniqueConstraintError is a
+      // P2002 subset that previously short-circuited before the re-read).
+      if (
+        (isSlugUniqueConstraintError(error) ||
+          isPrismaUniqueViolation(error)) &&
+        directKeyRef.current
+      ) {
         const existing = await prisma.chatChannel.findFirst({
           where: {
             organizationId: body.organizationId,
@@ -223,7 +224,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (isPrismaUniqueViolation(error)) {
+      if (
+        isSlugUniqueConstraintError(error) ||
+        isPrismaUniqueViolation(error)
+      ) {
         throw conflict("Direct channel already exists");
       }
 

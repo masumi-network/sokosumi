@@ -118,7 +118,6 @@ async function runChatChannelMentionDispatch(mentionId: string): Promise<void> {
               id: true,
               name: true,
               organizationId: true,
-              createdByUserId: true,
             },
           },
           senderUser: {
@@ -147,8 +146,27 @@ async function runChatChannelMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  const userId =
-    mention.message.senderUserId ?? mention.message.channel.createdByUserId;
+  // Fail closed when the human sender row was deleted (SetNull): billing /
+  // provider auth as the channel creator would attribute cost to the wrong user.
+  const userId = mention.message.senderUserId;
+  if (!userId) {
+    await markMentionFailed(mentionId, "Mention sender is no longer available");
+    return;
+  }
+
+  // Claim before any provider work so concurrent dispatches cannot both run
+  // generateText. Only `pending` → `sent` wins; losers exit quietly.
+  const claimed = await prisma.chatChannelMention.updateMany({
+    where: { id: mentionId, status: "pending" },
+    data: {
+      status: "sent",
+      error: null,
+    },
+  });
+  if (claimed.count === 0) {
+    return;
+  }
+
   const senderName = mention.message.senderUser?.name ?? "A teammate";
   const baseURL = coworker.baseURL.trim();
   const threadRootId = mention.message.parentMessageId;
@@ -187,9 +205,7 @@ async function runChatChannelMentionDispatch(mentionId: string): Promise<void> {
   await prisma.chatChannelMention.update({
     where: { id: mentionId },
     data: {
-      status: "sent",
       providerConversationId: providerConversation.id,
-      error: null,
     },
   });
 
@@ -215,7 +231,8 @@ async function runChatChannelMentionDispatch(mentionId: string): Promise<void> {
       createdAt: { lte: mention.message.createdAt },
       ...(threadRootId
         ? { OR: [{ id: threadRootId }, { parentMessageId: threadRootId }] }
-        : {}),
+        : // Top-level mentions should not pull thread replies into CONTEXT.
+          { parentMessageId: null }),
     },
     orderBy: { createdAt: "desc" },
     take: CHANNEL_CONTEXT_MESSAGE_LIMIT,
