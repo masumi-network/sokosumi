@@ -6,7 +6,6 @@ import { useState } from "react";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
-import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { CoworkerAvatarWithSkeleton } from "@/components/chat/coworker-avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,21 +19,16 @@ import { cn } from "@/lib/utils";
 
 interface CoworkerSelectorProps {
   selectedCoworker: Coworker | null;
-  /** Display-only for legacy model conversations; selection is coworker-only. */
-  selectedModel?: { id: string; name: string } | null;
   coworkers?: Coworker[];
   coworkersLoading?: boolean;
   onSelectCoworker: (coworker: Coworker) => void;
-  disabled?: boolean;
 }
 
 export default function CoworkerSelector({
   selectedCoworker,
-  selectedModel,
   coworkers: propCoworkers,
   coworkersLoading,
   onSelectCoworker,
-  disabled = false,
 }: CoworkerSelectorProps) {
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
@@ -68,20 +62,9 @@ export default function CoworkerSelector({
           type="button"
           variant="ghost"
           size="sm"
-          disabled={disabled}
-          className="hover:bg-muted text-foreground flex items-center gap-2 rounded-md px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          className="hover:bg-muted text-foreground flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
         >
-          {selectedModel ? (
-            <>
-              <ChatModelIcon
-                modelId={selectedModel.id}
-                modelName={selectedModel.name}
-                size={18}
-                className="size-5 shrink-0"
-              />
-              <span className="hidden sm:inline">{selectedModel.name}</span>
-            </>
-          ) : coworkersLoading ? (
+          {coworkersLoading ? (
             <>
               <Skeleton className="size-5 shrink-0 rounded-full" />
               {selectedCoworker && (
@@ -147,9 +130,7 @@ export default function CoworkerSelector({
                 onClick={() => handleCoworkerSelect(coworker)}
                 className={cn(
                   "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                  !selectedModel &&
-                    selectedCoworker?.id === coworker.id &&
-                    "bg-accent",
+                  selectedCoworker?.id === coworker.id && "bg-accent",
                 )}
               >
                 <CoworkerAvatarWithSkeleton

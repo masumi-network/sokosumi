@@ -9,6 +9,7 @@ import type {
   Coworker,
 } from "@/app/chat/utils/types";
 
+import CoworkerSelector from "../coworker-selector";
 import { MultimodalInput } from "../multimodal-input";
 
 vi.mock("next-intl", () => ({
@@ -20,7 +21,7 @@ vi.mock("@/components/agents/coworker-gallery-card", () => ({
 }));
 
 vi.mock("../coworker-selector", () => ({
-  default: () => null,
+  default: vi.fn(() => null),
 }));
 
 const elenaCoworker: Coworker = {
@@ -95,6 +96,25 @@ function TestMultimodalInput({
 describe("MultimodalInput", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.mocked(CoworkerSelector).mockClear();
+  });
+
+  it("hides coworker selector on open threads", () => {
+    render(
+      <MultimodalInput
+        chatId="conversation-1"
+        input=""
+        setInput={() => {}}
+        status="ready"
+        stop={() => {}}
+        messages={[]}
+        setMessages={() => {}}
+        sendMessage={() => Promise.resolve()}
+        selectedModel={{ id: "gpt-5-4", name: "GPT-5.4" }}
+      />,
+    );
+
+    expect(CoworkerSelector).not.toHaveBeenCalled();
   });
 
   it("does not render compose-kind toggle on welcome composer", () => {

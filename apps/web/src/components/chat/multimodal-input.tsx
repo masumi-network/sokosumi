@@ -789,12 +789,11 @@ function PureMultimodalInput({
                 ariaLabel={tChannels("Toolbar.emoji")}
                 onPick={insertEmojiAtCursor}
               />
-              {/* Landing / new chat: must pick coworker. Open 1:1 threads
+              {/* Landing / new chat: must pick coworker. Open threads
                   already show the name in the header — hide there. */}
               {!chatId ? (
                 <CoworkerSelector
                   selectedCoworker={selectedCoworker}
-                  selectedModel={selectedModel}
                   coworkers={availableCoworkers}
                   coworkersLoading={propCoworkersLoading}
                   onSelectCoworker={handleCoworkerSelect}
@@ -964,17 +963,15 @@ function PureMultimodalInput({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : null}
-                  {/* Locked coworker DM uses room chrome above; glow path keeps picker. */}
-                  {selectedCoworker && chatId ? null : (
+                  {/* Open threads already name the peer in the header. */}
+                  {!chatId ? (
                     <CoworkerSelector
                       selectedCoworker={selectedCoworker}
-                      selectedModel={selectedModel}
                       coworkers={availableCoworkers}
                       coworkersLoading={propCoworkersLoading}
                       onSelectCoworker={handleCoworkerSelect}
-                      disabled={!!chatId}
                     />
-                  )}
+                  ) : null}
                 </PromptInputTools>
 
                 {status === "submitted" ? (
