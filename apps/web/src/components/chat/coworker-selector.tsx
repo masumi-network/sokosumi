@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  CHAT_MODELS,
-  chatModelSupportsImageGeneration,
-  chatModelSupportsImageInput,
-} from "@sokosumi/chat";
-import { ChevronDown, Image as ImageIcon, ImagePlus } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -23,65 +18,28 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-interface Model {
-  id: string;
-  name: string;
-  icon?: React.ReactNode;
-  supportsImageInput?: boolean;
-  supportsImageGeneration?: boolean;
-}
-
-interface CoworkerModelSelectorProps {
+interface CoworkerSelectorProps {
   selectedCoworker: Coworker | null;
-  selectedModel?: Model | null;
+  /** Display-only for legacy model conversations; selection is coworker-only. */
+  selectedModel?: { id: string; name: string } | null;
   coworkers?: Coworker[];
   coworkersLoading?: boolean;
   onSelectCoworker: (coworker: Coworker) => void;
-  onSelectModel?: (model: Model | null) => void;
   disabled?: boolean;
-  showModels?: boolean;
 }
 
-function ModelIcon({
-  modelId,
-  modelName,
-  className,
-}: {
-  modelId: string;
-  modelName?: string;
-  className?: string;
-}) {
-  return (
-    <ChatModelIcon
-      modelId={modelId}
-      modelName={modelName}
-      size={18}
-      className={cn("size-5 shrink-0", className)}
-    />
-  );
-}
-
-export default function CoworkerModelSelector({
+export default function CoworkerSelector({
   selectedCoworker,
   selectedModel,
   coworkers: propCoworkers,
   coworkersLoading,
   onSelectCoworker,
-  onSelectModel,
   disabled = false,
-  showModels = true,
-}: CoworkerModelSelectorProps) {
+}: CoworkerSelectorProps) {
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
 
   const coworkers = propCoworkers ?? [];
-
-  const models: Model[] = CHAT_MODELS.map((model) => ({
-    id: model.id,
-    name: model.name,
-    supportsImageInput: chatModelSupportsImageInput(model.id),
-    supportsImageGeneration: chatModelSupportsImageGeneration(model.id),
-  }));
 
   const getCoworkerAvatarUrl = (c: Coworker): string | null =>
     getCoworkerImageUrl(c.id, c.avatar ?? undefined);
@@ -103,11 +61,6 @@ export default function CoworkerModelSelector({
     setOpen(false);
   };
 
-  const handleModelSelect = (model: Model) => {
-    onSelectModel?.(model);
-    setOpen(false);
-  };
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -120,9 +73,10 @@ export default function CoworkerModelSelector({
         >
           {selectedModel ? (
             <>
-              <ModelIcon
+              <ChatModelIcon
                 modelId={selectedModel.id}
                 modelName={selectedModel.name}
+                size={18}
                 className="size-5 shrink-0"
               />
               <span className="hidden sm:inline">{selectedModel.name}</span>
@@ -180,7 +134,6 @@ export default function CoworkerModelSelector({
         sideOffset={8}
       >
         <div className="flex flex-col">
-          {/* Agentic Coworkers Section */}
           <div className="px-3 pt-3 pb-2">
             <h3 className="text-foreground text-xs font-semibold">
               {t("agenticCoworkers")}
@@ -215,45 +168,6 @@ export default function CoworkerModelSelector({
               </button>
             ))}
           </div>
-
-          {showModels ? (
-            <>
-              <div className="border-t px-3 pt-3 pb-2">
-                <h3 className="text-foreground text-xs font-semibold">
-                  {t("models")}
-                </h3>
-              </div>
-              <div className="px-1 pb-2">
-                {models.map((model) => (
-                  <button
-                    key={model.id}
-                    type="button"
-                    onClick={() => handleModelSelect(model)}
-                    className={cn(
-                      "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                      selectedModel?.id === model.id && "bg-accent",
-                    )}
-                  >
-                    <ModelIcon modelId={model.id} modelName={model.name} />
-                    <span className="min-w-0 flex-1 text-left">
-                      {model.name}
-                    </span>
-                    {model.supportsImageGeneration ? (
-                      <ImagePlus
-                        className="text-muted-foreground size-3.5 shrink-0"
-                        aria-label={t("supportsImageGeneration")}
-                      />
-                    ) : model.supportsImageInput ? (
-                      <ImageIcon
-                        className="text-muted-foreground size-3.5 shrink-0"
-                        aria-label={t("supportsImageAttachments")}
-                      />
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : null}
         </div>
       </PopoverContent>
     </Popover>

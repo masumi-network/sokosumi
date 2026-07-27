@@ -38,8 +38,6 @@ interface WelcomeScreenProps {
   coworkersLoading?: boolean;
   initialCoworker?: Coworker;
   onCoworkerChange?: (coworker: Coworker | null) => void;
-  selectedModel?: { id: string; name: string } | null;
-  onSelectModel?: (model: { id: string; name: string } | null) => void;
 }
 
 export default function WelcomeScreen({
@@ -59,8 +57,6 @@ export default function WelcomeScreen({
   coworkersLoading,
   initialCoworker,
   onCoworkerChange,
-  selectedModel,
-  onSelectModel,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
   const promptKey =
@@ -74,7 +70,7 @@ export default function WelcomeScreen({
         return t.has(translationKey) ? t(translationKey) : null;
       }).filter((x): x is string => Boolean(x))
     : [];
-  const showSuggestions = promptsList.length > 0 && selectedModel == null;
+  const showSuggestions = promptsList.length > 0;
 
   function handleSuggestionClick(text: string) {
     if (!text.trim() || !initialCoworker || welcomeSendBlocked) return;
@@ -162,8 +158,6 @@ export default function WelcomeScreen({
             coworkersLoading={coworkersLoading}
             coworker={initialCoworker}
             onCoworkerChange={onCoworkerChange}
-            selectedModel={selectedModel ?? undefined}
-            onSelectModel={onSelectModel}
           />
         </div>
       </div>

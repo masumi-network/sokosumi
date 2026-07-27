@@ -619,14 +619,7 @@ export default function ChatInterface({
 
   const [welcomeSelectedCoworker, setWelcomeSelectedCoworker] =
     useState<Coworker | null>(null);
-  const [welcomeSelectedModel, setWelcomeSelectedModel] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
   const effectiveWelcomeCoworker = useMemo(() => {
-    if (welcomeSelectedModel != null) {
-      return null;
-    }
     const candidate =
       welcomeCoworkerSlug != null
         ? initialWelcomeCoworker
@@ -635,12 +628,7 @@ export default function ChatInterface({
       return null;
     }
     return coworkerHasCapability(candidate, "chat") ? candidate : null;
-  }, [
-    initialWelcomeCoworker,
-    welcomeCoworkerSlug,
-    welcomeSelectedCoworker,
-    welcomeSelectedModel,
-  ]);
+  }, [initialWelcomeCoworker, welcomeCoworkerSlug, welcomeSelectedCoworker]);
 
   const [isWelcomeSubmitting, setIsWelcomeSubmitting] = useState(false);
   const [welcomeSendRetryTick, setWelcomeSendRetryTick] = useState(0);
@@ -661,14 +649,9 @@ export default function ChatInterface({
     welcomeCoworkerSlug,
   );
   const welcomeSelectedCoworkerRef = useRef<Coworker | null>(null);
-  const welcomeSelectedModelRef = useRef<{
-    id: string;
-    name: string;
-  } | null>(null);
   const welcomePrefsWriteSelectedChatIdRef = useRef<string | null>(null);
   const welcomePrefsWriteWelcomeCoworkerSlugRef = useRef<string | null>(null);
   welcomeSelectedCoworkerRef.current = welcomeSelectedCoworker;
-  welcomeSelectedModelRef.current = welcomeSelectedModel;
   welcomePrefsWriteSelectedChatIdRef.current = selectedChatId;
   welcomePrefsWriteWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
 
@@ -679,7 +662,6 @@ export default function ChatInterface({
       buildWelcomeComposeStoredSnapshot({
         composeKind: "chat",
         coworker: welcomeSelectedCoworkerRef.current,
-        model: welcomeSelectedModelRef.current,
       }),
     );
   }, []);
@@ -687,22 +669,7 @@ export default function ChatInterface({
   const handleWelcomeCoworkerChange = useCallback(
     (coworker: Coworker | null) => {
       setWelcomeSelectedCoworker(coworker);
-      setWelcomeSelectedModel(null);
       welcomeSelectedCoworkerRef.current = coworker;
-      welcomeSelectedModelRef.current = null;
-      writeWelcomePrefsFromRefs();
-    },
-    [writeWelcomePrefsFromRefs],
-  );
-
-  const handleWelcomeModelChange = useCallback(
-    (model: { id: string; name: string } | null) => {
-      setWelcomeSelectedModel(model);
-      if (model) {
-        setWelcomeSelectedCoworker(null);
-        welcomeSelectedCoworkerRef.current = null;
-      }
-      welcomeSelectedModelRef.current = model;
       writeWelcomePrefsFromRefs();
     },
     [writeWelcomePrefsFromRefs],
@@ -741,25 +708,16 @@ export default function ChatInterface({
     });
 
     if (welcomeCoworkerSlug != null) {
-      setWelcomeSelectedModel(null);
-      setWelcomeSelectedCoworker(null);
-      return;
-    }
-
-    if (resolved.model) {
-      setWelcomeSelectedModel(resolved.model);
       setWelcomeSelectedCoworker(null);
       return;
     }
 
     if (resolved.coworker) {
       setWelcomeSelectedCoworker(resolved.coworker);
-      setWelcomeSelectedModel(null);
       return;
     }
 
     setWelcomeSelectedCoworker(null);
-    setWelcomeSelectedModel(null);
   }, [selectedChatId, coworkers, welcomeCoworkerSlug]);
 
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
@@ -1975,7 +1933,6 @@ export default function ChatInterface({
   });
 
   const {
-    createModelChat,
     createCoworkerChat,
     isWelcomeTransitioning,
     setIsWelcomeTransitioning,
@@ -2110,22 +2067,6 @@ export default function ChatInterface({
     warmupFailed,
   ]);
 
-  const handleModelSelected = useCallback(
-    async (
-      model: { id: string; name: string } | null,
-      options?: { imageGeneration?: boolean },
-    ): Promise<string | null> => {
-      if (!model) {
-        setSelectedModel(null);
-        selectedModelRef.current = null;
-        return null;
-      }
-      const conversation = await createModelChat(model, options);
-      return conversation?.id || null;
-    },
-    [createModelChat, setSelectedModel],
-  );
-
   const handleCoworkerSelected = useCallback(
     async (coworker: Coworker): Promise<string | null> => {
       const conversation = await createCoworkerChat(coworker);
@@ -2161,7 +2102,7 @@ export default function ChatInterface({
     async (
       message: ChatComposeMessage,
       coworker?: Coworker,
-      model?: { id: string; name: string },
+      _model?: { id: string; name: string },
       options?: ChatComposeSubmitOptions,
     ): Promise<boolean> => {
       if (
@@ -2198,53 +2139,36 @@ export default function ChatInterface({
 
           let conversationId: string | null = null;
           let bucketSlug: string | null = null;
-          let isCoworkerWelcome = false;
+          const isCoworkerWelcome = true;
 
-          if (model || selectedModel) {
-            const modelToUse = model || selectedModel;
-            if (modelToUse) {
-              const conversation = await createModelChat(modelToUse, {
-                imageGeneration: imageGenerationForSend,
-                deferNavigation: true,
-              });
-              if (conversation) {
-                conversationId = conversation.id;
-                bucketSlug =
-                  displaySlugFromMetadata(conversation.metadata ?? null) ||
-                  `model-${modelToUse.id.replace(/\//g, "-")}`;
-              }
-            }
-          } else {
-            isCoworkerWelcome = true;
-            const selectedCoworker =
-              (coworker && coworkerHasCapability(coworker, "chat")
-                ? coworker
-                : null) ??
-              (effectiveWelcomeCoworker &&
-              coworkerHasCapability(effectiveWelcomeCoworker, "chat")
-                ? effectiveWelcomeCoworker
-                : null) ??
-              coworkers.find((candidate) =>
-                coworkerHasCapability(candidate, "chat"),
-              ) ??
-              null;
-            if (!selectedCoworker) {
-              toast.error(t("noCoworkersAvailable"));
-              setIsWelcomeTransitioning(false);
-              welcomeCreationInFlightRef.current = false;
-              return false;
-            }
-            const conversation = await createCoworkerChat(selectedCoworker, {
-              deferNavigation: true,
-            });
-            if (conversation) {
-              conversationId = conversation.id;
-              bucketSlug =
-                displaySlugFromMetadata(conversation.metadata ?? null) ||
-                slugify(selectedCoworker.slug) ||
-                slugify(selectedCoworker.name) ||
-                `coworker-${selectedCoworker.id}`;
-            }
+          const selectedCoworker =
+            (coworker && coworkerHasCapability(coworker, "chat")
+              ? coworker
+              : null) ??
+            (effectiveWelcomeCoworker &&
+            coworkerHasCapability(effectiveWelcomeCoworker, "chat")
+              ? effectiveWelcomeCoworker
+              : null) ??
+            coworkers.find((candidate) =>
+              coworkerHasCapability(candidate, "chat"),
+            ) ??
+            null;
+          if (!selectedCoworker) {
+            toast.error(t("noCoworkersAvailable"));
+            setIsWelcomeTransitioning(false);
+            welcomeCreationInFlightRef.current = false;
+            return false;
+          }
+          const conversation = await createCoworkerChat(selectedCoworker, {
+            deferNavigation: true,
+          });
+          if (conversation) {
+            conversationId = conversation.id;
+            bucketSlug =
+              displaySlugFromMetadata(conversation.metadata ?? null) ||
+              slugify(selectedCoworker.slug) ||
+              slugify(selectedCoworker.name) ||
+              `coworker-${selectedCoworker.id}`;
           }
 
           if (!conversationId || !bucketSlug) {
@@ -2300,12 +2224,10 @@ export default function ChatInterface({
     [
       coworkers,
       createCoworkerChat,
-      createModelChat,
       isLoading,
       isWelcomeTransitioning,
       selectedChatId,
       selectedConversationImageGeneration,
-      selectedModel,
       effectiveWelcomeCoworker,
       t,
       setIsWelcomeTransitioning,
@@ -2681,7 +2603,6 @@ export default function ChatInterface({
                 sendMessage={sendMessageForInput}
                 onSendMessage={handleSendMessage}
                 selectedModel={selectedModel}
-                onSelectModel={handleModelSelected}
                 selectedChatCoworker={selectedChatCoworker}
                 coworkers={coworkers}
                 persistentImageGeneration={selectedConversationImageGeneration}
@@ -2715,8 +2636,6 @@ export default function ChatInterface({
             coworkers={coworkers}
             initialCoworker={effectiveWelcomeCoworker ?? undefined}
             onCoworkerChange={handleWelcomeCoworkerChange}
-            selectedModel={welcomeSelectedModel}
-            onSelectModel={handleWelcomeModelChange}
           />
         )}
       </div>

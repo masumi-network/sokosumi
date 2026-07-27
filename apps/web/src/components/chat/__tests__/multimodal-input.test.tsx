@@ -19,7 +19,7 @@ vi.mock("@/components/agents/coworker-gallery-card", () => ({
   CoworkerGalleryCard: () => null,
 }));
 
-vi.mock("../coworker-model-selector", () => ({
+vi.mock("../coworker-selector", () => ({
   default: () => null,
 }));
 

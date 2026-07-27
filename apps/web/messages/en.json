@@ -1440,9 +1440,6 @@
         },
         "comingSoon": "Coming Soon",
         "agenticCoworkers": "Agentic Coworkers",
-        "models": "Models",
-        "supportsImageAttachments": "Supports image attachments",
-        "supportsImageGeneration": "Can create images",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",

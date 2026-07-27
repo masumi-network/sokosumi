@@ -62,7 +62,7 @@ import {
   uploadUserFileDirect,
 } from "@/lib/utils/user-file-upload.client";
 import { CoworkerAvatarWithSkeleton } from "./coworker-avatar";
-import CoworkerModelSelector from "./coworker-model-selector";
+import CoworkerSelector from "./coworker-selector";
 import { ArrowUpIcon, StopIcon } from "./icons";
 import {
   PromptInput,
@@ -96,7 +96,7 @@ interface MultimodalInputProps {
   ) => boolean | Promise<boolean>;
   /** When true, send is disabled (e.g. welcome chat creation in flight). */
   submitBlocked?: boolean;
-  onSelectModel?: (model: { id: string; name: string } | null) => void;
+  /** Display-only for legacy model conversations. */
   selectedModel?: { id: string; name: string } | null;
   className?: string;
   showSuggestedActions?: boolean;
@@ -147,7 +147,6 @@ function PureMultimodalInput({
   className,
   showSuggestedActions: _showSuggestedActions,
   coworker: propCoworker,
-  onSelectModel,
   selectedModel: propSelectedModel,
   coworkers: propCoworkers,
   coworkersLoading: propCoworkersLoading,
@@ -447,15 +446,15 @@ function PureMultimodalInput({
     canSubmitContent &&
     status === "ready" &&
     !submitBlocked &&
-    (selectedCoworker != null || selectedModel != null) &&
+    (selectedCoworker != null || (chatId != null && selectedModel != null)) &&
     !isUploadingAttachments;
   const placeholder = t("welcomeScreen.placeholder", {
     coworkerSlug:
-      selectedModel?.name ??
-      selectedModel?.id ??
       selectedCoworker?.name ??
       selectedCoworker?.slug ??
       selectedCoworker?.id ??
+      selectedModel?.name ??
+      selectedModel?.id ??
       t("welcomeScreen.coworkerSlugFallback"),
   });
 
@@ -520,24 +519,10 @@ function PureMultimodalInput({
   const handleCoworkerSelect = useCallback(
     (coworker: Coworker) => {
       setPreferredCoworker(coworker);
-      setSelectedModel(null); // Clear model when selecting coworker
-      onSelectModel?.(null);
+      setSelectedModel(null);
       onCoworkerChange?.(coworker);
     },
-    [onSelectModel, onCoworkerChange],
-  );
-
-  const handleModelSelect = useCallback(
-    (model: { id: string; name: string } | null) => {
-      if (model) {
-        setSelectedModel(model);
-        onSelectModel?.(model);
-      } else {
-        setSelectedModel(null);
-        onSelectModel?.(null);
-      }
-    },
-    [onSelectModel],
+    [onCoworkerChange],
   );
 
   const handleRemoveChatAttachment = useCallback((url: string) => {
@@ -807,17 +792,15 @@ function PureMultimodalInput({
                 ariaLabel={tChannels("Toolbar.emoji")}
                 onPick={insertEmojiAtCursor}
               />
-              {/* Landing / new chat: must pick coworker (or model). Open 1:1
-                  threads already show the name in the header — hide there. */}
+              {/* Landing / new chat: must pick coworker. Open 1:1 threads
+                  already show the name in the header — hide there. */}
               {!chatId ? (
-                <CoworkerModelSelector
+                <CoworkerSelector
                   selectedCoworker={selectedCoworker}
                   selectedModel={selectedModel}
                   coworkers={availableCoworkers}
                   coworkersLoading={propCoworkersLoading}
                   onSelectCoworker={handleCoworkerSelect}
-                  onSelectModel={handleModelSelect}
-                  showModels
                 />
               ) : null}
             </>
@@ -986,15 +969,13 @@ function PureMultimodalInput({
                   ) : null}
                   {/* Locked coworker DM uses room chrome above; glow path keeps picker. */}
                   {selectedCoworker && chatId ? null : (
-                    <CoworkerModelSelector
+                    <CoworkerSelector
                       selectedCoworker={selectedCoworker}
                       selectedModel={selectedModel}
                       coworkers={availableCoworkers}
                       coworkersLoading={propCoworkersLoading}
                       onSelectCoworker={handleCoworkerSelect}
-                      onSelectModel={handleModelSelect}
                       disabled={!!chatId}
-                      showModels
                     />
                   )}
                 </PromptInputTools>
@@ -1069,9 +1050,6 @@ function areMultimodalInputPropsEqual(
     return false;
   }
   if (prevProps.sendMessage !== nextProps.sendMessage) {
-    return false;
-  }
-  if (prevProps.onSelectModel !== nextProps.onSelectModel) {
     return false;
   }
   if (prevProps.onCoworkerChange !== nextProps.onCoworkerChange) {
