@@ -20,7 +20,8 @@
 
 /** Clear a latched `transitioning` after this many consecutive failed
  * background refreshes. Three because a single hiccup is noise; three in a
- * row (≥90s at the 30s cadence) means we can no longer trust the flag. */
+ * row (typically ≥90s at the 30s poll cadence; faster if visibility or
+ * settings also refetch) means we can no longer trust the flag. */
 export const TRANSITIONING_FAILURE_CLEAR_THRESHOLD = 3;
 
 /** Hard ceiling on how long the banner may stay up: 2× the orchestrator's
