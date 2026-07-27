@@ -63,6 +63,14 @@ export {
   removeDesignMdAttachmentLinks,
 } from "./design-md-attachment.js";
 export {
+  withoutDesignMdMetadata,
+  withPreservedDesignMdMetadata,
+} from "./design-md-metadata-guard.js";
+export {
+  DESIGN_MD_BLOB_PATH_PREFIX,
+  isDesignMdBlobUrl,
+} from "./design-md-url.js";
+export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,
   getUrlBasename,

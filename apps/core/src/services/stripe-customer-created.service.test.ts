@@ -4,15 +4,21 @@ const {
   ensureInitialLocalFreeSubscriptionPeriodMock,
   prismaOrganizationUpdateMock,
   prismaUserUpdateMock,
+  sentryCaptureExceptionMock,
 } = vi.hoisted(() => ({
   ensureInitialLocalFreeSubscriptionPeriodMock: vi.fn(),
   prismaOrganizationUpdateMock: vi.fn(),
   prismaUserUpdateMock: vi.fn(),
+  sentryCaptureExceptionMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/helpers", () => ({
   ensureInitialLocalFreeSubscriptionPeriod:
     ensureInitialLocalFreeSubscriptionPeriodMock,
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -29,6 +35,10 @@ vi.mock("@/lib/db/prisma", () => ({
 
 async function getService() {
   return await import("./stripe-customer-created.service");
+}
+
+function prismaRecordNotFoundError(message: string): Error {
+  return Object.assign(new Error(message), { code: "P2025" });
 }
 
 describe("handleCustomerCreatedEvent", () => {
@@ -132,5 +142,104 @@ describe("handleCustomerCreatedEvent", () => {
         },
       } as never),
     ).rejects.toThrow("user missing");
+  });
+
+  it("soft-acks organization write-back when the organization no longer exists", async () => {
+    const missing = prismaRecordNotFoundError(
+      "No record was found for an update.",
+    );
+    prismaOrganizationUpdateMock.mockRejectedValue(missing);
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+
+    try {
+      const { handleCustomerCreatedEvent } = await getService();
+
+      await expect(
+        handleCustomerCreatedEvent({
+          id: "cus_org_missing",
+          metadata: {
+            customerType: "organization",
+            organizationId: "org-deleted",
+          },
+        } as never),
+      ).resolves.toBeUndefined();
+
+      expect(
+        ensureInitialLocalFreeSubscriptionPeriodMock,
+      ).not.toHaveBeenCalled();
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(missing, {
+        level: "warning",
+        tags: {
+          context: "stripe_customer_created",
+          reason: "owner_missing",
+          ownerType: "organization",
+        },
+        extra: {
+          customerId: "cus_org_missing",
+          ownerId: "org-deleted",
+        },
+      });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "Skipping Stripe customer cus_org_missing write-back: organization org-deleted no longer exists",
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+  });
+
+  it("soft-acks user write-back when the user no longer exists", async () => {
+    const missing = prismaRecordNotFoundError(
+      "No record was found for an update.",
+    );
+    prismaUserUpdateMock.mockRejectedValue(missing);
+
+    const { handleCustomerCreatedEvent } = await getService();
+
+    await expect(
+      handleCustomerCreatedEvent({
+        id: "cus_user_missing",
+        metadata: {
+          customerType: "user",
+          userId: "user-deleted",
+        },
+      } as never),
+    ).resolves.toBeUndefined();
+
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+      missing,
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          ownerType: "user",
+          reason: "owner_missing",
+        }),
+      }),
+    );
+  });
+
+  it("skips organization write-back when organizationId metadata is missing", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+
+    try {
+      const { handleCustomerCreatedEvent } = await getService();
+
+      await handleCustomerCreatedEvent({
+        id: "cus_org_no_meta",
+        metadata: {
+          customerType: "organization",
+        },
+      } as never);
+
+      expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "Skipping Stripe customer cus_org_no_meta write-back: missing organizationId metadata",
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
   });
 });
