@@ -165,7 +165,37 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
     );
   });
 
-  it("allows coworker context as the context user via requireUserContext", async () => {
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    const existing = {
+      id: grantId,
+      vendorId,
+      workspaceId,
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.PENDING,
+      requestedByUserId: null,
+      resolvedAt: null,
+      resolvedById: null,
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+      vendor: { name: "Acme", slug: "acme" },
+    };
+    vendorGrantFindFirstMock.mockResolvedValue(existing);
+
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId,
+      context: { userId: "user_123", organizationId: orgId },
+    }).request(`http://localhost/${orgId}/vendor-grants/${grantId}/deny`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(403);
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
     const existing = {
       id: grantId,
       vendorId,
@@ -188,9 +218,8 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
     });
 
     const response = await createApp({
-      actor: "coworker",
-      coworkerId: "coworker_1",
-      vendorId,
+      actor: "orchestrator",
+      orchestratorId: "orch_1",
       context: { userId: "user_123", organizationId: orgId },
     }).request(`http://localhost/${orgId}/vendor-grants/${grantId}/deny`, {
       method: "POST",
