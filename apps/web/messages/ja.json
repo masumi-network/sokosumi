@@ -4168,6 +4168,53 @@
             "grantSuccess": "ベンダーアクセスを付与しました",
             "grantError": "ベンダーアクセスの付与に失敗しました"
           }
+        },
+        "InviteLinks": {
+          "title": "共有可能な招待リンク",
+          "description": "メール招待なしで誰でも組織に参加できるリンクを作成します。",
+          "listTitle": "リンク",
+          "listEmpty": "招待リンクはまだありません。",
+          "createFormTitle": "新しいリンクを作成",
+          "statusActive": "有効",
+          "statusDepleted": "使い切り",
+          "statusExpired": "期限切れ",
+          "statusRevoked": "取り消し済み",
+          "columnStatus": "ステータス",
+          "columnUses": "利用回数",
+          "columnExpires": "有効期限",
+          "columnCreated": "作成日",
+          "columnActions": "操作",
+          "usesUnlimited": "{useCount} 回使用（無制限）",
+          "usesLimited": "{useCount} / {maxUses} 回使用",
+          "copy": "リンクをコピー",
+          "copied": "コピーしました",
+          "copyError": "リンクをコピーできませんでした",
+          "revoke": "取り消す",
+          "revokeSuccess": "招待リンクを取り消しました",
+          "revokeError": "招待リンクを取り消せませんでした",
+          "Form": {
+            "expiresInDaysLabel": "有効期限（日）",
+            "expiresInDaysHint": "1〜90日の範囲で指定してください。",
+            "expiresInDaysError": "1〜90日の数値を入力してください。",
+            "maxUsesLabel": "最大利用回数",
+            "unlimitedUses": "利用回数無制限",
+            "maxUsesHint": "1〜10,000回の任意の上限を設定できます。",
+            "maxUsesError": "1〜10,000の数値を入力するか、無制限を選択してください。",
+            "submit": "リンクを作成",
+            "success": "招待リンクを作成しました",
+            "error": "招待リンクを作成できませんでした",
+            "copied": "リンクをクリップボードにコピーしました",
+            "copyError": "リンクをコピーできませんでした"
+          },
+          "loadErrorTitle": "招待リンクを読み込めませんでした",
+          "loadError": "共有可能な招待リンクの読み込み中に問題が発生しました。再試行してください。",
+          "retry": "再試行",
+          "revokeDialog": {
+            "title": "招待リンクを取り消しますか？",
+            "description": "このリンクを持つ人は組織に参加できなくなります。この操作は元に戻せません。",
+            "cancel": "キャンセル",
+            "confirm": "リンクを取り消す"
+          }
         }
       }
     },

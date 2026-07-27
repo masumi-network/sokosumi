@@ -2520,6 +2520,7 @@ export type OrganizationInviteLink = {
     token: string;
     url: string;
     role: string;
+    createdAt: Date;
     expiresAt: Date;
     revokedAt: Date | null;
     maxUses: number | null;
@@ -17284,6 +17285,95 @@ export type GetOrganizationsByIdInvitationsResponses = {
 };
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
+
+export type GetOrganizationsByIdInviteLinksData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/invite-links';
+};
+
+export type GetOrganizationsByIdInviteLinksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - owner or admin only
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdInviteLinksError = GetOrganizationsByIdInviteLinksErrors[keyof GetOrganizationsByIdInviteLinksErrors];
+
+export type GetOrganizationsByIdInviteLinksResponses = {
+    /**
+     * List organization invite links
+     */
+    200: {
+        data: Array<OrganizationInviteLink>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdInviteLinksResponse = GetOrganizationsByIdInviteLinksResponses[keyof GetOrganizationsByIdInviteLinksResponses];
 
 export type PostOrganizationsByIdInviteLinksData = {
     body?: CreateOrganizationInviteLinkRequest;

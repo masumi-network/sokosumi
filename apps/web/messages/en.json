@@ -4232,6 +4232,53 @@
             "grantSuccess": "Vendor access granted",
             "grantError": "Failed to grant vendor access"
           }
+        },
+        "InviteLinks": {
+          "title": "Shareable invite links",
+          "description": "Create links anyone can use to join your organization without an email invitation.",
+          "listTitle": "Links",
+          "listEmpty": "No invite links yet.",
+          "createFormTitle": "Create new link",
+          "statusActive": "Active",
+          "statusDepleted": "Depleted",
+          "statusExpired": "Expired",
+          "statusRevoked": "Revoked",
+          "columnStatus": "Status",
+          "columnUses": "Uses",
+          "columnExpires": "Expires",
+          "columnCreated": "Created",
+          "columnActions": "Actions",
+          "usesUnlimited": "{useCount} used (unlimited)",
+          "usesLimited": "{useCount} / {maxUses} used",
+          "copy": "Copy link",
+          "copied": "Copied",
+          "copyError": "Failed to copy link",
+          "revoke": "Revoke",
+          "revokeSuccess": "Invite link revoked",
+          "revokeError": "Failed to revoke invite link",
+          "Form": {
+            "expiresInDaysLabel": "Expires after (days)",
+            "expiresInDaysHint": "Between 1 and 90 days.",
+            "expiresInDaysError": "Enter a number between 1 and 90 days.",
+            "maxUsesLabel": "Maximum uses",
+            "unlimitedUses": "Unlimited uses",
+            "maxUsesHint": "Optional cap between 1 and 10,000 uses.",
+            "maxUsesError": "Enter a number between 1 and 10,000, or choose unlimited.",
+            "submit": "Create link",
+            "success": "Invite link created",
+            "error": "Failed to create invite link",
+            "copied": "Link copied to clipboard",
+            "copyError": "Failed to copy link"
+          },
+          "loadErrorTitle": "Couldn't load invite links",
+          "loadError": "Something went wrong loading shareable invite links. Retry to try again.",
+          "retry": "Retry",
+          "revokeDialog": {
+            "title": "Revoke invite link?",
+            "description": "Anyone with this link will no longer be able to join. This cannot be undone.",
+            "cancel": "Cancel",
+            "confirm": "Revoke link"
+          }
         }
       }
     },

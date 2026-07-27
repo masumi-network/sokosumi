@@ -139,6 +139,7 @@ import {
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
+  getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
@@ -1326,6 +1327,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization invitations",
+    );
+  }
+
+  async function getOrganizationInviteLinks(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdInviteLinks({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization invite links",
     );
   }
 
@@ -3515,6 +3529,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
+    getOrganizationInviteLinks,
     getOrganizationVendorGrants,
     createOrganizationVendorGrant,
     approveOrganizationVendorGrant,

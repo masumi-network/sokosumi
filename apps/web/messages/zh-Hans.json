@@ -4168,6 +4168,53 @@
             "grantSuccess": "已授予供应商访问权限",
             "grantError": "授予供应商访问权限失败"
           }
+        },
+        "InviteLinks": {
+          "title": "可分享的邀请链接",
+          "description": "创建链接，让任何人无需邮件邀请即可加入你的组织。",
+          "listTitle": "链接",
+          "listEmpty": "尚无邀请链接。",
+          "createFormTitle": "创建新链接",
+          "statusActive": "有效",
+          "statusDepleted": "已用尽",
+          "statusExpired": "已过期",
+          "statusRevoked": "已撤销",
+          "columnStatus": "状态",
+          "columnUses": "使用次数",
+          "columnExpires": "到期",
+          "columnCreated": "创建时间",
+          "columnActions": "操作",
+          "usesUnlimited": "已使用 {useCount} 次（无限制）",
+          "usesLimited": "已使用 {useCount} / {maxUses} 次",
+          "copy": "复制链接",
+          "copied": "已复制",
+          "copyError": "复制链接失败",
+          "revoke": "撤销",
+          "revokeSuccess": "已撤销邀请链接",
+          "revokeError": "撤销邀请链接失败",
+          "Form": {
+            "expiresInDaysLabel": "有效期（天）",
+            "expiresInDaysHint": "1 至 90 天。",
+            "expiresInDaysError": "请输入 1 至 90 之间的天数。",
+            "maxUsesLabel": "最大使用次数",
+            "unlimitedUses": "无限次使用",
+            "maxUsesHint": "可选上限：1 至 10,000 次。",
+            "maxUsesError": "请输入 1 至 10,000 之间的数字，或选择无限次。",
+            "submit": "创建链接",
+            "success": "邀请链接已创建",
+            "error": "创建邀请链接失败",
+            "copied": "链接已复制到剪贴板",
+            "copyError": "复制链接失败"
+          },
+          "loadErrorTitle": "无法加载邀请链接",
+          "loadError": "加载可分享邀请链接时出错。请重试。",
+          "retry": "重试",
+          "revokeDialog": {
+            "title": "撤销邀请链接？",
+            "description": "持有此链接的人将无法再加入。此操作无法撤销。",
+            "cancel": "取消",
+            "confirm": "撤销链接"
+          }
         }
       }
     },

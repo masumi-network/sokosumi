@@ -1,22 +1,19 @@
-import type { OrganizationInviteLink } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { evaluateInviteLinkStatus } from "@/helpers/organization-invite-link";
+import {
+  canRevokeInviteLink,
+  evaluateInviteLinkStatus,
+  type InviteLinkStatusFields,
+} from "../organization-invite-link.js";
 
 const NOW = new Date("2026-07-25T12:00:00.000Z");
 
 function link(
-  overrides: Partial<OrganizationInviteLink> = {},
-): OrganizationInviteLink {
+  overrides: Partial<InviteLinkStatusFields> = {},
+): InviteLinkStatusFields {
   return {
-    id: "link_1",
-    token: "tok",
-    organizationId: "org_1",
-    role: "member",
-    createdByUserId: "user_1",
-    createdAt: new Date("2026-07-24T12:00:00.000Z"),
-    expiresAt: new Date("2026-07-30T12:00:00.000Z"),
     revokedAt: null,
+    expiresAt: new Date("2026-07-30T12:00:00.000Z"),
     maxUses: null,
     useCount: 0,
     ...overrides,
@@ -30,6 +27,18 @@ describe("evaluateInviteLinkStatus", () => {
 
   it("returns valid for a live, uncapped link", () => {
     expect(evaluateInviteLinkStatus(link(), NOW)).toBe("valid");
+  });
+
+  it("accepts ISO string dates (Core DTO / web shapes)", () => {
+    expect(
+      evaluateInviteLinkStatus(
+        link({
+          expiresAt: "2026-07-30T12:00:00.000Z",
+          revokedAt: null,
+        }),
+        NOW,
+      ),
+    ).toBe("valid");
   });
 
   it("prefers revoked over every other state", () => {
@@ -71,5 +80,26 @@ describe("evaluateInviteLinkStatus", () => {
     expect(
       evaluateInviteLinkStatus(link({ maxUses: null, useCount: 9999 }), NOW),
     ).toBe("valid");
+  });
+});
+
+describe("canRevokeInviteLink", () => {
+  it("allows revoke for non-revoked links", () => {
+    expect(canRevokeInviteLink(link(), NOW)).toBe(true);
+    expect(
+      canRevokeInviteLink(
+        link({ expiresAt: new Date("2026-07-01T12:00:00.000Z") }),
+        NOW,
+      ),
+    ).toBe(true);
+  });
+
+  it("blocks revoke for already revoked links", () => {
+    expect(
+      canRevokeInviteLink(
+        link({ revokedAt: new Date("2026-07-24T12:00:00.000Z") }),
+        NOW,
+      ),
+    ).toBe(false);
   });
 });

@@ -4168,6 +4168,53 @@
             "grantSuccess": "Acesso de fornecedor concedido",
             "grantError": "Falha ao conceder acesso de fornecedor"
           }
+        },
+        "InviteLinks": {
+          "title": "Links de convite compartilháveis",
+          "description": "Crie links para que qualquer pessoa entre na sua organização sem convite por e-mail.",
+          "listTitle": "Links",
+          "listEmpty": "Ainda não há links de convite.",
+          "createFormTitle": "Criar novo link",
+          "statusActive": "Ativo",
+          "statusDepleted": "Esgotado",
+          "statusExpired": "Expirado",
+          "statusRevoked": "Revogado",
+          "columnStatus": "Status",
+          "columnUses": "Usos",
+          "columnExpires": "Expira",
+          "columnCreated": "Criado",
+          "columnActions": "Ações",
+          "usesUnlimited": "{useCount} usados (ilimitado)",
+          "usesLimited": "{useCount} / {maxUses} usados",
+          "copy": "Copiar link",
+          "copied": "Copiado",
+          "copyError": "Falha ao copiar o link",
+          "revoke": "Revogar",
+          "revokeSuccess": "Link de convite revogado",
+          "revokeError": "Falha ao revogar o link de convite",
+          "Form": {
+            "expiresInDaysLabel": "Expira após (dias)",
+            "expiresInDaysHint": "Entre 1 e 90 dias.",
+            "expiresInDaysError": "Digite um número entre 1 e 90 dias.",
+            "maxUsesLabel": "Usos máximos",
+            "unlimitedUses": "Usos ilimitados",
+            "maxUsesHint": "Limite opcional entre 1 e 10.000 usos.",
+            "maxUsesError": "Digite um número entre 1 e 10.000 ou escolha ilimitado.",
+            "submit": "Criar link",
+            "success": "Link de convite criado",
+            "error": "Falha ao criar o link de convite",
+            "copied": "Link copiado para a área de transferência",
+            "copyError": "Falha ao copiar o link"
+          },
+          "loadErrorTitle": "Não foi possível carregar os links de convite",
+          "loadError": "Algo deu errado ao carregar os links de convite compartilháveis. Tente novamente.",
+          "retry": "Tentar novamente",
+          "revokeDialog": {
+            "title": "Revogar link de convite?",
+            "description": "Quem tiver este link não poderá mais entrar. Esta ação não pode ser desfeita.",
+            "cancel": "Cancelar",
+            "confirm": "Revogar link"
+          }
         }
       }
     },
