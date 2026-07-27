@@ -81,8 +81,8 @@ export function ProgressChips({
  * Pool of "thinking" messages that cycle while Hermes drafts a reply. Mix
  * of straight-faced and lightly silly so users have something to read
  * during long inference runs without it feeling robotic. Each phrase
- * stands on its own — no trailing ellipsis here, the typing dots animate
- * separately. New phrases welcome, just keep them short.
+ * stands on its own — no trailing ellipsis; the thinking orb is the motion
+ * signal. New phrases welcome, just keep them short.
  */
 /** Live "Ns" counter since the turn started — keeps a long wait legible. */
 function ElapsedTimer({ startedAt }: { startedAt: number }) {

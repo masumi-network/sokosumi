@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { MODE_DRAWS, type OrbState, resolvePreset } from "thinking-orbs";
 
+import type { HermesStatusEvent } from "@/lib/hermes/sse";
 import { cn } from "@/lib/utils";
 
 /** Brand wisteria — fallback when the CSS variable can't be resolved. */
@@ -20,13 +21,7 @@ export const DEFAULT_THINKING_STATE: OrbState = "solving";
  * than flicker between tool completions.
  */
 export function orbStateForPhase(
-  phase:
-    | "thinking"
-    | "reasoning"
-    | "tool"
-    | "tool_done"
-    | "working"
-    | "answering",
+  phase: HermesStatusEvent["phase"],
 ): OrbState | null {
   switch (phase) {
     case "reasoning":
@@ -44,7 +39,8 @@ export function orbStateForPhase(
 }
 
 /** Resolve the theme's primary colour for canvas use. Modern canvases accept
- * any CSS color string, so the raw var value works as a fillStyle. */
+ * any CSS color string, so the raw var value works as a fillStyle. Re-read each
+ * paint so a mid-turn light/dark flip stays on-token without a theme hook. */
 function resolvePrimary(): string {
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue("--primary")
@@ -59,6 +55,7 @@ function resolvePrimary(): string {
  *
  * Decorative (aria-hidden): the phrase beside it carries the meaning.
  * One rAF loop — only ever one instance on screen (the active indicator).
+ * Under prefers-reduced-motion, paints a single static frame and skips rAF.
  */
 export function ThinkingOrb({
   size = 64,
@@ -83,21 +80,32 @@ export function ThinkingOrb({
     canvas.height = paintSize * dpr;
 
     const { mode, speed, opts } = resolvePreset(state, paintSize);
-    const purple = resolvePrimary();
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
-    let raf = 0;
-    const started = performance.now();
-    const tick = (now: number) => {
-      const seconds = (now - started) / 1000;
+    const paint = (seconds: number) => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, paintSize, paintSize);
       // Theme-agnostic: the purple fill below replaces the painter's ink
       // either way, so `dark` only affects intermediate alpha ramps.
       MODE_DRAWS[mode](ctx, paintSize, seconds * speed, false, opts);
       ctx.globalCompositeOperation = "source-in";
-      ctx.fillStyle = purple;
+      ctx.fillStyle = resolvePrimary();
       ctx.fillRect(0, 0, paintSize, paintSize);
       ctx.globalCompositeOperation = "source-over";
+    };
+
+    // Hold a single readable frame instead of a continuous canvas loop.
+    if (reduceMotion) {
+      paint(0);
+      return;
+    }
+
+    let raf = 0;
+    const started = performance.now();
+    const tick = (now: number) => {
+      paint((now - started) / 1000);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
