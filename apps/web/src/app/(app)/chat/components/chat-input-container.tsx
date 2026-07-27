@@ -24,7 +24,6 @@ interface ChatInputContainerProps {
   onSendMessage: (
     message: ChatComposeMessage,
     coworker?: Coworker,
-    model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
   selectedModel: { id: string; name: string } | null;

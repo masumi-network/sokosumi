@@ -22,7 +22,6 @@ interface WelcomeScreenProps {
   onSendMessage: (
     message: ChatComposeMessage,
     coworker?: Coworker,
-    model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
   welcomeSendBlocked?: boolean;
@@ -74,7 +73,7 @@ export default function WelcomeScreen({
 
   function handleSuggestionClick(text: string) {
     if (!text.trim() || !initialCoworker || welcomeSendBlocked) return;
-    void onSendMessage(text.trim(), initialCoworker, undefined, {
+    void onSendMessage(text.trim(), initialCoworker, {
       kind: "chat",
     });
   }

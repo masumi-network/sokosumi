@@ -91,7 +91,6 @@ interface MultimodalInputProps {
   onSendMessage?: (
     message: ChatComposeMessage,
     coworker?: Coworker,
-    model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
   /** When true, send is disabled (e.g. welcome chat creation in flight). */
@@ -471,7 +470,6 @@ function PureMultimodalInput({
       const sendResult = await onSendMessage(
         sendPayload,
         selectedCoworker ?? undefined,
-        selectedModel ?? undefined,
         {
           kind: "chat",
           imageGeneration: effectiveImageGenerationEnabled,
@@ -506,7 +504,6 @@ function PureMultimodalInput({
     onSendMessage,
     resetHeight,
     selectedCoworker,
-    selectedModel,
     setInput,
     setLocalStorageValue,
     sendMessage,

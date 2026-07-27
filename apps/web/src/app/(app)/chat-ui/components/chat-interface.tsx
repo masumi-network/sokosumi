@@ -2102,7 +2102,6 @@ export default function ChatInterface({
     async (
       message: ChatComposeMessage,
       coworker?: Coworker,
-      _model?: { id: string; name: string },
       options?: ChatComposeSubmitOptions,
     ): Promise<boolean> => {
       if (
@@ -2139,7 +2138,6 @@ export default function ChatInterface({
 
           let conversationId: string | null = null;
           let bucketSlug: string | null = null;
-          const isCoworkerWelcome = true;
 
           const selectedCoworker =
             (coworker && coworkerHasCapability(coworker, "chat")
@@ -2182,7 +2180,7 @@ export default function ChatInterface({
           pendingWelcomeSendRef.current = {
             conversationId,
             bucketSlug,
-            isCoworker: isCoworkerWelcome,
+            isCoworker: true,
             payload: sendPayload,
             sendOptions,
             createdAt: Date.now(),
