@@ -24,7 +24,7 @@ jobs:
           - { name: Packages, command: 'pnpm --filter "./packages/*" test:ci' }
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup
