@@ -30,3 +30,38 @@ Complete.
 ## Concerns
 
 - Local shell still resolves `node` to v22, so pnpm emits engine warnings even though test and Biome checks pass.
+
+---
+
+## Task 5 follow-up: Core public-share contract fix
+
+### Status
+
+Complete.
+
+### What changed
+
+1. `apps/core/src/schemas/public-share.schema.ts`
+   - Added `transactionId` to `publicSharedTaskMilestoneSchema`.
+2. `apps/core/src/helpers/public-share.ts`
+   - Added `transactionId` to public milestone mapping.
+   - Switched milestone credits mapping to prefer settled negative `transaction.amount`, else fall back to attempted `event.cents`.
+   - Kept credit-only milestones when they have no status/comment.
+3. `apps/core/src/helpers/public-share.test.ts`
+   - Added regression coverage for settled spend, attempted out-of-credits spend, and credit-only milestones.
+4. `apps/web/src/app/share/[token]/page.test.tsx`
+   - Tightened attempted charge assertion to require both status-change copy and attempted-charge copy.
+5. `apps/web/src/lib/clients/generated/core/*`
+   - Regenerated from Core snapshot. `PublicSharedTaskMilestone` now includes typed `transactionId`.
+
+### Verification
+
+- `pnpm --filter core test src/helpers/public-share.test.ts` — pass (3/3).
+- `pnpm --filter web generate:core:snapshot` — pass; regenerated Core client from snapshot.
+- `pnpm --filter web typecheck` — pass.
+- `pnpm --filter web test src/app/share/\[token\]/page.test.tsx` — pass (5/5).
+- `pnpm exec biome check "apps/core/src/helpers/public-share.ts" "apps/core/src/helpers/public-share.test.ts" "apps/core/src/schemas/public-share.schema.ts" "apps/web/src/app/share/[token]/page.test.tsx" "apps/web/src/app/share/components/shared-task-view.tsx"` — pass.
+
+### Concerns
+
+- Shell still resolves Node v22, so pnpm prints engine warnings. Commands still passed.

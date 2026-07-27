@@ -381,6 +381,7 @@ describe("canonical share page", () => {
       }),
     );
 
+    expect(screen.getByText("changed status to")).toBeVisible();
     expect(screen.getByText("tried to charge 210 credits")).toBeVisible();
   });
 
