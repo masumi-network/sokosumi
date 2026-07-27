@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   agentCreateMock,
+  captureExceptionMock,
   exampleOutputDeleteManyMock,
   agentFindManyMock,
   agentFindUniqueMock,
@@ -18,6 +19,7 @@ const {
   agentPricingUpdateMock,
   agentUpdateMock,
   getAgentsDiffMock,
+  getCardanoV2RailReadinessMock,
   getEnvEnableCardanoV2Mock,
   openrouterGenerateAgentSummaryMock,
   syncMetadataDeleteManyMock,
@@ -28,6 +30,7 @@ const {
   unitValueDeleteManyMock,
 } = vi.hoisted(() => ({
   agentCreateMock: vi.fn(),
+  captureExceptionMock: vi.fn(),
   exampleOutputDeleteManyMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   agentFindUniqueMock: vi.fn(),
@@ -37,6 +40,7 @@ const {
   agentPricingUpdateMock: vi.fn(),
   agentUpdateMock: vi.fn(),
   getAgentsDiffMock: vi.fn(),
+  getCardanoV2RailReadinessMock: vi.fn(),
   getEnvEnableCardanoV2Mock: vi.fn().mockReturnValue(true),
   openrouterGenerateAgentSummaryMock: vi.fn(),
   syncMetadataDeleteManyMock: vi.fn(),
@@ -45,6 +49,10 @@ const {
   tagUpsertMock: vi.fn(),
   transactionMock: vi.fn(),
   unitValueDeleteManyMock: vi.fn(),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -61,6 +69,12 @@ vi.mock("@/clients/masumi-registry.client", () => ({
   registryClient: {
     getAgentsDiff: getAgentsDiffMock,
   },
+}));
+
+vi.mock("@/clients/masumi-payment.client", () => ({
+  paymentClient: () => ({
+    getCardanoV2RailReadiness: getCardanoV2RailReadinessMock,
+  }),
 }));
 
 vi.mock("@/clients/openrouter.client", () => ({
@@ -1538,5 +1552,164 @@ describe("agentSyncService.syncAgentSummaries", () => {
     });
 
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe("agentSyncService.syncCardanoV2RailReadiness", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getEnvEnableCardanoV2Mock.mockReturnValue(true);
+    syncMetadataUpsertMock.mockResolvedValue(undefined);
+  });
+
+  it("caches a purchase-ready rail under the readiness key", async () => {
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: { key: "cardano-v2-rail-readiness" },
+      create: {
+        key: "cardano-v2-rail-readiness",
+        cursorId: "ready",
+        lastSyncedAt: expect.any(Date),
+      },
+      update: {
+        cursorId: "ready",
+        lastSyncedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("caches a not-ready rail as not-ready", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(false));
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { key: "cardano-v2-rail-readiness" },
+        update: expect.objectContaining({ cursorId: "not-ready" }),
+      }),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("keeps the last cached value when the readiness check fails", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("forwards the abort signal to the readiness check", async () => {
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    const signal = new AbortController().signal;
+
+    await agentSyncService.syncCardanoV2RailReadiness({ signal });
+
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal }),
+    );
+  });
+
+  it("reports a readiness failure to Sentry once per failure streak", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // The dedupe flag is module-level state that survives across tests in
+    // this file (the dynamic import returns the same module instance), so
+    // re-arm it with a successful check before running the failure streak.
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    await agentSyncService.syncCardanoV2RailReadiness();
+    captureExceptionMock.mockClear();
+
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "Cardano V2 rail readiness check failed: payment node unavailable",
+      }),
+    );
+
+    // Second consecutive failure: deduped, no new Sentry event.
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("re-arms the Sentry report after a successful check", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // Reset the module-level dedupe flag left behind by earlier tests.
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    await agentSyncService.syncCardanoV2RailReadiness();
+    captureExceptionMock.mockClear();
+
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not report to Sentry when the V2 flag is off", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // Re-arm the module-level dedupe flag so a capture would be possible.
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    await agentSyncService.syncCardanoV2RailReadiness();
+    captureExceptionMock.mockClear();
+
+    getEnvEnableCardanoV2Mock.mockReturnValue(false);
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
   });
 });

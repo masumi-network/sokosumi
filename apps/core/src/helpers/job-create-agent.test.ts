@@ -39,6 +39,7 @@ vi.mock("@/helpers/agent", () => ({
     calculateCentsFromMasumiAmountStringsMock,
   getAgentCost: getAgentCostMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+  isCardanoV2RailReady: () => Promise.resolve(true),
   toMasumiAgent: (agent: {
     id: string;
     name: string;
@@ -139,7 +140,20 @@ function createPaidV2AgentRecord() {
   };
 }
 
-const paidV2JobResponse = {
+function createPaidV1AgentRecord() {
+  return {
+    ...createAgentRecord(),
+    pricing: {
+      pricingType: PricingType.FIXED,
+      fixedPricing: {
+        amounts: [{ unit: "lovelace", amount: BigInt(1_000_000) }],
+      },
+    },
+    paymentType: PaymentType.WEB3_CARDANO_V1,
+  };
+}
+
+const paidV1JobResponse = {
   id: "agent_job_1",
   input_hash: "input-hash",
   identifierFromPurchaser: "buyer-reference",
@@ -150,6 +164,10 @@ const paidV2JobResponse = {
   externalDisputeUnlockTime: 1_775_784_749_000,
   agentIdentifier: "agent-chain",
   sellerVKey: "seller-vkey",
+};
+
+const paidV2JobResponse = {
+  ...paidV1JobResponse,
   paymentSourceType: "Web3CardanoV2" as const,
   supportedPaymentSourceIndex: 2,
 };
@@ -328,11 +346,14 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         }),
       }),
     );
+    // Price-drift guard: the purchase carries the selected V2 source's
+    // amounts (source index 2) as strings.
     expect(createPurchaseMock).toHaveBeenCalledWith(
       "agent-chain",
       paidV2JobResponse,
       { prompt: "hello" },
       expect.any(String),
+      [{ unit: "lovelace", amount: "2000000" }],
     );
     expect(calculateCentsFromMasumiAmountStringsMock).toHaveBeenCalledWith(
       [{ unit: "lovelace", amount: "2000000" }],
@@ -343,6 +364,53 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "org_1",
       BigInt(2),
       expect.any(Object),
+    );
+  });
+
+  it("forwards the V1 fixed pricing as the purchase price-drift guard", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV1JobResponse)),
+    });
+
+    await createAgentJobForUser(createInput());
+
+    expect(createPurchaseMock).toHaveBeenCalledWith(
+      "agent-chain",
+      paidV1JobResponse,
+      { prompt: "hello" },
+      expect.any(String),
+      [{ unit: "lovelace", amount: "1000000" }],
+    );
+  });
+
+  it("aggregates duplicate-unit V1 pricing rows into one purchase amount", async () => {
+    agentFindFirstMock.mockResolvedValue({
+      ...createPaidV1AgentRecord(),
+      pricing: {
+        pricingType: PricingType.FIXED,
+        fixedPricing: {
+          amounts: [
+            { unit: "lovelace", amount: BigInt(600_000) },
+            { unit: "lovelace", amount: BigInt(400_000) },
+          ],
+        },
+      },
+    });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV1JobResponse)),
+    });
+
+    await createAgentJobForUser(createInput());
+
+    // The payment node compares Amounts as per-unit sums, so duplicate-unit
+    // pricing rows must arrive as a single summed entry.
+    expect(createPurchaseMock).toHaveBeenCalledWith(
+      "agent-chain",
+      paidV1JobResponse,
+      { prompt: "hello" },
+      expect.any(String),
+      [{ unit: "lovelace", amount: "1000000" }],
     );
   });
 

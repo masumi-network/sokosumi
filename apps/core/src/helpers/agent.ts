@@ -189,8 +189,41 @@ export const getCreditCostsOrThrow = async (
  * @param creditCosts - Array of credit costs to validate pricing units against
  * @returns Prisma where clause for agent queries
  */
+export const CARDANO_V2_RAIL_READINESS_KEY = "cardano-v2-rail-readiness";
+
+/**
+ * Readiness older than this is treated as unknown (fail-closed). The value is
+ * refreshed by the agents-sync cron, so a healthy deployment stays well
+ * inside the window; an extended payment-node outage hides V2 agents.
+ */
+const CARDANO_V2_RAIL_READINESS_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * Whether the payment node reported the Cardano V2 rail purchase-ready
+ * recently (cached by the agents-sync cron). Always false while the rollout
+ * flag is off.
+ */
+export const isCardanoV2RailReady = async (
+  tx: Prisma.TransactionClient = prisma,
+): Promise<boolean> => {
+  if (!getEnv().ENABLE_CARDANO_V2_AGENTS) {
+    return false;
+  }
+  const readiness = await tx.syncMetadata.findUnique({
+    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+  });
+  if (!readiness || readiness.cursorId !== "ready") {
+    return false;
+  }
+  return (
+    Date.now() - readiness.lastSyncedAt.getTime() <
+    CARDANO_V2_RAIL_READINESS_TTL_MS
+  );
+};
+
 export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
+  cardanoV2RailReady: boolean,
 ): Prisma.AgentWhereInput => {
   const validUnits = creditCosts.map((c) => c.unit);
 
@@ -218,13 +251,16 @@ export const buildAvailableAgentWhereClause = (
     // X402 pointer entries have no job flow yet.
     type: AgentEntryType.STANDARD,
     // Allowlist of payment rails the job flow can actually purchase through.
-    // UNKNOWN (unrecognized future rails) is always excluded; V2 is gated
-    // behind the rollout flag.
+    // UNKNOWN (unrecognized future rails) is always excluded; V2 requires the
+    // rollout flag AND a payment node that recently reported its V2 rail
+    // configured (see isCardanoV2RailReady). Note the node's readiness checks
+    // are existence-only — wallet FUNDING is not covered and stays a runbook
+    // step.
     paymentType: {
       in: [
         PaymentType.WEB3_CARDANO_V1,
         PaymentType.NONE,
-        ...(getEnv().ENABLE_CARDANO_V2_AGENTS
+        ...(getEnv().ENABLE_CARDANO_V2_AGENTS && cardanoV2RailReady
           ? [PaymentType.WEB3_CARDANO_V2]
           : []),
       ],
@@ -253,10 +289,11 @@ export const requireAvailableAgentOrThrow = async (
   tx: Prisma.TransactionClient,
 ): Promise<void> => {
   const creditCosts = await getCreditCostsOrThrow(tx);
+  const cardanoV2RailReady = await isCardanoV2RailReady(tx);
   const agent = await tx.agent.findFirst({
     where: {
       id: agentId,
-      ...buildAvailableAgentWhereClause(creditCosts),
+      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2RailReady),
     },
     select: { id: true },
   });

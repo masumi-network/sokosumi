@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acquireLockMock,
+  syncCardanoV2RailReadinessMock,
   syncEnterpriseContractRenewalMock,
   syncFreeSubscriptionRenewalMock,
   syncHermesInboxMock,
@@ -14,6 +15,7 @@ const {
   syncStripeCustomersMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
+  syncCardanoV2RailReadinessMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   syncHermesInboxMock: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("@/services/agent-sync.service", () => ({
   agentSyncService: {
     syncRegistryAgents: syncRegistryAgentsMock,
     syncAgentSummaries: syncAgentSummariesMock,
+    syncCardanoV2RailReadiness: syncCardanoV2RailReadinessMock,
   },
 }));
 
@@ -128,6 +131,7 @@ describe("sync routes", () => {
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
+    syncCardanoV2RailReadinessMock.mockResolvedValue(undefined);
     syncJobsMock.mockResolvedValue({
       processed: 0,
       unfinishedFound: 0,
@@ -300,6 +304,34 @@ describe("sync routes", () => {
     deferred.resolve();
     await flushMicrotasks();
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+  });
+
+  it("refreshes the Cardano V2 rail readiness before the registry sync", async () => {
+    const deferred = createDeferred();
+    syncCardanoV2RailReadinessMock.mockImplementation(() => deferred.promise);
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
+    // The readiness refresh carries an abort signal so a hung payment node
+    // cannot pin the sync lock past its hard timeout.
+    expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    // Strictly sequenced: the registry sync only starts once the readiness
+    // refresh has finished, so a long replay cannot starve it.
+    expect(syncRegistryAgentsMock).not.toHaveBeenCalled();
+
+    deferred.resolve();
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not request a cursor reset on the recurring agents sync", async () => {

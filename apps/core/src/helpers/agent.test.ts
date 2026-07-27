@@ -16,6 +16,7 @@ import {
   getCreditCostsOrThrow,
   getRecentAgentReviews,
   getUserAgentReview,
+  isCardanoV2RailReady,
   requireAvailableAgentOrThrow,
   toMasumiAgent,
   toMasumiAgentForJob,
@@ -61,7 +62,10 @@ function createTransactionClient(creditCosts: CreditCost[]) {
 
 describe("buildAvailableAgentWhereClause", () => {
   it("does not include organization allowlist or denylist filters", () => {
-    const where = buildAvailableAgentWhereClause([createCreditCost("USD")]);
+    const where = buildAvailableAgentWhereClause(
+      [createCreditCost("USD")],
+      true,
+    );
 
     expect(Object.prototype.hasOwnProperty.call(where, "OR")).toBe(false);
     expect(Object.prototype.hasOwnProperty.call(where, "NOT")).toBe(false);
@@ -70,10 +74,10 @@ describe("buildAvailableAgentWhereClause", () => {
   });
 
   it("keeps pricing validation behavior unchanged", () => {
-    const where = buildAvailableAgentWhereClause([
-      createCreditCost("USD"),
-      createCreditCost("EUR"),
-    ]);
+    const where = buildAvailableAgentWhereClause(
+      [createCreditCost("USD"), createCreditCost("EUR")],
+      true,
+    );
 
     expect(where.pricing).toEqual({
       pricingType: { not: PricingType.UNKNOWN },
@@ -94,7 +98,10 @@ describe("buildAvailableAgentWhereClause", () => {
   });
 
   it("excludes pointer types, endpointless, unknown-rail, and V2-contract agents when the rollout flag is off", () => {
-    const where = buildAvailableAgentWhereClause([createCreditCost("USD")]);
+    const where = buildAvailableAgentWhereClause(
+      [createCreditCost("USD")],
+      true,
+    );
 
     expect(where.type).toBe(AgentEntryType.STANDARD);
     // Allowlist: UNKNOWN rails are never available; V2 only behind the flag.
@@ -115,7 +122,10 @@ describe("buildAvailableAgentWhereClause", () => {
   it("allowlists V2-contract agents when the rollout flag is enabled", () => {
     getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
 
-    const where = buildAvailableAgentWhereClause([createCreditCost("USD")]);
+    const where = buildAvailableAgentWhereClause(
+      [createCreditCost("USD")],
+      true,
+    );
 
     expect(where.paymentType).toEqual({
       in: [
@@ -126,6 +136,83 @@ describe("buildAvailableAgentWhereClause", () => {
     });
     // Structural filters stay regardless of the flag.
     expect(where.type).toBe(AgentEntryType.STANDARD);
+  });
+
+  it("excludes V2-contract agents when the rail is not purchase-ready despite the flag", () => {
+    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
+
+    const where = buildAvailableAgentWhereClause(
+      [createCreditCost("USD")],
+      false,
+    );
+
+    expect(where.paymentType).toEqual({
+      in: [PaymentType.WEB3_CARDANO_V1, PaymentType.NONE],
+    });
+  });
+});
+
+describe("isCardanoV2RailReady", () => {
+  function createSyncMetadataTransactionClient(
+    row: { cursorId: string; lastSyncedAt: Date } | null,
+  ) {
+    const findUnique = vi.fn().mockResolvedValue(row);
+    const tx = {
+      syncMetadata: {
+        findUnique,
+      },
+    } as unknown as Prisma.TransactionClient;
+    return { tx, findUnique };
+  }
+
+  it("returns false without querying while the rollout flag is off", async () => {
+    const { tx, findUnique } = createSyncMetadataTransactionClient({
+      cursorId: "ready",
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(isCardanoV2RailReady(tx)).resolves.toBe(false);
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns true for a fresh ready row when the flag is on", async () => {
+    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
+    const { tx, findUnique } = createSyncMetadataTransactionClient({
+      cursorId: "ready",
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(isCardanoV2RailReady(tx)).resolves.toBe(true);
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { key: "cardano-v2-rail-readiness" },
+    });
+  });
+
+  it("returns false when the cached readiness is not-ready", async () => {
+    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: "not-ready",
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(isCardanoV2RailReady(tx)).resolves.toBe(false);
+  });
+
+  it("returns false when no readiness row exists yet", async () => {
+    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
+    const { tx } = createSyncMetadataTransactionClient(null);
+
+    await expect(isCardanoV2RailReady(tx)).resolves.toBe(false);
+  });
+
+  it("fails closed when the ready row is older than the TTL", async () => {
+    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: "ready",
+      lastSyncedAt: new Date(Date.now() - 31 * 60 * 1000),
+    });
+
+    await expect(isCardanoV2RailReady(tx)).resolves.toBe(false);
   });
 });
 

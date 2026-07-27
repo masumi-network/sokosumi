@@ -34,6 +34,7 @@ import {
   calculateCentsFromMasumiAmountStrings,
   getAgentCost,
   getCreditCostsOrThrow,
+  isCardanoV2RailReady,
   toMasumiAgent,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
@@ -260,6 +261,24 @@ export interface JobOwnerContext {
   workspaceId: string;
 }
 
+/**
+ * Sums pricing rows per unit. The payment node compares Amounts as per-unit
+ * sums and caps the array at 7 entries, so duplicate-unit registrations must
+ * be aggregated before sending.
+ */
+function aggregateAmountsByUnit(
+  rows: readonly { unit: string; amount: bigint }[],
+): { unit: string; amount: string }[] {
+  const sums = new Map<string, bigint>();
+  for (const row of rows) {
+    sums.set(row.unit, (sums.get(row.unit) ?? 0n) + row.amount);
+  }
+  return Array.from(sums, ([unit, amount]) => ({
+    unit,
+    amount: amount.toString(),
+  }));
+}
+
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithSummaryRelations> {
@@ -271,11 +290,12 @@ export async function createAgentJobForUser(
       : null);
 
   const creditCosts = await getCreditCostsOrThrow();
+  const cardanoV2RailReady = await isCardanoV2RailReady();
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
       id: agentInput.agentId,
-      ...buildAvailableAgentWhereClause(creditCosts),
+      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2RailReady),
     },
     include: {
       ...agentPricingInclude,
@@ -359,6 +379,7 @@ export async function createAgentJobForUser(
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;
   let freeJobResult: StartFreeJobResponseSchemaType | null = null;
   let identifierFromPurchaser: string | null = null;
+  let purchaseAmounts: { unit: string; amount: string }[] | null = null;
 
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
@@ -425,12 +446,10 @@ export async function createAgentJobForUser(
             "Paid V2 agent job selected a source without fixed pricing",
           );
         }
+        purchaseAmounts = aggregateAmountsByUnit(selectedSource.amounts);
         cost = {
           cents: calculateCentsFromMasumiAmountStrings(
-            selectedSource.amounts.map((amount) => ({
-              unit: amount.unit,
-              amount: amount.amount.toString(),
-            })),
+            purchaseAmounts,
             creditCosts,
           ),
         };
@@ -447,6 +466,12 @@ export async function createAgentJobForUser(
             "Legacy agent job returned a V2 payment source index",
           );
         }
+        // Price-drift guard: pass the exact amounts the credits charge was
+        // computed from; the node rejects the purchase if the agent's
+        // on-chain pricing has drifted from what we synced.
+        purchaseAmounts = agent.pricing.fixedPricing
+          ? aggregateAmountsByUnit(agent.pricing.fixedPricing.amounts)
+          : null;
         paidJobResult = response;
       }
 
@@ -501,6 +526,7 @@ export async function createAgentJobForUser(
       paidJobResult,
       agentInput.inputData,
       identifierFromPurchaser,
+      purchaseAmounts ?? undefined,
     );
 
     if (createPurchaseResult.isOk()) {
@@ -519,6 +545,17 @@ export async function createAgentJobForUser(
           Sentry.captureException(error);
         });
     } else {
+      // A 4xx from the node is not transient — with the Amounts guard it most
+      // likely means on-chain pricing drifted from the synced pricing the
+      // credits charge used. Page it; the job follows the payment-failed
+      // credit-refund path.
+      if (/\(status 4\d\d\)/.test(createPurchaseResult.error)) {
+        Sentry.captureException(
+          new Error(
+            `Purchase rejected by payment node (likely price drift) for agent ${agentInput.agentId}: ${createPurchaseResult.error}`,
+          ),
+        );
+      }
       // Job already exists; purchase registration is retried by job sync. A
       // transient Masumi payment outage should not page Sentry (SOKOSUMI-CORE-2N).
       console.warn("[createAgentJobForUser] purchase registration failed", {

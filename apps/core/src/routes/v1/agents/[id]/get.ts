@@ -11,6 +11,7 @@ import {
   getAgentImage,
   getAgentName,
   getCreditCostsOrThrow,
+  isCardanoV2RailReady,
 } from "@/helpers/agent";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -60,11 +61,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const agent = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
+      const cardanoV2RailReady = await isCardanoV2RailReady(tx);
 
       const agent = await tx.agent.findFirst({
         where: {
           id,
-          ...buildAvailableAgentWhereClause(creditCosts),
+          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2RailReady),
         },
         include: agentDetailInclude,
       });

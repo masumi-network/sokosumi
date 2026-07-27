@@ -10,10 +10,14 @@ import {
 import { parseVersionedAgentIdentifier } from "@sokosumi/masumi";
 import type { PostRegistryDiffResponse } from "@sokosumi/masumi/clients";
 
+import { paymentClient } from "@/clients/masumi-payment.client";
 import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
-import { getAgentDescription } from "@/helpers/agent";
+import {
+  CARDANO_V2_RAIL_READINESS_KEY,
+  getAgentDescription,
+} from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
@@ -899,7 +903,62 @@ async function syncAgentSummaries(
   );
 }
 
+// Dedupe: a down payment node would otherwise page Sentry every cron cycle.
+let reportedRailReadinessFailure = false;
+
+/**
+ * Refreshes the cached Cardano V2 rail readiness of the payment node (read by
+ * isCardanoV2RailReady). On check failure the last known value is kept — its
+ * TTL fails closed during an extended outage.
+ */
+async function syncCardanoV2RailReadiness(
+  options: { signal?: AbortSignal } = {},
+): Promise<void> {
+  const isCardanoV2Enabled = getEnv().ENABLE_CARDANO_V2_AGENTS;
+  const readinessResult = await paymentClient().getCardanoV2RailReadiness({
+    signal: options.signal,
+  });
+
+  if (readinessResult.isErr()) {
+    console.warn(
+      "[sync/agents] Cardano V2 rail readiness check failed:",
+      readinessResult.error,
+    );
+    if (isCardanoV2Enabled && !reportedRailReadinessFailure) {
+      reportedRailReadinessFailure = true;
+      Sentry.captureException(
+        new Error(
+          `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
+        ),
+      );
+    }
+    return;
+  }
+  reportedRailReadinessFailure = false;
+
+  const isReady = readinessResult.value;
+  await prisma.syncMetadata.upsert({
+    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+    create: {
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: isReady ? "ready" : "not-ready",
+      lastSyncedAt: new Date(),
+    },
+    update: {
+      cursorId: isReady ? "ready" : "not-ready",
+      lastSyncedAt: new Date(),
+    },
+  });
+
+  if (isCardanoV2Enabled && !isReady) {
+    console.warn(
+      "[sync/agents] Cardano V2 rail is not purchase-ready; V2 agents stay unavailable despite ENABLE_CARDANO_V2_AGENTS",
+    );
+  }
+}
+
 export const agentSyncService = {
   syncRegistryAgents,
   syncAgentSummaries,
+  syncCardanoV2RailReadiness,
 };

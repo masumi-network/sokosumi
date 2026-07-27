@@ -6,6 +6,7 @@ import { err, ok, type Result } from "neverthrow";
 
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
+  getRailReadiness,
   type PostPurchaseResolveBlockchainIdentifierResponses,
   type PostPurchaseResponses,
   postPurchase,
@@ -15,6 +16,21 @@ import {
 
 interface PaymentClientRequestOptions {
   signal?: AbortSignal;
+}
+
+function extractNodeErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "error" in error &&
+    typeof error.error === "object" &&
+    error.error !== null &&
+    "message" in error.error &&
+    typeof error.error.message === "string"
+  ) {
+    return error.error.message;
+  }
+  return JSON.stringify(error);
 }
 
 type ResolvedPurchase =
@@ -113,6 +129,33 @@ export function createPaymentClient(
       return resolvePurchase(jobBlockchainIdentifier, options);
     },
 
+    /**
+     * Whether the payment node can execute Cardano V2 purchases right now
+     * (per the node's own blocking readiness checks).
+     */
+    async getCardanoV2RailReadiness(
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<boolean, string>> {
+      try {
+        const response = await getRailReadiness({
+          client: client(),
+          query: { network },
+          signal: options.signal,
+        });
+        if (response.error || !response.data) {
+          return err(
+            `rail-readiness ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+          );
+        }
+        const cardanoV2Rail = response.data.data.Rails.find(
+          (rail) => rail.rail === "CardanoV2",
+        );
+        return ok(cardanoV2Rail?.isReady === true);
+      } catch (error) {
+        return err(String(error) || "Failed to get rail readiness");
+      }
+    },
+
     async requestRefund(jobBlockchainIdentifier: string) {
       try {
         const response = await postPurchaseRequestRefund({
@@ -138,6 +181,7 @@ export function createPaymentClient(
       startJobResponse: StartPaidJobResponseSchemaType,
       inputData: InputSchemaType,
       identifierFromPurchaser: string,
+      amounts?: Array<{ amount: string; unit: string }>,
     ): Promise<Result<PostPurchaseResponses["200"]["data"], string>> {
       try {
         const response = await postPurchase({
@@ -157,6 +201,11 @@ export function createPaymentClient(
               startJobResponse.externalDisputeUnlockTime.toString(),
             submitResultTime: startJobResponse.submitResultTime.toString(),
             unlockTime: startJobResponse.unlockTime.toString(),
+            // Price-drift guard: when supplied, the node rejects the purchase
+            // unless these exactly match the agent's current on-chain pricing,
+            // so the escrow can never lock a different amount than the credits
+            // the user was charged.
+            ...(amounts ? { Amounts: amounts } : {}),
             metadata: JSON.stringify({
               inputData: inputData,
               jobId: startJobResponse.id,
@@ -175,7 +224,9 @@ export function createPaymentClient(
             );
           }
           console.error("Failed to create purchase request", response.error);
-          return err("Failed to create purchase request");
+          return err(
+            `Failed to create purchase request (status ${response.response?.status ?? "unknown"})`,
+          );
         }
 
         return ok(response.data.data);

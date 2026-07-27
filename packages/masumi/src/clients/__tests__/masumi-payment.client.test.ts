@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPaymentClient } from "../masumi-payment.client.js";
 
+const getRailReadinessMock = vi.fn();
 const postPurchaseMock = vi.fn();
 const postPurchaseRequestRefundMock = vi.fn();
 const postPurchaseResolveBlockchainIdentifierMock = vi.fn();
 
 vi.mock("../openapi/generated/payment/index.js", () => ({
+  getRailReadiness: (...args: unknown[]) => getRailReadinessMock(...args),
   postPurchase: (...args: unknown[]) => postPurchaseMock(...args),
   postPurchaseRequestRefund: (...args: unknown[]) =>
     postPurchaseRequestRefundMock(...args),
@@ -137,6 +139,66 @@ describe("createPurchase duplicate handling", () => {
           supportedPaymentSourceIndex: 3,
         }),
       }),
+    );
+  });
+
+  it("forwards the price-drift guard Amounts when provided", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: {
+        data: { id: "purchase_guarded" },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const amounts = [{ amount: "1000000", unit: "" }];
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+      amounts,
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(postPurchaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          Amounts: [{ amount: "1000000", unit: "" }],
+        }),
+      }),
+    );
+  });
+
+  it("omits the Amounts key when no amounts are provided", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: {
+        data: { id: "purchase_unguarded" },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(postPurchaseMock.mock.calls[0]?.[0].body).not.toHaveProperty(
+      "Amounts",
     );
   });
 
@@ -399,7 +461,131 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
+    // The status suffix lets callers distinguish non-transient 4xx rejections
+    // (price drift) from transient node failures.
+    expect(result.isErr() && result.error).toBe(
+      "Failed to create purchase request (status 400)",
+    );
     expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("getCardanoV2RailReadiness", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns ok(true) when the CardanoV2 rail reports ready", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          Rails: [
+            { rail: "CardanoV2", isReady: true },
+            { rail: "X402", isReady: false },
+          ],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value).toBe(true);
+  });
+
+  it("returns ok(false) when the CardanoV2 rail reports not ready", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          Rails: [{ rail: "CardanoV2", isReady: false }],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value).toBe(false);
+  });
+
+  it("returns an error when the readiness endpoint reports an error", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: undefined,
+      error: { status: "error", error: { message: "Unauthorized" } },
+      response: { status: 401 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "rail-readiness 401: Unauthorized",
+    );
+  });
+
+  it("returns an error when the readiness response has no data", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: undefined,
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("rail-readiness 200");
+  });
+
+  it("forwards the client network as the readiness query", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          Rails: [{ rail: "CardanoV2", isReady: true }],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    await client.getCardanoV2RailReadiness();
+
+    expect(getRailReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: { network: "Preprod" },
+      }),
+    );
   });
 });
 
