@@ -297,4 +297,52 @@ describe("POST /chats/rooms", () => {
       }),
     );
   });
+
+  it("retries when a slug unique race wins, then creates with 201", async () => {
+    const created = directRoom();
+    roomFindFirstMock.mockResolvedValue(null);
+    roomCreateMock
+      .mockRejectedValueOnce({
+        code: "P2002",
+        meta: { target: ["organizationId", "slug"] },
+      })
+      .mockResolvedValueOnce(created);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.id).toBe(ROOM_ID);
+    expect(roomCreateMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 409 Room already exists after slug unique retries exhaust", async () => {
+    roomFindFirstMock.mockResolvedValue(null);
+    roomCreateMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["organizationId", "slug"] },
+    });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.text()).toBe("Room already exists");
+    expect(roomCreateMock).toHaveBeenCalledTimes(3);
+  });
 });

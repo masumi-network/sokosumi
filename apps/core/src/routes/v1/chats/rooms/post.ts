@@ -307,12 +307,12 @@ async function createOrGetDirectRoom(params: {
       }
 
       if (isSlugUniqueConstraintError(error)) {
-        throw conflict("Room slug already exists");
+        throw conflict("Room already exists");
       }
 
       throw error;
     }
   }
 
-  throw conflict("Room slug already exists");
+  throw conflict("Room already exists");
 }
