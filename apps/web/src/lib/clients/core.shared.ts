@@ -58,6 +58,7 @@ import type {
   PostChatChannelsData,
   PostChatChannelsDirectData,
   PostJobsByIdInputsData,
+  PostOrganizationsByIdInviteLinksData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -88,6 +89,7 @@ import {
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
@@ -145,6 +147,7 @@ import {
   getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
+  getOrganizationInviteLinksByToken as coreGetOrganizationInviteLinksByToken,
   getOrganizationsById as coreGetOrganizationsById,
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
@@ -163,6 +166,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getToolsSiteIcon as coreGetToolsSiteIcon,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
@@ -230,6 +234,8 @@ import {
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
+  postOrganizationInviteLinksByTokenAccept as corePostOrganizationInviteLinksByTokenAccept,
+  postOrganizationsByIdInviteLinks as corePostOrganizationsByIdInviteLinks,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
   postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
@@ -2787,6 +2793,100 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   /**
+   * Creates a shareable, email-agnostic invite link for an organization. Core
+   * enforces that the caller is an owner or admin. Returns the link with its
+   * absolute `/join/{token}` URL.
+   */
+  async function createOrganizationInviteLink(
+    organizationId: string,
+    body: NonNullable<PostOrganizationsByIdInviteLinksData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdInviteLinks({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to create invite link",
+    );
+  }
+
+  /**
+   * Revokes an organization invite link by token. Owner/admin only; the token
+   * is scoped to the organization in the path so a token cannot be revoked
+   * from another organization.
+   */
+  async function revokeOrganizationInviteLink(
+    organizationId: string,
+    token: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteOrganizationsByIdInviteLinksByToken({
+          client,
+          path: { id: organizationId, token },
+        }),
+      "Failed to revoke invite link",
+    );
+  }
+
+  /**
+   * Resolves a shareable invite-link token for the public `/join` preview.
+   * Returns the link status and, only for a live (`valid`) link, a small
+   * organization preview (name, slug, logo).
+   */
+  async function resolveOrganizationInviteLink(token: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationInviteLinksByToken({
+          client,
+          path: { token },
+          cache: "no-store",
+        }),
+      "Failed to resolve invite link",
+    );
+  }
+
+  /**
+   * Accepts a shareable invite-link token for the signed-in user, joining the
+   * organization as a member (subject to the org's billing seat gate). Core
+   * treats a concurrent/duplicate join as `already_member`.
+   */
+  async function acceptOrganizationInviteLink(token: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationInviteLinksByTokenAccept({
+          client,
+          path: { token },
+        }),
+      "Failed to accept invite link",
+    );
+  }
+
+  /**
+   * Resolves the highest-quality icon for a website URL and uploads it as an
+   * organization-logo blob, returning its public URL (or null when no usable
+   * icon was found). Core performs the SSRF-guarded fetch server-side.
+   */
+  async function resolveSiteIcon(url: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetToolsSiteIcon({
+          client,
+          query: { url },
+          cache: "no-store",
+        }),
+      "Failed to resolve site icon",
+    );
+  }
+
+  /**
    * Fetches an organization by id, returning null when it does not exist
    * (Core responds 404).
    */
@@ -3606,6 +3706,11 @@ export function createCoreClient(getClient: GetClient) {
     setMyDesignMd,
     setMyPreferredOrganization,
     setOrganizationDesignMd,
+    createOrganizationInviteLink,
+    revokeOrganizationInviteLink,
+    resolveOrganizationInviteLink,
+    acceptOrganizationInviteLink,
+    resolveSiteIcon,
     getPendingNotices,
     getProjects,
     getProjectsById,

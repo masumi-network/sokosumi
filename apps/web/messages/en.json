@@ -581,6 +581,77 @@
           }
         }
       },
+      "CreateOrganizationWizard": {
+        "title": "Create organization",
+        "description": "Set up your organization in a few quick steps.",
+        "Nav": {
+          "back": "Back",
+          "next": "Continue",
+          "skip": "Skip",
+          "finishSetup": "Finish setup",
+          "finish": "Go to workspace",
+          "creating": "Creating…"
+        },
+        "Details": {
+          "title": "Name your organization",
+          "subtitle": "Add your name and website. We'll set up the rest.",
+          "nameLabel": "Name",
+          "namePlaceholder": "Acme Inc.",
+          "urlLabel": "Website",
+          "urlPlaceholder": "https://acme.com",
+          "urlHint": "We use this to fetch your logo and brand guidelines.",
+          "nameInvalid": "Enter a name with at least 2 characters.",
+          "urlInvalid": "Enter a valid website, like https://acme.com"
+        },
+        "Logo": {
+          "title": "Your logo",
+          "subtitle": "We pulled the best icon we could find from your website.",
+          "generating": "Finding your logo…",
+          "found": "We found this on {domain}. Not right? Upload your own.",
+          "foundNoDomain": "We found this on your website. Not right? Upload your own.",
+          "notFound": "We couldn't find a logo on your website. Upload one, or skip for now.",
+          "upload": "Upload a logo",
+          "replace": "Replace logo",
+          "remove": "Remove",
+          "uploadHint": "PNG, JPG, or SVG. Up to 2 MB.",
+          "uploadError": "Failed to upload logo",
+          "previewAlt": "Organization logo preview"
+        },
+        "Brand": {
+          "title": "Brand Guidelines",
+          "tooltip": "Brand Guidelines are a DESIGN.md file: your colors, fonts, tone, and style in one place. Your coworkers read it so everything they make for you looks and sounds like you.",
+          "generating": "Reading {domain} to build your brand style…",
+          "generatingNoDomain": "Reading your website to build your brand style…",
+          "generated": "We generated your brand style from {domain}.",
+          "generatedNoDomain": "We generated your brand style from your website.",
+          "failedTitle": "Couldn't read your website",
+          "failedSubtitle": "No problem — you can add your brand guidelines later.",
+          "retry": "Try again",
+          "skipHint": "This keeps running in the background — you can continue any time.",
+          "editHint": "You can edit, replace, or remove this later in organization settings."
+        },
+        "Invite": {
+          "title": "{organization} is ready",
+          "titleFallback": "You're all set",
+          "subtitle": "Your organization is set up. Invite your team, or do it later.",
+          "linkHint": "Anyone with this link can join as a member.",
+          "copy": "Copy",
+          "copied": "Copied",
+          "regenerate": "Reset link",
+          "emailsPlaceholder": "alex@acme.com, sam@acme.com",
+          "emailsHint": "Commas, semicolons, or new lines.",
+          "sendInvites": "Send invites",
+          "sending": "Sending…",
+          "inviteSuccess": "Invites sent",
+          "inviteSummary": "Sent {sent}, failed {failed}.",
+          "linkError": "Failed to create invite link",
+          "emailError": "Failed to send invites"
+        },
+        "Errors": {
+          "createFailed": "Failed to create organization",
+          "unauthorizedAction": "Login"
+        }
+      },
       "RemoveModal": {
         "title": "Remove Organization",
         "description": "Are you sure you want to remove the organization \"{organization}\"?",
@@ -702,6 +773,30 @@
       "copy": "Copy",
       "copySuccess": "Copied to clipboard",
       "copyError": "Failed to copy"
+    }
+  },
+  "Join": {
+    "title": "You've been invited",
+    "invitedToJoin": "Join {organization} on Sokosumi.",
+    "join": "Join {organization}",
+    "joining": "Joining…",
+    "linkHintOwner": "Anyone with this link can join as a member.",
+    "signedOutHint": "Sign in or create an account to accept this invite.",
+    "haveAccount": "Already have an account?",
+    "noAccount": "New to Sokosumi?",
+    "signIn": "Sign in to join",
+    "register": "Create an account",
+    "Error": {
+      "joinFailed": "Failed to join the organization",
+      "unauthorizedAction": "Login"
+    },
+    "Invalid": {
+      "title": "This invite link isn't available",
+      "expired": "This invite link has expired. Ask an organization admin for a new one.",
+      "revoked": "This invite link has been revoked. Ask an organization admin for a new one.",
+      "depleted": "This invite link has reached its limit. Ask an organization admin for a new one.",
+      "notFound": "This invite link is invalid or no longer exists.",
+      "back": "Go to homepage"
     }
   },
   "AcceptInvitation": {

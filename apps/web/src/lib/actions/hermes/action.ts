@@ -72,6 +72,8 @@ function mapHermesInstance(
         }
       : null,
     autonomyLevel: (instance.autonomyLevel ?? "medium") as HermesAutonomyLevel,
+    model: instance.model ?? null,
+    modelProvider: instance.modelProvider ?? null,
     integrations: instance.integrations.map(mapHermesIntegration),
     transitioning: instance.transitioning ?? false,
     lastSokosumiSyncAt: toIsoString(instance.lastSokosumiSyncAt ?? null),

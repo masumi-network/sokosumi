@@ -40,6 +40,7 @@ export * from "./link.repository.js";
 export * from "./lock.repository.js";
 export * from "./member.repository.js";
 export * from "./organization.repository.js";
+export * from "./organization-invite-link.repository.js";
 export * from "./public-share.repository.js";
 export * from "./subscription.repository.js";
 export * from "./sync-metadata.repository.js";

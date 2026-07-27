@@ -6365,6 +6365,20 @@ export const HermesInstanceSchema = {
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
         },
+        model: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        modelProvider: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
         integrations: {
             type: 'array',
             items: {
@@ -9023,6 +9037,85 @@ export const InvitationStatusSchema = {
     description: 'Invitation lifecycle status stored in the database'
 } as const;
 
+export const OrganizationInviteLinkSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string'
+        },
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        role: {
+            type: 'string'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revokedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        maxUses: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        useCount: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'token',
+        'url',
+        'role',
+        'expiresAt',
+        'revokedAt',
+        'maxUses',
+        'useCount'
+    ]
+} as const;
+
+export const CreateOrganizationInviteLinkRequestSchema = {
+    type: 'object',
+    properties: {
+        expiresInDays: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 90,
+            default: 7
+        },
+        maxUses: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 10000
+        }
+    }
+} as const;
+
+export const RevokeResultSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
 export const OrganizationSeatSummarySchema = {
     type: 'object',
     properties: {
@@ -9219,6 +9312,75 @@ export const UpdateOrganizationSubscriptionSeatsSchema = {
     },
     required: [
         'seats'
+    ]
+} as const;
+
+export const ResolveOrganizationInviteLinkSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'valid',
+                'expired',
+                'revoked',
+                'depleted',
+                'not_found'
+            ]
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                name: {
+                    type: 'string'
+                },
+                slug: {
+                    type: 'string'
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'slug',
+                'logo'
+            ]
+        }
+    },
+    required: [
+        'status',
+        'organization'
+    ]
+} as const;
+
+export const AcceptOrganizationInviteLinkSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'joined',
+                'already_member'
+            ]
+        },
+        organizationSlug: {
+            type: 'string'
+        },
+        organizationId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'status',
+        'organizationSlug',
+        'organizationId'
     ]
 } as const;
 
@@ -11815,6 +11977,22 @@ export const MasumiTaskPaymentSourceSchema = {
         'network',
         'smartContractAddress',
         'policyId'
+    ]
+} as const;
+
+export const SiteIconResultSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        }
+    },
+    required: [
+        'url'
     ]
 } as const;
 

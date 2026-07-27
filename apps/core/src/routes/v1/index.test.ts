@@ -31,8 +31,12 @@ vi.mock("./history/index.js", () => ({ default: new Hono() }));
 vi.mock("./jobs/index.js", () => ({ default: new Hono() }));
 vi.mock("./notifications/index.js", () => ({ default: new Hono() }));
 vi.mock("./organizations/index.js", () => ({ default: new Hono() }));
+vi.mock("./organization-invite-links/index.js", () => ({
+  default: new Hono(),
+}));
 vi.mock("./projects/index.js", () => ({ default: new Hono() }));
 vi.mock("./tasks/index.js", () => ({ default: new Hono() }));
+vi.mock("./tools/index.js", () => ({ default: new Hono() }));
 vi.mock("./users/index.js", () => ({ default: new Hono() }));
 vi.mock("./products/index.js", () => ({ default: new Hono() }));
 vi.mock("./vendors/index.js", () => ({ default: new Hono() }));

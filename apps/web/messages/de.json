@@ -565,6 +565,77 @@
           }
         }
       },
+      "CreateOrganizationWizard": {
+        "title": "Organisation erstellen",
+        "description": "Richte deine Organisation in wenigen Schritten ein.",
+        "Nav": {
+          "back": "Zurück",
+          "next": "Weiter",
+          "skip": "Überspringen",
+          "finishSetup": "Einrichtung abschließen",
+          "finish": "Zum Workspace",
+          "creating": "Wird erstellt…"
+        },
+        "Details": {
+          "title": "Benenne deine Organisation",
+          "subtitle": "Name und Website angeben — den Rest richten wir ein.",
+          "nameLabel": "Name",
+          "namePlaceholder": "Acme Inc.",
+          "urlLabel": "Website",
+          "urlPlaceholder": "https://acme.com",
+          "urlHint": "Damit holen wir Logo und Markenrichtlinien.",
+          "nameInvalid": "Gib einen Namen mit mindestens 2 Zeichen ein.",
+          "urlInvalid": "Gib eine gültige Website ein, z. B. https://acme.com"
+        },
+        "Logo": {
+          "title": "Dein Logo",
+          "subtitle": "Wir haben das beste Icon von deiner Website übernommen.",
+          "generating": "Logo wird gesucht…",
+          "found": "Das haben wir auf {domain} gefunden. Passt nicht? Lade dein eigenes hoch.",
+          "foundNoDomain": "Das haben wir auf deiner Website gefunden. Passt nicht? Lade dein eigenes hoch.",
+          "notFound": "Auf deiner Website wurde kein Logo gefunden. Lade eines hoch oder überspringe diesen Schritt.",
+          "upload": "Logo hochladen",
+          "replace": "Logo ersetzen",
+          "remove": "Entfernen",
+          "uploadHint": "PNG, JPG oder SVG. Bis 2 MB.",
+          "uploadError": "Logo konnte nicht hochgeladen werden",
+          "previewAlt": "Vorschau des Organisationslogos"
+        },
+        "Brand": {
+          "title": "Markenrichtlinien",
+          "tooltip": "Markenrichtlinien sind eine DESIGN.md-Datei: Farben, Schriften, Tonalität und Stil an einem Ort. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
+          "generating": "Wir lesen {domain}, um deinen Markenstil zu erstellen…",
+          "generatingNoDomain": "Wir lesen deine Website, um deinen Markenstil zu erstellen…",
+          "generated": "Wir haben deinen Markenstil aus {domain} erzeugt.",
+          "generatedNoDomain": "Wir haben deinen Markenstil aus deiner Website erzeugt.",
+          "failedTitle": "Website konnte nicht gelesen werden",
+          "failedSubtitle": "Kein Problem — du kannst die Markenrichtlinien später hinzufügen.",
+          "retry": "Erneut versuchen",
+          "skipHint": "Das läuft im Hintergrund weiter — du kannst jederzeit fortfahren.",
+          "editHint": "Später in den Organisationseinstellungen bearbeiten, ersetzen oder entfernen."
+        },
+        "Invite": {
+          "title": "{organization} ist bereit",
+          "titleFallback": "Alles erledigt",
+          "subtitle": "Deine Organisation ist eingerichtet. Lade dein Team ein — oder mach das später.",
+          "linkHint": "Jeder mit diesem Link kann als Mitglied beitreten.",
+          "copy": "Kopieren",
+          "copied": "Kopiert",
+          "regenerate": "Link zurücksetzen",
+          "emailsPlaceholder": "alex@acme.com, sam@acme.com",
+          "emailsHint": "Kommas, Semikolons oder Zeilenumbrüche.",
+          "sendInvites": "Einladungen senden",
+          "sending": "Wird gesendet…",
+          "inviteSuccess": "Einladungen gesendet",
+          "inviteSummary": "Gesendet {sent}, fehlgeschlagen {failed}.",
+          "linkError": "Einladungslink konnte nicht erstellt werden",
+          "emailError": "Einladungen konnten nicht gesendet werden"
+        },
+        "Errors": {
+          "createFailed": "Organisation konnte nicht erstellt werden",
+          "unauthorizedAction": "Anmelden"
+        }
+      },
       "RemoveModal": {
         "title": "Organisation entfernen",
         "description": "Möchtest du die Organisation \"{organization}\" wirklich entfernen?",
@@ -691,6 +762,30 @@
       "placeholder": "Organisation auswählen",
       "search": "Organisationen suchen…",
       "empty": "Keine Organisationen gefunden."
+    }
+  },
+  "Join": {
+    "title": "Du wurdest eingeladen",
+    "invitedToJoin": "Tritt {organization} auf Sokosumi bei.",
+    "join": "{organization} beitreten",
+    "joining": "Beitritt…",
+    "linkHintOwner": "Jeder mit diesem Link kann als Mitglied beitreten.",
+    "signedOutHint": "Melde dich an oder erstelle ein Konto, um die Einladung anzunehmen.",
+    "haveAccount": "Du hast bereits ein Konto?",
+    "noAccount": "Neu bei Sokosumi?",
+    "signIn": "Anmelden und beitreten",
+    "register": "Konto erstellen",
+    "Error": {
+      "joinFailed": "Der Organisation konnte nicht beigetreten werden",
+      "unauthorizedAction": "Anmelden"
+    },
+    "Invalid": {
+      "title": "Dieser Einladungslink ist nicht verfügbar",
+      "expired": "Dieser Einladungslink ist abgelaufen. Bitte einen Admin um einen neuen Link.",
+      "revoked": "Dieser Einladungslink wurde widerrufen. Bitte einen Admin um einen neuen Link.",
+      "depleted": "Dieser Einladungslink hat sein Limit erreicht. Bitte einen Admin um einen neuen Link.",
+      "notFound": "Dieser Einladungslink ist ungültig oder existiert nicht mehr.",
+      "back": "Zur Startseite"
     }
   },
   "AcceptInvitation": {

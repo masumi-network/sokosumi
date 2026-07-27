@@ -565,6 +565,77 @@
           }
         }
       },
+      "CreateOrganizationWizard": {
+        "title": "Crea organizzazione",
+        "description": "Configura la tua organizzazione in pochi passaggi.",
+        "Nav": {
+          "back": "Indietro",
+          "next": "Continua",
+          "skip": "Salta",
+          "finishSetup": "Completa configurazione",
+          "finish": "Vai allo spazio di lavoro",
+          "creating": "Creazione…"
+        },
+        "Details": {
+          "title": "Dai un nome alla tua organizzazione",
+          "subtitle": "Aggiungi nome e sito web. Al resto pensiamo noi.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "Acme Inc.",
+          "urlLabel": "Sito web",
+          "urlPlaceholder": "https://acme.com",
+          "urlHint": "Lo usiamo per recuperare logo e linee guida del brand.",
+          "nameInvalid": "Inserisci un nome di almeno 2 caratteri.",
+          "urlInvalid": "Inserisci un sito web valido, ad es. https://acme.com"
+        },
+        "Logo": {
+          "title": "Il tuo logo",
+          "subtitle": "Abbiamo preso la migliore icona trovata sul tuo sito.",
+          "generating": "Ricerca del logo…",
+          "found": "Abbiamo trovato questo su {domain}. Non va bene? Carica il tuo.",
+          "foundNoDomain": "Abbiamo trovato questo sul tuo sito. Non va bene? Carica il tuo.",
+          "notFound": "Non abbiamo trovato un logo sul tuo sito. Caricane uno oppure salta per ora.",
+          "upload": "Carica un logo",
+          "replace": "Sostituisci logo",
+          "remove": "Rimuovi",
+          "uploadHint": "PNG, JPG o SVG. Fino a 2 MB.",
+          "uploadError": "Caricamento del logo non riuscito",
+          "previewAlt": "Anteprima del logo dell’organizzazione"
+        },
+        "Brand": {
+          "title": "Linee guida del brand",
+          "tooltip": "Le linee guida del brand sono un file DESIGN.md: colori, font, tono e stile in un unico posto. I tuoi coworker lo leggono così tutto ciò che creano per te ti assomiglia.",
+          "generating": "Lettura di {domain} per creare il tuo stile di brand…",
+          "generatingNoDomain": "Lettura del tuo sito per creare il tuo stile di brand…",
+          "generated": "Abbiamo generato il tuo stile di brand da {domain}.",
+          "generatedNoDomain": "Abbiamo generato il tuo stile di brand dal tuo sito.",
+          "failedTitle": "Impossibile leggere il sito",
+          "failedSubtitle": "Nessun problema — potrai aggiungere le linee guida più tardi.",
+          "retry": "Riprova",
+          "skipHint": "Continua in background — puoi proseguire in qualsiasi momento.",
+          "editHint": "Potrai modificarlo, sostituirlo o rimuoverlo più tardi nelle impostazioni dell’organizzazione."
+        },
+        "Invite": {
+          "title": "{organization} è pronta",
+          "titleFallback": "Tutto pronto",
+          "subtitle": "La tua organizzazione è configurata. Invita il team, oppure fallo più tardi.",
+          "linkHint": "Chiunque abbia questo link può unirsi come membro.",
+          "copy": "Copia",
+          "copied": "Copiato",
+          "regenerate": "Reimposta link",
+          "emailsPlaceholder": "alex@acme.com, sam@acme.com",
+          "emailsHint": "Virgole, punti e virgola o nuove righe.",
+          "sendInvites": "Invia inviti",
+          "sending": "Invio…",
+          "inviteSuccess": "Inviti inviati",
+          "inviteSummary": "Inviati {sent}, non riusciti {failed}.",
+          "linkError": "Impossibile creare il link di invito",
+          "emailError": "Impossibile inviare gli inviti"
+        },
+        "Errors": {
+          "createFailed": "Impossibile creare l’organizzazione",
+          "unauthorizedAction": "Accedi"
+        }
+      },
       "RemoveModal": {
         "title": "Rimuovi organizzazione",
         "description": "Vuoi davvero rimuovere l’organizzazione \"{organization}\"?",
@@ -691,6 +762,30 @@
       "placeholder": "Seleziona un'organizzazione",
       "search": "Cerca organizzazioni…",
       "empty": "Nessuna organizzazione trovata."
+    }
+  },
+  "Join": {
+    "title": "Sei stato invitato",
+    "invitedToJoin": "Unisciti a {organization} su Sokosumi.",
+    "join": "Unisciti a {organization}",
+    "joining": "Accesso in corso…",
+    "linkHintOwner": "Chiunque abbia questo link può unirsi come membro.",
+    "signedOutHint": "Accedi o crea un account per accettare questo invito.",
+    "haveAccount": "Hai già un account?",
+    "noAccount": "Nuovo su Sokosumi?",
+    "signIn": "Accedi per unirti",
+    "register": "Crea un account",
+    "Error": {
+      "joinFailed": "Impossibile unirsi all’organizzazione",
+      "unauthorizedAction": "Accedi"
+    },
+    "Invalid": {
+      "title": "Questo link di invito non è disponibile",
+      "expired": "Questo link di invito è scaduto. Chiedi un nuovo link a un admin dell’organizzazione.",
+      "revoked": "Questo link di invito è stato revocato. Chiedi un nuovo link a un admin dell’organizzazione.",
+      "depleted": "Questo link di invito ha raggiunto il limite. Chiedi un nuovo link a un admin dell’organizzazione.",
+      "notFound": "Questo link di invito non è valido o non esiste più.",
+      "back": "Vai alla home"
     }
   },
   "AcceptInvitation": {

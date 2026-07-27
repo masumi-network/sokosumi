@@ -565,6 +565,77 @@
           }
         }
       },
+      "CreateOrganizationWizard": {
+        "title": "Créer une organisation",
+        "description": "Configurez votre organisation en quelques étapes.",
+        "Nav": {
+          "back": "Retour",
+          "next": "Continuer",
+          "skip": "Passer",
+          "finishSetup": "Terminer la configuration",
+          "finish": "Aller à l’espace de travail",
+          "creating": "Création…"
+        },
+        "Details": {
+          "title": "Nommez votre organisation",
+          "subtitle": "Ajoutez le nom et le site web. Nous nous occupons du reste.",
+          "nameLabel": "Nom",
+          "namePlaceholder": "Acme Inc.",
+          "urlLabel": "Site web",
+          "urlPlaceholder": "https://acme.com",
+          "urlHint": "Nous l’utilisons pour récupérer votre logo et vos guidelines de marque.",
+          "nameInvalid": "Saisissez un nom d’au moins 2 caractères.",
+          "urlInvalid": "Saisissez un site web valide, par ex. https://acme.com"
+        },
+        "Logo": {
+          "title": "Votre logo",
+          "subtitle": "Nous avons pris la meilleure icône trouvée sur votre site.",
+          "generating": "Recherche de votre logo…",
+          "found": "Voici ce que nous avons trouvé sur {domain}. Pas le bon ? Téléversez le vôtre.",
+          "foundNoDomain": "Voici ce que nous avons trouvé sur votre site. Pas le bon ? Téléversez le vôtre.",
+          "notFound": "Aucun logo trouvé sur votre site. Téléversez-en un, ou passez pour l’instant.",
+          "upload": "Téléverser un logo",
+          "replace": "Remplacer le logo",
+          "remove": "Supprimer",
+          "uploadHint": "PNG, JPG ou SVG. Jusqu’à 2 Mo.",
+          "uploadError": "Échec du téléversement du logo",
+          "previewAlt": "Aperçu du logo de l’organisation"
+        },
+        "Brand": {
+          "title": "Guidelines de marque",
+          "tooltip": "Les guidelines de marque sont un fichier DESIGN.md : couleurs, polices, ton et style au même endroit. Vos coworkers le lisent pour que tout ce qu’ils créent pour vous vous ressemble.",
+          "generating": "Lecture de {domain} pour construire votre style de marque…",
+          "generatingNoDomain": "Lecture de votre site pour construire votre style de marque…",
+          "generated": "Nous avons généré votre style de marque à partir de {domain}.",
+          "generatedNoDomain": "Nous avons généré votre style de marque à partir de votre site.",
+          "failedTitle": "Impossible de lire votre site",
+          "failedSubtitle": "Pas de souci — vous pourrez ajouter vos guidelines plus tard.",
+          "retry": "Réessayer",
+          "skipHint": "Cela continue en arrière-plan — vous pouvez poursuivre à tout moment.",
+          "editHint": "Vous pourrez modifier, remplacer ou supprimer cela plus tard dans les paramètres de l’organisation."
+        },
+        "Invite": {
+          "title": "{organization} est prête",
+          "titleFallback": "Tout est prêt",
+          "subtitle": "Votre organisation est configurée. Invitez votre équipe, ou faites-le plus tard.",
+          "linkHint": "Toute personne disposant de ce lien peut rejoindre en tant que membre.",
+          "copy": "Copier",
+          "copied": "Copié",
+          "regenerate": "Réinitialiser le lien",
+          "emailsPlaceholder": "alex@acme.com, sam@acme.com",
+          "emailsHint": "Virgules, points-virgules ou sauts de ligne.",
+          "sendInvites": "Envoyer les invitations",
+          "sending": "Envoi…",
+          "inviteSuccess": "Invitations envoyées",
+          "inviteSummary": "Envoyées {sent}, échouées {failed}.",
+          "linkError": "Impossible de créer le lien d’invitation",
+          "emailError": "Impossible d’envoyer les invitations"
+        },
+        "Errors": {
+          "createFailed": "Échec de la création de l’organisation",
+          "unauthorizedAction": "Se connecter"
+        }
+      },
       "RemoveModal": {
         "title": "Supprimer l’organisation",
         "description": "Êtes-vous sûr de vouloir supprimer l’organisation « {organization} » ?",
@@ -691,6 +762,30 @@
       "placeholder": "Sélectionner une organisation",
       "search": "Rechercher des organisations…",
       "empty": "Aucune organisation trouvée."
+    }
+  },
+  "Join": {
+    "title": "Vous avez été invité",
+    "invitedToJoin": "Rejoignez {organization} sur Sokosumi.",
+    "join": "Rejoindre {organization}",
+    "joining": "Adhésion…",
+    "linkHintOwner": "Toute personne disposant de ce lien peut rejoindre en tant que membre.",
+    "signedOutHint": "Connectez-vous ou créez un compte pour accepter cette invitation.",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "noAccount": "Nouveau sur Sokosumi ?",
+    "signIn": "Se connecter pour rejoindre",
+    "register": "Créer un compte",
+    "Error": {
+      "joinFailed": "Impossible de rejoindre l’organisation",
+      "unauthorizedAction": "Se connecter"
+    },
+    "Invalid": {
+      "title": "Ce lien d’invitation n’est pas disponible",
+      "expired": "Ce lien d’invitation a expiré. Demandez un nouveau lien à un administrateur de l’organisation.",
+      "revoked": "Ce lien d’invitation a été révoqué. Demandez un nouveau lien à un administrateur de l’organisation.",
+      "depleted": "Ce lien d’invitation a atteint sa limite. Demandez un nouveau lien à un administrateur de l’organisation.",
+      "notFound": "Ce lien d’invitation est invalide ou n’existe plus.",
+      "back": "Aller à l’accueil"
     }
   },
   "AcceptInvitation": {

@@ -128,6 +128,7 @@ export default function RunningState({
     isReplying,
     isReplyingRef,
     progressChips,
+    thinkingState,
     reasoning,
     streamingId,
     requestStartedAt,
@@ -241,7 +242,7 @@ export default function RunningState({
           {/* Floating top-right controls — Autonomy (level + scheduled
           tasks), Skills (marketplace sheet) and Settings (identity,
           integrations, danger zone). */}
-          <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+          <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-1.5">
             <AutonomyChip onClick={() => setAutonomyOpen(true)} />
             <SkillsChip onClick={() => setSkillsOpen(true)} />
             <IntegrationsChip
@@ -270,6 +271,7 @@ export default function RunningState({
                 userName={userName}
                 isReplying={isReplying}
                 progressChips={progressChips}
+                thinkingState={thinkingState}
                 requestStartedAt={requestStartedAt}
                 reasoning={reasoning}
                 pendingCards={pendingCards}
@@ -313,6 +315,8 @@ export default function RunningState({
             onOpenChange={setSettingsOpen}
             previewMode={previewMode}
             integrations={instance?.integrations ?? []}
+            model={instance?.model ?? null}
+            modelProvider={instance?.modelProvider ?? null}
             lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
             lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
             assistantName={instance?.assistantName ?? null}

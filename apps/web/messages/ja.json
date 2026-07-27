@@ -565,6 +565,77 @@
           }
         }
       },
+      "CreateOrganizationWizard": {
+        "title": "組織を作成",
+        "description": "いくつかのステップで組織をセットアップします。",
+        "Nav": {
+          "back": "戻る",
+          "next": "続ける",
+          "skip": "スキップ",
+          "finishSetup": "セットアップを完了",
+          "finish": "ワークスペースへ",
+          "creating": "作成中…"
+        },
+        "Details": {
+          "title": "組織に名前を付ける",
+          "subtitle": "名前とウェブサイトを入力してください。残りはこちらで設定します。",
+          "nameLabel": "名前",
+          "namePlaceholder": "Acme Inc.",
+          "urlLabel": "ウェブサイト",
+          "urlPlaceholder": "https://acme.com",
+          "urlHint": "ロゴとブランドガイドラインの取得に使用します。",
+          "nameInvalid": "2文字以上の名前を入力してください。",
+          "urlInvalid": "https://acme.com のような有効なウェブサイトを入力してください"
+        },
+        "Logo": {
+          "title": "ロゴ",
+          "subtitle": "ウェブサイトから見つかった最適なアイコンを設定しました。",
+          "generating": "ロゴを検索中…",
+          "found": "{domain} でこれを見つけました。違う場合はアップロードしてください。",
+          "foundNoDomain": "ウェブサイトでこれを見つけました。違う場合はアップロードしてください。",
+          "notFound": "ウェブサイトでロゴが見つかりませんでした。アップロードするか、今はスキップできます。",
+          "upload": "ロゴをアップロード",
+          "replace": "ロゴを差し替え",
+          "remove": "削除",
+          "uploadHint": "PNG、JPG、または SVG。最大 2 MB。",
+          "uploadError": "ロゴのアップロードに失敗しました",
+          "previewAlt": "組織ロゴのプレビュー"
+        },
+        "Brand": {
+          "title": "ブランドガイドライン",
+          "tooltip": "ブランドガイドラインは DESIGN.md ファイルです。色、フォント、トーン、スタイルを一箇所にまとめます。同僚が読むことで、作成するものがあなたのブランドに沿います。",
+          "generating": "{domain} を読み取り、ブランドスタイルを作成しています…",
+          "generatingNoDomain": "ウェブサイトを読み取り、ブランドスタイルを作成しています…",
+          "generated": "{domain} からブランドスタイルを生成しました。",
+          "generatedNoDomain": "ウェブサイトからブランドスタイルを生成しました。",
+          "failedTitle": "ウェブサイトを読み取れませんでした",
+          "failedSubtitle": "問題ありません — ブランドガイドラインは後から追加できます。",
+          "retry": "再試行",
+          "skipHint": "バックグラウンドで続行中です — いつでも次に進めます。",
+          "editHint": "後から組織設定で編集、差し替え、削除できます。"
+        },
+        "Invite": {
+          "title": "{organization} の準備ができました",
+          "titleFallback": "準備完了",
+          "subtitle": "組織のセットアップが完了しました。チームを招待するか、後で行えます。",
+          "linkHint": "このリンクを持つ人は誰でもメンバーとして参加できます。",
+          "copy": "コピー",
+          "copied": "コピー済み",
+          "regenerate": "リンクをリセット",
+          "emailsPlaceholder": "alex@acme.com, sam@acme.com",
+          "emailsHint": "カンマ、セミコロン、または改行。",
+          "sendInvites": "招待を送信",
+          "sending": "送信中…",
+          "inviteSuccess": "招待を送信しました",
+          "inviteSummary": "送信 {sent}、失敗 {failed}。",
+          "linkError": "招待リンクの作成に失敗しました",
+          "emailError": "招待の送信に失敗しました"
+        },
+        "Errors": {
+          "createFailed": "組織の作成に失敗しました",
+          "unauthorizedAction": "ログイン"
+        }
+      },
       "RemoveModal": {
         "title": "組織を削除",
         "description": "組織「{organization}」を削除してよろしいですか？",
@@ -691,6 +762,30 @@
       "placeholder": "組織を選択",
       "search": "組織を検索…",
       "empty": "組織が見つかりません。"
+    }
+  },
+  "Join": {
+    "title": "招待されています",
+    "invitedToJoin": "Sokosumi の {organization} に参加しましょう。",
+    "join": "{organization} に参加",
+    "joining": "参加中…",
+    "linkHintOwner": "このリンクを持つ人は誰でもメンバーとして参加できます。",
+    "signedOutHint": "招待を承諾するには、ログインするかアカウントを作成してください。",
+    "haveAccount": "すでにアカウントをお持ちですか？",
+    "noAccount": "Sokosumi は初めてですか？",
+    "signIn": "ログインして参加",
+    "register": "アカウントを作成",
+    "Error": {
+      "joinFailed": "組織への参加に失敗しました",
+      "unauthorizedAction": "ログイン"
+    },
+    "Invalid": {
+      "title": "この招待リンクは利用できません",
+      "expired": "この招待リンクは期限切れです。組織の管理者に新しいリンクを依頼してください。",
+      "revoked": "この招待リンクは取り消されました。組織の管理者に新しいリンクを依頼してください。",
+      "depleted": "この招待リンクは上限に達しました。組織の管理者に新しいリンクを依頼してください。",
+      "notFound": "この招待リンクは無効か、存在しません。",
+      "back": "ホームへ戻る"
     }
   },
   "AcceptInvitation": {

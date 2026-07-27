@@ -565,6 +565,77 @@
           }
         }
       },
+      "CreateOrganizationWizard": {
+        "title": "创建组织",
+        "description": "通过几个简单步骤设置你的组织。",
+        "Nav": {
+          "back": "返回",
+          "next": "继续",
+          "skip": "跳过",
+          "finishSetup": "完成设置",
+          "finish": "前往工作区",
+          "creating": "正在创建…"
+        },
+        "Details": {
+          "title": "为组织命名",
+          "subtitle": "填写名称和网站，其余部分我们来完成。",
+          "nameLabel": "名称",
+          "namePlaceholder": "Acme Inc.",
+          "urlLabel": "网站",
+          "urlPlaceholder": "https://acme.com",
+          "urlHint": "我们会用它来获取标志和品牌指南。",
+          "nameInvalid": "请输入至少 2 个字符的名称。",
+          "urlInvalid": "请输入有效的网站，例如 https://acme.com"
+        },
+        "Logo": {
+          "title": "你的标志",
+          "subtitle": "我们从你的网站选取了最合适的图标。",
+          "generating": "正在查找标志…",
+          "found": "我们在 {domain} 找到了这个。不对？请自行上传。",
+          "foundNoDomain": "我们在你的网站上找到了这个。不对？请自行上传。",
+          "notFound": "未能在你的网站上找到标志。请上传一个，或暂时跳过。",
+          "upload": "上传标志",
+          "replace": "替换标志",
+          "remove": "移除",
+          "uploadHint": "PNG、JPG 或 SVG。最大 2 MB。",
+          "uploadError": "上传标志失败",
+          "previewAlt": "组织标志预览"
+        },
+        "Brand": {
+          "title": "品牌指南",
+          "tooltip": "品牌指南是一个 DESIGN.md 文件：将颜色、字体、语气和风格集中在一处。同事阅读后，为你创建的内容就会更符合你的品牌。",
+          "generating": "正在阅读 {domain} 以生成品牌风格…",
+          "generatingNoDomain": "正在阅读你的网站以生成品牌风格…",
+          "generated": "我们已根据 {domain} 生成品牌风格。",
+          "generatedNoDomain": "我们已根据你的网站生成品牌风格。",
+          "failedTitle": "无法读取你的网站",
+          "failedSubtitle": "没关系 — 你可以稍后再添加品牌指南。",
+          "retry": "重试",
+          "skipHint": "会在后台继续运行 — 你随时可以继续。",
+          "editHint": "之后可在组织设置中编辑、替换或删除。"
+        },
+        "Invite": {
+          "title": "{organization} 已就绪",
+          "titleFallback": "一切就绪",
+          "subtitle": "组织已设置完成。邀请团队成员，或稍后再做。",
+          "linkHint": "任何持有此链接的人都可以以成员身份加入。",
+          "copy": "复制",
+          "copied": "已复制",
+          "regenerate": "重置链接",
+          "emailsPlaceholder": "alex@acme.com, sam@acme.com",
+          "emailsHint": "逗号、分号或换行。",
+          "sendInvites": "发送邀请",
+          "sending": "正在发送…",
+          "inviteSuccess": "邀请已发送",
+          "inviteSummary": "已发送 {sent}，失败 {failed}。",
+          "linkError": "创建邀请链接失败",
+          "emailError": "发送邀请失败"
+        },
+        "Errors": {
+          "createFailed": "创建组织失败",
+          "unauthorizedAction": "登录"
+        }
+      },
       "RemoveModal": {
         "title": "移除组织",
         "description": "确定要移除组织 \"{organization}\" 吗？",
@@ -691,6 +762,30 @@
       "placeholder": "选择组织",
       "search": "搜索组织…",
       "empty": "未找到组织。"
+    }
+  },
+  "Join": {
+    "title": "你已收到邀请",
+    "invitedToJoin": "加入 Sokosumi 上的 {organization}。",
+    "join": "加入 {organization}",
+    "joining": "正在加入…",
+    "linkHintOwner": "任何持有此链接的人都可以以成员身份加入。",
+    "signedOutHint": "登录或创建账户以接受此邀请。",
+    "haveAccount": "已有账户？",
+    "noAccount": "刚接触 Sokosumi？",
+    "signIn": "登录以加入",
+    "register": "创建账户",
+    "Error": {
+      "joinFailed": "加入组织失败",
+      "unauthorizedAction": "登录"
+    },
+    "Invalid": {
+      "title": "此邀请链接不可用",
+      "expired": "此邀请链接已过期。请向组织管理员索取新链接。",
+      "revoked": "此邀请链接已被撤销。请向组织管理员索取新链接。",
+      "depleted": "此邀请链接已达使用上限。请向组织管理员索取新链接。",
+      "notFound": "此邀请链接无效或不存在。",
+      "back": "返回首页"
     }
   },
   "AcceptInvitation": {

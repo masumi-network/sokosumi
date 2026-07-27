@@ -136,6 +136,15 @@ export const hermesInstanceSchema = z
      */
     personality: hermesPersonalitySchema.nullable().default(null),
     autonomyLevel: hermesAutonomyLevelSchema.default("medium"),
+    /**
+     * The LLM the orchestrator is currently serving this instance (e.g.
+     * "xiaomi/mimo-v2.5") and its provider label (e.g. "OpenRouter
+     * (managed)"). Reported live so the settings panel shows the real model
+     * instead of a constant that drifts when the orchestrator swaps models.
+     * Null when the orchestrator omits them; the UI falls back to i18n copy.
+     */
+    model: z.string().nullable().default(null),
+    modelProvider: z.string().nullable().default(null),
     integrations: z.array(hermesIntegrationSchema),
     transitioning: z.boolean().default(false),
     lastSokosumiSyncAt: dateTimeSchema.nullable().default(null),
