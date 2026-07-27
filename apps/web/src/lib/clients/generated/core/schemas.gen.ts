@@ -140,7 +140,10 @@ export const AdminAgentDetailSchema = {
                     ]
                 },
                 apiBaseUrl: {
-                    type: 'string'
+                    type: [
+                        'string',
+                        'null'
+                    ]
                 },
                 authorName: {
                     type: [
@@ -254,7 +257,37 @@ export const AdminAgentRegistrySchema = {
             ]
         },
         apiBaseUrl: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        type: {
+            $ref: '#/components/schemas/AgentEntryType'
+        },
+        openApiSpecUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        x402ResourcesUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        paymentType: {
+            $ref: '#/components/schemas/PaymentType'
+        },
+        metadataVersion: {
+            type: 'integer'
+        },
+        supersededByAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
         },
         capabilityName: {
             type: [
@@ -357,6 +390,12 @@ export const AdminAgentRegistrySchema = {
         'name',
         'description',
         'apiBaseUrl',
+        'type',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
+        'paymentType',
+        'metadataVersion',
+        'supersededByAgentIdentifier',
         'capabilityName',
         'capabilityVersion',
         'authorName',
@@ -374,6 +413,25 @@ export const AdminAgentRegistrySchema = {
         'isShown',
         'createdAt',
         'updatedAt'
+    ]
+} as const;
+
+export const AgentEntryTypeSchema = {
+    type: 'string',
+    enum: [
+        'STANDARD',
+        'OPEN_API',
+        'X402'
+    ]
+} as const;
+
+export const PaymentTypeSchema = {
+    type: 'string',
+    enum: [
+        'WEB3_CARDANO_V1',
+        'WEB3_CARDANO_V2',
+        'NONE',
+        'UNKNOWN'
     ]
 } as const;
 

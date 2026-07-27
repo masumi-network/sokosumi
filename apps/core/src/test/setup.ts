@@ -34,6 +34,7 @@ const envDefaults: Record<string, string> = {
   LOCK_TIMEOUT_BUFFER: "25000",
   INSTANCE_ID: "test-instance-id",
   SHOW_AGENTS_BY_DEFAULT: "true",
+  ENABLE_CARDANO_V2_AGENTS: "false",
   MAINTENANCE_MODE: "false",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
   JOB_FAILURE_NOTIFICATION_EMAILS: "",

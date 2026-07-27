@@ -1,7 +1,11 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
-import { agentStatusSchema } from "@/schemas/domain-enums.schema";
+import {
+  agentEntryTypeSchema,
+  agentStatusSchema,
+  paymentTypeSchema,
+} from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 export const adminAgentListSortBySchema = z
@@ -88,7 +92,13 @@ export const adminAgentRegistrySchema = z
     blockchainIdentifier: z.string(),
     name: z.string(),
     description: z.string().nullable(),
-    apiBaseUrl: z.string(),
+    apiBaseUrl: z.string().nullable(),
+    type: agentEntryTypeSchema,
+    openApiSpecUrl: z.string().nullable(),
+    x402ResourcesUrl: z.string().nullable(),
+    paymentType: paymentTypeSchema,
+    metadataVersion: z.number().int(),
+    supersededByAgentIdentifier: z.string().nullable(),
     capabilityName: z.string().nullable(),
     capabilityVersion: z.string().nullable(),
     authorName: z.string().nullable(),
@@ -136,7 +146,7 @@ export const adminAgentDetailSchema = z
       name: z.string(),
       description: z.string().nullable(),
       image: z.string().nullable(),
-      apiBaseUrl: z.string(),
+      apiBaseUrl: z.string().nullable(),
       authorName: z.string().nullable(),
       authorImage: z.string().nullable(),
       authorContactEmail: z.string().nullable(),

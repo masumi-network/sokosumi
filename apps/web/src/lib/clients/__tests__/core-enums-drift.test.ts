@@ -2,6 +2,7 @@ import { SokosumiJobStatus as UtilsSokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  AgentEntryType,
   AgentJobStatus,
   BlobStatus,
   Channel,
@@ -10,6 +11,7 @@ import {
   MemberRole,
   NoticeKind,
   OnChainJobStatus,
+  PaymentType,
   type PublicSharedTaskMilestone,
   RiskClassification,
   SokosumiJobStatus,
@@ -63,6 +65,23 @@ describe("generated Core enum drift guard", () => {
       RUNNING: "RUNNING",
       COMPLETED: "COMPLETED",
       FAILED: "FAILED",
+    });
+  });
+
+  it("AgentEntryType matches the canonical Prisma/OpenAPI set", () => {
+    expect({ ...AgentEntryType }).toEqual({
+      STANDARD: "STANDARD",
+      OPEN_API: "OPEN_API",
+      X402: "X402",
+    });
+  });
+
+  it("PaymentType matches the canonical Prisma/OpenAPI set", () => {
+    expect({ ...PaymentType }).toEqual({
+      WEB3_CARDANO_V1: "WEB3_CARDANO_V1",
+      WEB3_CARDANO_V2: "WEB3_CARDANO_V2",
+      NONE: "NONE",
+      UNKNOWN: "UNKNOWN",
     });
   });
 

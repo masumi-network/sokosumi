@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import {
+  AgentEntryType,
   AgentJobStatus,
   AgentStatus,
   BlobStatus,
@@ -9,6 +10,7 @@ import {
   MemberRole,
   NoticeKind,
   OnChainJobStatus,
+  PaymentType,
   RiskClassification,
   TaskStatus,
 } from "@sokosumi/database";
@@ -36,6 +38,12 @@ import type Stripe from "stripe";
 export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
 
 export const agentStatusSchema = z.enum(AgentStatus).openapi("AgentStatus");
+
+export const agentEntryTypeSchema = z
+  .enum(AgentEntryType)
+  .openapi("AgentEntryType");
+
+export const paymentTypeSchema = z.enum(PaymentType).openapi("PaymentType");
 
 export const agentJobStatusSchema = z
   .enum(AgentJobStatus)

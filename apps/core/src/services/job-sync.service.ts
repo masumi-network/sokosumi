@@ -38,7 +38,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
-import { getAgentName } from "@/helpers/agent";
+import { getAgentName, toMasumiAgent } from "@/helpers/agent";
 import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
@@ -719,6 +719,16 @@ async function syncAgentStatus(
     return true;
   }
 
+  // Agents without a MIP-003 endpoint (pointer entries) have no status
+  // endpoint to poll; such agents cannot be hired, so this only guards
+  // legacy/corner rows.
+  if (
+    !initialJob.agent.apiBaseUrl &&
+    !initialJob.agent.metadataOverride?.apiBaseUrl
+  ) {
+    return true;
+  }
+
   const pollingSignal = createPollingSignal(
     options,
     `Stopping before polling agent status for job ${initialJob.id}`,
@@ -729,7 +739,7 @@ async function syncAgentStatus(
   }
 
   const agentJobStatusResult = await createAgentClient().fetchAgentJobStatus(
-    initialJob.agent,
+    toMasumiAgent(initialJob.agent),
     agentJobIdToSync,
     {
       signal: pollingSignal,

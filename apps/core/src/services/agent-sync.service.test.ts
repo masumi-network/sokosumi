@@ -1,29 +1,51 @@
-import { AgentStatus, PaymentType, PricingType } from "@sokosumi/database";
+import {
+  AgentEntryType,
+  AgentStatus,
+  PaymentType,
+  PricingType,
+} from "@sokosumi/database";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  agentCreateMock,
   agentFindManyMock,
+  agentFindUniqueMock,
+  agentFixedPricingDeleteMock,
+  agentPaymentSourceDeleteManyMock,
+  agentPricingFindUniqueMock,
+  agentPricingUpdateMock,
   agentUpdateMock,
-  agentUpsertMock,
   getAgentsDiffMock,
   openrouterGenerateAgentSummaryMock,
+  syncMetadataDeleteManyMock,
   syncMetadataFindUniqueMock,
   syncMetadataUpsertMock,
   tagUpsertMock,
+  transactionMock,
+  unitValueDeleteManyMock,
 } = vi.hoisted(() => ({
+  agentCreateMock: vi.fn(),
   agentFindManyMock: vi.fn(),
+  agentFindUniqueMock: vi.fn(),
+  agentFixedPricingDeleteMock: vi.fn(),
+  agentPaymentSourceDeleteManyMock: vi.fn(),
+  agentPricingFindUniqueMock: vi.fn(),
+  agentPricingUpdateMock: vi.fn(),
   agentUpdateMock: vi.fn(),
-  agentUpsertMock: vi.fn(),
   getAgentsDiffMock: vi.fn(),
   openrouterGenerateAgentSummaryMock: vi.fn(),
+  syncMetadataDeleteManyMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
   syncMetadataUpsertMock: vi.fn(),
   tagUpsertMock: vi.fn(),
+  transactionMock: vi.fn(),
+  unitValueDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
+    NETWORK: "Preprod",
     SHOW_AGENTS_BY_DEFAULT: true,
   }),
 }));
@@ -46,14 +68,30 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: tagUpsertMock,
     },
     agent: {
+      create: agentCreateMock,
       findMany: agentFindManyMock,
+      findUnique: agentFindUniqueMock,
       update: agentUpdateMock,
-      upsert: agentUpsertMock,
+    },
+    agentPricing: {
+      findUnique: agentPricingFindUniqueMock,
+      update: agentPricingUpdateMock,
+    },
+    agentFixedPricing: {
+      delete: agentFixedPricingDeleteMock,
+    },
+    unitValue: {
+      deleteMany: unitValueDeleteManyMock,
+    },
+    agentPaymentSource: {
+      deleteMany: agentPaymentSourceDeleteManyMock,
     },
     syncMetadata: {
+      deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
       upsert: syncMetadataUpsertMock,
     },
+    $transaction: transactionMock,
   },
 }));
 
@@ -79,6 +117,27 @@ function createSyncExecutionOptions(
   };
 }
 
+function createTransactionClientMock() {
+  return {
+    agent: {
+      update: agentUpdateMock,
+    },
+    agentPricing: {
+      findUnique: agentPricingFindUniqueMock,
+      update: agentPricingUpdateMock,
+    },
+    agentFixedPricing: {
+      delete: agentFixedPricingDeleteMock,
+    },
+    unitValue: {
+      deleteMany: unitValueDeleteManyMock,
+    },
+    agentPaymentSource: {
+      deleteMany: agentPaymentSourceDeleteManyMock,
+    },
+  };
+}
+
 function createRegistryEntry(
   id: string,
   overrides: Record<string, unknown> = {},
@@ -90,6 +149,11 @@ function createRegistryEntry(
     name: `Agent ${id}`,
     description: "Base description",
     apiBaseUrl: "https://example.com",
+    type: "Standard",
+    openApiSpecUrl: null,
+    x402ResourcesUrl: null,
+    supersededByAgentIdentifier: null,
+    metadataVersion: 1,
     lastUptimeCheck: "2026-02-24T10:00:00.000Z",
     uptimeCount: 10,
     uptimeCheckCount: 12,
@@ -111,6 +175,7 @@ function createRegistryEntry(
     AgentPricing: {
       pricingType: "Free",
     },
+    SupportedPaymentSources: [],
     ExampleOutput: [
       {
         mimeType: "text/plain",
@@ -118,6 +183,26 @@ function createRegistryEntry(
         url: "https://example.com/output.txt",
       },
     ],
+    ...overrides,
+  };
+}
+
+function createCardanoV2PaymentSource(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    sourceIndex: 0,
+    chain: "Cardano",
+    network: "Preprod",
+    paymentSourceType: "Web3CardanoV2",
+    address: "addr_test1_contract",
+    payTo: "addr_test1_seller",
+    scheme: null,
+    resource: null,
+    pricing: {
+      pricingType: "Fixed",
+      fixed: [{ asset: "lovelace", amount: "1000000", decimals: 6 }],
+    },
     ...overrides,
   };
 }
@@ -130,9 +215,21 @@ describe("agentSyncService.syncRegistryAgents", () => {
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
       cursorId: null,
     });
+    syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     tagUpsertMock.mockResolvedValue(undefined);
-    agentUpsertMock.mockResolvedValue(undefined);
+    agentFindUniqueMock.mockResolvedValue(null);
+    agentCreateMock.mockResolvedValue(undefined);
+    agentUpdateMock.mockResolvedValue(undefined);
+    agentPricingFindUniqueMock.mockResolvedValue({ agentFixedPricingId: null });
+    agentPricingUpdateMock.mockResolvedValue(undefined);
+    unitValueDeleteManyMock.mockResolvedValue({ count: 0 });
+    agentFixedPricingDeleteMock.mockResolvedValue(undefined);
+    agentPaymentSourceDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataUpsertMock.mockResolvedValue(undefined);
+    transactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        callback(createTransactionClientMock()),
+    );
   });
 
   it("does not update metadata when diff has no entries", async () => {
@@ -144,8 +241,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
+    expect(syncMetadataDeleteManyMock).not.toHaveBeenCalled();
     expect(tagUpsertMock).not.toHaveBeenCalled();
-    expect(agentUpsertMock).not.toHaveBeenCalled();
+    expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
@@ -161,7 +259,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(syncMetadataFindUniqueMock).not.toHaveBeenCalled();
     expect(getAgentsDiffMock).not.toHaveBeenCalled();
     expect(tagUpsertMock).not.toHaveBeenCalled();
-    expect(agentUpsertMock).not.toHaveBeenCalled();
+    expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
@@ -190,7 +288,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
-    expect(agentUpsertMock).not.toHaveBeenCalled();
+    expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
@@ -215,11 +313,28 @@ describe("agentSyncService.syncRegistryAgents", () => {
     });
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
-    expect(agentUpsertMock).not.toHaveBeenCalled();
+    expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
-  it("upserts agents/tags and persists cursor metadata for valid entries", async () => {
+  it("clears the cursor before reading it when resetCursor is set", async () => {
+    const agentSyncService = await getAgentSyncService();
+    getAgentsDiffMock.mockResolvedValue(ok([]));
+
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
+      ...createSyncExecutionOptions(),
+      resetCursor: true,
+    });
+
+    expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
+      where: { key: "agents-sync-metadata" },
+    });
+    expect(syncMetadataDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      syncMetadataFindUniqueMock.mock.invocationCallOrder[0] ?? Infinity,
+    );
+  });
+
+  it("creates agents/tags for every entry and persists cursor metadata", async () => {
     const agentSyncService = await getAgentSyncService();
     const lastStatusUpdatedAt = "2026-02-24T16:00:00.000Z";
     const entries = [
@@ -255,31 +370,58 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
 
     expect(tagUpsertMock).toHaveBeenCalled();
-    expect(agentUpsertMock).toHaveBeenCalledTimes(2);
+    expect(agentFindUniqueMock).toHaveBeenCalledWith({
+      where: { blockchainIdentifier: "identifier-entry-1" },
+      select: { id: true, pricingId: true },
+    });
+    expect(agentCreateMock).toHaveBeenCalledTimes(3);
 
-    const freeEntryCall = agentUpsertMock.mock.calls[0]?.[0];
-    expect(freeEntryCall.create.pricing.create.pricingType).toBe(
+    const freeEntryCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(freeEntryCall.data.blockchainIdentifier).toBe("identifier-entry-1");
+    expect(freeEntryCall.data.pricing.create.pricingType).toBe(
       PricingType.FREE,
     );
-    expect(freeEntryCall.create.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
-    expect(freeEntryCall.create.status).toBe(AgentStatus.ONLINE);
+    expect(freeEntryCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
+    expect(freeEntryCall.data.status).toBe(AgentStatus.ONLINE);
+    expect(freeEntryCall.data.type).toBe(AgentEntryType.STANDARD);
+    expect(freeEntryCall.data.metadataVersion).toBe(1);
+    expect(freeEntryCall.data.supersededByAgentIdentifier).toBeNull();
+    expect(freeEntryCall.data.isShown).toBe(true);
+    expect(freeEntryCall.data.tags).toEqual({
+      connect: [{ name: "tag-a" }, { name: "tag-b" }],
+    });
+    expect(freeEntryCall.data.paymentSources).toEqual({ create: [] });
+    expect(freeEntryCall.data.exampleOutput).toEqual({
+      createMany: {
+        data: [
+          {
+            mimeType: "text/plain",
+            name: "Example",
+            url: "https://example.com/output.txt",
+          },
+        ],
+      },
+    });
 
-    const fixedEntryCall = agentUpsertMock.mock.calls[1]?.[0];
-    expect(fixedEntryCall.create.pricing.create.pricingType).toBe(
+    const fixedEntryCall = agentCreateMock.mock.calls[1]?.[0];
+    expect(fixedEntryCall.data.pricing.create.pricingType).toBe(
       PricingType.FIXED,
     );
     expect(
-      fixedEntryCall.create.pricing.create.fixedPricing.create.amounts
-        .createMany.data,
+      fixedEntryCall.data.pricing.create.fixedPricing.create.amounts.createMany
+        .data,
     ).toEqual([{ amount: BigInt(42), unit: "TOKEN" }]);
 
-    // entry-3 has a non-ingestable payment type, so it is skipped without an
-    // upsert while the cursor still advances past it.
-    expect(
-      agentUpsertMock.mock.calls.some(
-        (call) => call[0]?.where.blockchainIdentifier === "identifier-entry-3",
-      ),
-    ).toBe(false);
+    // entry-3 has an unexpected payment type: it is still ingested (nothing is
+    // skipped anymore), stored as UNKNOWN payment type and UNKNOWN pricing.
+    const unknownEntryCall = agentCreateMock.mock.calls[2]?.[0];
+    expect(unknownEntryCall.data.blockchainIdentifier).toBe(
+      "identifier-entry-3",
+    );
+    expect(unknownEntryCall.data.paymentType).toBe(PaymentType.UNKNOWN);
+    expect(unknownEntryCall.data.pricing.create.pricingType).toBe(
+      PricingType.UNKNOWN,
+    );
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: {
@@ -316,19 +458,31 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
-    const emptyFixedCall = agentUpsertMock.mock.calls[0]?.[0];
-    expect(emptyFixedCall.create.pricing.create.pricingType).toBe(
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const emptyFixedCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(emptyFixedCall.data.pricing.create.pricingType).toBe(
       PricingType.UNKNOWN,
     );
-    expect(emptyFixedCall.create.pricing.create.fixedPricing).toBeUndefined();
+    expect(emptyFixedCall.data.pricing.create.fixedPricing).toBeUndefined();
   });
 
-  it("skips Web3CardanoV2 entries without upserting but still advances the cursor", async () => {
+  it("ingests V2 entries with pricing projected from the matching Cardano V2 source", async () => {
     const entries = [
       createRegistryEntry("entry-v2", {
         paymentType: "Web3CardanoV2",
+        AgentPricing: null,
         statusUpdatedAt: "2026-02-24T13:00:00.000Z",
+        SupportedPaymentSources: [
+          createCardanoV2PaymentSource({
+            pricing: {
+              pricingType: "Fixed",
+              fixed: [
+                { asset: "lovelace", amount: "1000000", decimals: 6 },
+                { asset: "policyid.usdm", amount: "5" },
+              ],
+            },
+          }),
+        ],
       }),
     ];
     getAgentsDiffMock.mockResolvedValue(ok(entries));
@@ -339,24 +493,160 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentUpsertMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
-      where: {
-        key: "agents-sync-metadata",
-      },
-      create: {
-        key: "agents-sync-metadata",
-        cursorId: "entry-v2",
-        lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
-      },
-      update: {
-        cursorId: "entry-v2",
-        lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
-      },
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V2);
+    expect(createCall.data.pricing.create.pricingType).toBe(PricingType.FIXED);
+    expect(
+      createCall.data.pricing.create.fixedPricing.create.amounts.createMany
+        .data,
+    ).toEqual([
+      { unit: "lovelace", amount: BigInt(1000000) },
+      { unit: "policyid.usdm", amount: BigInt(5) },
+    ]);
+    expect(createCall.data.paymentSources).toEqual({
+      create: [
+        {
+          sourceIndex: 0,
+          chain: "Cardano",
+          network: "Preprod",
+          paymentSourceType: "Web3CardanoV2",
+          address: "addr_test1_contract",
+          payTo: "addr_test1_seller",
+          pricingType: PricingType.FIXED,
+          amounts: {
+            createMany: {
+              data: [
+                { unit: "lovelace", amount: BigInt(1000000), decimals: 6 },
+                { unit: "policyid.usdm", amount: BigInt(5), decimals: null },
+              ],
+            },
+          },
+        },
+      ],
+    });
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: "entry-v2",
+          lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
+        },
+      }),
+    );
+  });
+
+  it("stores V2 entries without a matching-network source with UNKNOWN pricing", async () => {
+    const entries = [
+      createRegistryEntry("entry-v2-mainnet", {
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [
+          createCardanoV2PaymentSource({ network: "Mainnet" }),
+        ],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V2);
+    expect(createCall.data.pricing.create.pricingType).toBe(
+      PricingType.UNKNOWN,
+    );
+    expect(createCall.data.pricing.create.fixedPricing).toBeUndefined();
+    // The mismatched source is still mirrored for later reconciliation.
+    expect(createCall.data.paymentSources.create).toHaveLength(1);
+    expect(createCall.data.paymentSources.create[0]).toMatchObject({
+      network: "Mainnet",
+      pricingType: PricingType.FIXED,
     });
   });
 
-  it("skips entries without an apiBaseUrl but keeps upserting later entries", async () => {
+  it("ingests X402 pointer entries with a null apiBaseUrl and EVM payment sources", async () => {
+    const entries = [
+      createRegistryEntry("entry-x402", {
+        type: "X402",
+        apiBaseUrl: null,
+        paymentType: "None",
+        AgentPricing: null,
+        x402ResourcesUrl: "https://example.com/x402-resources",
+        SupportedPaymentSources: [
+          {
+            sourceIndex: 0,
+            chain: "Base",
+            network: "eip155:8453",
+            paymentSourceType: null,
+            address: "0x1111111111111111111111111111111111111111",
+            payTo: "0x2222222222222222222222222222222222222222",
+            scheme: "exact",
+            resource: "https://example.com/resource",
+            pricing: {
+              pricingType: "Fixed",
+              fixed: [
+                {
+                  asset: "0x3333333333333333333333333333333333333333",
+                  amount: "250000",
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.type).toBe(AgentEntryType.X402);
+    expect(createCall.data.apiBaseUrl).toBeNull();
+    expect(createCall.data.x402ResourcesUrl).toBe(
+      "https://example.com/x402-resources",
+    );
+    expect(createCall.data.paymentType).toBe(PaymentType.NONE);
+    expect(createCall.data.pricing.create.pricingType).toBe(
+      PricingType.UNKNOWN,
+    );
+    expect(createCall.data.paymentSources).toEqual({
+      create: [
+        {
+          sourceIndex: 0,
+          chain: "Base",
+          network: "eip155:8453",
+          paymentSourceType: null,
+          address: "0x1111111111111111111111111111111111111111",
+          payTo: "0x2222222222222222222222222222222222222222",
+          pricingType: PricingType.FIXED,
+          amounts: {
+            createMany: {
+              data: [
+                {
+                  unit: "0x3333333333333333333333333333333333333333",
+                  amount: BigInt(250000),
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+        },
+      ],
+    });
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("ingests entries without an apiBaseUrl storing a null apiBaseUrl", async () => {
     const entries = [
       createRegistryEntry("entry-no-url", {
         apiBaseUrl: null,
@@ -373,11 +663,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
-    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
-    expect(upsertCall.where.blockchainIdentifier).toBe(
-      "identifier-entry-valid",
-    );
+    expect(agentCreateMock).toHaveBeenCalledTimes(2);
+    const noUrlCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(noUrlCall.data.blockchainIdentifier).toBe("identifier-entry-no-url");
+    expect(noUrlCall.data.apiBaseUrl).toBeNull();
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         update: {
@@ -388,7 +677,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
   });
 
-  it("upserts entries with null AgentPricing as UNKNOWN pricing", async () => {
+  it("stores entries with null AgentPricing as UNKNOWN pricing without warning", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
@@ -405,18 +694,20 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
-    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
-    expect(upsertCall.create.pricing.create.pricingType).toBe(
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.pricing.create.pricingType).toBe(
       PricingType.UNKNOWN,
     );
-    expect(upsertCall.create.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
+    expect(createCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    // Null pricing is legitimate for V2/pointer entries — no warning.
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
 
     consoleWarnSpy.mockRestore();
   });
 
-  it("upserts fixed-pricing entries with non-numeric amounts as UNKNOWN pricing", async () => {
+  it("stores fixed-pricing entries with non-numeric amounts as UNKNOWN pricing", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
@@ -438,18 +729,229 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
-    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
-    expect(upsertCall.create.pricing.create.pricingType).toBe(
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.pricing.create.pricingType).toBe(
       PricingType.UNKNOWN,
     );
-    expect(upsertCall.create.pricing.create.fixedPricing).toBeUndefined();
+    expect(createCall.data.pricing.create.fixedPricing).toBeUndefined();
+    expect(consoleWarnSpy).toHaveBeenCalled();
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
 
     consoleWarnSpy.mockRestore();
   });
 
-  it("stops the batch without advancing the cursor when the first upsert fails", async () => {
+  it("replaces pricing and payment sources in a transaction when the agent already exists", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-db-1",
+      pricingId: "pricing-1",
+    });
+    agentPricingFindUniqueMock.mockResolvedValue({
+      agentFixedPricingId: "fixed-pricing-old",
+    });
+    const entries = [
+      createRegistryEntry("entry-existing", {
+        name: "Renamed Agent",
+        type: "OpenApi",
+        openApiSpecUrl: "https://example.com/spec.yaml",
+        AgentPricing: {
+          pricingType: "Fixed",
+          FixedPricing: {
+            Amounts: [{ amount: "42", unit: "TOKEN" }],
+          },
+        },
+        SupportedPaymentSources: [
+          {
+            sourceIndex: 0,
+            chain: "Cardano",
+            network: "Preprod",
+            paymentSourceType: "Web3CardanoV1",
+            address: "addr_test1_v1_contract",
+            payTo: null,
+            scheme: null,
+            resource: null,
+            pricing: { pricingType: "Free" },
+          },
+        ],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).not.toHaveBeenCalled();
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+
+    // Pricing is replaced in place: old fixed pricing rows are removed and the
+    // new fixed pricing is attached to the same AgentPricing row.
+    expect(agentPricingFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "pricing-1" },
+      select: { agentFixedPricingId: true },
+    });
+    expect(agentPricingUpdateMock).toHaveBeenNthCalledWith(1, {
+      where: { id: "pricing-1" },
+      data: {
+        pricingType: PricingType.FIXED,
+        fixedPricing: { disconnect: true },
+      },
+    });
+    expect(unitValueDeleteManyMock).toHaveBeenCalledWith({
+      where: { agentFixedPricingId: "fixed-pricing-old" },
+    });
+    expect(agentFixedPricingDeleteMock).toHaveBeenCalledWith({
+      where: { id: "fixed-pricing-old" },
+    });
+    expect(agentPricingUpdateMock).toHaveBeenNthCalledWith(2, {
+      where: { id: "pricing-1" },
+      data: {
+        fixedPricing: {
+          create: {
+            amounts: {
+              createMany: {
+                data: [{ amount: BigInt(42), unit: "TOKEN" }],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Payment sources are fully replaced.
+    expect(agentPaymentSourceDeleteManyMock).toHaveBeenCalledWith({
+      where: { agentId: "agent-db-1" },
+    });
+
+    // Registry-derived fields are refreshed on the existing row.
+    expect(agentUpdateMock).toHaveBeenCalledTimes(1);
+    const updateCall = agentUpdateMock.mock.calls[0]?.[0];
+    expect(updateCall.where).toEqual({ id: "agent-db-1" });
+    expect(updateCall.data.name).toBe("Renamed Agent");
+    expect(updateCall.data.type).toBe(AgentEntryType.OPEN_API);
+    expect(updateCall.data.openApiSpecUrl).toBe(
+      "https://example.com/spec.yaml",
+    );
+    expect(updateCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
+    expect(updateCall.data.status).toBe(AgentStatus.ONLINE);
+    expect(updateCall.data.paymentSources).toEqual({
+      create: [
+        {
+          sourceIndex: 0,
+          chain: "Cardano",
+          network: "Preprod",
+          paymentSourceType: "Web3CardanoV1",
+          address: "addr_test1_v1_contract",
+          payTo: null,
+          pricingType: PricingType.FREE,
+        },
+      ],
+    });
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not recreate fixed pricing rows when the existing pricing was not fixed", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-db-1",
+      pricingId: "pricing-1",
+    });
+    agentPricingFindUniqueMock.mockResolvedValue({
+      agentFixedPricingId: null,
+    });
+    const entries = [
+      createRegistryEntry("entry-existing-free", {
+        AgentPricing: { pricingType: "Free" },
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentPricingUpdateMock).toHaveBeenCalledTimes(1);
+    expect(agentPricingUpdateMock).toHaveBeenCalledWith({
+      where: { id: "pricing-1" },
+      data: { pricingType: PricingType.FREE },
+    });
+    expect(unitValueDeleteManyMock).not.toHaveBeenCalled();
+    expect(agentFixedPricingDeleteMock).not.toHaveBeenCalled();
+    expect(agentUpdateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes old fixed pricing rows without recreating them on a FIXED to FREE transition", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-db-1",
+      pricingId: "pricing-1",
+    });
+    agentPricingFindUniqueMock.mockResolvedValue({
+      agentFixedPricingId: "fixed-pricing-old",
+    });
+    const entries = [
+      createRegistryEntry("entry-now-free", {
+        AgentPricing: { pricingType: "Free" },
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentPricingUpdateMock).toHaveBeenCalledTimes(1);
+    expect(agentPricingUpdateMock).toHaveBeenCalledWith({
+      where: { id: "pricing-1" },
+      data: {
+        pricingType: PricingType.FREE,
+        fixedPricing: { disconnect: true },
+      },
+    });
+    expect(unitValueDeleteManyMock).toHaveBeenCalledWith({
+      where: { agentFixedPricingId: "fixed-pricing-old" },
+    });
+    expect(agentFixedPricingDeleteMock).toHaveBeenCalledWith({
+      where: { id: "fixed-pricing-old" },
+    });
+  });
+
+  it("keeps the registry's empty-string ADA unit verbatim in projected V2 pricing", async () => {
+    const entries = [
+      createRegistryEntry("entry-v2-ada", {
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [
+          createCardanoV2PaymentSource({
+            pricing: {
+              pricingType: "Fixed",
+              fixed: [{ asset: "", amount: "2000000" }],
+            },
+          }),
+        ],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.pricing.create.pricingType).toBe(PricingType.FIXED);
+    expect(
+      createCall.data.pricing.create.fixedPricing.create.amounts.createMany
+        .data,
+    ).toEqual([{ unit: "", amount: BigInt(2000000) }]);
+  });
+
+  it("stops the batch without advancing the cursor when the first create fails", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
@@ -461,7 +963,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createRegistryEntry("entry-2"),
     ];
     getAgentsDiffMock.mockResolvedValue(ok(entries));
-    agentUpsertMock.mockRejectedValueOnce(new Error("db down"));
+    agentCreateMock.mockRejectedValueOnce(new Error("db down"));
 
     const agentSyncService = await getAgentSyncService();
     await agentSyncService.syncRegistryAgents(
@@ -469,16 +971,16 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
-    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
-    expect(upsertCall.where.blockchainIdentifier).toBe("identifier-entry-1");
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.blockchainIdentifier).toBe("identifier-entry-1");
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
   });
 
-  it("advances the cursor only past the last successful entry when a later upsert fails", async () => {
+  it("advances the cursor only past the last successful entry when a later create fails", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
@@ -491,7 +993,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
       }),
     ];
     getAgentsDiffMock.mockResolvedValue(ok(entries));
-    agentUpsertMock
+    agentCreateMock
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error("db down"));
 
@@ -501,7 +1003,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentUpsertMock).toHaveBeenCalledTimes(2);
+    expect(agentCreateMock).toHaveBeenCalledTimes(2);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: {
         key: "agents-sync-metadata",

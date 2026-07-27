@@ -572,6 +572,55 @@ model AgentFixedPricing {
   amounts      UnitValue[]
 }
 
+enum AgentEntryType {
+  STANDARD
+  OPEN_API
+  X402
+}
+
+model AgentPaymentSource {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  // Position in the registry entry's supported_payment_sources array — the
+  // supportedPaymentSourceIndex a V2 seller references at payment time.
+  sourceIndex Int
+
+  chain             String
+  // Cardano network name or CAIP-2 id (e.g. eip155:8453) as served by the
+  // registry — a plain string on purpose so EVM rails need no schema change.
+  network           String
+  paymentSourceType String?
+  address           String
+  payTo             String?
+
+  pricingType PricingType
+  amounts     AgentPaymentSourceAmount[]
+
+  @@unique([agentId, sourceIndex])
+  @@index([agentId])
+}
+
+model AgentPaymentSourceAmount {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paymentSourceId String
+  paymentSource   AgentPaymentSource @relation(fields: [paymentSourceId], references: [id], onDelete: Cascade)
+
+  // Chain-native asset identifier (Cardano unit or EVM ERC-20 address).
+  unit     String
+  amount   BigInt
+  decimals Int?
+
+  @@index([paymentSourceId])
+}
+
 model ExampleOutput {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -618,7 +667,17 @@ model Agent {
   name        String
   description String?
 
-  apiBaseUrl String
+  // Null for registry entry types without a MIP-003 endpoint (OpenApi/X402
+  // pointer entries); such agents are never available for hire.
+  apiBaseUrl String?
+
+  type             AgentEntryType @default(STANDARD)
+  openApiSpecUrl   String?
+  x402ResourcesUrl String?
+
+  // For V2 agents: the newer version that replaced this entry (registry
+  // version links). Superseded agents are excluded from availability.
+  supersededByAgentIdentifier String?
 
   capabilityName    String?
   capabilityVersion String?
@@ -646,6 +705,9 @@ model Agent {
   paymentType PaymentType  @default(WEB3_CARDANO_V1)
   pricing     AgentPricing @relation(fields: [pricingId], references: [id])
   pricingId   String       @unique
+
+  // Mirror of the registry entry's supported payment sources (V2/x402).
+  paymentSources AgentPaymentSource[]
 
   status AgentStatus @default(ONLINE)
 
@@ -720,6 +782,7 @@ model Category {
 
 enum PaymentType {
   WEB3_CARDANO_V1
+  WEB3_CARDANO_V2
   NONE
   UNKNOWN
 }

@@ -1,4 +1,5 @@
 import {
+  AgentEntryType,
   AgentJobStatus,
   AgentStatus,
   BlobStatus,
@@ -8,6 +9,7 @@ import {
   MemberRole,
   NoticeKind,
   OnChainJobStatus,
+  PaymentType,
   RiskClassification,
   TaskStatus,
 } from "@sokosumi/database";
@@ -15,6 +17,7 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  agentEntryTypeSchema,
   agentJobStatusSchema,
   agentStatusSchema,
   blobStatusSchema,
@@ -27,6 +30,7 @@ import {
   memberRoleSchema,
   noticeKindSchema,
   onChainJobStatusSchema,
+  paymentTypeSchema,
   riskClassificationSchema,
   STRIPE_SUBSCRIPTION_STATUS_VALUES,
   sokosumiJobStatusSchema,
@@ -49,6 +53,18 @@ describe("domain enum schemas", () => {
   it("named AgentStatus schema values match Prisma", () => {
     expect([...agentStatusSchema.options].sort()).toEqual(
       Object.values(AgentStatus).sort(),
+    );
+  });
+
+  it("named AgentEntryType schema values match Prisma", () => {
+    expect([...agentEntryTypeSchema.options].sort()).toEqual(
+      Object.values(AgentEntryType).sort(),
+    );
+  });
+
+  it("named PaymentType schema values match Prisma", () => {
+    expect([...paymentTypeSchema.options].sort()).toEqual(
+      Object.values(PaymentType).sort(),
     );
   });
 

@@ -1,6 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { AgentStatus, PaymentType, PricingType } from "@sokosumi/database";
+import {
+  AgentEntryType,
+  AgentStatus,
+  PaymentType,
+  PricingType,
+  type Prisma,
+} from "@sokosumi/database";
 import type { PostRegistryDiffResponse } from "@sokosumi/masumi/clients";
 
 import { registryClient } from "@/clients/masumi-registry.client";
@@ -47,14 +53,31 @@ function convertStatus(
   }
 }
 
-function convertPaymentType(paymentType: "Web3CardanoV1" | "None" | unknown) {
+function convertPaymentType(
+  paymentType: "Web3CardanoV1" | "Web3CardanoV2" | "None" | unknown,
+) {
   switch (paymentType) {
     case "Web3CardanoV1":
       return PaymentType.WEB3_CARDANO_V1;
+    case "Web3CardanoV2":
+      return PaymentType.WEB3_CARDANO_V2;
     case "None":
       return PaymentType.NONE;
     default:
       return PaymentType.UNKNOWN;
+  }
+}
+
+function convertEntryType(
+  type: "Standard" | "OpenApi" | "X402" | unknown,
+): AgentEntryType {
+  switch (type) {
+    case "OpenApi":
+      return AgentEntryType.OPEN_API;
+    case "X402":
+      return AgentEntryType.X402;
+    default:
+      return AgentEntryType.STANDARD;
   }
 }
 
@@ -70,13 +93,21 @@ const registryAgentPricingSchema = z.object({
     .optional(),
 });
 
+interface ParsedAgentPricing {
+  pricingType: PricingType;
+  fixedPricingAmounts?: { amount: bigint; unit: string }[];
+}
+
 function parseEntryAgentPricing(
   pricing: unknown,
   agentIdentifier: string,
-): {
-  pricingType: PricingType;
-  fixedPricingAmounts?: { amount: bigint; unit: string }[];
-} {
+): ParsedAgentPricing {
+  if (pricing === null || pricing === undefined) {
+    // Legitimate for V2/pointer entries (pricing is per payment source).
+    return {
+      pricingType: PricingType.UNKNOWN,
+    };
+  }
   const parsed = registryAgentPricingSchema.safeParse(pricing);
   if (!parsed.success) {
     console.warn(
@@ -134,81 +165,317 @@ function parseEntryAgentPricing(
 }
 
 type RegistryDiffEntry = PostRegistryDiffResponse["data"]["entries"][number];
+type RegistryPaymentSource =
+  RegistryDiffEntry["SupportedPaymentSources"][number];
+
+/**
+ * Projects a registry payment source's own pricing into the local pricing
+ * shape. Dynamic pricing is unsupported and maps to UNKNOWN (agent stays
+ * unavailable), matching the V1 behavior.
+ */
+function projectSourcePricing(
+  pricing: RegistryPaymentSource["pricing"],
+  agentIdentifier: string,
+): ParsedAgentPricing {
+  switch (pricing.pricingType) {
+    case "Fixed": {
+      try {
+        // Units are stored verbatim, matching V1 ingestion — including the
+        // registry's empty-string spelling for ADA/lovelace. Availability
+        // still requires a CreditCost row for every unit.
+        const amounts = pricing.fixed.map((fixedAmount) => ({
+          unit: fixedAmount.asset,
+          amount: BigInt(fixedAmount.amount),
+        }));
+        if (amounts.length === 0 || amounts.some((row) => row.amount <= 0n)) {
+          return { pricingType: PricingType.UNKNOWN };
+        }
+        return {
+          pricingType: PricingType.FIXED,
+          fixedPricingAmounts: amounts,
+        };
+      } catch {
+        console.warn(
+          `[sync/agents] Non-numeric source pricing amount for entry ${agentIdentifier}; storing as UNKNOWN`,
+        );
+        return { pricingType: PricingType.UNKNOWN };
+      }
+    }
+    case "Free":
+      return { pricingType: PricingType.FREE };
+    default:
+      return { pricingType: PricingType.UNKNOWN };
+  }
+}
+
+/**
+ * V2 entries price each payment source independently. The agent-level pricing
+ * (credits math, availability) comes from the Cardano V2 source matching this
+ * deployment's network; no match means the agent is not purchasable here.
+ */
+function projectV2AgentPricing(entry: RegistryDiffEntry): ParsedAgentPricing {
+  const network = getEnv().NETWORK;
+  // Defensive `?? []`: the generated client does no runtime validation, so a
+  // registry deployment predating the V2 surface must not crash the sync.
+  const source = (entry.SupportedPaymentSources ?? []).find(
+    (candidate) =>
+      candidate.chain === "Cardano" &&
+      candidate.network === network &&
+      candidate.paymentSourceType === "Web3CardanoV2",
+  );
+  if (!source) {
+    return { pricingType: PricingType.UNKNOWN };
+  }
+  return projectSourcePricing(source.pricing, entry.agentIdentifier);
+}
+
+function resolveEntryPricing(entry: RegistryDiffEntry): ParsedAgentPricing {
+  if (entry.paymentType === "Web3CardanoV2") {
+    return projectV2AgentPricing(entry);
+  }
+  return parseEntryAgentPricing(entry.AgentPricing, entry.agentIdentifier);
+}
+
+interface AgentPaymentSourceRow {
+  sourceIndex: number;
+  chain: string;
+  network: string;
+  paymentSourceType: string | null;
+  address: string;
+  payTo: string | null;
+  pricingType: PricingType;
+  amounts?: { unit: string; amount: bigint; decimals: number | null }[];
+}
+
+function buildPaymentSourceRows(
+  entry: RegistryDiffEntry,
+): AgentPaymentSourceRow[] {
+  const rows: AgentPaymentSourceRow[] = [];
+  const seenSourceIndexes = new Set<number>();
+  for (const source of entry.SupportedPaymentSources ?? []) {
+    // Defensive: sourceIndex is unique per agent in our schema; a duplicate
+    // from the registry must not turn into a batch-stopping constraint error.
+    if (seenSourceIndexes.has(source.sourceIndex)) {
+      continue;
+    }
+    seenSourceIndexes.add(source.sourceIndex);
+
+    const projected = projectSourcePricing(
+      source.pricing,
+      entry.agentIdentifier,
+    );
+    const row: AgentPaymentSourceRow = {
+      sourceIndex: source.sourceIndex,
+      chain: source.chain,
+      network: source.network,
+      paymentSourceType: source.paymentSourceType,
+      address: source.address,
+      payTo: source.payTo,
+      pricingType: projected.pricingType,
+    };
+    if (
+      projected.fixedPricingAmounts &&
+      source.pricing.pricingType === "Fixed"
+    ) {
+      // Zip decimals positionally — assets are not guaranteed unique within
+      // one source's fixed amounts.
+      row.amounts = source.pricing.fixed.map((fixedAmount, index) => ({
+        unit: fixedAmount.asset,
+        amount:
+          projected.fixedPricingAmounts?.[index]?.amount ??
+          BigInt(fixedAmount.amount),
+        decimals: fixedAmount.decimals ?? null,
+      }));
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+/**
+ * Registry-derived scalar fields, shared by create and update so re-registered
+ * agents no longer go stale (the old update branch refreshed only uptime and
+ * status).
+ */
+function buildRegistryAgentFields(entry: RegistryDiffEntry) {
+  return {
+    name: entry.name,
+    description: emptyStringToNull(entry.description),
+    apiBaseUrl: emptyStringToNull(entry.apiBaseUrl),
+    type: convertEntryType(entry.type),
+    openApiSpecUrl: emptyStringToNull(entry.openApiSpecUrl),
+    x402ResourcesUrl: emptyStringToNull(entry.x402ResourcesUrl),
+    metadataVersion: entry.metadataVersion,
+    supersededByAgentIdentifier: entry.supersededByAgentIdentifier,
+    lastUptimeCheck: entry.lastUptimeCheck,
+    uptimeCount: entry.uptimeCount,
+    uptimeCheckCount: entry.uptimeCheckCount,
+    capabilityName: emptyStringToNull(entry.Capability?.name),
+    capabilityVersion: emptyStringToNull(entry.Capability?.version),
+    authorName: emptyStringToNull(entry.authorName),
+    authorContactEmail: isValidEmail(entry.authorContactEmail)
+      ? entry.authorContactEmail
+      : null,
+    authorContactOther: emptyStringToNull(entry.authorContactOther),
+    authorOrganization: emptyStringToNull(entry.authorOrganization),
+    image: emptyStringToNull(entry.image),
+    status: convertStatus(entry.status),
+    legalOther: emptyStringToNull(entry.otherLegal),
+    legalTerms: emptyStringToNull(entry.termsAndCondition),
+    legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
+    paymentType: convertPaymentType(entry.paymentType),
+  };
+}
+
+function buildPaymentSourcesCreate(rows: AgentPaymentSourceRow[]) {
+  return rows.map((row) => ({
+    sourceIndex: row.sourceIndex,
+    chain: row.chain,
+    network: row.network,
+    paymentSourceType: row.paymentSourceType,
+    address: row.address,
+    payTo: row.payTo,
+    pricingType: row.pricingType,
+    ...(row.amounts
+      ? {
+          amounts: {
+            createMany: {
+              data: row.amounts,
+            },
+          },
+        }
+      : {}),
+  }));
+}
+
+/**
+ * Replaces the pricing referenced by an existing AgentPricing row in place
+ * (the Agent keeps its pricingId), cleaning up the previous fixed-pricing
+ * rows.
+ */
+async function replaceAgentPricing(
+  tx: Prisma.TransactionClient,
+  pricingId: string,
+  pricing: ParsedAgentPricing,
+): Promise<void> {
+  const current = await tx.agentPricing.findUnique({
+    where: { id: pricingId },
+    select: { agentFixedPricingId: true },
+  });
+
+  await tx.agentPricing.update({
+    where: { id: pricingId },
+    data: {
+      pricingType: pricing.pricingType,
+      ...(current?.agentFixedPricingId
+        ? { fixedPricing: { disconnect: true } }
+        : {}),
+    },
+  });
+
+  if (current?.agentFixedPricingId) {
+    await tx.unitValue.deleteMany({
+      where: { agentFixedPricingId: current.agentFixedPricingId },
+    });
+    await tx.agentFixedPricing.delete({
+      where: { id: current.agentFixedPricingId },
+    });
+  }
+
+  if (pricing.fixedPricingAmounts) {
+    await tx.agentPricing.update({
+      where: { id: pricingId },
+      data: {
+        fixedPricing: {
+          create: {
+            amounts: {
+              createMany: {
+                data: pricing.fixedPricingAmounts,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+}
 
 async function upsertRegistryAgent(
   entry: RegistryDiffEntry,
-  apiBaseUrl: string,
-  pricing: {
-    pricingType: PricingType;
-    fixedPricingAmounts?: { amount: bigint; unit: string }[];
-  },
+  pricing: ParsedAgentPricing,
 ): Promise<void> {
-  await prisma.agent.upsert({
-    where: {
-      blockchainIdentifier: entry.agentIdentifier,
-    },
-    create: {
-      blockchainIdentifier: entry.agentIdentifier,
-      name: entry.name,
-      description: emptyStringToNull(entry.description),
-      apiBaseUrl,
-      lastUptimeCheck: entry.lastUptimeCheck,
-      uptimeCount: entry.uptimeCount,
-      uptimeCheckCount: entry.uptimeCheckCount,
-      capabilityName: emptyStringToNull(entry.Capability?.name),
-      capabilityVersion: emptyStringToNull(entry.Capability?.version),
-      authorName: emptyStringToNull(entry.authorName),
-      authorContactEmail: isValidEmail(entry.authorContactEmail)
-        ? entry.authorContactEmail
-        : null,
-      authorContactOther: emptyStringToNull(entry.authorContactOther),
-      image: emptyStringToNull(entry.image),
-      tags: {
-        connect: entry.tags?.map((tag) => ({
-          name: tag,
-        })),
-      },
-      authorOrganization: emptyStringToNull(entry.authorOrganization),
-      isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
-      status: convertStatus(entry.status),
-      legalOther: emptyStringToNull(entry.otherLegal),
-      legalTerms: emptyStringToNull(entry.termsAndCondition),
-      legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
-      paymentType: convertPaymentType(entry.paymentType),
-      pricing: {
-        create: {
-          pricingType: pricing.pricingType,
-          ...(pricing.fixedPricingAmounts
-            ? {
-                fixedPricing: {
-                  create: {
-                    amounts: {
-                      createMany: {
-                        data: pricing.fixedPricingAmounts,
+  const registryFields = buildRegistryAgentFields(entry);
+  const paymentSourceRows = buildPaymentSourceRows(entry);
+  const tagsConnect = {
+    connect: entry.tags?.map((tag) => ({
+      name: tag,
+    })),
+  };
+
+  const existing = await prisma.agent.findUnique({
+    where: { blockchainIdentifier: entry.agentIdentifier },
+    select: { id: true, pricingId: true },
+  });
+
+  if (!existing) {
+    await prisma.agent.create({
+      data: {
+        blockchainIdentifier: entry.agentIdentifier,
+        ...registryFields,
+        tags: tagsConnect,
+        isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
+        pricing: {
+          create: {
+            pricingType: pricing.pricingType,
+            ...(pricing.fixedPricingAmounts
+              ? {
+                  fixedPricing: {
+                    create: {
+                      amounts: {
+                        createMany: {
+                          data: pricing.fixedPricingAmounts,
+                        },
                       },
                     },
                   },
-                },
-              }
-            : {}),
+                }
+              : {}),
+          },
+        },
+        paymentSources: {
+          create: buildPaymentSourcesCreate(paymentSourceRows),
+        },
+        exampleOutput: {
+          createMany: {
+            data: (entry.ExampleOutput ?? []).map((example) => ({
+              mimeType: example.mimeType,
+              name: example.name,
+              url: example.url,
+            })),
+          },
         },
       },
-      exampleOutput: {
-        createMany: {
-          data: (entry.ExampleOutput ?? []).map((example) => ({
-            mimeType: example.mimeType,
-            name: example.name,
-            url: example.url,
-          })),
+    });
+    return;
+  }
+
+  // Full refresh of registry-derived data. Example outputs are deliberately
+  // not refreshed (create-only, as before); tags accumulate via connect.
+  await prisma.$transaction(async (tx) => {
+    await replaceAgentPricing(tx, existing.pricingId, pricing);
+    await tx.agentPaymentSource.deleteMany({
+      where: { agentId: existing.id },
+    });
+    await tx.agent.update({
+      where: { id: existing.id },
+      data: {
+        ...registryFields,
+        tags: tagsConnect,
+        paymentSources: {
+          create: buildPaymentSourcesCreate(paymentSourceRows),
         },
       },
-    },
-    update: {
-      lastUptimeCheck: entry.lastUptimeCheck,
-      uptimeCount: entry.uptimeCount,
-      uptimeCheckCount: entry.uptimeCheckCount,
-      status: convertStatus(entry.status),
-    },
+    });
   });
 }
 
@@ -231,7 +498,7 @@ function shouldStopSync(
 
 async function syncRegistryAgents(
   metadataKey: string,
-  options: SyncExecutionOptions,
+  options: SyncExecutionOptions & { resetCursor?: boolean },
 ): Promise<void> {
   const startedAt = Date.now();
   console.info(
@@ -242,6 +509,15 @@ async function syncRegistryAgents(
     shouldStopSync(options, "registry sync canceled before metadata lookup")
   ) {
     return;
+  }
+
+  if (options.resetCursor) {
+    await prisma.syncMetadata.deleteMany({
+      where: { key: metadataKey },
+    });
+    console.info(
+      "[sync/agents] Cursor reset requested — replaying the full registry diff",
+    );
   }
 
   const metadata = await prisma.syncMetadata.findUnique({
@@ -300,7 +576,6 @@ async function syncRegistryAgents(
     });
   }
 
-  let skippedEntryCount = 0;
   // Entries fully handled (upserted or deliberately skipped). The cursor only
   // advances past this contiguous prefix, so an unexpected error (e.g. a
   // transient DB failure) keeps retry semantics for the failed entry and
@@ -311,43 +586,16 @@ async function syncRegistryAgents(
       return;
     }
 
-    // Deliberate deferral: only Web3CardanoV1/None entries are ingested for
-    // now. V2 and pointer-type (OpenApi/X402) entries are skipped — ingesting
-    // them needs schema support and, because the diff cursor advances past
-    // them here, a one-off cursor reset/backfill when that support ships.
-    // Entries with a missing/unrecognized paymentType land here too (skipped
-    // instead of ingested as UNKNOWN placeholder rows).
-    if (entry.paymentType !== "Web3CardanoV1" && entry.paymentType !== "None") {
-      skippedEntryCount++;
-      processedEntryCount++;
-      continue;
-    }
-
-    // Entries without a MIP-003 endpoint cannot be hired and the Agent
-    // apiBaseUrl column is non-nullable, so skip them.
-    const apiBaseUrl = entry.apiBaseUrl;
-    if (!apiBaseUrl) {
-      skippedEntryCount++;
-      processedEntryCount++;
-      continue;
-    }
-
-    const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
-      entry.AgentPricing,
-      entry.agentIdentifier,
-    );
-
     try {
-      await upsertRegistryAgent(entry, apiBaseUrl, {
-        pricingType,
-        fixedPricingAmounts,
-      });
+      const pricing = resolveEntryPricing(entry);
+      await upsertRegistryAgent(entry, pricing);
       processedEntryCount++;
     } catch (error) {
-      // Unexpected failure (likely infra): stop the batch WITHOUT advancing
-      // the cursor past this entry so the next run retries it. Structurally
-      // bad entries cannot land here — the guards above degrade those to
-      // skips — so this cannot reintroduce a crash loop on a known-bad batch.
+      // Failure (infra error, or a data shape the defensive parsing above
+      // did not anticipate): stop the batch WITHOUT advancing the cursor past
+      // this entry so the next run retries it. Transient errors self-heal; a
+      // persistently failing entry keeps the cursor parked and pages via
+      // Sentry rather than being silently dropped.
       console.error(
         `[sync/agents] Upsert failed for entry ${entry.agentIdentifier}; stopping batch for retry:`,
         error,
@@ -387,7 +635,7 @@ async function syncRegistryAgents(
   });
 
   console.info(
-    `[sync/agents] Completed registry sync (entries=${entries.length}, processed=${processedEntryCount}, skipped=${skippedEntryCount}, tags=${tags.length}, durationMs=${Date.now() - startedAt})`,
+    `[sync/agents] Completed registry sync (entries=${entries.length}, processed=${processedEntryCount}, tags=${tags.length}, durationMs=${Date.now() - startedAt})`,
   );
 }
 

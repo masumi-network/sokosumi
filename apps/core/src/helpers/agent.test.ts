@@ -1,10 +1,13 @@
 import {
+  AgentEntryType,
   AgentStatus,
   type CreditCost,
+  PaymentType,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import { describe, expect, it, vi } from "vitest";
+import { HTTPException } from "hono/http-exception";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildAvailableAgentWhereClause,
@@ -14,8 +17,27 @@ import {
   getRecentAgentReviews,
   getUserAgentReview,
   requireAvailableAgentOrThrow,
+  toMasumiAgent,
   upsertUserAgentReview,
 } from "./agent";
+
+const { getEnvMock } = vi.hoisted(() => ({
+  // Default is set here (not only in beforeEach) because `@/lib/db/prisma`
+  // reads getEnv().DATABASE_URL at module load, before any hook runs.
+  getEnvMock: vi.fn().mockReturnValue({
+    DATABASE_URL: "https://example.com/database",
+    ENABLE_CARDANO_V2_AGENTS: false,
+  }),
+}));
+
+vi.mock("@/config/env", () => ({
+  getEnv: getEnvMock,
+}));
+
+beforeEach(() => {
+  // Matches the test-env default (rollout flag off).
+  getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: false });
+});
 
 function createCreditCost(unit: string): CreditCost {
   const now = new Date("2026-01-01T00:00:00.000Z");
@@ -68,6 +90,95 @@ describe("buildAvailableAgentWhereClause", () => {
         },
       ],
     });
+  });
+
+  it("excludes pointer types, endpointless, superseded, unknown-rail, and V2-contract agents when the rollout flag is off", () => {
+    const where = buildAvailableAgentWhereClause([createCreditCost("USD")]);
+
+    expect(where.type).toBe(AgentEntryType.STANDARD);
+    expect(where.supersededByAgentIdentifier).toBeNull();
+    // Allowlist: UNKNOWN rails are never available; V2 only behind the flag.
+    expect(where.paymentType).toEqual({
+      in: [PaymentType.WEB3_CARDANO_V1, PaymentType.NONE],
+    });
+    // Endpoint requirement accepts a metadata-override URL.
+    expect(where.AND).toEqual([
+      {
+        OR: [
+          { apiBaseUrl: { not: null } },
+          { metadataOverride: { apiBaseUrl: { not: null } } },
+        ],
+      },
+    ]);
+  });
+
+  it("allowlists V2-contract agents when the rollout flag is enabled", () => {
+    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
+
+    const where = buildAvailableAgentWhereClause([createCreditCost("USD")]);
+
+    expect(where.paymentType).toEqual({
+      in: [
+        PaymentType.WEB3_CARDANO_V1,
+        PaymentType.NONE,
+        PaymentType.WEB3_CARDANO_V2,
+      ],
+    });
+    // Structural filters stay regardless of the flag.
+    expect(where.type).toBe(AgentEntryType.STANDARD);
+    expect(where.supersededByAgentIdentifier).toBeNull();
+  });
+});
+
+describe("toMasumiAgent", () => {
+  const baseAgent = {
+    id: "agent-1",
+    name: "Agent One",
+    blockchainIdentifier: "chain-1",
+    apiBaseUrl: "https://agent.example.com",
+  };
+
+  it("throws a 422 when neither registry nor override provides an API endpoint", () => {
+    expect(() =>
+      toMasumiAgent({ ...baseAgent, apiBaseUrl: null, metadataOverride: null }),
+    ).toThrowError("Agent has no API endpoint");
+
+    try {
+      toMasumiAgent({
+        ...baseAgent,
+        apiBaseUrl: null,
+        metadataOverride: { apiBaseUrl: null },
+      });
+      expect.unreachable("expected toMasumiAgent to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).status).toBe(422);
+    }
+  });
+
+  it("falls back to the override URL when the registry apiBaseUrl is null", () => {
+    const result = toMasumiAgent({
+      ...baseAgent,
+      apiBaseUrl: null,
+      metadataOverride: { apiBaseUrl: "https://override.example.com" },
+    });
+
+    expect(result).toEqual({
+      id: "agent-1",
+      name: "Agent One",
+      blockchainIdentifier: "chain-1",
+      apiBaseUrl: "https://override.example.com",
+      metadataOverride: { apiBaseUrl: "https://override.example.com" },
+    });
+  });
+
+  it("prefers the registry apiBaseUrl over the override", () => {
+    const result = toMasumiAgent({
+      ...baseAgent,
+      metadataOverride: { apiBaseUrl: "https://override.example.com" },
+    });
+
+    expect(result.apiBaseUrl).toBe("https://agent.example.com");
   });
 });
 

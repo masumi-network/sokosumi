@@ -54,7 +54,7 @@ export type AdminAgentDetail = {
         name: string;
         description: string | null;
         image: string | null;
-        apiBaseUrl: string;
+        apiBaseUrl: string | null;
         authorName: string | null;
         authorImage: string | null;
         authorContactEmail: string | null;
@@ -74,7 +74,13 @@ export type AdminAgentRegistry = {
     blockchainIdentifier: string;
     name: string;
     description: string | null;
-    apiBaseUrl: string;
+    apiBaseUrl: string | null;
+    type: AgentEntryType;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
+    paymentType: PaymentType;
+    metadataVersion: number;
+    supersededByAgentIdentifier: string | null;
     capabilityName: string | null;
     capabilityVersion: string | null;
     authorName: string | null;
@@ -93,6 +99,23 @@ export type AdminAgentRegistry = {
     createdAt: Date;
     updatedAt: Date;
 };
+
+export const AgentEntryType = {
+    STANDARD: 'STANDARD',
+    OPEN_API: 'OPEN_API',
+    X402: 'X402'
+} as const;
+
+export type AgentEntryType = typeof AgentEntryType[keyof typeof AgentEntryType];
+
+export const PaymentType = {
+    WEB3_CARDANO_V1: 'WEB3_CARDANO_V1',
+    WEB3_CARDANO_V2: 'WEB3_CARDANO_V2',
+    NONE: 'NONE',
+    UNKNOWN: 'UNKNOWN'
+} as const;
+
+export type PaymentType = typeof PaymentType[keyof typeof PaymentType];
 
 export type AdminAgentMetadataOverride = {
     name: string | null;

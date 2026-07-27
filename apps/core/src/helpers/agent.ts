@@ -1,9 +1,11 @@
 import {
   type Agent,
+  AgentEntryType,
   type AgentMetadataOverride,
   AgentStatus,
   type AgentWithPricing,
   type CreditCost,
+  PaymentType,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
@@ -11,6 +13,7 @@ import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
+import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import {
   type AgentMyReview,
@@ -79,11 +82,17 @@ export function toMasumiAgent(
     metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
   },
 ): MasumiAgent {
+  // OpenApi/X402 pointer entries have no MIP-003 endpoint; they are excluded
+  // from availability, so this only triggers on direct-by-id access.
+  const apiBaseUrl = agent.apiBaseUrl ?? agent.metadataOverride?.apiBaseUrl;
+  if (!apiBaseUrl) {
+    throw unprocessableEntity("Agent has no API endpoint");
+  }
   return {
     id: agent.id,
     name: agent.name,
     blockchainIdentifier: agent.blockchainIdentifier,
-    apiBaseUrl: agent.apiBaseUrl,
+    apiBaseUrl,
     metadataOverride: agent.metadataOverride
       ? { apiBaseUrl: agent.metadataOverride.apiBaseUrl }
       : null,
@@ -175,6 +184,33 @@ export const buildAvailableAgentWhereClause = (
   return {
     status: AgentStatus.ONLINE,
     isShown: true,
+    // Only Standard entries with a MIP-003 endpoint can be hired; OpenApi and
+    // X402 pointer entries have no job flow yet.
+    type: AgentEntryType.STANDARD,
+    // Superseded V2 agents (a newer registry version exists) stay hidden.
+    supersededByAgentIdentifier: null,
+    // Allowlist of payment rails the job flow can actually purchase through.
+    // UNKNOWN (unrecognized future rails) is always excluded; V2 is gated
+    // behind the rollout flag.
+    paymentType: {
+      in: [
+        PaymentType.WEB3_CARDANO_V1,
+        PaymentType.NONE,
+        ...(getEnv().ENABLE_CARDANO_V2_AGENTS
+          ? [PaymentType.WEB3_CARDANO_V2]
+          : []),
+      ],
+    },
+    // A metadata override can supply the endpoint when the registry entry
+    // has none.
+    AND: [
+      {
+        OR: [
+          { apiBaseUrl: { not: null } },
+          { metadataOverride: { apiBaseUrl: { not: null } } },
+        ],
+      },
+    ],
     pricing: pricingFilter,
   };
 };

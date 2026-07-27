@@ -218,6 +218,7 @@ function createJob(
       id: "agent_1",
       name: "Planner",
       blockchainIdentifier: "agent-chain-1",
+      apiBaseUrl: "https://agent.example.com",
       authorContactEmail: null,
     },
     owner: {
@@ -406,7 +407,12 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledTimes(2);
     expect(getJobByIdMock).toHaveBeenCalledWith("job_1", expect.any(Object));
     expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
-      backfilledJob.agent,
+      // toMasumiAgent projection of the fixture agent
+      expect.objectContaining({
+        id: "agent_1",
+        blockchainIdentifier: "agent-chain-1",
+        apiBaseUrl: "https://agent.example.com",
+      }),
       backfilledJob.agentJobId,
       expect.objectContaining({
         signal: expect.any(Object),
@@ -792,6 +798,37 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       "blockchain-job-1",
       expect.objectContaining({
         signal: expect.any(Object),
+      }),
+    );
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+  });
+
+  it("skips agent-status sync for agents without any MIP-003 endpoint", async () => {
+    const endpointlessAgentJob = createJob({
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        blockchainIdentifier: "agent-chain-1",
+        apiBaseUrl: null,
+        metadataOverride: null,
+        authorContactEmail: null,
+      },
+    });
+
+    mockInitialJobQueries({
+      agent: [endpointlessAgentJob],
+      pendingLocalRefunds: [],
+    });
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 1,
       }),
     );
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
