@@ -2282,7 +2282,7 @@ export default function ChatInterface({
     }
 
     pendingCoworkerDirectMessageKeyRef.current = pendingKey;
-    void handleSendMessage(pending.content, coworker, undefined, {
+    void handleSendMessage(pending.content, coworker, {
       kind: "chat",
     }).then((sent) => {
       if (sent) {
