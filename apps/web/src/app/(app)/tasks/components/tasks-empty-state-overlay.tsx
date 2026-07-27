@@ -62,19 +62,24 @@ export function getTasksEmptyStateGuideContent(
   step: TasksEmptyStateGuideStep,
   labels: TasksEmptyStateOverlayLabels,
 ): TasksEmptyStateGuideContent {
-  if (step === "getStarted") {
-    return {
-      title: labels.getStartedTitle,
-      description: labels.getStartedDescription,
-      hint: "",
-    };
+  switch (step) {
+    case "addTask":
+      return {
+        title: labels.title,
+        description: labels.description,
+        hint: labels.addTaskHint,
+      };
+    case "getStarted":
+      return {
+        title: labels.getStartedTitle,
+        description: labels.getStartedDescription,
+        hint: "",
+      };
+    default: {
+      const _exhaustive: never = step;
+      return _exhaustive;
+    }
   }
-
-  return {
-    title: labels.title,
-    description: labels.description,
-    hint: labels.addTaskHint,
-  };
 }
 
 export function TasksEmptyStateOverlay({
