@@ -77,23 +77,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const message = await prisma.$transaction(async (tx) => {
       await requireChatChannelUserMembership(id, userContext.userId, tx);
-      const existingMessage = await tx.chatChannelMessage.findFirst({
-        where: {
-          id: messageId,
-          channelId: id,
-        },
-        select: { id: true },
-      });
-      if (!existingMessage) {
+
+      // Lock the message row so concurrent toggles of the same reaction cannot
+      // interleave delete-then-create and flip the row back on. Without this,
+      // two "remove" intents both delete (counts 1 and 0) and the loser
+      // re-inserts. Matches the FOR UPDATE pattern used on conversation writes.
+      const lockedMessages = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "chat_channel_message"
+        WHERE "id" = ${messageId}::uuid AND "channelId" = ${id}::uuid
+        FOR UPDATE
+      `;
+      if (lockedMessages.length === 0) {
         throw notFound("Message not found");
       }
 
-      // Toggle without a read-then-write: concurrent taps on the same emoji
-      // would otherwise race on the (messageId, userId, emoji) unique index.
-      // `deleteMany` reports a count instead of throwing P2025 when the
-      // reaction is already gone, and `skipDuplicates` turns the insert into
-      // ON CONFLICT DO NOTHING so a lost create race cannot abort the
-      // surrounding transaction with P2002.
+      // Under the message lock, delete-then-create is a true toggle: either we
+      // removed an existing row, or we insert one. `skipDuplicates` still
+      // guards the unique index if a concurrent path somehow races past the lock.
       const removed = await tx.chatChannelReaction.deleteMany({
         where: {
           messageId,
