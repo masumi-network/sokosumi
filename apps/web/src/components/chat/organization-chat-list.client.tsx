@@ -10,7 +10,6 @@ import {
   getBucketKeyFromMetadata,
   slugify,
 } from "@/app/chat/utils/bucket-slug";
-import { filterCoworkersForComposeKind } from "@/app/chat/utils/coworker-utils";
 import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,10 +50,7 @@ interface DirectParticipant {
 }
 
 interface CoworkerDirectConversation {
-  conversationId: string | null;
-  coworkerId: string | null;
-  coworkerSlug: string | null;
-  displaySlug: string;
+  conversationId: string;
   key: string;
   href: string;
   image: string | null;
@@ -131,6 +127,11 @@ export function getDirectChannelDisplayName(
   return `${shown.join(", ")} and ${names.length - shown.length} more`;
 }
 
+/**
+ * Coworker DM history only — no zero-history "start menu" rows.
+ * Start a new coworker DM via the section `+` → `/chat` (landing picker).
+ * Org-room human DMs use `/channels?dm=new` on the channels surface.
+ */
 function buildCoworkerDirectConversations(
   conversations: Conversation[],
   coworkers: ReturnType<typeof useCoworkersContext>["coworkers"],
@@ -167,9 +168,6 @@ function buildCoworkerDirectConversations(
 
     const row: CoworkerDirectConversation = {
       conversationId: conversation.id,
-      coworkerId: coworker?.id ?? coworkerId ?? null,
-      coworkerSlug: coworker?.slug ?? coworkerSlug ?? null,
-      displaySlug,
       key: bucket,
       href: `${CHAT_APP_ROUTE_PREFIX}/${displaySlug}/conversation/${conversation.id}`,
       image: coworker?.avatar ?? null,
@@ -183,45 +181,9 @@ function buildCoworkerDirectConversations(
     }
   }
 
-  // Also list chat-capable coworkers with no conversation yet so the sidebar
-  // is a start menu, not only a history of past Elena threads.
-  for (const coworker of filterCoworkersForComposeKind(coworkers, "chat")) {
-    const slugKey = coworker.slug ? `coworker:${coworker.slug}` : null;
-    const idKey = `coworker:${coworker.id}`;
-    const alreadyListed = [...byBucket.values()].some(
-      (row) =>
-        row.coworkerId === coworker.id ||
-        (coworker.slug != null && row.coworkerSlug === coworker.slug) ||
-        row.key === slugKey ||
-        row.key === idKey,
-    );
-    if (alreadyListed) {
-      continue;
-    }
-
-    const displaySlug =
-      slugify(coworker.slug ?? "") || slugify(coworker.name) || coworker.id;
-    const coworkerParam = coworker.slug || coworker.id;
-    const key = slugKey ?? idKey;
-    byBucket.set(key, {
-      conversationId: null,
-      coworkerId: coworker.id,
-      coworkerSlug: coworker.slug ?? null,
-      displaySlug,
-      key,
-      href: `${CHAT_APP_ROUTE_PREFIX}/${displaySlug}?coworker=${encodeURIComponent(coworkerParam)}`,
-      image: coworker.avatar ?? null,
-      name: coworker.name,
-      updatedAtMs: 0,
-    });
-  }
-
-  return Array.from(byBucket.values()).sort((left, right) => {
-    if (left.updatedAtMs !== right.updatedAtMs) {
-      return right.updatedAtMs - left.updatedAtMs;
-    }
-    return left.name.localeCompare(right.name);
-  });
+  return Array.from(byBucket.values()).sort(
+    (left, right) => right.updatedAtMs - left.updatedAtMs,
+  );
 }
 
 function presenceLabel(
@@ -521,10 +483,15 @@ export function OrganizationChatList({
         </Collapsible>
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
+          {/*
+            Coworker DMs are history-only here; `+` opens /chat so the landing
+            coworker picker starts a new thread. Org-room human DM drafts stay
+            on /channels?dm=new (channels surface), not this +.
+          */}
           <SectionHeader
-            href="/channels?dm=new"
+            href={CHAT_APP_ROUTE_PREFIX}
             isOpen={directOpen}
-            label={t("Draft.title")}
+            label={t("startCoworkerChat")}
           >
             {t("directMessages")}
           </SectionHeader>
@@ -562,15 +529,7 @@ export function OrganizationChatList({
                 );
               })}
               {coworkerDirectMessages.map((row) => {
-                const coworkerQuery = searchParams.get("coworker");
-                const pathIsConversation = pathname.includes("/conversation/");
-                const isActive = row.conversationId
-                  ? activeConversationId === row.conversationId
-                  : !pathIsConversation &&
-                    (coworkerQuery === row.coworkerSlug ||
-                      coworkerQuery === row.coworkerId ||
-                      pathname ===
-                        `${CHAT_APP_ROUTE_PREFIX}/${row.displaySlug}`);
+                const isActive = activeConversationId === row.conversationId;
 
                 return (
                   <SidebarMenuItem key={row.key}>
