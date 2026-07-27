@@ -95,4 +95,3 @@ Unchanged: show total only when `task.credits > 0` (settled only).
 
 - Verify masumiPayment always creates a matching credit ledger row and USDM/USDCx CreditCost conversion matches product expectation (product asked not to file Linear in this session).
 - Optional later: auto-settle after top-up (SOK-629).
-}
