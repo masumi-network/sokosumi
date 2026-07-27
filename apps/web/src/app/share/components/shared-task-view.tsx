@@ -9,6 +9,7 @@ import {
   getTaskStatusDotColorClass,
   TaskStatusBadge,
 } from "@/app/tasks/components/task-status-badge";
+import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -247,25 +248,28 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                       const ChannelIcon = CHANNEL_ICON_MAP[channel];
                       const actorName =
                         event.actorName ?? tTaskDetail("actorSystem");
-                      const chargedLabel =
-                        event.credits != null
-                          ? tTaskDetail(
-                              event.transactionId == null
-                                ? "actionTriedChargedCredits"
-                                : "actionChargedCredits",
-                              {
-                                credits: formatCreditsForDisplay(event.credits),
-                              },
-                            )
-                          : null;
-                      const hasComment = Boolean(event.comment?.trim());
-                      const action = hasComment
-                        ? tTaskDetail("actionCommented")
-                        : event.status
-                          ? tTaskDetail("actionUpdatedStatus")
-                          : (chargedLabel ??
-                            tTaskDetail("actionUpdatedStatus"));
-                      const formattedComment = hasComment
+                      const chargePresentation =
+                        getTaskEventChargePresentation(event);
+                      const chargedLabel = chargePresentation.hasCharge
+                        ? tTaskDetail(
+                            chargePresentation.isAttemptedCharge
+                              ? "actionTriedChargedCredits"
+                              : "actionChargedCredits",
+                            {
+                              credits: formatCreditsForDisplay(
+                                event.credits ?? 0,
+                              ),
+                            },
+                          )
+                        : null;
+                      const action =
+                        chargePresentation.actionKind === "commented"
+                          ? tTaskDetail("actionCommented")
+                          : chargePresentation.actionKind === "charged"
+                            ? (chargedLabel ??
+                              tTaskDetail("actionUpdatedStatus"))
+                            : tTaskDetail("actionUpdatedStatus");
+                      const formattedComment = chargePresentation.hasComment
                         ? formatMentionsAsMarkdownLinks(
                             event.comment ?? "",
                             new Map(),
@@ -294,8 +298,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                         sourceFiles.length > 0 || sourceLinks.length > 0;
                       const isCommentEvent = Boolean(formattedComment);
                       const shouldShowSecondaryChargeLine =
-                        chargedLabel != null &&
-                        (hasComment || event.status != null);
+                        chargePresentation.shouldShowSecondaryChargeLine;
                       const shouldHighlightDoneBorder =
                         isCommentEvent && event.status === TaskStatus.COMPLETED;
                       const isStatusOnlyEvent =

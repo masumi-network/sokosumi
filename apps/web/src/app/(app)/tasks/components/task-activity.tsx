@@ -25,6 +25,7 @@ import {
   resolveTaskEventActorKind,
   type TaskActivityActorInfo,
 } from "@/app/tasks/utils/task-activity-actors";
+import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
@@ -457,9 +458,10 @@ export function TaskActivitySection({
               appName: channelAppName,
             });
             const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
-            const formattedComment = event.comment
+            const chargePresentation = getTaskEventChargePresentation(event);
+            const formattedComment = chargePresentation.hasComment
               ? formatMentionsAsMarkdownLinks(
-                  event.comment,
+                  event.comment ?? "",
                   resolvedAgentNameById,
                 )
               : null;
@@ -482,25 +484,24 @@ export function TaskActivitySection({
               : [];
             const hasCommentSources =
               sourceFiles.length > 0 || sourceLinks.length > 0;
-            const chargedLabel =
-              event.credits != null
-                ? t(
-                    event.transactionId == null
-                      ? "actionTriedChargedCredits"
-                      : "actionChargedCredits",
-                    {
-                      credits: formatCreditsForDisplay(event.credits),
-                    },
-                  )
-                : null;
-            const hasComment = Boolean(event.comment?.trim());
-            const action = hasComment
-              ? actionCommentedLabel
-              : event.status
-                ? actionUpdatedStatusLabel
-                : (chargedLabel ?? actionUpdatedStatusLabel);
+            const chargedLabel = chargePresentation.hasCharge
+              ? t(
+                  chargePresentation.isAttemptedCharge
+                    ? "actionTriedChargedCredits"
+                    : "actionChargedCredits",
+                  {
+                    credits: formatCreditsForDisplay(event.credits ?? 0),
+                  },
+                )
+              : null;
+            const action =
+              chargePresentation.actionKind === "commented"
+                ? actionCommentedLabel
+                : chargePresentation.actionKind === "charged"
+                  ? (chargedLabel ?? actionUpdatedStatusLabel)
+                  : actionUpdatedStatusLabel;
             const shouldShowSecondaryChargeLine =
-              chargedLabel != null && (hasComment || event.status != null);
+              chargePresentation.shouldShowSecondaryChargeLine;
             const shouldShowAuthenticateButton =
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&

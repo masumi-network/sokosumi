@@ -572,6 +572,78 @@ describe("getPublicSharedResourceByToken", () => {
     });
   });
 
+  it("maps settled credit-only milestones with transactionId and cents", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_credit_only",
+      taskId: "tsk_credit_only",
+      jobId: null,
+      token: "credit-only-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      job: null,
+      task: {
+        id: "tsk_credit_only",
+        archivedAt: null,
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:10:00.000Z"),
+        name: "Credit-only shared task",
+        description: null,
+        status: "RUNNING",
+        assignee: {
+          id: "cow_123",
+          name: "Ops Agent",
+          slug: "ops-agent",
+          image: null,
+        },
+        jobs: [],
+        events: [
+          {
+            id: "evt_settled_credit_only",
+            createdAt: new Date("2026-03-30T10:05:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:05:00.000Z"),
+            channel: "SOKOSUMI",
+            status: null,
+            comment: null,
+            cents: 50000000000n,
+            transactionId: "txn_settled_credit_only",
+            user: null,
+            coworker: {
+              name: "Ops Agent",
+              image: null,
+            },
+            orchestrator: null,
+            transaction: {
+              amount: -50000000000n,
+            },
+          },
+        ],
+      },
+    });
+
+    const resource = await getPublicSharedResourceByToken("credit-only-token");
+
+    expect(resource).toMatchObject({
+      kind: "task",
+      task: {
+        events: [
+          {
+            id: "evt_settled_credit_only",
+            status: null,
+            comment: null,
+            credits: 5,
+            transactionId: "txn_settled_credit_only",
+            actorName: "Ops Agent",
+          },
+        ],
+      },
+    });
+    if (!resource || resource.kind !== "task") {
+      throw new Error("Expected a shared task response");
+    }
+    expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
+  });
+
   it("returns null for archived shared tasks", async () => {
     publicShareFindUniqueMock.mockResolvedValue({
       id: "share_archived_task",
