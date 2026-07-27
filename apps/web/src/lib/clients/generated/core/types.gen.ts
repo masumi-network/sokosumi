@@ -3037,6 +3037,7 @@ export type PublicSharedTaskMilestone = {
     status: TaskStatus | null;
     comment: string | null;
     credits: number | null;
+    transactionId: string | null;
     actorName: string | null;
     actorImage: string | null;
 };
@@ -24681,6 +24682,8 @@ export type PostTasksByIdEventsErrors = {
         message: string;
         kind?: string;
         data?: TaskEvent;
+        attemptedCredits?: number;
+        requestedStatus?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
         meta: {
             timestamp: Date;
             requestId: string;

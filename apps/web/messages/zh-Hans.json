@@ -1681,6 +1681,7 @@
         "actionCommented": "评论了",
         "actionUpdatedStatus": "将状态更改为",
         "actionChargedCredits": "扣除 {credits, plural, =1 {# 积分} other {# 积分}}",
+        "actionTriedChargedCredits": "尝试扣除 {credits, plural, =1 {# 积分} other {# 积分}}",
         "statusLabels": {
           "outOfCredits": "积分不足",
           "creditsToppedUp": "已充值积分"

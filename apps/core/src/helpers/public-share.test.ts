@@ -301,6 +301,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "RUNNING",
             comment: null,
+            cents: null,
+            transactionId: "txn_settled_123",
             user: null,
             coworker: {
               name: "Ops Agent",
@@ -318,6 +320,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "EMAIL",
             status: null,
             comment: "Customer added context",
+            cents: null,
+            transactionId: null,
             user: {
               name: "Ada Lovelace",
               image: "https://example.com/user.png",
@@ -333,7 +337,26 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "AUTHENTICATION_REQUIRED",
             comment: null,
+            cents: null,
+            transactionId: null,
             user: null,
+            coworker: null,
+            orchestrator: null,
+            transaction: null,
+          },
+          {
+            id: "evt_attempted",
+            createdAt: new Date("2026-03-30T10:07:30.000Z"),
+            updatedAt: new Date("2026-03-30T10:07:30.000Z"),
+            channel: "SOKOSUMI",
+            status: "OUT_OF_CREDITS",
+            comment: null,
+            cents: 2100000000000n,
+            transactionId: null,
+            user: {
+              name: "Ada Lovelace",
+              image: "https://example.com/user.png",
+            },
             coworker: null,
             orchestrator: null,
             transaction: null,
@@ -345,10 +368,49 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: null,
             comment: "   ",
+            cents: null,
+            transactionId: null,
             user: null,
             coworker: null,
             orchestrator: null,
             transaction: null,
+          },
+          {
+            id: "evt_credit_only",
+            createdAt: new Date("2026-03-30T10:08:30.000Z"),
+            updatedAt: new Date("2026-03-30T10:08:30.000Z"),
+            channel: "SOKOSUMI",
+            status: null,
+            comment: null,
+            cents: 1250000000000n,
+            transactionId: null,
+            user: {
+              name: "Ada Lovelace",
+              image: "https://example.com/user.png",
+            },
+            coworker: null,
+            orchestrator: null,
+            transaction: null,
+          },
+          {
+            id: "evt_cents_prefers_over_spend",
+            createdAt: new Date("2026-03-30T10:08:45.000Z"),
+            updatedAt: new Date("2026-03-30T10:08:45.000Z"),
+            channel: "SOKOSUMI",
+            status: null,
+            comment: null,
+            // Prefer cents over spend amount (auth mapTaskEvent parity).
+            cents: 50000000000n,
+            transactionId: "txn_partial_mismatch",
+            user: {
+              name: "Ada Lovelace",
+              image: "https://example.com/user.png",
+            },
+            coworker: null,
+            orchestrator: null,
+            transaction: {
+              amount: -20000000000n,
+            },
           },
           {
             id: "evt_orch",
@@ -357,6 +419,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "COMPLETED",
             comment: "Done by Hermes",
+            cents: null,
+            transactionId: null,
             user: null,
             coworker: null,
             orchestrator: {
@@ -416,6 +480,7 @@ describe("getPublicSharedResourceByToken", () => {
             status: "RUNNING",
             credits: 1.5,
             comment: null,
+            transactionId: "txn_settled_123",
             actorName: "Ops Agent",
             actorImage: "https://example.com/coworker.png",
           },
@@ -424,6 +489,7 @@ describe("getPublicSharedResourceByToken", () => {
             status: null,
             comment: "Customer added context",
             credits: null,
+            transactionId: null,
             actorName: "Ada Lovelace",
             actorImage: "https://example.com/user.png",
           },
@@ -432,14 +498,43 @@ describe("getPublicSharedResourceByToken", () => {
             status: "AUTHENTICATION_REQUIRED",
             comment: null,
             credits: null,
+            transactionId: null,
             actorName: null,
             actorImage: null,
+          },
+          {
+            id: "evt_attempted",
+            status: "OUT_OF_CREDITS",
+            comment: null,
+            credits: 210,
+            transactionId: null,
+            actorName: "Ada Lovelace",
+            actorImage: "https://example.com/user.png",
+          },
+          {
+            id: "evt_credit_only",
+            status: null,
+            comment: null,
+            credits: 125,
+            transactionId: null,
+            actorName: "Ada Lovelace",
+            actorImage: "https://example.com/user.png",
+          },
+          {
+            id: "evt_cents_prefers_over_spend",
+            status: null,
+            comment: null,
+            credits: 5,
+            transactionId: "txn_partial_mismatch",
+            actorName: "Ada Lovelace",
+            actorImage: "https://example.com/user.png",
           },
           {
             id: "evt_orch",
             status: "COMPLETED",
             comment: "Done by Hermes",
             credits: null,
+            transactionId: null,
             actorName: "Hermes",
             actorImage: null,
           },
@@ -468,7 +563,85 @@ describe("getPublicSharedResourceByToken", () => {
     expect(resource.task.jobs[1]?.completedAt).toEqual(
       new Date("2026-03-30T10:08:00.000Z"),
     );
-    expect(resource.task.events).toHaveLength(4);
+    expect(resource.task.events).toHaveLength(7);
+    expect(
+      resource.task.events.find((event) => event.id === "evt_orch"),
+    ).toMatchObject({
+      actorName: "Hermes",
+      transactionId: null,
+    });
+  });
+
+  it("maps settled credit-only milestones with transactionId and cents", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_credit_only",
+      taskId: "tsk_credit_only",
+      jobId: null,
+      token: "credit-only-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      job: null,
+      task: {
+        id: "tsk_credit_only",
+        archivedAt: null,
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:10:00.000Z"),
+        name: "Credit-only shared task",
+        description: null,
+        status: "RUNNING",
+        assignee: {
+          id: "cow_123",
+          name: "Ops Agent",
+          slug: "ops-agent",
+          image: null,
+        },
+        jobs: [],
+        events: [
+          {
+            id: "evt_settled_credit_only",
+            createdAt: new Date("2026-03-30T10:05:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:05:00.000Z"),
+            channel: "SOKOSUMI",
+            status: null,
+            comment: null,
+            cents: 50000000000n,
+            transactionId: "txn_settled_credit_only",
+            user: null,
+            coworker: {
+              name: "Ops Agent",
+              image: null,
+            },
+            orchestrator: null,
+            transaction: {
+              amount: -50000000000n,
+            },
+          },
+        ],
+      },
+    });
+
+    const resource = await getPublicSharedResourceByToken("credit-only-token");
+
+    expect(resource).toMatchObject({
+      kind: "task",
+      task: {
+        events: [
+          {
+            id: "evt_settled_credit_only",
+            status: null,
+            comment: null,
+            credits: 5,
+            transactionId: "txn_settled_credit_only",
+            actorName: "Ops Agent",
+          },
+        ],
+      },
+    });
+    if (!resource || resource.kind !== "task") {
+      throw new Error("Expected a shared task response");
+    }
+    expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
   });
 
   it("returns null for archived shared tasks", async () => {

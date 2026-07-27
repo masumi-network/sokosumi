@@ -1681,6 +1681,7 @@
         "actionCommented": "コメントしました",
         "actionUpdatedStatus": "ステータスを次に変更しました",
         "actionChargedCredits": "{credits, plural, =1 {# クレジットを消費} other {# クレジットを消費}}",
+        "actionTriedChargedCredits": "{credits, plural, =1 {# クレジットの課金を試行} other {# クレジットの課金を試行}}",
         "statusLabels": {
           "outOfCredits": "クレジット不足",
           "creditsToppedUp": "クレジットを追加しました"

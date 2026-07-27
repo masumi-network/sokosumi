@@ -21,6 +21,7 @@ interface PublicSharedTaskMilestone {
   status: string | null;
   comment: string | null;
   credits: number | null;
+  transactionId: string | null;
   actorName: string | null;
   actorImage: string | null;
 }
@@ -49,7 +50,15 @@ const publicTaskInclude = {
     orderBy: { createdAt: "asc" },
   },
   events: {
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      channel: true,
+      status: true,
+      comment: true,
+      cents: true,
+      transactionId: true,
       user: {
         select: {
           name: true,
@@ -85,8 +94,17 @@ function mapPublicTaskMilestone(
   event: PublicTaskWithRelations["events"][number],
 ): PublicSharedTaskMilestone | null {
   const comment = event.comment?.trim() || null;
+  // Prefer event.cents (auth mapTaskEvent). Fall back to spend amount for
+  // historical settled rows that stored a transaction but null cents.
+  const creditsFromCents =
+    event.cents != null ? convertCentsToCredits(event.cents) : null;
+  const creditsFromSpend =
+    event.transaction?.amount != null && event.transaction.amount < 0n
+      ? convertCentsToCredits(event.transaction.amount * -1n)
+      : null;
+  const credits = creditsFromCents ?? creditsFromSpend;
 
-  if (!event.status && !comment) {
+  if (!event.status && !comment && credits == null) {
     return null;
   }
 
@@ -98,10 +116,8 @@ function mapPublicTaskMilestone(
     origin: event.channel,
     status: event.status,
     comment,
-    credits:
-      event.transaction?.amount != null && event.transaction.amount < 0n
-        ? convertCentsToCredits(event.transaction.amount * -1n)
-        : null,
+    credits,
+    transactionId: event.transactionId ?? null,
     // Prefer order matches Core task events: orchestrator → coworker → user.
     actorName:
       event.orchestrator?.name ??

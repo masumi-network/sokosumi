@@ -1681,6 +1681,7 @@
         "actionCommented": "ha commentato",
         "actionUpdatedStatus": "ha cambiato lo stato in",
         "actionChargedCredits": "ha addebitato {credits, plural, =1 {# credito} other {# crediti}}",
+        "actionTriedChargedCredits": "ha cercato di addebitare {credits, plural, =1 {# credito} other {# crediti}}",
         "statusLabels": {
           "outOfCredits": "Crediti esauriti",
           "creditsToppedUp": "Crediti ricaricati"

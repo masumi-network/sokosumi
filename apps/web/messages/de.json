@@ -1681,6 +1681,7 @@
         "actionCommented": "kommentiert",
         "actionUpdatedStatus": "Status geändert zu",
         "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} berechnet",
+        "actionTriedChargedCredits": "versucht, {credits, plural, =1 {# Credit} other {# Credits}} zu berechnen",
         "statusLabels": {
           "outOfCredits": "Keine Credits mehr",
           "creditsToppedUp": "Credits aufgeladen"

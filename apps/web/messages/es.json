@@ -1680,7 +1680,8 @@
         },
         "actionCommented": "comentó",
         "actionUpdatedStatus": "Estado cambiado a",
-        "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} cobrados",
+        "actionChargedCredits": "cobró {credits, plural, =1 {# crédito} other {# créditos}}",
+        "actionTriedChargedCredits": "intentó cobrar {credits, plural, =1 {# crédito} other {# créditos}}",
         "statusLabels": {
           "outOfCredits": "Sin Credits",
           "creditsToppedUp": "Credits recargados"

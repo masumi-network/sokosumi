@@ -1681,6 +1681,7 @@
         "actionCommented": "a commenté",
         "actionUpdatedStatus": "a changé le statut en",
         "actionChargedCredits": "a facturé {credits, plural, =1 {# crédit} other {# crédits}}",
+        "actionTriedChargedCredits": "a tenté de facturer {credits, plural, =1 {# crédit} other {# crédits}}",
         "statusLabels": {
           "outOfCredits": "Crédits insuffisants",
           "creditsToppedUp": "Crédits rechargés"

@@ -43,6 +43,10 @@ vi.mock("next-intl/server", () => ({
           return `charged ${values?.credits ?? 0} credits`;
         }
 
+        if (key === "actionTriedChargedCredits") {
+          return `tried to charge ${values?.credits ?? 0} credits`;
+        }
+
         const detailLabels: Record<string, string> = {
           activity: "Activities",
           emptyActivity: "No activities yet.",
@@ -232,6 +236,7 @@ describe("canonical share page", () => {
             status: "COMPLETED",
             comment: "Detailed update from coworker",
             credits: 372,
+            transactionId: "txn_comment_372",
             actorName: "Ops Agent",
             actorImage: null,
           },
@@ -288,6 +293,96 @@ describe("canonical share page", () => {
       "activity-row-evt_comment",
       "activity-row-evt_status",
     ]);
+  });
+
+  it("renders settled credit-only share events as charged copy", async () => {
+    getPubliclySharedResourceMock.mockResolvedValue({
+      kind: "task",
+      share: {
+        allowSearchIndexing: true,
+      },
+      task: {
+        id: "task_credit_only",
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T11:00:00.000Z"),
+        name: "Credit Only Task",
+        description: null,
+        status: "READY",
+        assignee: null,
+        coworker: null,
+        jobs: [],
+        events: [
+          {
+            id: "evt_credit_only",
+            createdAt: new Date("2026-03-30T10:20:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:20:00.000Z"),
+            channel: "SOKOSUMI",
+            origin: "SOKOSUMI",
+            status: null,
+            comment: null,
+            credits: 125,
+            transactionId: "txn_123",
+            actorName: "Ada Lovelace",
+            actorImage: null,
+          },
+        ],
+      },
+    });
+
+    const { default: SharePage } = await import("./page");
+    render(
+      await SharePage({
+        params: Promise.resolve({ token: "public-share-token" }),
+      }),
+    );
+
+    expect(screen.getByText("charged 125 credits")).toBeVisible();
+    expect(screen.queryByText("changed status to")).not.toBeInTheDocument();
+  });
+
+  it("renders attempted credit copy for out-of-credits share events", async () => {
+    getPubliclySharedResourceMock.mockResolvedValue({
+      kind: "task",
+      share: {
+        allowSearchIndexing: true,
+      },
+      task: {
+        id: "task_attempted_credit",
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T11:00:00.000Z"),
+        name: "Attempted Credit Task",
+        description: null,
+        status: "OUT_OF_CREDITS",
+        assignee: null,
+        coworker: null,
+        jobs: [],
+        events: [
+          {
+            id: "evt_attempted_credit",
+            createdAt: new Date("2026-03-30T10:20:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:20:00.000Z"),
+            channel: "SOKOSUMI",
+            origin: "SOKOSUMI",
+            status: "OUT_OF_CREDITS",
+            comment: null,
+            credits: 210,
+            transactionId: null,
+            actorName: "Ada Lovelace",
+            actorImage: null,
+          },
+        ],
+      },
+    });
+
+    const { default: SharePage } = await import("./page");
+    render(
+      await SharePage({
+        params: Promise.resolve({ token: "public-share-token" }),
+      }),
+    );
+
+    expect(screen.getByText("changed status to")).toBeVisible();
+    expect(screen.getByText("tried to charge 210 credits")).toBeVisible();
   });
 
   it("delegates missing shared resources to notFound", async () => {
