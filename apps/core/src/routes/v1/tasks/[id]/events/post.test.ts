@@ -542,6 +542,7 @@ describe("POST /{id}/events", () => {
     const body = await response.json();
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(body.data.credits).toBe(2);
     expect(body.attemptedCredits).toBe(2);
     expect(body.requestedStatus).toBe(TaskStatus.COMPLETED);
     expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
