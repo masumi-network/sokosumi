@@ -65,8 +65,23 @@ Delete these four migrations and ship **one** greenfield `chat_room*` migration 
 - `20260725200500_add_chat_channel_threads_reactions`
 - `20260726023000_add_chat_channel_read_states`
 
-Local/agent DBs that applied the old set need reset/redeploy.
+#### Release gate (hard cut)
 
+**Not backward-compatible** with any database that applied the old four. Prod/`main` DBs that never saw those migrations are fine — `migrate deploy` just applies `20260727120000_add_chat_rooms`.
+
+| Environment | Action before / with this release |
+| --- | --- |
+| Prod / main (never applied old four) | Deploy as usual |
+| Local Postgres that ran `codex/chat-channels` with old migrations | `pnpm prisma:migrate:reset` (dev) then migrate, **or** drop DB and recreate |
+| Neon agent / preview branch that applied old four | Delete/recreate the branch (or reset), then `pnpm prisma:migrate:deploy` |
+| Shared staging that applied old four | Reset/redeploy that DB before Core activates this migration |
+
+**Failure modes if you skip the gate:**
+
+- `migrate deploy` errors on missing migration directories still listed in `_prisma_migrations`
+- Orphan `chat_channel*` tables remain while app code only talks to `chat_room*`
+
+Do **not** ship an ALTER-rename of the old tables — this release intentionally replaces the unmerged history. The SQL file header repeats this gate.
 ### Rename
 
 | Today | Target |

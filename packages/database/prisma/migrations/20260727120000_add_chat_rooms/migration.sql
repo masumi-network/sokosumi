@@ -1,3 +1,23 @@
+-- RELEASE GATE (greenfield hard cut — not backward-compatible with the old
+-- unmerged `chat_channel*` migration chain on `codex/chat-channels`):
+--
+-- This migration *creates* `chat_room*` tables. It does not ALTER/rename the
+-- old `chat_channel*` tables, and those four migrations are deleted from the
+-- repo. Any database that already applied:
+--   20260725120000_add_chat_channels
+--   20260725185000_add_chat_channel_direct_messages
+--   20260725200500_add_chat_channel_threads_reactions
+--   20260726023000_add_chat_channel_read_states
+-- must be reset or redeployed before `prisma migrate deploy`. Otherwise deploy
+-- fails (missing migration files / history drift) or leaves orphan
+-- `chat_channel*` tables beside the new schema.
+--
+-- Safe without reset: DBs that never applied the old four (e.g. main / prod).
+-- Local/agent/preview DBs that did: `pnpm prisma:migrate:reset` (dev) or
+-- recreate the Neon branch, then `pnpm prisma:migrate:deploy`.
+--
+-- See docs/superpowers/specs/2026-07-27-chats-api-and-chat-room-schema-design.md
+
 -- CreateTable
 CREATE TABLE "chat_room" (
   "id" UUID NOT NULL,
