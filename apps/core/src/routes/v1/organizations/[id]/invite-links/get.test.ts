@@ -18,11 +18,11 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
   resolveMemberOrganizationByIdMock,
-  createInviteLinkMock,
+  listInviteLinksByOrganizationIdMock,
   getWebAppBaseUrlMock,
 } = vi.hoisted(() => ({
   resolveMemberOrganizationByIdMock: vi.fn(),
-  createInviteLinkMock: vi.fn(),
+  listInviteLinksByOrganizationIdMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
 }));
 
@@ -32,7 +32,8 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   organizationInviteLinkRepository: {
-    createInviteLink: (...args: unknown[]) => createInviteLinkMock(...args),
+    listInviteLinksByOrganizationId: (...args: unknown[]) =>
+      listInviteLinksByOrganizationIdMock(...args),
   },
 }));
 
@@ -70,7 +71,7 @@ const ORCHESTRATOR_AUTH_CONTEXT: AuthenticationContext = {
 const orgId = "org_123";
 const NOW = new Date("2026-07-25T12:00:00.000Z");
 
-let mountCreateInviteLink: (app: OpenAPIHonoWithAuth) => void;
+let mountListInviteLinks: (app: OpenAPIHonoWithAuth) => void;
 
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
@@ -87,28 +88,23 @@ function createApp(
     c.set("authContext", authContext);
     return await next();
   });
-  mountCreateInviteLink(app as unknown as OpenAPIHonoWithAuth);
+  mountListInviteLinks(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
-async function postCreate(
+async function getList(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
-  body: Record<string, unknown> = {},
 ) {
   return createApp(authContext).request(
     `http://localhost/${orgId}/invite-links`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
+    { method: "GET" },
   );
 }
 
-function liveCreatedLink(overrides: Record<string, unknown> = {}) {
+function liveLink(overrides: Record<string, unknown> = {}) {
   return {
     id: "link_1",
-    token: "tok_created",
+    token: "tok_1",
     organizationId: orgId,
     role: MemberRole.MEMBER,
     createdByUserId: "user_123",
@@ -122,11 +118,11 @@ function liveCreatedLink(overrides: Record<string, unknown> = {}) {
 }
 
 beforeAll(async () => {
-  const module = await import("./post");
-  mountCreateInviteLink = module.default;
+  const module = await import("./get");
+  mountListInviteLinks = module.default;
 });
 
-describe("POST /organizations/{id}/invite-links", () => {
+describe("GET /organizations/{id}/invite-links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -136,7 +132,7 @@ describe("POST /organizations/{id}/invite-links", () => {
       organization: { id: orgId },
       role: MemberRole.OWNER,
     });
-    createInviteLinkMock.mockResolvedValue(liveCreatedLink());
+    listInviteLinksByOrganizationIdMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -144,23 +140,23 @@ describe("POST /organizations/{id}/invite-links", () => {
   });
 
   it("returns 401 when unauthenticated", async () => {
-    const response = await postCreate(null);
+    const response = await getList(null);
     expect(response.status).toBe(401);
-    expect(createInviteLinkMock).not.toHaveBeenCalled();
+    expect(listInviteLinksByOrganizationIdMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a coworker/context actor so it cannot mint links as a victim", async () => {
-    const response = await postCreate(COWORKER_AUTH_CONTEXT);
+  it("rejects a coworker/context actor", async () => {
+    const response = await getList(COWORKER_AUTH_CONTEXT);
     expect(response.status).toBe(403);
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(createInviteLinkMock).not.toHaveBeenCalled();
+    expect(listInviteLinksByOrganizationIdMock).not.toHaveBeenCalled();
   });
 
-  it("rejects an orchestrator actor (session-only mutation)", async () => {
-    const response = await postCreate(ORCHESTRATOR_AUTH_CONTEXT);
+  it("rejects an orchestrator actor (session-only read)", async () => {
+    const response = await getList(ORCHESTRATOR_AUTH_CONTEXT);
     expect(response.status).toBe(403);
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(createInviteLinkMock).not.toHaveBeenCalled();
+    expect(listInviteLinksByOrganizationIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the caller is a plain member (not owner/admin)", async () => {
@@ -168,9 +164,9 @@ describe("POST /organizations/{id}/invite-links", () => {
       forbidden("You must be owner, admin"),
     );
 
-    const response = await postCreate();
+    const response = await getList();
     expect(response.status).toBe(403);
-    expect(createInviteLinkMock).not.toHaveBeenCalled();
+    expect(listInviteLinksByOrganizationIdMock).not.toHaveBeenCalled();
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: orgId,
@@ -180,67 +176,72 @@ describe("POST /organizations/{id}/invite-links", () => {
     );
   });
 
-  it("creates a MEMBER invite link for an owner with default expiry", async () => {
-    const response = await postCreate();
+  it("returns an empty array when the organization has no invite links", async () => {
+    const response = await getList();
     const body = await response.json();
 
-    expect(response.status).toBe(201);
-    expect(createInviteLinkMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationId: orgId,
-        role: MemberRole.MEMBER,
-        createdByUserId: "user_123",
-        maxUses: null,
-        expiresAt: new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000),
-      }),
+    expect(response.status).toBe(200);
+    expect(listInviteLinksByOrganizationIdMock).toHaveBeenCalledWith(
+      orgId,
       expect.anything(),
     );
-    // Token is server-generated; we only assert the repository received one
-    // and that the response URL is built from it.
-    const createArgs = createInviteLinkMock.mock.calls[0]?.[0] as {
-      token: string;
-    };
-    expect(createArgs.token).toEqual(expect.any(String));
-    expect(createArgs.token.length).toBeGreaterThan(16);
-
-    expect(body.data).toMatchObject({
-      token: "tok_created",
-      url: "https://app.sokosumi.test/join/tok_created",
-      role: MemberRole.MEMBER,
-      createdAt: NOW.toISOString(),
-      maxUses: null,
-      useCount: 0,
-      revokedAt: null,
-    });
+    expect(body.data).toEqual([]);
   });
 
-  it("creates a link for an admin with custom maxUses and expiresInDays", async () => {
-    resolveMemberOrganizationByIdMock.mockResolvedValue({
-      organization: { id: orgId },
-      role: MemberRole.ADMIN,
+  it("sorts links by status priority then createdAt descending within status", async () => {
+    const validOlder = liveLink({
+      id: "valid_old",
+      token: "tok_valid_old",
+      createdAt: new Date("2026-07-20T12:00:00.000Z"),
     });
-    createInviteLinkMock.mockResolvedValue(
-      liveCreatedLink({
-        maxUses: 25,
-        expiresAt: new Date(NOW.getTime() + 14 * 24 * 60 * 60 * 1000),
-      }),
-    );
+    const validNewer = liveLink({
+      id: "valid_new",
+      token: "tok_valid_new",
+      createdAt: new Date("2026-07-22T12:00:00.000Z"),
+    });
+    const depleted = liveLink({
+      id: "depleted",
+      token: "tok_depleted",
+      createdAt: new Date("2026-07-23T12:00:00.000Z"),
+      maxUses: 5,
+      useCount: 5,
+    });
+    const expired = liveLink({
+      id: "expired",
+      token: "tok_expired",
+      createdAt: new Date("2026-07-24T12:00:00.000Z"),
+      expiresAt: new Date("2026-07-01T12:00:00.000Z"),
+    });
+    const revoked = liveLink({
+      id: "revoked",
+      token: "tok_revoked",
+      createdAt: new Date("2026-07-25T10:00:00.000Z"),
+      revokedAt: new Date("2026-07-25T11:00:00.000Z"),
+    });
 
-    const response = await postCreate(USER_AUTH_CONTEXT, {
-      expiresInDays: 14,
-      maxUses: 25,
-    });
+    listInviteLinksByOrganizationIdMock.mockResolvedValue([
+      revoked,
+      expired,
+      depleted,
+      validOlder,
+      validNewer,
+    ]);
+
+    const response = await getList();
     const body = await response.json();
 
-    expect(response.status).toBe(201);
-    expect(createInviteLinkMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        role: MemberRole.MEMBER,
-        maxUses: 25,
-        expiresAt: new Date(NOW.getTime() + 14 * 24 * 60 * 60 * 1000),
-      }),
-      expect.anything(),
-    );
-    expect(body.data.maxUses).toBe(25);
+    expect(response.status).toBe(200);
+    expect(body.data.map((row: { token: string }) => row.token)).toEqual([
+      "tok_valid_new",
+      "tok_valid_old",
+      "tok_depleted",
+      "tok_expired",
+      "tok_revoked",
+    ]);
+    expect(body.data[0]).toMatchObject({
+      token: "tok_valid_new",
+      url: "https://app.sokosumi.test/join/tok_valid_new",
+      createdAt: "2026-07-22T12:00:00.000Z",
+    });
   });
 });

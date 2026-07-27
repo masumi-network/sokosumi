@@ -17,6 +17,7 @@ export const organizationInviteLinkSchema = z
     /** Full shareable URL (`{webBase}/join/{token}`). */
     url: z.string().url(),
     role: z.string(),
+    createdAt: dateTimeSchema,
     expiresAt: dateTimeSchema,
     revokedAt: dateTimeSchema.nullable(),
     maxUses: z.number().int().nullable(),

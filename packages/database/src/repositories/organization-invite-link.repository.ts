@@ -74,10 +74,21 @@ export const organizationInviteLinkRepository = (() => {
     });
   }
 
+  async function listInviteLinksByOrganizationId(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<OrganizationInviteLink[]> {
+    return await tx.organizationInviteLink.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   return {
     createInviteLink,
     getInviteLinkByToken,
     tryConsumeInviteLink,
     revokeInviteLink,
+    listInviteLinksByOrganizationId,
   };
 })();

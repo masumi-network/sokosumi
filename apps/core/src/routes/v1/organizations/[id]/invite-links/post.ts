@@ -92,6 +92,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         token: link.token,
         url: `${getWebAppBaseUrl()}/join/${link.token}`,
         role: link.role,
+        createdAt: link.createdAt.toISOString(),
         expiresAt: link.expiresAt.toISOString(),
         revokedAt: link.revokedAt?.toISOString() ?? null,
         maxUses: link.maxUses,
