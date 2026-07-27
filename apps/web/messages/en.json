@@ -4686,15 +4686,17 @@
         "to": "To:",
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Add more people",
+        "searchPlaceholderReplace": "Replace recipient",
         "noResults": "No matches",
         "title": "New direct message",
-        "empty": "Choose who should be in this conversation.",
-        "ready": "{count, plural, one {# recipient selected} other {# recipients selected}}",
-        "chooseRecipientError": "Choose at least one recipient.",
-        "organizationRequiredForGroup": "Switch to an organization to message multiple people in one chat.",
+        "empty": "Choose who to message.",
+        "ready": "Recipient selected",
+        "chooseRecipientError": "Choose a recipient.",
+        "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
+        "oneToOneOnlyError": "Direct messages are 1:1. Pick one member or one coworker.",
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Add recipients to start"
+        "composerPlaceholderNoRecipients": "Add a recipient to start"
       },
       "Toolbar": {
         "mention": "Mention coworker",

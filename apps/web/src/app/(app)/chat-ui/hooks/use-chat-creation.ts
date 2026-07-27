@@ -4,7 +4,7 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-
+import { ensureCoworkerDirectRoomAction } from "@/app/channels/actions";
 import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import {
@@ -90,6 +90,11 @@ export function useChatCreation({
       if (!conversation) {
         return null;
       }
+
+      // Org workspaces also own a `kind:direct` room for this coworker 1:1
+      // (create-or-get). Conversation + AI SDK stream stay the /chat path;
+      // do not block send on room ensure.
+      void ensureCoworkerDirectRoomAction(coworker.id);
 
       chatMessagesRef.current.set(conversation.id, []);
       previousChatIdRef.current = conversation.id;

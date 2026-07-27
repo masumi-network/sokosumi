@@ -43,7 +43,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/",
     description:
-      'Create a chat room in the active organization. `kind: "channel"` creates a named room; `kind: "direct"` creates or returns the direct room for the given participants.',
+      'Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a 1:1 room scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.',
     tags: ["Chat Rooms"],
     request: {
       body: {
@@ -76,12 +76,14 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
-    const organizationId = requireActiveOrganizationId(userContext);
     const body = c.req.valid("json");
 
     if (body.kind === "direct") {
       const direct = await createOrGetDirectRoom({
-        organizationId,
+        // Both kinds respect activeOrganization when present.
+        // Coworker 1:1 may be personal (null) with no active org.
+        // Human 1:1 always requires an active org.
+        organizationId: userContext.organizationId,
         currentUserId: userContext.userId,
         memberUserIds: body.memberUserIds ?? [],
         coworkerIds: body.coworkerIds ?? [],
@@ -89,6 +91,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return direct.created ? created(c, direct.room) : ok(c, direct.room);
     }
+
+    const organizationId = requireActiveOrganizationId(userContext);
 
     try {
       const room = await prisma.$transaction(async (tx) => {
@@ -107,7 +111,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           body.coworkerIds ?? [],
           tx,
         );
-        const slug = await buildUniqueRoomSlug(organizationId, body.name, tx);
+        const slug = await buildUniqueRoomSlug(
+          organizationId,
+          body.name,
+          userContext.userId,
+          tx,
+        );
 
         return tx.chatRoom.create({
           data: {
@@ -147,14 +156,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
  * Direct rooms are addressed by their participant set, so creation is
  * create-or-get: two clients opening the same conversation must land on one
  * room instead of racing into duplicates.
+ *
+ * Rooms inherit `organizationId` from the active organization when set.
+ * Coworker 1:1 may still be personal (`organizationId` null) with no active
+ * org. Human 1:1 always requires an active organization.
  */
 async function createOrGetDirectRoom(params: {
-  organizationId: string;
+  organizationId: string | null;
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
 }): Promise<{ room: ChatRoom; created: boolean }> {
-  const { organizationId, currentUserId } = params;
+  const { currentUserId } = params;
   const requestedMemberUserIds = normalizeUniqueStrings(params.memberUserIds);
   const requestedCoworkerIds = normalizeUniqueStrings(params.coworkerIds);
 
@@ -169,6 +182,24 @@ async function createOrGetDirectRoom(params: {
     throw badRequest("Choose a direct message target");
   }
 
+  // Direct rooms are 1:1 for now (one other human XOR one coworker).
+  // Group directs (multi-human / human+coworker) are a follow-up.
+  const isOneToOneHuman =
+    requestedMemberUserIds.length === 1 && requestedCoworkerIds.length === 0;
+  const isOneToOneCoworker =
+    requestedMemberUserIds.length === 0 && requestedCoworkerIds.length === 1;
+  if (!isOneToOneHuman && !isOneToOneCoworker) {
+    throw badRequest(
+      "Direct messages are 1:1. Pick one member or one coworker.",
+    );
+  }
+
+  const roomOrganizationId = params.organizationId;
+
+  if (isOneToOneHuman && !roomOrganizationId) {
+    throw badRequest("Switch to an organization to message a teammate.");
+  }
+
   // Holds the key computed inside the transaction so the retry below can
   // reuse it; a plain `let` would be narrowed to `never` by control flow
   // analysis because the assignment happens inside the callback.
@@ -178,17 +209,21 @@ async function createOrGetDirectRoom(params: {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
       const result = await prisma.$transaction(async (tx) => {
-        await resolveMemberOrganizationById({
-          id: organizationId,
-          userId: currentUserId,
-          tx,
-        });
+        if (roomOrganizationId) {
+          await resolveMemberOrganizationById({
+            id: roomOrganizationId,
+            userId: currentUserId,
+            tx,
+          });
+        }
 
-        const memberUserIds = await validateOrganizationUserIds(
-          organizationId,
-          requestedMemberUserIds,
-          tx,
-        );
+        const memberUserIds = roomOrganizationId
+          ? await validateOrganizationUserIds(
+              roomOrganizationId,
+              requestedMemberUserIds,
+              tx,
+            )
+          : [];
         const coworkerIds = await validateChatCoworkerIds(
           requestedCoworkerIds,
           tx,
@@ -201,10 +236,10 @@ async function createOrGetDirectRoom(params: {
         directKeyRef.current = directKey;
 
         // Future archive must unarchive-or-clear-directKey on create-or-get:
-        // archived rows still hold @@unique([organizationId, directKey]).
+        // archived rows still hold the unique directKey slot.
         const existing = await tx.chatRoom.findFirst({
           where: {
-            organizationId,
+            organizationId: roomOrganizationId,
             directKey,
             archivedAt: null,
           },
@@ -242,11 +277,16 @@ async function createOrGetDirectRoom(params: {
             return coworkersById.get(coworkerId)?.name || coworkerId;
           }),
         ]);
-        const slug = await buildUniqueRoomSlug(organizationId, directName, tx);
+        const slug = await buildUniqueRoomSlug(
+          roomOrganizationId,
+          directName,
+          currentUserId,
+          tx,
+        );
 
         const room = await tx.chatRoom.create({
           data: {
-            organizationId,
+            organizationId: roomOrganizationId,
             createdByUserId: currentUserId,
             name: directName,
             slug,
@@ -283,7 +323,7 @@ async function createOrGetDirectRoom(params: {
       if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
         const existing = await prisma.chatRoom.findFirst({
           where: {
-            organizationId,
+            organizationId: roomOrganizationId,
             directKey: directKeyRef.current,
             archivedAt: null,
           },

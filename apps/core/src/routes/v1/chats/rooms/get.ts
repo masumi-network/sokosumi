@@ -24,7 +24,6 @@ import {
   chatRoomInclude,
   getChatRoomUnreadCounts,
   mapChatRoom,
-  requireActiveOrganizationId,
 } from "./helpers";
 
 /**
@@ -58,7 +57,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List chat rooms in the active organization that are visible to the current organization member.",
+      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -80,27 +79,36 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
-    const organizationId = requireActiveOrganizationId(userContext);
     const queryParams = c.req.valid("query");
     const { kind } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
+    const organizationId = userContext.organizationId;
 
     const { rooms, unreadCounts, count, hasMore } = await prisma.$transaction(
       async (tx) => {
-        await resolveMemberOrganizationById({
-          id: organizationId,
-          userId: userContext.userId,
-          tx,
-        });
+        if (organizationId) {
+          await resolveMemberOrganizationById({
+            id: organizationId,
+            userId: userContext.userId,
+            tx,
+          });
+        }
 
+        // Strict org match: active org → only that org's channels/directs.
+        // No active org → personal coworker directs only.
         const where = {
-          organizationId,
           archivedAt: null,
           ...(kind ? { kind } : {}),
           userMembers: {
             some: { userId: userContext.userId },
           },
+          ...(organizationId
+            ? { organizationId }
+            : {
+                organizationId: null,
+                kind: "direct" as const,
+              }),
         };
 
         const [rows, count] = await Promise.all([

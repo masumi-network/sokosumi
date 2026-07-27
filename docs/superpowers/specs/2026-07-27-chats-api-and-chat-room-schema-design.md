@@ -126,5 +126,13 @@ Unchanged: Core calls `baseURL` Conversations + Responses SSE; writes room repli
 
 ## Deferred
 
-- Absorb 1:1 coworker chat into `kind=direct` rooms; drop `conversation*`
-- Room-level `providerConversationId` after that merge
+- Full absorb: drop `conversation*` once /chat messaging is room-backed (today `/chat` create-or-gets a `kind=direct` shell room scoped to the active organization when set; stream still uses `conversation*`)
+- Group directs (multi-human / human+coworker) — directs are **1:1 only** until then
+- Room-level `providerConversationId` after the conversation absorb
+
+## Org scope
+
+- **Channels** require `organizationId` (active organization)
+- **Coworker 1:1 directs** inherit the active organization when set; `organizationId` null only with no active org
+- **Human 1:1 directs** require an active organization (teammate roster) and store that `organizationId`
+- **List** returns only rooms for the active organization (no mix-in of personal/`null` rooms while an org is active)

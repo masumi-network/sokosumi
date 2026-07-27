@@ -21,7 +21,7 @@
 -- CreateTable
 CREATE TABLE "chat_room" (
   "id" UUID NOT NULL,
-  "organizationId" TEXT NOT NULL,
+  "organizationId" TEXT,
   "name" TEXT NOT NULL,
   "slug" TEXT NOT NULL,
   "kind" TEXT NOT NULL DEFAULT 'channel',
@@ -109,18 +109,38 @@ CREATE TABLE "chat_room_mention" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "chat_room_organizationId_slug_key" ON "chat_room"("organizationId", "slug");
+-- Org-scoped slug uniqueness (channels + org-attached rooms).
+CREATE UNIQUE INDEX "chat_room_organizationId_slug_key"
+  ON "chat_room"("organizationId", "slug")
+  WHERE "organizationId" IS NOT NULL;
 
 -- CreateIndex
 -- Future archive: create-or-get must unarchive-or-clear-directKey — archived
 -- rows still occupy this unique slot while archivedAt is filtered out.
-CREATE UNIQUE INDEX "chat_room_organizationId_directKey_key" ON "chat_room"("organizationId", "directKey");
+CREATE UNIQUE INDEX "chat_room_organizationId_directKey_key"
+  ON "chat_room"("organizationId", "directKey")
+  WHERE "organizationId" IS NOT NULL AND "directKey" IS NOT NULL;
+
+-- CreateIndex
+-- Personal (org-free) directs are keyed only by directKey.
+CREATE UNIQUE INDEX "chat_room_personal_directKey_key"
+  ON "chat_room"("directKey")
+  WHERE "organizationId" IS NULL AND "directKey" IS NOT NULL;
+
+-- CreateIndex
+-- Personal slug uniqueness scoped to the creator (display slug only).
+CREATE UNIQUE INDEX "chat_room_personal_creator_slug_key"
+  ON "chat_room"("createdByUserId", "slug")
+  WHERE "organizationId" IS NULL;
 
 -- CreateIndex
 CREATE INDEX "chat_room_organizationId_archivedAt_updatedAt_idx" ON "chat_room"("organizationId", "archivedAt", "updatedAt");
 
 -- CreateIndex
 CREATE INDEX "chat_room_organizationId_kind_updatedAt_idx" ON "chat_room"("organizationId", "kind", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "chat_room_createdByUserId_kind_updatedAt_idx" ON "chat_room"("createdByUserId", "kind", "updatedAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "chat_room_user_member_roomId_userId_key" ON "chat_room_user_member"("roomId", "userId");
@@ -229,15 +249,20 @@ ALTER TABLE "chat_room_mention" ADD CONSTRAINT "chat_room_mention_responseMessag
 
 -- Product invariants Prisma cannot express: `kind` is a closed set, and
 -- `directKey` is the identity of a direct room, so it must exist for exactly
--- those rooms. Without this a mistyped `kind` silently creates a room no
--- create-or-get lookup can ever find again.
+-- those rooms. Channels require an organization; personal directs may omit it.
 ALTER TABLE "chat_room" ADD CONSTRAINT "chat_room_kind_check"
   CHECK ("kind" IN ('channel', 'direct'));
 
 ALTER TABLE "chat_room" ADD CONSTRAINT "chat_room_direct_key_check"
   CHECK (
     ("kind" = 'direct' AND "directKey" IS NOT NULL)
-    OR ("kind" = 'channel' AND "directKey" IS NULL)
+    OR ("kind" = 'channel' AND "directKey" IS NULL AND "organizationId" IS NOT NULL)
+  );
+
+ALTER TABLE "chat_room" ADD CONSTRAINT "chat_room_channel_org_check"
+  CHECK (
+    ("kind" = 'direct')
+    OR ("kind" = 'channel' AND "organizationId" IS NOT NULL)
   );
 
 -- Both sender columns null is valid (the sender row was deleted and the FK set

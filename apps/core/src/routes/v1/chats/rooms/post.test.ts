@@ -230,6 +230,147 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("creates a personal coworker direct without an active organization", async () => {
+    const coworkerId = "cow_123";
+    const created = directRoom({
+      organizationId: null,
+      name: "Elena",
+      slug: "elena",
+      directKey: `coworker:${USER_ID}:${coworkerId}`,
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+      coworkerMembers: [
+        {
+          coworker: {
+            id: coworkerId,
+            name: "Elena",
+            slug: "elena",
+            caption: null,
+            image: null,
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(null);
+    roomCreateMock.mockResolvedValueOnce(created);
+    coworkerFindManyMock.mockResolvedValue([{ id: coworkerId }]);
+
+    const app = createApp({
+      ...userAuthContext,
+      organizationId: null,
+    });
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        coworkerIds: [coworkerId],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.organizationId).toBeNull();
+    expect(body.data.kind).toBe("direct");
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: null,
+          kind: "direct",
+        }),
+      }),
+    );
+  });
+
+  it("scopes coworker direct to the active organization when set", async () => {
+    const coworkerId = "cow_123";
+    const created = directRoom({
+      organizationId: ORG_ID,
+      name: "Elena",
+      slug: "elena",
+      directKey: `coworker:${USER_ID}:${coworkerId}`,
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+      coworkerMembers: [
+        {
+          coworker: {
+            id: coworkerId,
+            name: "Elena",
+            slug: "elena",
+            caption: null,
+            image: null,
+          },
+        },
+      ],
+    });
+    organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+    roomFindFirstMock.mockResolvedValueOnce(null);
+    roomCreateMock.mockResolvedValueOnce(created);
+    coworkerFindManyMock.mockResolvedValue([{ id: coworkerId }]);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        coworkerIds: [coworkerId],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.organizationId).toBe(ORG_ID);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: ORG_ID,
+          kind: "direct",
+        }),
+      }),
+    );
+  });
+
+  it("rejects human direct without an active organization with 400", async () => {
+    const app = createApp({
+      ...userAuthContext,
+      organizationId: null,
+    });
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "Switch to an organization to message a teammate.",
+    );
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
   it("rejects empty direct targets with 400", async () => {
     const app = createApp(userAuthContext);
     const response = await app.request("/", {
@@ -244,6 +385,43 @@ describe("POST /chats/rooms", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe("Choose a direct message target");
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects group direct targets with 400", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID, "user_789"],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "Direct messages are 1:1. Pick one member or one coworker.",
+    );
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects human plus coworker direct targets with 400", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID],
+        coworkerIds: ["cow_123"],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "Direct messages are 1:1. Pick one member or one coworker.",
+    );
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 

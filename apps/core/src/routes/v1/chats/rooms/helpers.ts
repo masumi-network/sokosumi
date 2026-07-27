@@ -268,9 +268,9 @@ export function normalizeUniqueStrings(values: readonly string[]): string[] {
 }
 
 /**
- * Chat rooms are always organization scoped, and the organization comes from
- * the auth context (active session organization or `X-Organization-Slug`) so
- * clients cannot address another organization by body or query.
+ * Named channels are always organization scoped. Direct rooms usually inherit
+ * the active organization; coworker 1:1 may be personal (`organizationId` null)
+ * when created with no active org — callers must not assume an org.
  */
 export function requireActiveOrganizationId(userContext: {
   organizationId: string | null;
@@ -282,6 +282,22 @@ export function requireActiveOrganizationId(userContext: {
   }
 
   return userContext.organizationId;
+}
+
+/** When the room belongs to an org, the caller must still be a member of that org. */
+async function assertRoomOrganizationAccess(
+  organizationId: string | null,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  if (!organizationId) {
+    return;
+  }
+  await resolveMemberOrganizationById({
+    id: organizationId,
+    userId,
+    tx,
+  });
 }
 
 export function slugifyRoomName(name: string): string {
@@ -348,18 +364,24 @@ export function buildDirectRoomName(names: readonly string[]): string {
 }
 
 export async function buildUniqueRoomSlug(
-  organizationId: string,
+  organizationId: string | null,
   name: string,
+  createdByUserId: string,
   tx: Prisma.TransactionClient,
 ): Promise<string> {
   const baseSlug = slugifyRoomName(name);
   const existing = await tx.chatRoom.findMany({
-    where: {
-      organizationId,
-      slug: {
-        startsWith: baseSlug,
-      },
-    },
+    where:
+      organizationId === null
+        ? {
+            organizationId: null,
+            createdByUserId,
+            slug: { startsWith: baseSlug },
+          }
+        : {
+            organizationId,
+            slug: { startsWith: baseSlug },
+          },
     select: { slug: true },
   });
   const used = new Set(existing.map((room) => room.slug));
@@ -397,11 +419,7 @@ export async function requireChatRoomUserAccess(
     throw notFound("Room not found");
   }
 
-  await resolveMemberOrganizationById({
-    id: room.organizationId,
-    userId,
-    tx,
-  });
+  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
 
   return room;
 }
@@ -453,11 +471,7 @@ export async function requireChatRoomUserWriteAccess(
     throw notFound("Room not found");
   }
 
-  await resolveMemberOrganizationById({
-    id: room.organizationId,
-    userId,
-    tx,
-  });
+  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
 
   return room;
 }
@@ -466,7 +480,7 @@ export async function requireChatRoomUserMembership(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
-): Promise<{ id: string; organizationId: string }> {
+): Promise<{ id: string; organizationId: string | null }> {
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
@@ -485,11 +499,7 @@ export async function requireChatRoomUserMembership(
     throw notFound("Room not found");
   }
 
-  await resolveMemberOrganizationById({
-    id: room.organizationId,
-    userId,
-    tx,
-  });
+  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
 
   return room;
 }

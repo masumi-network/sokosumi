@@ -377,7 +377,7 @@ export const getCategories = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * List chat rooms in the active organization that are visible to the current organization member.
+ * List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null).
  */
 export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsData, ThrowOnError>): RequestResult<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsResponseTransformer,
@@ -386,7 +386,7 @@ export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Create a chat room in the active organization. `kind: "channel"` creates a named room; `kind: "direct"` creates or returns the direct room for the given participants.
+ * Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a 1:1 room scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.
  */
 export const postChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<PostChatsRoomsData, ThrowOnError>): RequestResult<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).post<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsResponseTransformer,

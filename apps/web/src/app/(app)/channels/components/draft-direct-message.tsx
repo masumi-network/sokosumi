@@ -11,7 +11,10 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { sendNewDirectMessageAction } from "@/app/channels/actions";
+import {
+  ensureCoworkerDirectRoomAction,
+  sendNewDirectMessageAction,
+} from "@/app/channels/actions";
 import { slugify } from "@/app/chat/utils/bucket-slug";
 import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { writePendingCoworkerDirectMessage } from "@/app/chat-ui/utils/pending-coworker-direct-message";
@@ -45,7 +48,7 @@ export function DraftDirectMessage({
   members: Member[];
   coworkers: Coworker[];
   currentUserId: string;
-  /** False in personal workspace — room-backed / multi-party DMs need an org. */
+  /** False in personal workspace — human 1:1 room DMs need an org. */
   canCreateRoomDirect: boolean;
 }) {
   const t = useTranslations("App.Channels");
@@ -108,9 +111,8 @@ export function DraftDirectMessage({
     .map((target) => target.id);
 
   function addTarget(target: DirectDraftTarget) {
-    setSelectedKeys((current) =>
-      current.includes(target.key) ? current : [...current, target.key],
-    );
+    // Direct messages are 1:1 until group DM ships — selecting replaces.
+    setSelectedKeys([target.key]);
     setRecipientQuery("");
     setIsRecipientPickerOpen(true);
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
@@ -146,6 +148,9 @@ export function DraftDirectMessage({
           slugify(coworkerRouteId) ||
           slugify(coworkerTarget.name) ||
           coworkerTarget.id;
+        // Org workspaces create-or-get the matching kind:direct room shell
+        // while /chat keeps the AI SDK conversation path.
+        void ensureCoworkerDirectRoomAction(coworkerTarget.id);
         writePendingCoworkerDirectMessage({
           coworkerId: coworkerTarget.id,
           coworkerSlug: coworkerRouteId,
@@ -161,6 +166,11 @@ export function DraftDirectMessage({
 
     if (!canCreateRoomDirect) {
       toast.error(t("Draft.organizationRequiredForGroup"));
+      return;
+    }
+
+    if (selectedMemberUserIds.length !== 1 || selectedCoworkerIds.length > 0) {
+      toast.error(t("Draft.oneToOneOnlyError"));
       return;
     }
 
@@ -256,7 +266,7 @@ export function DraftDirectMessage({
                 placeholder={
                   selectedTargets.length === 0
                     ? t("Draft.searchPlaceholder")
-                    : t("Draft.searchPlaceholderMore")
+                    : t("Draft.searchPlaceholderReplace")
                 }
                 className="placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 text-base outline-none md:text-sm"
               />
@@ -285,9 +295,7 @@ export function DraftDirectMessage({
             <MessageCircle className="text-muted-foreground mx-auto size-8" />
             <h2 className="mt-4 text-lg font-semibold">{t("Draft.title")}</h2>
             <p className="text-muted-foreground mt-2 text-sm">
-              {selectedTargets.length > 0
-                ? t("Draft.ready", { count: selectedTargets.length })
-                : t("Draft.empty")}
+              {selectedTargets.length > 0 ? t("Draft.ready") : t("Draft.empty")}
             </p>
           </div>
         </div>

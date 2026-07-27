@@ -1114,7 +1114,10 @@ export type ChatRoom = {
      * Room ID
      */
     id: string;
-    organizationId: string;
+    /**
+     * Active organization at create time for channels and directs. Null only for coworker 1:1 DMs created with no active organization.
+     */
+    organizationId: string | null;
     name: string;
     slug: string;
     kind: 'channel' | 'direct';
@@ -1180,7 +1183,7 @@ export type ChatRoomSuccessResponse = {
 
 export type CreateChatRoomRequest = {
     /**
-     * Creates a named room the whole roster can see.
+     * Creates a named room for the invited members and coworkers (membership is explicit, not org-wide).
      */
     kind: 'channel';
     name: string;
@@ -1195,7 +1198,7 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 } | {
     /**
-     * Creates or returns the direct room for this participant set. The name is derived from the participants; the caller is always a participant.
+     * Creates or returns a 1:1 direct room (one organization member XOR one coworker) scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Group directs are not supported yet.
      */
     kind: 'direct';
     /**

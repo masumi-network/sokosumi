@@ -29,6 +29,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
+import { ensureCoworkerDirectRoomAction } from "@/app/channels/actions";
 import ChatInputContainer from "@/app/chat/components/chat-input-container";
 import SelectCoworkerModal from "@/app/chat/components/select-coworker-modal";
 import WelcomeScreen from "@/app/chat/components/welcome-screen";
@@ -2447,6 +2448,25 @@ export default function ChatInterface({
     selectedChatId,
     selectedChat?.coworker,
   ]);
+
+  // Opening an existing coworker /chat also create-or-gets the org direct room
+  // (idempotent). New chats already call this from createCoworkerChat.
+  const ensuredCoworkerDirectRoomIdsRef = useRef(new Set<string>());
+  useEffect(() => {
+    const coworkerId = selectedChatCoworker?.id;
+    if (
+      !coworkerId ||
+      ensuredCoworkerDirectRoomIdsRef.current.has(coworkerId)
+    ) {
+      return;
+    }
+    ensuredCoworkerDirectRoomIdsRef.current.add(coworkerId);
+    void ensureCoworkerDirectRoomAction(coworkerId).then((result) => {
+      if (!result.ok) {
+        ensuredCoworkerDirectRoomIdsRef.current.delete(coworkerId);
+      }
+    });
+  }, [selectedChatCoworker?.id]);
 
   const selectedConversationForView = useMemo(() => {
     if (!selectedChatId) {

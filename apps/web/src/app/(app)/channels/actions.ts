@@ -61,6 +61,22 @@ function cleanIds(value: string[] | null | undefined): string[] {
   );
 }
 
+/** Direct rooms are 1:1 only until group DM ships. */
+function oneToOneDirectError(
+  memberUserIds: readonly string[],
+  coworkerIds: readonly string[],
+): string | null {
+  const isOneHuman = memberUserIds.length === 1 && coworkerIds.length === 0;
+  const isOneCoworker = memberUserIds.length === 0 && coworkerIds.length === 1;
+  if (isOneHuman || isOneCoworker) {
+    return null;
+  }
+  if (memberUserIds.length + coworkerIds.length === 0) {
+    return "Choose at least one direct message target.";
+  }
+  return "Direct messages are 1:1. Pick one member or one coworker.";
+}
+
 function actionErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof CoreApiRequestError) {
     return error.message;
@@ -105,11 +121,6 @@ export async function createChannelAction(
 export async function createDirectChannelAction(
   input: CreateDirectChannelInput,
 ): Promise<ChannelActionResult<ChatRoom>> {
-  const activeOrganization = await userService.getActiveOrganization();
-  if (!activeOrganization) {
-    return { ok: false, message: "Select an organization first." };
-  }
-
   const cleanMemberUserId = cleanString(input.memberUserId);
   const cleanCoworkerId = cleanString(input.coworkerId);
   const memberUserIds = cleanIds([
@@ -121,8 +132,18 @@ export async function createDirectChannelAction(
     ...(input.coworkerIds ?? []),
   ]);
 
-  if (memberUserIds.length + coworkerIds.length === 0) {
-    return { ok: false, message: "Choose at least one direct message target." };
+  const oneToOneError = oneToOneDirectError(memberUserIds, coworkerIds);
+  if (oneToOneError) {
+    return { ok: false, message: oneToOneError };
+  }
+
+  // Human 1:1 needs an org (teammate roster). Coworker 1:1 uses active org
+  // when set; Core stores null only with no active organization.
+  if (memberUserIds.length === 1) {
+    const activeOrganization = await userService.getActiveOrganization();
+    if (!activeOrganization) {
+      return { ok: false, message: "Select an organization first." };
+    }
   }
 
   try {
@@ -141,6 +162,36 @@ export async function createDirectChannelAction(
   }
 }
 
+/**
+ * Create-or-get the `kind:direct` room for a solo coworker 1:1.
+ * Uses the active organization when set (same as `/chat`); personal if none.
+ */
+export async function ensureCoworkerDirectRoomAction(
+  coworkerId: string,
+): Promise<ChannelActionResult<ChatRoom | null>> {
+  const cleanCoworkerId = cleanString(coworkerId);
+  if (!cleanCoworkerId) {
+    return { ok: false, message: "Coworker is required." };
+  }
+
+  try {
+    const channel = await chatRoomService.createRoom({
+      kind: "direct",
+      memberUserIds: [],
+      coworkerIds: [cleanCoworkerId],
+    });
+    return { ok: true, data: channel };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        error,
+        "Could not ensure coworker direct room.",
+      ),
+    };
+  }
+}
+
 export async function sendNewDirectMessageAction(
   input: SendNewDirectMessageInput,
 ): Promise<ChannelActionResult<SendNewDirectMessageResult>> {
@@ -151,8 +202,9 @@ export async function sendNewDirectMessageAction(
 
   const memberUserIds = cleanIds(input.memberUserIds);
   const coworkerIds = cleanIds(input.coworkerIds);
-  if (memberUserIds.length + coworkerIds.length === 0) {
-    return { ok: false, message: "Choose at least one direct message target." };
+  const oneToOneError = oneToOneDirectError(memberUserIds, coworkerIds);
+  if (oneToOneError) {
+    return { ok: false, message: oneToOneError };
   }
 
   const cleanContent = cleanString(input.content);

@@ -89,11 +89,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Direct rooms cannot be edited.");
         }
 
+        if (!existing.organizationId) {
+          throw badRequest("Channel rooms require an organization.");
+        }
+        const organizationId = existing.organizationId;
+
         // Membership alone only proves the caller can read the room. Editing
         // rewrites the whole roster, so a plain member could otherwise evict
         // everyone else from a room they merely belong to.
         const { role } = await resolveMemberOrganizationById({
-          id: existing.organizationId,
+          id: organizationId,
           userId: userContext.userId,
           tx,
         });
@@ -119,8 +124,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const nextBaseSlug = slugifyRoomName(body.name);
           if (nextBaseSlug !== existing.slug) {
             updateData.slug = await buildUniqueRoomSlug(
-              existing.organizationId,
+              organizationId,
               body.name,
+              existing.createdByUserId,
               tx,
             );
           }
@@ -132,7 +138,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (body.memberUserIds !== undefined) {
           const memberUserIds = await validateOrganizationUserIds(
-            existing.organizationId,
+            organizationId,
             [userContext.userId, ...body.memberUserIds],
             tx,
           );
