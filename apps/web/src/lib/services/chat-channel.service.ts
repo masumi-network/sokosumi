@@ -13,6 +13,11 @@ import type {
 
 const CHANNEL_MESSAGE_LIMIT = 100;
 
+export interface ChatChannelMessagesPage {
+  messages: ChatChannelMessage[];
+  nextCursor: string | null;
+}
+
 export const chatChannelService = (() => {
   const listChannels = cache(async function listChannels(
     organizationId: string,
@@ -64,11 +69,16 @@ export const chatChannelService = (() => {
 
   const listMessages = cache(async function listMessages(
     channelId: string,
-  ): Promise<ChatChannelMessage[]> {
+    options?: { cursor?: string; limit?: number },
+  ): Promise<ChatChannelMessagesPage> {
     const response = await coreClient.getChatChannelMessages(channelId, {
-      limit: CHANNEL_MESSAGE_LIMIT,
+      limit: options?.limit ?? CHANNEL_MESSAGE_LIMIT,
+      cursor: options?.cursor,
     });
-    return response.data;
+    return {
+      messages: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
   });
 
   const listThreadMessages = cache(async function listThreadMessages(

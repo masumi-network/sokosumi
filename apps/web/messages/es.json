@@ -4611,7 +4611,9 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
-      }
+      },
+      "loadOlder": "Cargar mensajes anteriores",
+      "loadingOlder": "Cargando mensajes anteriores…"
     },
     "ChatRail": {
       "chat": "Chat"

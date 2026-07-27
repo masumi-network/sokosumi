@@ -44,6 +44,7 @@ import {
   toggleMessageReactionAction,
   updateChannelAction,
 } from "@/app/channels/actions";
+import { mergeChannelMessages } from "@/app/channels/utils/merge-channel-messages";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { slugify } from "@/app/chat/utils/bucket-slug";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
@@ -115,6 +116,8 @@ interface ChannelsClientProps {
   isNewDirectMessage: boolean;
   messageLoadFailed: boolean;
   messages: ChatChannelMessage[];
+  /** Cursor for the next older page; null when the initial page is complete. */
+  messagesNextCursor: string | null;
 }
 
 const CHANNEL_COMPOSER_EMOJIS = [
@@ -134,6 +137,8 @@ const CHANNEL_COMPOSER_EMOJIS = [
 const COWORKER_RESPONSE_POLL_MS = 2500;
 /** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
 const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
+/** Match sidebar channel-list cadence for peer traffic while a channel is open. */
+const CHANNEL_LIVE_POLL_MS = 15_000;
 
 interface ChannelComposerAttachment {
   url: string;
@@ -2080,6 +2085,7 @@ export function ChannelsClient({
   isNewDirectMessage,
   messageLoadFailed,
   messages,
+  messagesNextCursor,
 }: ChannelsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
@@ -2093,6 +2099,9 @@ export function ChannelsClient({
   );
   const [messagesState, setMessagesState] =
     useState<ChatChannelMessage[]>(messages);
+  const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
+    messagesNextCursor,
+  );
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatChannelMessage | null>(null);
   const [threadMessages, setThreadMessages] = useState<ChatChannelMessage[]>(
@@ -2112,6 +2121,7 @@ export function ChannelsClient({
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
     useTransition();
   const [_isReacting, startReactionTransition] = useTransition();
+  const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
   const selectedChannel = isNewDirectMessage
     ? null
@@ -2195,12 +2205,13 @@ export function ChannelsClient({
 
   useEffect(() => {
     setMessagesState(messages);
+    setOlderNextCursor(messagesNextCursor);
     setThreadParentMessage((current) =>
       current
         ? (messages.find((message) => message.id === current.id) ?? current)
         : current,
     );
-  }, [messages]);
+  }, [messages, messagesNextCursor]);
 
   useEffect(() => {
     setComposerValue("");
@@ -2213,9 +2224,12 @@ export function ChannelsClient({
     setThreadMentionedCoworkerIds([]);
   }, [selectedChannelId, isNewDirectMessage, isCreateChannelRequested]);
 
+  // Scroll on channel switch or when the newest message changes — not when
+  // an older page is prepended (length grows, last id stays the same).
+  const latestMessageId = messagesState.at(-1)?.id ?? null;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messagesState.length, selectedChannelId]);
+  }, [latestMessageId, selectedChannelId]);
 
   const latestVisibleMessageId = messagesState.at(-1)?.id ?? "empty";
   const selectedChannelReadId = selectedChannel?.id ?? null;
@@ -2287,11 +2301,14 @@ export function ChannelsClient({
         return;
       }
       if (result.ok) {
-        setMessagesState(result.data);
+        setMessagesState((current) =>
+          mergeChannelMessages(current, result.data.messages),
+        );
         setThreadParentMessage((current) =>
           current
-            ? (result.data.find((message) => message.id === current.id) ??
-              current)
+            ? (result.data.messages.find(
+                (message) => message.id === current.id,
+              ) ?? current)
             : current,
         );
       }
@@ -2315,6 +2332,53 @@ export function ChannelsClient({
       }
     };
   }, [selectedChannel?.id, hasPendingChannelCoworkerMention]);
+
+  // Peer traffic while the channel stays open: light poll + focus/visibility
+  // refetch. Merges into local state so previously loaded older pages survive.
+  useEffect(() => {
+    if (!selectedChannel) {
+      return;
+    }
+
+    const channelId = selectedChannel.id;
+    let cancelled = false;
+
+    const refreshLatest = async () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      const result = await listChannelMessagesAction(channelId);
+      if (cancelled || !result.ok) {
+        return;
+      }
+      setMessagesState((current) =>
+        mergeChannelMessages(current, result.data.messages),
+      );
+      setThreadParentMessage((current) =>
+        current
+          ? (result.data.messages.find(
+              (message) => message.id === current.id,
+            ) ?? current)
+          : current,
+      );
+    };
+
+    const intervalId = window.setInterval(refreshLatest, CHANNEL_LIVE_POLL_MS);
+    window.addEventListener("focus", refreshLatest);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshLatest();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshLatest);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [selectedChannel?.id]);
 
   useEffect(() => {
     if (
@@ -2356,10 +2420,12 @@ export function ChannelsClient({
         setThreadMessages(threadResult.data);
       }
       if (channelResult.ok) {
-        setMessagesState(channelResult.data);
+        setMessagesState((current) =>
+          mergeChannelMessages(current, channelResult.data.messages),
+        );
         setThreadParentMessage((current) =>
           current
-            ? (channelResult.data.find(
+            ? (channelResult.data.messages.find(
                 (message) => message.id === current.id,
               ) ?? current)
             : current,
@@ -2448,6 +2514,26 @@ export function ChannelsClient({
         return;
       }
       setThreadMessages(result.data);
+    });
+  }
+
+  function handleLoadOlderMessages() {
+    if (!selectedChannel || !olderNextCursor || isLoadingOlder) {
+      return;
+    }
+
+    const channelId = selectedChannel.id;
+    const cursor = olderNextCursor;
+    startLoadingOlderTransition(async () => {
+      const result = await listChannelMessagesAction(channelId, { cursor });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setMessagesState((current) =>
+        mergeChannelMessages(current, result.data.messages),
+      );
+      setOlderNextCursor(result.data.nextCursor);
     });
   }
 
@@ -2597,6 +2683,26 @@ export function ChannelsClient({
                       <p className="text-muted-foreground mt-1 text-sm">
                         {t("Empty.noMessagesDescription")}
                       </p>
+                    </div>
+                  ) : null}
+                  {olderNextCursor ? (
+                    <div className="mb-4 flex justify-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isLoadingOlder}
+                        onClick={handleLoadOlderMessages}
+                      >
+                        {isLoadingOlder ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" />
+                            {t("loadingOlder")}
+                          </>
+                        ) : (
+                          t("loadOlder")
+                        )}
+                      </Button>
                     </div>
                   ) : null}
                   {messagesState.map((message, index) => {
