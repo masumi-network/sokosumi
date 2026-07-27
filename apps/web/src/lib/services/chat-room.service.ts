@@ -95,12 +95,17 @@ export const chatRoomService = (() => {
   const listThreadMessages = cache(async function listThreadMessages(
     roomId: string,
     parentMessageId: string,
-  ): Promise<ChatRoomMessage[]> {
+    options?: { cursor?: string; limit?: number },
+  ): Promise<ChatRoomMessagesPage> {
     const response = await coreClient.getChatRoomMessages(roomId, {
-      limit: ROOM_MESSAGE_LIMIT,
+      limit: options?.limit ?? ROOM_MESSAGE_LIMIT,
       parentMessageId,
+      cursor: options?.cursor,
     });
-    return response.data;
+    return {
+      messages: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
   });
 
   async function sendMessage(

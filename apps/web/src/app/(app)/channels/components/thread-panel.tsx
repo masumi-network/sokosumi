@@ -20,6 +20,9 @@ export function ThreadPanel({
   parentMessage,
   replies,
   isLoading,
+  olderNextCursor,
+  isLoadingOlder,
+  onLoadOlder,
   coworkersById,
   coworkersBySlug,
   mentionRecords,
@@ -37,6 +40,9 @@ export function ThreadPanel({
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
   isLoading: boolean;
+  olderNextCursor: string | null;
+  isLoadingOlder: boolean;
+  onLoadOlder: () => void;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   mentionRecords: Record<
@@ -102,23 +108,47 @@ export function ThreadPanel({
               <Loader2 className="size-4 animate-spin" aria-hidden />
               {t("Thread.loading")}
             </div>
-          ) : replies.length > 0 ? (
-            <div className="space-y-1">
-              {replies.map((reply) => (
-                <ChatMessageRow
-                  key={reply.id}
-                  message={reply}
-                  coworkersById={coworkersById}
-                  coworkersBySlug={coworkersBySlug}
-                  onToggleReaction={onToggleReaction}
-                  showThreadButton={false}
-                />
-              ))}
-            </div>
           ) : (
-            <p className="text-muted-foreground py-4 text-sm">
-              {t("Thread.empty")}
-            </p>
+            <>
+              {olderNextCursor ? (
+                <div className="mb-3 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isLoadingOlder}
+                    onClick={onLoadOlder}
+                  >
+                    {isLoadingOlder ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        {t("loadingOlder")}
+                      </>
+                    ) : (
+                      t("loadOlder")
+                    )}
+                  </Button>
+                </div>
+              ) : null}
+              {replies.length > 0 ? (
+                <div className="space-y-1">
+                  {replies.map((reply) => (
+                    <ChatMessageRow
+                      key={reply.id}
+                      message={reply}
+                      coworkersById={coworkersById}
+                      coworkersBySlug={coworkersBySlug}
+                      onToggleReaction={onToggleReaction}
+                      showThreadButton={false}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground py-4 text-sm">
+                  {t("Thread.empty")}
+                </p>
+              )}
+            </>
           )}
         </div>
       </ScrollArea>

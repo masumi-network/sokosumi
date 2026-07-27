@@ -166,6 +166,9 @@ export function ChannelsClient({
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
   const [threadMessages, setThreadMessages] = useState<ChatRoomMessage[]>([]);
+  const [threadOlderNextCursor, setThreadOlderNextCursor] = useState<
+    string | null
+  >(null);
   const [threadComposerValue, setThreadComposerValue] = useState("");
   const [threadComposerAttachments, setThreadComposerAttachments] = useState<
     ChannelComposerAttachment[]
@@ -182,6 +185,8 @@ export function ChannelsClient({
     useTransition();
   const [_isReacting, startReactionTransition] = useTransition();
   const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
+  const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
+    useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
   const selectedChannel = isNewDirectMessage
     ? null
@@ -486,7 +491,9 @@ export function ChannelsClient({
         return;
       }
       if (threadResult.ok) {
-        setThreadMessages(threadResult.data);
+        setThreadMessages((current) =>
+          mergeChannelMessages(current, threadResult.data.messages),
+        );
       }
       if (channelResult.ok) {
         setMessagesState((current) =>
@@ -573,6 +580,7 @@ export function ChannelsClient({
     if (!selectedChannel) return;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
+    setThreadOlderNextCursor(null);
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(
         selectedChannel.id,
@@ -582,7 +590,8 @@ export function ChannelsClient({
         toast.error(result.message);
         return;
       }
-      setThreadMessages(result.data);
+      setThreadMessages(result.data.messages);
+      setThreadOlderNextCursor(result.data.nextCursor);
     });
   }
 
@@ -603,6 +612,38 @@ export function ChannelsClient({
         mergeChannelMessages(current, result.data.messages),
       );
       setOlderNextCursor(result.data.nextCursor);
+    });
+  }
+
+  function handleLoadOlderThreadMessages() {
+    if (
+      !selectedChannel ||
+      !threadParentMessage ||
+      !threadOlderNextCursor ||
+      isLoadingOlderThread
+    ) {
+      return;
+    }
+
+    const channelId = selectedChannel.id;
+    const parentMessageId = threadParentMessage.id;
+    const cursor = threadOlderNextCursor;
+    startLoadingOlderThreadTransition(async () => {
+      const result = await listThreadMessagesAction(
+        channelId,
+        parentMessageId,
+        {
+          cursor,
+        },
+      );
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setThreadMessages((current) =>
+        mergeChannelMessages(current, result.data.messages),
+      );
+      setThreadOlderNextCursor(result.data.nextCursor);
     });
   }
 
@@ -852,6 +893,9 @@ export function ChannelsClient({
             parentMessage={threadParentMessage}
             replies={threadMessages}
             isLoading={isThreadLoading}
+            olderNextCursor={threadOlderNextCursor}
+            isLoadingOlder={isLoadingOlderThread}
+            onLoadOlder={handleLoadOlderThreadMessages}
             coworkersById={coworkersById}
             coworkersBySlug={coworkersBySlug}
             mentionRecords={mentionRecords}
@@ -862,7 +906,11 @@ export function ChannelsClient({
             onReplyAttachmentsChange={setThreadComposerAttachments}
             onSubmitReply={handleSendThreadReply}
             isSendingReply={isSendingThreadReply}
-            onClose={() => setThreadParentMessage(null)}
+            onClose={() => {
+              setThreadParentMessage(null);
+              setThreadMessages([]);
+              setThreadOlderNextCursor(null);
+            }}
             onToggleReaction={handleToggleReaction}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedChannel)}
           />

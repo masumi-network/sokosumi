@@ -352,13 +352,20 @@ export async function listChannelMessagesAction(
 export async function listThreadMessagesAction(
   channelId: string,
   parentMessageId: string,
-): Promise<ChannelActionResult<ChatRoomMessage[]>> {
+  options?: { cursor?: string },
+): Promise<
+  ChannelActionResult<{
+    messages: ChatRoomMessage[];
+    nextCursor: string | null;
+  }>
+> {
   try {
-    const messages = await chatRoomService.listThreadMessages(
+    const page = await chatRoomService.listThreadMessages(
       channelId,
       parentMessageId,
+      { cursor: options?.cursor },
     );
-    return { ok: true, data: messages };
+    return { ok: true, data: page };
   } catch (error) {
     return {
       ok: false,
