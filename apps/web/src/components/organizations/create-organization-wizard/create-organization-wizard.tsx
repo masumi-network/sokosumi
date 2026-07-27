@@ -173,6 +173,7 @@ export function CreateOrganizationWizard({
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [linkFailed, setLinkFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [emails, setEmails] = useState("");
   const [isSendingInvites, setIsSendingInvites] = useState(false);
@@ -239,6 +240,7 @@ export function CreateOrganizationWizard({
     setIsUploadingLogo(false);
     setInviteLink(null);
     setIsCreatingLink(false);
+    setLinkFailed(false);
     setCopied(false);
     setEmails("");
     setIsSendingInvites(false);
@@ -398,6 +400,7 @@ export function CreateOrganizationWizard({
       }
 
       setOrganizationId(created.data.id);
+      setOrganizationName(values.name);
       setNormalizedUrl(url);
       savedValuesRef.current = { name: values.name, url };
       return created.data.id;
@@ -444,30 +447,36 @@ export function CreateOrganizationWizard({
     }
   }, [step, organizationId, normalizedUrl, brand]);
 
-  // Step 3 — mint the shareable invite link once.
-  useEffect(() => {
-    if (step === 3 && organizationId && !linkStartedRef.current) {
-      linkStartedRef.current = true;
-      setIsCreatingLink(true);
-      void (async () => {
-        try {
-          const result = await createOrganizationInviteLink({
-            organizationId,
-          });
-          if (result.ok) {
-            setInviteLink(result.data.url);
-          } else {
-            toast.error(t("Invite.linkError"));
-          }
-        } catch (error) {
-          console.error("Failed to create invite link", error);
-          toast.error(t("Invite.linkError"));
-        } finally {
-          setIsCreatingLink(false);
-        }
-      })();
+  // Step 3 — mint the shareable invite link once (retry via button on failure).
+  const mintInviteLink = useCallback(async () => {
+    if (!organizationId) return;
+    setIsCreatingLink(true);
+    setLinkFailed(false);
+    try {
+      const result = await createOrganizationInviteLink({
+        organizationId,
+      });
+      if (result.ok) {
+        setInviteLink(result.data.url);
+      } else {
+        setLinkFailed(true);
+        toast.error(t("Invite.linkError"));
+      }
+    } catch (error) {
+      console.error("Failed to create invite link", error);
+      setLinkFailed(true);
+      toast.error(t("Invite.linkError"));
+    } finally {
+      setIsCreatingLink(false);
     }
-  }, [step, organizationId, t]);
+  }, [organizationId, t]);
+
+  useEffect(() => {
+    if (step === SUCCESS_STEP && organizationId && !linkStartedRef.current) {
+      linkStartedRef.current = true;
+      void mintInviteLink();
+    }
+  }, [step, organizationId, mintInviteLink]);
 
   const handleLogoUpload = useCallback(
     async (files: File[]) => {
@@ -887,26 +896,42 @@ export function CreateOrganizationWizard({
                         className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono text-[13px] shadow-none focus-visible:ring-0"
                       />
                     )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto h-9 shrink-0 transition-colors duration-200"
-                      disabled={!inviteLink || isCreatingLink}
-                      onClick={() => void handleCopyLink()}
-                      aria-label={
-                        copied ? t("Invite.copied") : t("Invite.copy")
-                      }
-                    >
-                      {copied ? (
-                        <Check className="text-primary size-4" />
-                      ) : (
-                        <Copy className="size-4" />
-                      )}
-                      <span className="hidden sm:inline">
-                        {copied ? t("Invite.copied") : t("Invite.copy")}
-                      </span>
-                    </Button>
+                    {linkFailed && !inviteLink ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-9 shrink-0 transition-colors duration-200"
+                        disabled={isCreatingLink}
+                        onClick={() => void mintInviteLink()}
+                      >
+                        <RotateCw className="size-4" />
+                        <span className="hidden sm:inline">
+                          {t("Invite.regenerate")}
+                        </span>
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-9 shrink-0 transition-colors duration-200"
+                        disabled={!inviteLink || isCreatingLink}
+                        onClick={() => void handleCopyLink()}
+                        aria-label={
+                          copied ? t("Invite.copied") : t("Invite.copy")
+                        }
+                      >
+                        {copied ? (
+                          <Check className="text-primary size-4" />
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span className="hidden sm:inline">
+                          {copied ? t("Invite.copied") : t("Invite.copy")}
+                        </span>
+                      </Button>
+                    )}
                   </div>
                   <p className="text-muted-foreground/70 mt-2 text-left text-[13px]">
                     {t("Invite.linkHint")}
