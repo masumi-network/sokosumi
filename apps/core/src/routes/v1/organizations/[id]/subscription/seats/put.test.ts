@@ -27,17 +27,6 @@ const {
   updateSubscriptionItemQuantityMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
@@ -112,12 +101,19 @@ function setMembership(role: string | null) {
   memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
 }
 
-function updateSeats(id: string, seats: number) {
-  return createApp().request(`http://localhost/${id}/subscription/seats`, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ seats }),
-  });
+function updateSeats(
+  id: string,
+  seats: number,
+  authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
+) {
+  return createApp(authContext).request(
+    `http://localhost/${id}/subscription/seats`,
+    {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ seats }),
+    },
+  );
 }
 
 beforeAll(async () => {
@@ -295,6 +291,39 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(body.data).toEqual({ seats: 6 });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub-row-1" },
+      data: { seats: 6 },
+    });
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    setMembership("owner");
+
+    const response = await updateSeats("org_123", 6, {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId: "vendor_1",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+
+    expect(response.status).toBe(403);
+    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    setMembership("admin");
+
+    const response = await updateSeats("org_123", 6, {
+      actor: "orchestrator",
+      orchestratorId: "orch_1",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ seats: 6 });
     expect(subscriptionUpdateMock).toHaveBeenCalledWith({
       where: { id: "sub-row-1" },
       data: { seats: 6 },
