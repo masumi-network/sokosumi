@@ -28,11 +28,19 @@
 | `apps/core/src/routes/v1/tasks/[id]/events/post.ts` | Return attempted `cents` on pause; pass 422 extensions |
 | `apps/core/src/helpers/response.ts` | Allow optional top-level fields on `unprocessableWithData` |
 | `apps/core/src/routes/v1/tasks/[id]/events/post.test.ts` | Expect `cents` + extensions on pause |
-| `apps/web/src/app/(app)/tasks/components/task-activity.tsx` | Action + charged/tried copy |
-| `apps/web/src/app/share/components/shared-task-view.tsx` | Same copy rules |
+| `apps/core/src/helpers/public-share.ts` | Public milestones: `transactionId`, cents-first credits, credit-only rows |
+| `apps/core/src/schemas/public-share.schema.ts` | OpenAPI for public milestone `transactionId` |
+| `apps/core/src/helpers/public-share.test.ts` | Public share mapping (attempted + settled credit-only) |
+| `apps/core/src/routes/v1/share/[token]/get.test.ts` | Share GET fixture includes `transactionId` |
+| `apps/web/src/app/(app)/tasks/utils/task-event-charge-presentation.ts` | Shared settled/attempted + credit-only action rules |
+| `apps/web/src/app/(app)/tasks/components/task-activity.tsx` | Action + charged/tried copy (via shared helper) |
+| `apps/web/src/app/share/components/shared-task-view.tsx` | Same copy rules (via shared helper) |
 | `apps/web/src/app/(app)/tasks/components/__tests__/task-activity.test.tsx` | UI tests |
+| `apps/web/src/app/(app)/tasks/utils/__tests__/task-event-charge-presentation.test.ts` | Presentation matrix unit tests |
 | `apps/web/src/app/share/[token]/page.test.tsx` | Share view tests |
 | `apps/web/messages/*.json` | `actionTriedChargedCredits` (+ wire existing charged key) |
+
+**Justified scope adds (vs early Task 5 web-only draft):** Core public-share DTO/mapping is required so public timelines can distinguish settled vs attempted charges and show credit-only milestones. Shared presentation helper replaces copy-paste between activity and share.
 
 ---
 
