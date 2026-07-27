@@ -807,6 +807,19 @@ function PureMultimodalInput({
                 ariaLabel={tChannels("Toolbar.emoji")}
                 onPick={insertEmojiAtCursor}
               />
+              {/* Landing / new chat: must pick coworker (or model). Open 1:1
+                  threads already show the name in the header — hide there. */}
+              {!chatId ? (
+                <CoworkerModelSelector
+                  selectedCoworker={selectedCoworker}
+                  selectedModel={selectedModel}
+                  coworkers={availableCoworkers}
+                  coworkersLoading={propCoworkersLoading}
+                  onSelectCoworker={handleCoworkerSelect}
+                  onSelectModel={handleModelSelect}
+                  showModels
+                />
+              ) : null}
             </>
           }
         >

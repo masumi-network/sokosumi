@@ -10,6 +10,7 @@ import {
   getBucketKeyFromMetadata,
   slugify,
 } from "@/app/chat/utils/bucket-slug";
+import { filterCoworkersForComposeKind } from "@/app/chat/utils/coworker-utils";
 import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,7 +51,10 @@ interface DirectParticipant {
 }
 
 interface CoworkerDirectConversation {
-  conversationId: string;
+  conversationId: string | null;
+  coworkerId: string | null;
+  coworkerSlug: string | null;
+  displaySlug: string;
   key: string;
   href: string;
   image: string | null;
@@ -161,8 +165,11 @@ function buildCoworkerDirectConversations(
     }
     const updatedAtMs = new Date(conversation.updatedAt).getTime();
 
-    const row = {
+    const row: CoworkerDirectConversation = {
       conversationId: conversation.id,
+      coworkerId: coworker?.id ?? coworkerId ?? null,
+      coworkerSlug: coworker?.slug ?? coworkerSlug ?? null,
+      displaySlug,
       key: bucket,
       href: `${CHAT_APP_ROUTE_PREFIX}/${displaySlug}/conversation/${conversation.id}`,
       image: coworker?.avatar ?? null,
@@ -176,9 +183,45 @@ function buildCoworkerDirectConversations(
     }
   }
 
-  return Array.from(byBucket.values()).sort(
-    (left, right) => right.updatedAtMs - left.updatedAtMs,
-  );
+  // Also list chat-capable coworkers with no conversation yet so the sidebar
+  // is a start menu, not only a history of past Elena threads.
+  for (const coworker of filterCoworkersForComposeKind(coworkers, "chat")) {
+    const slugKey = coworker.slug ? `coworker:${coworker.slug}` : null;
+    const idKey = `coworker:${coworker.id}`;
+    const alreadyListed = [...byBucket.values()].some(
+      (row) =>
+        row.coworkerId === coworker.id ||
+        (coworker.slug != null && row.coworkerSlug === coworker.slug) ||
+        row.key === slugKey ||
+        row.key === idKey,
+    );
+    if (alreadyListed) {
+      continue;
+    }
+
+    const displaySlug =
+      slugify(coworker.slug ?? "") || slugify(coworker.name) || coworker.id;
+    const coworkerParam = coworker.slug || coworker.id;
+    const key = slugKey ?? idKey;
+    byBucket.set(key, {
+      conversationId: null,
+      coworkerId: coworker.id,
+      coworkerSlug: coworker.slug ?? null,
+      displaySlug,
+      key,
+      href: `${CHAT_APP_ROUTE_PREFIX}/${displaySlug}?coworker=${encodeURIComponent(coworkerParam)}`,
+      image: coworker.avatar ?? null,
+      name: coworker.name,
+      updatedAtMs: 0,
+    });
+  }
+
+  return Array.from(byBucket.values()).sort((left, right) => {
+    if (left.updatedAtMs !== right.updatedAtMs) {
+      return right.updatedAtMs - left.updatedAtMs;
+    }
+    return left.name.localeCompare(right.name);
+  });
 }
 
 function presenceLabel(
@@ -519,7 +562,15 @@ export function OrganizationChatList({
                 );
               })}
               {coworkerDirectMessages.map((row) => {
-                const isActive = activeConversationId === row.conversationId;
+                const coworkerQuery = searchParams.get("coworker");
+                const pathIsConversation = pathname.includes("/conversation/");
+                const isActive = row.conversationId
+                  ? activeConversationId === row.conversationId
+                  : !pathIsConversation &&
+                    (coworkerQuery === row.coworkerSlug ||
+                      coworkerQuery === row.coworkerId ||
+                      pathname ===
+                        `${CHAT_APP_ROUTE_PREFIX}/${row.displaySlug}`);
 
                 return (
                   <SidebarMenuItem key={row.key}>
