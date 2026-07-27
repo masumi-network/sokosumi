@@ -1944,15 +1944,12 @@
       "EmptyState": {
         "title": "Welcome to Task Manager",
         "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "Or use the chat to start a task",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
         "getStartedTitle": "You're all set!",
         "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
         "getStartedButton": "Get Started",
         "next": "Next",
         "back": "Back",
         "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
         "elenaAvatarAlt": "Elena avatar"
       }
     },
@@ -4731,9 +4728,6 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…"
-    },
-    "ChatRail": {
-      "chat": "Chat"
     }
   },
   "Share": {
