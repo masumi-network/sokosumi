@@ -248,7 +248,7 @@ async function settleTaskEventCharge({
     });
     if (charge.eventStatus != null) {
       return {
-        cents: undefined,
+        cents,
         transactionId: null,
         eventStatus: charge.eventStatus,
         chargedMasumiPayment: false,
@@ -278,7 +278,7 @@ async function settleTaskEventCharge({
     });
     if (charge.eventStatus != null) {
       return {
-        cents: undefined,
+        cents,
         transactionId: null,
         eventStatus: charge.eventStatus,
         chargedMasumiPayment: false,

@@ -551,7 +551,7 @@ describe("POST /{id}/events", () => {
         data: expect.objectContaining({
           status: TaskStatus.OUT_OF_CREDITS,
           comment: "Done but unpaid",
-          cents: undefined,
+          cents: convertCreditsToCents(2),
           transactionId: null,
           coworkerId: COWORKER_ID,
         }),
@@ -610,7 +610,7 @@ describe("POST /{id}/events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: TaskStatus.OUT_OF_CREDITS,
-          cents: undefined,
+          cents: convertCreditsToCents(2),
           transactionId: null,
         }),
       }),
@@ -666,7 +666,7 @@ describe("POST /{id}/events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: TaskStatus.OUT_OF_CREDITS,
-          cents: undefined,
+          cents: convertCreditsToCents(5),
           transactionId: null,
         }),
       }),
@@ -720,7 +720,7 @@ describe("POST /{id}/events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: TaskStatus.OUT_OF_CREDITS,
-          cents: undefined,
+          cents: convertCreditsToCents(5),
           transactionId: null,
         }),
       }),
@@ -871,7 +871,7 @@ describe("POST /{id}/events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: TaskStatus.OUT_OF_CREDITS,
-          cents: undefined,
+          cents: convertCreditsToCents(4),
           transactionId: null,
         }),
       }),
