@@ -677,135 +677,124 @@ function ChannelComposer({
   return (
     <form ref={formRef} className="shrink-0 px-5 pt-3 pb-6" onSubmit={onSubmit}>
       <div className="w-full">
-        <div
-          data-chat-input-border-anchor
-          className={cn(
-            "chat-input-border-anchor",
-            "relative rounded-xl",
-            "shadow-[0_0_16px_0] shadow-primary/15",
-            "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
-            "transition-shadow duration-300",
-          )}
-        >
-          <div className="bg-background relative z-10 overflow-hidden rounded-[calc(var(--radius-xl)-1.5px)] border-0 shadow-none transition-all duration-200">
-            {attachments.length > 0 ? (
-              <div className="flex flex-wrap gap-2 px-4 pt-4">
-                {attachments.map((attachment) => (
-                  <FileChipMiniPreviewWithMetadata
-                    key={attachment.url}
-                    url={attachment.url}
-                    fileName={attachment.fileName}
-                    mediaType={attachment.mediaType}
-                    sizeClass="size-16"
-                    onRemove={() => removeAttachment(attachment)}
-                    removeLabel={t("Toolbar.removeAttachment", {
-                      name: attachment.fileName,
-                    })}
-                  />
-                ))}
-              </div>
-            ) : null}
-            <MentionTextarea
-              ref={textareaRef}
-              value={value}
-              onChange={onValueChange}
-              onSelectedKeysChange={onSelectedKeysChange}
-              mentions={mentions}
-              placeholder={placeholder}
-              suggestionsAnchor="editor"
-              submitOnEnter
-              // On a phone Enter is the only newline key, and the send button is
-              // always visible — so Enter composes rather than sends.
-              allowEnterToSubmitOnMobile={false}
-              onSubmitShortcut={() => formRef.current?.requestSubmit()}
-              // Capped so a long draft scrolls inside the composer instead of
-              // growing it until the toolbar and send button leave the screen.
-              className="max-h-40 min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
-              renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
-            />
-            <div className="flex items-center justify-between px-3 pb-3">
-              <div className="text-muted-foreground flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 rounded-full sm:size-8"
-                  title={t("Toolbar.mention")}
-                  aria-label={t("Toolbar.mention")}
-                  onClick={() => textareaRef.current?.openMentions()}
-                >
-                  <AtSign className="size-4" aria-hidden />
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  tabIndex={-1}
-                  onChange={(event) => {
-                    void handleFilesSelected(event.currentTarget.files);
-                  }}
+        <div className="overflow-hidden rounded-xl border border-border bg-background">
+          {attachments.length > 0 ? (
+            <div className="flex flex-wrap gap-2 px-4 pt-4">
+              {attachments.map((attachment) => (
+                <FileChipMiniPreviewWithMetadata
+                  key={attachment.url}
+                  url={attachment.url}
+                  fileName={attachment.fileName}
+                  mediaType={attachment.mediaType}
+                  sizeClass="size-16"
+                  onRemove={() => removeAttachment(attachment)}
+                  removeLabel={t("Toolbar.removeAttachment", {
+                    name: attachment.fileName,
+                  })}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 rounded-full sm:size-8"
-                  title={t("Toolbar.attach")}
-                  aria-label={t("Toolbar.attach")}
-                  disabled={isUploadingFiles}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {isUploadingFiles ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Paperclip className="size-4" aria-hidden />
-                  )}
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-9 rounded-full sm:size-8"
-                      title={t("Toolbar.emoji")}
-                      aria-label={t("Toolbar.emoji")}
-                    >
-                      <SmilePlus className="size-4" aria-hidden />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-2">
-                    <div className="grid grid-cols-6 gap-1">
-                      {CHANNEL_COMPOSER_EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          className="hover:bg-muted focus-visible:ring-ring flex size-10 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2 sm:size-8"
-                          onClick={() => textareaRef.current?.insertText(emoji)}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              ))}
+            </div>
+          ) : null}
+          <MentionTextarea
+            ref={textareaRef}
+            value={value}
+            onChange={onValueChange}
+            onSelectedKeysChange={onSelectedKeysChange}
+            mentions={mentions}
+            placeholder={placeholder}
+            suggestionsAnchor="editor"
+            submitOnEnter
+            // On a phone Enter is the only newline key, and the send button is
+            // always visible — so Enter composes rather than sends.
+            allowEnterToSubmitOnMobile={false}
+            onSubmitShortcut={() => formRef.current?.requestSubmit()}
+            // Capped so a long draft scrolls inside the composer instead of
+            // growing it until the toolbar and send button leave the screen.
+            className="max-h-40 min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
+            renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
+          />
+          <div className="flex items-center justify-between px-3 pb-3">
+            <div className="text-muted-foreground flex items-center gap-1">
               <Button
-                type="submit"
-                variant="primary"
+                type="button"
+                variant="ghost"
                 size="icon"
                 className="size-9 rounded-full sm:size-8"
-                disabled={isSending || isUploadingFiles || sendDisabled}
-                aria-label={t("send")}
+                title={t("Toolbar.mention")}
+                aria-label={t("Toolbar.mention")}
+                onClick={() => textareaRef.current?.openMentions()}
               >
-                {isSending ? (
+                <AtSign className="size-4" aria-hidden />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                tabIndex={-1}
+                onChange={(event) => {
+                  void handleFilesSelected(event.currentTarget.files);
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-9 rounded-full sm:size-8"
+                title={t("Toolbar.attach")}
+                aria-label={t("Toolbar.attach")}
+                disabled={isUploadingFiles}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isUploadingFiles ? (
                   <Loader2 className="size-4 animate-spin" aria-hidden />
                 ) : (
-                  <ArrowUp className="size-4" aria-hidden />
+                  <Paperclip className="size-4" aria-hidden />
                 )}
               </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-9 rounded-full sm:size-8"
+                    title={t("Toolbar.emoji")}
+                    aria-label={t("Toolbar.emoji")}
+                  >
+                    <SmilePlus className="size-4" aria-hidden />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-2">
+                  <div className="grid grid-cols-6 gap-1">
+                    {CHANNEL_COMPOSER_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className="hover:bg-muted focus-visible:ring-ring flex size-10 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2 sm:size-8"
+                        onClick={() => textareaRef.current?.insertText(emoji)}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+            <Button
+              type="submit"
+              variant="primary"
+              size="icon"
+              className="size-9 rounded-full sm:size-8"
+              disabled={isSending || isUploadingFiles || sendDisabled}
+              aria-label={t("send")}
+            >
+              {isSending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <ArrowUp className="size-4" aria-hidden />
+              )}
+            </Button>
           </div>
         </div>
       </div>
