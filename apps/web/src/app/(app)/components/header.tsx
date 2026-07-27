@@ -2,9 +2,7 @@ import type { Session } from "@sokosumi/utils";
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { cn } from "@/lib/utils";
 
-import ChatRailTrigger from "./chat-rail-trigger";
 import HeaderProfileSection from "./header/header-profile-section";
-import HeaderUserSection from "./header-user-section";
 import CustomTrigger from "./sidebar/components/custom-trigger";
 
 interface HeaderProps {
@@ -30,9 +28,6 @@ export default function Header({ className, session }: HeaderProps) {
 
       <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
         <HeaderProfileSection session={session} />
-        <HeaderUserSection>
-          <ChatRailTrigger />
-        </HeaderUserSection>
       </div>
     </header>
   );
