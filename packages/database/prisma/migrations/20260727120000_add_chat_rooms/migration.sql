@@ -92,6 +92,8 @@ CREATE TABLE "chat_room_mention" (
 CREATE UNIQUE INDEX "chat_room_organizationId_slug_key" ON "chat_room"("organizationId", "slug");
 
 -- CreateIndex
+-- Future archive: create-or-get must unarchive-or-clear-directKey — archived
+-- rows still occupy this unique slot while archivedAt is filtered out.
 CREATE UNIQUE INDEX "chat_room_organizationId_directKey_key" ON "chat_room"("organizationId", "directKey");
 
 -- CreateIndex

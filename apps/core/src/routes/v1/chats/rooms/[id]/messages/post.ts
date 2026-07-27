@@ -23,7 +23,7 @@ import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
-  requireChatRoomUserAccess,
+  requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
 } from "../../helpers";
 
@@ -148,7 +148,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(authContext);
 
     const { message, mentionIds } = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+      const room = await requireChatRoomUserWriteAccess(
+        id,
+        userContext.userId,
+        tx,
+      );
       const directCoworkerIds =
         room.kind === "direct"
           ? room.coworkerMembers.map(({ coworker }) => coworker.id)

@@ -187,7 +187,7 @@ beforeEach(() => {
   waitUntilMock.mockImplementation(() => {});
 });
 
-describe("POST /chat-rooms/{id}/messages", () => {
+describe("POST /chats/rooms/{id}/messages", () => {
   describe("coworker actor", () => {
     it("lets a member coworker post as itself without mention rows", async () => {
       roomFindFirstMock.mockResolvedValue({ id: ROOM_ID });

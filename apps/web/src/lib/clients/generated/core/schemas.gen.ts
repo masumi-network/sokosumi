@@ -4245,6 +4245,40 @@ export const ChatRoomKindSchema = {
     example: 'channel'
 } as const;
 
+export const ChatRoomSuccessResponseSchema = {
+    type: 'object',
+    properties: {
+        data: {
+            $ref: '#/components/schemas/ChatRoom'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                pagination: {
+                    $ref: '#/components/schemas/PaginationMetadata'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId'
+            ]
+        }
+    },
+    required: [
+        'data',
+        'meta'
+    ]
+} as const;
+
 export const CreateChatRoomRequestSchema = {
     oneOf: [
         {

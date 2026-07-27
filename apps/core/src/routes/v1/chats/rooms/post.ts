@@ -1,13 +1,13 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { badRequest, conflict } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
-  isPrismaUniqueViolation,
+  isDirectKeyUniqueConstraintError,
   isSlugUniqueConstraintError,
 } from "@/helpers/prisma";
-import { created, ok } from "@/helpers/response";
+import { created, ok, successResponseSchema } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -32,6 +32,12 @@ import {
   validateOrganizationUserIds,
 } from "./helpers";
 
+// Named once and reused for 200 + 201 so openapi-ts sees a single $ref union
+// member and emits a date responseTransformer (dual inline schemas skip it).
+const chatRoomSuccessBodySchema = successResponseSchema(chatRoomSchema).openapi(
+  "ChatRoomSuccessResponse",
+);
+
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
@@ -49,8 +55,14 @@ const route = withGlobalHeaderParameters(
       },
     },
     responses: {
-      200: jsonSuccessResponse(chatRoomSchema, "Direct chat room found"),
-      201: jsonSuccessResponse(chatRoomSchema, "Chat room created"),
+      200: {
+        description: "Direct chat room found",
+        content: jsonContent(chatRoomSuccessBodySchema),
+      },
+      201: {
+        description: "Chat room created",
+        content: jsonContent(chatRoomSuccessBodySchema),
+      },
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -162,136 +174,145 @@ async function createOrGetDirectRoom(params: {
   // analysis because the assignment happens inside the callback.
   const directKeyRef: { current: string | null } = { current: null };
 
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      await resolveMemberOrganizationById({
-        id: organizationId,
-        userId: currentUserId,
-        tx,
-      });
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        await resolveMemberOrganizationById({
+          id: organizationId,
+          userId: currentUserId,
+          tx,
+        });
 
-      const memberUserIds = await validateOrganizationUserIds(
-        organizationId,
-        requestedMemberUserIds,
-        tx,
-      );
-      const coworkerIds = await validateChatCoworkerIds(
-        requestedCoworkerIds,
-        tx,
-      );
-      const directKey = buildDirectParticipantRoomKey({
-        currentUserId,
-        memberUserIds,
-        coworkerIds,
-      });
-      directKeyRef.current = directKey;
-
-      const existing = await tx.chatRoom.findFirst({
-        where: {
+        const memberUserIds = await validateOrganizationUserIds(
           organizationId,
-          directKey,
-          archivedAt: null,
-        },
-        include: chatRoomInclude,
+          requestedMemberUserIds,
+          tx,
+        );
+        const coworkerIds = await validateChatCoworkerIds(
+          requestedCoworkerIds,
+          tx,
+        );
+        const directKey = buildDirectParticipantRoomKey({
+          currentUserId,
+          memberUserIds,
+          coworkerIds,
+        });
+        directKeyRef.current = directKey;
+
+        // Future archive must unarchive-or-clear-directKey on create-or-get:
+        // archived rows still hold @@unique([organizationId, directKey]).
+        const existing = await tx.chatRoom.findFirst({
+          where: {
+            organizationId,
+            directKey,
+            archivedAt: null,
+          },
+          include: chatRoomInclude,
+        });
+
+        if (existing) {
+          return { room: existing, created: false };
+        }
+
+        const [targetUsers, targetCoworkers] = await Promise.all([
+          memberUserIds.length > 0
+            ? tx.user.findMany({
+                where: { id: { in: memberUserIds } },
+                select: { id: true, name: true, email: true },
+              })
+            : Promise.resolve([]),
+          coworkerIds.length > 0
+            ? tx.coworker.findMany({
+                where: { id: { in: coworkerIds } },
+                select: { id: true, name: true },
+              })
+            : Promise.resolve([]),
+        ]);
+        const usersById = new Map(targetUsers.map((user) => [user.id, user]));
+        const coworkersById = new Map(
+          targetCoworkers.map((coworker) => [coworker.id, coworker]),
+        );
+        const directName = buildDirectRoomName([
+          ...memberUserIds.map((userId) => {
+            const user = usersById.get(userId);
+            return user?.name || user?.email || userId;
+          }),
+          ...coworkerIds.map((coworkerId) => {
+            return coworkersById.get(coworkerId)?.name || coworkerId;
+          }),
+        ]);
+        const slug = await buildUniqueRoomSlug(organizationId, directName, tx);
+
+        const room = await tx.chatRoom.create({
+          data: {
+            organizationId,
+            createdByUserId: currentUserId,
+            name: directName,
+            slug,
+            kind: "direct",
+            directKey,
+            userMembers: {
+              create: [
+                { userId: currentUserId },
+                ...memberUserIds.map((userId) => ({ userId })),
+              ],
+            },
+            readStates: {
+              create: [
+                { userId: currentUserId },
+                ...memberUserIds.map((userId) => ({ userId })),
+              ],
+            },
+            coworkerMembers: {
+              create: coworkerIds.map((coworkerId) => ({ coworkerId })),
+            },
+          },
+          include: chatRoomInclude,
+        });
+
+        return { room, created: true };
       });
 
-      if (existing) {
-        return { room: existing, created: false };
+      return {
+        room: chatRoomSchema.parse(mapChatRoom(result.room, currentUserId)),
+        created: result.created,
+      };
+    } catch (error) {
+      // directKey race: another request won the create — return that room.
+      if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
+        const existing = await prisma.chatRoom.findFirst({
+          where: {
+            organizationId,
+            directKey: directKeyRef.current,
+            archivedAt: null,
+          },
+          include: chatRoomInclude,
+        });
+
+        if (existing) {
+          return {
+            room: chatRoomSchema.parse(mapChatRoom(existing, currentUserId)),
+            created: false,
+          };
+        }
+
+        throw conflict("Direct room already exists");
       }
 
-      const [targetUsers, targetCoworkers] = await Promise.all([
-        memberUserIds.length > 0
-          ? tx.user.findMany({
-              where: { id: { in: memberUserIds } },
-              select: { id: true, name: true, email: true },
-            })
-          : Promise.resolve([]),
-        coworkerIds.length > 0
-          ? tx.coworker.findMany({
-              where: { id: { in: coworkerIds } },
-              select: { id: true, name: true },
-            })
-          : Promise.resolve([]),
-      ]);
-      const usersById = new Map(targetUsers.map((user) => [user.id, user]));
-      const coworkersById = new Map(
-        targetCoworkers.map((coworker) => [coworker.id, coworker]),
-      );
-      const directName = buildDirectRoomName([
-        ...memberUserIds.map((userId) => {
-          const user = usersById.get(userId);
-          return user?.name || user?.email || userId;
-        }),
-        ...coworkerIds.map((coworkerId) => {
-          return coworkersById.get(coworkerId)?.name || coworkerId;
-        }),
-      ]);
-      const slug = await buildUniqueRoomSlug(organizationId, directName, tx);
-
-      const room = await tx.chatRoom.create({
-        data: {
-          organizationId,
-          createdByUserId: currentUserId,
-          name: directName,
-          slug,
-          kind: "direct",
-          directKey,
-          userMembers: {
-            create: [
-              { userId: currentUserId },
-              ...memberUserIds.map((userId) => ({ userId })),
-            ],
-          },
-          readStates: {
-            create: [
-              { userId: currentUserId },
-              ...memberUserIds.map((userId) => ({ userId })),
-            ],
-          },
-          coworkerMembers: {
-            create: coworkerIds.map((coworkerId) => ({ coworkerId })),
-          },
-        },
-        include: chatRoomInclude,
-      });
-
-      return { room, created: true };
-    });
-
-    return {
-      room: chatRoomSchema.parse(mapChatRoom(result.room, currentUserId)),
-      created: result.created,
-    };
-  } catch (error) {
-    // Slug and directKey unique races both mean another request won the
-    // create. Prefer returning that room over a 409 — including when the
-    // loser hits the slug constraint first (isSlugUniqueConstraintError is a
-    // P2002 subset that previously short-circuited before the re-read).
-    if (
-      (isSlugUniqueConstraintError(error) || isPrismaUniqueViolation(error)) &&
-      directKeyRef.current
-    ) {
-      const existing = await prisma.chatRoom.findFirst({
-        where: {
-          organizationId,
-          directKey: directKeyRef.current,
-          archivedAt: null,
-        },
-        include: chatRoomInclude,
-      });
-
-      if (existing) {
-        return {
-          room: chatRoomSchema.parse(mapChatRoom(existing, currentUserId)),
-          created: false,
-        };
+      // Slug-only race: retry with a freshly reserved slug. Never report this
+      // as a direct-room conflict — the participant set may still be free.
+      if (isSlugUniqueConstraintError(error) && attempt < maxAttempts - 1) {
+        continue;
       }
-    }
 
-    if (isSlugUniqueConstraintError(error) || isPrismaUniqueViolation(error)) {
-      throw conflict("Direct room already exists");
-    }
+      if (isSlugUniqueConstraintError(error)) {
+        throw conflict("Room slug already exists");
+      }
 
-    throw error;
+      throw error;
+    }
   }
+
+  throw conflict("Room slug already exists");
 }

@@ -80,11 +80,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
 
         // A direct room's identity IS its participant set: `directKey` is
-        // derived from it, and `direct/post.ts` resolves an existing DM by that
-        // key alone. Renaming one or rewriting its roster here would leave the
-        // key pointing at a membership that no longer matches, so reopening the
-        // DM could hand someone a conversation they are no longer part of.
-        // Direct rooms are created, never edited.
+        // derived from it, and `POST /chats/rooms` with `kind: "direct"`
+        // resolves an existing DM by that key alone. Renaming one or rewriting
+        // its roster here would leave the key pointing at a membership that no
+        // longer matches, so reopening the DM could hand someone a conversation
+        // they are no longer part of. Direct rooms are created, never edited.
         if (existing.kind === "direct") {
           throw badRequest("Direct rooms cannot be edited.");
         }

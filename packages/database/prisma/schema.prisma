@@ -1636,6 +1636,8 @@ model ChatRoom {
   readStates      ChatRoomReadState[]
 
   @@unique([organizationId, slug])
+  // Future archive: create-or-get must unarchive-or-clear-directKey — archived
+  // rows still occupy this unique slot while archivedAt is filtered out.
   @@unique([organizationId, directKey])
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])

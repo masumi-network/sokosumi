@@ -1169,6 +1169,15 @@ export const ChatRoomKind = { CHANNEL: 'channel', DIRECT: 'direct' } as const;
  */
 export type ChatRoomKind = typeof ChatRoomKind[keyof typeof ChatRoomKind];
 
+export type ChatRoomSuccessResponse = {
+    data: ChatRoom;
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        pagination?: PaginationMetadata;
+    };
+};
+
 export type CreateChatRoomRequest = {
     /**
      * Creates a named room the whole roster can see.
@@ -8811,25 +8820,11 @@ export type PostChatsRoomsResponses = {
     /**
      * Direct chat room found
      */
-    200: {
-        data: ChatRoom;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
+    200: ChatRoomSuccessResponse;
     /**
      * Chat room created
      */
-    201: {
-        data: ChatRoom;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
+    201: ChatRoomSuccessResponse;
 };
 
 export type PostChatsRoomsResponse = PostChatsRoomsResponses[keyof PostChatsRoomsResponses];
