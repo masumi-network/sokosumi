@@ -1615,6 +1615,8 @@ export type HermesInstance = {
     avatarSeed?: string | null;
     personality?: HermesPersonality;
     autonomyLevel?: HermesAutonomyLevel;
+    model?: string | null;
+    modelProvider?: string | null;
     integrations: Array<HermesIntegration>;
     transitioning?: boolean;
     lastSokosumiSyncAt?: Date | null;
@@ -5861,6 +5863,20 @@ export type GetAgentsByIdReviewsMeErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Not Found
      */
     404: {
@@ -5922,6 +5938,20 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
@@ -13582,7 +13612,7 @@ export type GetHistoryData = {
          */
         q?: string;
         /**
-         * Workspace visibility scope for task and job rows. Conversations are always scoped to the authenticated user.
+         * Workspace visibility scope for task and job rows. Conversations are always scoped to the effective user (session or context headers).
          */
         scope?: 'workspace' | 'owned';
         /**
@@ -13784,7 +13814,7 @@ export type GetUsersByIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -13935,7 +13965,7 @@ export type GetUsersByIdDesignMdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14024,7 +14054,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14141,7 +14171,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14230,7 +14260,7 @@ export type GetUsersByIdOrganizationsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14319,7 +14349,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14474,7 +14504,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14567,7 +14597,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14674,7 +14704,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14772,7 +14802,7 @@ export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -14875,7 +14905,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -14989,7 +15019,7 @@ export type GetUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15083,7 +15113,7 @@ export type PostUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15177,7 +15207,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15268,7 +15298,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -15379,7 +15409,7 @@ export type GetUsersByIdUploadsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15487,7 +15517,7 @@ export type PostUsersByIdUploadsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15618,7 +15648,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15707,7 +15737,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15801,7 +15831,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -15890,7 +15920,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         /**
@@ -15983,7 +16013,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16073,7 +16103,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
         grantId: string;
@@ -16177,7 +16207,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16280,7 +16310,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16383,7 +16413,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16486,7 +16516,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };
@@ -16575,7 +16605,7 @@ export type GetUsersByIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the session caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
          */
         id: string;
     };

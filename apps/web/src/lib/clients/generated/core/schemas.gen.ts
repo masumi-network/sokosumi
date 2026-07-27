@@ -5798,6 +5798,20 @@ export const HermesInstanceSchema = {
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
         },
+        model: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        modelProvider: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
         integrations: {
             type: 'array',
             items: {

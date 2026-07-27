@@ -97,6 +97,45 @@ describe("hermes-orchestrator.client", () => {
     expect(() => hermesInstanceSchema.parse(instance)).not.toThrow();
   });
 
+  it("passes through the live model + provider and nulls empty values", async () => {
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        status: "ready",
+        endpointUrl: null,
+        model: "xiaomi/mimo-v2.5",
+        modelProvider: "OpenRouter (managed)",
+      }),
+    });
+
+    const { getInstance } = await import("./hermes-orchestrator.client");
+    const instance = await getInstance("user_model");
+
+    expect(instance?.model).toBe("xiaomi/mimo-v2.5");
+    expect(instance?.modelProvider).toBe("OpenRouter (managed)");
+    expect(() => hermesInstanceSchema.parse(instance)).not.toThrow();
+  });
+
+  it("nulls a missing or blank model instead of failing the parse", async () => {
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        status: "ready",
+        endpointUrl: null,
+        model: "   ",
+      }),
+    });
+
+    const { getInstance } = await import("./hermes-orchestrator.client");
+    const instance = await getInstance("user_no_model");
+
+    expect(instance?.model).toBeNull();
+    expect(instance?.modelProvider).toBeNull();
+    expect(() => hermesInstanceSchema.parse(instance)).not.toThrow();
+  });
+
   it("coerces empty pending confirmation organization fields to null so instance schema parse succeeds", async () => {
     fetchMock.mockResolvedValue({
       status: 200,

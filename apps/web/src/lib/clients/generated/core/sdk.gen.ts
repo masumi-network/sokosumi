@@ -306,7 +306,7 @@ export const getAgentsByIdReviews = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Get the authenticated caller's own review for an agent
+ * Get the authenticated caller's own review for an agent. Session user or orchestrator/coworker with context headers.
  */
 export const getAgentsByIdReviewsMe = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdReviewsMeData, ThrowOnError>): RequestResult<GetAgentsByIdReviewsMeResponses, GetAgentsByIdReviewsMeErrors, ThrowOnError> => (options.client ?? client).get<GetAgentsByIdReviewsMeResponses, GetAgentsByIdReviewsMeErrors, ThrowOnError>({
     responseTransformer: getAgentsByIdReviewsMeResponseTransformer,
@@ -315,7 +315,7 @@ export const getAgentsByIdReviewsMe = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Check whether the authenticated caller is eligible to rate an agent (has finished at least one job with it)
+ * Check whether the authenticated caller is eligible to rate an agent (has finished at least one job with it). Session user or orchestrator/coworker with context headers.
  */
 export const getAgentsByIdRatingsEligibility = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdRatingsEligibilityData, ThrowOnError>): RequestResult<GetAgentsByIdRatingsEligibilityResponses, GetAgentsByIdRatingsEligibilityErrors, ThrowOnError> => (options.client ?? client).get<GetAgentsByIdRatingsEligibilityResponses, GetAgentsByIdRatingsEligibilityErrors, ThrowOnError>({
     responseTransformer: getAgentsByIdRatingsEligibilityResponseTransformer,
@@ -324,7 +324,7 @@ export const getAgentsByIdRatingsEligibility = <ThrowOnError extends boolean = f
 });
 
 /**
- * Create or update the authenticated caller's rating for an agent. Requires the caller to have finished at least one job with the agent.
+ * Create or update the authenticated caller's rating for an agent. Requires the caller to have finished at least one job with the agent. Session user or orchestrator/coworker with context headers.
  */
 export const postAgentsByIdRatings = <ThrowOnError extends boolean = false>(options: Options<PostAgentsByIdRatingsData, ThrowOnError>): RequestResult<PostAgentsByIdRatingsResponses, PostAgentsByIdRatingsErrors, ThrowOnError> => (options.client ?? client).post<PostAgentsByIdRatingsResponses, PostAgentsByIdRatingsErrors, ThrowOnError>({
     responseTransformer: postAgentsByIdRatingsResponseTransformer,
@@ -377,7 +377,7 @@ export const getCategories = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Load persisted messages as AI SDK UIMessage[] for the chat UI (same source as POST /chat persistence).
+ * Load persisted messages as AI SDK UIMessage[] for the chat UI (same source as POST /chat persistence). Session user or orchestrator/coworker with context headers.
  */
 export const getChat = <ThrowOnError extends boolean = false>(options: Options<GetChatData, ThrowOnError>): RequestResult<GetChatResponses, GetChatErrors, ThrowOnError> => (options.client ?? client).get<GetChatResponses, GetChatErrors, ThrowOnError>({
     responseTransformer: getChatResponseTransformer,
@@ -386,7 +386,7 @@ export const getChat = <ThrowOnError extends boolean = false>(options: Options<G
 });
 
 /**
- * Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint.
+ * Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint. Session user or orchestrator/coworker with context headers (coworkers require an assigned conversationId).
  */
 export const postChat = <ThrowOnError extends boolean = false>(options?: Options<PostChatData, ThrowOnError, PostChatResponse>): Promise<ServerSentEventsResult<PostChatResponses>> => (options?.client ?? client).sse.post<PostChatResponses, PostChatErrors, ThrowOnError>({
     url: '/chat',
@@ -425,7 +425,7 @@ export const getCheckoutSessionAnalytics = <ThrowOnError extends boolean = false
 });
 
 /**
- * List all conversations for the authenticated user
+ * List all conversations for the effective user (session user, or orchestrator/coworker with context headers). Delegated coworkers only see conversations bound to their coworker id.
  */
 export const getConversations = <ThrowOnError extends boolean = false>(options?: Options<GetConversationsData, ThrowOnError>): RequestResult<GetConversationsResponses, GetConversationsErrors, ThrowOnError> => (options?.client ?? client).get<GetConversationsResponses, GetConversationsErrors, ThrowOnError>({
     responseTransformer: getConversationsResponseTransformer,
@@ -491,7 +491,7 @@ export const patchConversationsByIdArchive = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Get messages for a conversation (paginated)
+ * Get messages for a conversation (paginated). Session user or orchestrator/coworker with context headers; coworkers must be bound to the conversation.
  */
 export const getConversationsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<GetConversationsByIdMessagesData, ThrowOnError>): RequestResult<GetConversationsByIdMessagesResponses, GetConversationsByIdMessagesErrors, ThrowOnError> => (options.client ?? client).get<GetConversationsByIdMessagesResponses, GetConversationsByIdMessagesErrors, ThrowOnError>({
     responseTransformer: getConversationsByIdMessagesResponseTransformer,
@@ -1270,7 +1270,7 @@ export const getUsersById = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Get the raw organization record by slug for the current member
+ * Get the raw organization record by slug for the effective user when they are a member (session user, or orchestrator/coworker with context headers)
  */
 export const getOrganizationBySlug = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationBySlugData, ThrowOnError>): RequestResult<GetOrganizationBySlugResponses, GetOrganizationBySlugErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationBySlugResponses, GetOrganizationBySlugErrors, ThrowOnError>({
     responseTransformer: getOrganizationBySlugResponseTransformer,
@@ -1279,7 +1279,7 @@ export const getOrganizationBySlug = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Get organization details by ID for the current member
+ * Get organization details by ID for the effective user when they are a member (session user, or orchestrator/coworker with context headers)
  */
 export const getOrganizationsById = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdData, ThrowOnError>): RequestResult<GetOrganizationsByIdResponses, GetOrganizationsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdResponses, GetOrganizationsByIdErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdResponseTransformer,
@@ -1409,7 +1409,7 @@ export const getOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean 
 });
 
 /**
- * Ensure a Stripe customer exists for an organization. Any member of the organization may call it. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.
+ * Ensure a Stripe customer exists for an organization. Any member of the organization may call it (session user, or orchestrator/coworker with context headers). Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.
  */
 export const postOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdStripeCustomerData, ThrowOnError>): RequestResult<PostOrganizationsByIdStripeCustomerResponses, PostOrganizationsByIdStripeCustomerErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdStripeCustomerResponses, PostOrganizationsByIdStripeCustomerErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdStripeCustomerResponseTransformer,
@@ -1418,7 +1418,7 @@ export const postOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean
 });
 
 /**
- * Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins, or platform admins with a session, may access this route.
+ * Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins (session user or orchestrator/coworker with context headers), or platform admins with a user session, may access this route.
  */
 export const getOrganizationsByIdBillingDetails = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdBillingDetailsData, ThrowOnError>): RequestResult<GetOrganizationsByIdBillingDetailsResponses, GetOrganizationsByIdBillingDetailsErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdBillingDetailsResponses, GetOrganizationsByIdBillingDetailsErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdBillingDetailsResponseTransformer,
@@ -1701,7 +1701,7 @@ export const putJobsByIdWorkspace = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List notifications for the authenticated user with cursor pagination
+ * List notifications for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination
  */
 export const getNotifications = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsData, ThrowOnError>): RequestResult<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError>({
     responseTransformer: getNotificationsResponseTransformer,
@@ -1710,7 +1710,7 @@ export const getNotifications = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Get the count of unread notifications for the authenticated user
+ * Get the count of unread notifications for the effective user (session user, or orchestrator/coworker with context headers)
  */
 export const getNotificationsUnreadCount = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsUnreadCountData, ThrowOnError>): RequestResult<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError>({
     responseTransformer: getNotificationsUnreadCountResponseTransformer,
@@ -1719,7 +1719,7 @@ export const getNotificationsUnreadCount = <ThrowOnError extends boolean = false
 });
 
 /**
- * Mark a single notification as read (owner only)
+ * Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only)
  */
 export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PatchNotificationsByIdReadData, ThrowOnError>): RequestResult<PatchNotificationsByIdReadResponses, PatchNotificationsByIdReadErrors, ThrowOnError> => (options.client ?? client).patch<PatchNotificationsByIdReadResponses, PatchNotificationsByIdReadErrors, ThrowOnError>({
     responseTransformer: patchNotificationsByIdReadResponseTransformer,
@@ -1728,7 +1728,7 @@ export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Mark all notifications as read for the authenticated user
+ * Mark all notifications as read for the effective user (session user, or orchestrator/coworker with context headers)
  */
 export const patchNotificationsReadAll = <ThrowOnError extends boolean = false>(options?: Options<PatchNotificationsReadAllData, ThrowOnError>): RequestResult<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError> => (options?.client ?? client).patch<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError>({
     responseTransformer: patchNotificationsReadAllResponseTransformer,
@@ -2093,7 +2093,7 @@ export const putTasksByIdShare = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Resolve a task id to its workspace and organization id
+ * Resolve a task id to its workspace and organization id. Session user or orchestrator/coworker with context headers.
  */
 export const getTasksByIdWorkspace = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdWorkspaceData, ThrowOnError>): RequestResult<GetTasksByIdWorkspaceResponses, GetTasksByIdWorkspaceErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdWorkspaceResponses, GetTasksByIdWorkspaceErrors, ThrowOnError>({
     responseTransformer: getTasksByIdWorkspaceResponseTransformer,

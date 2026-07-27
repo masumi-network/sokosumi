@@ -59,6 +59,10 @@ interface SettingsPanelProps {
   /** Base seed for the curated palette (the user's id). */
   orbBaseSeed: string;
   integrations: HermesIntegration[];
+  /** Live model + provider the orchestrator serves this instance. Null when
+   * absent — the Model section falls back to i18n copy. */
+  model: string | null;
+  modelProvider: string | null;
   /** From the instance payload — drives the "workspace synced N ago" label. */
   lastSokosumiSyncAt: string | null;
   /** From the instance payload — drives the "memory refreshed N ago" label. */
@@ -112,6 +116,8 @@ export default function SettingsPanel({
   avatarSeed,
   orbBaseSeed,
   integrations,
+  model,
+  modelProvider,
   lastSokosumiSyncAt,
   lastInboxRefreshAt,
   onDestroy,
@@ -495,12 +501,14 @@ export default function SettingsPanel({
               <div className="border-border/60 bg-card/40 flex flex-col gap-2.5 rounded-xl border px-4 py-3.5">
                 <ReadOnlyField
                   label={t("modelLabel")}
-                  value={t("modelValue")}
+                  // Live model the orchestrator reports; fall back to the
+                  // i18n constant only when the field is absent.
+                  value={model ?? t("modelValue")}
                   mono
                 />
                 <ReadOnlyField
                   label={t("modelProviderLabel")}
-                  value={t("modelProviderValue")}
+                  value={modelProvider ?? t("modelProviderValue")}
                 />
                 <p className="text-muted-foreground/80 text-xs leading-relaxed">
                   {t("modelManagedHelp")}
