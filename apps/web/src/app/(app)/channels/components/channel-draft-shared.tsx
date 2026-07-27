@@ -39,7 +39,19 @@ export function buildDirectDraftTargets(
   coworkers: Coworker[],
   currentUserId: string,
 ): DirectDraftTarget[] {
+  // Humans first so org members stay reachable when many AI coworkers exist;
+  // pickers scroll rather than hard-capping the list.
   return [
+    ...members
+      .filter((member) => member.user.id !== currentUserId)
+      .map((member) => ({
+        key: `human:${member.user.id}`,
+        id: member.user.id,
+        name: member.user.name || member.user.email,
+        detail: member.user.email,
+        image: member.user.image ?? null,
+        kind: "human" as const,
+      })),
     ...coworkers.map((coworker) => ({
       key: `coworker:${coworker.id}`,
       id: coworker.id,
@@ -51,17 +63,26 @@ export function buildDirectDraftTargets(
       caption: coworker.caption,
       presence: "online" as const,
     })),
-    ...members
-      .filter((member) => member.user.id !== currentUserId)
-      .map((member) => ({
-        key: `human:${member.user.id}`,
-        id: member.user.id,
-        name: member.user.name || member.user.email,
-        detail: member.user.email,
-        image: member.user.image ?? null,
-        kind: "human" as const,
-      })),
   ];
+}
+
+export function filterDraftTargets(
+  targets: readonly DirectDraftTarget[],
+  selectedKeys: ReadonlySet<string>,
+  query: string,
+): DirectDraftTarget[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  return targets
+    .filter((target) => !selectedKeys.has(target.key))
+    .filter((target) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+      return [target.name, target.detail, target.slug ?? ""]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
 }
 
 export function DirectDraftTargetRow({
@@ -98,5 +119,57 @@ export function DirectDraftTargetRow({
         ) : null}
       </span>
     </button>
+  );
+}
+
+export function DirectDraftTargetList({
+  targets,
+  onSelect,
+}: {
+  targets: readonly DirectDraftTarget[];
+  onSelect: (target: DirectDraftTarget) => void;
+}) {
+  const t = useTranslations("App.Channels");
+  const humans = targets.filter((target) => target.kind === "human");
+  const coworkerTargets = targets.filter(
+    (target) => target.kind === "coworker",
+  );
+  const showSectionLabels = humans.length > 0 && coworkerTargets.length > 0;
+
+  return (
+    <>
+      {humans.length > 0 ? (
+        <div className={coworkerTargets.length > 0 ? "pb-1" : undefined}>
+          {showSectionLabels ? (
+            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[11px] font-medium">
+              {t("Dialog.humans")}
+            </div>
+          ) : null}
+          {humans.map((target) => (
+            <DirectDraftTargetRow
+              key={target.key}
+              target={target}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      ) : null}
+      {coworkerTargets.length > 0 ? (
+        <div>
+          {showSectionLabels ? (
+            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[11px] font-medium">
+              {t("Dialog.coworkers")}
+            </div>
+          ) : null}
+          {coworkerTargets.map((target) => (
+            <DirectDraftTargetRow
+              key={target.key}
+              target={target}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      ) : null}
+    </>
   );
 }

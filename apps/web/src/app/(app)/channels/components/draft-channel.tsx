@@ -29,7 +29,8 @@ import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
   type DirectDraftTarget,
-  DirectDraftTargetRow,
+  DirectDraftTargetList,
+  filterDraftTargets,
 } from "./channel-draft-shared";
 
 export function DraftChannel({
@@ -69,21 +70,10 @@ export function DraftChannel({
       .filter((target): target is DirectDraftTarget => Boolean(target));
   }, [selectedKeys, targets]);
   const selectedKeySet = useMemo(() => new Set(selectedKeys), [selectedKeys]);
-  const normalizedQuery = recipientQuery.trim().toLowerCase();
-  const candidateTargets = useMemo(() => {
-    return targets
-      .filter((target) => !selectedKeySet.has(target.key))
-      .filter((target) => {
-        if (!normalizedQuery) {
-          return true;
-        }
-        return [target.name, target.detail, target.slug ?? ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery);
-      })
-      .slice(0, 8);
-  }, [normalizedQuery, selectedKeySet, targets]);
+  const candidateTargets = useMemo(
+    () => filterDraftTargets(targets, selectedKeySet, recipientQuery),
+    [recipientQuery, selectedKeySet, targets],
+  );
   const selectedCoworkerParticipants = useMemo<
     Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
@@ -274,13 +264,10 @@ export function DraftChannel({
             {isRecipientPickerOpen ? (
               <div className="bg-popover text-popover-foreground border-border absolute top-full right-0 left-0 z-20 mt-1 max-h-72 overflow-y-auto rounded-md border p-1 shadow-lg">
                 {candidateTargets.length > 0 ? (
-                  candidateTargets.map((target) => (
-                    <DirectDraftTargetRow
-                      key={target.key}
-                      target={target}
-                      onSelect={addTarget}
-                    />
-                  ))
+                  <DirectDraftTargetList
+                    targets={candidateTargets}
+                    onSelect={addTarget}
+                  />
                 ) : (
                   <p className="text-muted-foreground px-3 py-4 text-sm">
                     {t("Draft.noResults")}
