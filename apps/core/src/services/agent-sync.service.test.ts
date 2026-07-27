@@ -255,7 +255,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
 
     expect(tagUpsertMock).toHaveBeenCalled();
-    expect(agentUpsertMock).toHaveBeenCalledTimes(3);
+    expect(agentUpsertMock).toHaveBeenCalledTimes(2);
 
     const freeEntryCall = agentUpsertMock.mock.calls[0]?.[0];
     expect(freeEntryCall.create.pricing.create.pricingType).toBe(
@@ -273,11 +273,13 @@ describe("agentSyncService.syncRegistryAgents", () => {
         .createMany.data,
     ).toEqual([{ amount: BigInt(42), unit: "TOKEN" }]);
 
-    const invalidFixedEntryCall = agentUpsertMock.mock.calls[2]?.[0];
-    expect(invalidFixedEntryCall.create.pricing.create.pricingType).toBe(
-      PricingType.UNKNOWN,
-    );
-    expect(invalidFixedEntryCall.create.paymentType).toBe(PaymentType.UNKNOWN);
+    // entry-3 has a non-ingestable payment type, so it is skipped without an
+    // upsert while the cursor still advances past it.
+    expect(
+      agentUpsertMock.mock.calls.some(
+        (call) => call[0]?.where.blockchainIdentifier === "identifier-entry-3",
+      ),
+    ).toBe(false);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: {
@@ -320,6 +322,202 @@ describe("agentSyncService.syncRegistryAgents", () => {
       PricingType.UNKNOWN,
     );
     expect(emptyFixedCall.create.pricing.create.fixedPricing).toBeUndefined();
+  });
+
+  it("skips Web3CardanoV2 entries without upserting but still advances the cursor", async () => {
+    const entries = [
+      createRegistryEntry("entry-v2", {
+        paymentType: "Web3CardanoV2",
+        statusUpdatedAt: "2026-02-24T13:00:00.000Z",
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpsertMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: {
+        key: "agents-sync-metadata",
+      },
+      create: {
+        key: "agents-sync-metadata",
+        cursorId: "entry-v2",
+        lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
+      },
+      update: {
+        cursorId: "entry-v2",
+        lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
+      },
+    });
+  });
+
+  it("skips entries without an apiBaseUrl but keeps upserting later entries", async () => {
+    const entries = [
+      createRegistryEntry("entry-no-url", {
+        apiBaseUrl: null,
+      }),
+      createRegistryEntry("entry-valid", {
+        statusUpdatedAt: "2026-02-24T14:00:00.000Z",
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
+    expect(upsertCall.where.blockchainIdentifier).toBe(
+      "identifier-entry-valid",
+    );
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: "entry-valid",
+          lastSyncedAt: new Date("2026-02-24T14:00:00.000Z"),
+        },
+      }),
+    );
+  });
+
+  it("upserts entries with null AgentPricing as UNKNOWN pricing", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const entries = [
+      createRegistryEntry("entry-null-pricing", {
+        AgentPricing: null,
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
+    expect(upsertCall.create.pricing.create.pricingType).toBe(
+      PricingType.UNKNOWN,
+    );
+    expect(upsertCall.create.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("upserts fixed-pricing entries with non-numeric amounts as UNKNOWN pricing", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const entries = [
+      createRegistryEntry("entry-bad-amount", {
+        AgentPricing: {
+          pricingType: "Fixed",
+          FixedPricing: {
+            Amounts: [{ amount: "abc", unit: "TOKEN" }],
+          },
+        },
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
+    expect(upsertCall.create.pricing.create.pricingType).toBe(
+      PricingType.UNKNOWN,
+    );
+    expect(upsertCall.create.pricing.create.fixedPricing).toBeUndefined();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("stops the batch without advancing the cursor when the first upsert fails", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const entries = [
+      createRegistryEntry("entry-1"),
+      createRegistryEntry("entry-2"),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    agentUpsertMock.mockRejectedValueOnce(new Error("db down"));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
+    const upsertCall = agentUpsertMock.mock.calls[0]?.[0];
+    expect(upsertCall.where.blockchainIdentifier).toBe("identifier-entry-1");
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("advances the cursor only past the last successful entry when a later upsert fails", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const entries = [
+      createRegistryEntry("entry-1", {
+        statusUpdatedAt: "2026-02-24T15:00:00.000Z",
+      }),
+      createRegistryEntry("entry-2", {
+        statusUpdatedAt: "2026-02-24T16:00:00.000Z",
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    agentUpsertMock
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("db down"));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpsertMock).toHaveBeenCalledTimes(2);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: {
+        key: "agents-sync-metadata",
+      },
+      create: {
+        key: "agents-sync-metadata",
+        cursorId: "entry-1",
+        lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
+      },
+      update: {
+        cursorId: "entry-1",
+        lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
+      },
+    });
+
+    consoleErrorSpy.mockRestore();
   });
 });
 

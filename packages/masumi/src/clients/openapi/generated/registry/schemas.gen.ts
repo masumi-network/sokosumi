@@ -4,10 +4,12 @@ export const PaymentInformationSchema = {
     type: 'object',
     properties: {
         createdAt: {
-            type: 'string'
+            type: 'string',
+            format: 'date-time'
         },
         updatedAt: {
-            type: 'string'
+            type: 'string',
+            format: 'date-time'
         },
         metadataVersion: {
             type: 'integer'
@@ -15,12 +17,6 @@ export const PaymentInformationSchema = {
         RegistrySource: {
             type: 'object',
             properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'Web3CardanoV1'
-                    ]
-                },
                 policyId: {
                     type: 'string',
                     nullable: true
@@ -31,7 +27,6 @@ export const PaymentInformationSchema = {
                 }
             },
             required: [
-                'type',
                 'policyId',
                 'url'
             ]
@@ -139,8 +134,150 @@ export const PaymentInformationSchema = {
                     required: [
                         'pricingType'
                     ]
+                },
+                {
+                    nullable: true
                 }
             ]
+        },
+        SupportedPaymentSources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    chain: {
+                        type: 'string'
+                    },
+                    network: {
+                        type: 'string'
+                    },
+                    sourceIndex: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    paymentSourceType: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    address: {
+                        type: 'string'
+                    },
+                    scheme: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    pricing: {
+                        anyOf: [
+                            {
+                                type: 'object',
+                                properties: {
+                                    pricingType: {
+                                        type: 'string',
+                                        enum: [
+                                            'Fixed'
+                                        ]
+                                    },
+                                    fixed: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                asset: {
+                                                    type: 'string'
+                                                },
+                                                amount: {
+                                                    type: 'string'
+                                                },
+                                                decimals: {
+                                                    type: 'integer',
+                                                    minimum: 0,
+                                                    maximum: 255
+                                                }
+                                            },
+                                            required: [
+                                                'asset',
+                                                'amount'
+                                            ]
+                                        }
+                                    }
+                                },
+                                required: [
+                                    'pricingType',
+                                    'fixed'
+                                ]
+                            },
+                            {
+                                type: 'object',
+                                properties: {
+                                    pricingType: {
+                                        type: 'string',
+                                        enum: [
+                                            'Dynamic'
+                                        ]
+                                    },
+                                    dynamic: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                asset: {
+                                                    type: 'string'
+                                                },
+                                                decimals: {
+                                                    type: 'integer',
+                                                    minimum: 0,
+                                                    maximum: 255
+                                                }
+                                            },
+                                            required: [
+                                                'asset',
+                                                'decimals'
+                                            ]
+                                        },
+                                        maxItems: 1
+                                    }
+                                },
+                                required: [
+                                    'pricingType'
+                                ]
+                            },
+                            {
+                                type: 'object',
+                                properties: {
+                                    pricingType: {
+                                        type: 'string',
+                                        enum: [
+                                            'Free'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'pricingType'
+                                ]
+                            }
+                        ]
+                    },
+                    payTo: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    resource: {
+                        type: 'string',
+                        nullable: true
+                    }
+                },
+                required: [
+                    'chain',
+                    'network',
+                    'sourceIndex',
+                    'paymentSourceType',
+                    'address',
+                    'scheme',
+                    'pricing',
+                    'payTo',
+                    'resource'
+                ]
+            }
         },
         name: {
             type: 'string'
@@ -162,7 +299,8 @@ export const PaymentInformationSchema = {
             type: 'string'
         },
         lastUptimeCheck: {
-            type: 'string'
+            type: 'string',
+            format: 'date-time'
         },
         uptimeCount: {
             type: 'number'
@@ -170,8 +308,25 @@ export const PaymentInformationSchema = {
         uptimeCheckCount: {
             type: 'number'
         },
+        type: {
+            type: 'string',
+            enum: [
+                'Standard',
+                'OpenApi',
+                'X402'
+            ]
+        },
         apiBaseUrl: {
-            type: 'string'
+            type: 'string',
+            nullable: true
+        },
+        openApiSpecUrl: {
+            type: 'string',
+            nullable: true
+        },
+        x402ResourcesUrl: {
+            type: 'string',
+            nullable: true
         },
         authorName: {
             type: 'string',
@@ -216,6 +371,7 @@ export const PaymentInformationSchema = {
             type: 'string',
             enum: [
                 'Web3CardanoV1',
+                'Web3CardanoV2',
                 'None'
             ]
         },
@@ -253,6 +409,7 @@ export const PaymentInformationSchema = {
         'sellerWallet',
         'Capability',
         'AgentPricing',
+        'SupportedPaymentSources',
         'name',
         'description',
         'status',
@@ -260,7 +417,10 @@ export const PaymentInformationSchema = {
         'lastUptimeCheck',
         'uptimeCount',
         'uptimeCheckCount',
+        'type',
         'apiBaseUrl',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
         'authorName',
         'authorOrganization',
         'authorContactEmail',
@@ -286,7 +446,8 @@ export const RegistryEntrySchema = {
             type: 'string'
         },
         createdAt: {
-            type: 'string'
+            type: 'string',
+            format: 'date-time'
         },
         description: {
             type: 'string',
@@ -302,10 +463,12 @@ export const RegistryEntrySchema = {
             ]
         },
         statusUpdatedAt: {
-            type: 'string'
+            type: 'string',
+            format: 'date-time'
         },
         lastUptimeCheck: {
-            type: 'string'
+            type: 'string',
+            format: 'date-time'
         },
         uptimeCount: {
             type: 'number'
@@ -313,8 +476,25 @@ export const RegistryEntrySchema = {
         uptimeCheckCount: {
             type: 'number'
         },
+        type: {
+            type: 'string',
+            enum: [
+                'Standard',
+                'OpenApi',
+                'X402'
+            ]
+        },
         apiBaseUrl: {
-            type: 'string'
+            type: 'string',
+            nullable: true
+        },
+        openApiSpecUrl: {
+            type: 'string',
+            nullable: true
+        },
+        x402ResourcesUrl: {
+            type: 'string',
+            nullable: true
         },
         authorName: {
             type: 'string',
@@ -358,10 +538,21 @@ export const RegistryEntrySchema = {
         agentIdentifier: {
             type: 'string'
         },
+        supersedesAgentIdentifier: {
+            type: 'string',
+            nullable: true,
+            description: 'For a V2 agent, the older version this entry replaced (same root, next-lower version), or null if this is the first/only version. Always null for V1 assets. Computed live from stored versions.'
+        },
+        supersededByAgentIdentifier: {
+            type: 'string',
+            nullable: true,
+            description: 'For a V2 agent, the newer version that replaced this entry (same root, next-higher version), or null if this is the latest version. Always null for V1 assets. Computed live from stored versions.'
+        },
         paymentType: {
             type: 'string',
             enum: [
                 'Web3CardanoV1',
+                'Web3CardanoV2',
                 'None'
             ]
         },
@@ -370,12 +561,6 @@ export const RegistryEntrySchema = {
             properties: {
                 id: {
                     type: 'string'
-                },
-                type: {
-                    type: 'string',
-                    enum: [
-                        'Web3CardanoV1'
-                    ]
                 },
                 policyId: {
                     type: 'string',
@@ -388,7 +573,6 @@ export const RegistryEntrySchema = {
             },
             required: [
                 'id',
-                'type',
                 'policyId',
                 'url'
             ]
@@ -481,6 +665,9 @@ export const RegistryEntrySchema = {
                     required: [
                         'pricingType'
                     ]
+                },
+                {
+                    nullable: true
                 }
             ]
         },
@@ -506,11 +693,212 @@ export const RegistryEntrySchema = {
                 ]
             }
         },
+        SupportedPaymentSources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    chain: {
+                        type: 'string'
+                    },
+                    network: {
+                        type: 'string'
+                    },
+                    sourceIndex: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    paymentSourceType: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    address: {
+                        type: 'string'
+                    },
+                    scheme: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    pricing: {
+                        anyOf: [
+                            {
+                                type: 'object',
+                                properties: {
+                                    pricingType: {
+                                        type: 'string',
+                                        enum: [
+                                            'Fixed'
+                                        ]
+                                    },
+                                    fixed: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                asset: {
+                                                    type: 'string'
+                                                },
+                                                amount: {
+                                                    type: 'string'
+                                                },
+                                                decimals: {
+                                                    type: 'integer',
+                                                    minimum: 0,
+                                                    maximum: 255
+                                                }
+                                            },
+                                            required: [
+                                                'asset',
+                                                'amount'
+                                            ]
+                                        }
+                                    }
+                                },
+                                required: [
+                                    'pricingType',
+                                    'fixed'
+                                ]
+                            },
+                            {
+                                type: 'object',
+                                properties: {
+                                    pricingType: {
+                                        type: 'string',
+                                        enum: [
+                                            'Dynamic'
+                                        ]
+                                    },
+                                    dynamic: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                asset: {
+                                                    type: 'string'
+                                                },
+                                                decimals: {
+                                                    type: 'integer',
+                                                    minimum: 0,
+                                                    maximum: 255
+                                                }
+                                            },
+                                            required: [
+                                                'asset',
+                                                'decimals'
+                                            ]
+                                        },
+                                        maxItems: 1
+                                    }
+                                },
+                                required: [
+                                    'pricingType'
+                                ]
+                            },
+                            {
+                                type: 'object',
+                                properties: {
+                                    pricingType: {
+                                        type: 'string',
+                                        enum: [
+                                            'Free'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'pricingType'
+                                ]
+                            }
+                        ]
+                    },
+                    payTo: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    resource: {
+                        type: 'string',
+                        nullable: true
+                    }
+                },
+                required: [
+                    'chain',
+                    'network',
+                    'sourceIndex',
+                    'paymentSourceType',
+                    'address',
+                    'scheme',
+                    'pricing',
+                    'payTo',
+                    'resource'
+                ]
+            }
+        },
+        Verifications: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    method: {
+                        type: 'string'
+                    },
+                    schemaVersion: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    issuerAid: {
+                        type: 'string'
+                    },
+                    issuerOobi: {
+                        type: 'string'
+                    },
+                    schemaSaid: {
+                        type: 'string'
+                    },
+                    schemaOobi: {
+                        type: 'string'
+                    },
+                    credentialSaid: {
+                        type: 'string'
+                    },
+                    credentialOobi: {
+                        type: 'string'
+                    },
+                    credentialRegistry: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    holderAid: {
+                        type: 'string'
+                    },
+                    holderOobi: {
+                        type: 'string'
+                    },
+                    baseUrl: {
+                        type: 'string',
+                        nullable: true
+                    }
+                },
+                required: [
+                    'method',
+                    'schemaVersion',
+                    'issuerAid',
+                    'issuerOobi',
+                    'schemaSaid',
+                    'schemaOobi',
+                    'credentialSaid',
+                    'credentialOobi',
+                    'credentialRegistry',
+                    'holderAid',
+                    'holderOobi',
+                    'baseUrl'
+                ]
+            }
+        },
         metadataVersion: {
             type: 'integer'
         },
         updatedAt: {
-            type: 'string'
+            type: 'string',
+            format: 'date-time'
         }
     },
     required: [
@@ -523,7 +911,10 @@ export const RegistryEntrySchema = {
         'lastUptimeCheck',
         'uptimeCount',
         'uptimeCheckCount',
+        'type',
         'apiBaseUrl',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
         'authorName',
         'authorOrganization',
         'authorContactEmail',
@@ -534,13 +925,127 @@ export const RegistryEntrySchema = {
         'otherLegal',
         'tags',
         'agentIdentifier',
+        'supersedesAgentIdentifier',
+        'supersededByAgentIdentifier',
         'paymentType',
         'RegistrySource',
         'Capability',
         'AgentPricing',
         'ExampleOutput',
+        'SupportedPaymentSources',
+        'Verifications',
         'metadataVersion',
         'updatedAt'
+    ]
+} as const;
+
+export const InboxAgentRegistrationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Pending',
+                'Verified',
+                'Invalid',
+                'Deregistered'
+            ]
+        },
+        statusUpdatedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: 'string',
+            nullable: true
+        },
+        agentSlug: {
+            type: 'string'
+        },
+        agentIdentifier: {
+            type: 'string'
+        },
+        providerUrl: {
+            type: 'string',
+            nullable: true
+        },
+        linkedEmail: {
+            type: 'string',
+            nullable: true
+        },
+        encryptionPublicKey: {
+            type: 'string',
+            nullable: true
+        },
+        encryptionKeyVersion: {
+            type: 'string',
+            nullable: true
+        },
+        signingPublicKey: {
+            type: 'string',
+            nullable: true
+        },
+        signingKeyVersion: {
+            type: 'string',
+            nullable: true
+        },
+        metadataVersion: {
+            type: 'integer'
+        },
+        RegistrySource: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                policyId: {
+                    type: 'string',
+                    nullable: true
+                },
+                url: {
+                    type: 'string',
+                    nullable: true
+                }
+            },
+            required: [
+                'id',
+                'policyId',
+                'url'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'status',
+        'statusUpdatedAt',
+        'name',
+        'description',
+        'agentSlug',
+        'agentIdentifier',
+        'providerUrl',
+        'linkedEmail',
+        'encryptionPublicKey',
+        'encryptionKeyVersion',
+        'signingPublicKey',
+        'signingKeyVersion',
+        'metadataVersion',
+        'RegistrySource'
     ]
 } as const;
 
@@ -549,12 +1054,6 @@ export const RegistrySourceSchema = {
     properties: {
         id: {
             type: 'string'
-        },
-        type: {
-            type: 'string',
-            enum: [
-                'Web3CardanoV1'
-            ]
         },
         url: {
             type: 'string',
@@ -587,13 +1086,13 @@ export const RegistrySourceSchema = {
             nullable: true,
             enum: [
                 'Preprod',
-                'Mainnet'
+                'Mainnet',
+                null
             ]
         }
     },
     required: [
         'id',
-        'type',
         'url',
         'policyId',
         'note',
@@ -641,9 +1140,6 @@ export const APIKeySchema = {
         id: {
             type: 'string'
         },
-        token: {
-            type: 'string'
-        },
         permission: {
             type: 'string',
             enum: [
@@ -676,11 +1172,60 @@ export const APIKeySchema = {
     },
     required: [
         'id',
-        'token',
         'permission',
         'usageLimited',
         'maxUsageCredits',
         'accumulatedUsageCredits',
         'status'
+    ]
+} as const;
+
+export const APIKeyWithTokenSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        permission: {
+            type: 'string',
+            enum: [
+                'User',
+                'Admin'
+            ]
+        },
+        usageLimited: {
+            type: 'boolean'
+        },
+        maxUsageCredits: {
+            type: 'integer',
+            nullable: true,
+            minimum: 0,
+            maximum: 1000000
+        },
+        accumulatedUsageCredits: {
+            type: 'integer',
+            nullable: true,
+            minimum: 0,
+            maximum: 1000000
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Active',
+                'Revoked'
+            ]
+        },
+        token: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'permission',
+        'usageLimited',
+        'maxUsageCredits',
+        'accumulatedUsageCredits',
+        'status',
+        'token'
     ]
 } as const;

@@ -6,7 +6,7 @@ import { err, ok, type Result } from "neverthrow";
 
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
-  getPurchase,
+  type PostPurchaseResolveBlockchainIdentifierResponses,
   type PostPurchaseResponses,
   postPurchase,
   postPurchaseRequestRefund,
@@ -16,6 +16,9 @@ import {
 interface PaymentClientRequestOptions {
   signal?: AbortSignal;
 }
+
+type ResolvedPurchase =
+  PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
 
 interface MasumiTaskPurchaseInput {
   blockchainIdentifier: string;
@@ -46,59 +49,36 @@ export function createPaymentClient(
     return paymentClient;
   };
 
+  const resolvePurchase = async (
+    blockchainIdentifier: string,
+    options: PaymentClientRequestOptions = {},
+  ): Promise<Result<ResolvedPurchase, string>> => {
+    try {
+      const response = await postPurchaseResolveBlockchainIdentifier({
+        client: client(),
+        body: {
+          blockchainIdentifier,
+          network,
+        },
+        signal: options.signal,
+      });
+      if (response.error || !response.data) {
+        return err(
+          response.error ? String(response.error) : "Failed to get purchase",
+        );
+      }
+      return ok(response.data.data);
+    } catch (error) {
+      return err(String(error) || "Failed to get purchase");
+    }
+  };
+
   return {
     async getPurchaseByBlockchainIdentifier(
       jobBlockchainIdentifier: string,
       options: PaymentClientRequestOptions = {},
     ) {
-      try {
-        const response = await postPurchaseResolveBlockchainIdentifier({
-          client: client(),
-          body: {
-            blockchainIdentifier: jobBlockchainIdentifier,
-            network,
-          },
-          signal: options.signal,
-        });
-        if (response.error || !response.data) {
-          return err(
-            response.error ? String(response.error) : "Failed to get purchase",
-          );
-        }
-        return ok(response.data.data);
-      } catch (error) {
-        return err(error);
-      }
-    },
-
-    async getPurchaseById(
-      purchaseId: string,
-      options: PaymentClientRequestOptions = {},
-    ) {
-      try {
-        const response = await getPurchase({
-          client: client(),
-          query: {
-            cursorId: purchaseId,
-            network,
-            limit: 1,
-          },
-          signal: options.signal,
-        });
-
-        if (
-          response.error ||
-          !response.data ||
-          response.data.data.Purchases.length !== 1
-        ) {
-          return err(response.error ? String(response.error) : "Unknown error");
-        }
-        const purchase = response.data.data.Purchases[0];
-
-        return ok(purchase);
-      } catch (error) {
-        return err(error);
-      }
+      return resolvePurchase(jobBlockchainIdentifier, options);
     },
 
     async requestRefund(jobBlockchainIdentifier: string) {
@@ -150,6 +130,16 @@ export function createPaymentClient(
         });
 
         if (response.error || !response.data) {
+          if (response.response?.status === 409) {
+            // Duplicate blockchainIdentifier: the purchase already exists on
+            // the payment node (e.g. a retried request). Resolve it and treat
+            // the call as idempotent success.
+            console.info(
+              "[masumi-payment] createPurchase: purchase already exists, resolving",
+              { blockchainIdentifier: startJobResponse.blockchainIdentifier },
+            );
+            return resolvePurchase(startJobResponse.blockchainIdentifier);
+          }
           console.error("Failed to create purchase request", response.error);
           return err("Failed to create purchase request");
         }
@@ -195,6 +185,15 @@ export function createPaymentClient(
         });
 
         if (response.error || !response.data) {
+          if (response.response?.status === 409) {
+            // Duplicate blockchainIdentifier: idempotent retry — resolve the
+            // existing purchase instead of reporting an error.
+            console.info(`${logLabel} purchase already exists, resolving`, {
+              network,
+              blockchainIdentifier: input.blockchainIdentifier,
+            });
+            return resolvePurchase(input.blockchainIdentifier);
+          }
           console.error(`${logLabel} payment API error`, {
             network,
             blockchainIdentifier: input.blockchainIdentifier,

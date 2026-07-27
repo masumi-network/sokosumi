@@ -1,32 +1,36 @@
+import type { StartPaidJobResponseSchemaType } from "@sokosumi/masumi/schemas";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPaymentClient } from "../masumi-payment.client.js";
 
-const getPurchaseMock = vi.fn();
 const postPurchaseMock = vi.fn();
+const postPurchaseRequestRefundMock = vi.fn();
 const postPurchaseResolveBlockchainIdentifierMock = vi.fn();
 
 vi.mock("../openapi/generated/payment/index.js", () => ({
-  getPurchase: (...args: unknown[]) => getPurchaseMock(...args),
   postPurchase: (...args: unknown[]) => postPurchaseMock(...args),
+  postPurchaseRequestRefund: (...args: unknown[]) =>
+    postPurchaseRequestRefundMock(...args),
   postPurchaseResolveBlockchainIdentifier: (...args: unknown[]) =>
     postPurchaseResolveBlockchainIdentifierMock(...args),
 }));
 
+const startJobResponse: StartPaidJobResponseSchemaType = {
+  id: "job_1",
+  input_hash: "input-hash",
+  identifierFromPurchaser: "aabbccddeeff00112233",
+  blockchainIdentifier: "job-chain-1",
+  payByTime: 1775737949000,
+  submitResultTime: 1775681853000,
+  unlockTime: 1775763149000,
+  externalDisputeUnlockTime: 1775784749000,
+  agentIdentifier: "agent1",
+  sellerVKey: "vkey1",
+};
+
 describe("createPaymentClient polling requests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getPurchaseMock.mockResolvedValue({
-      data: {
-        data: {
-          Purchases: [{ id: "purchase_1" }],
-        },
-      },
-      error: undefined,
-      response: {
-        status: 200,
-      },
-    });
     postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
       data: {
         data: {
@@ -37,13 +41,6 @@ describe("createPaymentClient polling requests", () => {
       response: {
         status: 200,
       },
-    });
-    postPurchaseMock.mockResolvedValue({
-      data: {
-        data: { id: "task_purchase_1" },
-      },
-      error: undefined,
-      response: { status: 200 },
     });
   });
 
@@ -59,28 +56,14 @@ describe("createPaymentClient polling requests", () => {
       await client.getPurchaseByBlockchainIdentifier("job-chain-1", {
         signal: abortSignal,
       });
-    const byIdResult = await client.getPurchaseById("purchase_1", {
-      signal: abortSignal,
-    });
 
     expect(byBlockchainIdentifierResult.isOk()).toBe(true);
-    expect(byIdResult.isOk()).toBe(true);
     expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledWith(
       expect.objectContaining({
         signal: abortSignal,
         body: expect.objectContaining({
           blockchainIdentifier: "job-chain-1",
           network: "Preprod",
-        }),
-      }),
-    );
-    expect(getPurchaseMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        signal: abortSignal,
-        query: expect.objectContaining({
-          cursorId: "purchase_1",
-          network: "Preprod",
-          limit: 1,
         }),
       }),
     );
@@ -95,10 +78,8 @@ describe("createPaymentClient polling requests", () => {
 
     const byBlockchainIdentifierResult =
       await client.getPurchaseByBlockchainIdentifier("job-chain-2");
-    const byIdResult = await client.getPurchaseById("purchase_2");
 
     expect(byBlockchainIdentifierResult.isOk()).toBe(true);
-    expect(byIdResult.isOk()).toBe(true);
     expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledWith(
       expect.objectContaining({
         signal: undefined,
@@ -108,16 +89,111 @@ describe("createPaymentClient polling requests", () => {
         }),
       }),
     );
-    expect(getPurchaseMock).toHaveBeenCalledWith(
+  });
+});
+
+describe("createPurchase duplicate handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: { id: "purchase_existing" },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+  });
+
+  it("treats a 409 duplicate as success by resolving the existing purchase", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+        id: "purchase_existing",
+        object: { id: "purchase_existing" },
+      },
+      response: { status: 409 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value.id).toBe("purchase_existing");
+    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        signal: undefined,
-        query: expect.objectContaining({
-          cursorId: "purchase_2",
-          network: "Mainnet",
-          limit: 1,
+        body: expect.objectContaining({
+          blockchainIdentifier: "job-chain-1",
+          network: "Preprod",
         }),
       }),
     );
+  });
+
+  it("returns an error when the 409 duplicate cannot be resolved", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: undefined,
+      error: { status: "error", error: { message: "Purchase not found" } },
+      response: { status: 404 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledTimes(
+      1,
+    );
+  });
+
+  it("keeps returning an error for non-409 failures", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { status: "error", error: { message: "Bad request" } },
+      response: { status: 400 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
   });
 });
 
@@ -168,5 +244,46 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
         }),
       }),
     );
+  });
+
+  it("treats a 409 duplicate as success by resolving the existing purchase", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+        id: "task_purchase_existing",
+        object: { id: "task_purchase_existing" },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: { id: "task_purchase_existing" },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value.id).toBe("task_purchase_existing");
   });
 });

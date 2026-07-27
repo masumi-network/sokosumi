@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import {
   NextJobAction,
   NextJobActionErrorType,
@@ -15,6 +16,8 @@ type PurchaseOnChainState =
   | "ResultSubmitted"
   | "RefundRequested"
   | "Disputed"
+  | "WithdrawAuthorized"
+  | "RefundAuthorized"
   | "Withdrawn"
   | "RefundWithdrawn"
   | "DisputedWithdrawn";
@@ -31,7 +34,9 @@ type PurchaseRequestedAction =
   | "UnSetRefundRequestedRequested"
   | "UnSetRefundRequestedInitiated"
   | "WithdrawRefundRequested"
-  | "WithdrawRefundInitiated";
+  | "WithdrawRefundInitiated"
+  | "AuthorizeWithdrawalRequested"
+  | "AuthorizeWithdrawalInitiated";
 
 type PurchaseErrorType =
   | null
@@ -39,160 +44,209 @@ type PurchaseErrorType =
   | "InsufficientFunds"
   | "Unknown";
 
+type PurchaseTransactionStatus =
+  | "Pending"
+  | "Confirmed"
+  | "FailedViaTimeout"
+  | "FailedViaManualReset"
+  | "RolledBack";
+
+/**
+ * Compile-time drift guards: if a regenerated payment client widens one of
+ * these unions (new payment-node release), the assertions below stop
+ * compiling and force the mapping functions to learn the new members.
+ */
+type AssertExtends<A extends B, B> = A;
+type _AssertOnChainStateCovered = AssertExtends<
+  Purchase["onChainState"],
+  PurchaseOnChainState
+>;
+type _AssertRequestedActionCovered = AssertExtends<
+  Purchase["NextAction"]["requestedAction"],
+  PurchaseRequestedAction
+>;
+type _AssertErrorTypeCovered = AssertExtends<
+  NonNullable<Purchase["NextAction"]>["errorType"] | null,
+  PurchaseErrorType
+>;
+type _AssertTransactionStatusCovered = AssertExtends<
+  NonNullable<Purchase["CurrentTransaction"]>["status"],
+  PurchaseTransactionStatus
+>;
+
+/**
+ * Unknown enum values coming from the payment node are skipped (the field is
+ * omitted from the update, keeping the previously stored value) instead of
+ * throwing, so a single unexpected value cannot wedge purchase sync for a job.
+ */
+function reportUnknownPurchaseValue(kind: string, value: string): undefined {
+  const error = new Error(`Unknown purchase ${kind}: ${value}`);
+  console.error("[purchase] skipping unknown value", { kind, value });
+  Sentry.captureException(error);
+  return undefined;
+}
+
 function onChainStateToOnChainJobStatus(
-  onChainState: PurchaseOnChainState,
-): OnChainJobStatus | null {
+  onChainState: string | null,
+): OnChainJobStatus | null | undefined {
   switch (onChainState) {
     case null:
       return null;
     case "FundsLocked":
-      return "FUNDS_LOCKED";
+      return OnChainJobStatus.FUNDS_LOCKED;
     case "FundsOrDatumInvalid":
-      return "FUNDS_OR_DATUM_INVALID";
+      return OnChainJobStatus.FUNDS_OR_DATUM_INVALID;
     case "ResultSubmitted":
-      return "RESULT_SUBMITTED";
+      return OnChainJobStatus.RESULT_SUBMITTED;
     case "RefundRequested":
-      return "REFUND_REQUESTED";
+      return OnChainJobStatus.REFUND_REQUESTED;
     case "Disputed":
-      return "DISPUTED";
+      return OnChainJobStatus.DISPUTED;
+    case "WithdrawAuthorized":
+      return OnChainJobStatus.WITHDRAW_AUTHORIZED;
+    case "RefundAuthorized":
+      return OnChainJobStatus.REFUND_AUTHORIZED;
     case "Withdrawn":
-      return "FUNDS_WITHDRAWN";
+      return OnChainJobStatus.FUNDS_WITHDRAWN;
     case "RefundWithdrawn":
-      return "REFUND_WITHDRAWN";
+      return OnChainJobStatus.REFUND_WITHDRAWN;
     case "DisputedWithdrawn":
-      return "DISPUTED_WITHDRAWN";
+      return OnChainJobStatus.DISPUTED_WITHDRAWN;
     default:
-      throw new Error(`Unknown on-chain state: ${onChainState}`);
+      return reportUnknownPurchaseValue("on-chain state", onChainState);
   }
 }
 
 function requestedActionToNextJobAction(
-  requestedAction: PurchaseRequestedAction,
-): NextJobAction {
+  requestedAction: string,
+): NextJobAction | undefined {
   switch (requestedAction) {
     case "None":
-      return "NONE";
+      return NextJobAction.NONE;
     case "Ignore":
-      return "IGNORE";
+      return NextJobAction.IGNORE;
     case "WaitingForManualAction":
-      return "WAITING_FOR_MANUAL_ACTION";
+      return NextJobAction.WAITING_FOR_MANUAL_ACTION;
     case "WaitingForExternalAction":
-      return "WAITING_FOR_EXTERNAL_ACTION";
+      return NextJobAction.WAITING_FOR_EXTERNAL_ACTION;
     case "FundsLockingRequested":
-      return "FUNDS_LOCKING_REQUESTED";
+      return NextJobAction.FUNDS_LOCKING_REQUESTED;
     case "FundsLockingInitiated":
-      return "FUNDS_LOCKING_INITIATED";
+      return NextJobAction.FUNDS_LOCKING_INITIATED;
     case "SetRefundRequestedRequested":
-      return "SET_REFUND_REQUESTED_REQUESTED";
+      return NextJobAction.SET_REFUND_REQUESTED_REQUESTED;
     case "SetRefundRequestedInitiated":
-      return "SET_REFUND_REQUESTED_INITIATED";
+      return NextJobAction.SET_REFUND_REQUESTED_INITIATED;
     case "UnSetRefundRequestedRequested":
-      return "UNSET_REFUND_REQUESTED_REQUESTED";
+      return NextJobAction.UNSET_REFUND_REQUESTED_REQUESTED;
     case "UnSetRefundRequestedInitiated":
-      return "UNSET_REFUND_REQUESTED_INITIATED";
+      return NextJobAction.UNSET_REFUND_REQUESTED_INITIATED;
     case "WithdrawRefundRequested":
-      return "WITHDRAW_REFUND_REQUESTED";
+      return NextJobAction.WITHDRAW_REFUND_REQUESTED;
     case "WithdrawRefundInitiated":
-      return "WITHDRAW_REFUND_INITIATED";
+      return NextJobAction.WITHDRAW_REFUND_INITIATED;
+    case "AuthorizeWithdrawalRequested":
+      return NextJobAction.AUTHORIZE_WITHDRAWAL_REQUESTED;
+    case "AuthorizeWithdrawalInitiated":
+      return NextJobAction.AUTHORIZE_WITHDRAWAL_INITIATED;
     default:
-      throw new Error(`Unknown next action: ${requestedAction}`);
+      return reportUnknownPurchaseValue("next action", requestedAction);
   }
 }
 
 function nextActionErrorTypeToNextJobActionErrorType(
-  nextActionErrorType: PurchaseErrorType,
-): NextJobActionErrorType | null {
+  nextActionErrorType: string | null,
+): NextJobActionErrorType | null | undefined {
   switch (nextActionErrorType) {
     case null:
       return null;
     case "NetworkError":
-      return "NETWORK_ERROR";
+      return NextJobActionErrorType.NETWORK_ERROR;
     case "InsufficientFunds":
-      return "INSUFFICIENT_FUNDS";
+      return NextJobActionErrorType.INSUFFICIENT_FUNDS;
     case "Unknown":
-      return "UNKNOWN";
+      return NextJobActionErrorType.UNKNOWN;
     default:
-      throw new Error(`Unknown next action error type: ${nextActionErrorType}`);
-  }
-}
-
-function transactionStatusToOnChainTransactionStatus(
-  currentTransactionStatus:
-    | "Pending"
-    | "Confirmed"
-    | "FailedViaTimeout"
-    | "FailedViaManualReset"
-    | "RolledBack",
-): OnChainTransactionStatus {
-  switch (currentTransactionStatus) {
-    case "Pending":
-      return "PENDING";
-    case "Confirmed":
-      return "COMPLETED";
-    case "FailedViaTimeout":
-    case "FailedViaManualReset":
-    case "RolledBack":
-      return "FAILED";
-    default:
-      throw new Error(
-        `Unknown transaction status: ${currentTransactionStatus}`,
+      return reportUnknownPurchaseValue(
+        "next action error type",
+        nextActionErrorType,
       );
   }
 }
 
-/**
- * Transform a Purchase from external API to database update data structure.
- */
-export function transformPurchaseToJobUpdate(purchase: Purchase): {
+function transactionStatusToOnChainTransactionStatus(
+  currentTransactionStatus: string,
+): OnChainTransactionStatus | undefined {
+  switch (currentTransactionStatus) {
+    case "Pending":
+      return OnChainTransactionStatus.PENDING;
+    case "Confirmed":
+      return OnChainTransactionStatus.COMPLETED;
+    case "FailedViaTimeout":
+    case "FailedViaManualReset":
+    case "RolledBack":
+      return OnChainTransactionStatus.FAILED;
+    default:
+      return reportUnknownPurchaseValue(
+        "transaction status",
+        currentTransactionStatus,
+      );
+  }
+}
+
+interface PurchaseJobUpdate {
   externalId: string;
-  onChainStatus: OnChainJobStatus | null;
+  onChainStatus?: OnChainJobStatus | null;
   resultHash: string | null;
-  nextAction: NextJobAction;
-  nextActionErrorType: NextJobActionErrorType | null;
+  nextAction?: NextJobAction;
+  nextActionErrorType?: NextJobActionErrorType | null;
   nextActionErrorNote: string | null;
   onChainTransactionHash?: string;
   onChainTransactionStatus?: OnChainTransactionStatus;
-} {
-  const onChainStatus = onChainStateToOnChainJobStatus(
-    purchase.onChainState as PurchaseOnChainState,
-  );
+}
+
+/**
+ * Transform a Purchase from the external API to a database update data
+ * structure. Fields whose incoming value is unknown are omitted (undefined),
+ * which keeps the previously stored value.
+ */
+export function transformPurchaseToJobUpdate(
+  purchase: Purchase,
+): PurchaseJobUpdate {
+  const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
   const nextActionData = purchase.NextAction;
   const requestedAction = requestedActionToNextJobAction(
-    nextActionData.requestedAction as PurchaseRequestedAction,
+    nextActionData.requestedAction,
   );
   const errorType = nextActionErrorTypeToNextJobActionErrorType(
-    nextActionData.errorType as PurchaseErrorType,
+    nextActionData.errorType,
   );
 
-  const data: {
-    externalId: string;
-    onChainStatus: OnChainJobStatus | null;
-    resultHash: string | null;
-    nextAction: NextJobAction;
-    nextActionErrorType: NextJobActionErrorType | null;
-    nextActionErrorNote: string | null;
-    onChainTransactionHash?: string;
-    onChainTransactionStatus?: OnChainTransactionStatus;
-  } = {
+  const data: PurchaseJobUpdate = {
     externalId: purchase.id,
-    onChainStatus,
     resultHash: purchase.resultHash ?? null,
-    nextAction: requestedAction,
-    nextActionErrorType: errorType,
     nextActionErrorNote: nextActionData.errorNote ?? null,
   };
 
+  if (onChainStatus !== undefined) {
+    data.onChainStatus = onChainStatus;
+  }
+  if (requestedAction !== undefined) {
+    data.nextAction = requestedAction;
+  }
+  if (errorType !== undefined) {
+    data.nextActionErrorType = errorType;
+  }
+
   const transaction = purchase.CurrentTransaction;
   if (transaction) {
-    data.onChainTransactionHash = transaction.txHash ?? undefined;
-    data.onChainTransactionStatus = transactionStatusToOnChainTransactionStatus(
-      transaction.status as
-        | "Pending"
-        | "Confirmed"
-        | "FailedViaTimeout"
-        | "FailedViaManualReset"
-        | "RolledBack",
+    const transactionStatus = transactionStatusToOnChainTransactionStatus(
+      transaction.status,
     );
+    if (transactionStatus !== undefined) {
+      data.onChainTransactionHash = transaction.txHash ?? undefined;
+      data.onChainTransactionStatus = transactionStatus;
+    }
   }
 
   return data;

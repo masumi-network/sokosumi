@@ -635,7 +635,8 @@ async function syncPurchaseState(
   }
 
   const purchaseExternalIdToSync = job.purchase?.externalId ?? null;
-  if (!purchaseExternalIdToSync) {
+  const jobBlockchainIdentifier = job.blockchainIdentifier;
+  if (!purchaseExternalIdToSync || !jobBlockchainIdentifier) {
     await finalizeJobSyncResult(oldJobStatus, {
       job,
       jobStatus: job.status,
@@ -652,12 +653,16 @@ async function syncPurchaseState(
     return false;
   }
 
-  const onChainPurchaseResult = await paymentClient().getPurchaseById(
-    purchaseExternalIdToSync,
-    {
-      signal: pollingSignal,
-    },
-  );
+  // Poll by blockchain identifier: GET /purchase defaults to a V1-only
+  // payment-source filter, so a purchase id cursor lookup can miss (or worse,
+  // return a neighboring row for) V2 purchases.
+  const onChainPurchaseResult =
+    await paymentClient().getPurchaseByBlockchainIdentifier(
+      jobBlockchainIdentifier,
+      {
+        signal: pollingSignal,
+      },
+    );
   if (
     pollingSignal.aborted ||
     shouldStopSync(

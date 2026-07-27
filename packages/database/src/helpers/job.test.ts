@@ -43,6 +43,39 @@ function createPaidJob(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createPurchase(overrides: Record<string, unknown> = {}) {
+  const now = new Date();
+
+  return {
+    externalId: "purchase-1",
+    onChainStatus: null,
+    onChainTransactionHash: null,
+    onChainTransactionStatus: null,
+    resultHash: null,
+    nextAction: "NONE",
+    nextActionErrorType: null,
+    nextActionErrorNote: null,
+    createdAt: now,
+    updatedAt: now,
+    jobId: "job-1",
+    errorNote: null,
+    errorNoteKey: null,
+    ...overrides,
+  };
+}
+
+function createJobEvent(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "event-1",
+    status: "RUNNING",
+    result: null,
+    statusHash: "old-hash",
+    input: null,
+    createdAt: new Date(),
+    ...overrides,
+  };
+}
+
 describe("computeJobStatus", () => {
   it("keeps missing-purchase jobs payment-pending until payByTime plus grace expires", () => {
     const now = new Date();
@@ -162,6 +195,60 @@ describe("computeJobStatus", () => {
     });
 
     assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_FAILED);
+  });
+
+  it("marks withdraw-authorized purchases completed when the agent completed", () => {
+    const job = createPaidJob({
+      purchase: createPurchase({ onChainStatus: "WITHDRAW_AUTHORIZED" }),
+      events: [createJobEvent({ status: "COMPLETED", result: "result" })],
+    });
+
+    assert.equal(computeJobStatus(job), SokosumiJobStatus.COMPLETED);
+  });
+
+  it("keeps withdraw-authorized purchases result-pending when the agent has not completed", () => {
+    const job = createPaidJob({
+      purchase: createPurchase({ onChainStatus: "WITHDRAW_AUTHORIZED" }),
+      events: [createJobEvent({ status: "RUNNING" })],
+    });
+
+    assert.equal(computeJobStatus(job), SokosumiJobStatus.RESULT_PENDING);
+  });
+
+  it("marks refund-authorized purchases refund-pending", () => {
+    const job = createPaidJob({
+      purchase: createPurchase({ onChainStatus: "REFUND_AUTHORIZED" }),
+      events: [createJobEvent({ status: "RUNNING" })],
+    });
+
+    assert.equal(computeJobStatus(job), SokosumiJobStatus.REFUND_PENDING);
+  });
+
+  it("lets authorize-withdrawal next actions fall through to the on-chain status", () => {
+    const requestedJob = createPaidJob({
+      purchase: createPurchase({
+        onChainStatus: "RESULT_SUBMITTED",
+        nextAction: "AUTHORIZE_WITHDRAWAL_REQUESTED",
+      }),
+      events: [createJobEvent({ status: "COMPLETED", result: "result" })],
+    });
+
+    // The next-action branch must not short-circuit into
+    // REFUND_PENDING/PAYMENT_PENDING; the on-chain branch resolves the status.
+    assert.equal(computeJobStatus(requestedJob), SokosumiJobStatus.COMPLETED);
+
+    const initiatedJob = createPaidJob({
+      purchase: createPurchase({
+        onChainStatus: "RESULT_SUBMITTED",
+        nextAction: "AUTHORIZE_WITHDRAWAL_INITIATED",
+      }),
+      events: [createJobEvent({ status: "RUNNING" })],
+    });
+
+    assert.equal(
+      computeJobStatus(initiatedJob),
+      SokosumiJobStatus.RESULT_PENDING,
+    );
   });
 });
 

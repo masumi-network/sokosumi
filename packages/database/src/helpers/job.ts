@@ -99,6 +99,8 @@ function checkNextAction(
       return SokosumiJobStatus.REFUND_PENDING;
     case NextJobAction.WITHDRAW_REFUND_REQUESTED:
     case NextJobAction.WITHDRAW_REFUND_INITIATED:
+    case NextJobAction.AUTHORIZE_WITHDRAWAL_REQUESTED:
+    case NextJobAction.AUTHORIZE_WITHDRAWAL_INITIATED:
     case NextJobAction.WAITING_FOR_MANUAL_ACTION:
     case NextJobAction.WAITING_FOR_EXTERNAL_ACTION:
     case NextJobAction.NONE:
@@ -265,6 +267,7 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
     case OnChainJobStatus.FUNDS_LOCKED:
       return getFundsLockedJobStatus(job, latestJobEvent, now);
     case OnChainJobStatus.RESULT_SUBMITTED:
+    case OnChainJobStatus.WITHDRAW_AUTHORIZED:
       switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return SokosumiJobStatus.COMPLETED;
@@ -281,6 +284,7 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
     case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
       return SokosumiJobStatus.PAYMENT_FAILED;
     case OnChainJobStatus.REFUND_REQUESTED:
+    case OnChainJobStatus.REFUND_AUTHORIZED:
       return SokosumiJobStatus.REFUND_PENDING;
     case OnChainJobStatus.REFUND_WITHDRAWN:
       return SokosumiJobStatus.REFUND_RESOLVED;

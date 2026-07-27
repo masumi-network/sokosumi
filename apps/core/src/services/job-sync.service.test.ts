@@ -29,7 +29,6 @@ const {
   sourceImportEnqueueMock,
   paymentClientFactoryMock,
   getPurchaseByBlockchainIdentifierMock,
-  getPurchaseByIdMock,
   updateJobPurchaseByJobIdMock,
   refundJobMock,
   prismaTransactionMock,
@@ -52,7 +51,6 @@ const {
   sourceImportEnqueueMock: vi.fn(),
   paymentClientFactoryMock: vi.fn(),
   getPurchaseByBlockchainIdentifierMock: vi.fn(),
-  getPurchaseByIdMock: vi.fn(),
   updateJobPurchaseByJobIdMock: vi.fn(),
   refundJobMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -291,7 +289,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       sourceImportEnqueueMock,
       paymentClientFactoryMock,
       getPurchaseByBlockchainIdentifierMock,
-      getPurchaseByIdMock,
       updateJobPurchaseByJobIdMock,
       refundJobMock,
       prismaTransactionMock,
@@ -303,14 +300,12 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
     paymentClientFactoryMock.mockReturnValue({
       getPurchaseByBlockchainIdentifier: getPurchaseByBlockchainIdentifierMock,
-      getPurchaseById: getPurchaseByIdMock,
     });
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({});
     });
     mockInitialJobQueries();
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(err("not found"));
-    getPurchaseByIdMock.mockReturnValue(err("not found"));
     fetchAgentJobStatusMock.mockReturnValue(err("not found"));
     getLatestJobEventByJobIdMock.mockResolvedValue(createJobEvent());
     createJobEventForJobIdMock.mockResolvedValue({ id: "event_2" });
@@ -408,13 +403,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         signal: expect.any(Object),
       }),
     );
+    expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledTimes(2);
     expect(getJobByIdMock).toHaveBeenCalledWith("job_1", expect.any(Object));
-    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
-      "purchase_backfilled",
-      expect.objectContaining({
-        signal: expect.any(Object),
-      }),
-    );
     expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
       backfilledJob.agent,
       backfilledJob.agentJobId,
@@ -454,7 +444,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     expect(refundJobMock).toHaveBeenCalledWith("job_refund", {});
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -526,7 +516,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     expect(refundJobMock).toHaveBeenCalledWith("job_payment_failed", {});
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -566,7 +556,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       {},
     );
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -598,7 +588,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(refundJobMock).toHaveBeenCalledWith("job_missing_purchase", {});
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -631,7 +620,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(refundJobMock).toHaveBeenCalledWith("job_null_payby_fallback", {});
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
   });
 
   it("reconciles timed-out null-on-chain purchases without running the standard sync pipeline", async () => {
@@ -666,7 +654,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(refundJobMock).toHaveBeenCalledWith("job_null_on_chain", {});
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -719,7 +706,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     expect(refundJobMock).toHaveBeenCalledWith("job_stale_reconciliation", {});
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -789,7 +776,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       purchase: [offlineAgentJob],
       pendingLocalRefunds: [],
     });
-    getPurchaseByIdMock.mockReturnValue(err("not found"));
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(err("not found"));
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -801,8 +788,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
-      "purchase_1",
+    expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledWith(
+      "blockchain-job-1",
       expect.objectContaining({
         signal: expect.any(Object),
       }),
@@ -1052,7 +1039,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       purchase: [createJob()],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: "FUNDS_OR_DATUM_INVALID",
@@ -1137,7 +1124,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       purchase: [completedJob],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: "FUNDS_OR_DATUM_INVALID",
@@ -1185,7 +1172,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       purchase: [createJob()],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: "FUNDS_OR_DATUM_INVALID",
@@ -1327,7 +1314,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: null,
@@ -1401,7 +1388,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       purchase: [pendingWithActiveAction],
       agent: [pendingWithActiveAction],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: null,
@@ -1458,7 +1445,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: null,
@@ -1524,7 +1511,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: "REFUND_WITHDRAWN",
@@ -1593,7 +1580,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ],
     });
-    getPurchaseByIdMock.mockReturnValue(
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_1",
         onChainStatus: "DISPUTED_WITHDRAWN",
@@ -1864,7 +1851,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(result.unfinishedFound).toBe(2);
     expect(result.processed).toBe(0);
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
   });
 
   it("cancels in-flight remote polling before transaction work begins", async () => {
@@ -1877,9 +1864,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       purchase: [createJob()],
     });
-    getPurchaseByIdMock.mockImplementation(
+    getPurchaseByBlockchainIdentifierMock.mockImplementation(
       (
-        _purchaseId,
+        _blockchainIdentifier,
         options?: {
           signal?: AbortSignal;
         },
@@ -1915,8 +1902,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
-      "purchase_1",
+    expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledWith(
+      "blockchain-job-1",
       expect.objectContaining({
         signal: expect.any(Object),
       }),

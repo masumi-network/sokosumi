@@ -1,4 +1,7 @@
+import { z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { AgentStatus, PaymentType, PricingType } from "@sokosumi/database";
+import type { PostRegistryDiffResponse } from "@sokosumi/masumi/clients";
 
 import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
@@ -55,40 +58,67 @@ function convertPaymentType(paymentType: "Web3CardanoV1" | "None" | unknown) {
   }
 }
 
-function parseEntryAgentPricing(pricing: {
-  pricingType: string;
-  FixedPricing?: {
-    Amounts: {
-      amount: string;
-      unit: string;
-    }[];
-  };
-}): {
+// The registry serves AgentPricing as a loose union (V2 entries have no
+// top-level pricing at all), so validate structurally instead of trusting the
+// generated type.
+const registryAgentPricingSchema = z.object({
+  pricingType: z.string(),
+  FixedPricing: z
+    .object({
+      Amounts: z.array(z.object({ amount: z.string(), unit: z.string() })),
+    })
+    .optional(),
+});
+
+function parseEntryAgentPricing(
+  pricing: unknown,
+  agentIdentifier: string,
+): {
   pricingType: PricingType;
   fixedPricingAmounts?: { amount: bigint; unit: string }[];
 } {
-  switch (pricing.pricingType) {
+  const parsed = registryAgentPricingSchema.safeParse(pricing);
+  if (!parsed.success) {
+    console.warn(
+      `[sync/agents] Malformed pricing for entry ${agentIdentifier}; storing as UNKNOWN (agent stays unavailable)`,
+    );
+    return {
+      pricingType: PricingType.UNKNOWN,
+    };
+  }
+
+  switch (parsed.data.pricingType) {
     case "Fixed": {
-      const amounts = pricing.FixedPricing?.Amounts ?? [];
-      const isValidFixedPricing = amounts.every(
-        (amount) => BigInt(amount.amount) > 0,
-      );
+      const amounts = parsed.data.FixedPricing?.Amounts ?? [];
 
       // Intentionally treat empty/invalid fixed pricing as unknown to avoid
       // exposing malformed registry pricing as a valid fixed-price agent.
-      if (!isValidFixedPricing || amounts.length === 0) {
+      // BigInt() throws on non-numeric strings, so it must stay guarded.
+      try {
+        const isValidFixedPricing = amounts.every(
+          (amount) => BigInt(amount.amount) > 0,
+        );
+        if (!isValidFixedPricing || amounts.length === 0) {
+          return {
+            pricingType: PricingType.UNKNOWN,
+          };
+        }
+
+        return {
+          pricingType: PricingType.FIXED,
+          fixedPricingAmounts: amounts.map((amount) => ({
+            amount: BigInt(amount.amount),
+            unit: amount.unit,
+          })),
+        };
+      } catch {
+        console.warn(
+          `[sync/agents] Non-numeric fixed pricing amount for entry ${agentIdentifier}; storing as UNKNOWN (agent stays unavailable)`,
+        );
         return {
           pricingType: PricingType.UNKNOWN,
         };
       }
-
-      return {
-        pricingType: PricingType.FIXED,
-        fixedPricingAmounts: amounts.map((amount) => ({
-          amount: BigInt(amount.amount),
-          unit: amount.unit,
-        })),
-      };
     }
     case "Free": {
       return {
@@ -101,6 +131,85 @@ function parseEntryAgentPricing(pricing: {
       };
     }
   }
+}
+
+type RegistryDiffEntry = PostRegistryDiffResponse["data"]["entries"][number];
+
+async function upsertRegistryAgent(
+  entry: RegistryDiffEntry,
+  apiBaseUrl: string,
+  pricing: {
+    pricingType: PricingType;
+    fixedPricingAmounts?: { amount: bigint; unit: string }[];
+  },
+): Promise<void> {
+  await prisma.agent.upsert({
+    where: {
+      blockchainIdentifier: entry.agentIdentifier,
+    },
+    create: {
+      blockchainIdentifier: entry.agentIdentifier,
+      name: entry.name,
+      description: emptyStringToNull(entry.description),
+      apiBaseUrl,
+      lastUptimeCheck: entry.lastUptimeCheck,
+      uptimeCount: entry.uptimeCount,
+      uptimeCheckCount: entry.uptimeCheckCount,
+      capabilityName: emptyStringToNull(entry.Capability?.name),
+      capabilityVersion: emptyStringToNull(entry.Capability?.version),
+      authorName: emptyStringToNull(entry.authorName),
+      authorContactEmail: isValidEmail(entry.authorContactEmail)
+        ? entry.authorContactEmail
+        : null,
+      authorContactOther: emptyStringToNull(entry.authorContactOther),
+      image: emptyStringToNull(entry.image),
+      tags: {
+        connect: entry.tags?.map((tag) => ({
+          name: tag,
+        })),
+      },
+      authorOrganization: emptyStringToNull(entry.authorOrganization),
+      isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
+      status: convertStatus(entry.status),
+      legalOther: emptyStringToNull(entry.otherLegal),
+      legalTerms: emptyStringToNull(entry.termsAndCondition),
+      legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
+      paymentType: convertPaymentType(entry.paymentType),
+      pricing: {
+        create: {
+          pricingType: pricing.pricingType,
+          ...(pricing.fixedPricingAmounts
+            ? {
+                fixedPricing: {
+                  create: {
+                    amounts: {
+                      createMany: {
+                        data: pricing.fixedPricingAmounts,
+                      },
+                    },
+                  },
+                },
+              }
+            : {}),
+        },
+      },
+      exampleOutput: {
+        createMany: {
+          data: (entry.ExampleOutput ?? []).map((example) => ({
+            mimeType: example.mimeType,
+            name: example.name,
+            url: example.url,
+          })),
+        },
+      },
+    },
+    update: {
+      lastUptimeCheck: entry.lastUptimeCheck,
+      uptimeCount: entry.uptimeCount,
+      uptimeCheckCount: entry.uptimeCheckCount,
+      status: convertStatus(entry.status),
+    },
+  });
 }
 
 function shouldStopSync(
@@ -191,82 +300,61 @@ async function syncRegistryAgents(
     });
   }
 
+  let skippedEntryCount = 0;
+  // Entries fully handled (upserted or deliberately skipped). The cursor only
+  // advances past this contiguous prefix, so an unexpected error (e.g. a
+  // transient DB failure) keeps retry semantics for the failed entry and
+  // everything after it on the next run.
+  let processedEntryCount = 0;
   for (const entry of entries) {
     if (shouldStopSync(options, "registry sync canceled during agent upsert")) {
       return;
     }
 
+    // Deliberate deferral: only Web3CardanoV1/None entries are ingested for
+    // now. V2 and pointer-type (OpenApi/X402) entries are skipped — ingesting
+    // them needs schema support and, because the diff cursor advances past
+    // them here, a one-off cursor reset/backfill when that support ships.
+    // Entries with a missing/unrecognized paymentType land here too (skipped
+    // instead of ingested as UNKNOWN placeholder rows).
+    if (entry.paymentType !== "Web3CardanoV1" && entry.paymentType !== "None") {
+      skippedEntryCount++;
+      processedEntryCount++;
+      continue;
+    }
+
+    // Entries without a MIP-003 endpoint cannot be hired and the Agent
+    // apiBaseUrl column is non-nullable, so skip them.
+    const apiBaseUrl = entry.apiBaseUrl;
+    if (!apiBaseUrl) {
+      skippedEntryCount++;
+      processedEntryCount++;
+      continue;
+    }
+
     const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
       entry.AgentPricing,
+      entry.agentIdentifier,
     );
 
-    await prisma.agent.upsert({
-      where: {
-        blockchainIdentifier: entry.agentIdentifier,
-      },
-      create: {
-        blockchainIdentifier: entry.agentIdentifier,
-        name: entry.name,
-        description: emptyStringToNull(entry.description),
-        apiBaseUrl: entry.apiBaseUrl,
-        lastUptimeCheck: entry.lastUptimeCheck,
-        uptimeCount: entry.uptimeCount,
-        uptimeCheckCount: entry.uptimeCheckCount,
-        capabilityName: emptyStringToNull(entry.Capability?.name),
-        capabilityVersion: emptyStringToNull(entry.Capability?.version),
-        authorName: emptyStringToNull(entry.authorName),
-        authorContactEmail: isValidEmail(entry.authorContactEmail)
-          ? entry.authorContactEmail
-          : null,
-        authorContactOther: emptyStringToNull(entry.authorContactOther),
-        image: emptyStringToNull(entry.image),
-        tags: {
-          connect: entry.tags?.map((tag) => ({
-            name: tag,
-          })),
-        },
-        authorOrganization: emptyStringToNull(entry.authorOrganization),
-        isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
-        status: convertStatus(entry.status),
-        legalOther: emptyStringToNull(entry.otherLegal),
-        legalTerms: emptyStringToNull(entry.termsAndCondition),
-        legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
-        paymentType: convertPaymentType(entry.paymentType),
-        pricing: {
-          create: {
-            pricingType,
-            ...(fixedPricingAmounts
-              ? {
-                  fixedPricing: {
-                    create: {
-                      amounts: {
-                        createMany: {
-                          data: fixedPricingAmounts,
-                        },
-                      },
-                    },
-                  },
-                }
-              : {}),
-          },
-        },
-        exampleOutput: {
-          createMany: {
-            data: entry.ExampleOutput.map((example) => ({
-              mimeType: example.mimeType,
-              name: example.name,
-              url: example.url,
-            })),
-          },
-        },
-      },
-      update: {
-        lastUptimeCheck: entry.lastUptimeCheck,
-        uptimeCount: entry.uptimeCount,
-        uptimeCheckCount: entry.uptimeCheckCount,
-        status: convertStatus(entry.status),
-      },
-    });
+    try {
+      await upsertRegistryAgent(entry, apiBaseUrl, {
+        pricingType,
+        fixedPricingAmounts,
+      });
+      processedEntryCount++;
+    } catch (error) {
+      // Unexpected failure (likely infra): stop the batch WITHOUT advancing
+      // the cursor past this entry so the next run retries it. Structurally
+      // bad entries cannot land here — the guards above degrade those to
+      // skips — so this cannot reintroduce a crash loop on a known-bad batch.
+      console.error(
+        `[sync/agents] Upsert failed for entry ${entry.agentIdentifier}; stopping batch for retry:`,
+        error,
+      );
+      Sentry.captureException(error);
+      break;
+    }
   }
 
   if (
@@ -275,7 +363,14 @@ async function syncRegistryAgents(
     return;
   }
 
-  const lastEntry = entries[entries.length - 1];
+  if (processedEntryCount === 0) {
+    console.warn(
+      "[sync/agents] No entries processed; cursor not advanced (batch will be retried)",
+    );
+    return;
+  }
+
+  const lastEntry = entries[processedEntryCount - 1];
   await prisma.syncMetadata.upsert({
     where: {
       key: metadataKey,
@@ -292,7 +387,7 @@ async function syncRegistryAgents(
   });
 
   console.info(
-    `[sync/agents] Completed registry sync (entries=${entries.length}, tags=${tags.length}, durationMs=${Date.now() - startedAt})`,
+    `[sync/agents] Completed registry sync (entries=${entries.length}, processed=${processedEntryCount}, skipped=${skippedEntryCount}, tags=${tags.length}, durationMs=${Date.now() - startedAt})`,
   );
 }
 

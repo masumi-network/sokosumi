@@ -44,9 +44,14 @@ export function buildJobsNeedingPurchaseSyncWhere(
       {
         purchase: {
           onChainStatus: {
+            // In-flight states that must keep polling past the dispute
+            // deadline until their terminal state (funds/refund withdrawn)
+            // is observed — otherwise local credit refunds never trigger.
             notIn: [
               OnChainJobStatus.DISPUTED,
               OnChainJobStatus.REFUND_REQUESTED,
+              OnChainJobStatus.REFUND_AUTHORIZED,
+              OnChainJobStatus.WITHDRAW_AUTHORIZED,
             ],
             not: null,
           },
@@ -83,6 +88,7 @@ export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
             in: [
               OnChainJobStatus.DISPUTED,
               OnChainJobStatus.REFUND_REQUESTED,
+              OnChainJobStatus.REFUND_AUTHORIZED,
               OnChainJobStatus.REFUND_WITHDRAWN,
               OnChainJobStatus.DISPUTED_WITHDRAWN,
               OnChainJobStatus.FUNDS_OR_DATUM_INVALID,

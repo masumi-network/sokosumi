@@ -241,6 +241,7 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
                 notIn: [
                   OnChainJobStatus.FUNDS_LOCKED,
                   OnChainJobStatus.REFUND_REQUESTED,
+                  OnChainJobStatus.REFUND_AUTHORIZED,
                 ],
               },
             },

@@ -1324,7 +1324,7 @@ export const getOrganizationsByIdInvitations = <ThrowOnError extends boolean = f
 });
 
 /**
- * List shareable invite links for an organization. Owners and admins only. Sorted by usability (valid first) then newest first within each status.
+ * List shareable invite links for an organization. Owners and admins only. Sorted by createdAt descending (newest first).
  */
 export const getOrganizationsByIdInviteLinks = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdInviteLinksData, ThrowOnError>): RequestResult<GetOrganizationsByIdInviteLinksResponses, GetOrganizationsByIdInviteLinksErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdInviteLinksResponses, GetOrganizationsByIdInviteLinksErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdInviteLinksResponseTransformer,

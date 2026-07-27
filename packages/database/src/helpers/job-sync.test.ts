@@ -167,7 +167,12 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     assert.equal(notClauses.length, 1);
     assert.deepEqual(disputeWindowClause.purchase, {
       onChainStatus: {
-        notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
+        notIn: [
+          OnChainJobStatus.DISPUTED,
+          OnChainJobStatus.REFUND_REQUESTED,
+          OnChainJobStatus.REFUND_AUTHORIZED,
+          OnChainJobStatus.WITHDRAW_AUTHORIZED,
+        ],
         not: null,
       },
     });
@@ -217,6 +222,7 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
           in: [
             OnChainJobStatus.DISPUTED,
             OnChainJobStatus.REFUND_REQUESTED,
+            OnChainJobStatus.REFUND_AUTHORIZED,
             OnChainJobStatus.REFUND_WITHDRAWN,
             OnChainJobStatus.DISPUTED_WITHDRAWN,
             OnChainJobStatus.FUNDS_OR_DATUM_INVALID,

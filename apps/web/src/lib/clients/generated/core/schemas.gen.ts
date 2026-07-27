@@ -2826,7 +2826,9 @@ export const OnChainJobStatusSchema = {
         'FUNDS_OR_DATUM_INVALID',
         'FUNDS_WITHDRAWN',
         'RESULT_SUBMITTED',
+        'WITHDRAW_AUTHORIZED',
         'REFUND_REQUESTED',
+        'REFUND_AUTHORIZED',
         'REFUND_WITHDRAWN',
         'DISPUTED',
         'DISPUTED_WITHDRAWN'

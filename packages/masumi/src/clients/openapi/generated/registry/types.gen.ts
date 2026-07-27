@@ -5,11 +5,10 @@ export type ClientOptions = {
 };
 
 export type PaymentInformation = {
-    createdAt: string;
-    updatedAt: string;
+    createdAt: Date;
+    updatedAt: Date;
     metadataVersion: number;
     RegistrySource: {
-        type: 'Web3CardanoV1';
         policyId: string | null;
         url: string | null;
     };
@@ -33,15 +32,44 @@ export type PaymentInformation = {
         pricingType: 'Free';
     } | {
         pricingType: 'Dynamic';
-    };
+    } | unknown;
+    SupportedPaymentSources: Array<{
+        chain: string;
+        network: string;
+        sourceIndex: number;
+        paymentSourceType: string | null;
+        address: string;
+        scheme: string | null;
+        pricing: {
+            pricingType: 'Fixed';
+            fixed: Array<{
+                asset: string;
+                amount: string;
+                decimals?: number;
+            }>;
+        } | {
+            pricingType: 'Dynamic';
+            dynamic?: Array<{
+                asset: string;
+                decimals: number;
+            }>;
+        } | {
+            pricingType: 'Free';
+        };
+        payTo: string | null;
+        resource: string | null;
+    }>;
     name: string;
     description: string | null;
     status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
     id: string;
-    lastUptimeCheck: string;
+    lastUptimeCheck: Date;
     uptimeCount: number;
     uptimeCheckCount: number;
-    apiBaseUrl: string;
+    type: 'Standard' | 'OpenApi' | 'X402';
+    apiBaseUrl: string | null;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
     authorName: string | null;
     authorOrganization: string | null;
     authorContactEmail: string | null;
@@ -51,7 +79,7 @@ export type PaymentInformation = {
     termsAndCondition: string | null;
     otherLegal: string | null;
     tags: Array<string> | null;
-    paymentType: 'Web3CardanoV1' | 'None';
+    paymentType: 'Web3CardanoV1' | 'Web3CardanoV2' | 'None';
     agentIdentifier: string;
     ExampleOutput: Array<{
         name: string;
@@ -63,14 +91,17 @@ export type PaymentInformation = {
 export type RegistryEntry = {
     id: string;
     name: string;
-    createdAt: string;
+    createdAt: Date;
     description: string | null;
     status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
-    statusUpdatedAt: string;
-    lastUptimeCheck: string;
+    statusUpdatedAt: Date;
+    lastUptimeCheck: Date;
     uptimeCount: number;
     uptimeCheckCount: number;
-    apiBaseUrl: string;
+    type: 'Standard' | 'OpenApi' | 'X402';
+    apiBaseUrl: string | null;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
     authorName: string | null;
     authorOrganization: string | null;
     authorContactEmail: string | null;
@@ -81,10 +112,17 @@ export type RegistryEntry = {
     otherLegal: string | null;
     tags: Array<string> | null;
     agentIdentifier: string;
-    paymentType: 'Web3CardanoV1' | 'None';
+    /**
+     * For a V2 agent, the older version this entry replaced (same root, next-lower version), or null if this is the first/only version. Always null for V1 assets. Computed live from stored versions.
+     */
+    supersedesAgentIdentifier: string | null;
+    /**
+     * For a V2 agent, the newer version that replaced this entry (same root, next-higher version), or null if this is the latest version. Always null for V1 assets. Computed live from stored versions.
+     */
+    supersededByAgentIdentifier: string | null;
+    paymentType: 'Web3CardanoV1' | 'Web3CardanoV2' | 'None';
     RegistrySource: {
         id: string;
-        type: 'Web3CardanoV1';
         policyId: string | null;
         url: string | null;
     };
@@ -104,26 +142,89 @@ export type RegistryEntry = {
         pricingType: 'Free';
     } | {
         pricingType: 'Dynamic';
-    };
+    } | unknown;
     ExampleOutput: Array<{
         name: string;
         mimeType: string;
         url: string;
     }>;
+    SupportedPaymentSources: Array<{
+        chain: string;
+        network: string;
+        sourceIndex: number;
+        paymentSourceType: string | null;
+        address: string;
+        scheme: string | null;
+        pricing: {
+            pricingType: 'Fixed';
+            fixed: Array<{
+                asset: string;
+                amount: string;
+                decimals?: number;
+            }>;
+        } | {
+            pricingType: 'Dynamic';
+            dynamic?: Array<{
+                asset: string;
+                decimals: number;
+            }>;
+        } | {
+            pricingType: 'Free';
+        };
+        payTo: string | null;
+        resource: string | null;
+    }>;
+    Verifications: Array<{
+        method: string;
+        schemaVersion: string | null;
+        issuerAid: string;
+        issuerOobi: string;
+        schemaSaid: string;
+        schemaOobi: string;
+        credentialSaid: string;
+        credentialOobi: string;
+        credentialRegistry: string | null;
+        holderAid: string;
+        holderOobi: string;
+        baseUrl: string | null;
+    }>;
     metadataVersion: number;
-    updatedAt: string;
+    updatedAt: Date;
+};
+
+export type InboxAgentRegistration = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    status: 'Pending' | 'Verified' | 'Invalid' | 'Deregistered';
+    statusUpdatedAt: Date;
+    name: string;
+    description: string | null;
+    agentSlug: string;
+    agentIdentifier: string;
+    providerUrl: string | null;
+    linkedEmail: string | null;
+    encryptionPublicKey: string | null;
+    encryptionKeyVersion: string | null;
+    signingPublicKey: string | null;
+    signingKeyVersion: string | null;
+    metadataVersion: number;
+    RegistrySource: {
+        id: string;
+        policyId: string | null;
+        url: string | null;
+    };
 };
 
 export type RegistrySource = {
     id: string;
-    type: 'Web3CardanoV1';
     url: string | null;
     policyId: string | null;
     note: string | null;
     latestPage: number | null;
     latestIdentifier: string | null;
     rpcProviderApiKey: string | null;
-    network: 'Preprod' | 'Mainnet';
+    network: 'Preprod' | 'Mainnet' | null;
 };
 
 export type Capability = {
@@ -136,12 +237,21 @@ export type Capability = {
 
 export type ApiKey = {
     id: string;
-    token: string;
     permission: 'User' | 'Admin';
     usageLimited: boolean;
     maxUsageCredits: number | null;
     accumulatedUsageCredits: number | null;
     status: 'Active' | 'Revoked';
+};
+
+export type ApiKeyWithToken = {
+    id: string;
+    permission: 'User' | 'Admin';
+    usageLimited: boolean;
+    maxUsageCredits: number | null;
+    accumulatedUsageCredits: number | null;
+    status: 'Active' | 'Revoked';
+    token: string;
 };
 
 export type GetHealthData = {
@@ -208,7 +318,7 @@ export type PostRegistryEntryData = {
         limit?: number;
         cursorId?: string;
         filter?: {
-            paymentTypes?: Array<'Web3CardanoV1' | 'None'>;
+            paymentTypes?: Array<'Web3CardanoV1' | 'Web3CardanoV2' | 'None'>;
             status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
             policyId?: string;
             assetIdentifier?: string;
@@ -217,6 +327,10 @@ export type PostRegistryEntryData = {
                 name: string;
                 version?: string;
             };
+            /**
+             * When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match.
+             */
+            resolveToLatestVersion?: boolean;
         };
         minHealthCheckDate?: Date | Date;
     };
@@ -253,6 +367,292 @@ export type PostRegistryEntryResponses = {
 };
 
 export type PostRegistryEntryResponse = PostRegistryEntryResponses[keyof PostRegistryEntryResponses];
+
+export type PostRegistryEntrySearchData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        limit?: number;
+        cursorId?: string;
+        /**
+         * Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.
+         */
+        query: string;
+        filter?: {
+            paymentTypes?: Array<'Web3CardanoV1' | 'Web3CardanoV2' | 'None'>;
+            status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
+            policyId?: string;
+            assetIdentifier?: string;
+            tags?: Array<string>;
+            capability?: {
+                name: string;
+                version?: string;
+            };
+            /**
+             * When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match.
+             */
+            resolveToLatestVersion?: boolean;
+        };
+        minHealthCheckDate?: Date | Date;
+    };
+    path?: never;
+    query?: never;
+    url: '/registry-entry-search/';
+};
+
+export type PostRegistryEntrySearchErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostRegistryEntrySearchResponses = {
+    /**
+     * Registry entries matching the fuzzy search
+     */
+    200: {
+        data: {
+            entries: Array<RegistryEntry>;
+        };
+        status: string;
+    };
+};
+
+export type PostRegistryEntrySearchResponse = PostRegistryEntrySearchResponses[keyof PostRegistryEntrySearchResponses];
+
+export type PostRegistryEntryRefreshData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        agentIdentifier: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/registry-entry-refresh/';
+};
+
+export type PostRegistryEntryRefreshErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Registry entry not found
+     */
+    404: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostRegistryEntryRefreshResponses = {
+    /**
+     * Refreshed registry entry
+     */
+    200: {
+        data: {
+            entry: RegistryEntry;
+        };
+        status: string;
+    };
+};
+
+export type PostRegistryEntryRefreshResponse = PostRegistryEntryRefreshResponses[keyof PostRegistryEntryRefreshResponses];
+
+export type PostInboxAgentRegistrationData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        limit?: number;
+        cursorId?: string;
+        filter?: {
+            agentSlug?: string;
+            status?: Array<'Pending' | 'Verified' | 'Invalid' | 'Deregistered'>;
+            policyId?: string;
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/inbox-agent-registration/';
+};
+
+export type PostInboxAgentRegistrationErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostInboxAgentRegistrationResponses = {
+    /**
+     * Inbox agent registrations
+     */
+    200: {
+        data: {
+            registrations: Array<InboxAgentRegistration>;
+        };
+        status: string;
+    };
+};
+
+export type PostInboxAgentRegistrationResponse = PostInboxAgentRegistrationResponses[keyof PostInboxAgentRegistrationResponses];
+
+export type PostInboxAgentRegistrationSearchData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        limit?: number;
+        cursorId?: string;
+        /**
+         * Case-insensitive fuzzy match against inbox agent slug, name, or linked email.
+         */
+        query: string;
+        filter?: {
+            status?: Array<'Pending' | 'Verified' | 'Invalid' | 'Deregistered'>;
+            policyId?: string;
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/inbox-agent-registration-search/';
+};
+
+export type PostInboxAgentRegistrationSearchErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostInboxAgentRegistrationSearchResponses = {
+    /**
+     * Inbox agent registrations matching the fuzzy search
+     */
+    200: {
+        data: {
+            registrations: Array<InboxAgentRegistration>;
+        };
+        status: string;
+    };
+};
+
+export type PostInboxAgentRegistrationSearchResponse = PostInboxAgentRegistrationSearchResponses[keyof PostInboxAgentRegistrationSearchResponses];
+
+export type PostInboxAgentRegistrationRefreshData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        agentIdentifier: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/inbox-agent-registration-refresh/';
+};
+
+export type PostInboxAgentRegistrationRefreshErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Inbox agent registration not found
+     */
+    404: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostInboxAgentRegistrationRefreshResponses = {
+    /**
+     * Refreshed inbox agent registration
+     */
+    200: {
+        data: {
+            registration: InboxAgentRegistration;
+        };
+        status: string;
+    };
+};
+
+export type PostInboxAgentRegistrationRefreshResponse = PostInboxAgentRegistrationRefreshResponses[keyof PostInboxAgentRegistrationRefreshResponses];
+
+export type PostInboxAgentRegistrationDiffData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        statusUpdatedAfter: Date | Date;
+        limit?: number;
+        /**
+         * The ID of the last item in the previous page. Use the last item statusUpdatedAt plus cursorId to paginate forward without missing transitions.
+         */
+        cursorId?: string;
+        policyId?: string;
+        agentSlug?: string;
+        status?: Array<'Pending' | 'Verified' | 'Invalid' | 'Deregistered'>;
+    };
+    path?: never;
+    query?: never;
+    url: '/inbox-agent-registration-diff/';
+};
+
+export type PostInboxAgentRegistrationDiffErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostInboxAgentRegistrationDiffResponses = {
+    /**
+     * Inbox registrations with updated status
+     */
+    200: {
+        data: {
+            registrations: Array<InboxAgentRegistration>;
+        };
+        status: string;
+    };
+};
+
+export type PostInboxAgentRegistrationDiffResponse = PostInboxAgentRegistrationDiffResponses[keyof PostInboxAgentRegistrationDiffResponses];
 
 export type DeleteRegistrySourceData = {
     body?: {
@@ -324,7 +724,6 @@ export type PatchRegistrySourceResponse = PatchRegistrySourceResponses[keyof Pat
 
 export type PostRegistrySourceData = {
     body?: {
-        type: 'Web3CardanoV1';
         policyId: string;
         note: string | null;
         rpcProviderApiKey: string;
@@ -599,7 +998,7 @@ export type PostApiKeyResponses = {
      * API Key
      */
     200: {
-        data: ApiKey;
+        data: ApiKeyWithToken;
         status: string;
     };
 };

@@ -62,6 +62,7 @@
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest",
+    "fetch:specs": "node scripts/fetch-specs.mjs",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
