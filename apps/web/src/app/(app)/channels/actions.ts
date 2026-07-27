@@ -279,10 +279,18 @@ export async function sendChannelMessageAction(
 
 export async function listChannelMessagesAction(
   channelId: string,
-): Promise<ChannelActionResult<ChatChannelMessage[]>> {
+  options?: { cursor?: string },
+): Promise<
+  ChannelActionResult<{
+    messages: ChatChannelMessage[];
+    nextCursor: string | null;
+  }>
+> {
   try {
-    const messages = await chatChannelService.listMessages(channelId);
-    return { ok: true, data: messages };
+    const page = await chatChannelService.listMessages(channelId, {
+      cursor: options?.cursor,
+    });
+    return { ok: true, data: page };
   } catch (error) {
     return {
       ok: false,

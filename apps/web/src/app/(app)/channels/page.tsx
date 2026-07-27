@@ -27,16 +27,20 @@ function firstSearchValue(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
-async function loadChannelMessages(
-  channelId: string | null,
-): Promise<{ messages: ChatChannelMessage[]; failed: boolean }> {
+async function loadChannelMessages(channelId: string | null): Promise<{
+  messages: ChatChannelMessage[];
+  nextCursor: string | null;
+  failed: boolean;
+}> {
   if (!channelId) {
-    return { messages: [], failed: false };
+    return { messages: [], nextCursor: null, failed: false };
   }
 
   try {
+    const page = await chatChannelService.listMessages(channelId);
     return {
-      messages: await chatChannelService.listMessages(channelId),
+      messages: page.messages,
+      nextCursor: page.nextCursor,
       failed: false,
     };
   } catch (error) {
@@ -46,7 +50,7 @@ async function loadChannelMessages(
         status: error.status,
         kind: error.kind,
       });
-      return { messages: [], failed: true };
+      return { messages: [], nextCursor: null, failed: true };
     }
 
     throw error;
@@ -143,12 +147,15 @@ export default async function ChannelsPage({
       });
     });
   }
-  const { messages, failed: messageLoadFailed } =
-    selectedChannelId &&
-    requestedChannelId === selectedChannelId &&
-    requestedMessagesPromise
-      ? await requestedMessagesPromise
-      : await loadChannelMessages(selectedChannelId);
+  const {
+    messages,
+    nextCursor: messagesNextCursor,
+    failed: messageLoadFailed,
+  } = selectedChannelId &&
+  requestedChannelId === selectedChannelId &&
+  requestedMessagesPromise
+    ? await requestedMessagesPromise
+    : await loadChannelMessages(selectedChannelId);
 
   return (
     <ChannelsClient
@@ -162,6 +169,7 @@ export default async function ChannelsPage({
       isNewDirectMessage={isNewDirectMessage}
       messageLoadFailed={messageLoadFailed}
       messages={messages}
+      messagesNextCursor={messagesNextCursor}
     />
   );
 }
