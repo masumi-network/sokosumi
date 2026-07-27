@@ -44,7 +44,7 @@ vi.mock("@/services/subscription-seat-credits.service", () => ({
 }));
 
 vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
+  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, {
         message: "User authentication required",
