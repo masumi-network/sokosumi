@@ -501,6 +501,7 @@ describe("POST /{id}/events", () => {
   it("auto-sets OUT_OF_CREDITS when COMPLETED credits are insufficient", async () => {
     const createdEvent = createTaskEvent({
       status: TaskStatus.OUT_OF_CREDITS,
+      cents: convertCreditsToCents(2),
     });
     const tx: TransactionMock = {
       taskEvent: {
@@ -541,6 +542,8 @@ describe("POST /{id}/events", () => {
     const body = await response.json();
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(body.attemptedCredits).toBe(2);
+    expect(body.requestedStatus).toBe(TaskStatus.COMPLETED);
     expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         cents: convertCreditsToCents(2),
@@ -830,6 +833,7 @@ describe("POST /{id}/events", () => {
   it("auto-sets OUT_OF_CREDITS on credit-only when balance is insufficient mid-run", async () => {
     const createdEvent = createTaskEvent({
       status: TaskStatus.OUT_OF_CREDITS,
+      cents: convertCreditsToCents(4),
     });
     const tx: TransactionMock = {
       taskEvent: {
@@ -867,6 +871,8 @@ describe("POST /{id}/events", () => {
     const body = await response.json();
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(body.attemptedCredits).toBe(4);
+    expect(body.requestedStatus).toBeNull();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

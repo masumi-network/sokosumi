@@ -90,17 +90,28 @@ export const conflictWithData = <T>(c: Context, data: T) => {
  * 422 with committed side-effect payload (e.g. OUT_OF_CREDITS pause event).
  * Does not throw — callers use this after the DB transaction has committed.
  */
-export function unprocessableWithData<T>(
+export function unprocessableWithData<
+  T,
+  R extends string | null = string | null,
+>(
   c: Context,
   data: T,
-  options: { message: string; kind: string },
+  options: {
+    message: string;
+    kind: string;
+    attemptedCredits?: number;
+    requestedStatus?: R;
+  },
 ) {
+  const { message, kind, attemptedCredits, requestedStatus } = options;
   return c.json(
     {
       error: getErrorName(422),
-      message: options.message,
-      kind: options.kind,
+      message,
+      kind,
       data,
+      ...(attemptedCredits !== undefined ? { attemptedCredits } : {}),
+      ...(requestedStatus !== undefined ? { requestedStatus } : {}),
       meta: {
         timestamp: new Date().toISOString(),
         requestId: c.var.requestId,
