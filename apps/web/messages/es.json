@@ -1664,7 +1664,8 @@
         },
         "actionCommented": "comentó",
         "actionUpdatedStatus": "Estado cambiado a",
-        "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} cobrados",
+        "actionChargedCredits": "cobró {credits, plural, =1 {# crédito} other {# créditos}}",
+        "actionTriedChargedCredits": "intentó cobrar {credits, plural, =1 {# crédito} other {# créditos}}",
         "statusLabels": {
           "outOfCredits": "Sin Credits",
           "creditsToppedUp": "Credits recargados"
@@ -4134,6 +4135,53 @@
             "grant": "Conceder",
             "grantSuccess": "Acceso de proveedor concedido",
             "grantError": "No se pudo conceder acceso de proveedor"
+          }
+        },
+        "InviteLinks": {
+          "title": "Enlaces de invitación compartibles",
+          "description": "Crea enlaces para que cualquiera se una a tu organización sin una invitación por correo.",
+          "listTitle": "Enlaces",
+          "listEmpty": "Aún no hay enlaces de invitación.",
+          "createFormTitle": "Crear nuevo enlace",
+          "statusActive": "Activo",
+          "statusDepleted": "Agotado",
+          "statusExpired": "Caducado",
+          "statusRevoked": "Revocado",
+          "columnStatus": "Estado",
+          "columnUses": "Usos",
+          "columnExpires": "Caduca",
+          "columnCreated": "Creado",
+          "columnActions": "Acciones",
+          "usesUnlimited": "{useCount} usados (ilimitado)",
+          "usesLimited": "{useCount} / {maxUses} usados",
+          "copy": "Copiar enlace",
+          "copied": "Copiado",
+          "copyError": "No se pudo copiar el enlace",
+          "revoke": "Revocar",
+          "revokeSuccess": "Enlace de invitación revocado",
+          "revokeError": "No se pudo revocar el enlace de invitación",
+          "Form": {
+            "expiresInDaysLabel": "Caduca después de (días)",
+            "expiresInDaysHint": "Entre 1 y 90 días.",
+            "expiresInDaysError": "Introduce un número entre 1 y 90 días.",
+            "maxUsesLabel": "Usos máximos",
+            "unlimitedUses": "Usos ilimitados",
+            "maxUsesHint": "Límite opcional entre 1 y 10.000 usos.",
+            "maxUsesError": "Introduce un número entre 1 y 10.000 o elige ilimitado.",
+            "submit": "Crear enlace",
+            "success": "Enlace de invitación creado",
+            "error": "No se pudo crear el enlace de invitación",
+            "copied": "Enlace copiado al portapapeles",
+            "copyError": "No se pudo copiar el enlace"
+          },
+          "loadErrorTitle": "No se pudieron cargar los enlaces de invitación",
+          "loadError": "Algo salió mal al cargar los enlaces de invitación compartibles. Reintenta.",
+          "retry": "Reintentar",
+          "revokeDialog": {
+            "title": "¿Revocar enlace de invitación?",
+            "description": "Quien tenga este enlace ya no podrá unirse. Esta acción no se puede deshacer.",
+            "cancel": "Cancelar",
+            "confirm": "Revocar enlace"
           }
         }
       }

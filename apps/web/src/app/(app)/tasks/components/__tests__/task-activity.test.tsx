@@ -33,6 +33,8 @@ vi.mock("next-intl", () => ({
       "billingCta.placeholder":
         "This task needs credits to continue. Open billing to proceed.",
       "billingCta.statusUnavailable": "This task is out of credits.",
+      actionChargedCredits: "charged {credits} credits",
+      actionTriedChargedCredits: "tried to charge {credits} credits",
       sendWith: "Send with",
       ctrl: "Ctrl",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
@@ -61,6 +63,16 @@ vi.mock("next-intl", () => ({
 
       if (key === "actorOrchestratorWithOwner") {
         return `${values?.assistant ?? ""} · ${values?.owner ?? ""}`.trim();
+      }
+
+      if (
+        key === "actionChargedCredits" ||
+        key === "actionTriedChargedCredits"
+      ) {
+        return (labels[key] ?? key).replace(
+          "{credits}",
+          String(values?.credits ?? ""),
+        );
       }
 
       return labels[key] ?? key;
@@ -153,6 +165,8 @@ function createEvent(
     coworker,
     orchestratorId = null,
     orchestrator,
+    credits = null,
+    transactionId = null,
   }: {
     createdAt: string;
     status: TaskStatus | null;
@@ -166,6 +180,8 @@ function createEvent(
     coworker?: TaskEvent["coworker"];
     orchestratorId?: string | null;
     orchestrator?: TaskEvent["orchestrator"];
+    credits?: number | null;
+    transactionId?: string | null;
   },
 ): TaskEvent {
   const resolvedActor =
@@ -212,7 +228,8 @@ function createEvent(
     coworker,
     orchestratorId,
     orchestrator,
-    transactionId: null,
+    transactionId,
+    credits,
   } as unknown as TaskEvent;
 }
 
@@ -553,6 +570,75 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("from Email")).toBeInTheDocument();
     expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
+  });
+
+  it("uses charged credits as action for credit-only settled events", () => {
+    const events: TaskEvent[] = [
+      createEvent("credit-only-settled", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        credits: 5,
+        transactionId: "txn_1",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("charged 5 credits")).toBeInTheDocument();
+    expect(screen.getAllByText("charged 5 credits")).toHaveLength(1);
+    expect(screen.queryByText("updated status")).not.toBeInTheDocument();
+  });
+
+  it("treats blank comment as credit-only so charge copy is not duplicated", () => {
+    const events: TaskEvent[] = [
+      createEvent("blank-comment-charge", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "   ",
+        credits: 4,
+        transactionId: "txn_blank",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("charged 4 credits")).toBeInTheDocument();
+    expect(screen.getAllByText("charged 4 credits")).toHaveLength(1);
+    expect(screen.queryByText("commented")).not.toBeInTheDocument();
+  });
+
+  it("shows tried to charge for pause events with credits and no transaction", () => {
+    const events: TaskEvent[] = [
+      createEvent("pause-charge-attempt", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.OUT_OF_CREDITS,
+        credits: 3,
+        transactionId: null,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("updated status")).toBeInTheDocument();
+    expect(screen.getByText("tried to charge 3 credits")).toBeInTheDocument();
+  });
+
+  it("shows charged line under comment when both comment and charge are present", () => {
+    const events: TaskEvent[] = [
+      createEvent("comment-with-charge", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Shared update",
+        credits: 2,
+        transactionId: "txn_2",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("commented")).toBeInTheDocument();
+    expect(screen.getByText("Shared update")).toBeInTheDocument();
+    expect(screen.getByText("charged 2 credits")).toBeInTheDocument();
   });
 
   it("shows orchestrator actor name with owner and orb for orchestrator-authored events", () => {

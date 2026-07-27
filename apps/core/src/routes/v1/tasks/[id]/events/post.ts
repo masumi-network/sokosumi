@@ -248,7 +248,7 @@ async function settleTaskEventCharge({
     });
     if (charge.eventStatus != null) {
       return {
-        cents: undefined,
+        cents,
         transactionId: null,
         eventStatus: charge.eventStatus,
         chargedMasumiPayment: false,
@@ -278,7 +278,7 @@ async function settleTaskEventCharge({
     });
     if (charge.eventStatus != null) {
       return {
-        cents: undefined,
+        cents,
         transactionId: null,
         eventStatus: charge.eventStatus,
         chargedMasumiPayment: false,
@@ -435,6 +435,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "application/json": {
             schema: errorResponseWithExtensionsSchema({
               data: taskEventSchema.optional(),
+              attemptedCredits: z.number().optional().openapi({ example: 2 }),
+              requestedStatus: z.enum(TaskStatus).nullable().optional(),
             }),
           },
         },
@@ -762,6 +764,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return unprocessableWithData(c, parsedEvent, {
         message: "Insufficient balance",
         kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+        attemptedCredits: parsedEvent.credits ?? undefined,
+        requestedStatus: body.status ?? null,
       });
     }
 

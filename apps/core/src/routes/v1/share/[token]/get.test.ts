@@ -283,6 +283,7 @@ describe("GET /share/{token}", () => {
             status: "RUNNING",
             comment: null,
             credits: 1.5,
+            transactionId: "txn_settled_123",
             actorName: null,
             actorImage: null,
           },

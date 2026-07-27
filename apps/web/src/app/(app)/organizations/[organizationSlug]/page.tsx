@@ -8,6 +8,7 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  OrganizationInviteLink,
   PendingInvitation,
   StripeCustomerBillingDetails,
 } from "@/lib/clients/generated/core";
@@ -22,6 +23,7 @@ import { OrganizationBillingAccessRestricted } from "./components/organization-b
 import OrganizationBillingDetails from "./components/organization-billing-details";
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
+import { OrganizationInviteLinks } from "./components/organization-invite-links";
 import { OrganizationSeatSummaryCard } from "./components/organization-seat-summary";
 import { OrganizationVendorGrants } from "./components/organization-vendor-grants";
 
@@ -81,6 +83,9 @@ export default async function OrganizationPage({
   const tBilling = await getTranslations(
     "App.Organizations.OrganizationDetail.BillingDetails",
   );
+  const tInviteLinks = await getTranslations(
+    "App.Organizations.OrganizationDetail.InviteLinks",
+  );
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
@@ -97,14 +102,41 @@ export default async function OrganizationPage({
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: PendingInvitation[] = [];
+  let inviteLinks: OrganizationInviteLink[] = [];
+  let inviteLinksLoadError: ReactNode | undefined;
 
   if (isOwnerOrAdmin) {
-    try {
-      pendingInvitations = await organizationService.getPendingInvitations(
-        organization.id,
+    const [pendingResult, inviteLinksResult] = await Promise.all([
+      organizationService.getPendingInvitations(organization.id).then(
+        (data) => ({ ok: true as const, data }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+      organizationService.getOrganizationInviteLinks(organization.id).then(
+        (data) => ({ ok: true as const, data }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+    ]);
+
+    if (pendingResult.ok) {
+      pendingInvitations = pendingResult.data;
+    } else {
+      console.error("Failed to get pending invitations", pendingResult.error);
+    }
+
+    if (inviteLinksResult.ok) {
+      inviteLinks = inviteLinksResult.data;
+    } else {
+      console.error(
+        "Failed to get organization invite links",
+        inviteLinksResult.error,
       );
-    } catch (error) {
-      console.error("Failed to get pending invitations", error);
+      inviteLinksLoadError = (
+        <CoreAuthReadRetry
+          description={tInviteLinks("loadError")}
+          retryLabel={tInviteLinks("retry")}
+          title={tInviteLinks("loadErrorTitle")}
+        />
+      );
     }
   }
 
@@ -162,6 +194,13 @@ export default async function OrganizationPage({
         ) : null}
         {isOwnerOrAdmin ? (
           <OrganizationVendorGrants organizationId={organization.id} />
+        ) : null}
+        {isOwnerOrAdmin ? (
+          <OrganizationInviteLinks
+            organizationId={organization.id}
+            inviteLinks={inviteLinks}
+            inviteLinksLoadError={inviteLinksLoadError}
+          />
         ) : null}
         <div className="space-y-4">
           {isOwnerOrAdmin ? (

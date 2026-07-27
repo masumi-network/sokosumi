@@ -1665,6 +1665,7 @@
         "actionCommented": "kommentiert",
         "actionUpdatedStatus": "Status geändert zu",
         "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} berechnet",
+        "actionTriedChargedCredits": "versucht, {credits, plural, =1 {# Credit} other {# Credits}} zu berechnen",
         "statusLabels": {
           "outOfCredits": "Keine Credits mehr",
           "creditsToppedUp": "Credits aufgeladen"
@@ -4134,6 +4135,53 @@
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
             "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+          }
+        },
+        "InviteLinks": {
+          "title": "Teilbare Einladungslinks",
+          "description": "Erstelle Links, mit denen Personen ohne E-Mail-Einladung deiner Organisation beitreten können.",
+          "listTitle": "Links",
+          "listEmpty": "Noch keine Einladungslinks.",
+          "createFormTitle": "Neuen Link erstellen",
+          "statusActive": "Aktiv",
+          "statusDepleted": "Aufgebraucht",
+          "statusExpired": "Abgelaufen",
+          "statusRevoked": "Widerrufen",
+          "columnStatus": "Status",
+          "columnUses": "Nutzungen",
+          "columnExpires": "Läuft ab",
+          "columnCreated": "Erstellt",
+          "columnActions": "Aktionen",
+          "usesUnlimited": "{useCount} genutzt (unbegrenzt)",
+          "usesLimited": "{useCount} / {maxUses} genutzt",
+          "copy": "Link kopieren",
+          "copied": "Kopiert",
+          "copyError": "Link konnte nicht kopiert werden",
+          "revoke": "Widerrufen",
+          "revokeSuccess": "Einladungslink widerrufen",
+          "revokeError": "Einladungslink konnte nicht widerrufen werden",
+          "Form": {
+            "expiresInDaysLabel": "Läuft ab nach (Tage)",
+            "expiresInDaysHint": "Zwischen 1 und 90 Tagen.",
+            "expiresInDaysError": "Gib eine Zahl zwischen 1 und 90 Tagen ein.",
+            "maxUsesLabel": "Maximale Nutzungen",
+            "unlimitedUses": "Unbegrenzte Nutzungen",
+            "maxUsesHint": "Optional: Grenze zwischen 1 und 10.000 Nutzungen.",
+            "maxUsesError": "Gib eine Zahl zwischen 1 und 10.000 ein oder wähle unbegrenzt.",
+            "submit": "Link erstellen",
+            "success": "Einladungslink erstellt",
+            "error": "Einladungslink konnte nicht erstellt werden",
+            "copied": "Link in Zwischenablage kopiert",
+            "copyError": "Link konnte nicht kopiert werden"
+          },
+          "loadErrorTitle": "Einladungslinks konnten nicht geladen werden",
+          "loadError": "Beim Laden der teilbaren Einladungslinks ist etwas schiefgelaufen. Erneut versuchen.",
+          "retry": "Erneut versuchen",
+          "revokeDialog": {
+            "title": "Einladungslink widerrufen?",
+            "description": "Mit diesem Link kann niemand mehr beitreten. Das lässt sich nicht rückgängig machen.",
+            "cancel": "Abbrechen",
+            "confirm": "Link widerrufen"
           }
         }
       }

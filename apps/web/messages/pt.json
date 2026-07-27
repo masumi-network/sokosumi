@@ -1665,6 +1665,7 @@
         "actionCommented": "comentou",
         "actionUpdatedStatus": "alterou o estado para",
         "actionChargedCredits": "cobrou {credits, plural, =1 {# crédito} other {# créditos}}",
+        "actionTriedChargedCredits": "tentou cobrar {credits, plural, =1 {# crédito} other {# créditos}}",
         "statusLabels": {
           "outOfCredits": "Sem créditos",
           "creditsToppedUp": "Créditos recarregados"
@@ -4165,6 +4166,53 @@
             "grant": "Conceder",
             "grantSuccess": "Acesso de fornecedor concedido",
             "grantError": "Falha ao conceder acesso de fornecedor"
+          }
+        },
+        "InviteLinks": {
+          "title": "Links de convite partilháveis",
+          "description": "Crie links para que qualquer pessoa entre na sua organização sem convite por e-mail.",
+          "listTitle": "Links",
+          "listEmpty": "Ainda não há links de convite.",
+          "createFormTitle": "Criar novo link",
+          "statusActive": "Ativo",
+          "statusDepleted": "Esgotado",
+          "statusExpired": "Expirado",
+          "statusRevoked": "Revogado",
+          "columnStatus": "Estado",
+          "columnUses": "Utilizações",
+          "columnExpires": "Expira",
+          "columnCreated": "Criado",
+          "columnActions": "Ações",
+          "usesUnlimited": "{useCount} utilizados (ilimitado)",
+          "usesLimited": "{useCount} / {maxUses} utilizados",
+          "copy": "Copiar link",
+          "copied": "Copiado",
+          "copyError": "Falha ao copiar o link",
+          "revoke": "Revogar",
+          "revokeSuccess": "Link de convite revogado",
+          "revokeError": "Falha ao revogar o link de convite",
+          "Form": {
+            "expiresInDaysLabel": "Expira após (dias)",
+            "expiresInDaysHint": "Entre 1 e 90 dias.",
+            "expiresInDaysError": "Introduza um número entre 1 e 90 dias.",
+            "maxUsesLabel": "Utilizações máximas",
+            "unlimitedUses": "Utilizações ilimitadas",
+            "maxUsesHint": "Limite opcional entre 1 e 10.000 utilizações.",
+            "maxUsesError": "Introduza um número entre 1 e 10.000 ou escolha ilimitado.",
+            "submit": "Criar link",
+            "success": "Link de convite criado",
+            "error": "Falha ao criar o link de convite",
+            "copied": "Link copiado para a área de transferência",
+            "copyError": "Falha ao copiar o link"
+          },
+          "loadErrorTitle": "Não foi possível carregar os links de convite",
+          "loadError": "Algo correu mal ao carregar os links de convite partilháveis. Tente novamente.",
+          "retry": "Tentar novamente",
+          "revokeDialog": {
+            "title": "Revogar link de convite?",
+            "description": "Quem tiver este link deixará de poder aderir. Esta ação não pode ser anulada.",
+            "cancel": "Cancelar",
+            "confirm": "Revogar link"
           }
         }
       }

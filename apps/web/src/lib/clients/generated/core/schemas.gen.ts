@@ -9050,6 +9050,11 @@ export const OrganizationInviteLinkSchema = {
         role: {
             type: 'string'
         },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         expiresAt: {
             type: 'string',
             format: 'date-time',
@@ -9077,6 +9082,7 @@ export const OrganizationInviteLinkSchema = {
         'token',
         'url',
         'role',
+        'createdAt',
         'expiresAt',
         'revokedAt',
         'maxUses',
@@ -10961,6 +10967,13 @@ export const PublicSharedTaskMilestoneSchema = {
             ],
             example: 1.5
         },
+        transactionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'txn_123'
+        },
         actorName: {
             type: [
                 'string',
@@ -10985,6 +10998,7 @@ export const PublicSharedTaskMilestoneSchema = {
         'status',
         'comment',
         'credits',
+        'transactionId',
         'actorName',
         'actorImage'
     ]

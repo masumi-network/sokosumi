@@ -4,7 +4,10 @@ import { nanoid } from "nanoid";
 import slugify from "slugify";
 import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
 import { coreClient } from "@/lib/clients/core.client";
-import type { PendingInvitation } from "@/lib/clients/generated/core";
+import type {
+  OrganizationInviteLink,
+  PendingInvitation,
+} from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
 
 export type BulkInviteResultRow = {
@@ -91,6 +94,14 @@ export const organizationService = (() => {
     return data;
   }
 
+  async function getOrganizationInviteLinks(
+    organizationId: string,
+  ): Promise<OrganizationInviteLink[]> {
+    const { data } =
+      await coreClient.getOrganizationInviteLinks(organizationId);
+    return data;
+  }
+
   /**
    * Invites multiple members to an organization in batch.
    * Callers must verify the current user can invite members before calling.
@@ -133,6 +144,7 @@ export const organizationService = (() => {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getPendingInvitations,
+    getOrganizationInviteLinks,
     inviteMultipleMembers,
   };
 })();
