@@ -187,8 +187,6 @@ export const buildAvailableAgentWhereClause = (
     // Only Standard entries with a MIP-003 endpoint can be hired; OpenApi and
     // X402 pointer entries have no job flow yet.
     type: AgentEntryType.STANDARD,
-    // Superseded V2 agents (a newer registry version exists) stay hidden.
-    supersededByAgentIdentifier: null,
     // Allowlist of payment rails the job flow can actually purchase through.
     // UNKNOWN (unrecognized future rails) is always excluded; V2 is gated
     // behind the rollout flag.

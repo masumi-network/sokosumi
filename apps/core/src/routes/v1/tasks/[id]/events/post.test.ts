@@ -2075,7 +2075,11 @@ describe("POST /{id}/events", () => {
       },
       body: JSON.stringify({
         status: TaskStatus.COMPLETED,
-        masumiPayment: validMasumiPaymentBody,
+        masumiPayment: {
+          ...validMasumiPaymentBody,
+          paymentSourceType: "Web3CardanoV2",
+          supportedPaymentSourceIndex: 2,
+        },
       }),
     });
 
@@ -2097,6 +2101,8 @@ describe("POST /{id}/events", () => {
         blockchainIdentifier: validMasumiPaymentBody.blockchainIdentifier,
         identifierFromPurchaser: validMasumiPaymentBody.identifierFromPurchaser,
         Amounts: validMasumiPaymentBody.Amounts,
+        paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 2,
         metadata: expect.stringContaining(TASK_ID),
       }),
     );

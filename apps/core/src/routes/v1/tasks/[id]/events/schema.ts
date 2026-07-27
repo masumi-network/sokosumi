@@ -56,6 +56,8 @@ const masumiPaymentPayloadSchema = z
       example:
         "3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1",
     }),
+    paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
+    supportedPaymentSourceIndex: z.number().int().min(0).max(24).optional(),
     Amounts: z.array(masumiPaymentAmountSchema).min(1).openapi({ example: [] }),
     PaymentSource: masumiPaymentSourceSchema.optional(),
   })

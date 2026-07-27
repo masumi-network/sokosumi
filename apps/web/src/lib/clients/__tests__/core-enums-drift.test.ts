@@ -73,6 +73,7 @@ describe("generated Core enum drift guard", () => {
       STANDARD: "STANDARD",
       OPEN_API: "OPEN_API",
       X402: "X402",
+      UNKNOWN: "UNKNOWN",
     });
   });
 

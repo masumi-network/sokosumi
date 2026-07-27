@@ -670,6 +670,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           inputHash: masumiPayment.inputHash,
           Amounts: masumiPayment.Amounts,
           identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
+          paymentSourceType: masumiPayment.paymentSourceType,
+          smartContractAddress:
+            masumiPayment.PaymentSource?.smartContractAddress,
+          supportedPaymentSourceIndex:
+            masumiPayment.supportedPaymentSourceIndex,
           metadata: JSON.stringify({
             taskId,
             taskEventId,

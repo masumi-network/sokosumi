@@ -576,6 +576,7 @@ enum AgentEntryType {
   STANDARD
   OPEN_API
   X402
+  UNKNOWN
 }
 
 model AgentPaymentSource {
@@ -597,6 +598,8 @@ model AgentPaymentSource {
   paymentSourceType String?
   address           String
   payTo             String?
+  scheme            String?
+  resource          String?
 
   pricingType PricingType
   amounts     AgentPaymentSourceAmount[]
@@ -663,6 +666,11 @@ model Agent {
   updatedAt DateTime @updatedAt
 
   blockchainIdentifier String @unique
+  // Stable registry identity. V2 identifiers end in a 3-byte version; this
+  // stores the identifier without that suffix so every revision maps to the
+  // same product-owned Agent row.
+  registryIdentity     String @unique
+  registryVersion      Int    @default(0)
 
   name        String
   description String?
@@ -675,8 +683,9 @@ model Agent {
   openApiSpecUrl   String?
   x402ResourcesUrl String?
 
-  // For V2 agents: the newer version that replaced this entry (registry
-  // version links). Superseded agents are excluded from availability.
+  // Registry-provided link from the current revision to its successor. This is
+  // retained for diagnostics; registryIdentity/registryVersion determine which
+  // revision owns the stable Agent row.
   supersededByAgentIdentifier String?
 
   capabilityName    String?
@@ -947,13 +956,16 @@ model Job {
 
   jobType JobType
 
-  blockchainIdentifier      String?   @unique
-  identifierFromPurchaser   String?
-  payByTime                 DateTime?
-  submitResultTime          DateTime?
-  unlockTime                DateTime?
-  externalDisputeUnlockTime DateTime?
-  sellerVkey                String?
+  blockchainIdentifier        String?   @unique
+  agentBlockchainIdentifier   String?
+  paymentSourceType           String?
+  supportedPaymentSourceIndex Int?
+  identifierFromPurchaser     String?
+  payByTime                   DateTime?
+  submitResultTime            DateTime?
+  unlockTime                  DateTime?
+  externalDisputeUnlockTime   DateTime?
+  sellerVkey                  String?
 
   transaction           Transaction? @relation("TransactionJob", fields: [transactionId], references: [id])
   transactionId         String?      @unique

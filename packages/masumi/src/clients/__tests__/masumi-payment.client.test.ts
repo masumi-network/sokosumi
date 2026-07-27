@@ -104,6 +104,42 @@ describe("createPurchase duplicate handling", () => {
     });
   });
 
+  it("forwards the V2 payment-source selection", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: {
+        data: { id: "purchase_v2" },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      {
+        ...startJobResponse,
+        paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 3,
+      },
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(postPurchaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          paymentSourceType: "Web3CardanoV2",
+          supportedPaymentSourceIndex: 3,
+        }),
+      }),
+    );
+  });
+
   it("returns the purchase from a 409 duplicate without resolving it", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
@@ -261,6 +297,9 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
       Amounts: amounts,
       identifierFromPurchaser: "aabbccddeeff00112233",
       metadata: JSON.stringify({ taskId: "tsk_1", taskEventId: "evt_1" }),
+      paymentSourceType: "Web3CardanoV2",
+      smartContractAddress: "addr_test1_contract",
+      supportedPaymentSourceIndex: 2,
     });
 
     expect(result.isOk()).toBe(true);
@@ -273,6 +312,9 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
           Amounts: amounts,
           identifierFromPurchaser: "aabbccddeeff00112233",
           metadata: JSON.stringify({ taskId: "tsk_1", taskEventId: "evt_1" }),
+          paymentSourceType: "Web3CardanoV2",
+          smartContractAddress: "addr_test1_contract",
+          supportedPaymentSourceIndex: 2,
         }),
       }),
     );

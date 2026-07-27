@@ -207,6 +207,12 @@ function createCardanoV2PaymentSource(
   };
 }
 
+const V2_AGENT_ROOT = "ab".repeat(57);
+
+function createV2AgentIdentifier(version: number): string {
+  return `${V2_AGENT_ROOT}${version.toString(16).padStart(6, "0")}`;
+}
+
 describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -371,13 +377,15 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(tagUpsertMock).toHaveBeenCalled();
     expect(agentFindUniqueMock).toHaveBeenCalledWith({
-      where: { blockchainIdentifier: "identifier-entry-1" },
-      select: { id: true, pricingId: true },
+      where: { registryIdentity: "identifier-entry-1" },
+      select: { id: true, pricingId: true, registryVersion: true },
     });
     expect(agentCreateMock).toHaveBeenCalledTimes(3);
 
     const freeEntryCall = agentCreateMock.mock.calls[0]?.[0];
     expect(freeEntryCall.data.blockchainIdentifier).toBe("identifier-entry-1");
+    expect(freeEntryCall.data.registryIdentity).toBe("identifier-entry-1");
+    expect(freeEntryCall.data.registryVersion).toBe(0);
     expect(freeEntryCall.data.pricing.create.pricingType).toBe(
       PricingType.FREE,
     );
@@ -469,6 +477,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
   it("ingests V2 entries with pricing projected from the matching Cardano V2 source", async () => {
     const entries = [
       createRegistryEntry("entry-v2", {
+        agentIdentifier: createV2AgentIdentifier(1),
         paymentType: "Web3CardanoV2",
         AgentPricing: null,
         statusUpdatedAt: "2026-02-24T13:00:00.000Z",
@@ -495,6 +504,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(agentCreateMock).toHaveBeenCalledTimes(1);
     const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.registryIdentity).toBe(V2_AGENT_ROOT);
+    expect(createCall.data.registryVersion).toBe(1);
     expect(createCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V2);
     expect(createCall.data.pricing.create.pricingType).toBe(PricingType.FIXED);
     expect(
@@ -513,6 +524,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
           paymentSourceType: "Web3CardanoV2",
           address: "addr_test1_contract",
           payTo: "addr_test1_seller",
+          scheme: null,
+          resource: null,
           pricingType: PricingType.FIXED,
           amounts: {
             createMany: {
@@ -535,9 +548,133 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
   });
 
+  it("promotes a newer V2 revision on the existing stable Agent row", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-stable-1",
+      pricingId: "pricing-1",
+      registryVersion: 1,
+    });
+    const newerIdentifier = createV2AgentIdentifier(2);
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-newer", {
+          agentIdentifier: newerIdentifier,
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [createCardanoV2PaymentSource()],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).not.toHaveBeenCalled();
+    expect(agentFindUniqueMock).toHaveBeenCalledWith({
+      where: { registryIdentity: V2_AGENT_ROOT },
+      select: { id: true, pricingId: true, registryVersion: true },
+    });
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-stable-1" },
+        data: expect.objectContaining({
+          blockchainIdentifier: newerIdentifier,
+          registryVersion: 2,
+        }),
+      }),
+    );
+  });
+
+  it("does not let an older V2 revision overwrite the stable Agent row", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-stable-1",
+      pricingId: "pricing-1",
+      registryVersion: 2,
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-older", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [createCardanoV2PaymentSource()],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(agentUpdateMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores unknown registry status and entry type as unavailable", async () => {
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-future-enums", {
+          status: "FutureStatus",
+          type: "FutureType",
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.status).toBe(AgentStatus.INVALID);
+    expect(createCall.data.type).toBe(AgentEntryType.UNKNOWN);
+  });
+
+  it("stores a malformed V2 identifier as unavailable", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const malformedIdentifier = "not-a-versioned-v2-identifier";
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-malformed-v2", {
+          agentIdentifier: malformedIdentifier,
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [createCardanoV2PaymentSource()],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.registryIdentity).toBe(malformedIdentifier);
+    expect(createCall.data.registryVersion).toBe(0);
+    expect(createCall.data.status).toBe(AgentStatus.INVALID);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Invalid V2 version suffix"),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
   it("stores V2 entries without a matching-network source with UNKNOWN pricing", async () => {
     const entries = [
       createRegistryEntry("entry-v2-mainnet", {
+        agentIdentifier: createV2AgentIdentifier(1),
         paymentType: "Web3CardanoV2",
         AgentPricing: null,
         SupportedPaymentSources: [
@@ -628,6 +765,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
           paymentSourceType: null,
           address: "0x1111111111111111111111111111111111111111",
           payTo: "0x2222222222222222222222222222222222222222",
+          scheme: "exact",
+          resource: "https://example.com/resource",
           pricingType: PricingType.FIXED,
           amounts: {
             createMany: {
@@ -745,6 +884,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-db-1",
       pricingId: "pricing-1",
+      registryVersion: 0,
     });
     agentPricingFindUniqueMock.mockResolvedValue({
       agentFixedPricingId: "fixed-pricing-old",
@@ -845,6 +985,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
           paymentSourceType: "Web3CardanoV1",
           address: "addr_test1_v1_contract",
           payTo: null,
+          scheme: null,
+          resource: null,
           pricingType: PricingType.FREE,
         },
       ],
@@ -856,6 +998,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-db-1",
       pricingId: "pricing-1",
+      registryVersion: 0,
     });
     agentPricingFindUniqueMock.mockResolvedValue({
       agentFixedPricingId: null,
@@ -887,6 +1030,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-db-1",
       pricingId: "pricing-1",
+      registryVersion: 0,
     });
     agentPricingFindUniqueMock.mockResolvedValue({
       agentFixedPricingId: "fixed-pricing-old",
@@ -923,6 +1067,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
   it("keeps the registry's empty-string ADA unit verbatim in projected V2 pricing", async () => {
     const entries = [
       createRegistryEntry("entry-v2-ada", {
+        agentIdentifier: createV2AgentIdentifier(1),
         paymentType: "Web3CardanoV2",
         AgentPricing: null,
         SupportedPaymentSources: [

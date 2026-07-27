@@ -421,7 +421,8 @@ export const AgentEntryTypeSchema = {
     enum: [
         'STANDARD',
         'OPEN_API',
-        'X402'
+        'X402',
+        'UNKNOWN'
     ]
 } as const;
 
@@ -11414,6 +11415,18 @@ export const MasumiPaymentSchema = {
             type: 'string',
             minLength: 1,
             example: '3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1'
+        },
+        paymentSourceType: {
+            type: 'string',
+            enum: [
+                'Web3CardanoV1',
+                'Web3CardanoV2'
+            ]
+        },
+        supportedPaymentSourceIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 24
         },
         Amounts: {
             type: 'array',

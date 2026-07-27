@@ -7,6 +7,7 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import { parseVersionedAgentIdentifier } from "@sokosumi/masumi";
 import type { PostRegistryDiffResponse } from "@sokosumi/masumi/clients";
 
 import { registryClient } from "@/clients/masumi-registry.client";
@@ -39,7 +40,7 @@ function emptyStringToNull(value: string | null | undefined): string | null {
 }
 
 function convertStatus(
-  status: "Online" | "Offline" | "Deregistered" | "Invalid",
+  status: "Online" | "Offline" | "Deregistered" | "Invalid" | unknown,
 ): AgentStatus {
   switch (status) {
     case "Online":
@@ -49,6 +50,8 @@ function convertStatus(
     case "Deregistered":
       return AgentStatus.DEREGISTERED;
     case "Invalid":
+      return AgentStatus.INVALID;
+    default:
       return AgentStatus.INVALID;
   }
 }
@@ -72,12 +75,16 @@ function convertEntryType(
   type: "Standard" | "OpenApi" | "X402" | unknown,
 ): AgentEntryType {
   switch (type) {
+    case undefined:
+    case null:
+    case "Standard":
+      return AgentEntryType.STANDARD;
     case "OpenApi":
       return AgentEntryType.OPEN_API;
     case "X402":
       return AgentEntryType.X402;
     default:
-      return AgentEntryType.STANDARD;
+      return AgentEntryType.UNKNOWN;
   }
 }
 
@@ -168,6 +175,41 @@ type RegistryDiffEntry = PostRegistryDiffResponse["data"]["entries"][number];
 type RegistryPaymentSource =
   RegistryDiffEntry["SupportedPaymentSources"][number];
 
+interface RegistryAgentVersion {
+  registryIdentity: string;
+  registryVersion: number;
+  isValid: boolean;
+}
+
+function resolveRegistryAgentVersion(
+  entry: RegistryDiffEntry,
+): RegistryAgentVersion {
+  if (entry.paymentType !== "Web3CardanoV2") {
+    return {
+      registryIdentity: entry.agentIdentifier,
+      registryVersion: 0,
+      isValid: true,
+    };
+  }
+
+  const parsed = parseVersionedAgentIdentifier(entry.agentIdentifier);
+  if (!parsed) {
+    console.warn(
+      `[sync/agents] Invalid V2 version suffix for entry ${entry.agentIdentifier}; storing as unavailable`,
+    );
+    return {
+      registryIdentity: entry.agentIdentifier,
+      registryVersion: 0,
+      isValid: false,
+    };
+  }
+
+  return {
+    ...parsed,
+    isValid: true,
+  };
+}
+
 /**
  * Projects a registry payment source's own pricing into the local pricing
  * shape. Dynamic pricing is unsupported and maps to UNKNOWN (agent stays
@@ -243,6 +285,8 @@ interface AgentPaymentSourceRow {
   paymentSourceType: string | null;
   address: string;
   payTo: string | null;
+  scheme: string | null;
+  resource: string | null;
   pricingType: PricingType;
   amounts?: { unit: string; amount: bigint; decimals: number | null }[];
 }
@@ -271,6 +315,8 @@ function buildPaymentSourceRows(
       paymentSourceType: source.paymentSourceType,
       address: source.address,
       payTo: source.payTo,
+      scheme: source.scheme,
+      resource: source.resource,
       pricingType: projected.pricingType,
     };
     if (
@@ -297,7 +343,10 @@ function buildPaymentSourceRows(
  * agents no longer go stale (the old update branch refreshed only uptime and
  * status).
  */
-function buildRegistryAgentFields(entry: RegistryDiffEntry) {
+function buildRegistryAgentFields(
+  entry: RegistryDiffEntry,
+  version: RegistryAgentVersion,
+) {
   return {
     name: entry.name,
     description: emptyStringToNull(entry.description),
@@ -319,7 +368,7 @@ function buildRegistryAgentFields(entry: RegistryDiffEntry) {
     authorContactOther: emptyStringToNull(entry.authorContactOther),
     authorOrganization: emptyStringToNull(entry.authorOrganization),
     image: emptyStringToNull(entry.image),
-    status: convertStatus(entry.status),
+    status: version.isValid ? convertStatus(entry.status) : AgentStatus.INVALID,
     legalOther: emptyStringToNull(entry.otherLegal),
     legalTerms: emptyStringToNull(entry.termsAndCondition),
     legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
@@ -335,6 +384,8 @@ function buildPaymentSourcesCreate(rows: AgentPaymentSourceRow[]) {
     paymentSourceType: row.paymentSourceType,
     address: row.address,
     payTo: row.payTo,
+    scheme: row.scheme,
+    resource: row.resource,
     pricingType: row.pricingType,
     ...(row.amounts
       ? {
@@ -404,7 +455,8 @@ async function upsertRegistryAgent(
   entry: RegistryDiffEntry,
   pricing: ParsedAgentPricing,
 ): Promise<void> {
-  const registryFields = buildRegistryAgentFields(entry);
+  const version = resolveRegistryAgentVersion(entry);
+  const registryFields = buildRegistryAgentFields(entry, version);
   const paymentSourceRows = buildPaymentSourceRows(entry);
   const tagsConnect = {
     connect: entry.tags?.map((tag) => ({
@@ -413,14 +465,16 @@ async function upsertRegistryAgent(
   };
 
   const existing = await prisma.agent.findUnique({
-    where: { blockchainIdentifier: entry.agentIdentifier },
-    select: { id: true, pricingId: true },
+    where: { registryIdentity: version.registryIdentity },
+    select: { id: true, pricingId: true, registryVersion: true },
   });
 
   if (!existing) {
     await prisma.agent.create({
       data: {
         blockchainIdentifier: entry.agentIdentifier,
+        registryIdentity: version.registryIdentity,
+        registryVersion: version.registryVersion,
         ...registryFields,
         tags: tagsConnect,
         isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
@@ -459,6 +513,10 @@ async function upsertRegistryAgent(
     return;
   }
 
+  if (version.registryVersion < existing.registryVersion) {
+    return;
+  }
+
   // Full refresh of registry-derived data. Example outputs are deliberately
   // not refreshed (create-only, as before); tags accumulate via connect.
   await prisma.$transaction(async (tx) => {
@@ -469,6 +527,8 @@ async function upsertRegistryAgent(
     await tx.agent.update({
       where: { id: existing.id },
       data: {
+        blockchainIdentifier: entry.agentIdentifier,
+        registryVersion: version.registryVersion,
         ...registryFields,
         tags: tagsConnect,
         paymentSources: {

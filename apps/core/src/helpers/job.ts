@@ -4,6 +4,7 @@ import {
   agentMetadataOverrideScalarsInclude,
   agentPricingInclude,
   JobType,
+  PaymentType,
   PricingType,
   Prisma,
 } from "@sokosumi/database";
@@ -20,11 +21,13 @@ import type {
   InputSchemaSchemaType,
   InputSchemaType,
   StartFreeJobResponseSchemaType,
+  StartPaidJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
+import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
   buildAvailableAgentWhereClause,
@@ -36,7 +39,6 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
@@ -76,6 +78,7 @@ async function validateCreditBalance(
 async function createPaidJob(
   input: {
     agentId: string;
+    agentBlockchainIdentifier: string;
     ownerId: string;
     organizationId: string | null;
     workspaceId: string;
@@ -152,6 +155,9 @@ async function createPaidJob(
       submitResultTime: new Date(agentJobResponse.submitResultTime),
       unlockTime: new Date(agentJobResponse.unlockTime),
       blockchainIdentifier: agentJobResponse.blockchainIdentifier,
+      agentBlockchainIdentifier: input.agentBlockchainIdentifier,
+      paymentSourceType: agentJobResponse.paymentSourceType,
+      supportedPaymentSourceIndex: agentJobResponse.supportedPaymentSourceIndex,
       sellerVkey: agentJobResponse.sellerVKey,
       identifierFromPurchaser,
     },
@@ -267,6 +273,14 @@ export async function createAgentJobForUser(
     include: {
       ...agentPricingInclude,
       ...agentMetadataOverrideScalarsInclude,
+      paymentSources: {
+        where: {
+          chain: "Cardano",
+          network: getEnv().NETWORK,
+          paymentSourceType: "Web3CardanoV2",
+        },
+        orderBy: { sourceIndex: "asc" },
+      },
     },
   });
 
@@ -315,6 +329,7 @@ export async function createAgentJobForUser(
 
   const jobInput = {
     agentId: agentInput.agentId,
+    agentBlockchainIdentifier: agent.blockchainIdentifier,
     ownerId: owner.ownerId,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
@@ -362,8 +377,45 @@ export async function createAgentJobForUser(
         );
       }
 
+      const response = startPaidJobResult.value;
+      if (response.agentIdentifier !== agent.blockchainIdentifier) {
+        throw unprocessableEntity(
+          "Paid agent job returned a different agent identifier",
+        );
+      }
+
+      if (agent.paymentType === PaymentType.WEB3_CARDANO_V2) {
+        const selectedSource = agent.paymentSources.some(
+          (source) =>
+            response.supportedPaymentSourceIndex === source.sourceIndex,
+        );
+        if (!selectedSource) {
+          throw unprocessableEntity(
+            "Paid V2 agent job returned an unexpected payment source",
+          );
+        }
+        if (
+          response.paymentSourceType !== undefined &&
+          response.paymentSourceType !== "Web3CardanoV2"
+        ) {
+          throw unprocessableEntity(
+            "Paid V2 agent job returned an invalid payment source type",
+          );
+        }
+        paidJobResult = {
+          ...response,
+          paymentSourceType: "Web3CardanoV2",
+        };
+      } else {
+        if (response.supportedPaymentSourceIndex !== undefined) {
+          throw unprocessableEntity(
+            "Legacy agent job returned a V2 payment source index",
+          );
+        }
+        paidJobResult = response;
+      }
+
       await resolveJobName();
-      paidJobResult = startPaidJobResult.value;
       break;
     }
     case PricingType.UNKNOWN:

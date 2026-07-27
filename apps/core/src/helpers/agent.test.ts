@@ -92,11 +92,10 @@ describe("buildAvailableAgentWhereClause", () => {
     });
   });
 
-  it("excludes pointer types, endpointless, superseded, unknown-rail, and V2-contract agents when the rollout flag is off", () => {
+  it("excludes pointer types, endpointless, unknown-rail, and V2-contract agents when the rollout flag is off", () => {
     const where = buildAvailableAgentWhereClause([createCreditCost("USD")]);
 
     expect(where.type).toBe(AgentEntryType.STANDARD);
-    expect(where.supersededByAgentIdentifier).toBeNull();
     // Allowlist: UNKNOWN rails are never available; V2 only behind the flag.
     expect(where.paymentType).toEqual({
       in: [PaymentType.WEB3_CARDANO_V1, PaymentType.NONE],
@@ -126,7 +125,6 @@ describe("buildAvailableAgentWhereClause", () => {
     });
     // Structural filters stay regardless of the flag.
     expect(where.type).toBe(AgentEntryType.STANDARD);
-    expect(where.supersededByAgentIdentifier).toBeNull();
   });
 });
 

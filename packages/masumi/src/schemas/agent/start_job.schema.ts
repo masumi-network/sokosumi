@@ -45,6 +45,8 @@ export const startPaidJobResponseSchema = z.preprocess(
     externalDisputeUnlockTime: z.coerce.number().int(),
     agentIdentifier: z.string().min(1),
     sellerVKey: z.string().min(1),
+    paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
+    supportedPaymentSourceIndex: z.number().int().min(0).max(24).optional(),
   }),
 );
 

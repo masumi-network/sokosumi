@@ -103,7 +103,8 @@ export type AdminAgentRegistry = {
 export const AgentEntryType = {
     STANDARD: 'STANDARD',
     OPEN_API: 'OPEN_API',
-    X402: 'X402'
+    X402: 'X402',
+    UNKNOWN: 'UNKNOWN'
 } as const;
 
 export type AgentEntryType = typeof AgentEntryType[keyof typeof AgentEntryType];
@@ -3326,6 +3327,8 @@ export type MasumiPayment = {
     unlockTime: string;
     externalDisputeUnlockTime: string;
     inputHash: string;
+    paymentSourceType?: 'Web3CardanoV1' | 'Web3CardanoV2';
+    supportedPaymentSourceIndex?: number;
     Amounts: Array<{
         amount: string;
         unit: string;

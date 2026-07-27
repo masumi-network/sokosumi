@@ -388,6 +388,43 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a V2 masumiPayment with its source index", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 2,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("keeps legacy V2 masumiPayment payloads without a source index compatible", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV2",
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a source index when the payment source type is inferred", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        supportedPaymentSourceIndex: 2,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects masumiPayment with credits", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,

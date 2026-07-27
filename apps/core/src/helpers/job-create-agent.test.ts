@@ -1,7 +1,8 @@
+import { PaymentType, PricingType } from "@sokosumi/database";
 import { jobSummaryInclude } from "@sokosumi/database/types/job";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAgentJobForUser } from "./job";
@@ -9,6 +10,8 @@ import { createAgentJobForUser } from "./job";
 const {
   agentFindFirstMock,
   createAgentClientMock,
+  createPurchaseMock,
+  creditBucketPrepareConsumptionMock,
   generateJobNameMock,
   getAgentCostMock,
   getCreditCostsOrThrowMock,
@@ -18,6 +21,8 @@ const {
 } = vi.hoisted(() => ({
   agentFindFirstMock: vi.fn(),
   createAgentClientMock: vi.fn(),
+  createPurchaseMock: vi.fn(),
+  creditBucketPrepareConsumptionMock: vi.fn(),
   generateJobNameMock: vi.fn(),
   getAgentCostMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
@@ -59,7 +64,7 @@ vi.mock("@/clients/openrouter.client", () => ({
 
 vi.mock("@/clients/masumi-payment.client", () => ({
   paymentClient: () => ({
-    createPurchase: vi.fn(),
+    createPurchase: createPurchaseMock,
   }),
 }));
 
@@ -81,7 +86,7 @@ vi.mock("@/helpers/user", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
-    prepareConsumption: vi.fn(),
+    prepareConsumption: creditBucketPrepareConsumptionMock,
   },
   jobPurchaseRepository: {
     createJobPurchase: vi.fn(),
@@ -97,11 +102,42 @@ function createAgentRecord() {
     metadataOverride: null,
     blockchainIdentifier: "agent-chain",
     pricing: {
-      pricingType: "FREE",
+      pricingType: PricingType.FREE,
       fixedPricing: null,
     },
+    paymentType: PaymentType.NONE,
+    paymentSources: [],
   };
 }
+
+function createPaidV2AgentRecord() {
+  return {
+    ...createAgentRecord(),
+    pricing: {
+      pricingType: PricingType.FIXED,
+      fixedPricing: {
+        amounts: [{ unit: "lovelace", amount: BigInt(1_000_000) }],
+      },
+    },
+    paymentType: PaymentType.WEB3_CARDANO_V2,
+    paymentSources: [{ sourceIndex: 0 }, { sourceIndex: 2 }],
+  };
+}
+
+const paidV2JobResponse = {
+  id: "agent_job_1",
+  input_hash: "input-hash",
+  identifierFromPurchaser: "buyer-reference",
+  blockchainIdentifier: "purchase-chain",
+  payByTime: 1_775_737_949_000,
+  submitResultTime: 1_775_755_949_000,
+  unlockTime: 1_775_773_949_000,
+  externalDisputeUnlockTime: 1_775_784_749_000,
+  agentIdentifier: "agent-chain",
+  sellerVKey: "seller-vkey",
+  paymentSourceType: "Web3CardanoV2" as const,
+  supportedPaymentSourceIndex: 2,
+};
 
 function createInput(overrides: Record<string, unknown> = {}) {
   const inputSchema = {
@@ -136,6 +172,8 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     vi.clearAllMocks();
     getCreditCostsOrThrowMock.mockResolvedValue([{ unit: "lovelace" }]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
+    creditBucketPrepareConsumptionMock.mockResolvedValue([]);
+    createPurchaseMock.mockResolvedValue(err("payment unavailable"));
     agentFindFirstMock.mockResolvedValue(createAgentRecord());
     projectFindFirstMock.mockResolvedValue({ id: "project_1" });
     createAgentClientMock.mockReturnValue({
@@ -237,5 +275,63 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(generateJobNameMock).toHaveBeenCalled();
     const createCall = txJobCreateMock.mock.calls[0]?.[0];
     expect(createCall.data.name).toBe("x".repeat(200));
+  });
+
+  it("snapshots and forwards the V2 payment source selected by the agent", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV2JobResponse)),
+    });
+
+    await createAgentJobForUser(createInput());
+
+    expect(agentFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          paymentSources: {
+            where: {
+              chain: "Cardano",
+              network: "Preprod",
+              paymentSourceType: "Web3CardanoV2",
+            },
+            orderBy: { sourceIndex: "asc" },
+          },
+        }),
+      }),
+    );
+    expect(txJobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          agentBlockchainIdentifier: "agent-chain",
+          paymentSourceType: "Web3CardanoV2",
+          supportedPaymentSourceIndex: 2,
+        }),
+      }),
+    );
+    expect(createPurchaseMock).toHaveBeenCalledWith(
+      "agent-chain",
+      paidV2JobResponse,
+      { prompt: "hello" },
+      expect.any(String),
+    );
+  });
+
+  it("rejects a V2 response that selects a different payment source", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(
+        ok({
+          ...paidV2JobResponse,
+          supportedPaymentSourceIndex: 3,
+        }),
+      ),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid V2 agent job returned an unexpected payment source",
+    );
+
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 });

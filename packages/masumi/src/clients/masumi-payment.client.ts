@@ -56,6 +56,9 @@ interface MasumiTaskPurchaseInput {
   Amounts: Array<{ amount: string; unit: string }>;
   identifierFromPurchaser: string;
   metadata?: string;
+  paymentSourceType?: "Web3CardanoV1" | "Web3CardanoV2";
+  smartContractAddress?: string;
+  supportedPaymentSourceIndex?: number;
 }
 
 export function createPaymentClient(
@@ -153,6 +156,9 @@ export function createPaymentClient(
             network,
             sellerVkey: startJobResponse.sellerVKey,
             identifierFromPurchaser,
+            paymentSourceType: startJobResponse.paymentSourceType,
+            supportedPaymentSourceIndex:
+              startJobResponse.supportedPaymentSourceIndex,
             payByTime: startJobResponse.payByTime.toString(),
             externalDisputeUnlockTime:
               startJobResponse.externalDisputeUnlockTime.toString(),
@@ -214,6 +220,9 @@ export function createPaymentClient(
             Amounts: input.Amounts,
             identifierFromPurchaser: input.identifierFromPurchaser,
             network,
+            paymentSourceType: input.paymentSourceType,
+            smartContractAddress: input.smartContractAddress,
+            supportedPaymentSourceIndex: input.supportedPaymentSourceIndex,
             ...(input.metadata !== undefined
               ? { metadata: input.metadata }
               : {}),
