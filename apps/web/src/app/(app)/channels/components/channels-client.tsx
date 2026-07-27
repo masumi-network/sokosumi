@@ -274,6 +274,14 @@ function getDirectChannelParticipants(
   ];
 }
 
+/** Direct rooms: @ only when the roster has more than two people (incl. you). */
+function shouldShowRoomMentionShortcut(channel: ChatRoom): boolean {
+  if (channel.kind !== "direct") {
+    return true;
+  }
+  return channel.userMembers.length + channel.coworkerMembers.length > 2;
+}
+
 function formatDirectParticipantNames(
   participants: DirectParticipantPreview[],
   fallback: string,
@@ -590,6 +598,7 @@ function ChannelComposer({
   onSubmit,
   isSending,
   sendDisabled,
+  showMentionShortcut = true,
 }: {
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
@@ -601,12 +610,18 @@ function ChannelComposer({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   isSending: boolean;
   sendDisabled: boolean;
+  /** Channels always; direct rooms only when roster has more than two people. */
+  showMentionShortcut?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const composerMentions = showMentionShortcut ? mentions : {};
+  const handleSelectedKeysChange = showMentionShortcut
+    ? onSelectedKeysChange
+    : undefined;
 
   const handleFilesSelected = useCallback(
     async (files: FileList | null) => {
@@ -699,8 +714,8 @@ function ChannelComposer({
             ref={textareaRef}
             value={value}
             onChange={onValueChange}
-            onSelectedKeysChange={onSelectedKeysChange}
-            mentions={mentions}
+            onSelectedKeysChange={handleSelectedKeysChange}
+            mentions={composerMentions}
             placeholder={placeholder}
             suggestionsAnchor="editor"
             submitOnEnter
@@ -715,17 +730,19 @@ function ChannelComposer({
           />
           <div className="flex items-center justify-between px-3 pb-3">
             <div className="text-muted-foreground flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-9 rounded-full sm:size-8"
-                title={t("Toolbar.mention")}
-                aria-label={t("Toolbar.mention")}
-                onClick={() => textareaRef.current?.openMentions()}
-              >
-                <AtSign className="size-4" aria-hidden />
-              </Button>
+              {showMentionShortcut ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 rounded-full sm:size-8"
+                  title={t("Toolbar.mention")}
+                  aria-label={t("Toolbar.mention")}
+                  onClick={() => textareaRef.current?.openMentions()}
+                >
+                  <AtSign className="size-4" aria-hidden />
+                </Button>
+              ) : null}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -985,6 +1002,7 @@ function ThreadPanel({
   isSendingReply,
   onClose,
   onToggleReaction,
+  showMentionShortcut = true,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -1006,6 +1024,7 @@ function ThreadPanel({
   isSendingReply: boolean;
   onClose: () => void;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  showMentionShortcut?: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
@@ -1084,6 +1103,7 @@ function ThreadPanel({
         onSubmit={onSubmitReply}
         isSending={isSendingReply}
         sendDisabled={replyValue.trim().length === 0}
+        showMentionShortcut={showMentionShortcut}
       />
     </aside>
   );
@@ -2058,6 +2078,7 @@ function DraftDirectMessage({
         sendDisabled={
           composerValue.trim().length === 0 || selectedTargets.length === 0
         }
+        showMentionShortcut={selectedTargets.length > 1}
       />
     </>
   );
@@ -2739,6 +2760,9 @@ export function ChannelsClient({
                 onSubmit={handleSend}
                 isSending={isSending}
                 sendDisabled={composerValue.trim().length === 0}
+                showMentionShortcut={shouldShowRoomMentionShortcut(
+                  selectedChannel,
+                )}
               />
             </>
           ) : (
@@ -2781,6 +2805,7 @@ export function ChannelsClient({
             isSendingReply={isSendingThreadReply}
             onClose={() => setThreadParentMessage(null)}
             onToggleReaction={handleToggleReaction}
+            showMentionShortcut={shouldShowRoomMentionShortcut(selectedChannel)}
           />
         ) : null}
       </main>
