@@ -4173,6 +4173,15 @@
             "error": "No se pudo crear el enlace de invitación",
             "copied": "Enlace copiado al portapapeles",
             "copyError": "No se pudo copiar el enlace"
+          },
+          "loadErrorTitle": "No se pudieron cargar los enlaces de invitación",
+          "loadError": "Algo salió mal al cargar los enlaces de invitación compartibles. Reintenta.",
+          "retry": "Reintentar",
+          "revokeDialog": {
+            "title": "¿Revocar enlace de invitación?",
+            "description": "Quien tenga este enlace ya no podrá unirse. Esta acción no se puede deshacer.",
+            "cancel": "Cancelar",
+            "confirm": "Revocar enlace"
           }
         }
       }

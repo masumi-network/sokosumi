@@ -4204,6 +4204,15 @@
             "error": "Falha ao criar o link de convite",
             "copied": "Link copiado para a área de transferência",
             "copyError": "Falha ao copiar o link"
+          },
+          "loadErrorTitle": "Não foi possível carregar os links de convite",
+          "loadError": "Algo deu errado ao carregar os links de convite compartilháveis. Tente novamente.",
+          "retry": "Tentar novamente",
+          "revokeDialog": {
+            "title": "Revogar link de convite?",
+            "description": "Quem tiver este link não poderá mais entrar. Esta ação não pode ser desfeita.",
+            "cancel": "Cancelar",
+            "confirm": "Revogar link"
           }
         }
       }

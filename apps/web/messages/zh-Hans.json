@@ -4204,6 +4204,15 @@
             "error": "创建邀请链接失败",
             "copied": "链接已复制到剪贴板",
             "copyError": "复制链接失败"
+          },
+          "loadErrorTitle": "无法加载邀请链接",
+          "loadError": "加载可分享邀请链接时出错。请重试。",
+          "retry": "重试",
+          "revokeDialog": {
+            "title": "撤销邀请链接？",
+            "description": "持有此链接的人将无法再加入。此操作无法撤销。",
+            "cancel": "取消",
+            "confirm": "撤销链接"
           }
         }
       }

@@ -4204,6 +4204,15 @@
             "error": "Impossible de créer le lien d’invitation",
             "copied": "Lien copié dans le presse-papiers",
             "copyError": "Impossible de copier le lien"
+          },
+          "loadErrorTitle": "Impossible de charger les liens d'invitation",
+          "loadError": "Une erreur s'est produite lors du chargement des liens d'invitation partageables. Réessayez.",
+          "retry": "Réessayer",
+          "revokeDialog": {
+            "title": "Révoquer le lien d'invitation ?",
+            "description": "Toute personne disposant de ce lien ne pourra plus rejoindre. Cette action est irréversible.",
+            "cancel": "Annuler",
+            "confirm": "Révoquer le lien"
           }
         }
       }

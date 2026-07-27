@@ -4173,6 +4173,15 @@
             "error": "Einladungslink konnte nicht erstellt werden",
             "copied": "Link in Zwischenablage kopiert",
             "copyError": "Link konnte nicht kopiert werden"
+          },
+          "loadErrorTitle": "Einladungslinks konnten nicht geladen werden",
+          "loadError": "Beim Laden der teilbaren Einladungslinks ist etwas schiefgelaufen. Erneut versuchen.",
+          "retry": "Erneut versuchen",
+          "revokeDialog": {
+            "title": "Einladungslink widerrufen?",
+            "description": "Mit diesem Link kann niemand mehr beitreten. Das lässt sich nicht rückgängig machen.",
+            "cancel": "Abbrechen",
+            "confirm": "Link widerrufen"
           }
         }
       }

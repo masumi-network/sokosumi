@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 
 import {
   Card,
@@ -15,11 +16,13 @@ import { OrganizationInviteLinkList } from "./organization-invite-link-list";
 interface OrganizationInviteLinksProps {
   organizationId: string;
   inviteLinks: OrganizationInviteLink[];
+  inviteLinksLoadError?: ReactNode;
 }
 
 export async function OrganizationInviteLinks({
   organizationId,
   inviteLinks,
+  inviteLinksLoadError,
 }: OrganizationInviteLinksProps) {
   const t = await getTranslations(
     "App.Organizations.OrganizationDetail.InviteLinks",
@@ -34,10 +37,14 @@ export async function OrganizationInviteLinks({
       <CardContent className="space-y-6">
         <section className="space-y-3">
           <h3 className="text-sm font-medium">{t("listTitle")}</h3>
-          <OrganizationInviteLinkList
-            organizationId={organizationId}
-            inviteLinks={inviteLinks}
-          />
+          {inviteLinksLoadError ? (
+            inviteLinksLoadError
+          ) : (
+            <OrganizationInviteLinkList
+              organizationId={organizationId}
+              inviteLinks={inviteLinks}
+            />
+          )}
         </section>
 
         <section className="space-y-3">

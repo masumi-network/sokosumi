@@ -4204,6 +4204,15 @@
             "error": "Impossibile creare il link di invito",
             "copied": "Link copiato negli appunti",
             "copyError": "Impossibile copiare il link"
+          },
+          "loadErrorTitle": "Impossibile caricare i link di invito",
+          "loadError": "Si è verificato un errore nel caricamento dei link di invito condividibili. Riprova.",
+          "retry": "Riprova",
+          "revokeDialog": {
+            "title": "Revocare il link di invito?",
+            "description": "Chiunque abbia questo link non potrà più unirsi. L'azione non può essere annullata.",
+            "cancel": "Annulla",
+            "confirm": "Revoca link"
           }
         }
       }

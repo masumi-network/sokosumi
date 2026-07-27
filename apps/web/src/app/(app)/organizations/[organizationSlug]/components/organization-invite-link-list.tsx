@@ -6,8 +6,18 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -41,8 +51,10 @@ function statusBadgeVariant(status: InviteLinkDisplayStatus) {
       return "outline" as const;
     case "revoked":
       return "destructive" as const;
-    default:
-      return "outline" as const;
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
   }
 }
 
@@ -56,8 +68,10 @@ function statusLabelKey(status: InviteLinkDisplayStatus) {
       return "statusExpired";
     case "revoked":
       return "statusRevoked";
-    default:
-      return "statusActive";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
   }
 }
 
@@ -117,6 +131,7 @@ function InviteLinkRow({
 }: InviteLinkRowProps) {
   const [copied, setCopied] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const status = evaluateInviteLinkDisplayStatus(link);
   const statusLabel = t(statusLabelKey(status));
 
@@ -130,7 +145,7 @@ function InviteLinkRow({
     }
   }, [link.url, t]);
 
-  async function handleRevoke() {
+  async function handleConfirmRevoke() {
     setRevoking(true);
     try {
       const result = await revokeOrganizationInviteLink({
@@ -144,6 +159,7 @@ function InviteLinkRow({
       }
 
       toast.success(t("revokeSuccess"));
+      setConfirmOpen(false);
       onRevoked();
     } catch {
       toast.error(t("revokeError"));
@@ -160,9 +176,7 @@ function InviteLinkRow({
   return (
     <TableRow>
       <TableCell>
-        <Badge variant={statusBadgeVariant(status)} className="capitalize">
-          {statusLabel}
-        </Badge>
+        <Badge variant={statusBadgeVariant(status)}>{statusLabel}</Badge>
       </TableCell>
       <TableCell className="tabular-nums">{usesLabel}</TableCell>
       <TableCell>
@@ -194,20 +208,48 @@ function InviteLinkRow({
             <span className="sr-only">{t("copy")}</span>
           </Button>
           {canRevokeInviteLink(link) ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2"
-              disabled={revoking}
-              onClick={() => void handleRevoke()}
-            >
-              {revoking ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                t("revoke")
-              )}
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                disabled={revoking}
+                onClick={() => setConfirmOpen(true)}
+              >
+                {t("revoke")}
+              </Button>
+              <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("revokeDialog.title")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("revokeDialog.description")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={revoking}>
+                      {t("revokeDialog.cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={revoking}
+                      className={buttonVariants({ variant: "destructive" })}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        void handleConfirmRevoke();
+                      }}
+                    >
+                      {revoking ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : null}
+                      {t("revokeDialog.confirm")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
           ) : null}
         </div>
       </TableCell>

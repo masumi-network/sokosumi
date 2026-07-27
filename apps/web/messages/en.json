@@ -4268,6 +4268,15 @@
             "error": "Failed to create invite link",
             "copied": "Link copied to clipboard",
             "copyError": "Failed to copy link"
+          },
+          "loadErrorTitle": "Couldn't load invite links",
+          "loadError": "Something went wrong loading shareable invite links. Retry to try again.",
+          "retry": "Retry",
+          "revokeDialog": {
+            "title": "Revoke invite link?",
+            "description": "Anyone with this link will no longer be able to join. This cannot be undone.",
+            "cancel": "Cancel",
+            "confirm": "Revoke link"
           }
         }
       }

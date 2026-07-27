@@ -83,6 +83,9 @@ export default async function OrganizationPage({
   const tBilling = await getTranslations(
     "App.Organizations.OrganizationDetail.BillingDetails",
   );
+  const tInviteLinks = await getTranslations(
+    "App.Organizations.OrganizationDetail.InviteLinks",
+  );
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
@@ -100,22 +103,40 @@ export default async function OrganizationPage({
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: PendingInvitation[] = [];
   let inviteLinks: OrganizationInviteLink[] = [];
+  let inviteLinksLoadError: ReactNode | undefined;
 
   if (isOwnerOrAdmin) {
-    try {
-      pendingInvitations = await organizationService.getPendingInvitations(
-        organization.id,
-      );
-    } catch (error) {
-      console.error("Failed to get pending invitations", error);
+    const [pendingResult, inviteLinksResult] = await Promise.all([
+      organizationService.getPendingInvitations(organization.id).then(
+        (data) => ({ ok: true as const, data }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+      organizationService.getOrganizationInviteLinks(organization.id).then(
+        (data) => ({ ok: true as const, data }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+    ]);
+
+    if (pendingResult.ok) {
+      pendingInvitations = pendingResult.data;
+    } else {
+      console.error("Failed to get pending invitations", pendingResult.error);
     }
 
-    try {
-      inviteLinks = await organizationService.getOrganizationInviteLinks(
-        organization.id,
+    if (inviteLinksResult.ok) {
+      inviteLinks = inviteLinksResult.data;
+    } else {
+      console.error(
+        "Failed to get organization invite links",
+        inviteLinksResult.error,
       );
-    } catch (error) {
-      console.error("Failed to get organization invite links", error);
+      inviteLinksLoadError = (
+        <CoreAuthReadRetry
+          description={tInviteLinks("loadError")}
+          retryLabel={tInviteLinks("retry")}
+          title={tInviteLinks("loadErrorTitle")}
+        />
+      );
     }
   }
 
@@ -178,6 +199,7 @@ export default async function OrganizationPage({
           <OrganizationInviteLinks
             organizationId={organization.id}
             inviteLinks={inviteLinks}
+            inviteLinksLoadError={inviteLinksLoadError}
           />
         ) : null}
         <div className="space-y-4">
