@@ -14,6 +14,7 @@ import {
 import {
   shouldClearTransitioningAfterFailures,
   TRANSITIONING_MAX_AGE_MS,
+  withTransitioningCeiling,
 } from "@/app/personal-assistant/components/hermes-transitioning";
 import LoadingState from "@/app/personal-assistant/components/loading-state";
 import OnboardingProgress from "@/app/personal-assistant/components/onboarding-progress";
@@ -225,6 +226,26 @@ export default function HermesExperience({
   // and clear it, so a run of dropped polls can't disable the composer
   // forever (see hermes-transitioning.ts).
   const backgroundFailureCountRef = useRef(0);
+  // Armed when the max-age ceiling fires. While true, server snapshots that
+  // still report transitioning:true are forced false so a stuck orch flag
+  // cannot re-latch the banner every poll. Lifted when server reports false.
+  const transitioningMaxAgeSuppressedRef = useRef(false);
+
+  /** Apply a server instance under the max-age ceiling (see hermes-transitioning). */
+  const applyInstanceSnapshot = useCallback((data: HermesInstancePublic) => {
+    const next = withTransitioningCeiling(
+      data,
+      transitioningMaxAgeSuppressedRef.current,
+    );
+    transitioningMaxAgeSuppressedRef.current = next.maxAgeSuppressed;
+    setInstance(next.data);
+  }, []);
+
+  const clearInstanceSnapshot = useCallback(() => {
+    transitioningMaxAgeSuppressedRef.current = false;
+    backgroundFailureCountRef.current = 0;
+    setInstance(null);
+  }, []);
   const [initialMessages, setInitialMessages] = useState<
     HermesPersistedMessage[]
   >([]);
@@ -305,7 +326,9 @@ export default function HermesExperience({
    *     must not snap back while the chat stays visible);
    *   - never flip to the global error state on a transient fetch failure
    *     (just skip the refresh — the user is already happily chatting and
-   *     a 503 hiccup shouldn't tear that down);
+   *     a 503 hiccup shouldn't tear that down). Exception: fail-open may
+   *     clear a latched `transitioning: true` after repeated failures so the
+   *     composer cannot stay disabled forever (see hermes-transitioning.ts);
    *   - never clear the local instance when the response transiently lacks
    *     one (treat as a no-op until the next tick).
    */
@@ -321,6 +344,8 @@ export default function HermesExperience({
           // stale `transitioning: true` and keep the composer disabled. After
           // the threshold, clear the flag locally; a later successful poll
           // reasserts it if the orchestrator is genuinely still rolling.
+          // Counter lives on a ref (not inside the setState updater) so React
+          // Strict Mode double-invokes cannot double-count failures.
           backgroundFailureCountRef.current += 1;
           if (
             shouldClearTransitioningAfterFailures(
@@ -342,7 +367,7 @@ export default function HermesExperience({
       if (!instanceResult.data) {
         if (background) return;
         setUiState("idle");
-        setInstance(null);
+        clearInstanceSnapshot();
         return;
       }
       const next = uiStateForServerStatus(instanceResult.data.status);
@@ -366,9 +391,9 @@ export default function HermesExperience({
       if (messagesResult.ok) {
         setInitialMessages(messagesResult.data);
       }
-      setInstance(instanceResult.data);
+      applyInstanceSnapshot(instanceResult.data);
     },
-    [t],
+    [t, applyInstanceSnapshot, clearInstanceSnapshot],
   );
 
   // Initial fetch (skipped in preview mode).
@@ -441,11 +466,11 @@ export default function HermesExperience({
             if (messagesResult.ok) setInitialMessages(messagesResult.data);
           }
           if (cancelled) return;
-          setInstance(result.data);
+          applyInstanceSnapshot(result.data);
           setUiState(next);
           return;
         }
-        setInstance(result.data);
+        applyInstanceSnapshot(result.data);
         if (next !== uiState) setUiState(next);
       } else {
         // Provision call succeeded but the instance disappeared — treat as error.
@@ -461,7 +486,7 @@ export default function HermesExperience({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [uiState, previewMode, t, provisioningStartedAt]);
+  }, [uiState, previewMode, t, provisioningStartedAt, applyInstanceSnapshot]);
 
   // Nudge the sidebar nav to refetch its identity (name + orb) the moment it
   // changes here — onboarding completing, a rename, or a destroy — instead of
@@ -494,30 +519,32 @@ export default function HermesExperience({
     }, RUNNING_REFRESH_INTERVAL_MS);
     // A backgrounded tab throttles the 30s interval, so a transitioning
     // banner (composer disabled) can hang long past the roll. Refetch
-    // immediately when the tab returns to the foreground so it clears at
-    // once instead of waiting out the next (throttled) tick.
-    const refreshOnForeground = () => {
+    // immediately when the tab becomes visible again so it clears at once
+    // instead of waiting out the next (throttled) tick. Visibility only —
+    // window focus also fires on app switches while the tab stays visible
+    // and would double-fetch with visibilitychange on tab restore.
+    const refreshOnVisible = () => {
       if (document.visibilityState !== "visible") return;
       void refetchHermes({ isCancelled: () => cancelled, background: true });
     };
-    document.addEventListener("visibilitychange", refreshOnForeground);
-    window.addEventListener("focus", refreshOnForeground);
+    document.addEventListener("visibilitychange", refreshOnVisible);
     return () => {
       cancelled = true;
       clearInterval(interval);
-      document.removeEventListener("visibilitychange", refreshOnForeground);
-      window.removeEventListener("focus", refreshOnForeground);
+      document.removeEventListener("visibilitychange", refreshOnVisible);
     };
   }, [uiState, previewMode, refetchHermes]);
 
   // Hard time-box on the transitioning banner: even if refreshes keep
   // confirming it, 8 min (2× the orchestrator's 4-min roll cap) means the
-  // roll is long over — drop it so the composer re-enables. Keyed on the
-  // boolean so the clock anchors to when it flipped true, not to every 30s
-  // poll that re-reports true.
+  // roll is long over — drop it and suppress server reassert until the
+  // orch reports false (withTransitioningCeiling). Keyed on the boolean so
+  // the clock anchors to when it flipped true, not to every 30s poll that
+  // re-reports true.
   useEffect(() => {
     if (instance?.transitioning !== true) return;
     const timer = setTimeout(() => {
+      transitioningMaxAgeSuppressedRef.current = true;
       setInstance((prev) =>
         prev?.transitioning ? { ...prev, transitioning: false } : prev,
       );
@@ -554,7 +581,7 @@ export default function HermesExperience({
       setErrorMessage(result.error.message ?? t("provisionFailed"));
       return;
     }
-    setInstance(result.data);
+    applyInstanceSnapshot(result.data);
     const nextUi = uiStateForServerStatus(result.data.status);
     if (nextUi === "running") {
       const messagesResult = await listHermesMessagesAction({});
@@ -563,7 +590,7 @@ export default function HermesExperience({
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.
     setUiState(nextUi);
-  }, [t, hasActiveSubscription, userId]);
+  }, [t, hasActiveSubscription, userId, applyInstanceSnapshot]);
 
   const handleRetry = useCallback(() => {
     if (previewMode) return;
@@ -576,7 +603,7 @@ export default function HermesExperience({
 
   const handleDestroy = useCallback(async () => {
     if (previewMode) {
-      setInstance(null);
+      clearInstanceSnapshot();
       setUiState("idle");
       return;
     }
@@ -585,7 +612,7 @@ export default function HermesExperience({
       toast.error(result.error.message ?? t("destroyFailed"));
       return;
     }
-    setInstance(null);
+    clearInstanceSnapshot();
     setInitialMessages([]);
     setIsProvisionTimeout(false);
     clearPhaseStartedAt("provisioning", userId);
@@ -595,7 +622,7 @@ export default function HermesExperience({
     // assistant's colour.
     setCommittedSeed(undefined);
     setUiState("idle");
-  }, [previewMode, t, userId]);
+  }, [previewMode, t, userId, clearInstanceSnapshot]);
 
   /**
    * Kicks off the orchestrator's research-intro flow. The progress screen
