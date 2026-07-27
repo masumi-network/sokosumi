@@ -58,6 +58,12 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
+import {
+  applyDesignMdMetadataGuardToOrganizationCreate,
+  applyDesignMdMetadataGuardToOrganizationUpdate,
+  applyDesignMdMetadataGuardToUserCreate,
+  applyDesignMdMetadataGuardToUserUpdate,
+} from "@/helpers/design-md-metadata-auth";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
@@ -388,11 +394,12 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user, _ctx) => {
+          const withName = {
+            ...user,
+            name: getStoredUserName(user.name, user.email),
+          };
           return {
-            data: {
-              ...user,
-              name: getStoredUserName(user.name, user.email),
-            },
+            data: applyDesignMdMetadataGuardToUserCreate(withName),
           };
         },
         after: async (user, _ctx) => {
@@ -435,7 +442,11 @@ export const auth = betterAuth({
       update: {
         before: async (data, ctx) => {
           await prepareStripeEmailSyncForUserUpdate(data, ctx, prisma);
-          return { data };
+          const guarded = await applyDesignMdMetadataGuardToUserUpdate(
+            data,
+            ctx,
+          );
+          return { data: guarded };
         },
         after: async (user, _ctx) => {
           void webhookService.callUserUpdated(user).catch((error) => {
@@ -649,6 +660,13 @@ export const auth = betterAuth({
     jwt({ disableSettingJwtHeader: true }),
     organization({
       organizationHooks: {
+        beforeCreateOrganization: async ({ organization }) => {
+          return {
+            data: applyDesignMdMetadataGuardToOrganizationCreate(
+              organization as Record<string, unknown>,
+            ),
+          };
+        },
         afterCreateOrganization: async ({ organization }) => {
           await ensureWorkspaceForCreatedOrganization(organization);
           await ensureFreeSubscriptionForCreatedOrganization(organization);
@@ -666,6 +684,14 @@ export const auth = betterAuth({
               });
             },
           );
+        },
+        beforeUpdateOrganization: async ({ organization, member }) => {
+          return {
+            data: await applyDesignMdMetadataGuardToOrganizationUpdate(
+              organization as Record<string, unknown>,
+              member.organizationId,
+            ),
+          };
         },
         beforeAcceptInvitation: async ({ organization }) => {
           await ensureCanAcceptOrganizationInvitation(organization.id);

@@ -10,6 +10,20 @@ export function isPrismaUniqueViolation(error: unknown): boolean {
 }
 
 /**
+ * Returns true when Prisma could not find a required record for an update or
+ * delete (P2025). Useful for soft-acking irreversible webhook races such as a
+ * Stripe customer whose local owner was deleted before write-back.
+ */
+export function isPrismaRecordNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2025"
+  );
+}
+
+/**
  * Returns true when Postgres aborted a transaction due to concurrent writes.
  * Prisma surfaces this as P2034; the pg driver adapter can also raise
  * `DriverAdapterError: TransactionWriteConflict` without a Prisma code.

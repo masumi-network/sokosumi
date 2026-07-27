@@ -321,6 +321,20 @@ vi.mock("@/services/stripe-user-email.service", () => ({
     syncUserEmailWithStripeMock(...args),
 }));
 
+vi.mock("@/helpers/design-md-metadata-auth", () => ({
+  applyDesignMdMetadataGuardToUserCreate: (user: Record<string, unknown>) =>
+    user,
+  applyDesignMdMetadataGuardToUserUpdate: async (
+    updateData: Record<string, unknown>,
+  ) => updateData,
+  applyDesignMdMetadataGuardToOrganizationCreate: (
+    organization: Record<string, unknown>,
+  ) => organization,
+  applyDesignMdMetadataGuardToOrganizationUpdate: async (
+    organization: Record<string, unknown>,
+  ) => organization,
+}));
+
 vi.mock("@sokosumi/email", () => ({
   renderMagicLinkEmail: (...args: unknown[]) =>
     renderMagicLinkEmailMock(...args),
@@ -988,7 +1002,15 @@ describe("core auth config", () => {
       [
         {
           user: {
-            additionalFields: Record<string, { type: string }>;
+            additionalFields: Record<
+              string,
+              {
+                type: string;
+                required?: boolean;
+                defaultValue?: unknown;
+                input?: boolean;
+              }
+            >;
           };
         },
       ]
@@ -1005,6 +1027,12 @@ describe("core auth config", () => {
         "onboardingCompleted",
       ]),
     );
+    expect(config.user.additionalFields.stripeCustomerId).toEqual({
+      type: "string",
+      required: false,
+      defaultValue: null,
+      input: false,
+    });
 
     const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
       [

@@ -27,17 +27,6 @@ const {
   transactionMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
@@ -105,8 +94,12 @@ function setMembership(role: string | null) {
   memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
 }
 
-function unassignSeat(id: string, memberId: string) {
-  return createApp().request(
+function unassignSeat(
+  id: string,
+  memberId: string,
+  authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
+) {
+  return createApp(authContext).request(
     `http://localhost/${id}/members/${memberId}/seat`,
     {
       method: "DELETE",
@@ -262,5 +255,45 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
 
     expect(response.status).toBe(404);
     expect(await response.text()).toContain("Member not found");
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    setMembership("owner");
+
+    const response = await unassignSeat("org_123", "member_456", {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId: "vendor_1",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+
+    expect(response.status).toBe(403);
+    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(unassignSeatMock).not.toHaveBeenCalled();
+  });
+
+  it("allows orchestrator with context headers as the context user", async () => {
+    setMembership("owner");
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+      plan: "starter",
+      status: "active",
+      stripeSubscriptionId: "sub_123",
+    });
+
+    const response = await unassignSeat("org_123", "member_456", {
+      actor: "orchestrator",
+      orchestratorId: "orch_1",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ memberId: "member_456" });
+    expect(unassignSeatMock).toHaveBeenCalledWith(
+      "member_456",
+      "org_123",
+      expect.anything(),
+    );
   });
 });
