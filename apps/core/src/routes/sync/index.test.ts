@@ -302,6 +302,55 @@ describe("sync routes", () => {
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
+  it("does not request a cursor reset on the recurring agents sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      "agents-sync-metadata",
+      expect.not.objectContaining({ resetCursor: true }),
+    );
+  });
+
+  it("requests a cursor reset only on the dedicated reset-cursor route", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/agents/reset-cursor",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("agents-sync");
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      "agents-sync-metadata",
+      expect.objectContaining({ resetCursor: true }),
+    );
+  });
+
+  it("returns 401 for missing cron auth on the reset-cursor route", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/agents/reset-cursor",
+    );
+
+    expect(response.status).toBe(401);
+    expect(syncRegistryAgentsMock).not.toHaveBeenCalled();
+  });
+
   it("returns 200 and starts summary sync exactly once in background", async () => {
     const app = await createApp();
 

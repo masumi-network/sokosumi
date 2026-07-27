@@ -140,7 +140,7 @@ describe("createPurchase duplicate handling", () => {
     );
   });
 
-  it("returns the purchase from a 409 duplicate without resolving it", async () => {
+  it("confirms a 409 duplicate through the scope-filtered resolve endpoint", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
@@ -169,7 +169,143 @@ describe("createPurchase duplicate handling", () => {
 
     expect(result.isOk()).toBe(true);
     expect(result.isOk() && result.value.id).toBe("purchase_existing");
-    expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
+    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledTimes(
+      1,
+    );
+  });
+
+  it("errors on a 409 whose purchase is not visible to this API key", async () => {
+    // Wallet-scoped keys: the node's duplicate check is unscoped, so a
+    // foreign purchase can trigger the 409 — resolve 404s under the scope
+    // filter and the embedded object must NOT be adopted.
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+        id: "purchase_foreign",
+        object: {
+          id: "purchase_foreign",
+          blockchainIdentifier: "job-chain-1",
+        },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: undefined,
+      error: { status: "error", error: { message: "Purchase not found" } },
+      response: { status: 404 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
+  });
+
+  it("falls back to the embedded purchase when resolve fails transiently", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+        id: "purchase_existing",
+        object: {
+          id: "purchase_existing",
+          blockchainIdentifier: "job-chain-1",
+        },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockRejectedValue(
+      new Error("network down"),
+    );
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value.id).toBe("purchase_existing");
+  });
+
+  it("rejects an embedded purchase whose identifier does not match", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+        id: "purchase_other",
+        object: {
+          id: "purchase_other",
+          blockchainIdentifier: "some-other-chain",
+        },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockRejectedValue(
+      new Error("network down"),
+    );
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
+  });
+
+  it("rejects a malformed embedded purchase object", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+        object: { blockchainIdentifier: "job-chain-1" },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockRejectedValue(
+      new Error("network down"),
+    );
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
   });
 
   it("falls back to resolving a 409 response without a purchase object", async () => {
@@ -320,7 +456,7 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
     );
   });
 
-  it("returns a 409 duplicate purchase without resolving it", async () => {
+  it("confirms a 409 duplicate through the scope-filtered resolve endpoint", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
@@ -333,6 +469,13 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
         },
       },
       response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: { id: "task_purchase_existing" },
+      },
+      error: undefined,
+      response: { status: 200 },
     });
     const client = createPaymentClient(
       "Preprod",
@@ -355,6 +498,8 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
 
     expect(result.isOk()).toBe(true);
     expect(result.isOk() && result.value.id).toBe("task_purchase_existing");
-    expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
+    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledTimes(
+      1,
+    );
   });
 });

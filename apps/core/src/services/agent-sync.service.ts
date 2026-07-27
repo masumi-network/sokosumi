@@ -17,6 +17,7 @@ import { getAgentDescription } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
+const AGENT_SYNC_BATCH_SIZE = 50;
 
 interface SyncExecutionOptions {
   abortSignal: AbortSignal;
@@ -404,6 +405,28 @@ function buildPaymentSourcesCreate(rows: AgentPaymentSourceRow[]) {
  * (the Agent keeps its pricingId), cleaning up the previous fixed-pricing
  * rows.
  */
+function isSameAgentPricing(
+  current: {
+    pricingType: PricingType;
+    fixedPricing: { amounts: { unit: string; amount: bigint }[] } | null;
+  },
+  next: ParsedAgentPricing,
+): boolean {
+  if (current.pricingType !== next.pricingType) {
+    return false;
+  }
+  const currentAmounts = current.fixedPricing?.amounts ?? [];
+  const nextAmounts = next.fixedPricingAmounts ?? [];
+  if (currentAmounts.length !== nextAmounts.length) {
+    return false;
+  }
+  const toKey = (row: { unit: string; amount: bigint }) =>
+    `${row.unit}:${row.amount}`;
+  const sortedCurrent = currentAmounts.map(toKey).sort();
+  const sortedNext = nextAmounts.map(toKey).sort();
+  return sortedCurrent.every((value, index) => value === sortedNext[index]);
+}
+
 async function replaceAgentPricing(
   tx: Prisma.TransactionClient,
   pricingId: string,
@@ -411,8 +434,20 @@ async function replaceAgentPricing(
 ): Promise<void> {
   const current = await tx.agentPricing.findUnique({
     where: { id: pricingId },
-    select: { agentFixedPricingId: true },
+    select: {
+      pricingType: true,
+      agentFixedPricingId: true,
+      fixedPricing: {
+        select: { amounts: { select: { unit: true, amount: true } } },
+      },
+    },
   });
+
+  // Pricing is unchanged for the overwhelming majority of diff entries
+  // (status/uptime updates) — skip the delete/recreate churn entirely.
+  if (current && isSameAgentPricing(current, pricing)) {
+    return;
+  }
 
   await tx.agentPricing.update({
     where: { id: pricingId },
@@ -539,6 +574,21 @@ async function upsertRegistryAgent(
   });
 }
 
+/**
+ * Rollback fence: while the rollout flag is off, entries that would write
+ * rows the PREVIOUS release's Prisma client cannot read (WEB3_CARDANO_V2 or
+ * UNKNOWN enum values, NULL apiBaseUrl) are deferred. Turning the flag on is
+ * the explicit rollback point; run /sync/agents/reset-cursor afterwards to
+ * backfill the deferred entries.
+ */
+function isRollbackUnsafeEntry(entry: RegistryDiffEntry): boolean {
+  return (
+    (entry.paymentType !== "Web3CardanoV1" && entry.paymentType !== "None") ||
+    !entry.apiBaseUrl ||
+    convertEntryType(entry.type) !== AgentEntryType.STANDARD
+  );
+}
+
 function shouldStopSync(
   options: SyncExecutionOptions,
   reason: string,
@@ -585,117 +635,149 @@ async function syncRegistryAgents(
       key: metadataKey,
     },
   });
-  const lastSyncedAt = metadata?.lastSyncedAt ?? new Date(0);
-  const cursorId = metadata?.cursorId ?? null;
+  let lastSyncedAt = metadata?.lastSyncedAt ?? new Date(0);
+  let cursorId = metadata?.cursorId ?? null;
 
-  if (shouldStopSync(options, "registry sync canceled before diff request")) {
-    return;
-  }
+  const deferV2Ingestion = !getEnv().ENABLE_CARDANO_V2_AGENTS;
+  let totalProcessedCount = 0;
+  let totalDeferredCount = 0;
+  let batchCount = 0;
 
-  const entriesResult = await registryClient.getAgentsDiff(
-    lastSyncedAt,
-    cursorId,
-    50,
-    {
-      signal: options.abortSignal,
-    },
-  );
-  if (entriesResult.isErr()) {
-    console.error(
-      "[sync/agents] Error in diff sync operation:",
-      entriesResult.error,
-    );
-    return;
-  }
-
-  const entries = entriesResult.value;
-  if (entries.length === 0) {
-    console.info(
-      `[sync/agents] No entries to sync (durationMs=${Date.now() - startedAt})`,
-    );
-    return;
-  }
-
-  const tags = Array.from(
-    new Set(entries.map((entry) => entry.tags ?? []).flat()),
-  );
-
-  for (const tag of tags) {
-    if (shouldStopSync(options, "registry sync canceled during tag upsert")) {
+  // Loop batches within the run's time budget (shouldStopSync consults the
+  // handler deadline) instead of one 50-entry batch per cron run — a full
+  // replay after /sync/agents/reset-cursor would otherwise freeze status
+  // propagation for hours.
+  while (true) {
+    if (shouldStopSync(options, "registry sync canceled before diff request")) {
       return;
     }
 
-    await prisma.tag.upsert({
-      where: {
-        name: tag,
+    const entriesResult = await registryClient.getAgentsDiff(
+      lastSyncedAt,
+      cursorId,
+      AGENT_SYNC_BATCH_SIZE,
+      {
+        signal: options.abortSignal,
       },
-      create: {
-        name: tag,
-      },
-      update: {},
-    });
-  }
-
-  // Entries fully handled (upserted or deliberately skipped). The cursor only
-  // advances past this contiguous prefix, so an unexpected error (e.g. a
-  // transient DB failure) keeps retry semantics for the failed entry and
-  // everything after it on the next run.
-  let processedEntryCount = 0;
-  for (const entry of entries) {
-    if (shouldStopSync(options, "registry sync canceled during agent upsert")) {
-      return;
-    }
-
-    try {
-      const pricing = resolveEntryPricing(entry);
-      await upsertRegistryAgent(entry, pricing);
-      processedEntryCount++;
-    } catch (error) {
-      // Failure (infra error, or a data shape the defensive parsing above
-      // did not anticipate): stop the batch WITHOUT advancing the cursor past
-      // this entry so the next run retries it. Transient errors self-heal; a
-      // persistently failing entry keeps the cursor parked and pages via
-      // Sentry rather than being silently dropped.
+    );
+    if (entriesResult.isErr()) {
       console.error(
-        `[sync/agents] Upsert failed for entry ${entry.agentIdentifier}; stopping batch for retry:`,
-        error,
+        "[sync/agents] Error in diff sync operation:",
+        entriesResult.error,
       );
-      Sentry.captureException(error);
+      return;
+    }
+
+    const entries = entriesResult.value;
+    if (entries.length === 0) {
       break;
     }
-  }
+    batchCount++;
 
-  if (
-    shouldStopSync(options, "registry sync canceled before metadata update")
-  ) {
-    return;
-  }
-
-  if (processedEntryCount === 0) {
-    console.warn(
-      "[sync/agents] No entries processed; cursor not advanced (batch will be retried)",
+    const tags = Array.from(
+      new Set(entries.map((entry) => entry.tags ?? []).flat()),
     );
-    return;
-  }
 
-  const lastEntry = entries[processedEntryCount - 1];
-  await prisma.syncMetadata.upsert({
-    where: {
-      key: metadataKey,
-    },
-    create: {
-      key: metadataKey,
-      cursorId: lastEntry.id,
-      lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
-    },
-    update: {
-      cursorId: lastEntry.id,
-      lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
-    },
-  });
+    for (const tag of tags) {
+      if (shouldStopSync(options, "registry sync canceled during tag upsert")) {
+        return;
+      }
+
+      await prisma.tag.upsert({
+        where: {
+          name: tag,
+        },
+        create: {
+          name: tag,
+        },
+        update: {},
+      });
+    }
+
+    // Entries fully handled (upserted or deliberately deferred). The cursor
+    // only advances past this contiguous prefix, so an unexpected error (e.g.
+    // a transient DB failure) keeps retry semantics for the failed entry and
+    // everything after it on the next run.
+    let processedEntryCount = 0;
+    let batchHadError = false;
+    for (const entry of entries) {
+      if (
+        shouldStopSync(options, "registry sync canceled during agent upsert")
+      ) {
+        return;
+      }
+
+      // See isRollbackUnsafeEntry: V2/pointer/unknown entries are deferred
+      // until the rollout flag turns ingestion on.
+      if (deferV2Ingestion && isRollbackUnsafeEntry(entry)) {
+        totalDeferredCount++;
+        processedEntryCount++;
+        continue;
+      }
+
+      try {
+        const pricing = resolveEntryPricing(entry);
+        await upsertRegistryAgent(entry, pricing);
+        processedEntryCount++;
+      } catch (error) {
+        // Failure (infra error, or a data shape the defensive parsing above
+        // did not anticipate): stop the batch WITHOUT advancing the cursor
+        // past this entry so the next run retries it. Transient errors
+        // self-heal; a persistently failing entry keeps the cursor parked and
+        // pages via Sentry rather than being silently dropped.
+        console.error(
+          `[sync/agents] Upsert failed for entry ${entry.agentIdentifier}; stopping batch for retry:`,
+          error,
+        );
+        Sentry.captureException(error);
+        batchHadError = true;
+        break;
+      }
+    }
+
+    if (
+      shouldStopSync(options, "registry sync canceled before metadata update")
+    ) {
+      return;
+    }
+
+    if (processedEntryCount === 0) {
+      console.warn(
+        "[sync/agents] No entries processed; cursor not advanced (batch will be retried)",
+      );
+      return;
+    }
+
+    const lastEntry = entries[processedEntryCount - 1];
+    await prisma.syncMetadata.upsert({
+      where: {
+        key: metadataKey,
+      },
+      create: {
+        key: metadataKey,
+        cursorId: lastEntry.id,
+        lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
+      },
+      update: {
+        cursorId: lastEntry.id,
+        lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
+      },
+    });
+    totalProcessedCount += processedEntryCount;
+
+    if (batchHadError) {
+      // Cursor is parked at the contiguous prefix; next run retries.
+      return;
+    }
+    if (entries.length < AGENT_SYNC_BATCH_SIZE) {
+      break;
+    }
+    lastSyncedAt = new Date(lastEntry.statusUpdatedAt);
+    cursorId = lastEntry.id;
+  }
 
   console.info(
-    `[sync/agents] Completed registry sync (entries=${entries.length}, processed=${processedEntryCount}, tags=${tags.length}, durationMs=${Date.now() - startedAt})`,
+    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, deferred=${totalDeferredCount}, durationMs=${Date.now() - startedAt})`,
   );
 }
 

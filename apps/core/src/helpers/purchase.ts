@@ -78,11 +78,20 @@ type _AssertTransactionStatusCovered = AssertExtends<
  * Unknown enum values coming from the payment node are skipped (the field is
  * omitted from the update, keeping the previously stored value) instead of
  * throwing, so a single unexpected value cannot wedge purchase sync for a job.
+ *
+ * Sentry capture is deduplicated per (kind, value) per process — this sits on
+ * the every-minute job-sync path, so a single node-side enum addition would
+ * otherwise flood Sentry until sokosumi regenerates its client.
  */
+const reportedUnknownPurchaseValues = new Set<string>();
+
 function reportUnknownPurchaseValue(kind: string, value: string): undefined {
-  const error = new Error(`Unknown purchase ${kind}: ${value}`);
   console.error("[purchase] skipping unknown value", { kind, value });
-  Sentry.captureException(error);
+  const dedupeKey = `${kind}:${value}`;
+  if (!reportedUnknownPurchaseValues.has(dedupeKey)) {
+    reportedUnknownPurchaseValues.add(dedupeKey);
+    Sentry.captureException(new Error(`Unknown purchase ${kind}: ${value}`));
+  }
   return undefined;
 }
 

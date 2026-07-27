@@ -104,12 +104,36 @@ export function createPaymentClient(
     error: unknown,
     blockchainIdentifier: string,
   ): Promise<Result<CreatedPurchase, string>> => {
+    // The node's duplicate check is NOT wallet-scope filtered, so the 409's
+    // embedded purchase may belong to another API key's scope. Confirm
+    // visibility through the scope-filtered resolve endpoint first; the
+    // embedded object is only a resilience fallback when resolve fails
+    // transiently (a scope-filtered 404 must stay an error, otherwise a
+    // foreign purchase snapshot would wedge the job unrefunded).
+    try {
+      const response = await postPurchaseResolveBlockchainIdentifier({
+        client: client(),
+        body: {
+          blockchainIdentifier,
+          network,
+        },
+      });
+      if (response.data && !response.error) {
+        return ok(response.data.data);
+      }
+      if (response.response?.status === 404) {
+        return err("Duplicate purchase is not visible to this API key");
+      }
+    } catch {
+      // Transient failure — fall through to the embedded object.
+    }
+
     const duplicatePurchase = getDuplicatePurchase(error, blockchainIdentifier);
     if (duplicatePurchase) {
       return ok(duplicatePurchase);
     }
 
-    return resolvePurchase(blockchainIdentifier);
+    return err("Failed to resolve duplicate purchase");
   };
 
   return {

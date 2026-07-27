@@ -545,6 +545,8 @@ model UnitValue {
   agentFixedPricingId String?
   paymentRequestId    String?
   purchaseRequestId   String?
+
+  @@index([agentFixedPricingId])
 }
 
 model AgentPricing {

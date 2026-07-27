@@ -17,6 +17,7 @@ const {
   agentPricingUpdateMock,
   agentUpdateMock,
   getAgentsDiffMock,
+  getEnvEnableCardanoV2Mock,
   openrouterGenerateAgentSummaryMock,
   syncMetadataDeleteManyMock,
   syncMetadataFindUniqueMock,
@@ -34,6 +35,7 @@ const {
   agentPricingUpdateMock: vi.fn(),
   agentUpdateMock: vi.fn(),
   getAgentsDiffMock: vi.fn(),
+  getEnvEnableCardanoV2Mock: vi.fn().mockReturnValue(true),
   openrouterGenerateAgentSummaryMock: vi.fn(),
   syncMetadataDeleteManyMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
@@ -47,6 +49,9 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({
     NETWORK: "Preprod",
     SHOW_AGENTS_BY_DEFAULT: true,
+    // Ingestion tests exercise the flag-on behavior; the flag-off rollback
+    // fence has its own dedicated tests.
+    ENABLE_CARDANO_V2_AGENTS: getEnvEnableCardanoV2Mock(),
   }),
 }));
 
@@ -216,6 +221,7 @@ function createV2AgentIdentifier(version: number): string {
 describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getEnvEnableCardanoV2Mock.mockReturnValue(true);
     syncMetadataFindUniqueMock.mockResolvedValue({
       key: "agents-sync-metadata",
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
@@ -930,7 +936,13 @@ describe("agentSyncService.syncRegistryAgents", () => {
     // new fixed pricing is attached to the same AgentPricing row.
     expect(agentPricingFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "pricing-1" },
-      select: { agentFixedPricingId: true },
+      select: {
+        pricingType: true,
+        agentFixedPricingId: true,
+        fixedPricing: {
+          select: { amounts: { select: { unit: true, amount: true } } },
+        },
+      },
     });
     expect(agentPricingUpdateMock).toHaveBeenNthCalledWith(1, {
       where: { id: "pricing-1" },
@@ -1026,6 +1038,37 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentUpdateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("skips the pricing replacement entirely when the pricing is unchanged", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-db-1",
+      pricingId: "pricing-1",
+      registryVersion: 0,
+    });
+    agentPricingFindUniqueMock.mockResolvedValue({
+      pricingType: PricingType.FREE,
+      agentFixedPricingId: null,
+      fixedPricing: null,
+    });
+    const entries = [
+      createRegistryEntry("entry-unchanged", {
+        AgentPricing: { pricingType: "Free" },
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentPricingUpdateMock).not.toHaveBeenCalled();
+    expect(unitValueDeleteManyMock).not.toHaveBeenCalled();
+    expect(agentFixedPricingDeleteMock).not.toHaveBeenCalled();
+    // The rest of the refresh still runs.
+    expect(agentUpdateMock).toHaveBeenCalledTimes(1);
+  });
+
   it("removes old fixed pricing rows without recreating them on a FIXED to FREE transition", async () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-db-1",
@@ -1094,6 +1137,80 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createCall.data.pricing.create.fixedPricing.create.amounts.createMany
         .data,
     ).toEqual([{ unit: "", amount: BigInt(2000000) }]);
+  });
+
+  it("defers rollback-unsafe entries while the rollout flag is off but advances the cursor", async () => {
+    getEnvEnableCardanoV2Mock.mockReturnValue(false);
+    const entries = [
+      createRegistryEntry("entry-v2-deferred", {
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+        statusUpdatedAt: "2026-02-24T13:00:00.000Z",
+      }),
+      createRegistryEntry("entry-x402-deferred", {
+        type: "X402",
+        apiBaseUrl: null,
+        x402ResourcesUrl: "https://example.com/x402.json",
+        paymentType: "None",
+        statusUpdatedAt: "2026-02-24T14:00:00.000Z",
+      }),
+      createRegistryEntry("entry-v1-kept", {
+        statusUpdatedAt: "2026-02-24T15:00:00.000Z",
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    // Only the V1 entry is written; the deferred entries still advance the
+    // cursor (a reset-cursor backfill picks them up after the flag turns on).
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.blockchainIdentifier).toBe(
+      "identifier-entry-v1-kept",
+    );
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: "entry-v1-kept",
+          lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
+        },
+      }),
+    );
+  });
+
+  it("keeps only the first payment source when the registry serves duplicate source indexes", async () => {
+    const entries = [
+      createRegistryEntry("entry-dup-source", {
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        agentIdentifier: createV2AgentIdentifier(1),
+        SupportedPaymentSources: [
+          createCardanoV2PaymentSource(),
+          createCardanoV2PaymentSource({
+            address: "addr_test1_other_contract",
+          }),
+        ],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.paymentSources.create).toHaveLength(1);
+    expect(createCall.data.paymentSources.create[0].address).toBe(
+      "addr_test1_contract",
+    );
   });
 
   it("stops the batch without advancing the cursor when the first create fails", async () => {
