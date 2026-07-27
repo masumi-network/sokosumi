@@ -1,11 +1,15 @@
 "use client";
 
+import {
+  canRevokeInviteLink,
+  evaluateInviteLinkStatus,
+  type InviteLinkPresentStatus,
+} from "@sokosumi/utils";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,11 +32,6 @@ import {
 } from "@/components/ui/table";
 import { revokeOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
 import type { OrganizationInviteLink } from "@/lib/clients/generated/core";
-import {
-  canRevokeInviteLink,
-  evaluateInviteLinkDisplayStatus,
-  type InviteLinkDisplayStatus,
-} from "@/lib/utils/organization-invite-link";
 
 const COPIED_RESET_MS = 2000;
 
@@ -41,7 +40,7 @@ interface OrganizationInviteLinkListProps {
   inviteLinks: OrganizationInviteLink[];
 }
 
-function statusBadgeVariant(status: InviteLinkDisplayStatus) {
+function statusBadgeVariant(status: InviteLinkPresentStatus) {
   switch (status) {
     case "valid":
       return "default" as const;
@@ -58,7 +57,7 @@ function statusBadgeVariant(status: InviteLinkDisplayStatus) {
   }
 }
 
-function statusLabelKey(status: InviteLinkDisplayStatus) {
+function statusLabelKey(status: InviteLinkPresentStatus) {
   switch (status) {
     case "valid":
       return "statusActive";
@@ -132,7 +131,7 @@ function InviteLinkRow({
   const [copied, setCopied] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const status = evaluateInviteLinkDisplayStatus(link);
+  const status = evaluateInviteLinkStatus(link);
   const statusLabel = t(statusLabelKey(status));
 
   const handleCopy = useCallback(async () => {

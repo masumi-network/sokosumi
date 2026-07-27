@@ -188,6 +188,51 @@ describe("GET /organizations/{id}/invite-links", () => {
     expect(body.data).toEqual([]);
   });
 
+  it("returns mapped invite-link fields for an admin caller", async () => {
+    resolveMemberOrganizationByIdMock.mockResolvedValue({
+      organization: { id: orgId },
+      role: MemberRole.ADMIN,
+    });
+
+    const createdAt = new Date("2026-07-20T12:00:00.000Z");
+    const expiresAt = new Date("2026-07-27T12:00:00.000Z");
+    const revokedAt = new Date("2026-07-21T12:00:00.000Z");
+    listInviteLinksByOrganizationIdMock.mockResolvedValue([
+      liveLink({
+        id: "link_mapped",
+        token: "tok_mapped",
+        role: MemberRole.MEMBER,
+        createdAt,
+        expiresAt,
+        revokedAt,
+        maxUses: 10,
+        useCount: 3,
+      }),
+    ]);
+
+    const response = await getList();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+      }),
+    );
+    expect(body.data).toEqual([
+      {
+        token: "tok_mapped",
+        url: "https://app.sokosumi.test/join/tok_mapped",
+        role: MemberRole.MEMBER,
+        createdAt: createdAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        revokedAt: revokedAt.toISOString(),
+        maxUses: 10,
+        useCount: 3,
+      },
+    ]);
+  });
+
   it("preserves repository createdAt descending order", async () => {
     const newest = liveLink({
       id: "newest",

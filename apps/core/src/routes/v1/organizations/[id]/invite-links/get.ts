@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import type { OrganizationInviteLink } from "@sokosumi/database";
 import { MemberRole } from "@sokosumi/database";
 import { organizationInviteLinkRepository } from "@sokosumi/database/repositories";
 
-import { getWebAppBaseUrl } from "@/config/env";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { toOrganizationInviteLinkResponse } from "@/helpers/organization-invite-link-response";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -19,19 +18,6 @@ const params = z.object({
     example: "org_123",
   }),
 });
-
-function toInviteLinkResponse(link: OrganizationInviteLink) {
-  return organizationInviteLinkSchema.parse({
-    token: link.token,
-    url: `${getWebAppBaseUrl()}/join/${link.token}`,
-    role: link.role,
-    createdAt: link.createdAt.toISOString(),
-    expiresAt: link.expiresAt.toISOString(),
-    revokedAt: link.revokedAt?.toISOString() ?? null,
-    maxUses: link.maxUses,
-    useCount: link.useCount,
-  });
-}
 
 const route = createRoute({
   method: "get",
@@ -93,7 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
     // Repository already returns createdAt desc; keep that order.
-    const payload = links.map(toInviteLinkResponse);
+    const payload = links.map(toOrganizationInviteLinkResponse);
 
     return ok(c, z.array(organizationInviteLinkSchema).parse(payload));
   });

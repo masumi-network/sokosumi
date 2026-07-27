@@ -4,11 +4,11 @@ import {
   memberRepository,
   organizationInviteLinkRepository,
 } from "@sokosumi/database/repositories";
+import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { evaluateInviteLinkStatus } from "@/helpers/organization-invite-link";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
