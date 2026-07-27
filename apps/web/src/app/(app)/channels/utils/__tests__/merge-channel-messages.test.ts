@@ -1,17 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChatChannelMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { mergeChannelMessages } from "../merge-channel-messages";
 
-function message(
-  id: string,
-  createdAt: string,
-  content = id,
-): ChatChannelMessage {
+function message(id: string, createdAt: string, content = id): ChatRoomMessage {
   return {
     id,
-    channelId: "channel-1",
+    roomId: "room-1",
     parentMessageId: null,
     content,
     createdAt: new Date(createdAt),

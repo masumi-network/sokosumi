@@ -2,7 +2,7 @@ import type { UIMessage } from "ai";
 
 /**
  * Loads persisted thread history as AI SDK `UIMessage[]` via the web BFF
- * (`GET {chatBffPath}?conversationId=…` → Core `GET /v1/chat`).
+ * (`GET {chatBffPath}?conversationId=…` → Core `GET /v1/chats/stream`).
  */
 export async function fetchChatUiMessages(
   conversationId: string,

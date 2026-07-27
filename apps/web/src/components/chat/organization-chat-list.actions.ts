@@ -1,15 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { ChatChannel } from "@/lib/clients/generated/core";
-import { chatChannelService, userService } from "@/lib/services";
+import type { ChatRoom } from "@/lib/clients/generated/core";
+import { chatRoomService, userService } from "@/lib/services";
 
 type OrganizationChatListActionResult =
-  | { ok: true; data: ChatChannel[] }
+  | { ok: true; data: ChatRoom[] }
   | { ok: false };
 
 type MarkOrganizationChatReadActionResult =
-  | { ok: true; data: ChatChannel }
+  | { ok: true; data: ChatRoom }
   | { ok: false };
 
 export async function listOrganizationChatChannelsAction(): Promise<OrganizationChatListActionResult> {
@@ -19,9 +19,7 @@ export async function listOrganizationChatChannelsAction(): Promise<Organization
   }
 
   try {
-    const channels = await chatChannelService.listChannels(
-      activeOrganization.id,
-    );
+    const channels = await chatRoomService.listRooms();
     return { ok: true, data: channels };
   } catch {
     return { ok: false };
@@ -37,7 +35,7 @@ export async function markOrganizationChatChannelReadAction(
   }
 
   try {
-    const channel = await chatChannelService.markRead(cleanChannelId);
+    const channel = await chatRoomService.markRead(cleanChannelId);
     revalidatePath("/channels");
     return { ok: true, data: channel };
   } catch {

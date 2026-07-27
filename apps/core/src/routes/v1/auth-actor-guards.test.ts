@@ -9,7 +9,7 @@ import {
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetAgentJobs from "./agents/[id]/jobs/get";
-import mountGetConversations from "./conversations/get";
+import mountGetConversations from "./chats/conversations/get";
 import mountGetJobs from "./jobs/get";
 import mountGetUserCredits from "./users/[id]/credits/get";
 

@@ -4,10 +4,9 @@ import type {
   ActivateEnterpriseContractRequest,
   AgentStatus,
   CreateAdminVendorData,
-  CreateChatChannelMessageRequest,
-  CreateChatChannelRequest,
+  CreateChatRoomMessageRequest,
+  CreateChatRoomRequest,
   CreateConversationMessageRequest,
-  CreateDirectChatChannelRequest,
   CreateEnterpriseContractRequest,
   DeleteHermesMeInstanceIntegrationsByProviderData,
   DeleteJobsByIdShareError,
@@ -18,8 +17,8 @@ import type {
   GetAgentsByIdReviewsData,
   GetAgentsData,
   GetCategoriesData,
-  GetChatChannelsByIdMessagesData,
-  GetChatChannelsData,
+  GetChatsRoomsByIdMessagesData,
+  GetChatsRoomsData,
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHermesMeMessagesData,
@@ -41,7 +40,7 @@ import type {
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
-  PatchChatChannelsByIdData,
+  PatchChatsRoomsByIdData,
   PatchCoworkersByIdData,
   PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
@@ -53,10 +52,9 @@ import type {
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
-  PostChatChannelsByIdMessagesByMessageIdReactionsData,
-  PostChatChannelsByIdMessagesData,
-  PostChatChannelsData,
-  PostChatChannelsDirectData,
+  PostChatsRoomsByIdMessagesByMessageIdReactionsData,
+  PostChatsRoomsByIdMessagesData,
+  PostChatsRoomsData,
   PostJobsByIdInputsData,
   PostOrganizationsByIdInviteLinksData,
   PostProjectsByIdJobsData,
@@ -111,14 +109,14 @@ import {
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
-  getChatChannels as coreGetChatChannels,
-  getChatChannelsById as coreGetChatChannelsById,
-  getChatChannelsByIdMessages as coreGetChatChannelsByIdMessages,
+  getChatsRooms as coreGetChatsRooms,
+  getChatsRoomsById as coreGetChatsRoomsById,
+  getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
-  getConversations as coreGetConversations,
-  getConversationsById as coreGetConversationsById,
-  getConversationsByIdMessages as coreGetConversationsByIdMessages,
-  getConversationsByIdWarmup as coreGetConversationsByIdWarmup,
+  getChatsConversations as coreGetConversations,
+  getChatsConversationsById as coreGetConversationsById,
+  getChatsConversationsByIdMessages as coreGetConversationsByIdMessages,
+  getChatsConversationsByIdWarmup as coreGetConversationsByIdWarmup,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
@@ -196,9 +194,9 @@ import {
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
-  patchChatChannelsById as corePatchChatChannelsById,
-  patchConversationsById as corePatchConversationsById,
-  patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchChatsRoomsById as corePatchChatsRoomsById,
+  patchChatsConversationsById as corePatchConversationsById,
+  patchChatsConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchCoworkersById as corePatchCoworkersById,
   patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -212,13 +210,12 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
-  postChatChannels as corePostChatChannels,
-  postChatChannelsByIdMessages as corePostChatChannelsByIdMessages,
-  postChatChannelsByIdMessagesByMessageIdReactions as corePostChatChannelsByIdMessagesByMessageIdReactions,
-  postChatChannelsByIdRead as corePostChatChannelsByIdRead,
-  postChatChannelsDirect as corePostChatChannelsDirect,
-  postConversations as corePostConversations,
-  postConversationsByIdMessages as corePostConversationsByIdMessages,
+  postChatsRooms as corePostChatsRooms,
+  postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
+  postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
+  postChatsConversations as corePostConversations,
+  postChatsConversationsByIdMessages as corePostConversationsByIdMessages,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -639,139 +636,128 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getChatChannels(query: GetChatChannelsData["query"]) {
+  async function getChatRooms(query?: GetChatsRoomsData["query"]) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetChatChannels({
+        coreGetChatsRooms({
           client,
           query,
           cache: "no-store",
         }),
-      "Failed to fetch chat channels",
+      "Failed to fetch chat rooms",
     );
   }
 
-  async function createChatChannel(
-    body: CreateChatChannelRequest & NonNullable<PostChatChannelsData["body"]>,
+  /**
+   * Creates a chat room. A `direct` room is create-or-get: Core returns the
+   * existing room for the same participant set instead of a duplicate.
+   */
+  async function createChatRoom(
+    body: CreateChatRoomRequest & NonNullable<PostChatsRoomsData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostChatChannels({
+        corePostChatsRooms({
           client,
           body,
         }),
-      "Failed to create chat channel",
+      "Failed to create chat room",
     );
   }
 
-  async function createDirectChatChannel(
-    body: CreateDirectChatChannelRequest &
-      NonNullable<PostChatChannelsDirectData["body"]>,
-  ) {
+  async function getChatRoom(id: string) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostChatChannelsDirect({
-          client,
-          body,
-        }),
-      "Failed to create direct chat channel",
-    );
-  }
-
-  async function getChatChannel(id: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetChatChannelsById({
+        coreGetChatsRoomsById({
           client,
           path: { id },
           cache: "no-store",
         }),
-      "Failed to fetch chat channel",
+      "Failed to fetch chat room",
     );
   }
 
-  async function updateChatChannel(
+  async function updateChatRoom(
     id: string,
-    body: NonNullable<PatchChatChannelsByIdData["body"]>,
+    body: NonNullable<PatchChatsRoomsByIdData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePatchChatChannelsById({
+        corePatchChatsRoomsById({
           client,
           path: { id },
           body,
         }),
-      "Failed to update chat channel",
+      "Failed to update chat room",
     );
   }
 
-  async function markChatChannelRead(id: string) {
+  async function markChatRoomRead(id: string) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostChatChannelsByIdRead({
+        corePostChatsRoomsByIdRead({
           client,
           path: { id },
         }),
-      "Failed to mark chat channel read",
+      "Failed to mark chat room read",
     );
   }
 
-  async function getChatChannelMessages(
+  async function getChatRoomMessages(
     id: string,
-    query?: GetChatChannelsByIdMessagesData["query"],
+    query?: GetChatsRoomsByIdMessagesData["query"],
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetChatChannelsByIdMessages({
+        coreGetChatsRoomsByIdMessages({
           client,
           path: { id },
           query,
           cache: "no-store",
         }),
-      "Failed to fetch chat channel messages",
+      "Failed to fetch chat room messages",
     );
   }
 
-  async function addChatChannelMessage(
+  async function addChatRoomMessage(
     id: string,
-    body: CreateChatChannelMessageRequest &
-      NonNullable<PostChatChannelsByIdMessagesData["body"]>,
+    body: CreateChatRoomMessageRequest &
+      NonNullable<PostChatsRoomsByIdMessagesData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostChatChannelsByIdMessages({
+        corePostChatsRoomsByIdMessages({
           client,
           path: { id },
           body,
         }),
-      "Failed to add chat channel message",
+      "Failed to add chat room message",
     );
   }
 
-  async function toggleChatChannelMessageReaction(
+  async function toggleChatRoomMessageReaction(
     id: string,
     messageId: string,
     body: NonNullable<
-      PostChatChannelsByIdMessagesByMessageIdReactionsData["body"]
+      PostChatsRoomsByIdMessagesByMessageIdReactionsData["body"]
     >,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostChatChannelsByIdMessagesByMessageIdReactions({
+        corePostChatsRoomsByIdMessagesByMessageIdReactions({
           client,
           path: { id, messageId },
           body,
         }),
-      "Failed to update chat channel message reaction",
+      "Failed to update chat room message reaction",
     );
   }
 
@@ -3565,12 +3551,11 @@ export function createCoreClient(getClient: GetClient) {
     patchEnterpriseContract,
     previewEnterpriseContractPeriods,
     acknowledgeNotice,
-    addChatChannelMessage,
+    addChatRoomMessage,
     addConversationMessage,
     archiveConversation,
     assignOrganizationSeat,
-    createChatChannel,
-    createDirectChatChannel,
+    createChatRoom,
     createConversation,
     createAgentJob,
     createMyFileUploadSession,
@@ -3585,11 +3570,11 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskLink,
     deleteTask,
     deleteTaskSchedule,
-    getChatChannel,
-    getChatChannelMessages,
-    getChatChannels,
-    markChatChannelRead,
-    toggleChatChannelMessageReaction,
+    getChatRoom,
+    getChatRoomMessages,
+    getChatRooms,
+    markChatRoomRead,
+    toggleChatRoomMessageReaction,
     getConversation,
     getConversationMessages,
     getConversationWarmup,
@@ -3601,7 +3586,7 @@ export function createCoreClient(getClient: GetClient) {
     getHistory,
     getNotifications,
     getNotificationsUnreadCount,
-    updateChatChannel,
+    updateChatRoom,
     patchNotificationRead,
     patchNotificationsReadAll,
     listHermesIntegrations,

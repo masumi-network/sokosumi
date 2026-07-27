@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-proxy-headers";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
-const CORE_CHAT_PATH = "chat" as const;
+const CORE_CHAT_STREAM_PATH = "chats/stream" as const;
 
 export async function GET(
   _req: NextRequest,
@@ -27,7 +27,7 @@ export async function GET(
       new Headers(await headers()),
     );
 
-    const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}/stream/${encodeURIComponent(conversationId)}`;
+    const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_STREAM_PATH}/${encodeURIComponent(conversationId)}`;
 
     const response = await fetch(coreUrl, {
       method: "GET",

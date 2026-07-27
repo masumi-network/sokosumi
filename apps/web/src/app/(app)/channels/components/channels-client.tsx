@@ -84,10 +84,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import type {
-  ChatChannel,
-  ChatChannelCoworkerParticipant,
-  ChatChannelMessage,
-  ChatChannelPresence,
+  ChatRoom,
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+  ChatRoomPresence,
   Coworker,
   Member,
   Organization,
@@ -107,7 +107,7 @@ import {
 
 interface ChannelsClientProps {
   activeOrganization: Organization;
-  channels: ChatChannel[];
+  channels: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
   coworkers: Coworker[];
@@ -115,7 +115,7 @@ interface ChannelsClientProps {
   isCreateChannelRequested: boolean;
   isNewDirectMessage: boolean;
   messageLoadFailed: boolean;
-  messages: ChatChannelMessage[];
+  messages: ChatRoomMessage[];
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
 }
@@ -166,7 +166,7 @@ function AiCoworkerIcon({ className }: { className?: string }) {
   );
 }
 
-function hasPendingCoworkerMention(messages: ChatChannelMessage[]): boolean {
+function hasPendingCoworkerMention(messages: ChatRoomMessage[]): boolean {
   return messages.some((message) =>
     message.mentions.some(
       (mention) => mention.status === "pending" || mention.status === "sent",
@@ -175,9 +175,9 @@ function hasPendingCoworkerMention(messages: ChatChannelMessage[]): boolean {
 }
 
 function appendMessage(
-  messages: ChatChannelMessage[],
-  nextMessage: ChatChannelMessage,
-): ChatChannelMessage[] {
+  messages: ChatRoomMessage[],
+  nextMessage: ChatRoomMessage,
+): ChatRoomMessage[] {
   if (messages.some((message) => message.id === nextMessage.id)) {
     return messages;
   }
@@ -191,7 +191,7 @@ function toggleId(ids: string[], id: string, checked: boolean): string[] {
   return ids.filter((item) => item !== id);
 }
 
-function messageSender(message: ChatChannelMessage) {
+function messageSender(message: ChatRoomMessage) {
   if (message.sender.type === "user") {
     return {
       name: message.sender.user.name,
@@ -231,7 +231,7 @@ function messageDayKey(value: Date | string): string {
  * the timestamps are.
  */
 
-function getDirectChannelTarget(channel: ChatChannel, currentUserId: string) {
+function getDirectChannelTarget(channel: ChatRoom, currentUserId: string) {
   return (
     channel.userMembers.find((member) => member.id !== currentUserId) ??
     channel.userMembers[0] ??
@@ -244,12 +244,12 @@ interface DirectParticipantPreview {
   name: string;
   detail: string | null;
   image: string | null;
-  presence: ChatChannelPresence;
+  presence: ChatRoomPresence;
   kind: "human" | "coworker";
 }
 
 function getDirectChannelParticipants(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
 ): DirectParticipantPreview[] {
   return [
@@ -291,7 +291,7 @@ function formatDirectParticipantNames(
 }
 
 function getChannelDisplayName(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
 ): string {
   if (channel.kind !== "direct") {
@@ -304,7 +304,7 @@ function getChannelDisplayName(
 }
 
 function getDirectChannelSubtitle(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
   options: {
     fallback: string;
@@ -332,12 +332,12 @@ interface ChannelParticipantPreview {
   id: string;
   name: string;
   image: string | null;
-  presence: ChatChannelPresence;
+  presence: ChatRoomPresence;
   kind: "human" | "coworker";
 }
 
 function getChannelParticipantPreviews(
-  channel: ChatChannel,
+  channel: ChatRoom,
 ): ChannelParticipantPreview[] {
   return [
     ...channel.userMembers.map((member) => ({
@@ -359,7 +359,7 @@ function getChannelParticipantPreviews(
 
 function presenceLabel(
   t: (key: "Presence.online" | "Presence.afk" | "Presence.offline") => string,
-  presence: ChatChannelPresence,
+  presence: ChatRoomPresence,
 ): string {
   if (presence === "online") {
     return t("Presence.online");
@@ -370,7 +370,7 @@ function presenceLabel(
   return t("Presence.offline");
 }
 
-function ChannelParticipantStack({ channel }: { channel: ChatChannel }) {
+function ChannelParticipantStack({ channel }: { channel: ChatRoom }) {
   const t = useTranslations("App.Channels");
   const participants = getChannelParticipantPreviews(channel);
   const visibleParticipants = participants.slice(0, 4);
@@ -439,8 +439,8 @@ function formatChannelMarkdownMentions({
   coworkersBySlug,
 }: {
   content: string;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
 }): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
@@ -471,8 +471,8 @@ function ChannelMarkdownSegment({
   coworkersBySlug,
 }: {
   content: string;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
 }) {
   if (!content.trim()) {
     return null;
@@ -495,8 +495,8 @@ function ChannelMessageText({
   coworkersBySlug,
 }: {
   content: string;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
 }) {
   const fileLinks = findMarkdownLinks(content)
     .map((link) => ({
@@ -556,7 +556,7 @@ function ChannelMessageText({
 function CoworkerSuggestion({
   mention,
 }: {
-  mention: NormalizedMention<ChatChannelCoworkerParticipant>;
+  mention: NormalizedMention<ChatRoomCoworkerParticipant>;
 }) {
   return (
     <>
@@ -593,7 +593,7 @@ function ChannelComposer({
 }: {
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
-  mentions: Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>;
+  mentions: Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>;
   onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: ChannelComposerAttachment[];
@@ -865,11 +865,11 @@ function ChatMessageRow({
   onOpenThread,
   showThreadButton = true,
 }: {
-  message: ChatChannelMessage;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
-  onToggleReaction: (message: ChatChannelMessage, emoji: string) => void;
-  onOpenThread?: (message: ChatChannelMessage) => void;
+  message: ChatRoomMessage;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
 }) {
   const t = useTranslations("App.Channels");
@@ -997,14 +997,14 @@ function ThreadPanel({
   onClose,
   onToggleReaction,
 }: {
-  parentMessage: ChatChannelMessage;
-  replies: ChatChannelMessage[];
+  parentMessage: ChatRoomMessage;
+  replies: ChatRoomMessage[];
   isLoading: boolean;
-  coworkersById: Map<string, ChatChannelCoworkerParticipant>;
-  coworkersBySlug: Map<string, ChatChannelCoworkerParticipant>;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   mentionRecords: Record<
     string,
-    MentionRecordEntry<ChatChannelCoworkerParticipant>
+    MentionRecordEntry<ChatRoomCoworkerParticipant>
   >;
   replyValue: string;
   onReplyValueChange: Dispatch<SetStateAction<string>>;
@@ -1016,7 +1016,7 @@ function ThreadPanel({
   onSubmitReply: (event: FormEvent<HTMLFormElement>) => void;
   isSendingReply: boolean;
   onClose: () => void;
-  onToggleReaction: (message: ChatChannelMessage, emoji: string) => void;
+  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
 }) {
   const t = useTranslations("App.Channels");
 
@@ -1293,7 +1293,7 @@ function EditChannelDialog({
   members,
   coworkers,
 }: {
-  channel: ChatChannel;
+  channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
 }) {
@@ -1421,7 +1421,7 @@ interface DirectDraftTarget {
   kind: "human" | "coworker";
   slug?: string;
   caption?: string | null;
-  presence?: ChatChannelPresence;
+  presence?: ChatRoomPresence;
 }
 
 function buildDirectDraftTargets(
@@ -1544,7 +1544,7 @@ function DraftChannel({
       .slice(0, 8);
   }, [normalizedQuery, selectedKeySet, targets]);
   const selectedCoworkerParticipants = useMemo<
-    Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>
+    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
     return Object.fromEntries(
       selectedTargets
@@ -1839,7 +1839,7 @@ function DraftDirectMessage({
       .slice(0, 8);
   }, [normalizedQuery, selectedKeySet, targets]);
   const selectedCoworkerParticipants = useMemo<
-    Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>
+    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
     return Object.fromEntries(
       selectedTargets
@@ -2098,15 +2098,13 @@ export function ChannelsClient({
     [],
   );
   const [messagesState, setMessagesState] =
-    useState<ChatChannelMessage[]>(messages);
+    useState<ChatRoomMessage[]>(messages);
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
     messagesNextCursor,
   );
   const [threadParentMessage, setThreadParentMessage] =
-    useState<ChatChannelMessage | null>(null);
-  const [threadMessages, setThreadMessages] = useState<ChatChannelMessage[]>(
-    [],
-  );
+    useState<ChatRoomMessage | null>(null);
+  const [threadMessages, setThreadMessages] = useState<ChatRoomMessage[]>([]);
   const [threadComposerValue, setThreadComposerValue] = useState("");
   const [threadComposerAttachments, setThreadComposerAttachments] = useState<
     ChannelComposerAttachment[]
@@ -2189,7 +2187,7 @@ export function ChannelsClient({
     );
   }, [selectedChannel]);
   const mentionRecords = useMemo<
-    Record<string, MentionRecordEntry<ChatChannelCoworkerParticipant>>
+    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
     return Object.fromEntries(
       (selectedChannel?.coworkerMembers ?? []).map((coworker) => [
@@ -2465,7 +2463,7 @@ export function ChannelsClient({
     hasPendingThreadCoworkerMention,
   ]);
 
-  function mergeUpdatedMessage(updatedMessage: ChatChannelMessage) {
+  function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
     setMessagesState((current) =>
       current.map((message) =>
         message.id === updatedMessage.id ? updatedMessage : message,
@@ -2483,9 +2481,9 @@ export function ChannelsClient({
 
   function updateParentThreadPreview(
     parentMessageId: string,
-    reply: ChatChannelMessage,
+    reply: ChatRoomMessage,
   ) {
-    const updateParent = (message: ChatChannelMessage): ChatChannelMessage =>
+    const updateParent = (message: ChatRoomMessage): ChatRoomMessage =>
       message.id === parentMessageId
         ? {
             ...message,
@@ -2500,7 +2498,7 @@ export function ChannelsClient({
     );
   }
 
-  function loadThreadMessages(parentMessage: ChatChannelMessage) {
+  function loadThreadMessages(parentMessage: ChatRoomMessage) {
     if (!selectedChannel) return;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
@@ -2537,7 +2535,7 @@ export function ChannelsClient({
     });
   }
 
-  function handleToggleReaction(message: ChatChannelMessage, emoji: string) {
+  function handleToggleReaction(message: ChatRoomMessage, emoji: string) {
     if (!selectedChannel) return;
     // Guard the in-flight toggle: on a slow connection nothing changed
     // visibly, so users tapped again and the second call flipped the reaction

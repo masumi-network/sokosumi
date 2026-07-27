@@ -29,10 +29,7 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
-import type {
-  ChatChannel,
-  ChatChannelPresence,
-} from "@/lib/clients/generated/core";
+import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { listOrganizationChatChannelsAction } from "./organization-chat-list.actions";
@@ -40,7 +37,7 @@ import { listOrganizationChatChannelsAction } from "./organization-chat-list.act
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
 interface OrganizationChatListProps {
-  channels: ChatChannel[];
+  channels: ChatRoom[];
   currentUserId: string;
   hasOrganization: boolean;
 }
@@ -49,7 +46,7 @@ interface DirectParticipant {
   id: string;
   name: string;
   image: string | null;
-  presence: ChatChannelPresence;
+  presence: ChatRoomPresence;
 }
 
 interface CoworkerDirectConversation {
@@ -61,10 +58,7 @@ interface CoworkerDirectConversation {
   updatedAtMs: number;
 }
 
-function isCoworkerOnlyDirectChannel(
-  channel: ChatChannel,
-  currentUserId: string,
-) {
+function isCoworkerOnlyDirectChannel(channel: ChatRoom, currentUserId: string) {
   if (channel.kind !== "direct") {
     return false;
   }
@@ -77,7 +71,7 @@ function isCoworkerOnlyDirectChannel(
 }
 
 function getDirectParticipants(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
 ): DirectParticipant[] {
   const humans = channel.userMembers
@@ -106,7 +100,7 @@ const DIRECT_NAME_PREVIEW_LIMIT = 3;
  * channels pane must never label the same conversation differently.
  */
 export function getDirectChannelDisplayName(
-  channel: ChatChannel,
+  channel: ChatRoom,
   currentUserId: string,
 ): string {
   if (channel.kind !== "direct") {
@@ -189,7 +183,7 @@ function buildCoworkerDirectConversations(
 
 function presenceLabel(
   t: ReturnType<typeof useTranslations<"App.Channels">>,
-  presence: ChatChannelPresence,
+  presence: ChatRoomPresence,
 ) {
   if (presence === "online") {
     return t("Presence.online");
@@ -206,7 +200,7 @@ function DirectAvatarStack({
   channel,
   currentUserId,
 }: {
-  channel: ChatChannel;
+  channel: ChatRoom;
   currentUserId: string;
 }) {
   const t = useTranslations("App.Channels");
@@ -380,7 +374,7 @@ export function OrganizationChatList({
   useEffect(() => {
     const handleChannelRead = (event: Event) => {
       const detail = (
-        event as CustomEvent<{ channel?: ChatChannel; channelId?: string }>
+        event as CustomEvent<{ channel?: ChatRoom; channelId?: string }>
       ).detail;
       if (!detail?.channelId) {
         return;
@@ -408,8 +402,8 @@ export function OrganizationChatList({
   }, []);
 
   const { directMessages, publicChannels } = useMemo(() => {
-    const directMessages: ChatChannel[] = [];
-    const publicChannels: ChatChannel[] = [];
+    const directMessages: ChatRoom[] = [];
+    const publicChannels: ChatRoom[] = [];
 
     for (const channel of channelRows) {
       if (channel.kind === "channel") {
