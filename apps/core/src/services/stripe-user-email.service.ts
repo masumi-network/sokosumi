@@ -12,7 +12,7 @@ export function resetStripeEmailSyncStateForTests(): void {
   pendingStripeEmailSyncByNormalizedEmail.clear();
 }
 
-function resolveDatabaseHookUserId(
+export function resolveDatabaseHookUserId(
   ctx: unknown,
   updateData: Record<string, unknown>,
 ): string | null {
