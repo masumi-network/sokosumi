@@ -24,11 +24,9 @@ interface ChatInputContainerProps {
   onSendMessage: (
     message: ChatComposeMessage,
     coworker?: Coworker,
-    model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
   selectedModel: { id: string; name: string } | null;
-  onSelectModel: (model: { id: string; name: string } | null) => void;
   selectedChatCoworker?: Coworker;
   coworkers?: Coworker[];
   mobileKeyboardOptimized?: boolean;
@@ -48,7 +46,6 @@ export default function ChatInputContainer({
   sendMessage,
   onSendMessage,
   selectedModel,
-  onSelectModel,
   selectedChatCoworker,
   coworkers,
   mobileKeyboardOptimized = false,
@@ -89,7 +86,6 @@ export default function ChatInputContainer({
           sendMessage={sendMessage}
           onSendMessage={onSendMessage}
           showSuggestedActions={false}
-          onSelectModel={onSelectModel}
           selectedModel={selectedModel}
           coworker={selectedChatCoworker}
           coworkers={coworkers}

@@ -1429,9 +1429,6 @@
         },
         "comingSoon": "即将推出",
         "agenticCoworkers": "智能协作伙伴",
-        "models": "模型",
-        "supportsImageAttachments": "Supports image attachments",
-        "supportsImageGeneration": "可生成图片",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",

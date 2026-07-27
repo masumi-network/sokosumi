@@ -44,7 +44,7 @@ interface UseChatCreationProps {
 }
 
 /**
- * Hook to handle creating new chats (model or coworker) and transition state
+ * Hook to handle creating new coworker chats and transition state.
  */
 export function useChatCreation({
   createNewConversation,
@@ -69,108 +69,6 @@ export function useChatCreation({
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
   const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
     useState(true);
-
-  const createModelChat = useCallback(
-    async (
-      model: { id: string; name: string },
-      options?: { imageGeneration?: boolean } & ChatCreationOptions,
-    ) => {
-      const conversation = await createNewConversation(
-        {
-          model_id: model.id,
-          model_name: model.name,
-          type: "model",
-          ...(options?.imageGeneration === true
-            ? { image_generation: true }
-            : {}),
-        },
-        model.name,
-      );
-
-      if (!conversation) {
-        return null;
-      }
-
-      chatMessagesRef.current.set(conversation.id, []);
-      previousChatIdRef.current = conversation.id;
-      messagesChatIdRef.current = conversation.id;
-      setMessages([]);
-      setInput("");
-
-      const tempChat: Chat = {
-        id: conversation.id,
-        title: conversation.title || model.name,
-        createdAt: new Date(conversation.createdAt),
-        updatedAt: new Date(conversation.updatedAt),
-        status: "active",
-        coworker: undefined,
-        model: { id: model.id, name: model.name },
-      };
-      setChats((prev) => {
-        if (prev.find((c) => c.id === conversation.id)) {
-          return prev.map((c) =>
-            c.id === conversation.id ? { ...c, ...tempChat } : c,
-          );
-        }
-        return [tempChat, ...prev];
-      });
-
-      setSelectedChatId(conversation.id);
-      currentChatIdRef.current = conversation.id;
-      selectedModelRef.current = model;
-      setSelectedModel(model);
-      if (isRouteDriven) {
-        pendingUrlConversationIdRef.current = conversation.id;
-        isUpdatingUrlRef.current = true;
-        try {
-          sessionStorage.setItem(
-            getPendingConversationStorageKey(),
-            conversation.id,
-          );
-        } catch {
-          // ignore
-        }
-      }
-      const slug =
-        displaySlugFromMetadata(conversation.metadata ?? null) ||
-        `model-${model.id.replace(/\//g, "-")}`;
-
-      if (!options?.deferNavigation) {
-        if (navigateToConversation) {
-          void navigateToConversation(conversation, slug);
-        } else {
-          router.push(
-            `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
-            {
-              scroll: false,
-            },
-          );
-        }
-      } else if (navigateToConversation) {
-        void navigateToConversation(conversation, slug);
-      }
-
-      return conversation;
-    },
-    [
-      createNewConversation,
-      setMessages,
-      setInput,
-      setChats,
-      setSelectedChatId,
-      setSelectedModel,
-      router,
-      navigateToConversation,
-      chatMessagesRef,
-      previousChatIdRef,
-      messagesChatIdRef,
-      currentChatIdRef,
-      selectedModelRef,
-      isUpdatingUrlRef,
-      pendingUrlConversationIdRef,
-      isRouteDriven,
-    ],
-  );
 
   const createCoworkerChat = useCallback(
     async (coworker: Coworker, options?: ChatCreationOptions) => {
@@ -303,7 +201,6 @@ export function useChatCreation({
   }, [chats.length, conversations.length, isWelcomeTransitioning]);
 
   return {
-    createModelChat,
     createCoworkerChat,
     isWelcomeTransitioning,
     setIsWelcomeTransitioning,

@@ -9,18 +9,24 @@ import type {
   Coworker,
 } from "@/app/chat/utils/types";
 
+import CoworkerSelector from "../coworker-selector";
 import { MultimodalInput } from "../multimodal-input";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) => {
+    if (values?.coworkerSlug != null) {
+      return `${key}:${values.coworkerSlug}`;
+    }
+    return key;
+  },
 }));
 
 vi.mock("@/components/agents/coworker-gallery-card", () => ({
   CoworkerGalleryCard: () => null,
 }));
 
-vi.mock("../coworker-model-selector", () => ({
-  default: () => null,
+vi.mock("../coworker-selector", () => ({
+  default: vi.fn(() => null),
 }));
 
 const elenaCoworker: Coworker = {
@@ -41,7 +47,6 @@ function WelcomeMultimodalInput({
   onSendMessage?: (
     message: ChatComposeMessage,
     coworker?: Coworker,
-    model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
 }) {
@@ -70,8 +75,7 @@ function TestMultimodalInput({
   persistentImageGeneration?: boolean;
   onSendMessage: (
     message: ChatComposeMessage,
-    coworker?: unknown,
-    model?: { id: string; name: string },
+    coworker?: Coworker,
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
 }) {
@@ -97,6 +101,56 @@ function TestMultimodalInput({
 describe("MultimodalInput", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.mocked(CoworkerSelector).mockClear();
+  });
+
+  it("hides coworker selector on open threads", () => {
+    render(
+      <MultimodalInput
+        chatId="conversation-1"
+        input=""
+        setInput={() => {}}
+        status="ready"
+        stop={() => {}}
+        messages={[]}
+        setMessages={() => {}}
+        sendMessage={() => Promise.resolve()}
+        selectedModel={{ id: "gpt-5-4", name: "GPT-5.4" }}
+      />,
+    );
+
+    expect(CoworkerSelector).not.toHaveBeenCalled();
+  });
+
+  it("uses model name in placeholder on open model threads and does not pass a coworker on send", async () => {
+    const onSendMessage = vi.fn().mockResolvedValue(true);
+
+    render(
+      <MultimodalInput
+        chatId="conversation-1"
+        input="Hello model"
+        setInput={() => {}}
+        status="ready"
+        stop={() => {}}
+        messages={[]}
+        setMessages={() => {}}
+        sendMessage={() => Promise.resolve()}
+        onSendMessage={onSendMessage}
+        selectedModel={{ id: "gpt-5-4", name: "GPT-5.4" }}
+        coworkers={[elenaCoworker]}
+      />,
+    );
+
+    expect(
+      screen.getByPlaceholderText("welcomeScreen.placeholder:GPT-5.4"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("send-button"));
+
+    await waitFor(() => {
+      expect(onSendMessage).toHaveBeenCalled();
+    });
+    expect(onSendMessage.mock.calls[0]?.[1]).toBeUndefined();
   });
 
   it("does not render compose-kind toggle on welcome composer", () => {
@@ -106,7 +160,7 @@ describe("MultimodalInput", () => {
     expect(screen.queryByRole("radio", { name: "composeTask" })).toBeNull();
   });
 
-  it("blocks welcome send when no chat coworker or model is selected", () => {
+  it("blocks welcome send when no coworker is selected", () => {
     const onSendMessage = vi.fn().mockResolvedValue(true);
 
     render(
@@ -127,6 +181,29 @@ describe("MultimodalInput", () => {
 
     fireEvent.click(screen.getByTestId("send-button"));
 
+    expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("blocks welcome send when only a legacy model is selected", () => {
+    const onSendMessage = vi.fn().mockResolvedValue(true);
+
+    render(
+      <MultimodalInput
+        input="Hello"
+        setInput={() => {}}
+        status="ready"
+        stop={() => {}}
+        messages={[]}
+        setMessages={() => {}}
+        sendMessage={() => Promise.resolve()}
+        onSendMessage={onSendMessage}
+        coworkers={[]}
+        selectedModel={{ id: "gpt-5-4", name: "GPT-5.4" }}
+      />,
+    );
+
+    expect(screen.getByTestId("send-button")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("send-button"));
     expect(onSendMessage).not.toHaveBeenCalled();
   });
 
@@ -153,7 +230,6 @@ describe("MultimodalInput", () => {
         parts: [{ type: "text", text: "Make another variation" }],
       }) as UIMessage,
       undefined,
-      { id: "gpt-5-4", name: "GPT-5.4" },
       expect.objectContaining({
         kind: "chat",
         imageGeneration: true,

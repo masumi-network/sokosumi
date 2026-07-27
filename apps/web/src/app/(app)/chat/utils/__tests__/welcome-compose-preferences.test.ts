@@ -78,27 +78,35 @@ describe("writeWelcomeComposePreferences", () => {
   it("round-trips through readWelcomeComposePreferences", () => {
     writeWelcomeComposePreferences({
       composeKind: "chat",
-      modelId: "kimi-k2-6",
-      coworkerSlugOrId: null,
+      modelId: null,
+      coworkerSlugOrId: "alex",
     });
     expect(readWelcomeComposePreferences()).toMatchObject({
       v: 1,
       composeKind: "chat",
-      modelId: "kimi-k2-6",
-      coworkerSlugOrId: null,
+      modelId: null,
+      coworkerSlugOrId: "alex",
     });
+  });
+
+  it("forces modelId to null even when callers pass one", () => {
+    writeWelcomeComposePreferences({
+      composeKind: "chat",
+      modelId: "kimi-k2-6",
+      coworkerSlugOrId: "alex",
+    });
+    expect(readWelcomeComposePreferences()?.modelId).toBeNull();
   });
 });
 
 describe("buildWelcomeComposeStoredSnapshot", () => {
-  it("stores model id for chat compose with model", () => {
+  it("never stores a model id", () => {
     expect(
       buildWelcomeComposeStoredSnapshot({
         composeKind: "chat",
         coworker: null,
-        model: { id: "kimi-k2-6", name: "Kimi" },
       }).modelId,
-    ).toBe("kimi-k2-6");
+    ).toBeNull();
   });
 
   it("stores coworker slug when present", () => {
@@ -106,7 +114,6 @@ describe("buildWelcomeComposeStoredSnapshot", () => {
       buildWelcomeComposeStoredSnapshot({
         composeKind: "chat",
         coworker: baseCoworker({ slug: "pat", id: "id-1" }),
-        model: null,
       }).coworkerSlugOrId,
     ).toBe("pat");
   });
@@ -116,7 +123,6 @@ describe("buildWelcomeComposeStoredSnapshot", () => {
       buildWelcomeComposeStoredSnapshot({
         composeKind: "chat",
         coworker: baseCoworker({ slug: "", id: "only-id" }),
-        model: null,
       }).coworkerSlugOrId,
     ).toBe("only-id");
   });
@@ -145,11 +151,10 @@ describe("resolveHydratedWelcomeSelection", () => {
     ).toEqual({
       composeKind: "chat",
       coworker: null,
-      model: null,
     });
   });
 
-  it("resolves a stored chat model id", () => {
+  it("ignores a stored chat model id and resolves coworker", () => {
     const stored = {
       v: 1 as const,
       composeKind: "chat" as const,
@@ -160,11 +165,10 @@ describe("resolveHydratedWelcomeSelection", () => {
       urlCoworkerSlug: false,
     });
     expect(r.composeKind).toBe("chat");
-    expect(r.coworker).toBeNull();
-    expect(r.model).toEqual({ id: "kimi-k2-6", name: "Kimi K2.6" });
+    expect(r.coworker?.slug).toBe("alex");
   });
 
-  it("when urlCoworkerSlug is true, migrates task to chat and clears model and coworker", () => {
+  it("when urlCoworkerSlug is true, migrates task to chat and clears coworker", () => {
     const stored = {
       v: 1 as const,
       composeKind: "task" as const,
@@ -178,22 +182,7 @@ describe("resolveHydratedWelcomeSelection", () => {
     ).toEqual({
       composeKind: "chat",
       coworker: null,
-      model: null,
     });
-  });
-
-  it("falls back from invalid model id to coworker match", () => {
-    const stored = {
-      v: 1 as const,
-      composeKind: "chat" as const,
-      modelId: "unknown-model",
-      coworkerSlugOrId: "alex",
-    };
-    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
-      urlCoworkerSlug: false,
-    });
-    expect(r.model).toBeNull();
-    expect(r.coworker?.slug).toBe("alex");
   });
 
   it("for task compose, migrates to chat and picks a chat-capable fallback", () => {
@@ -309,6 +298,21 @@ describe("resolveHydratedWelcomeSelection", () => {
       v: 1 as const,
       composeKind: "chat" as const,
       modelId: null,
+      coworkerSlugOrId: null,
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
+
+  it("for chat compose with only a stored modelId, ignores model and picks first chat-capable coworker", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: "kimi-k2-6",
       coworkerSlugOrId: null,
     };
     const r = resolveHydratedWelcomeSelection(coworkers, stored, {

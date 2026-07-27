@@ -1,5 +1,3 @@
-import { CHAT_MODELS } from "@sokosumi/chat";
-
 import {
   type CoworkerCapability,
   coworkerCanChat,
@@ -13,6 +11,7 @@ export const WELCOME_COMPOSE_PREFERENCES_STORAGE_KEY =
 export type WelcomeComposeStoredV1 = {
   v: 1;
   composeKind: ChatComposeKind;
+  /** @deprecated Model chat creation removed; ignored on hydrate. */
   modelId: string | null;
   coworkerSlugOrId: string | null;
 };
@@ -74,7 +73,12 @@ export function writeWelcomeComposePreferences(
 ): void {
   if (typeof window === "undefined") return;
   try {
-    const payload: WelcomeComposeStoredV1 = { v: 1, ...snapshot };
+    // New chats are coworker-only; never persist a model id from callers.
+    const payload: WelcomeComposeStoredV1 = {
+      v: 1,
+      ...snapshot,
+      modelId: null,
+    };
     window.localStorage.setItem(
       WELCOME_COMPOSE_PREFERENCES_STORAGE_KEY,
       JSON.stringify(payload),
@@ -87,16 +91,13 @@ export function writeWelcomeComposePreferences(
 export function buildWelcomeComposeStoredSnapshot(p: {
   composeKind: ChatComposeKind;
   coworker: Coworker | null;
-  model: { id: string; name: string } | null;
 }): WelcomeComposeStoredV1 {
-  const modelId =
-    p.composeKind === "chat" && p.model != null ? p.model.id : null;
   const coworkerSlugOrId =
     p.coworker != null ? p.coworker.slug || p.coworker.id : null;
   return {
     v: 1,
     composeKind: p.composeKind,
-    modelId,
+    modelId: null,
     coworkerSlugOrId,
   };
 }
@@ -108,32 +109,19 @@ export function resolveHydratedWelcomeSelection(
 ): {
   composeKind: ChatComposeKind;
   coworker: Coworker | null;
-  model: { id: string; name: string } | null;
 } {
   const defaultCompose: ChatComposeKind = "chat";
   if (!stored) {
     return {
       composeKind: defaultCompose,
       coworker: null,
-      model: null,
     };
   }
 
   const composeKind: ChatComposeKind = "chat";
 
   if (options.urlCoworkerSlug) {
-    return { composeKind, coworker: null, model: null };
-  }
-
-  if (stored.modelId) {
-    const model = CHAT_MODELS.find((m) => m.id === stored.modelId);
-    if (model) {
-      return {
-        composeKind: "chat",
-        coworker: null,
-        model: { id: model.id, name: model.name },
-      };
-    }
+    return { composeKind, coworker: null };
   }
 
   const key = stored.coworkerSlugOrId;
@@ -146,12 +134,11 @@ export function resolveHydratedWelcomeSelection(
     );
     if (c) {
       if (coworkerCanUseCapability(c, "chat")) {
-        return { composeKind: "chat", coworker: c, model: null };
+        return { composeKind: "chat", coworker: c };
       }
       return {
         composeKind: "chat",
         coworker: firstCoworkerWithCapability(coworkers, "chat"),
-        model: null,
       };
     }
   }
@@ -159,6 +146,5 @@ export function resolveHydratedWelcomeSelection(
   return {
     composeKind: "chat",
     coworker: firstCoworkerWithCapability(coworkers, "chat"),
-    model: null,
   };
 }
