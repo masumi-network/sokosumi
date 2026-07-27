@@ -375,9 +375,12 @@ git commit -m "fix(web): show settled vs attempted task credit charges in activi
 **Files:**
 - Modify: `apps/web/src/app/share/components/shared-task-view.tsx`
 - Modify: `apps/web/src/app/share/[token]/page.test.tsx`
+- Modify (required for parity): `apps/core/src/helpers/public-share.ts`, `apps/core/src/schemas/public-share.schema.ts`, related Core/share tests
+- Prefer: shared helper `apps/web/src/app/(app)/tasks/utils/task-event-charge-presentation.ts` (also used by Task 4)
 
 **Interfaces:**
-- Same display rules as Task 4 (share already mocks `actionChargedCredits`)
+- Same display rules as Task 4 (via shared helper; share already mocks `actionChargedCredits`)
+- Public milestone DTO must expose `transactionId` + attempted/settled credits (including credit-only)
 
 - [ ] **Step 1: Write failing share tests**
 
