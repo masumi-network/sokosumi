@@ -565,6 +565,77 @@
           }
         }
       },
+      "CreateOrganizationWizard": {
+        "title": "Criar organização",
+        "description": "Configure a sua organização em poucos passos.",
+        "Nav": {
+          "back": "Voltar",
+          "next": "Continuar",
+          "skip": "Saltar",
+          "finishSetup": "Concluir configuração",
+          "finish": "Ir para o espaço de trabalho",
+          "creating": "A criar…"
+        },
+        "Details": {
+          "title": "Dê um nome à sua organização",
+          "subtitle": "Adicione o nome e o website. Nós tratamos do resto.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "Acme Inc.",
+          "urlLabel": "Website",
+          "urlPlaceholder": "https://acme.com",
+          "urlHint": "Usamos isto para obter o logótipo e as diretrizes da marca.",
+          "nameInvalid": "Introduza um nome com pelo menos 2 caracteres.",
+          "urlInvalid": "Introduza um website válido, como https://acme.com"
+        },
+        "Logo": {
+          "title": "O seu logótipo",
+          "subtitle": "Selecionámos o melhor ícone que encontrámos no seu website.",
+          "generating": "A procurar o logótipo…",
+          "found": "Encontrámos isto em {domain}. Não está certo? Carregue o seu.",
+          "foundNoDomain": "Encontrámos isto no seu website. Não está certo? Carregue o seu.",
+          "notFound": "Não encontrámos um logótipo no seu website. Carregue um ou salte por agora.",
+          "upload": "Carregar um logótipo",
+          "replace": "Substituir logótipo",
+          "remove": "Remover",
+          "uploadHint": "PNG, JPG ou SVG. Até 2 MB.",
+          "uploadError": "Falha ao carregar o logótipo",
+          "previewAlt": "Pré-visualização do logótipo da organização"
+        },
+        "Brand": {
+          "title": "Diretrizes da marca",
+          "tooltip": "As diretrizes da marca são um ficheiro DESIGN.md: cores, tipos de letra, tom e estilo num só sítio. Os seus coworkers leem-no para que tudo o que criam para si pareça e soe como si.",
+          "generating": "A ler {domain} para criar o estilo da marca…",
+          "generatingNoDomain": "A ler o seu website para criar o estilo da marca…",
+          "generated": "Gerámos o estilo da marca a partir de {domain}.",
+          "generatedNoDomain": "Gerámos o estilo da marca a partir do seu website.",
+          "failedTitle": "Não foi possível ler o website",
+          "failedSubtitle": "Sem problema — pode adicionar as diretrizes da marca mais tarde.",
+          "retry": "Tentar novamente",
+          "skipHint": "Isto continua em segundo plano — pode continuar a qualquer momento.",
+          "editHint": "Pode editar, substituir ou remover isto mais tarde nas definições da organização."
+        },
+        "Invite": {
+          "title": "{organization} está pronta",
+          "titleFallback": "Tudo pronto",
+          "subtitle": "A sua organização está configurada. Convide a equipa, ou faça-o mais tarde.",
+          "linkHint": "Qualquer pessoa com este link pode juntar-se como membro.",
+          "copy": "Copiar",
+          "copied": "Copiado",
+          "regenerate": "Repor link",
+          "emailsPlaceholder": "alex@acme.com, sam@acme.com",
+          "emailsHint": "Vírgulas, ponto e vírgula ou novas linhas.",
+          "sendInvites": "Enviar convites",
+          "sending": "A enviar…",
+          "inviteSuccess": "Convites enviados",
+          "inviteSummary": "Enviados {sent}, falhados {failed}.",
+          "linkError": "Não foi possível criar o link de convite",
+          "emailError": "Não foi possível enviar os convites"
+        },
+        "Errors": {
+          "createFailed": "Não foi possível criar a organização",
+          "unauthorizedAction": "Iniciar sessão"
+        }
+      },
       "RemoveModal": {
         "title": "Remover organização",
         "description": "Tem a certeza de que pretende remover a organização \"{organization}\"?",
@@ -691,6 +762,30 @@
       "placeholder": "Selecione uma organização",
       "search": "Pesquisar organizações…",
       "empty": "Nenhuma organização encontrada."
+    }
+  },
+  "Join": {
+    "title": "Foi convidado",
+    "invitedToJoin": "Junte-se a {organization} no Sokosumi.",
+    "join": "Juntar-se a {organization}",
+    "joining": "A juntar-se…",
+    "linkHintOwner": "Qualquer pessoa com este link pode juntar-se como membro.",
+    "signedOutHint": "Inicie sessão ou crie uma conta para aceitar este convite.",
+    "haveAccount": "Já tem uma conta?",
+    "noAccount": "Novo no Sokosumi?",
+    "signIn": "Iniciar sessão para se juntar",
+    "register": "Criar uma conta",
+    "Error": {
+      "joinFailed": "Não foi possível juntar-se à organização",
+      "unauthorizedAction": "Iniciar sessão"
+    },
+    "Invalid": {
+      "title": "Este link de convite não está disponível",
+      "expired": "Este link de convite expirou. Peça um novo a um administrador da organização.",
+      "revoked": "Este link de convite foi revogado. Peça um novo a um administrador da organização.",
+      "depleted": "Este link de convite atingiu o limite. Peça um novo a um administrador da organização.",
+      "notFound": "Este link de convite é inválido ou já não existe.",
+      "back": "Ir para a página inicial"
     }
   },
   "AcceptInvitation": {

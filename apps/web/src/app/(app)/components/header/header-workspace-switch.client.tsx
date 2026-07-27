@@ -4,7 +4,7 @@ import type { SessionUser } from "@sokosumi/utils";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { OrganizationInformationModal } from "@/components/organizations";
+import { CreateOrganizationWizard } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -115,9 +115,7 @@ export default function HeaderWorkspaceSwitch({
   const {
     Component: CreateOrganizationModal,
     showModal: showCreateOrganizationModal,
-  } = useModal(OrganizationInformationModal, {
-    organization: null,
-  });
+  } = useModal(CreateOrganizationWizard);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const personalWorkspace = useMemo<WorkspaceItem>(

@@ -41,6 +41,7 @@ model User {
 
   members     Member[]
   invitations Invitation[]
+  createdOrganizationInviteLinks OrganizationInviteLink[]
 
   // OAuth Provider relations
   oauthClients       OauthClient[]
@@ -203,6 +204,7 @@ model Organization {
 
   members        Member[]
   invitations    Invitation[]
+  inviteLinks    OrganizationInviteLink[]
   workspace      Workspace?
   jobs           Job[]
   tasks          Task[]
@@ -428,6 +430,34 @@ model Invitation {
   inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@map("invitation")
+}
+
+/// A shareable, email-agnostic organization invite. Unlike `Invitation`
+/// (bound to one email), anyone who opens the link and is signed in can join
+/// the organization as a member — subject to the same billing gate as a
+/// normal invite accept. `token` is the unguessable capability in the URL.
+model OrganizationInviteLink {
+  id              String       @id @default(uuid(7))
+  /// High-entropy URL-safe capability token embedded in the /join/<token> link.
+  token           String       @unique
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Role granted to users who join via this link. Always "member" for now.
+  role            String       @default("member")
+  createdByUserId String
+  createdBy       User         @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  /// Hard expiry; the accept route rejects the link past this instant.
+  expiresAt       DateTime
+  /// Set when an owner/admin revokes the link. Non-null = unusable.
+  revokedAt       DateTime?
+  /// Optional cap on total successful joins. Null = unlimited (until expiry).
+  maxUses         Int?
+  /// Successful joins so far; compared against `maxUses` when set.
+  useCount        Int          @default(0)
+
+  @@index([organizationId])
+  @@map("organizationInviteLink")
 }
 
 model UTMAttribution {
