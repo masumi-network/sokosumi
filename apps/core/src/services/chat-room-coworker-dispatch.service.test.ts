@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   findUniqueMock,
+  findManyMentionMock,
   updateManyMock,
   updateMock,
   findFirstMock,
@@ -12,6 +13,7 @@ const {
   getSokosumiProviderMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
+  findManyMentionMock: vi.fn(),
   updateManyMock: vi.fn(),
   updateMock: vi.fn(),
   findFirstMock: vi.fn(),
@@ -26,6 +28,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomMention: {
       findUnique: findUniqueMock,
+      findMany: findManyMentionMock,
       updateMany: updateManyMock,
       update: updateMock,
       findFirst: findFirstMock,
@@ -62,6 +65,8 @@ vi.mock("ai", () => ({
 import {
   buildRoomMentionPrompt,
   dispatchChatRoomMention,
+  listStaleSentChatRoomMentionIds,
+  ROOM_SENT_STALE_MS,
 } from "./chat-room-coworker-dispatch.service";
 
 const MENTION_ID = "mention_1";
@@ -190,6 +195,15 @@ describe("dispatchChatRoomMention claim", () => {
       where: { id: MENTION_ID, status: "pending" },
       data: { status: "sent", error: null },
     });
+    expect(updateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: MENTION_ID,
+          status: "sent",
+          updatedAt: expect.objectContaining({ lt: expect.any(Date) }),
+        }),
+      }),
+    );
     expect(generateTextMock).not.toHaveBeenCalled();
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
@@ -203,5 +217,69 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(generateTextMock).toHaveBeenCalled();
     expect(createCoworkerConversationMock).toHaveBeenCalled();
+  });
+
+  it("reclaims a stale sent mention and runs provider work", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      status: "sent",
+      updatedAt: new Date(Date.now() - ROOM_SENT_STALE_MS - 1_000),
+    });
+    updateManyMock
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(updateManyMock).toHaveBeenNthCalledWith(1, {
+      where: { id: MENTION_ID, status: "pending" },
+      data: { status: "sent", error: null },
+    });
+    expect(updateManyMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: MENTION_ID,
+          status: "sent",
+        }),
+        data: { status: "sent", error: null },
+      }),
+    );
+    expect(generateTextMock).toHaveBeenCalled();
+  });
+
+  it("does not reclaim a fresh sent mention still in flight", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      status: "sent",
+      updatedAt: new Date(),
+    });
+    updateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("listStaleSentChatRoomMentionIds", () => {
+  it("queries sent mentions older than the stale window for the room", async () => {
+    findManyMentionMock.mockResolvedValue([{ id: MENTION_ID }]);
+    const now = new Date("2025-06-01T12:00:00.000Z");
+
+    const ids = await listStaleSentChatRoomMentionIds("room_1", { now });
+
+    expect(ids).toEqual([MENTION_ID]);
+    expect(findManyMentionMock).toHaveBeenCalledWith({
+      where: {
+        status: "sent",
+        updatedAt: { lt: new Date(now.getTime() - ROOM_SENT_STALE_MS) },
+        message: { roomId: "room_1" },
+      },
+      select: { id: true },
+      orderBy: { updatedAt: "asc" },
+      take: 10,
+    });
   });
 });

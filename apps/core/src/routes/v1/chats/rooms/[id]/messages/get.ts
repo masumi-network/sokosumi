@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
 
 import {
   jsonErrorResponse,
@@ -17,6 +18,10 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import {
+  dispatchChatRoomMention,
+  listStaleSentChatRoomMentionIds,
+} from "@/services/chat-room-coworker-dispatch.service";
 
 import {
   chatRoomMessageInclude,
@@ -117,6 +122,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor,
     );
     const orderedMessages = [...pageMessages].reverse();
+
+    // Polls hit this route; kick abandoned `sent` mentions so reclaim can run
+    // after a killed waitUntil left them non-terminal.
+    const staleMentionIds = await listStaleSentChatRoomMentionIds(id);
+    for (const mentionId of staleMentionIds) {
+      waitUntil(dispatchChatRoomMention(mentionId));
+    }
 
     return ok(
       c,

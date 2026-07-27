@@ -7,6 +7,13 @@ import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
 
 const ROOM_COWORKER_TIMEOUT_MS = 90_000;
+/**
+ * `sent` older than this is treated as abandoned (process killed after claim).
+ * Must exceed `ROOM_COWORKER_TIMEOUT_MS` so an in-flight generateText is not
+ * stolen by a reclaim.
+ */
+export const ROOM_SENT_STALE_MS = ROOM_COWORKER_TIMEOUT_MS + 30_000;
+const STALE_SENT_RECLAIM_LIMIT = 10;
 
 /** How many prior messages the coworker sees as conversation context. */
 const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
@@ -96,6 +103,60 @@ export async function dispatchChatRoomMention(
   }
 }
 
+/**
+ * Ids of `sent` mentions abandoned after a killed `waitUntil` (or similar).
+ * Callers schedule `dispatchChatRoomMention` for each so reclaim can run.
+ */
+export async function listStaleSentChatRoomMentionIds(
+  roomId: string,
+  options?: { limit?: number; now?: Date },
+): Promise<string[]> {
+  const now = options?.now ?? new Date();
+  const staleBefore = new Date(now.getTime() - ROOM_SENT_STALE_MS);
+  const rows = await prisma.chatRoomMention.findMany({
+    where: {
+      status: "sent",
+      updatedAt: { lt: staleBefore },
+      message: { roomId },
+    },
+    select: { id: true },
+    orderBy: { updatedAt: "asc" },
+    take: options?.limit ?? STALE_SENT_RECLAIM_LIMIT,
+  });
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Win the dispatch slot: `pending` → `sent`, or reclaim a stale `sent` row
+ * left behind when the previous worker died after claiming.
+ */
+async function claimMentionForDispatch(mentionId: string): Promise<boolean> {
+  const pendingClaim = await prisma.chatRoomMention.updateMany({
+    where: { id: mentionId, status: "pending" },
+    data: {
+      status: "sent",
+      error: null,
+    },
+  });
+  if (pendingClaim.count > 0) {
+    return true;
+  }
+
+  const staleBefore = new Date(Date.now() - ROOM_SENT_STALE_MS);
+  const staleClaim = await prisma.chatRoomMention.updateMany({
+    where: {
+      id: mentionId,
+      status: "sent",
+      updatedAt: { lt: staleBefore },
+    },
+    data: {
+      status: "sent",
+      error: null,
+    },
+  });
+  return staleClaim.count > 0;
+}
+
 async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   const mention = await prisma.chatRoomMention.findUnique({
     where: { id: mentionId },
@@ -155,15 +216,10 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   }
 
   // Claim before any provider work so concurrent dispatches cannot both run
-  // generateText. Only `pending` → `sent` wins; losers exit quietly.
-  const claimed = await prisma.chatRoomMention.updateMany({
-    where: { id: mentionId, status: "pending" },
-    data: {
-      status: "sent",
-      error: null,
-    },
-  });
-  if (claimed.count === 0) {
+  // generateText. Fresh `sent` (in flight) loses quietly; stale `sent` is
+  // reclaimed after ROOM_SENT_STALE_MS.
+  const claimed = await claimMentionForDispatch(mentionId);
+  if (!claimed) {
     return;
   }
 

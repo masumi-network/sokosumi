@@ -6,22 +6,52 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-const { prismaTransactionMock } = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-}));
+const { prismaTransactionMock, prismaDefaultMock } = vi.hoisted(() => {
+  const prismaTransactionMock = vi.fn();
+  return {
+    prismaTransactionMock,
+    prismaDefaultMock: {
+      $transaction: prismaTransactionMock,
+      chatRoomMention: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    },
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    $transaction: prismaTransactionMock,
-  },
+  default: prismaDefaultMock,
 }));
 
+vi.mock("@vercel/functions", () => ({
+  waitUntil: vi.fn(),
+}));
+
+vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
+  dispatchChatRoomMention: vi.fn(),
+  listStaleSentChatRoomMentionIds: vi.fn().mockResolvedValue([]),
+}));
+
+const { default: mountGetChatRooms } = await import("./get");
+const { default: mountPostChatRoom } = await import("./post");
 const { default: mountGetChatRoom } = await import("./[id]/get");
 const { default: mountPatchChatRoom } = await import("./[id]/patch");
+const { default: mountPostChatRoomRead } = await import("./[id]/read/post");
+const { default: mountGetChatRoomMessages } = await import(
+  "./[id]/messages/get"
+);
+const { default: mountPostChatRoomMessage } = await import(
+  "./[id]/messages/post"
+);
+const { default: mountPostChatRoomMessageReaction } = await import(
+  "./[id]/messages/[messageId]/reactions/post"
+);
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
+const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
+const COWORKER_ID = "cow_123";
 
 const userAuthContext: AuthVariables["authContext"] = {
   actor: "user",
@@ -32,7 +62,7 @@ const userAuthContext: AuthVariables["authContext"] = {
 
 const coworkerAuthContext: AuthVariables["authContext"] = {
   actor: "coworker",
-  coworkerId: "cow_123",
+  coworkerId: COWORKER_ID,
   vendorId: "01960001-0001-7001-8001-000000000001",
   context: { userId: USER_ID, organizationId: ORG_ID },
 };
@@ -57,45 +87,168 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.onError(errorHandler);
-  mountGetChatRoom(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchChatRoom(app as unknown as OpenAPIHonoWithAuth);
+  const typed = app as unknown as OpenAPIHonoWithAuth;
+  mountGetChatRooms(typed);
+  mountPostChatRoom(typed);
+  mountGetChatRoom(typed);
+  mountPatchChatRoom(typed);
+  mountPostChatRoomRead(typed);
+  mountGetChatRoomMessages(typed);
+  mountPostChatRoomMessage(typed);
+  mountPostChatRoomMessageReaction(typed);
   return app;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prismaDefaultMock.chatRoomMention.findMany.mockResolvedValue([]);
 });
 
+const forbiddenActors = [
+  ["coworker", coworkerAuthContext],
+  ["orchestrator", orchestratorAuthContext],
+] as const;
+
+interface AuthRequestCase {
+  label: string;
+  request: () => {
+    method: string;
+    path: string;
+    headers?: Record<string, string>;
+    body?: string;
+  };
+}
+
+const userOnlyCases: AuthRequestCase[] = [
+  {
+    label: "GET /",
+    request: () => ({ method: "GET", path: "/" }),
+  },
+  {
+    label: "POST /",
+    request: () => ({
+      method: "POST",
+      path: "/",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "general",
+      }),
+    }),
+  },
+  {
+    label: "GET /{id}",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}` }),
+  },
+  {
+    label: "PATCH /{id}",
+    request: () => ({
+      method: "PATCH",
+      path: `/${ROOM_ID}`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Renamed" }),
+    }),
+  },
+  {
+    label: "POST /{id}/read",
+    request: () => ({ method: "POST", path: `/${ROOM_ID}/read` }),
+  },
+  {
+    label: "GET /{id}/messages",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}/messages` }),
+  },
+  {
+    label: "POST /{id}/messages/{messageId}/reactions",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ emoji: "👍" }),
+    }),
+  },
+];
+
 describe("chat room session auth guards", () => {
-  it.each([
-    ["coworker", coworkerAuthContext],
-    ["orchestrator", orchestratorAuthContext],
-  ] as const)(
-    "rejects %s actor on GET /{id} with 403",
-    async (_label, auth) => {
-      const response = await createApp(auth).request(`/${ROOM_ID}`);
+  describe.each(userOnlyCases)("$label", ({ request }) => {
+    it.each(forbiddenActors)(
+      "rejects %s actor with 403",
+      async (_label, auth) => {
+        const { method, path, headers, body } = request();
+        const response = await createApp(auth).request(path, {
+          method,
+          headers,
+          body,
+        });
 
-      expect(response.status).toBe(403);
-      expect(prismaTransactionMock).not.toHaveBeenCalled();
-    },
-  );
+        expect(response.status).toBe(403);
+        expect(prismaTransactionMock).not.toHaveBeenCalled();
+      },
+    );
+  });
 
-  it.each([
-    ["coworker", coworkerAuthContext],
-    ["orchestrator", orchestratorAuthContext],
-  ] as const)(
-    "rejects %s actor on PATCH /{id} with 403",
-    async (_label, auth) => {
-      const response = await createApp(auth).request(`/${ROOM_ID}`, {
-        method: "PATCH",
+  it("rejects orchestrator actor on POST /{id}/messages with 403", async () => {
+    const response = await createApp(orchestratorAuthContext).request(
+      `/${ROOM_ID}/messages`,
+      {
+        method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Renamed" }),
-      });
+        body: JSON.stringify({ content: "hello" }),
+      },
+    );
 
-      expect(response.status).toBe(403);
-      expect(prismaTransactionMock).not.toHaveBeenCalled();
-    },
-  );
+    expect(response.status).toBe(403);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("allows coworker past the auth gate on POST /{id}/messages", async () => {
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({
+          chatRoom: {
+            findFirst: vi.fn().mockResolvedValue({ id: ROOM_ID }),
+            update: vi.fn(),
+          },
+          chatRoomMessage: {
+            findFirst: vi.fn(),
+            create: vi.fn().mockResolvedValue({
+              id: MESSAGE_ID,
+              roomId: ROOM_ID,
+              parentMessageId: null,
+              content: "hello from coworker",
+              metadata: null,
+              createdAt: new Date("2025-01-01T00:00:00.000Z"),
+              updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+              senderUserId: null,
+              senderCoworkerId: COWORKER_ID,
+              senderUser: null,
+              senderCoworker: {
+                id: COWORKER_ID,
+                name: "Hannah",
+                slug: "hannah",
+                caption: null,
+                image: null,
+              },
+              mentionsAsSource: [],
+              reactions: [],
+              replies: [],
+              _count: { replies: 0 },
+            }),
+          },
+        }),
+    );
+
+    const response = await createApp(coworkerAuthContext).request(
+      `/${ROOM_ID}/messages`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello from coworker" }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(prismaTransactionMock).toHaveBeenCalled();
+  });
 
   it("allows session user past the auth gate on GET /{id}", async () => {
     prismaTransactionMock.mockResolvedValueOnce({
