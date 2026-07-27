@@ -58,11 +58,12 @@ function resolvePrimary(): string {
  * Under prefers-reduced-motion, paints a single static frame and skips rAF.
  */
 export function ThinkingOrb({
-  size = 64,
+  size = 32,
   state = DEFAULT_THINKING_STATE,
   className,
 }: {
-  /** Display size in CSS px; paints at the nearest tuned preset (20/64). */
+  /** Display size in CSS px (default matches chat avatar / size-8).
+   * Paints at the nearest tuned preset (20/64). */
   size?: number;
   state?: OrbState;
   className?: string;
