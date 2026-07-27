@@ -4526,7 +4526,6 @@
       "participantOverflow": "and {count} more",
       "directParticipantCount": "{count, plural, one {# participant} other {# participants}}",
       "directMessages": "Direct Messages",
-      "startCoworkerChat": "开始与同事聊天",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Organization required",

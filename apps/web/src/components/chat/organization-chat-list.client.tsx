@@ -129,8 +129,8 @@ export function getDirectChannelDisplayName(
 
 /**
  * Coworker DM history only — no zero-history "start menu" rows.
- * Start a new coworker DM via the section `+` → `/chat` (landing picker).
- * Org-room human DMs use `/channels?dm=new` on the channels surface.
+ * Start New DM is the section `+` → `/channels?dm=new` (DraftDirectMessage:
+ * org members, coworkers, or both). `/chat` landing picker is a separate surface.
  */
 function buildCoworkerDirectConversations(
   conversations: Conversation[],
@@ -484,14 +484,15 @@ export function OrganizationChatList({
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
-            Coworker DMs are history-only here; `+` opens /chat so the landing
-            coworker picker starts a new thread. Org-room human DM drafts stay
-            on /channels?dm=new (channels surface), not this +.
+            Sidebar rows = messaged history only. `+` opens the existing
+            Start New DM draft (`/channels?dm=new`): org members, agentic
+            coworkers, or a group of both. Personal workspace has no org
+            members, so that draft lists coworkers only.
           */}
           <SectionHeader
-            href={CHAT_APP_ROUTE_PREFIX}
+            href="/channels?dm=new"
             isOpen={directOpen}
-            label={t("startCoworkerChat")}
+            label={t("Draft.title")}
           >
             {t("directMessages")}
           </SectionHeader>
