@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/chat";
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
-import { ImagePlus, Paperclip, Plus, X } from "lucide-react";
+import { ImagePlus, Loader2, Paperclip, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -71,6 +71,13 @@ import {
   PromptInputToolbar,
   PromptInputTools,
 } from "./prompt-input";
+import {
+  ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+  ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+  RoomComposerEmojiPicker,
+  RoomMessageComposer,
+  type RoomMessageComposerAttachment,
+} from "./room-message-composer";
 
 interface MultimodalInputProps {
   chatId?: string;
@@ -151,8 +158,10 @@ function PureMultimodalInput({
   persistentImageGeneration = false,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
+  const tChannels = useTranslations("App.Channels");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const roomComposerFormRef = useRef<HTMLFormElement>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
@@ -430,6 +439,9 @@ function PureMultimodalInput({
 
     return matchedCoworker ?? findDefaultCoworker(availableCoworkers);
   }, [availableCoworkers, preferredCoworker]);
+  // Coworker DM surfaces reuse the shared room composer chrome (channels).
+  // Prop coworker marks sidebar/header-locked DMs; keep model-chat glow elsewhere.
+  const useRoomComposerChrome = propCoworker != null;
   const canSubmitContent = input.trim().length > 0 || hasChatFileParts;
   const canSubmit =
     canSubmitContent &&
@@ -541,6 +553,107 @@ function PureMultimodalInput({
 
   const showAttachmentMenu = supportsChatImageInput || supportsImageGeneration;
 
+  const roomComposerAttachments = useMemo(
+    (): RoomMessageComposerAttachment[] =>
+      chatFileParts.map((part) => ({
+        url: part.url,
+        fileName: part.filename ?? "file",
+        mediaType: part.mediaType ?? null,
+      })),
+    [chatFileParts],
+  );
+
+  const insertEmojiAtCursor = useCallback(
+    (emoji: string) => {
+      const el = textareaRef.current;
+      if (!el) {
+        setInput((prev) => `${prev}${emoji}`);
+        return;
+      }
+      const start = el.selectionStart ?? input.length;
+      const end = el.selectionEnd ?? start;
+      const next = `${input.slice(0, start)}${emoji}${input.slice(end)}`;
+      setInput(next);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + emoji.length;
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [input, setInput],
+  );
+
+  const handleRoomComposerSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!canSubmit) {
+        return;
+      }
+      void submitForm();
+    },
+    [canSubmit, submitForm],
+  );
+
+  const roomEditor = supportsChatImageInput ? (
+    <FileUpload
+      value={pendingUploadFiles}
+      onValueChange={setPendingUploadFiles}
+      onAccept={(files) => {
+        void handleAttachFiles(files);
+      }}
+      multiple
+      disabled={isUploadingAttachments}
+      className="w-full"
+    >
+      <FileUploadDropzone className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent">
+        <PromptInputTextarea
+          allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
+          className={cn(
+            "placeholder:text-muted-foreground grow border-0! border-none! ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden",
+            ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+          )}
+          data-testid="multimodal-input"
+          disableAutoResize={true}
+          maxHeight={160}
+          minHeight={80}
+          onClick={(event) => event.stopPropagation()}
+          onChange={handleInput}
+          placeholder={placeholder}
+          ref={textareaRef}
+          rows={1}
+          value={input}
+        />
+        <FileUploadTrigger asChild>
+          <button
+            ref={attachmentTriggerRef}
+            type="button"
+            className="sr-only"
+            aria-label={taskUploadFileLabel}
+          >
+            {taskUploadFileLabel}
+          </button>
+        </FileUploadTrigger>
+      </FileUploadDropzone>
+    </FileUpload>
+  ) : (
+    <PromptInputTextarea
+      allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
+      className={cn(
+        "placeholder:text-muted-foreground grow border-0! border-none! ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden",
+        ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+      )}
+      data-testid="multimodal-input"
+      disableAutoResize={true}
+      maxHeight={160}
+      minHeight={80}
+      onChange={handleInput}
+      placeholder={placeholder}
+      ref={textareaRef}
+      rows={1}
+      value={input}
+    />
+  );
+
   return (
     <div
       className={cn(
@@ -617,212 +730,279 @@ function PureMultimodalInput({
         </div>
       )}
 
-      <div
-        className={cn(
-          "w-full overflow-visible",
-          // Coworker (sidebar DM) matches channel composer: no upward glow bleed.
-          selectedCoworker
-            ? "mx-0 mt-0 pt-0"
-            : "-mx-4 -mt-8 w-[calc(100%+2rem)] pt-8",
-        )}
-      >
-        <div
-          data-chat-input-border-anchor={selectedCoworker ? undefined : true}
-          className={cn(
-            "relative rounded-xl",
-            selectedCoworker
-              ? "border-border overflow-hidden border bg-background"
-              : cn(
-                  "chat-input-border-anchor",
-                  "shadow-[0_0_16px_0] shadow-primary/15",
-                  "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
-                  "transition-shadow duration-300",
-                ),
-          )}
-        >
-          <PromptInput
-            className={cn(
-              "relative z-10 bg-background shadow-none transition-all duration-200",
-              selectedCoworker
-                ? "rounded-xl border-0"
-                : "rounded-[calc(var(--radius-xl)-1.5px)] border-0",
-            )}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!canSubmit) {
-                return;
-              }
-              void submitForm();
-            }}
-          >
-            <div className="flex flex-row items-start gap-1 sm:gap-2">
-              {supportsChatImageInput ? (
-                <FileUpload
-                  value={pendingUploadFiles}
-                  onValueChange={setPendingUploadFiles}
-                  onAccept={(files) => {
-                    void handleAttachFiles(files);
-                  }}
-                  multiple
-                  disabled={isUploadingAttachments}
-                  className="w-full"
-                >
-                  <FileUploadDropzone className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent">
-                    <PromptInputTextarea
-                      allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
-                      className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
-                      data-testid="multimodal-input"
-                      disableAutoResize={true}
-                      maxHeight={200}
-                      minHeight={44}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={handleInput}
-                      placeholder={placeholder}
-                      ref={textareaRef}
-                      rows={1}
-                      value={input}
-                    />
-                    <FileUploadTrigger asChild>
-                      <button
-                        ref={attachmentTriggerRef}
-                        type="button"
-                        className="sr-only"
-                        aria-label={taskUploadFileLabel}
-                      >
-                        {taskUploadFileLabel}
-                      </button>
-                    </FileUploadTrigger>
-                  </FileUploadDropzone>
-                </FileUpload>
-              ) : (
-                <PromptInputTextarea
-                  allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
-                  className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
-                  data-testid="multimodal-input"
-                  disableAutoResize={true}
-                  maxHeight={200}
-                  minHeight={44}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={handleInput}
-                  placeholder={placeholder}
-                  ref={textareaRef}
-                  rows={1}
-                  value={input}
-                />
-              )}
-            </div>
-            {chatFileParts.length > 0 || effectiveImageGenerationEnabled ? (
-              <div className="flex flex-col items-start gap-3 px-2 pb-1">
-                {chatFileParts.length > 0 ? (
-                  <div className="flex w-full flex-wrap items-start gap-3">
-                    {chatFileParts.map((part) => (
-                      <FileChipMiniPreviewWithMetadata
-                        key={part.url}
-                        url={part.url}
-                        fileName={part.filename}
-                        onRemove={() => handleRemoveChatAttachment(part.url)}
-                        removeLabel={removeAttachmentLabel}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-                {effectiveImageGenerationEnabled ? (
-                  <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
-                    <ImagePlus className="text-muted-foreground size-3.5" />
-                    <span>{createImageChipLabel}</span>
-                    {!persistentImageGeneration ? (
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
-                        aria-label={removeCreateImageLabel}
-                        onClick={() => setImageGenerationEnabled(false)}
-                      >
-                        <X className="size-3" />
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <PromptInputToolbar className="border-top-0! border-t-0! p-3 dark:border-0 dark:border-transparent!">
-              <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
-                {showAttachmentMenu ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="size-8 rounded-full! p-0"
-                        disabled={isUploadingAttachments}
-                        title={attachmentMenuTriggerLabel}
-                        aria-label={attachmentMenuTriggerLabel}
-                      >
-                        <Plus className="size-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      side="top"
-                      sideOffset={8}
+      {useRoomComposerChrome ? (
+        <RoomMessageComposer
+          formRef={roomComposerFormRef}
+          withOuterPadding={!!chatId}
+          onSubmit={handleRoomComposerSubmit}
+          attachments={roomComposerAttachments}
+          onRemoveAttachment={(attachment) =>
+            handleRemoveChatAttachment(attachment.url)
+          }
+          removeAttachmentLabel={() => removeAttachmentLabel}
+          isSending={status === "submitted"}
+          sendDisabled={!canSubmit || isUploadingAttachments}
+          sendAriaLabel={tChannels("send")}
+          sendButtonTestId="send-button"
+          submitControl={
+            status === "submitted" ? (
+              <StopButton setMessages={setMessages} stop={stop} />
+            ) : undefined
+          }
+          belowEditor={
+            effectiveImageGenerationEnabled ? (
+              <div className="flex flex-col items-start gap-3 px-4 pb-1">
+                <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
+                  <ImagePlus className="text-muted-foreground size-3.5" />
+                  <span>{createImageChipLabel}</span>
+                  {!persistentImageGeneration ? (
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
+                      aria-label={removeCreateImageLabel}
+                      onClick={() => setImageGenerationEnabled(false)}
                     >
-                      {supportsChatImageInput ? (
-                        <DropdownMenuItem
-                          disabled={isUploadingAttachments}
-                          onSelect={() => attachmentTriggerRef.current?.click()}
+                      <X className="size-3" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null
+          }
+          toolbarStart={
+            <>
+              {supportsChatImageInput ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                  disabled={isUploadingAttachments}
+                  title={tChannels("Toolbar.attach")}
+                  aria-label={tChannels("Toolbar.attach")}
+                  onClick={() => attachmentTriggerRef.current?.click()}
+                >
+                  {isUploadingAttachments ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Paperclip className="size-4" aria-hidden />
+                  )}
+                </Button>
+              ) : null}
+              {supportsImageGeneration && !effectiveImageGenerationEnabled ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                  title={createImageMenuLabel}
+                  aria-label={createImageMenuLabel}
+                  onClick={handleEnableImageGeneration}
+                >
+                  <ImagePlus className="size-4" aria-hidden />
+                </Button>
+              ) : null}
+              <RoomComposerEmojiPicker
+                title={tChannels("Toolbar.emoji")}
+                ariaLabel={tChannels("Toolbar.emoji")}
+                onPick={insertEmojiAtCursor}
+              />
+            </>
+          }
+        >
+          {roomEditor}
+        </RoomMessageComposer>
+      ) : (
+        <div className="-mx-4 -mt-8 w-[calc(100%+2rem)] overflow-visible pt-8">
+          <div
+            data-chat-input-border-anchor
+            className={cn(
+              "relative rounded-xl",
+              "chat-input-border-anchor",
+              "shadow-[0_0_16px_0] shadow-primary/15",
+              "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
+              "transition-shadow duration-300",
+            )}
+          >
+            <PromptInput
+              className="relative z-10 rounded-[calc(var(--radius-xl)-1.5px)] border-0 bg-background shadow-none transition-all duration-200"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!canSubmit) {
+                  return;
+                }
+                void submitForm();
+              }}
+            >
+              <div className="flex flex-row items-start gap-1 sm:gap-2">
+                {supportsChatImageInput ? (
+                  <FileUpload
+                    value={pendingUploadFiles}
+                    onValueChange={setPendingUploadFiles}
+                    onAccept={(files) => {
+                      void handleAttachFiles(files);
+                    }}
+                    multiple
+                    disabled={isUploadingAttachments}
+                    className="w-full"
+                  >
+                    <FileUploadDropzone className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent">
+                      <PromptInputTextarea
+                        allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
+                        className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+                        data-testid="multimodal-input"
+                        disableAutoResize={true}
+                        maxHeight={200}
+                        minHeight={44}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={handleInput}
+                        placeholder={placeholder}
+                        ref={textareaRef}
+                        rows={1}
+                        value={input}
+                      />
+                      <FileUploadTrigger asChild>
+                        <button
+                          ref={attachmentTriggerRef}
+                          type="button"
+                          className="sr-only"
+                          aria-label={taskUploadFileLabel}
                         >
-                          <Paperclip className="size-4" />
-                          {uploadFileMenuLabel}
-                        </DropdownMenuItem>
-                      ) : null}
-                      {supportsImageGeneration ? (
-                        <DropdownMenuItem
-                          disabled={
-                            isUploadingAttachments ||
-                            effectiveImageGenerationEnabled
-                          }
-                          onSelect={handleEnableImageGeneration}
-                        >
-                          <ImagePlus className="size-4" />
-                          {createImageMenuLabel}
-                        </DropdownMenuItem>
-                      ) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-                {/* Coworker DMs already show the name in the chat header; the
-                    locked selector duplicates it and fails the “plain channel
-                    composer” look. Keep the picker for new/model chats only. */}
-                {selectedCoworker && chatId ? null : (
-                  <CoworkerModelSelector
-                    selectedCoworker={selectedCoworker}
-                    selectedModel={selectedModel}
-                    coworkers={availableCoworkers}
-                    coworkersLoading={propCoworkersLoading}
-                    onSelectCoworker={handleCoworkerSelect}
-                    onSelectModel={handleModelSelect}
-                    disabled={!!chatId}
-                    showModels
+                          {taskUploadFileLabel}
+                        </button>
+                      </FileUploadTrigger>
+                    </FileUploadDropzone>
+                  </FileUpload>
+                ) : (
+                  <PromptInputTextarea
+                    allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
+                    className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+                    data-testid="multimodal-input"
+                    disableAutoResize={true}
+                    maxHeight={200}
+                    minHeight={44}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={handleInput}
+                    placeholder={placeholder}
+                    ref={textareaRef}
+                    rows={1}
+                    value={input}
                   />
                 )}
-              </PromptInputTools>
+              </div>
+              {chatFileParts.length > 0 || effectiveImageGenerationEnabled ? (
+                <div className="flex flex-col items-start gap-3 px-2 pb-1">
+                  {chatFileParts.length > 0 ? (
+                    <div className="flex w-full flex-wrap items-start gap-3">
+                      {chatFileParts.map((part) => (
+                        <FileChipMiniPreviewWithMetadata
+                          key={part.url}
+                          url={part.url}
+                          fileName={part.filename}
+                          onRemove={() => handleRemoveChatAttachment(part.url)}
+                          removeLabel={removeAttachmentLabel}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {effectiveImageGenerationEnabled ? (
+                    <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
+                      <ImagePlus className="text-muted-foreground size-3.5" />
+                      <span>{createImageChipLabel}</span>
+                      {!persistentImageGeneration ? (
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
+                          aria-label={removeCreateImageLabel}
+                          onClick={() => setImageGenerationEnabled(false)}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              <PromptInputToolbar className="border-top-0! border-t-0! p-3 dark:border-0 dark:border-transparent!">
+                <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
+                  {showAttachmentMenu ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="size-8 rounded-full! p-0"
+                          disabled={isUploadingAttachments}
+                          title={attachmentMenuTriggerLabel}
+                          aria-label={attachmentMenuTriggerLabel}
+                        >
+                          <Plus className="size-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="start"
+                        side="top"
+                        sideOffset={8}
+                      >
+                        {supportsChatImageInput ? (
+                          <DropdownMenuItem
+                            disabled={isUploadingAttachments}
+                            onSelect={() =>
+                              attachmentTriggerRef.current?.click()
+                            }
+                          >
+                            <Paperclip className="size-4" />
+                            {uploadFileMenuLabel}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {supportsImageGeneration ? (
+                          <DropdownMenuItem
+                            disabled={
+                              isUploadingAttachments ||
+                              effectiveImageGenerationEnabled
+                            }
+                            onSelect={handleEnableImageGeneration}
+                          >
+                            <ImagePlus className="size-4" />
+                            {createImageMenuLabel}
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                  {/* Locked coworker DM uses room chrome above; glow path keeps picker. */}
+                  {selectedCoworker && chatId ? null : (
+                    <CoworkerModelSelector
+                      selectedCoworker={selectedCoworker}
+                      selectedModel={selectedModel}
+                      coworkers={availableCoworkers}
+                      coworkersLoading={propCoworkersLoading}
+                      onSelectCoworker={handleCoworkerSelect}
+                      onSelectModel={handleModelSelect}
+                      disabled={!!chatId}
+                      showModels
+                    />
+                  )}
+                </PromptInputTools>
 
-              {status === "submitted" ? (
-                <StopButton setMessages={setMessages} stop={stop} />
-              ) : (
-                <PromptInputSubmit
-                  className="size-8 rounded-full transition-colors duration-200"
-                  data-testid="send-button"
-                  disabled={!canSubmit}
-                  status={status}
-                >
-                  <ArrowUpIcon size={14} />
-                </PromptInputSubmit>
-              )}
-            </PromptInputToolbar>
-          </PromptInput>
+                {status === "submitted" ? (
+                  <StopButton setMessages={setMessages} stop={stop} />
+                ) : (
+                  <PromptInputSubmit
+                    className="size-8 rounded-full transition-colors duration-200"
+                    data-testid="send-button"
+                    disabled={!canSubmit}
+                    status={status}
+                  >
+                    <ArrowUpIcon size={14} />
+                  </PromptInputSubmit>
+                )}
+              </PromptInputToolbar>
+            </PromptInput>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -913,6 +1093,7 @@ function PureStopButton({
 }) {
   return (
     <Button
+      type="button"
       className="bg-foreground text-background hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground size-7 rounded-full p-1 transition-colors duration-200"
       data-testid="stop-button"
       onClick={(event) => {

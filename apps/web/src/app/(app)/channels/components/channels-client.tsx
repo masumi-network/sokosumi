@@ -6,7 +6,6 @@ import {
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
 import {
-  ArrowUp,
   AtSign,
   Bot,
   CheckCircle2,
@@ -52,6 +51,14 @@ import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { writePendingCoworkerDirectMessage } from "@/app/chat-ui/utils/pending-coworker-direct-message";
 import { markOrganizationChatChannelReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import {
+  ROOM_COMPOSER_EMOJIS,
+  ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+  ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+  RoomComposerEmojiPicker,
+  RoomMessageComposer,
+  type RoomMessageComposerAttachment,
+} from "@/components/chat/room-message-composer";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -120,29 +127,13 @@ interface ChannelsClientProps {
   messagesNextCursor: string | null;
 }
 
-const CHANNEL_COMPOSER_EMOJIS = [
-  "👍",
-  "❤️",
-  "😂",
-  "🎉",
-  "🙏",
-  "🔥",
-  "✅",
-  "👀",
-  "💯",
-  "🚀",
-  "🙂",
-  "😅",
-];
 const COWORKER_RESPONSE_POLL_MS = 2500;
 /** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
 const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
 /** Match sidebar channel-list cadence for peer traffic while a channel is open. */
 const CHANNEL_LIVE_POLL_MS = 15_000;
 
-interface ChannelComposerAttachment {
-  url: string;
-  fileName: string;
+interface ChannelComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
@@ -690,132 +681,89 @@ function ChannelComposer({
   }
 
   return (
-    <form ref={formRef} className="shrink-0 px-5 pt-3 pb-6" onSubmit={onSubmit}>
-      <div className="w-full">
-        <div className="overflow-hidden rounded-xl border border-border bg-background">
-          {attachments.length > 0 ? (
-            <div className="flex flex-wrap gap-2 px-4 pt-4">
-              {attachments.map((attachment) => (
-                <FileChipMiniPreviewWithMetadata
-                  key={attachment.url}
-                  url={attachment.url}
-                  fileName={attachment.fileName}
-                  mediaType={attachment.mediaType}
-                  sizeClass="size-16"
-                  onRemove={() => removeAttachment(attachment)}
-                  removeLabel={t("Toolbar.removeAttachment", {
-                    name: attachment.fileName,
-                  })}
-                />
-              ))}
-            </div>
-          ) : null}
-          <MentionTextarea
-            ref={textareaRef}
-            value={value}
-            onChange={onValueChange}
-            onSelectedKeysChange={handleSelectedKeysChange}
-            mentions={composerMentions}
-            placeholder={placeholder}
-            suggestionsAnchor="editor"
-            submitOnEnter
-            // On a phone Enter is the only newline key, and the send button is
-            // always visible — so Enter composes rather than sends.
-            allowEnterToSubmitOnMobile={false}
-            onSubmitShortcut={() => formRef.current?.requestSubmit()}
-            // Capped so a long draft scrolls inside the composer instead of
-            // growing it until the toolbar and send button leave the screen.
-            className="max-h-40 min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm"
-            renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
-          />
-          <div className="flex items-center justify-between px-3 pb-3">
-            <div className="text-muted-foreground flex items-center gap-1">
-              {showMentionShortcut ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 rounded-full sm:size-8"
-                  title={t("Toolbar.mention")}
-                  aria-label={t("Toolbar.mention")}
-                  onClick={() => textareaRef.current?.openMentions()}
-                >
-                  <AtSign className="size-4" aria-hidden />
-                </Button>
-              ) : null}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                tabIndex={-1}
-                onChange={(event) => {
-                  void handleFilesSelected(event.currentTarget.files);
-                }}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-9 rounded-full sm:size-8"
-                title={t("Toolbar.attach")}
-                aria-label={t("Toolbar.attach")}
-                disabled={isUploadingFiles}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {isUploadingFiles ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Paperclip className="size-4" aria-hidden />
-                )}
-              </Button>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-9 rounded-full sm:size-8"
-                    title={t("Toolbar.emoji")}
-                    aria-label={t("Toolbar.emoji")}
-                  >
-                    <SmilePlus className="size-4" aria-hidden />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-auto p-2">
-                  <div className="grid grid-cols-6 gap-1">
-                    {CHANNEL_COMPOSER_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        className="hover:bg-muted focus-visible:ring-ring flex size-10 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2 sm:size-8"
-                        onClick={() => textareaRef.current?.insertText(emoji)}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+    <RoomMessageComposer
+      formRef={formRef}
+      onSubmit={onSubmit}
+      attachments={attachments}
+      onRemoveAttachment={(attachment) =>
+        removeAttachment({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })
+      }
+      removeAttachmentLabel={(name) => t("Toolbar.removeAttachment", { name })}
+      isSending={isSending}
+      sendDisabled={isUploadingFiles || sendDisabled}
+      sendAriaLabel={t("send")}
+      toolbarStart={
+        <>
+          {showMentionShortcut ? (
             <Button
-              type="submit"
-              variant="primary"
+              type="button"
+              variant="ghost"
               size="icon"
-              className="size-9 rounded-full sm:size-8"
-              disabled={isSending || isUploadingFiles || sendDisabled}
-              aria-label={t("send")}
+              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+              title={t("Toolbar.mention")}
+              aria-label={t("Toolbar.mention")}
+              onClick={() => textareaRef.current?.openMentions()}
             >
-              {isSending ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <ArrowUp className="size-4" aria-hidden />
-              )}
+              <AtSign className="size-4" aria-hidden />
             </Button>
-          </div>
-        </div>
-      </div>
-    </form>
+          ) : null}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            tabIndex={-1}
+            onChange={(event) => {
+              void handleFilesSelected(event.currentTarget.files);
+            }}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+            title={t("Toolbar.attach")}
+            aria-label={t("Toolbar.attach")}
+            disabled={isUploadingFiles}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {isUploadingFiles ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Paperclip className="size-4" aria-hidden />
+            )}
+          </Button>
+          <RoomComposerEmojiPicker
+            title={t("Toolbar.emoji")}
+            ariaLabel={t("Toolbar.emoji")}
+            onPick={(emoji) => textareaRef.current?.insertText(emoji)}
+          />
+        </>
+      }
+    >
+      <MentionTextarea
+        ref={textareaRef}
+        value={value}
+        onChange={onValueChange}
+        onSelectedKeysChange={handleSelectedKeysChange}
+        mentions={composerMentions}
+        placeholder={placeholder}
+        suggestionsAnchor="editor"
+        submitOnEnter
+        // On a phone Enter is the only newline key, and the send button is
+        // always visible — so Enter composes rather than sends.
+        allowEnterToSubmitOnMobile={false}
+        onSubmitShortcut={() => formRef.current?.requestSubmit()}
+        // Capped so a long draft scrolls inside the composer instead of
+        // growing it until the toolbar and send button leave the screen.
+        className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
+        renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
+      />
+    </RoomMessageComposer>
   );
 }
 
@@ -844,7 +792,7 @@ function MessageEmojiPicker({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-2">
         <div className="grid grid-cols-6 gap-1">
-          {CHANNEL_COMPOSER_EMOJIS.map((emoji) => (
+          {ROOM_COMPOSER_EMOJIS.map((emoji) => (
             <button
               key={emoji}
               type="button"

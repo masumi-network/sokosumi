@@ -62,12 +62,11 @@ export default function ChatInputContainer({
         "mx-auto flex w-full shrink-0 justify-center overflow-visible",
         // Full width sits in the flex column as its last child, the way the
         // channels composer does — no fixed/absolute overlay, so the list above
-        // does not have to reserve a strip for it. Its bottom padding mirrors
-        // the channel composer's pb-6 so the card keeps the same breathing room
-        // below. Solid bg (no /80 blur) so list chrome cannot muddy the toolbar.
-        // The centred chat keeps the floating bar it was designed around.
+        // does not have to reserve a strip for it. Outer inset lives on the
+        // shared RoomMessageComposer (same chrome as channels). Solid bg so list
+        // chrome cannot muddy the toolbar. Centred model chat keeps the floating bar.
         fullWidth
-          ? "relative z-10 bg-background px-9 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+          ? "relative z-10 bg-background"
           : "bg-background/80 fixed inset-x-0 bottom-0 z-10 px-8 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0",
       )}
     >
