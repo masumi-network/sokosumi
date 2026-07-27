@@ -60,6 +60,16 @@ describe("parseIconCandidates", () => {
       [],
     );
   });
+
+  it("skips empty, same-document, and page-self hrefs", () => {
+    const html = `
+      <link rel="icon" href="">
+      <link rel="icon" href="#">
+      <link rel="icon" href="?x=1">
+      <link rel="icon" href="/real.png">
+    `;
+    expect(urls(html)).toEqual(["https://example.com/real.png"]);
+  });
 });
 
 describe("rankCandidates", () => {

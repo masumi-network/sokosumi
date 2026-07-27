@@ -23,6 +23,7 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -177,6 +178,8 @@ export function CreateOrganizationWizard({
   const [copied, setCopied] = useState(false);
   const [emails, setEmails] = useState("");
   const [isSendingInvites, setIsSendingInvites] = useState(false);
+  /** Shared error id for the details step (message lives outside FormField). */
+  const detailsErrorId = useId();
 
   const logoStartedRef = useRef(false);
   const brandStartedRef = useRef(false);
@@ -647,7 +650,13 @@ export function CreateOrganizationWizard({
                             <FormLabel className="text-muted-foreground text-[13px] font-normal">
                               {t("Details.nameLabel")}
                             </FormLabel>
-                            <FormControl>
+                            <FormControl
+                              aria-describedby={
+                                form.formState.errors.name
+                                  ? detailsErrorId
+                                  : undefined
+                              }
+                            >
                               <Input
                                 autoFocus
                                 placeholder={t("Details.namePlaceholder")}
@@ -666,7 +675,13 @@ export function CreateOrganizationWizard({
                             <FormLabel className="text-muted-foreground text-[13px] font-normal">
                               {t("Details.urlLabel")}
                             </FormLabel>
-                            <FormControl>
+                            <FormControl
+                              aria-describedby={
+                                form.formState.errors.url
+                                  ? detailsErrorId
+                                  : undefined
+                              }
+                            >
                               <Input
                                 inputMode="url"
                                 placeholder={t("Details.urlPlaceholder")}
@@ -680,9 +695,15 @@ export function CreateOrganizationWizard({
                     </div>
                     {/* Fixed slot so a validation message never resizes the stage */}
                     <div className="min-h-5 text-left">
-                      {/* Plain <p>, not <FormMessage>: this slot sits outside
-                          any <FormField>, so it has no field context to read. */}
-                      <p className="text-destructive text-[13px]">
+                      {/* Plain <p>, not <FormMessage>: lives outside FormField so
+                          both fields can share one error line without growing
+                          the card. FormControl aria-invalid still comes from
+                          field state; aria-describedby points here. */}
+                      <p
+                        id={detailsErrorId}
+                        role="alert"
+                        className="text-destructive text-[13px]"
+                      >
                         {form.formState.errors.name?.message ??
                           form.formState.errors.url?.message}
                       </p>

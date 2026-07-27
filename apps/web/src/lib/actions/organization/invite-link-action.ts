@@ -7,7 +7,6 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptOrganizationInviteLink,
   OrganizationInviteLink,
-  ResolveOrganizationInviteLink,
 } from "@/lib/clients/generated/core";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -102,27 +101,6 @@ export const revokeOrganizationInviteLink = withSession<
     return Ok(null);
   } catch (error) {
     console.error("Failed to revoke organization invite link", error);
-    return Err(toActionError(error));
-  }
-});
-
-interface ResolveOrganizationInviteLinkParameters extends AuthenticatedRequest {
-  token: string;
-}
-
-export const resolveOrganizationInviteLink = withSession<
-  ResolveOrganizationInviteLinkParameters,
-  Result<ResolveOrganizationInviteLink, ActionError>
->(async ({ token }) => {
-  if (!token) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
-  }
-
-  try {
-    const { data } = await coreClient.resolveOrganizationInviteLink(token);
-    return Ok(data);
-  } catch (error) {
-    console.error("Failed to resolve organization invite link", error);
     return Err(toActionError(error));
   }
 });

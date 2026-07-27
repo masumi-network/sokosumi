@@ -104,7 +104,7 @@ export function parseIconCandidates(
   for (const match of head.matchAll(/<link\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi)) {
     const tag = match[0];
     const rel = attr(tag, "rel")?.toLowerCase().trim();
-    const href = attr(tag, "href");
+    const href = attr(tag, "href")?.trim();
     if (!rel || !href) continue;
 
     // Exact rel matching: a substring test also catches `mask-icon` (a
@@ -112,16 +112,26 @@ export function parseIconCandidates(
     const isApple = APPLE_ICON_RELS.has(rel);
     if (!isApple && !STANDARD_ICON_RELS.has(rel)) continue;
 
-    let resolved: string;
+    let resolved: URL;
+    let base: URL;
     try {
-      resolved = new URL(href, baseUrl).toString();
+      base = new URL(baseUrl);
+      resolved = new URL(href, base);
     } catch {
+      continue;
+    }
+    // Empty href, "#", or same-document queries resolve to the HTML page —
+    // not an icon. Fetching them wastes an attempt and can never be image/*.
+    if (
+      resolved.origin === base.origin &&
+      resolved.pathname === base.pathname
+    ) {
       continue;
     }
 
     const declaredSize = parseSizes(attr(tag, "sizes"));
     candidates.push({
-      url: resolved,
+      url: resolved.toString(),
       size:
         isApple && declaredSize === 0 ? ASSUMED_APPLE_ICON_SIZE : declaredSize,
       // Apple touch icons are typically 180px+ and square — best logo source.

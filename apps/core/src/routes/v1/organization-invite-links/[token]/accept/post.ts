@@ -41,6 +41,9 @@ const route = createRoute({
     ),
     400: jsonErrorResponse("Bad Request - link expired, revoked, or depleted"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse(
+      "Forbidden - session user required (coworker/orchestrator rejected)",
+    ),
     404: jsonErrorResponse("Not Found - invalid link or organization"),
     500: jsonErrorResponse("Internal Server Error"),
   },
