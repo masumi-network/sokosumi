@@ -1413,6 +1413,82 @@ describe("mapTask", () => {
     expect(result.events[1]?.credits).toBe(10);
   });
 
+  it("ignores OUT_OF_CREDITS attempt-only cents in task credit total", () => {
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
+      name: "Task with pause attempt",
+      description: null,
+      status: TaskStatus.OUT_OF_CREDITS,
+      share: null,
+      jobs: [],
+      linksFrom: [],
+      linksTo: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+      events: [
+        {
+          id: "evt_settled",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          status: TaskStatus.RUNNING,
+          comment: null,
+          authenticationUrl: null,
+          channel: Channel.SOKOSUMI,
+          userId: null,
+          coworkerId: "cow_123",
+          transactionId: "txn_settled",
+          cents: convertCreditsToCents(2),
+          user: null,
+          coworker: defaultTaskCoworker,
+          transaction: {
+            amount: convertCreditsToCents(2) * -1n,
+          },
+        },
+        {
+          id: "evt_attempt",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:01:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:01:00.000Z"),
+          status: TaskStatus.OUT_OF_CREDITS,
+          comment: null,
+          authenticationUrl: null,
+          channel: Channel.SOKOSUMI,
+          userId: null,
+          coworkerId: "cow_123",
+          transactionId: null,
+          cents: convertCreditsToCents(7),
+          user: null,
+          coworker: defaultTaskCoworker,
+          transaction: null,
+        },
+      ],
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.credits).toBe(2);
+    expect(result.events[0]?.credits).toBe(2);
+    expect(result.events[1]?.credits).toBe(7);
+  });
+
   it("aggregates consumed transaction credits for out-of-credits fallback events", () => {
     const task = {
       id: "tsk_123",

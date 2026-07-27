@@ -589,6 +589,24 @@ describe("TaskActivitySection", () => {
     expect(screen.queryByText("updated status")).not.toBeInTheDocument();
   });
 
+  it("treats blank comment as credit-only so charge copy is not duplicated", () => {
+    const events: TaskEvent[] = [
+      createEvent("blank-comment-charge", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "   ",
+        credits: 4,
+        transactionId: "txn_blank",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("charged 4 credits")).toBeInTheDocument();
+    expect(screen.getAllByText("charged 4 credits")).toHaveLength(1);
+    expect(screen.queryByText("commented")).not.toBeInTheDocument();
+  });
+
   it("shows tried to charge for pause events with credits and no transaction", () => {
     const events: TaskEvent[] = [
       createEvent("pause-charge-attempt", {

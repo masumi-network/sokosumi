@@ -493,14 +493,14 @@ export function TaskActivitySection({
                     },
                   )
                 : null;
-            const action = event.comment
+            const hasComment = Boolean(event.comment?.trim());
+            const action = hasComment
               ? actionCommentedLabel
               : event.status
                 ? actionUpdatedStatusLabel
                 : (chargedLabel ?? actionUpdatedStatusLabel);
             const shouldShowSecondaryChargeLine =
-              chargedLabel != null &&
-              (event.comment != null || event.status != null);
+              chargedLabel != null && (hasComment || event.status != null);
             const shouldShowAuthenticateButton =
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&

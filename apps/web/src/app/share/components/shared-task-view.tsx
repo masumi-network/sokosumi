@@ -258,15 +258,16 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               },
                             )
                           : null;
-                      const action = event.comment
+                      const hasComment = Boolean(event.comment?.trim());
+                      const action = hasComment
                         ? tTaskDetail("actionCommented")
                         : event.status
                           ? tTaskDetail("actionUpdatedStatus")
                           : (chargedLabel ??
                             tTaskDetail("actionUpdatedStatus"));
-                      const formattedComment = event.comment
+                      const formattedComment = hasComment
                         ? formatMentionsAsMarkdownLinks(
-                            event.comment,
+                            event.comment ?? "",
                             new Map(),
                           )
                         : null;
@@ -294,7 +295,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                       const isCommentEvent = Boolean(formattedComment);
                       const shouldShowSecondaryChargeLine =
                         chargedLabel != null &&
-                        (event.comment != null || event.status != null);
+                        (hasComment || event.status != null);
                       const shouldHighlightDoneBorder =
                         isCommentEvent && event.status === TaskStatus.COMPLETED;
                       const isStatusOnlyEvent =
