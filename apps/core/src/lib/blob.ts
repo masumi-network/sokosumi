@@ -278,6 +278,51 @@ export async function uploadGeneratedChatImage(params: {
  * Upload a coworker image to Vercel Blob (public, random suffix).
  * Returns the public URL, or null when blob storage is not configured / put fails.
  */
+/**
+ * Persist raw image bytes (a favicon/logo scraped from a site) as a public
+ * organization-logo blob, so we own the asset instead of hot-linking an
+ * external favicon URL that can rot or track viewers. Returns the public
+ * URL, or null when blob storage isn't configured.
+ */
+export async function uploadOrganizationLogoBytes(params: {
+  bytes: ArrayBuffer | Buffer;
+  contentType: string;
+}): Promise<string | null> {
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    console.warn(
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping org logo upload",
+    );
+    return null;
+  }
+
+  const buffer = Buffer.isBuffer(params.bytes)
+    ? params.bytes
+    : Buffer.from(params.bytes);
+  const hash = crypto.createHash("sha256").update(buffer).digest("hex");
+  const pathname = `${STORAGE.ORGANIZATION_LOGO_UPLOAD_DIR}/${hash}`;
+
+  try {
+    const blob = await put(pathname, buffer, {
+      access: "public",
+      contentType: params.contentType,
+      token: env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: false,
+      // The pathname is a content hash, so re-uploading the same icon (a
+      // retry, or a second organization whose site uses the same logo) targets
+      // an existing blob. Without this, `put` throws on that collision and the
+      // caller silently falls back to no logo.
+      allowOverwrite: true,
+    });
+    return blob.url;
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { function: "uploadOrganizationLogoBytes" },
+    });
+    return null;
+  }
+}
+
 export async function uploadCoworkerImage(params: {
   coworkerId: string;
   bytes: ArrayBuffer | Buffer | Blob;
