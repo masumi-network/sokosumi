@@ -1,14 +1,17 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo } from "react";
 import {
   getBucketKeyFromMetadata,
   resolveBucketKeyFromDisplaySlug,
+  slugify,
 } from "@/app/chat/utils/bucket-slug";
 import { ChatConversationsSidebar } from "@/app/chat-ui/components/chat-conversations-sidebar";
 import ChatInterface from "@/app/chat-ui/components/chat-interface";
 import {
+  CHAT_APP_ROUTE_PREFIX,
   getBucketSlugFromChatPathname,
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
@@ -18,6 +21,7 @@ import {
   pendingCoworkerDirectMessageMatchesBucket,
   readPendingCoworkerDirectMessage,
 } from "@/app/chat-ui/utils/pending-coworker-direct-message";
+import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
@@ -36,6 +40,7 @@ export function ChatLayoutClient({
 }: ChatLayoutClientProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const { conversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
 
@@ -87,6 +92,29 @@ export function ChatLayoutClient({
     );
   }, [bucket, bucketSlug, isCoworkerBucket]);
 
+  const bucketCoworker = useMemo(() => {
+    if (!bucketSlug) {
+      return null;
+    }
+    const slugLower = bucketSlug.trim().toLowerCase();
+    if (bucket?.startsWith("coworker:")) {
+      const key = bucket.slice("coworker:".length);
+      const byBucketKey = coworkers.find(
+        (coworker) => coworker.slug === key || coworker.id === key,
+      );
+      if (byBucketKey) {
+        return byBucketKey;
+      }
+    }
+    return (
+      coworkers.find(
+        (coworker) =>
+          slugify(coworker.slug) === slugLower ||
+          slugify(coworker.name) === slugLower,
+      ) ?? null
+    );
+  }, [bucket, bucketSlug, coworkers]);
+
   const bucketData = useMemo(() => {
     if (!bucket) return null;
     const list = conversations
@@ -104,12 +132,45 @@ export function ChatLayoutClient({
         ? ((list[0].metadata as Record<string, unknown> | null) ?? null)
         : null;
     const displayName =
-      (meta?.model_name as string | undefined) ??
+      bucketCoworker?.name ??
       (meta?.coworker_name as string | undefined) ??
-      bucket ??
+      (meta?.model_name as string | undefined) ??
+      bucketSlug ??
       "Chat";
     return { displayName, conversations: list };
-  }, [bucket, conversations]);
+  }, [bucket, bucketCoworker?.name, bucketSlug, conversations]);
+
+  // Path segments use the URL slug (`elena`); show the human display name
+  // (`Elena`) like the chat header and Direct Messages list.
+  const breadcrumbOverride = useMemo(() => {
+    if (!pathname || !bucketSlug) {
+      return null;
+    }
+    const label = bucketCoworker?.name ?? bucketData?.displayName;
+    if (!label) {
+      return null;
+    }
+    return {
+      pathname,
+      segments: [
+        {
+          label: tBreadcrumb("chat"),
+          href: CHAT_APP_ROUTE_PREFIX,
+        },
+        {
+          label,
+          href: `${CHAT_APP_ROUTE_PREFIX}/${bucketSlug}`,
+        },
+      ],
+    };
+  }, [
+    bucketCoworker?.name,
+    bucketData?.displayName,
+    bucketSlug,
+    pathname,
+    tBreadcrumb,
+  ]);
+  useRegisterBreadcrumbOverride(breadcrumbOverride);
 
   useEffect(() => {
     if (
