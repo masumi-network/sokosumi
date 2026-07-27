@@ -95,7 +95,8 @@ export const createChatRoomRequestSchema = z
   .discriminatedUnion("kind", [
     z.object({
       kind: z.literal("channel").openapi({
-        description: "Creates a named room the whole roster can see.",
+        description:
+          "Creates a named room for the invited members and coworkers (membership is explicit, not org-wide).",
       }),
       name: z.string().trim().min(1).max(80).openapi({
         example: "Launch Room",

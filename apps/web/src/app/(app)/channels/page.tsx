@@ -143,8 +143,8 @@ export default async function ChannelsPage({
       userService.getMyMemberInOrganization(activeOrganization.id),
     ]);
 
-  // List is capped (default 50). A deep-link outside that page must not fall
-  // back to channels[0] — that silently opens the wrong conversation.
+  // Deep-link may miss the membership list (race, or room not yet returned).
+  // Do not fall back to channels[0] — that silently opens the wrong conversation.
   let channels = listedChannels;
   let selectedChannel: ChatRoom | null = null;
   if (!isCreateChannelRequested && !isNewDirectMessage) {

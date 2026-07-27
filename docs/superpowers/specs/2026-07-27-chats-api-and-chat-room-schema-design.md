@@ -29,7 +29,7 @@ Durable org chat under `/v1/chats` with a hardened `chat_room*` schema. Keep AI 
 | Stream | `POST /v1/chats/stream`; resume `GET /v1/chats/stream/{conversationId}` (AI SDK body unchanged) |
 | Conversations | `/v1/chats/conversations` (OpenAPI-deprecated) |
 | Org | Auth org (`activeOrganizationId` / API key + `X-Organization-Slug`); not in path |
-| Auth | Membership on room UUID; coworker API-key post-as-self where already supported |
+| Auth | User actor via `requireUserAuthContext` (session cookie or user API key); membership on room UUID; coworker API-key post-as-self on message POST where supported |
 
 ```
 /v1/chats

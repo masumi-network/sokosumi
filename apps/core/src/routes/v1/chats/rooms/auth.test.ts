@@ -168,7 +168,7 @@ const userOnlyCases: AuthRequestCase[] = [
   },
 ];
 
-describe("chat room session auth guards", () => {
+describe("chat room user auth guards", () => {
   describe.each(userOnlyCases)("$label", ({ request }) => {
     it.each(forbiddenActors)(
       "rejects %s actor with 403",
@@ -250,7 +250,7 @@ describe("chat room session auth guards", () => {
     expect(prismaTransactionMock).toHaveBeenCalled();
   });
 
-  it("allows session user past the auth gate on GET /{id}", async () => {
+  it("allows user actor past the auth gate on GET /{id}", async () => {
     prismaTransactionMock.mockResolvedValueOnce({
       room: {
         id: ROOM_ID,
