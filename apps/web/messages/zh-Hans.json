@@ -4578,6 +4578,7 @@
         "empty": "Choose who should be in this conversation.",
         "ready": "{count, plural, one {# recipient selected} other {# recipients selected}}",
         "chooseRecipientError": "Choose at least one recipient.",
+        "organizationRequiredForGroup": "请切换到组织工作区，才能在同一个聊天中向多人发消息。",
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Add recipients to start"

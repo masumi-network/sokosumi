@@ -4578,6 +4578,7 @@
         "empty": "Choose who should be in this conversation.",
         "ready": "{count, plural, one {# recipient selected} other {# recipients selected}}",
         "chooseRecipientError": "Choose at least one recipient.",
+        "organizationRequiredForGroup": "Mude para uma organização para enviar mensagens a várias pessoas em um chat.",
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Add recipients to start"

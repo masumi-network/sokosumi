@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
@@ -80,28 +81,55 @@ export default async function ChannelsPage({
     userService.getActiveOrganization(),
   ]);
 
+  const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
+  const isNewDirectMessage = firstSearchValue(query.dm) === "new";
+
+  // Channels / create stay org-only. Start New DM (`?dm=new`) also works in
+  // personal workspace: same DraftDirectMessage UI with empty members so the
+  // picker is coworkers-only (solo coworker sends via /chat).
   if (!activeOrganization) {
-    return (
-      <div className="min-h-full w-full px-4 py-6">
-        <div className="mx-auto max-w-3xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("NoOrganization.title")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                {t("NoOrganization.description")}
-              </p>
-            </CardContent>
-          </Card>
+    if (!isNewDirectMessage) {
+      return (
+        <div className="min-h-full w-full px-4 py-6">
+          <div className="mx-auto max-w-3xl">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("NoOrganization.title")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  {t("NoOrganization.description")}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      );
+    }
+
+    const [session, coworkers] = await Promise.all([
+      getSession(),
+      coworkerService.listCoworkers("chat"),
+    ]);
+
+    return (
+      <ChannelsClient
+        activeOrganization={null}
+        channels={[]}
+        organizationMembers={[]}
+        currentUserId={session?.user.id ?? ""}
+        coworkers={coworkers}
+        selectedChannelId={null}
+        isCreateChannelRequested={false}
+        isNewDirectMessage
+        messageLoadFailed={false}
+        messages={[]}
+        messagesNextCursor={null}
+      />
     );
   }
 
   const requestedChannelId = firstSearchValue(query.channel);
-  const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
-  const isNewDirectMessage = firstSearchValue(query.dm) === "new";
   const requestedMessagesPromise =
     requestedChannelId && !isCreateChannelRequested && !isNewDirectMessage
       ? loadChannelMessages(requestedChannelId)

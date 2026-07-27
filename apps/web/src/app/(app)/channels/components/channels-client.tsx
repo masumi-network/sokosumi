@@ -113,7 +113,8 @@ import {
 } from "@/lib/utils/user-file-upload.client";
 
 interface ChannelsClientProps {
-  activeOrganization: Organization;
+  /** Null in personal workspace when mounting Start New DM only. */
+  activeOrganization: Organization | null;
   channels: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
@@ -1750,10 +1751,13 @@ function DraftDirectMessage({
   members,
   coworkers,
   currentUserId,
+  canCreateRoomDirect,
 }: {
   members: Member[];
   coworkers: Coworker[];
   currentUserId: string;
+  /** False in personal workspace — room-backed / multi-party DMs need an org. */
+  canCreateRoomDirect: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const router = useRouter();
@@ -1875,6 +1879,11 @@ function DraftDirectMessage({
         );
         return;
       }
+    }
+
+    if (!canCreateRoomDirect) {
+      toast.error(t("Draft.organizationRequiredForGroup"));
+      return;
     }
 
     startSendingTransition(async () => {
@@ -2584,6 +2593,7 @@ export function ChannelsClient({
               members={organizationMembers}
               coworkers={coworkers}
               currentUserId={currentUserId}
+              canCreateRoomDirect={activeOrganization != null}
             />
           ) : selectedChannel ? (
             <>
@@ -2600,7 +2610,7 @@ export function ChannelsClient({
                           selectedChannel,
                           currentUserId,
                           {
-                            fallback: activeOrganization.name,
+                            fallback: activeOrganization?.name ?? "",
                             participantCountLabel: (count) =>
                               t("directParticipantCount", { count }),
                           },

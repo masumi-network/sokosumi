@@ -484,10 +484,10 @@ export function OrganizationChatList({
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
-            Sidebar rows = messaged history only. `+` opens the existing
-            Start New DM draft (`/channels?dm=new`): org members, agentic
-            coworkers, or a group of both. Personal workspace has no org
-            members, so that draft lists coworkers only.
+            Sidebar rows = messaged history only. `+` opens Start New DM
+            (`/channels?dm=new`): org members + coworkers (+ group). Personal
+            workspace soft-gates channels but still mounts the same draft with
+            empty members (coworkers only).
           */}
           <SectionHeader
             href="/channels?dm=new"

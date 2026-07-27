@@ -4697,6 +4697,7 @@
         "empty": "Choose who should be in this conversation.",
         "ready": "{count, plural, one {# recipient selected} other {# recipients selected}}",
         "chooseRecipientError": "Choose at least one recipient.",
+        "organizationRequiredForGroup": "Switch to an organization to message multiple people in one chat.",
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Add recipients to start"
