@@ -449,9 +449,6 @@ export function TaskActivitySection({
                 : (actorInfo?.name ?? actorLabel);
             const actorImage = actorInfo?.image ?? null;
             const showAssistantOrb = actorKind === "orchestrator";
-            const action = event.comment
-              ? actionCommentedLabel
-              : actionUpdatedStatusLabel;
             const ChannelIcon = CHANNEL_ICON_MAP[event.channel];
             const channelAppName = t(
               `channelApp.${CHANNEL_APP_NAME_KEY_MAP[event.channel]}`,
@@ -487,10 +484,23 @@ export function TaskActivitySection({
               sourceFiles.length > 0 || sourceLinks.length > 0;
             const chargedLabel =
               event.credits != null
-                ? t("actionChargedCredits", {
-                    credits: formatCreditsForDisplay(event.credits),
-                  })
+                ? t(
+                    event.transactionId == null
+                      ? "actionTriedChargedCredits"
+                      : "actionChargedCredits",
+                    {
+                      credits: formatCreditsForDisplay(event.credits),
+                    },
+                  )
                 : null;
+            const action = event.comment
+              ? actionCommentedLabel
+              : event.status
+                ? actionUpdatedStatusLabel
+                : (chargedLabel ?? actionUpdatedStatusLabel);
+            const shouldShowSecondaryChargeLine =
+              chargedLabel != null &&
+              (event.comment != null || event.status != null);
             const shouldShowAuthenticateButton =
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
@@ -670,7 +680,7 @@ export function TaskActivitySection({
                         </Button>
                       </div>
                     ) : null}
-                    {chargedLabel ? (
+                    {shouldShowSecondaryChargeLine ? (
                       <div className="text-muted-foreground/60 text-xs">
                         {chargedLabel}
                       </div>
