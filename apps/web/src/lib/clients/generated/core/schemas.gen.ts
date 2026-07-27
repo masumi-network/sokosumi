@@ -10394,6 +10394,13 @@ export const PublicSharedTaskMilestoneSchema = {
             ],
             example: 1.5
         },
+        transactionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'txn_123'
+        },
         actorName: {
             type: [
                 'string',
@@ -10418,6 +10425,7 @@ export const PublicSharedTaskMilestoneSchema = {
         'status',
         'comment',
         'credits',
+        'transactionId',
         'actorName',
         'actorImage'
     ]

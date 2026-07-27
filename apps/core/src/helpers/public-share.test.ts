@@ -301,6 +301,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "RUNNING",
             comment: null,
+            cents: null,
+            transactionId: "txn_settled_123",
             user: null,
             coworker: {
               name: "Ops Agent",
@@ -318,6 +320,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "EMAIL",
             status: null,
             comment: "Customer added context",
+            cents: null,
+            transactionId: null,
             user: {
               name: "Ada Lovelace",
               image: "https://example.com/user.png",
@@ -333,7 +337,26 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "AUTHENTICATION_REQUIRED",
             comment: null,
+            cents: null,
+            transactionId: null,
             user: null,
+            coworker: null,
+            orchestrator: null,
+            transaction: null,
+          },
+          {
+            id: "evt_attempted",
+            createdAt: new Date("2026-03-30T10:07:30.000Z"),
+            updatedAt: new Date("2026-03-30T10:07:30.000Z"),
+            channel: "SOKOSUMI",
+            status: "OUT_OF_CREDITS",
+            comment: null,
+            cents: 2100000000000n,
+            transactionId: null,
+            user: {
+              name: "Ada Lovelace",
+              image: "https://example.com/user.png",
+            },
             coworker: null,
             orchestrator: null,
             transaction: null,
@@ -345,7 +368,26 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: null,
             comment: "   ",
+            cents: null,
+            transactionId: null,
             user: null,
+            coworker: null,
+            orchestrator: null,
+            transaction: null,
+          },
+          {
+            id: "evt_credit_only",
+            createdAt: new Date("2026-03-30T10:08:30.000Z"),
+            updatedAt: new Date("2026-03-30T10:08:30.000Z"),
+            channel: "SOKOSUMI",
+            status: null,
+            comment: null,
+            cents: 1250000000000n,
+            transactionId: null,
+            user: {
+              name: "Ada Lovelace",
+              image: "https://example.com/user.png",
+            },
             coworker: null,
             orchestrator: null,
             transaction: null,
@@ -357,6 +399,8 @@ describe("getPublicSharedResourceByToken", () => {
             channel: "SOKOSUMI",
             status: "COMPLETED",
             comment: "Done by Hermes",
+            cents: null,
+            transactionId: null,
             user: null,
             coworker: null,
             orchestrator: {
@@ -416,6 +460,7 @@ describe("getPublicSharedResourceByToken", () => {
             status: "RUNNING",
             credits: 1.5,
             comment: null,
+            transactionId: "txn_settled_123",
             actorName: "Ops Agent",
             actorImage: "https://example.com/coworker.png",
           },
@@ -424,6 +469,7 @@ describe("getPublicSharedResourceByToken", () => {
             status: null,
             comment: "Customer added context",
             credits: null,
+            transactionId: null,
             actorName: "Ada Lovelace",
             actorImage: "https://example.com/user.png",
           },
@@ -432,14 +478,34 @@ describe("getPublicSharedResourceByToken", () => {
             status: "AUTHENTICATION_REQUIRED",
             comment: null,
             credits: null,
+            transactionId: null,
             actorName: null,
             actorImage: null,
+          },
+          {
+            id: "evt_attempted",
+            status: "OUT_OF_CREDITS",
+            comment: null,
+            credits: 210,
+            transactionId: null,
+            actorName: "Ada Lovelace",
+            actorImage: "https://example.com/user.png",
+          },
+          {
+            id: "evt_credit_only",
+            status: null,
+            comment: null,
+            credits: 125,
+            transactionId: null,
+            actorName: "Ada Lovelace",
+            actorImage: "https://example.com/user.png",
           },
           {
             id: "evt_orch",
             status: "COMPLETED",
             comment: "Done by Hermes",
             credits: null,
+            transactionId: null,
             actorName: "Hermes",
             actorImage: null,
           },
@@ -468,7 +534,13 @@ describe("getPublicSharedResourceByToken", () => {
     expect(resource.task.jobs[1]?.completedAt).toEqual(
       new Date("2026-03-30T10:08:00.000Z"),
     );
-    expect(resource.task.events).toHaveLength(4);
+    expect(resource.task.events).toHaveLength(6);
+    expect(
+      resource.task.events.find((event) => event.id === "evt_orch"),
+    ).toMatchObject({
+      actorName: "Hermes",
+      transactionId: null,
+    });
   });
 
   it("returns null for archived shared tasks", async () => {

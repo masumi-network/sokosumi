@@ -21,6 +21,7 @@ interface PublicSharedTaskMilestone {
   status: string | null;
   comment: string | null;
   credits: number | null;
+  transactionId: string | null;
   actorName: string | null;
   actorImage: string | null;
 }
@@ -49,7 +50,15 @@ const publicTaskInclude = {
     orderBy: { createdAt: "asc" },
   },
   events: {
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      channel: true,
+      status: true,
+      comment: true,
+      cents: true,
+      transactionId: true,
       user: {
         select: {
           name: true,
@@ -85,8 +94,15 @@ function mapPublicTaskMilestone(
   event: PublicTaskWithRelations["events"][number],
 ): PublicSharedTaskMilestone | null {
   const comment = event.comment?.trim() || null;
+  const settledCredits =
+    event.transaction?.amount != null && event.transaction.amount < 0n
+      ? convertCentsToCredits(event.transaction.amount * -1n)
+      : null;
+  const attemptedCredits =
+    event.cents != null ? convertCentsToCredits(event.cents) : null;
+  const credits = settledCredits ?? attemptedCredits;
 
-  if (!event.status && !comment) {
+  if (!event.status && !comment && credits == null) {
     return null;
   }
 
@@ -98,10 +114,8 @@ function mapPublicTaskMilestone(
     origin: event.channel,
     status: event.status,
     comment,
-    credits:
-      event.transaction?.amount != null && event.transaction.amount < 0n
-        ? convertCentsToCredits(event.transaction.amount * -1n)
-        : null,
+    credits,
+    transactionId: event.transactionId ?? null,
     // Prefer order matches Core task events: orchestrator → coworker → user.
     actorName:
       event.orchestrator?.name ??

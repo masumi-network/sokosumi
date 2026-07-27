@@ -60,6 +60,7 @@ export const publicSharedTaskMilestoneSchema = z
       .nullable()
       .openapi({ example: "Please review the draft" }),
     credits: z.number().nullable().openapi({ example: 1.5 }),
+    transactionId: z.string().nullable().openapi({ example: "txn_123" }),
     actorName: z.string().nullable().openapi({ example: "Ada Lovelace" }),
     actorImage: z.string().nullable().openapi({
       example: "https://example.com/avatar.png",
