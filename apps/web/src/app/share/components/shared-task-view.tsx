@@ -247,9 +247,23 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                       const ChannelIcon = CHANNEL_ICON_MAP[channel];
                       const actorName =
                         event.actorName ?? tTaskDetail("actorSystem");
+                      const chargedLabel =
+                        event.credits != null
+                          ? tTaskDetail(
+                              event.transactionId == null
+                                ? "actionTriedChargedCredits"
+                                : "actionChargedCredits",
+                              {
+                                credits: formatCreditsForDisplay(event.credits),
+                              },
+                            )
+                          : null;
                       const action = event.comment
                         ? tTaskDetail("actionCommented")
-                        : tTaskDetail("actionUpdatedStatus");
+                        : event.status
+                          ? tTaskDetail("actionUpdatedStatus")
+                          : (chargedLabel ??
+                            tTaskDetail("actionUpdatedStatus"));
                       const formattedComment = event.comment
                         ? formatMentionsAsMarkdownLinks(
                             event.comment,
@@ -277,13 +291,10 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                         : [];
                       const hasCommentSources =
                         sourceFiles.length > 0 || sourceLinks.length > 0;
-                      const chargedLabel =
-                        event.credits != null
-                          ? tTaskDetail("actionChargedCredits", {
-                              credits: formatCreditsForDisplay(event.credits),
-                            })
-                          : null;
                       const isCommentEvent = Boolean(formattedComment);
+                      const shouldShowSecondaryChargeLine =
+                        chargedLabel != null &&
+                        (event.comment != null || event.status != null);
                       const shouldHighlightDoneBorder =
                         isCommentEvent && event.status === TaskStatus.COMPLETED;
                       const isStatusOnlyEvent =
@@ -410,7 +421,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                   ) : null}
                                 </div>
                               ) : null}
-                              {chargedLabel ? (
+                              {shouldShowSecondaryChargeLine ? (
                                 <div className="text-muted-foreground/60 text-xs">
                                   {chargedLabel}
                                 </div>
