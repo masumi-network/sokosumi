@@ -2143,7 +2143,9 @@
       },
       "SubscriptionWall": {
         "title": "パーソナルアシスタントを解除",
-        "description": "有料プランで有効化して、アシスタントを動かしましょう。",
+        "description": "Standard プラン以上で有効化して、アシスタントを動かしましょう。",
+        "organizationBilling": "現在 {organization} にいます。アップグレードすると組織全体のプランが変更され、請求も組織宛てになります。",
+        "organizationBillingUnnamed": "現在は組織のワークスペースです。アップグレードすると組織全体のプランが変更され、請求も組織宛てになります。",
         "cta": "プランと料金を見る",
         "dismiss": "あとで"
       },

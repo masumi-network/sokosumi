@@ -137,9 +137,23 @@ describe("provisionHermesAction", () => {
     expect(provisionHermesInstanceMock).not.toHaveBeenCalled();
   });
 
-  it("provisions when the user has a paid plan", async () => {
+  it("refuses a paid plan below the Standard floor", async () => {
     getMyActiveSubscriptionMock.mockResolvedValue({
       data: { subscription: { plan: "starter" } },
+    });
+
+    const result = await provisionHermesAction({});
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("SUBSCRIPTION_REQUIRED");
+    }
+    expect(provisionHermesInstanceMock).not.toHaveBeenCalled();
+  });
+
+  it("provisions when the user is on Standard", async () => {
+    getMyActiveSubscriptionMock.mockResolvedValue({
+      data: { subscription: { plan: "standard" } },
     });
 
     const result = await provisionHermesAction({});

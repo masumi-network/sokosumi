@@ -16,7 +16,7 @@ import type {
   HermesGetInstanceSome,
   HermesRejectConfirmationRequest,
 } from "@/lib/clients/generated/core/types.gen";
-import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
+import { hasAssistantPlanCoverage } from "@/lib/hermes/assistant-plan-coverage";
 import type {
   HermesAutonomyLevel,
   HermesConfirmationResolveResult,
@@ -193,7 +193,7 @@ export const provisionHermesAction = withSession<
   try {
     // UX-level gate only — Core re-enforces on provision (incl. enterprise).
     // Fail closed when coverage lookups fail.
-    const hasCoverage = await hasPaidPlanCoverage();
+    const hasCoverage = await hasAssistantPlanCoverage();
     if (!hasCoverage && !hasAdminRole(session.user.role)) {
       return Err({ code: "SUBSCRIPTION_REQUIRED" });
     }

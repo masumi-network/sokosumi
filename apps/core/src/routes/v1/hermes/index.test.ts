@@ -342,9 +342,10 @@ describe("Hermes route contracts", () => {
     memberFindFirstMock.mockResolvedValue(null);
     memberFindManyMock.mockResolvedValue([]);
     enterpriseContractFindFirstMock.mockResolvedValue(null);
-    // Default to paid coverage so use-path tests exercise business logic,
-    // not the subscription gate. Unpaid cases set this back to null.
-    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    // Default to assistant coverage so use-path tests exercise business
+    // logic, not the subscription gate. Uncovered cases set this to null or
+    // to a plan below the Standard floor.
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "standard" });
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "self_serve",
       plan: "free",
@@ -2063,7 +2064,36 @@ describe("Hermes route contracts", () => {
     });
   });
 
-  it("blocks provisioning without paid coverage and never calls the orchestrator", async () => {
+  it("blocks provisioning on a paid plan below the Standard floor", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A Standard subscription or higher is required to use the personal assistant.",
+    );
+    expect(provisionInstance).not.toHaveBeenCalled();
+  });
+
+  it("provisions on Pro, above the Standard floor", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "pro" });
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+  });
+
+  it("blocks provisioning without any coverage and never calls the orchestrator", async () => {
     resolveActiveSubscriptionMock.mockResolvedValue(null);
 
     const response = await createApp().request("/me/instance", {
@@ -2074,7 +2104,7 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(403);
     expect(body.message).toBe(
-      "A paid subscription is required to use the personal assistant.",
+      "A Standard subscription or higher is required to use the personal assistant.",
     );
     expect(provisionInstance).not.toHaveBeenCalled();
   });
@@ -2099,7 +2129,7 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(403);
     expect(body.message).toBe(
-      "A paid subscription is required to use the personal assistant.",
+      "A Standard subscription or higher is required to use the personal assistant.",
     );
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
@@ -2124,7 +2154,7 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(403);
     expect(body.message).toBe(
-      "A paid subscription is required to use the personal assistant.",
+      "A Standard subscription or higher is required to use the personal assistant.",
     );
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
@@ -2150,13 +2180,13 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(403);
     expect(body.message).toBe(
-      "A paid subscription is required to use the personal assistant.",
+      "A Standard subscription or higher is required to use the personal assistant.",
     );
     expect(startInstanceOnboardingMock).not.toHaveBeenCalled();
   });
 
   it("provisions when the user has an active paid personal subscription", async () => {
-    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "standard" });
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
 
     const response = await createApp().request("/me/instance", {
@@ -2175,7 +2205,7 @@ describe("Hermes route contracts", () => {
   });
 
   it("returns 503 when remote provision succeeds but local orchestrator ensure fails", async () => {
-    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "standard" });
     vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
     orchestratorCreateMock.mockRejectedValueOnce(new Error("db unavailable"));
 
@@ -2192,7 +2222,7 @@ describe("Hermes route contracts", () => {
   });
 
   it("clears leftover local mirror when provisioning a fresh early instance", async () => {
-    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "standard" });
     vi.mocked(getInstance)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
@@ -2216,7 +2246,7 @@ describe("Hermes route contracts", () => {
   });
 
   it("does not wipe chat when pre-check is empty but post-provision is already ready", async () => {
-    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "starter" });
+    resolveActiveSubscriptionMock.mockResolvedValue({ plan: "standard" });
     vi.mocked(getInstance)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({

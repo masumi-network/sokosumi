@@ -2143,7 +2143,9 @@
       },
       "SubscriptionWall": {
         "title": "Débloquez votre assistant personnel",
-        "description": "Activez-le avec un forfait payant pour le mettre au travail.",
+        "description": "Activez-le avec le forfait Standard ou supérieur pour le mettre au travail.",
+        "organizationBilling": "Vous êtes dans {organization}. La mise à niveau change le forfait de toute l'organisation et lui est facturée.",
+        "organizationBillingUnnamed": "Vous êtes dans un espace d'organisation. La mise à niveau change le forfait de toute l'organisation et lui est facturée.",
         "cta": "Voir les offres et tarifs",
         "dismiss": "Plus tard"
       },

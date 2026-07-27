@@ -8,6 +8,7 @@ import { subscriptionRepository } from "@sokosumi/database/repositories";
 import {
   isUserUploadAllowedContentType,
   normalizeUserUploadContentType,
+  planUnlocksPersonalAssistant,
   resolveUserUploadContentType,
   sniffImageMimeFromBytes,
   USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET,
@@ -1553,7 +1554,7 @@ const app = new OpenAPIHonoWithAuth();
 // and tear down.
 app.openapi(postChatRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const body = c.req.valid("json");
   const userContent = typeof body.content === "string" ? body.content : "";
   const trimmed = userContent.trim();
@@ -1819,7 +1820,7 @@ export async function captureFromStream(
  */
 app.post("/chat/stream", async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
 
   const rawJson = await c.req.json().catch(() => null);
   const parsed = hermesChatRequestSchema.safeParse(rawJson);
@@ -2065,21 +2066,21 @@ app.openapi(getInstanceRoute, async (c) => {
 });
 
 /**
- * True when the user has paid-plan coverage: an active non-free subscription
- * on their personal reference or on any organization they belong to. The
- * web app's subscription wall gates on the session's active workspace; this
- * is the API-level floor beneath it — Better Auth API keys and OAuth access
- * tokens mint plain user auth contexts, so the Core route must enforce the
- * plan itself rather than trusting the web action's check.
+ * True when the user has assistant-plan coverage: a subscription of Standard
+ * or better on their personal reference or on any organization they belong to.
+ * The web app's subscription wall gates on the session's active workspace;
+ * this is the API-level floor beneath it — Better Auth API keys and OAuth
+ * access tokens mint plain user auth contexts, so the Core route must enforce
+ * the plan itself rather than trusting the web action's check.
  */
-async function userHasPaidPlanCoverage(userId: string): Promise<boolean> {
+async function userHasAssistantPlanCoverage(userId: string): Promise<boolean> {
   // Personal Stripe subscription (user as referenceId).
   const personal =
     await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
       userId,
       prisma,
     );
-  if (personal && personal.plan !== "free") return true;
+  if (planUnlocksPersonalAssistant(personal?.plan)) return true;
 
   // Org memberships via the canonical billing-plan resolver (enterprise
   // contract first, then self-serve Stripe). Enterprise orgs often have no
@@ -2098,26 +2099,29 @@ async function userHasPaidPlanCoverage(userId: string): Promise<boolean> {
     // consumable and must not grant assistant access.
     if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable)
       return true;
-    if (billingPlan.mode === "self_serve" && billingPlan.plan !== "free")
+    if (
+      billingPlan.mode === "self_serve" &&
+      planUnlocksPersonalAssistant(billingPlan.plan)
+    )
       return true;
   }
   return false;
 }
 
 /**
- * Enforce paid coverage for activating and using the personal assistant.
- * Admins are exempt. Reads (GET instance / messages / unread) stay open so
- * the UI can still show history and the subscription wall; destroy stays
- * open so cancelled users can tear the instance down.
+ * Enforce Standard-or-better coverage for activating and using the personal
+ * assistant. Admins are exempt. Reads (GET instance / messages / unread) stay
+ * open so the UI can still show history and the subscription wall; destroy
+ * stays open so downgraded users can tear the instance down.
  */
-async function requirePaidPlanCoverage(userContext: {
+async function requireAssistantPlanCoverage(userContext: {
   userId: string;
   role: string | null | undefined;
 }): Promise<void> {
   if (hasAdminRole(userContext.role)) return;
-  if (await userHasPaidPlanCoverage(userContext.userId)) return;
+  if (await userHasAssistantPlanCoverage(userContext.userId)) return;
   throw forbidden(
-    "A paid subscription is required to use the personal assistant.",
+    "A Standard subscription or higher is required to use the personal assistant.",
   );
 }
 
@@ -2126,7 +2130,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
   // Paid-plan gate, mirroring the web action's check (which alone is
   // bypassable by calling this route directly with an API key). Admins are
   // exempt so the team can operate test instances without billing.
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const user = await prisma.user.findUnique({
     where: { id: userContext.userId },
     select: { name: true, email: true },
@@ -2195,7 +2199,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
 
 app.openapi(updateInstanceRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   try {
@@ -2380,7 +2384,7 @@ app.openapi(markInboxSeenRoute, async (c) => {
 
 app.openapi(setSecretRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   if (!isValidSecretKey(body.key)) {
@@ -2411,7 +2415,7 @@ app.openapi(setSecretRoute, async (c) => {
 
 app.openapi(startOnboardingRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const body = c.req.valid("json");
 
   // Pull name/email from the DB if the client didn't provide them, so the
@@ -2502,7 +2506,7 @@ app.openapi(listSchedulesRoute, async (c) => {
 
 app.openapi(patchScheduleRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { scheduleId } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -2528,7 +2532,7 @@ app.openapi(patchScheduleRoute, async (c) => {
 
 app.openapi(approveConfirmationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { confirmationId } = c.req.valid("param");
   // Body is optional on this route — when the client posts no payload Hono
   // returns `undefined` and we treat it as the no-overrides case (Hermes'
@@ -2617,7 +2621,7 @@ app.openapi(approveConfirmationRoute, async (c) => {
 
 app.openapi(rejectConfirmationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { confirmationId } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -2667,7 +2671,7 @@ app.openapi(rejectConfirmationRoute, async (c) => {
 
 app.openapi(disconnectIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { provider } = c.req.valid("param");
 
   // Mirror the dual-provider behaviour of finalize: Outlook's mail + calendar
@@ -2719,7 +2723,7 @@ function pairedOrchestratorProviders(
 
 app.openapi(initiateIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { provider, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
   const callbackUrl = `${getWebAppBaseUrl()}/composio/callback`;
@@ -2875,7 +2879,7 @@ async function clearPendingConnection(connectionId: string): Promise<void> {
 
 app.openapi(finalizeIntegrationRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
 
@@ -3357,7 +3361,7 @@ app.openapi(preinstalledSkillsRoute, async (c) => {
 
 app.openapi(installSkillRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { source, slug } = c.req.valid("json");
 
   let input: HermesInstallSkillInput;
@@ -3403,7 +3407,7 @@ app.openapi(installSkillRoute, async (c) => {
 
 app.openapi(removeSkillRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  await requirePaidPlanCoverage(userContext);
+  await requireAssistantPlanCoverage(userContext);
   const { slug } = c.req.valid("param");
   try {
     await removeInstalledSkill(userContext.userId, slug);

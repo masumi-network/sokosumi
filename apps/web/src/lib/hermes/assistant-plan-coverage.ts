@@ -1,31 +1,25 @@
+import { planUnlocksPersonalAssistant } from "@sokosumi/utils";
 import { coreClient } from "@/lib/clients/core.client";
 
 /**
- * True when `plan` is a non-free billing plan name (self-serve paid or
- * enterprise). Null/undefined/free are not paid.
- */
-export function isPaidBillingPlan(plan: string | null | undefined): boolean {
-  return plan != null && plan !== "free";
-}
-
-/**
- * UX/action-level paid coverage check. Mirrors Core's
- * `userHasPaidPlanCoverage`: personal Stripe plan first, then any member
- * org's resolved billing plan (enterprise contract or paid self-serve).
- * Fail closed when lookups error.
+ * UX/action-level coverage check for the personal assistant. Mirrors Core's
+ * `userHasAssistantPlanCoverage`: personal Stripe plan first, then any member
+ * org's resolved billing plan (enterprise contract, or self-serve at Standard
+ * or better). Fail closed when lookups error.
  *
  * The personal probe must be `getMyActiveSubscription` (GET
  * /users/me/subscription), which resolves by userId regardless of the
  * session's active workspace — `getMyCredits` is active-organization-scoped
  * and would report a free org's plan over the user's own paid one.
  */
-export async function hasPaidPlanCoverage(options?: {
+export async function hasAssistantPlanCoverage(options?: {
   organizationIds?: string[];
 }): Promise<boolean> {
   const personalResult = await coreClient
     .getMyActiveSubscription()
     .catch(() => null);
-  if (isPaidBillingPlan(personalResult?.data.subscription?.plan)) return true;
+  if (planUnlocksPersonalAssistant(personalResult?.data.subscription?.plan))
+    return true;
 
   let organizationIds = options?.organizationIds;
   if (!organizationIds) {
@@ -49,6 +43,6 @@ export async function hasPaidPlanCoverage(options?: {
     if (billingPlan.mode === "enterprise_contract") {
       return billingPlan.isConsumable;
     }
-    return isPaidBillingPlan(billingPlan.plan);
+    return planUnlocksPersonalAssistant(billingPlan.plan);
   });
 }

@@ -1,8 +1,4 @@
-import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-
-import { getSession } from "@/lib/auth/auth.server";
-import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 
 import FullscreenEffect from "./components/fullscreen-effect";
 
@@ -10,14 +6,7 @@ interface HermesLayoutProps {
   children: ReactNode;
 }
 
-export default async function HermesLayout({ children }: HermesLayoutProps) {
-  // Hermes beta gate: outside the whitelisted email domains the whole route
-  // does not exist — same 404 a made-up path would get, so nothing leaks.
-  const session = await getSession();
-  if (!isHermesBetaAccessEmail(session?.user.email)) {
-    notFound();
-  }
-
+export default function HermesLayout({ children }: HermesLayoutProps) {
   // We DON'T use `data-agent-fullbleed` here even though it nicely zeros
   // main's p-4 padding. That helper also sets `overflow: visible` on
   // main + every ancestor up to the app shell, which delegates scrolling

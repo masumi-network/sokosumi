@@ -54,10 +54,13 @@ interface SubscriptionRequiredDialogProps {
    * needs a seat count the org's own subscription page collects; those
    * plans link there instead of guessing a seat count here. */
   activeOrganizationId: string | null;
+  /** Names the organization in the billing notice. Null falls back to
+   * wording that does not name it. */
+  activeOrganizationName?: string | null;
 }
 
-/** The wall: shown when a free-plan user tries to activate the personal
- * assistant. Viewing the pitch (EmptyState) stays open to everyone — this
+/** The wall: shown when a user below the Standard plan tries to activate the
+ * personal assistant. Viewing the pitch (EmptyState) stays open to everyone — this
  * only blocks the action. Previews the real plans (name, price, credits,
  * top features) and jumps straight to Stripe Checkout for personal
  * accounts, rather than a single generic "upgrade" button. */
@@ -66,6 +69,7 @@ export function SubscriptionRequiredDialog({
   onOpenChange,
   plans,
   activeOrganizationId,
+  activeOrganizationName = null,
 }: SubscriptionRequiredDialogProps) {
   const t = useTranslations("App.Hermes.SubscriptionWall");
   const tCommon = useTranslations("App.Hermes.Common");
@@ -145,6 +149,19 @@ export function SubscriptionRequiredDialog({
           <DialogTitle className="text-xl">{t("title")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
+
+        {/* Upgrading in an org context changes the organization's plan and
+            bills the organization, not the person clicking — say so before
+            they pick, since the click leaves for the org's billing page. */}
+        {activeOrganizationId !== null ? (
+          <p className="border-border/60 bg-muted/40 text-muted-foreground rounded-lg border px-3 py-2 text-xs">
+            {activeOrganizationName
+              ? t("organizationBilling", {
+                  organization: activeOrganizationName,
+                })
+              : t("organizationBillingUnnamed")}
+          </p>
+        ) : null}
 
         {plans.length > 0 ? (
           <ul className="flex flex-col gap-1.5 py-1">

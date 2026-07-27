@@ -2154,7 +2154,9 @@
       },
       "SubscriptionWall": {
         "title": "Unlock your personal assistant",
-        "description": "Activate on a paid plan to put it to work.",
+        "description": "Activate on the Standard plan or higher to put it to work.",
+        "organizationBilling": "You're in {organization}. Upgrading changes the whole organization's plan and bills the organization.",
+        "organizationBillingUnnamed": "You're in an organization workspace. Upgrading changes the whole organization's plan and bills the organization.",
         "cta": "See plans & pricing",
         "dismiss": "Maybe later"
       },

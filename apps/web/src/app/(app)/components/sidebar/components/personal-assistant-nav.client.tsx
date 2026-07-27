@@ -35,10 +35,9 @@ interface AssistantNavState {
 /**
  * Polls the lightweight unread-count endpoint, which also carries the chosen
  * orb seed — so the sidebar shows the user's orb (and reacts after they pick
- * one) without a heavier instance fetch. Never polls while the beta gate
- * hides the nav item.
+ * one) without a heavier instance fetch.
  */
-function useAssistantNavState(enabled: boolean): AssistantNavState {
+function useAssistantNavState(): AssistantNavState {
   const [state, setState] = useState<AssistantNavState>({
     count: 0,
     avatarSeed: null,
@@ -47,7 +46,6 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
   });
 
   useEffect(() => {
-    if (!enabled) return;
     let cancelled = false;
 
     const tick = async () => {
@@ -81,7 +79,7 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener(HERMES_NAV_REFRESH_EVENT, onNavRefresh);
     };
-  }, [enabled]);
+  }, []);
 
   return state;
 }
@@ -90,14 +88,9 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
  * The Personal Assistant — a normal nav item at the very top of the sidebar,
  * set apart from "New" by a divider (rendered in the sidebar composition). Its
  * live orb carries its identity, and the label becomes the assistant's chosen
- * name once it has one. Hidden entirely while the Hermes beta gate excludes
- * the user (see `isHermesBetaAccessEmail`).
+ * name once it has one.
  */
-export default function PersonalAssistantNav({
-  enabled,
-}: {
-  enabled: boolean;
-}) {
+export default function PersonalAssistantNav() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const {
@@ -105,9 +98,7 @@ export default function PersonalAssistantNav({
     avatarSeed,
     assistantName,
     hasInstance,
-  } = useAssistantNavState(enabled);
-
-  if (!enabled) return null;
+  } = useAssistantNavState();
 
   const href = "/personal-assistant";
   const isActive = pathname === href || pathname.startsWith(`${href}/`);

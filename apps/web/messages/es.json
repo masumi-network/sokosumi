@@ -2143,7 +2143,9 @@
       },
       "SubscriptionWall": {
         "title": "Desbloquea tu asistente personal",
-        "description": "Actívalo con un plan de pago para ponerlo a trabajar.",
+        "description": "Actívalo con el plan Standard o superior para ponerlo a trabajar.",
+        "organizationBilling": "Estás en {organization}. Mejorar el plan cambia el de toda la organización y se factura a la organización.",
+        "organizationBillingUnnamed": "Estás en un espacio de organización. Mejorar el plan cambia el de toda la organización y se factura a la organización.",
         "cta": "Ver planes y precios",
         "dismiss": "Quizá más tarde"
       },

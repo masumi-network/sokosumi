@@ -268,8 +268,8 @@ export default function HermesExperience({
     undefined,
   );
   /** The subscription wall — shown instead of activating / using when a
-   * free-plan user hits a paid CTA. Viewing EmptyState / history is
-   * never gated. */
+   * user below the Standard plan hits a gated CTA. Viewing EmptyState /
+   * history is never gated. */
   const [subscriptionWallOpen, setSubscriptionWallOpen] = useState(false);
 
   const subscriptionWall = (
@@ -278,6 +278,11 @@ export default function HermesExperience({
       onOpenChange={setSubscriptionWallOpen}
       plans={subscriptionWallPlans}
       activeOrganizationId={activeOrganizationId}
+      activeOrganizationName={
+        organizations.find(
+          (organization) => organization.id === activeOrganizationId,
+        )?.name ?? null
+      }
     />
   );
 

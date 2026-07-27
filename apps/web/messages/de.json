@@ -2143,7 +2143,9 @@
       },
       "SubscriptionWall": {
         "title": "Schalte deinen persönlichen Assistenten frei",
-        "description": "Aktiviere ihn mit einem bezahlten Plan, damit er für dich arbeiten kann.",
+        "description": "Aktiviere ihn mit dem Standard-Plan oder höher, damit er für dich arbeiten kann.",
+        "organizationBilling": "Du bist in {organization}. Ein Upgrade ändert den Plan der gesamten Organisation und wird über die Organisation abgerechnet.",
+        "organizationBillingUnnamed": "Du bist in einem Organisations-Workspace. Ein Upgrade ändert den Plan der gesamten Organisation und wird über die Organisation abgerechnet.",
         "cta": "Pläne & Preise ansehen",
         "dismiss": "Vielleicht später"
       },

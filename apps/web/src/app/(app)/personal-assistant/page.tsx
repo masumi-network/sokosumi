@@ -1,4 +1,4 @@
-import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
+import { PERSONAL_ASSISTANT_PLANS } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
@@ -11,14 +11,8 @@ import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { coreClient } from "@/lib/clients/core.client";
 import type { GetSubscriptionCatalogResponse } from "@/lib/clients/generated/core";
-import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
+import { hasAssistantPlanCoverage } from "@/lib/hermes/assistant-plan-coverage";
 import { userService } from "@/lib/services/user.service";
-
-const PAID_PLAN_ORDER = [
-  "starter",
-  "standard",
-  "pro",
-] as const satisfies SelfServeSubscriptionPlanName[];
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Hermes.Metadata");
@@ -60,17 +54,17 @@ export default async function HermesPage() {
     slug: m.organization.slug,
   }));
 
-  // Activating and using the assistant requires a paid plan — viewing the
-  // page (landing content, chat history) stays open to everyone. Fail closed:
-  // if the coverage lookups error we can't confirm a subscription, so treat
-  // the user as unsubscribed here. This is only the UX-level gate; Core
+  // Activating and using the assistant requires Standard or better — viewing
+  // the page (landing content, chat history) stays open to everyone. Fail
+  // closed: if the coverage lookups error we can't confirm a subscription, so
+  // treat the user as unsubscribed here. This is only the UX-level gate; Core
   // re-checks on provision / chat / mutations. Admins skip the wall
   // entirely so the team can set up and test instances without billing.
   // Coverage = personal Stripe plan OR any member org's billing plan
-  // (enterprise contract or paid self-serve) — same rule as Core.
+  // (enterprise contract or self-serve Standard+) — same rule as Core.
   const [hasCoverage, catalogResultRaw] = await Promise.all([
     session
-      ? hasPaidPlanCoverage({
+      ? hasAssistantPlanCoverage({
           organizationIds: memberships.map((m) => m.organization.id),
         })
       : Promise.resolve(false),
@@ -78,13 +72,13 @@ export default async function HermesPage() {
   ]);
   const hasActiveSubscription = hasCoverage || hasAdminRole(session?.user.role);
 
-  // The 3 paid plans — gives the subscription wall real, clickable plan
-  // links instead of a vague "upgrade to unlock". Best-effort: the wall
-  // still works (minus the plan links) if the catalog fetch fails.
+  // Only the plans that actually unlock the assistant — offering Starter
+  // here would sell an upgrade that still hits the wall. Best-effort: the
+  // wall still works (minus the plan links) if the catalog fetch fails.
   const catalogResult =
     catalogResultRaw as GetSubscriptionCatalogResponse | null;
   const subscriptionWallPlans: SubscriptionWallPlan[] = catalogResult
-    ? PAID_PLAN_ORDER.map((name) => {
+    ? PERSONAL_ASSISTANT_PLANS.map((name) => {
         const plan = catalogResult.data[name];
         return {
           name,

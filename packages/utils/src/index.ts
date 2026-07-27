@@ -147,7 +147,11 @@ export {
   FREE_SUBSCRIPTION_MONTHLY_CREDITS,
   type OrganizationBillingPlanName,
   type PaidSubscriptionPlanName,
+  PERSONAL_ASSISTANT_MIN_PLAN,
+  PERSONAL_ASSISTANT_PLANS,
+  parseOrganizationBillingPlanName,
   parseSelfServeSubscriptionPlanName,
+  planUnlocksPersonalAssistant,
   type SelfServeSubscriptionPlanName,
   type SubscriptionPlanName,
 } from "./organization-billing-plan-names.js";
