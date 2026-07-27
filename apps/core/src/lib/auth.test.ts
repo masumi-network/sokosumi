@@ -317,6 +317,20 @@ vi.mock("@/services/stripe-user-email.service", () => ({
     syncUserEmailWithStripeMock(...args),
 }));
 
+vi.mock("@/helpers/design-md-metadata-auth", () => ({
+  applyDesignMdMetadataGuardToUserCreate: (user: Record<string, unknown>) =>
+    user,
+  applyDesignMdMetadataGuardToUserUpdate: async (
+    updateData: Record<string, unknown>,
+  ) => updateData,
+  applyDesignMdMetadataGuardToOrganizationCreate: (
+    organization: Record<string, unknown>,
+  ) => organization,
+  applyDesignMdMetadataGuardToOrganizationUpdate: async (
+    organization: Record<string, unknown>,
+  ) => organization,
+}));
+
 vi.mock("@sokosumi/email", () => ({
   renderMagicLinkEmail: (...args: unknown[]) =>
     renderMagicLinkEmailMock(...args),
