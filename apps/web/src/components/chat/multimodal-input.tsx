@@ -438,8 +438,14 @@ function PureMultimodalInput({
             matchesCoworker(coworker, preferredCoworker),
           ) ?? null);
 
+    // Legacy openrouter threads must not silently pick a compose coworker —
+    // that steals placeholder/name and would pass a coworker on send.
+    if (matchedCoworker == null && selectedModel != null) {
+      return null;
+    }
+
     return matchedCoworker ?? findDefaultCoworker(availableCoworkers);
-  }, [availableCoworkers, preferredCoworker]);
+  }, [availableCoworkers, preferredCoworker, selectedModel]);
   // Coworker DM surfaces reuse the shared room composer chrome (channels).
   // Prop coworker marks sidebar/header-locked DMs; keep model-chat glow elsewhere.
   const useRoomComposerChrome = propCoworker != null;
@@ -452,11 +458,11 @@ function PureMultimodalInput({
     !isUploadingAttachments;
   const placeholder = t("welcomeScreen.placeholder", {
     coworkerSlug:
+      selectedModel?.name ??
+      selectedModel?.id ??
       selectedCoworker?.name ??
       selectedCoworker?.slug ??
       selectedCoworker?.id ??
-      selectedModel?.name ??
-      selectedModel?.id ??
       t("welcomeScreen.coworkerSlugFallback"),
   });
 

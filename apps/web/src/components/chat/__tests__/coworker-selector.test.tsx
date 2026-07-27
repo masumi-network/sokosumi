@@ -61,4 +61,23 @@ describe("CoworkerSelector", () => {
     });
     expect(screen.getByText("agenticCoworkers")).toBeInTheDocument();
   });
+
+  it("does not show noCoworkersAvailable while coworkers are loading", async () => {
+    const user = userEvent.setup();
+    render(
+      <CoworkerSelector
+        selectedCoworker={null}
+        coworkers={[]}
+        coworkersLoading
+        onSelectCoworker={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole("button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("agenticCoworkers")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("noCoworkersAvailable")).toBeNull();
+  });
 });

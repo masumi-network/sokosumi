@@ -88,6 +88,15 @@ describe("writeWelcomeComposePreferences", () => {
       coworkerSlugOrId: "alex",
     });
   });
+
+  it("forces modelId to null even when callers pass one", () => {
+    writeWelcomeComposePreferences({
+      composeKind: "chat",
+      modelId: "kimi-k2-6",
+      coworkerSlugOrId: "alex",
+    });
+    expect(readWelcomeComposePreferences()?.modelId).toBeNull();
+  });
 });
 
 describe("buildWelcomeComposeStoredSnapshot", () => {

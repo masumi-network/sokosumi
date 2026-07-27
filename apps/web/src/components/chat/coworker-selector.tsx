@@ -123,7 +123,12 @@ export default function CoworkerSelector({
             </h3>
           </div>
           <div className="px-1 pb-2">
-            {coworkers.length === 0 ? (
+            {coworkersLoading ? (
+              <div className="flex flex-col gap-1 px-2 py-2">
+                <Skeleton className="h-8 w-full rounded-sm" />
+                <Skeleton className="h-8 w-full rounded-sm" />
+              </div>
+            ) : coworkers.length === 0 ? (
               <p className="text-muted-foreground px-2 py-2 text-sm">
                 {t("noCoworkersAvailable")}
               </p>

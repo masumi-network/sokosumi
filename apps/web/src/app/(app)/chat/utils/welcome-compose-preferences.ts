@@ -73,7 +73,12 @@ export function writeWelcomeComposePreferences(
 ): void {
   if (typeof window === "undefined") return;
   try {
-    const payload: WelcomeComposeStoredV1 = { v: 1, ...snapshot };
+    // New chats are coworker-only; never persist a model id from callers.
+    const payload: WelcomeComposeStoredV1 = {
+      v: 1,
+      ...snapshot,
+      modelId: null,
+    };
     window.localStorage.setItem(
       WELCOME_COMPOSE_PREFERENCES_STORAGE_KEY,
       JSON.stringify(payload),
