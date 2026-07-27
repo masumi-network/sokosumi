@@ -30,16 +30,17 @@ SET
     ELSE 0
   END;
 
-ALTER TABLE "Agent"
-ALTER COLUMN "registryIdentity" SET NOT NULL;
-
+-- Deliberately remains nullable for rollback compatibility: the previous Core
+-- release does not populate this column when inserting a newly discovered V1
+-- agent. New code always writes it; a later migration can tighten the column.
 CREATE UNIQUE INDEX "Agent_registryIdentity_key"
 ON "Agent"("registryIdentity");
 
--- Snapshot the on-chain agent revision and V2 source selection used to create
--- a paid job, even after the stable Agent row advances to a newer revision.
+-- Snapshot the agent execution revision for every job and the V2 payment
+-- source selection for paid jobs, even after the stable Agent row advances.
 ALTER TABLE "Job"
 ADD COLUMN "agentBlockchainIdentifier" TEXT,
+ADD COLUMN "agentApiBaseUrl" TEXT,
 ADD COLUMN "paymentSourceType" TEXT,
 ADD COLUMN "supportedPaymentSourceIndex" INTEGER;
 

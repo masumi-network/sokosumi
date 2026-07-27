@@ -32,4 +32,6 @@ V2/x402 release when the snapshots were taken. Once the deployments are
 upgraded, `fetch:specs` fetches from them.
 
 `fetch:specs` refuses to overwrite a snapshot with a lower `info.version`
-(deployment lagging behind the pin); run with `FORCE=1` to override.
+(deployment lagging behind the pin). Because upstream payment specs may retain
+the same version across releases, it also requires V2/x402 schema landmarks.
+Run with `FORCE=1` only for an intentional contract downgrade.

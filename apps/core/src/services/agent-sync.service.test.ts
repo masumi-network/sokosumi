@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   agentCreateMock,
+  exampleOutputDeleteManyMock,
   agentFindManyMock,
   agentFindUniqueMock,
   agentFixedPricingDeleteMock,
@@ -27,6 +28,7 @@ const {
   unitValueDeleteManyMock,
 } = vi.hoisted(() => ({
   agentCreateMock: vi.fn(),
+  exampleOutputDeleteManyMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   agentFindUniqueMock: vi.fn(),
   agentFixedPricingDeleteMock: vi.fn(),
@@ -91,6 +93,9 @@ vi.mock("@/lib/db/prisma", () => ({
     agentPaymentSource: {
       deleteMany: agentPaymentSourceDeleteManyMock,
     },
+    exampleOutput: {
+      deleteMany: exampleOutputDeleteManyMock,
+    },
     syncMetadata: {
       deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
@@ -139,6 +144,9 @@ function createTransactionClientMock() {
     },
     agentPaymentSource: {
       deleteMany: agentPaymentSourceDeleteManyMock,
+    },
+    exampleOutput: {
+      deleteMany: exampleOutputDeleteManyMock,
     },
   };
 }
@@ -237,6 +245,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     unitValueDeleteManyMock.mockResolvedValue({ count: 0 });
     agentFixedPricingDeleteMock.mockResolvedValue(undefined);
     agentPaymentSourceDeleteManyMock.mockResolvedValue({ count: 0 });
+    exampleOutputDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataUpsertMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -257,6 +266,27 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("starts a full replay from the independent V2 cursor when enabled", async () => {
+    const agentSyncService = await getAgentSyncService();
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
+    getAgentsDiffMock.mockResolvedValue(ok([]));
+
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(syncMetadataFindUniqueMock).toHaveBeenCalledWith({
+      where: { key: "agents-sync-metadata-cardano-v2" },
+    });
+    expect(getAgentsDiffMock).toHaveBeenCalledWith(
+      new Date(0),
+      null,
+      50,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it("stops registry sync immediately when shouldContinue returns false", async () => {
@@ -339,7 +369,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     });
 
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: "agents-sync-metadata" },
+      where: { key: "agents-sync-metadata-cardano-v2" },
     });
     expect(syncMetadataDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
       syncMetadataFindUniqueMock.mock.invocationCallOrder[0] ?? Infinity,
@@ -439,10 +469,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: {
-        key: "agents-sync-metadata",
+        key: "agents-sync-metadata-cardano-v2",
       },
       create: {
-        key: "agents-sync-metadata",
+        key: "agents-sync-metadata-cardano-v2",
         cursorId: "entry-3",
         lastSyncedAt: new Date(lastStatusUpdatedAt),
       },
@@ -588,7 +618,57 @@ describe("agentSyncService.syncRegistryAgents", () => {
         where: { id: "agent-stable-1" },
         data: expect.objectContaining({
           blockchainIdentifier: newerIdentifier,
+          registryIdentity: V2_AGENT_ROOT,
           registryVersion: 2,
+          summary: null,
+          tags: {
+            set: [{ name: "tag-a" }, { name: "tag-b" }],
+          },
+          exampleOutput: {
+            createMany: {
+              data: [
+                {
+                  mimeType: "text/plain",
+                  name: "Example",
+                  url: "https://example.com/output.txt",
+                },
+              ],
+            },
+          },
+        }),
+      }),
+    );
+    expect(exampleOutputDeleteManyMock).toHaveBeenCalledWith({
+      where: { agentId: "agent-stable-1" },
+    });
+  });
+
+  it("adopts a rollback-created V1 row whose registry identity is null", async () => {
+    agentFindUniqueMock.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: "agent-legacy-rollback",
+      pricingId: "pricing-1",
+      registryVersion: 0,
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([createRegistryEntry("entry-rollback-v1")]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentFindUniqueMock).toHaveBeenNthCalledWith(2, {
+      where: { blockchainIdentifier: "identifier-entry-rollback-v1" },
+      select: { id: true, pricingId: true, registryVersion: true },
+    });
+    expect(agentCreateMock).not.toHaveBeenCalled();
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-legacy-rollback" },
+        data: expect.objectContaining({
+          registryIdentity: "identifier-entry-rollback-v1",
         }),
       }),
     );
@@ -1167,8 +1247,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    // Only the V1 entry is written; the deferred entries still advance the
-    // cursor (a reset-cursor backfill picks them up after the flag turns on).
+    // Only the V1 entry is written; the deferred entries advance the V1
+    // cursor. Flag-on sync uses a separate empty cursor and replays them.
     expect(agentCreateMock).toHaveBeenCalledTimes(1);
     const createCall = agentCreateMock.mock.calls[0]?.[0];
     expect(createCall.data.blockchainIdentifier).toBe(
@@ -1176,6 +1256,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: {
+          key: "agents-sync-metadata",
+        },
         update: {
           cursorId: "entry-v1-kept",
           lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
@@ -1268,10 +1351,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock).toHaveBeenCalledTimes(2);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: {
-        key: "agents-sync-metadata",
+        key: "agents-sync-metadata-cardano-v2",
       },
       create: {
-        key: "agents-sync-metadata",
+        key: "agents-sync-metadata-cardano-v2",
         cursorId: "entry-1",
         lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
       },

@@ -17,11 +17,9 @@ export default function mount(app: Hono) {
     });
   });
 
-  // One-off backfill lever (CRON_SECRET-protected like the sync itself, same
-  // lock): clears the diff cursor and starts a full registry replay — needed
-  // after ingestion gains new entry types, because the cursor has already
-  // advanced past previously skipped entries. Deliberately a separate path so
-  // the recurring cron URL can never carry a permanent reset by mistake.
+  // One-off recovery lever (CRON_SECRET-protected like the sync itself, same
+  // lock): clears the active rollout cursor and starts a full registry replay.
+  // Normal V2 enablement replays automatically via its dedicated cursor.
   app.get("/agents/reset-cursor", async (c) => {
     return await handleSyncRequest(c, AGENTS_SYNC_LOCK_KEY, async (context) => {
       await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {

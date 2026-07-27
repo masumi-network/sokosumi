@@ -205,6 +205,8 @@ function createJob(
     jobType: JobType.PAID,
     refundedTransactionId: null,
     blockchainIdentifier: "blockchain-job-1",
+    agentBlockchainIdentifier: null,
+    agentApiBaseUrl: null,
     purchase: {
       externalId: "purchase_1",
       onChainStatus: null,
@@ -345,6 +347,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
   it("backfills missing purchases and continues syncing in the same run", async () => {
     const backfilledJob = createJob({
+      agentBlockchainIdentifier: "agent-chain-at-start",
+      agentApiBaseUrl: "https://agent-at-start.example.com",
       purchase: {
         id: "purchase_1",
         externalId: "purchase_backfilled",
@@ -407,11 +411,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledTimes(2);
     expect(getJobByIdMock).toHaveBeenCalledWith("job_1", expect.any(Object));
     expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
-      // toMasumiAgent projection of the fixture agent
       expect.objectContaining({
         id: "agent_1",
-        blockchainIdentifier: "agent-chain-1",
-        apiBaseUrl: "https://agent.example.com",
+        blockchainIdentifier: "agent-chain-at-start",
+        apiBaseUrl: "https://agent-at-start.example.com",
+        metadataOverride: null,
       }),
       backfilledJob.agentJobId,
       expect.objectContaining({

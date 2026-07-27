@@ -212,7 +212,7 @@ describe("createPurchase duplicate handling", () => {
     expect(result.isErr()).toBe(true);
   });
 
-  it("falls back to the embedded purchase when resolve fails transiently", async () => {
+  it("rejects the unscoped embedded purchase when resolve fails transiently", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
@@ -242,8 +242,10 @@ describe("createPurchase duplicate handling", () => {
       "aabbccddeeff00112233",
     );
 
-    expect(result.isOk()).toBe(true);
-    expect(result.isOk() && result.value.id).toBe("purchase_existing");
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "Failed to resolve duplicate purchase",
+    );
   });
 
   it("rejects an embedded purchase whose identifier does not match", async () => {

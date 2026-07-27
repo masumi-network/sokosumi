@@ -38,7 +38,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
-import { getAgentName, toMasumiAgent } from "@/helpers/agent";
+import { getAgentName, toMasumiAgentForJob } from "@/helpers/agent";
 import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
@@ -201,7 +201,8 @@ function buildFailureNotificationData(
   return {
     network: getEnv().NETWORK,
     agentId: job.agentId,
-    agentBlockchainIdentifier: job.agent.blockchainIdentifier,
+    agentBlockchainIdentifier:
+      job.agentBlockchainIdentifier ?? job.agent.blockchainIdentifier,
     agentName: getAgentName(job.agent),
     jobId: job.id,
     jobBlockchainIdentifier: job.blockchainIdentifier,
@@ -723,6 +724,7 @@ async function syncAgentStatus(
   // endpoint to poll; such agents cannot be hired, so this only guards
   // legacy/corner rows.
   if (
+    !initialJob.agentApiBaseUrl &&
     !initialJob.agent.apiBaseUrl &&
     !initialJob.agent.metadataOverride?.apiBaseUrl
   ) {
@@ -739,7 +741,7 @@ async function syncAgentStatus(
   }
 
   const agentJobStatusResult = await createAgentClient().fetchAgentJobStatus(
-    toMasumiAgent(initialJob.agent),
+    toMasumiAgentForJob(initialJob),
     agentJobIdToSync,
     {
       signal: pollingSignal,

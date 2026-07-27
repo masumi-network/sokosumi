@@ -6,7 +6,6 @@ import { err, ok, type Result } from "neverthrow";
 
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
-  type PostPurchaseErrors,
   type PostPurchaseResolveBlockchainIdentifierResponses,
   type PostPurchaseResponses,
   postPurchase,
@@ -21,28 +20,6 @@ interface PaymentClientRequestOptions {
 type ResolvedPurchase =
   PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
-type DuplicatePurchase = PostPurchaseErrors["409"]["object"];
-
-function getDuplicatePurchase(
-  error: unknown,
-  blockchainIdentifier: string,
-): DuplicatePurchase | undefined {
-  if (
-    typeof error !== "object" ||
-    error === null ||
-    !("object" in error) ||
-    typeof error.object !== "object" ||
-    error.object === null ||
-    !("id" in error.object) ||
-    typeof error.object.id !== "string" ||
-    !("blockchainIdentifier" in error.object) ||
-    error.object.blockchainIdentifier !== blockchainIdentifier
-  ) {
-    return undefined;
-  }
-
-  return error.object as DuplicatePurchase;
-}
 
 interface MasumiTaskPurchaseInput {
   blockchainIdentifier: string;
@@ -101,15 +78,12 @@ export function createPaymentClient(
   };
 
   const recoverDuplicatePurchase = async (
-    error: unknown,
     blockchainIdentifier: string,
   ): Promise<Result<CreatedPurchase, string>> => {
     // The node's duplicate check is NOT wallet-scope filtered, so the 409's
-    // embedded purchase may belong to another API key's scope. Confirm
-    // visibility through the scope-filtered resolve endpoint first; the
-    // embedded object is only a resilience fallback when resolve fails
-    // transiently (a scope-filtered 404 must stay an error, otherwise a
-    // foreign purchase snapshot would wedge the job unrefunded).
+    // embedded purchase may belong to another API key's scope. Only accept a
+    // purchase returned by the scope-filtered resolve endpoint. On a transient
+    // resolve failure, Core's job-sync backfill retries this lookup safely.
     try {
       const response = await postPurchaseResolveBlockchainIdentifier({
         client: client(),
@@ -125,12 +99,7 @@ export function createPaymentClient(
         return err("Duplicate purchase is not visible to this API key");
       }
     } catch {
-      // Transient failure — fall through to the embedded object.
-    }
-
-    const duplicatePurchase = getDuplicatePurchase(error, blockchainIdentifier);
-    if (duplicatePurchase) {
-      return ok(duplicatePurchase);
+      return err("Failed to resolve duplicate purchase");
     }
 
     return err("Failed to resolve duplicate purchase");
@@ -202,7 +171,6 @@ export function createPaymentClient(
               { blockchainIdentifier: startJobResponse.blockchainIdentifier },
             );
             return recoverDuplicatePurchase(
-              response.error,
               startJobResponse.blockchainIdentifier,
             );
           }
@@ -259,10 +227,7 @@ export function createPaymentClient(
               network,
               blockchainIdentifier: input.blockchainIdentifier,
             });
-            return recoverDuplicatePurchase(
-              response.error,
-              input.blockchainIdentifier,
-            );
+            return recoverDuplicatePurchase(input.blockchainIdentifier);
           }
           console.error(`${logLabel} payment API error`, {
             network,

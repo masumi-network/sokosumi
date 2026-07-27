@@ -31,6 +31,7 @@ import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
   buildAvailableAgentWhereClause,
+  calculateCentsFromMasumiAmountStrings,
   getAgentCost,
   getCreditCostsOrThrow,
   toMasumiAgent,
@@ -79,6 +80,7 @@ async function createPaidJob(
   input: {
     agentId: string;
     agentBlockchainIdentifier: string;
+    agentApiBaseUrl: string;
     ownerId: string;
     organizationId: string | null;
     workspaceId: string;
@@ -156,6 +158,7 @@ async function createPaidJob(
       unlockTime: new Date(agentJobResponse.unlockTime),
       blockchainIdentifier: agentJobResponse.blockchainIdentifier,
       agentBlockchainIdentifier: input.agentBlockchainIdentifier,
+      agentApiBaseUrl: input.agentApiBaseUrl,
       paymentSourceType: agentJobResponse.paymentSourceType,
       supportedPaymentSourceIndex: agentJobResponse.supportedPaymentSourceIndex,
       sellerVkey: agentJobResponse.sellerVKey,
@@ -174,6 +177,8 @@ async function createPaidJob(
 async function createFreeJob(
   input: {
     agentId: string;
+    agentBlockchainIdentifier: string;
+    agentApiBaseUrl: string;
     ownerId: string;
     organizationId: string | null;
     workspaceId: string;
@@ -222,6 +227,8 @@ async function createFreeJob(
       submitResultTime: null,
       unlockTime: null,
       blockchainIdentifier: null,
+      agentBlockchainIdentifier: input.agentBlockchainIdentifier,
+      agentApiBaseUrl: input.agentApiBaseUrl,
       sellerVkey: null,
       identifierFromPurchaser: null,
     },
@@ -279,6 +286,9 @@ export async function createAgentJobForUser(
           network: getEnv().NETWORK,
           paymentSourceType: "Web3CardanoV2",
         },
+        include: {
+          amounts: true,
+        },
         orderBy: { sourceIndex: "asc" },
       },
     },
@@ -288,13 +298,17 @@ export async function createAgentJobForUser(
     throw notFound("Agent not found");
   }
 
-  const cost = getAgentCost(agentRecord, creditCosts);
+  let cost = getAgentCost(agentRecord, creditCosts);
 
-  if (maxCents !== null && cost.cents > maxCents) {
+  if (
+    agentRecord.paymentType !== PaymentType.WEB3_CARDANO_V2 &&
+    maxCents !== null &&
+    cost.cents > maxCents
+  ) {
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
 
-  const agent = { ...agentRecord, cost };
+  const agent = agentRecord;
 
   if (agentInput.projectId !== null && agentInput.projectId !== undefined) {
     const project = await prisma.project.findFirst({
@@ -327,9 +341,12 @@ export async function createAgentJobForUser(
     return jobName;
   };
 
+  const masumiAgent = toMasumiAgent(agent);
   const jobInput = {
     agentId: agentInput.agentId,
-    agentBlockchainIdentifier: agent.blockchainIdentifier,
+    agentBlockchainIdentifier: masumiAgent.blockchainIdentifier,
+    agentApiBaseUrl:
+      masumiAgent.metadataOverride?.apiBaseUrl ?? masumiAgent.apiBaseUrl,
     ownerId: owner.ownerId,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
@@ -342,8 +359,6 @@ export async function createAgentJobForUser(
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;
   let freeJobResult: StartFreeJobResponseSchemaType | null = null;
   let identifierFromPurchaser: string | null = null;
-
-  const masumiAgent = toMasumiAgent(agent);
 
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
@@ -385,7 +400,7 @@ export async function createAgentJobForUser(
       }
 
       if (agent.paymentType === PaymentType.WEB3_CARDANO_V2) {
-        const selectedSource = agent.paymentSources.some(
+        const selectedSource = agent.paymentSources.find(
           (source) =>
             response.supportedPaymentSourceIndex === source.sourceIndex,
         );
@@ -401,6 +416,26 @@ export async function createAgentJobForUser(
           throw unprocessableEntity(
             "Paid V2 agent job returned an invalid payment source type",
           );
+        }
+        if (
+          selectedSource.pricingType !== PricingType.FIXED ||
+          selectedSource.amounts.length === 0
+        ) {
+          throw unprocessableEntity(
+            "Paid V2 agent job selected a source without fixed pricing",
+          );
+        }
+        cost = {
+          cents: calculateCentsFromMasumiAmountStrings(
+            selectedSource.amounts.map((amount) => ({
+              unit: amount.unit,
+              amount: amount.amount.toString(),
+            })),
+            creditCosts,
+          ),
+        };
+        if (maxCents !== null && cost.cents > maxCents) {
+          throw badRequest("Credit cost exceeds maximum accepted credits");
         }
         paidJobResult = {
           ...response,
@@ -449,7 +484,7 @@ export async function createAgentJobForUser(
 
     return await createPaidJob(
       { ...jobInput, name: jobName },
-      agent.cost,
+      cost,
       paidJobResult,
       identifierFromPurchaser,
       tx,

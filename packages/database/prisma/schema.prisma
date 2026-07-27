@@ -670,8 +670,9 @@ model Agent {
   blockchainIdentifier String @unique
   // Stable registry identity. V2 identifiers end in a 3-byte version; this
   // stores the identifier without that suffix so every revision maps to the
-  // same product-owned Agent row.
-  registryIdentity     String @unique
+  // same product-owned Agent row. Nullable for rollback compatibility with
+  // the previous Core release, which does not populate this field on inserts.
+  registryIdentity     String? @unique
   registryVersion      Int    @default(0)
 
   name        String
@@ -960,6 +961,7 @@ model Job {
 
   blockchainIdentifier        String?   @unique
   agentBlockchainIdentifier   String?
+  agentApiBaseUrl              String?
   paymentSourceType           String?
   supportedPaymentSourceIndex Int?
   identifierFromPurchaser     String?

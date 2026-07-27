@@ -18,6 +18,7 @@ import {
   getUserAgentReview,
   requireAvailableAgentOrThrow,
   toMasumiAgent,
+  toMasumiAgentForJob,
   upsertUserAgentReview,
 } from "./agent";
 
@@ -177,6 +178,43 @@ describe("toMasumiAgent", () => {
     });
 
     expect(result.apiBaseUrl).toBe("https://agent.example.com");
+  });
+});
+
+describe("toMasumiAgentForJob", () => {
+  const agent = {
+    id: "agent-1",
+    name: "Agent One",
+    blockchainIdentifier: "current-chain",
+    apiBaseUrl: "https://current.example.com",
+    metadataOverride: { apiBaseUrl: "https://current-override.example.com" },
+  };
+
+  it("uses the immutable job snapshot instead of the current revision", () => {
+    expect(
+      toMasumiAgentForJob({
+        agent,
+        agentBlockchainIdentifier: "started-chain",
+        agentApiBaseUrl: "https://started.example.com",
+      }),
+    ).toEqual({
+      id: "agent-1",
+      name: "Agent One",
+      blockchainIdentifier: "started-chain",
+      apiBaseUrl: "https://started.example.com",
+      metadataOverride: null,
+    });
+  });
+
+  it("falls back to the current effective endpoint for legacy jobs", () => {
+    const result = toMasumiAgentForJob({
+      agent,
+      agentBlockchainIdentifier: null,
+      agentApiBaseUrl: null,
+    });
+
+    expect(result.blockchainIdentifier).toBe("current-chain");
+    expect(result.apiBaseUrl).toBe("https://current-override.example.com");
   });
 });
 

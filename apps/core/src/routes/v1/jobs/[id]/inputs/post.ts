@@ -3,7 +3,7 @@ import { AgentJobStatus } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
-import { toMasumiAgent } from "@/helpers/agent";
+import { toMasumiAgentForJob } from "@/helpers/agent";
 import {
   badRequest,
   conflict,
@@ -147,7 +147,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const provideInputResult = await createAgentClient().provideJobInput(
-      toMasumiAgent(jobEvent.job.agent),
+      toMasumiAgentForJob(jobEvent.job),
       jobEvent.job.agentJobId,
       jobEvent.inputSchema,
       inputData,

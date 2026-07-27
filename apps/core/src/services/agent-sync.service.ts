@@ -18,6 +18,7 @@ import prisma from "@/lib/db/prisma";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
 const AGENT_SYNC_BATCH_SIZE = 50;
+const CARDANO_V2_SYNC_METADATA_SUFFIX = "-cardano-v2";
 
 interface SyncExecutionOptions {
   abortSignal: AbortSignal;
@@ -493,16 +494,31 @@ async function upsertRegistryAgent(
   const version = resolveRegistryAgentVersion(entry);
   const registryFields = buildRegistryAgentFields(entry, version);
   const paymentSourceRows = buildPaymentSourceRows(entry);
-  const tagsConnect = {
-    connect: entry.tags?.map((tag) => ({
-      name: tag,
-    })),
-  };
+  const tagReferences = (entry.tags ?? []).map((tag) => ({ name: tag }));
+  const exampleOutputRows = (entry.ExampleOutput ?? []).map((example) => ({
+    mimeType: example.mimeType,
+    name: example.name,
+    url: example.url,
+  }));
 
-  const existing = await prisma.agent.findUnique({
+  const existingAgentSelect = {
+    id: true,
+    pricingId: true,
+    registryVersion: true,
+  } as const;
+  const existingByRegistryIdentity = await prisma.agent.findUnique({
     where: { registryIdentity: version.registryIdentity },
-    select: { id: true, pricingId: true, registryVersion: true },
+    select: existingAgentSelect,
   });
+  // A previous Core binary can insert V1 agents with registryIdentity=NULL
+  // during rollback. Adopt that row by its legacy unique identifier when the
+  // new release returns instead of colliding on blockchainIdentifier.
+  const existing =
+    existingByRegistryIdentity ??
+    (await prisma.agent.findUnique({
+      where: { blockchainIdentifier: entry.agentIdentifier },
+      select: existingAgentSelect,
+    }));
 
   if (!existing) {
     await prisma.agent.create({
@@ -511,7 +527,7 @@ async function upsertRegistryAgent(
         registryIdentity: version.registryIdentity,
         registryVersion: version.registryVersion,
         ...registryFields,
-        tags: tagsConnect,
+        tags: { connect: tagReferences },
         isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
         pricing: {
           create: {
@@ -536,11 +552,7 @@ async function upsertRegistryAgent(
         },
         exampleOutput: {
           createMany: {
-            data: (entry.ExampleOutput ?? []).map((example) => ({
-              mimeType: example.mimeType,
-              name: example.name,
-              url: example.url,
-            })),
+            data: exampleOutputRows,
           },
         },
       },
@@ -552,20 +564,42 @@ async function upsertRegistryAgent(
     return;
   }
 
-  // Full refresh of registry-derived data. Example outputs are deliberately
-  // not refreshed (create-only, as before); tags accumulate via connect.
+  const isRevisionPromotion =
+    version.registryVersion > existing.registryVersion;
+
+  // Scalars refresh on every diff. A V2 revision promotion additionally
+  // replaces registry-owned collections and invalidates the generated summary
+  // so the stable Agent row never presents a mixture of two revisions.
   await prisma.$transaction(async (tx) => {
     await replaceAgentPricing(tx, existing.pricingId, pricing);
     await tx.agentPaymentSource.deleteMany({
       where: { agentId: existing.id },
     });
+    if (isRevisionPromotion) {
+      await tx.exampleOutput.deleteMany({
+        where: { agentId: existing.id },
+      });
+    }
     await tx.agent.update({
       where: { id: existing.id },
       data: {
         blockchainIdentifier: entry.agentIdentifier,
+        registryIdentity: version.registryIdentity,
         registryVersion: version.registryVersion,
         ...registryFields,
-        tags: tagsConnect,
+        ...(isRevisionPromotion
+          ? {
+              summary: null,
+              tags: { set: tagReferences },
+              ...(exampleOutputRows.length > 0
+                ? {
+                    exampleOutput: {
+                      createMany: { data: exampleOutputRows },
+                    },
+                  }
+                : {}),
+            }
+          : { tags: { connect: tagReferences } }),
         paymentSources: {
           create: buildPaymentSourcesCreate(paymentSourceRows),
         },
@@ -577,9 +611,9 @@ async function upsertRegistryAgent(
 /**
  * Rollback fence: while the rollout flag is off, entries that would write
  * rows the PREVIOUS release's Prisma client cannot read (WEB3_CARDANO_V2 or
- * UNKNOWN enum values, NULL apiBaseUrl) are deferred. Turning the flag on is
- * the explicit rollback point; run /sync/agents/reset-cursor afterwards to
- * backfill the deferred entries.
+ * UNKNOWN enum values, NULL apiBaseUrl) are deferred. V2-enabled deployments
+ * use their own sync cursor, so turning the flag on automatically replays the
+ * registry without disturbing the rollback-safe V1 cursor.
  */
 function isRollbackUnsafeEntry(entry: RegistryDiffEntry): boolean {
   return (
@@ -611,8 +645,12 @@ async function syncRegistryAgents(
   options: SyncExecutionOptions & { resetCursor?: boolean },
 ): Promise<void> {
   const startedAt = Date.now();
+  const isCardanoV2Enabled = getEnv().ENABLE_CARDANO_V2_AGENTS;
+  const activeMetadataKey = isCardanoV2Enabled
+    ? `${metadataKey}${CARDANO_V2_SYNC_METADATA_SUFFIX}`
+    : metadataKey;
   console.info(
-    `[sync/agents] Starting registry sync (metadataKey=${metadataKey})`,
+    `[sync/agents] Starting registry sync (metadataKey=${activeMetadataKey})`,
   );
 
   if (
@@ -623,7 +661,7 @@ async function syncRegistryAgents(
 
   if (options.resetCursor) {
     await prisma.syncMetadata.deleteMany({
-      where: { key: metadataKey },
+      where: { key: activeMetadataKey },
     });
     console.info(
       "[sync/agents] Cursor reset requested — replaying the full registry diff",
@@ -632,13 +670,13 @@ async function syncRegistryAgents(
 
   const metadata = await prisma.syncMetadata.findUnique({
     where: {
-      key: metadataKey,
+      key: activeMetadataKey,
     },
   });
   let lastSyncedAt = metadata?.lastSyncedAt ?? new Date(0);
   let cursorId = metadata?.cursorId ?? null;
 
-  const deferV2Ingestion = !getEnv().ENABLE_CARDANO_V2_AGENTS;
+  const deferV2Ingestion = !isCardanoV2Enabled;
   let totalProcessedCount = 0;
   let totalDeferredCount = 0;
   let batchCount = 0;
@@ -751,10 +789,10 @@ async function syncRegistryAgents(
     const lastEntry = entries[processedEntryCount - 1];
     await prisma.syncMetadata.upsert({
       where: {
-        key: metadataKey,
+        key: activeMetadataKey,
       },
       create: {
-        key: metadataKey,
+        key: activeMetadataKey,
         cursorId: lastEntry.id,
         lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
       },

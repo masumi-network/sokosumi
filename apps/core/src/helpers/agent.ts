@@ -99,6 +99,36 @@ export function toMasumiAgent(
   };
 }
 
+/**
+ * Resolves the immutable agent execution context captured when a job started.
+ * Legacy jobs without snapshots fall back to the current Agent row.
+ */
+export function toMasumiAgentForJob(job: {
+  agentBlockchainIdentifier?: string | null;
+  agentApiBaseUrl?: string | null;
+  agent: Pick<Agent, "id" | "name" | "blockchainIdentifier" | "apiBaseUrl"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
+  };
+}): MasumiAgent {
+  const currentApiBaseUrl =
+    job.agent.metadataOverride?.apiBaseUrl ?? job.agent.apiBaseUrl;
+  const apiBaseUrl = job.agentApiBaseUrl ?? currentApiBaseUrl;
+  if (!apiBaseUrl) {
+    throw unprocessableEntity("Agent has no API endpoint");
+  }
+
+  return {
+    id: job.agent.id,
+    name: job.agent.name,
+    blockchainIdentifier:
+      job.agentBlockchainIdentifier ?? job.agent.blockchainIdentifier,
+    apiBaseUrl,
+    // The snapshot is already the effective endpoint; a later metadata
+    // override must not redirect an active job.
+    metadataOverride: null,
+  };
+}
+
 export interface JobDetailsAgentOverrideFields {
   overrideName: string | null;
   overrideImage: string | null;

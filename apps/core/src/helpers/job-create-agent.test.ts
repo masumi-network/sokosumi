@@ -9,6 +9,7 @@ import { createAgentJobForUser } from "./job";
 
 const {
   agentFindFirstMock,
+  calculateCentsFromMasumiAmountStringsMock,
   createAgentClientMock,
   createPurchaseMock,
   creditBucketPrepareConsumptionMock,
@@ -20,6 +21,7 @@ const {
   txJobCreateMock,
 } = vi.hoisted(() => ({
   agentFindFirstMock: vi.fn(),
+  calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createAgentClientMock: vi.fn(),
   createPurchaseMock: vi.fn(),
   creditBucketPrepareConsumptionMock: vi.fn(),
@@ -33,6 +35,8 @@ const {
 
 vi.mock("@/helpers/agent", () => ({
   buildAvailableAgentWhereClause: () => ({}),
+  calculateCentsFromMasumiAmountStrings:
+    calculateCentsFromMasumiAmountStringsMock,
   getAgentCost: getAgentCostMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   toMasumiAgent: (agent: {
@@ -120,7 +124,18 @@ function createPaidV2AgentRecord() {
       },
     },
     paymentType: PaymentType.WEB3_CARDANO_V2,
-    paymentSources: [{ sourceIndex: 0 }, { sourceIndex: 2 }],
+    paymentSources: [
+      {
+        sourceIndex: 0,
+        pricingType: PricingType.FIXED,
+        amounts: [{ unit: "lovelace", amount: BigInt(1_000_000) }],
+      },
+      {
+        sourceIndex: 2,
+        pricingType: PricingType.FIXED,
+        amounts: [{ unit: "lovelace", amount: BigInt(2_000_000) }],
+      },
+    ],
   };
 }
 
@@ -172,6 +187,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     vi.clearAllMocks();
     getCreditCostsOrThrowMock.mockResolvedValue([{ unit: "lovelace" }]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
+    calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(2));
     creditBucketPrepareConsumptionMock.mockResolvedValue([]);
     createPurchaseMock.mockResolvedValue(err("payment unavailable"));
     agentFindFirstMock.mockResolvedValue(createAgentRecord());
@@ -294,6 +310,9 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
               network: "Preprod",
               paymentSourceType: "Web3CardanoV2",
             },
+            include: {
+              amounts: true,
+            },
             orderBy: { sourceIndex: "asc" },
           },
         }),
@@ -303,6 +322,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           agentBlockchainIdentifier: "agent-chain",
+          agentApiBaseUrl: "https://agent.example.com",
           paymentSourceType: "Web3CardanoV2",
           supportedPaymentSourceIndex: 2,
         }),
@@ -314,6 +334,31 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       { prompt: "hello" },
       expect.any(String),
     );
+    expect(calculateCentsFromMasumiAmountStringsMock).toHaveBeenCalledWith(
+      [{ unit: "lovelace", amount: "2000000" }],
+      [{ unit: "lovelace" }],
+    );
+    expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "user_1",
+      "org_1",
+      BigInt(2),
+      expect.any(Object),
+    );
+  });
+
+  it("enforces maxAcceptedCents against the selected V2 source", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(11));
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV2JobResponse)),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Credit cost exceeds maximum accepted credits",
+    );
+
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 
   it("rejects a V2 response that selects a different payment source", async () => {
