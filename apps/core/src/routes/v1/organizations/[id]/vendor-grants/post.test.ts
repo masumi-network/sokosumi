@@ -201,7 +201,7 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
   });
 
-  it("allows coworker context as the context user via requireUserContext", async () => {
+  it("rejects coworker context even with X-Context-User-Id", async () => {
     vendorGrantUpsertMock.mockResolvedValue(baseGrant());
 
     const coworkerAuth: AuthenticationContext = {
@@ -220,10 +220,9 @@ describe("POST /organizations/{id}/vendor-grants", () => {
       },
     );
 
-    expect(response.status).toBe(201);
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user_123", id: orgId }),
-    );
+    expect(response.status).toBe(403);
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
   });
 
   it("allows orchestrator with context headers as the context user", async () => {

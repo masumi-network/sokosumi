@@ -165,7 +165,7 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
     );
   });
 
-  it("allows coworker context as the context user via requireUserContext", async () => {
+  it("rejects coworker context even with X-Context-User-Id", async () => {
     const existing = {
       id: grantId,
       vendorId,
@@ -180,12 +180,6 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
       vendor: { name: "Acme", slug: "acme" },
     };
     vendorGrantFindFirstMock.mockResolvedValue(existing);
-    vendorGrantUpdateMock.mockResolvedValue({
-      ...existing,
-      status: VendorGrantStatus.DENIED,
-      resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
-      resolvedById: "user_123",
-    });
 
     const response = await createApp({
       actor: "coworker",
@@ -196,9 +190,8 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
       method: "POST",
     });
 
-    expect(response.status).toBe(200);
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user_123" }),
-    );
+    expect(response.status).toBe(403);
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
   });
 });
