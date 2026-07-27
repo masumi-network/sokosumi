@@ -32,6 +32,7 @@ export const betterAuthUserAdditionalFields = {
     type: "string",
     required: false,
     defaultValue: null,
+    input: false,
   },
   onboardingCompleted: {
     type: "boolean",

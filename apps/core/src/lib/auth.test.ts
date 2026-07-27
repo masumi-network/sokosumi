@@ -984,7 +984,15 @@ describe("core auth config", () => {
       [
         {
           user: {
-            additionalFields: Record<string, { type: string }>;
+            additionalFields: Record<
+              string,
+              {
+                type: string;
+                required?: boolean;
+                defaultValue?: unknown;
+                input?: boolean;
+              }
+            >;
           };
         },
       ]
@@ -1001,6 +1009,12 @@ describe("core auth config", () => {
         "onboardingCompleted",
       ]),
     );
+    expect(config.user.additionalFields.stripeCustomerId).toEqual({
+      type: "string",
+      required: false,
+      defaultValue: null,
+      input: false,
+    });
 
     const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
       [
