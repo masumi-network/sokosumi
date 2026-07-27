@@ -94,13 +94,15 @@ function mapPublicTaskMilestone(
   event: PublicTaskWithRelations["events"][number],
 ): PublicSharedTaskMilestone | null {
   const comment = event.comment?.trim() || null;
-  const settledCredits =
+  // Prefer event.cents (same as authenticated mapTaskEvent). Fall back to the
+  // spend row for historical settled events that stored amount but null cents.
+  const creditsFromCents =
+    event.cents != null ? convertCentsToCredits(event.cents) : null;
+  const creditsFromSpend =
     event.transaction?.amount != null && event.transaction.amount < 0n
       ? convertCentsToCredits(event.transaction.amount * -1n)
       : null;
-  const attemptedCredits =
-    event.cents != null ? convertCentsToCredits(event.cents) : null;
-  const credits = settledCredits ?? attemptedCredits;
+  const credits = creditsFromCents ?? creditsFromSpend;
 
   if (!event.status && !comment && credits == null) {
     return null;

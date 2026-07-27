@@ -570,6 +570,7 @@ describe("POST /{id}/events", () => {
   it("auto-sets OUT_OF_CREDITS when CANCELED credits are insufficient", async () => {
     const createdEvent = createTaskEvent({
       status: TaskStatus.OUT_OF_CREDITS,
+      cents: convertCreditsToCents(2),
     });
     const tx: TransactionMock = {
       taskEvent: {
@@ -609,6 +610,9 @@ describe("POST /{id}/events", () => {
     const body = await response.json();
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(body.data.credits).toBe(2);
+    expect(body.attemptedCredits).toBe(2);
+    expect(body.requestedStatus).toBe(TaskStatus.CANCELED);
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -626,6 +630,7 @@ describe("POST /{id}/events", () => {
     );
     const createdEvent = createTaskEvent({
       status: TaskStatus.OUT_OF_CREDITS,
+      cents: convertCreditsToCents(5),
     });
     const tx: TransactionMock = {
       taskEvent: {
@@ -664,6 +669,9 @@ describe("POST /{id}/events", () => {
     const body = await response.json();
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(body.data.credits).toBe(5);
+    expect(body.attemptedCredits).toBe(5);
+    expect(body.requestedStatus).toBeNull();
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -679,6 +687,7 @@ describe("POST /{id}/events", () => {
   it("auto-sets OUT_OF_CREDITS when masumiPayment charge is insufficient", async () => {
     const createdEvent = createTaskEvent({
       status: TaskStatus.OUT_OF_CREDITS,
+      cents: convertCreditsToCents(5),
     });
     const tx: TransactionMock = {
       taskEvent: {
@@ -718,6 +727,9 @@ describe("POST /{id}/events", () => {
     const body = await response.json();
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE);
     expect(body.data.status).toBe(TaskStatus.OUT_OF_CREDITS);
+    expect(body.data.credits).toBe(5);
+    expect(body.attemptedCredits).toBe(5);
+    expect(body.requestedStatus).toBe(TaskStatus.COMPLETED);
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({

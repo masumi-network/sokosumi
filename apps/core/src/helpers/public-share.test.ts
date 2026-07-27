@@ -393,6 +393,26 @@ describe("getPublicSharedResourceByToken", () => {
             transaction: null,
           },
           {
+            id: "evt_cents_prefers_over_spend",
+            createdAt: new Date("2026-03-30T10:08:45.000Z"),
+            updatedAt: new Date("2026-03-30T10:08:45.000Z"),
+            channel: "SOKOSUMI",
+            status: null,
+            comment: null,
+            // Prefer cents over spend amount (auth mapTaskEvent parity).
+            cents: 50000000000n,
+            transactionId: "txn_partial_mismatch",
+            user: {
+              name: "Ada Lovelace",
+              image: "https://example.com/user.png",
+            },
+            coworker: null,
+            orchestrator: null,
+            transaction: {
+              amount: -20000000000n,
+            },
+          },
+          {
             id: "evt_orch",
             createdAt: new Date("2026-03-30T10:09:00.000Z"),
             updatedAt: new Date("2026-03-30T10:09:00.000Z"),
@@ -501,6 +521,15 @@ describe("getPublicSharedResourceByToken", () => {
             actorImage: "https://example.com/user.png",
           },
           {
+            id: "evt_cents_prefers_over_spend",
+            status: null,
+            comment: null,
+            credits: 5,
+            transactionId: "txn_partial_mismatch",
+            actorName: "Ada Lovelace",
+            actorImage: "https://example.com/user.png",
+          },
+          {
             id: "evt_orch",
             status: "COMPLETED",
             comment: "Done by Hermes",
@@ -534,7 +563,7 @@ describe("getPublicSharedResourceByToken", () => {
     expect(resource.task.jobs[1]?.completedAt).toEqual(
       new Date("2026-03-30T10:08:00.000Z"),
     );
-    expect(resource.task.events).toHaveLength(6);
+    expect(resource.task.events).toHaveLength(7);
     expect(
       resource.task.events.find((event) => event.id === "evt_orch"),
     ).toMatchObject({
