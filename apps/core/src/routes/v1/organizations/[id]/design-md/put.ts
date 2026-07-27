@@ -10,7 +10,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import {
   designMdWriteSchema,
   persistedDesignMdSchema,
@@ -70,7 +70,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
