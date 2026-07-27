@@ -123,31 +123,37 @@ export default function CoworkerSelector({
             </h3>
           </div>
           <div className="px-1 pb-2">
-            {coworkers.map((coworker) => (
-              <button
-                key={coworker.id}
-                type="button"
-                onClick={() => handleCoworkerSelect(coworker)}
-                className={cn(
-                  "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                  selectedCoworker?.id === coworker.id && "bg-accent",
-                )}
-              >
-                <CoworkerAvatarWithSkeleton
-                  coworker={coworker}
-                  getAvatarUrl={getCoworkerAvatarUrl}
-                  className="size-6 shrink-0"
-                />
-                <span className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left">
-                  <span>{coworker.name}</span>
-                  {coworker.caption && (
-                    <span className="text-muted-foreground text-xs font-normal">
-                      {coworker.caption}
-                    </span>
+            {coworkers.length === 0 ? (
+              <p className="text-muted-foreground px-2 py-2 text-sm">
+                {t("noCoworkersAvailable")}
+              </p>
+            ) : (
+              coworkers.map((coworker) => (
+                <button
+                  key={coworker.id}
+                  type="button"
+                  onClick={() => handleCoworkerSelect(coworker)}
+                  className={cn(
+                    "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
+                    selectedCoworker?.id === coworker.id && "bg-accent",
                   )}
-                </span>
-              </button>
-            ))}
+                >
+                  <CoworkerAvatarWithSkeleton
+                    coworker={coworker}
+                    getAvatarUrl={getCoworkerAvatarUrl}
+                    className="size-6 shrink-0"
+                  />
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left">
+                    <span>{coworker.name}</span>
+                    {coworker.caption && (
+                      <span className="text-muted-foreground text-xs font-normal">
+                        {coworker.caption}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         </div>
       </PopoverContent>

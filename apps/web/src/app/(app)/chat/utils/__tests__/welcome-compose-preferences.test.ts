@@ -299,6 +299,21 @@ describe("resolveHydratedWelcomeSelection", () => {
     expect(r.coworker?.slug).toBe("alex");
   });
 
+  it("for chat compose with only a stored modelId, ignores model and picks first chat-capable coworker", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: "kimi-k2-6",
+      coworkerSlugOrId: null,
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
+
   it("for chat compose when stored coworker id/slug is unknown, picks first chat-capable coworker", () => {
     const stored = {
       v: 1 as const,

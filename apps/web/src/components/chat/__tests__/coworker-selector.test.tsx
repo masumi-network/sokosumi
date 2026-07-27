@@ -43,4 +43,22 @@ describe("CoworkerSelector", () => {
     expect(screen.queryByText("models")).toBeNull();
     expect(screen.queryByText("GPT-5.4")).toBeNull();
   });
+
+  it("shows noCoworkersAvailable when coworker list is empty", async () => {
+    const user = userEvent.setup();
+    render(
+      <CoworkerSelector
+        selectedCoworker={null}
+        coworkers={[]}
+        onSelectCoworker={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole("button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("noCoworkersAvailable")).toBeInTheDocument();
+    });
+    expect(screen.getByText("agenticCoworkers")).toBeInTheDocument();
+  });
 });

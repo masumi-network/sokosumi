@@ -95,7 +95,10 @@ interface MultimodalInputProps {
   ) => boolean | Promise<boolean>;
   /** When true, send is disabled (e.g. welcome chat creation in flight). */
   submitBlocked?: boolean;
-  /** Display-only for legacy model conversations. */
+  /**
+   * Legacy openrouter model threads only. Still drives submit gating, image
+   * attach/generation capability, and placeholder — not shown in the picker.
+   */
   selectedModel?: { id: string; name: string } | null;
   className?: string;
   showSuggestedActions?: boolean;
