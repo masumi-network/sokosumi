@@ -116,7 +116,7 @@ export default function CoworkerModelSelector({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          className="hover:bg-muted text-foreground flex items-center gap-2 rounded-md px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           {selectedModel ? (
             <>
@@ -154,7 +154,9 @@ export default function CoworkerModelSelector({
                   {selectedCoworker.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:inline">{selectedCoworker.name}</span>
+              <span className="text-foreground hidden sm:inline">
+                {selectedCoworker.name}
+              </span>
             </>
           ) : (
             <>

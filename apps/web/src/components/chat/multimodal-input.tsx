@@ -617,19 +617,36 @@ function PureMultimodalInput({
         </div>
       )}
 
-      <div className="-mx-4 -mt-8 w-[calc(100%+2rem)] overflow-visible pt-8">
+      <div
+        className={cn(
+          "w-full overflow-visible",
+          // Coworker (sidebar DM) matches channel composer: no upward glow bleed.
+          selectedCoworker
+            ? "mx-0 mt-0 pt-0"
+            : "-mx-4 -mt-8 w-[calc(100%+2rem)] pt-8",
+        )}
+      >
         <div
-          data-chat-input-border-anchor
+          data-chat-input-border-anchor={selectedCoworker ? undefined : true}
           className={cn(
-            "chat-input-border-anchor",
             "relative rounded-xl",
-            "shadow-[0_0_16px_0] shadow-primary/15",
-            "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
-            "transition-shadow duration-300",
+            selectedCoworker
+              ? "border-border overflow-hidden border bg-background"
+              : cn(
+                  "chat-input-border-anchor",
+                  "shadow-[0_0_16px_0] shadow-primary/15",
+                  "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
+                  "transition-shadow duration-300",
+                ),
           )}
         >
           <PromptInput
-            className="relative z-10 border-0 bg-background rounded-[calc(var(--radius-xl)-1.5px)] shadow-none transition-all duration-200"
+            className={cn(
+              "relative z-10 bg-background shadow-none transition-all duration-200",
+              selectedCoworker
+                ? "rounded-xl border-0"
+                : "rounded-[calc(var(--radius-xl)-1.5px)] border-0",
+            )}
             onSubmit={(event) => {
               event.preventDefault();
               if (!canSubmit) {
