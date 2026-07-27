@@ -4167,6 +4167,44 @@
             "grantSuccess": "Accès fournisseur accordé",
             "grantError": "Échec de l’accord de l’accès fournisseur"
           }
+        },
+        "InviteLinks": {
+          "title": "Liens d’invitation partageables",
+          "description": "Créez des liens permettant à quiconque de rejoindre votre organisation sans invitation par e-mail.",
+          "listTitle": "Liens",
+          "listEmpty": "Aucun lien d’invitation pour le moment.",
+          "createFormTitle": "Créer un nouveau lien",
+          "statusActive": "Actif",
+          "statusDepleted": "Épuisé",
+          "statusExpired": "Expiré",
+          "statusRevoked": "Révoqué",
+          "columnStatus": "Statut",
+          "columnUses": "Utilisations",
+          "columnExpires": "Expire",
+          "columnCreated": "Créé",
+          "columnActions": "Actions",
+          "usesUnlimited": "{useCount} utilisées (illimité)",
+          "usesLimited": "{useCount} / {maxUses} utilisées",
+          "copy": "Copier le lien",
+          "copied": "Copié",
+          "copyError": "Impossible de copier le lien",
+          "revoke": "Révoquer",
+          "revokeSuccess": "Lien d’invitation révoqué",
+          "revokeError": "Impossible de révoquer le lien d’invitation",
+          "Form": {
+            "expiresInDaysLabel": "Expire après (jours)",
+            "expiresInDaysHint": "Entre 1 et 90 jours.",
+            "expiresInDaysError": "Saisissez un nombre entre 1 et 90 jours.",
+            "maxUsesLabel": "Utilisations maximales",
+            "unlimitedUses": "Utilisations illimitées",
+            "maxUsesHint": "Limite optionnelle entre 1 et 10 000 utilisations.",
+            "maxUsesError": "Saisissez un nombre entre 1 et 10 000 ou choisissez illimité.",
+            "submit": "Créer le lien",
+            "success": "Lien d’invitation créé",
+            "error": "Impossible de créer le lien d’invitation",
+            "copied": "Lien copié dans le presse-papiers",
+            "copyError": "Impossible de copier le lien"
+          }
         }
       }
     },

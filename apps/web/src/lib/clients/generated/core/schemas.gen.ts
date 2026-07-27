@@ -8483,6 +8483,11 @@ export const OrganizationInviteLinkSchema = {
         role: {
             type: 'string'
         },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         expiresAt: {
             type: 'string',
             format: 'date-time',
@@ -8510,6 +8515,7 @@ export const OrganizationInviteLinkSchema = {
         'token',
         'url',
         'role',
+        'createdAt',
         'expiresAt',
         'revokedAt',
         'maxUses',

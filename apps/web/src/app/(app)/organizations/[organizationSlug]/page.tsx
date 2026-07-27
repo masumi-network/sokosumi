@@ -8,6 +8,7 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  OrganizationInviteLink,
   PendingInvitation,
   StripeCustomerBillingDetails,
 } from "@/lib/clients/generated/core";
@@ -22,6 +23,7 @@ import { OrganizationBillingAccessRestricted } from "./components/organization-b
 import OrganizationBillingDetails from "./components/organization-billing-details";
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
+import { OrganizationInviteLinks } from "./components/organization-invite-links";
 import { OrganizationSeatSummaryCard } from "./components/organization-seat-summary";
 import { OrganizationVendorGrants } from "./components/organization-vendor-grants";
 
@@ -97,6 +99,7 @@ export default async function OrganizationPage({
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: PendingInvitation[] = [];
+  let inviteLinks: OrganizationInviteLink[] = [];
 
   if (isOwnerOrAdmin) {
     try {
@@ -105,6 +108,14 @@ export default async function OrganizationPage({
       );
     } catch (error) {
       console.error("Failed to get pending invitations", error);
+    }
+
+    try {
+      inviteLinks = await organizationService.getOrganizationInviteLinks(
+        organization.id,
+      );
+    } catch (error) {
+      console.error("Failed to get organization invite links", error);
     }
   }
 
@@ -162,6 +173,12 @@ export default async function OrganizationPage({
         ) : null}
         {isOwnerOrAdmin ? (
           <OrganizationVendorGrants organizationId={organization.id} />
+        ) : null}
+        {isOwnerOrAdmin ? (
+          <OrganizationInviteLinks
+            organizationId={organization.id}
+            inviteLinks={inviteLinks}
+          />
         ) : null}
         <div className="space-y-4">
           {isOwnerOrAdmin ? (
