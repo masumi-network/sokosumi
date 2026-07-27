@@ -7,6 +7,7 @@ import mountGetOrganizationEnterpriseContractSummary from "./[id]/enterprise-con
 import mountGetOrganization from "./[id]/get.js";
 import mountGetOrganizationInvitations from "./[id]/invitations/get.js";
 import mountRevokeOrganizationInviteLink from "./[id]/invite-links/[token]/delete.js";
+import mountListOrganizationInviteLinks from "./[id]/invite-links/get.js";
 import mountCreateOrganizationInviteLink from "./[id]/invite-links/post.js";
 import mountDeleteOrganizationMemberSeat from "./[id]/members/[memberId]/seat/delete.js";
 import mountPutOrganizationMemberSeat from "./[id]/members/[memberId]/seat/put.js";
@@ -33,6 +34,7 @@ mountGetOrganizationMembers(app);
 mountPutOrganizationMemberSeat(app);
 mountDeleteOrganizationMemberSeat(app);
 mountGetOrganizationInvitations(app);
+mountListOrganizationInviteLinks(app);
 mountCreateOrganizationInviteLink(app);
 mountRevokeOrganizationInviteLink(app);
 mountGetOrganizationVendorGrants(app);

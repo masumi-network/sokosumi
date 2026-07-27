@@ -4167,6 +4167,53 @@
             "grantSuccess": "Accesso vendor concesso",
             "grantError": "Impossibile concedere l’accesso vendor"
           }
+        },
+        "InviteLinks": {
+          "title": "Link di invito condivisibili",
+          "description": "Crea link che permettono a chiunque di unirsi alla tua organizzazione senza invito via e-mail.",
+          "listTitle": "Link",
+          "listEmpty": "Nessun link di invito ancora.",
+          "createFormTitle": "Crea nuovo link",
+          "statusActive": "Attivo",
+          "statusDepleted": "Esaurito",
+          "statusExpired": "Scaduto",
+          "statusRevoked": "Revocato",
+          "columnStatus": "Stato",
+          "columnUses": "Utilizzi",
+          "columnExpires": "Scade",
+          "columnCreated": "Creato",
+          "columnActions": "Azioni",
+          "usesUnlimited": "{useCount} utilizzati (illimitato)",
+          "usesLimited": "{useCount} / {maxUses} utilizzati",
+          "copy": "Copia link",
+          "copied": "Copiato",
+          "copyError": "Impossibile copiare il link",
+          "revoke": "Revoca",
+          "revokeSuccess": "Link di invito revocato",
+          "revokeError": "Impossibile revocare il link di invito",
+          "Form": {
+            "expiresInDaysLabel": "Scade dopo (giorni)",
+            "expiresInDaysHint": "Tra 1 e 90 giorni.",
+            "expiresInDaysError": "Inserisci un numero tra 1 e 90 giorni.",
+            "maxUsesLabel": "Utilizzi massimi",
+            "unlimitedUses": "Utilizzi illimitati",
+            "maxUsesHint": "Limite opzionale tra 1 e 10.000 utilizzi.",
+            "maxUsesError": "Inserisci un numero tra 1 e 10.000 o scegli illimitato.",
+            "submit": "Crea link",
+            "success": "Link di invito creato",
+            "error": "Impossibile creare il link di invito",
+            "copied": "Link copiato negli appunti",
+            "copyError": "Impossibile copiare il link"
+          },
+          "loadErrorTitle": "Impossibile caricare i link di invito",
+          "loadError": "Si è verificato un errore nel caricamento dei link di invito condividibili. Riprova.",
+          "retry": "Riprova",
+          "revokeDialog": {
+            "title": "Revocare il link di invito?",
+            "description": "Chiunque abbia questo link non potrà più unirsi. L'azione non può essere annullata.",
+            "cancel": "Annulla",
+            "confirm": "Revoca link"
+          }
         }
       }
     },

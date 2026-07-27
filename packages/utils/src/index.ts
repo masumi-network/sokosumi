@@ -152,6 +152,13 @@ export {
   type SubscriptionPlanName,
 } from "./organization-billing-plan-names.js";
 export {
+  canRevokeInviteLink,
+  evaluateInviteLinkStatus,
+  type InviteLinkPresentStatus,
+  type InviteLinkStatus,
+  type InviteLinkStatusFields,
+} from "./organization-invite-link.js";
+export {
   isOrganizationLogoAllowedContentType,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
