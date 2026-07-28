@@ -70,7 +70,8 @@ export interface UseCoworkerDirectRoomStreamParams {
   enabled: boolean;
   currentUserId: string;
   organizationSlug: string | null;
-  onStreamSettled: (roomId: string) => void | Promise<void>;
+  /** Return true when persisted messages are merged; overlay clears only then. */
+  onStreamSettled: (roomId: string) => boolean | Promise<boolean>;
 }
 
 export interface UseCoworkerDirectRoomStreamResult {
@@ -143,6 +144,7 @@ export function useCoworkerDirectRoomStream({
 
   const { messages, sendMessage, status, setMessages } = useChat({
     id: roomId ?? "coworker-direct-idle",
+    resume: false,
     transport,
     onError(error) {
       const failedRoomId = roomIdRef.current;
@@ -153,10 +155,15 @@ export function useCoworkerDirectRoomStream({
     },
     async onFinish() {
       const settledRoomId = roomIdRef.current;
-      setMessages([]);
-      if (settledRoomId) {
-        autoStreamStartedRoomIds.delete(settledRoomId);
-        await onStreamSettledRef.current(settledRoomId);
+      if (!settledRoomId) {
+        return;
+      }
+      autoStreamStartedRoomIds.delete(settledRoomId);
+      // Keep stream overlay until persisted messages merge — clearing first
+      // blanks the transcript for the await gap (or forever if refetch fails).
+      const settled = await onStreamSettledRef.current(settledRoomId);
+      if (settled && roomIdRef.current === settledRoomId) {
+        setMessages([]);
       }
     },
   });

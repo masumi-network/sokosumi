@@ -48,12 +48,3 @@ export function clearPendingRoomMessage(roomId: string): void {
     // ignore
   }
 }
-
-/** Take pending draft text once (clears storage). */
-export function takePendingRoomMessage(roomId: string): string | null {
-  const value = peekPendingRoomMessage(roomId);
-  if (value != null) {
-    clearPendingRoomMessage(roomId);
-  }
-  return value;
-}

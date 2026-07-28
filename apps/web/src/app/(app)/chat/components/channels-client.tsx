@@ -206,16 +206,20 @@ export function ChannelsClient({
     ? isCoworkerOnlyDirectRoom(selectedChannel)
     : false;
 
-  const refreshRoomMessagesAfterStream = useCallback(async (roomId: string) => {
-    const result = await listChannelMessagesAction(roomId);
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-    setMessagesState((current) =>
-      mergeChannelMessages(current, result.data.messages),
-    );
-  }, []);
+  const refreshRoomMessagesAfterStream = useCallback(
+    async (roomId: string): Promise<boolean> => {
+      const result = await listChannelMessagesAction(roomId);
+      if (!result.ok) {
+        toast.error(result.message);
+        return false;
+      }
+      setMessagesState((current) =>
+        mergeChannelMessages(current, result.data.messages),
+      );
+      return true;
+    },
+    [],
+  );
 
   const {
     streamOverlayMessages,
