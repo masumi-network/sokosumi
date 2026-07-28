@@ -206,7 +206,25 @@ export function RoomsClient({
   const selectedRoomDisplayName = selectedRoom
     ? getRoomDisplayName(selectedRoom, currentUserId)
     : "";
+
   const isDirectRoom = selectedRoom?.kind === "direct";
+  const currentMemberRole = organizationMembers.find(
+    (member) => member.user.id === currentUserId,
+  )?.role;
+  // Archiving hides the room for everyone, so it takes the same authority as
+  // rewriting the roster: creator, or organization owner/admin.
+  const canArchiveSelectedRoom = Boolean(
+    selectedRoom &&
+      !isDirectRoom &&
+      (selectedRoom.createdByUserId === currentUserId ||
+        currentMemberRole === "owner" ||
+        currentMemberRole === "admin"),
+  );
+  // Any member can leave, but not the last one — nobody would be left to
+  // archive the room afterwards, so Core refuses it too.
+  const canLeaveSelectedRoom = Boolean(
+    selectedRoom && !isDirectRoom && selectedRoom.userMembers.length > 1,
+  );
   const isCoworkerStreamRoom = selectedRoom
     ? shouldUseCoworkerRoomStream(selectedRoom)
     : false;
@@ -854,6 +872,8 @@ export function RoomsClient({
                       channel={selectedRoom}
                       members={organizationMembers}
                       coworkers={coworkers}
+                      canArchive={canArchiveSelectedRoom}
+                      canLeave={canLeaveSelectedRoom}
                     />
                   )}
                 </div>

@@ -4507,6 +4507,20 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "Kanal verwalten",
+        "leave": "Kanal verlassen",
+        "archive": "Kanal archivieren",
+        "cancel": "Abbrechen",
+        "leaveConfirmTitle": "{name} verlassen?",
+        "leaveConfirmDescription": "Du erhältst keine Nachrichten mehr aus diesem Kanal und er verschwindet aus deiner Liste. Andere Mitglieder behalten ihren Zugriff und du kannst später wieder hinzugefügt werden.",
+        "leaveConfirm": "Kanal verlassen",
+        "leaveSuccess": "Du hast {name} verlassen.",
+        "archiveConfirmTitle": "{name} archivieren?",
+        "archiveConfirmDescription": "Der Kanal verschwindet für alle in der Organisation. Die Nachrichten bleiben erhalten, aber er kann von hier aus nicht wiederhergestellt werden.",
+        "archiveConfirm": "Kanal archivieren",
+        "archiveSuccess": "{name} wurde archiviert."
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."

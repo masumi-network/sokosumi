@@ -4626,6 +4626,20 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "Manage channel",
+        "leave": "Leave channel",
+        "archive": "Archive channel",
+        "cancel": "Cancel",
+        "leaveConfirmTitle": "Leave {name}?",
+        "leaveConfirmDescription": "You will stop receiving messages from this channel and it will disappear from your list. Other members keep their access, and you can be added back later.",
+        "leaveConfirm": "Leave channel",
+        "leaveSuccess": "You left {name}.",
+        "archiveConfirmTitle": "Archive {name}?",
+        "archiveConfirmDescription": "The channel disappears for everyone in the organization. Its messages are kept, but there is no way to restore it from here.",
+        "archiveConfirm": "Archive channel",
+        "archiveSuccess": "{name} was archived."
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."

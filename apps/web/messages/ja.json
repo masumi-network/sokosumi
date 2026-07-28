@@ -4507,6 +4507,20 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "チャンネルの管理",
+        "leave": "チャンネルから退出",
+        "archive": "チャンネルをアーカイブ",
+        "cancel": "キャンセル",
+        "leaveConfirmTitle": "{name} から退出しますか？",
+        "leaveConfirmDescription": "このチャンネルのメッセージは届かなくなり、一覧から消えます。他のメンバーのアクセスはそのままで、後から再度追加してもらうこともできます。",
+        "leaveConfirm": "退出する",
+        "leaveSuccess": "{name} から退出しました。",
+        "archiveConfirmTitle": "{name} をアーカイブしますか？",
+        "archiveConfirmDescription": "組織の全員からこのチャンネルが見えなくなります。メッセージは保持されますが、ここから復元することはできません。",
+        "archiveConfirm": "アーカイブする",
+        "archiveSuccess": "{name} をアーカイブしました。"
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."

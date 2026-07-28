@@ -4507,6 +4507,20 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "Gérer le canal",
+        "leave": "Quitter le canal",
+        "archive": "Archiver le canal",
+        "cancel": "Annuler",
+        "leaveConfirmTitle": "Quitter {name} ?",
+        "leaveConfirmDescription": "Vous ne recevrez plus les messages de ce canal et il disparaîtra de votre liste. Les autres membres conservent leur accès et vous pourrez y être rajouté plus tard.",
+        "leaveConfirm": "Quitter le canal",
+        "leaveSuccess": "Vous avez quitté {name}.",
+        "archiveConfirmTitle": "Archiver {name} ?",
+        "archiveConfirmDescription": "Le canal disparaît pour toute l'organisation. Ses messages sont conservés, mais il est impossible de le restaurer ici.",
+        "archiveConfirm": "Archiver le canal",
+        "archiveSuccess": "{name} a été archivé."
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."

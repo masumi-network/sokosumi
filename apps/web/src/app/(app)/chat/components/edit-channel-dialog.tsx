@@ -1,6 +1,14 @@
 "use client";
 
-import { Bot, Loader2, Search, Settings2, Users } from "lucide-react";
+import {
+  Archive as ArchiveIcon,
+  Bot,
+  Loader2,
+  LogOut,
+  Search,
+  Settings2,
+  Users,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -11,7 +19,21 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { updateRoomAction } from "@/app/chat/actions";
+import {
+  archiveRoomAction,
+  leaveRoomAction,
+  updateRoomAction,
+} from "@/app/chat/actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -226,14 +248,27 @@ export function EditChannelDialog({
   channel,
   members,
   coworkers,
+  canArchive,
+  canLeave,
 }: {
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
+  /** Creator or organization owner/admin — archiving hides the room for
+   * everyone, so it takes the same authority as rewriting the roster. */
+  canArchive: boolean;
+  /** Any member can leave, except the last one: nobody would be left to
+   * archive the room afterwards. */
+  canLeave: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const tActions = useTranslations("App.Channels.Actions");
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [pendingKind, setPendingKind] = useState<"archive" | "leave" | null>(
+    null,
+  );
+  const [isExiting, setIsExiting] = useState(false);
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic ?? "");
   const [memberIds, setMemberIds] = useState<string[]>(
@@ -268,6 +303,34 @@ export function EditChannelDialog({
       setOpen(false);
       router.refresh();
     });
+  }
+
+  async function handleConfirmExit() {
+    if (!pendingKind) return;
+    setIsExiting(true);
+    const result =
+      pendingKind === "archive"
+        ? await archiveRoomAction(channel.id)
+        : await leaveRoomAction(channel.id);
+    setIsExiting(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      setPendingKind(null);
+      return;
+    }
+
+    toast.success(
+      pendingKind === "archive"
+        ? tActions("archiveSuccess", { name: channel.name })
+        : tActions("leaveSuccess", { name: channel.name }),
+    );
+    setPendingKind(null);
+    setOpen(false);
+    // The room is gone for this user either way, so land them back on the
+    // room list rather than a view they can no longer read.
+    router.replace("/chat");
+    router.refresh();
   }
 
   return (
@@ -327,6 +390,35 @@ export function EditChannelDialog({
               onCoworkerIdsChange={setCoworkerIds}
             />
           </div>
+          {canArchive || canLeave ? (
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-medium">{tActions("sectionTitle")}</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {canLeave ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-center gap-2"
+                    onClick={() => setPendingKind("leave")}
+                  >
+                    <LogOut className="size-4" aria-hidden />
+                    {tActions("leave")}
+                  </Button>
+                ) : null}
+                {canArchive ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
+                    onClick={() => setPendingKind("archive")}
+                  >
+                    <ArchiveIcon className="size-4" aria-hidden />
+                    {tActions("archive")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <DialogFooter>
             <Button
               type="button"
@@ -342,6 +434,49 @@ export function EditChannelDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <AlertDialog
+        open={pendingKind !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !isExiting) setPendingKind(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingKind === "archive"
+                ? tActions("archiveConfirmTitle")
+                : tActions("leaveConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingKind === "archive"
+                ? tActions("archiveConfirmDescription", { name: channel.name })
+                : tActions("leaveConfirmDescription", { name: channel.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isExiting}>
+              {tActions("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isExiting}
+              onClick={(event) => {
+                // Keep the confirm mounted while the action runs, so the
+                // spinner is visible and a second click cannot double-submit.
+                event.preventDefault();
+                void handleConfirmExit();
+              }}
+            >
+              {isExiting ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null}
+              {pendingKind === "archive"
+                ? tActions("archiveConfirm")
+                : tActions("leaveConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

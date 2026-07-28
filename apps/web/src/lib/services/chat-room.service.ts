@@ -76,6 +76,16 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function archiveRoom(id: string) {
+    const response = await coreClient.archiveChatRoom(id);
+    return response.data;
+  }
+
+  async function leaveRoom(id: string) {
+    const response = await coreClient.leaveChatRoom(id);
+    return response.data;
+  }
+
   async function markRead(id: string): Promise<ChatRoom> {
     const response = await coreClient.markChatRoomRead(id);
     return response.data;
@@ -133,11 +143,13 @@ export const chatRoomService = (() => {
   }
 
   return {
+    archiveRoom,
     createRoom,
     getRoom,
     listMessages,
     listRooms,
     listThreadMessages,
+    leaveRoom,
     markRead,
     sendMessage,
     toggleReaction,
