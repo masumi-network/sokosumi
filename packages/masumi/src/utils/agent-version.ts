@@ -39,6 +39,18 @@ export function isV2RegistryIdentifier(agentIdentifier: string): boolean {
   );
 }
 
+/**
+ * Canonical form of an agent identifier for comparison and storage. V2-policy
+ * identifiers are hex and lowercased (matching what ingestion stores and what
+ * readiness tuples carry); anything else is returned untouched, because only
+ * V2 identifiers are known to be case-insensitive hex.
+ */
+export function normalizeV2RegistryIdentifier(agentIdentifier: string): string {
+  return isV2RegistryIdentifier(agentIdentifier)
+    ? agentIdentifier.toLowerCase()
+    : agentIdentifier;
+}
+
 export interface VersionedAgentIdentifier {
   registryIdentity: string;
   registryVersion: number;

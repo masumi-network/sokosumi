@@ -17,7 +17,10 @@ import {
   type JobWithSummaryRelations,
   jobSummaryInclude,
 } from "@sokosumi/database/types/job";
-import { createAgentClient } from "@sokosumi/masumi";
+import {
+  createAgentClient,
+  normalizeV2RegistryIdentifier,
+} from "@sokosumi/masumi";
 import type {
   InputSchemaSchemaType,
   InputSchemaType,
@@ -490,9 +493,25 @@ export async function createAgentJobForUser(
       }
 
       const response = startPaidJobResult.value;
-      if (response.agentIdentifier !== agent.blockchainIdentifier) {
+      // Stored V2 identifiers are normalized to lowercase at ingestion, so
+      // compare case-insensitively — a seller echoing uppercase hex is the
+      // same agent, and rejecting it here would orphan the job it just
+      // started.
+      if (
+        normalizeV2RegistryIdentifier(response.agentIdentifier) !==
+        agent.blockchainIdentifier
+      ) {
         throw unprocessableEntity(
           "Paid agent job returned a different agent identifier",
+        );
+      }
+
+      // The purchaser nonce is ours; the node derives the on-chain identifier
+      // from it, so a seller echoing a different one would only fail at
+      // purchase creation — after credits are consumed.
+      if (response.identifierFromPurchaser !== identifierFromPurchaser) {
+        throw unprocessableEntity(
+          "Paid agent job returned a different purchaser identifier",
         );
       }
 

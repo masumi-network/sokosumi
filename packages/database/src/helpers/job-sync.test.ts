@@ -4,7 +4,6 @@ import { describe, it } from "vitest";
 
 import {
   AgentJobStatus,
-  AgentStatus,
   JobType,
   OnChainJobStatus,
   type Prisma,
@@ -195,9 +194,11 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
   it("keeps free and paid jobs with unfinished agent work in the agent sync set", () => {
     const where = buildJobsNeedingAgentStatusSyncWhere();
 
-    assert.deepEqual(where.agent, {
-      status: AgentStatus.ONLINE,
-    });
+    // Deliberately unfiltered by agent status: hiring is gated on ONLINE by
+    // the availability filter, but an in-flight job must keep polling the
+    // revision it was pinned to even after the stable Agent row advances to a
+    // newer (possibly offline) revision.
+    assert.equal(where.agent, undefined);
     assert.deepEqual(where.jobType, {
       in: [JobType.FREE, JobType.PAID],
     });

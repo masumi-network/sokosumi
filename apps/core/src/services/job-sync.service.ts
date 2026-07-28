@@ -26,7 +26,10 @@ import {
   renderJobFinalStatusEmail,
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
-import { createAgentClient } from "@sokosumi/masumi";
+import {
+  createAgentClient,
+  normalizeV2RegistryIdentifier,
+} from "@sokosumi/masumi";
 import {
   buildWebhookFailureContext,
   postWebhook,
@@ -594,8 +597,22 @@ async function syncPurchaseState(
       // Without this, a foreign purchase sharing the blockchainIdentifier —
       // the exact case the 409 duplicate guard refuses at creation — would be
       // silently adopted here one cron cycle later.
+      // The agent identity is the strongest discriminator: two purchases can
+      // share deadlines by coincidence, but not the agent they were signed
+      // for. A missing input hash is treated as NON-matching (never a
+      // wildcard) so an unidentifiable purchase is refused rather than
+      // adopted.
+      const expectedAgentIdentifier =
+        job.agentBlockchainIdentifier ??
+        job.agent?.blockchainIdentifier ??
+        null;
       const doesPurchaseMatchJob =
-        (job.inputHash === null || purchase.inputHash === job.inputHash) &&
+        typeof job.inputHash === "string" &&
+        job.inputHash.length > 0 &&
+        purchase.inputHash === job.inputHash &&
+        expectedAgentIdentifier !== null &&
+        normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
+          normalizeV2RegistryIdentifier(expectedAgentIdentifier) &&
         purchase.payByTime === String(job.payByTime.getTime()) &&
         purchase.submitResultTime === String(job.submitResultTime.getTime()) &&
         purchase.unlockTime === String(job.unlockTime.getTime()) &&

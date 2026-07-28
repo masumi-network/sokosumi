@@ -537,6 +537,98 @@ async function replaceAgentPricing(
   }
 }
 
+/**
+ * Moves user-owned relations from a duplicate Agent row onto the canonical
+ * one before the duplicate is parked. Mirrors the consolidation in migration
+ * 20260728090000: ratings keep the newest per user (the (userId, agentId)
+ * unique constraint forbids duplicates), categories and any admin metadata
+ * override follow the stable row, and job notifications are retargeted so
+ * their deep links keep resolving.
+ */
+async function consolidateDuplicateAgentRelations(
+  tx: Prisma.TransactionClient,
+  duplicateAgentId: string,
+  canonicalAgentId: string,
+): Promise<void> {
+  const [duplicateRatings, canonicalRatings] = await Promise.all([
+    tx.userAgentRating.findMany({
+      where: { agentId: duplicateAgentId },
+      select: { id: true, userId: true, updatedAt: true },
+    }),
+    tx.userAgentRating.findMany({
+      where: { agentId: canonicalAgentId },
+      select: { id: true, userId: true, updatedAt: true },
+    }),
+  ]);
+  const canonicalByUser = new Map(
+    canonicalRatings.map((rating) => [rating.userId, rating]),
+  );
+  for (const rating of duplicateRatings) {
+    const canonicalRating = canonicalByUser.get(rating.userId);
+    if (!canonicalRating) {
+      await tx.userAgentRating.update({
+        where: { id: rating.id },
+        data: { agentId: canonicalAgentId },
+      });
+      continue;
+    }
+    // The canonical row already holds this user's rating; keep the newer one.
+    if (rating.updatedAt > canonicalRating.updatedAt) {
+      await tx.userAgentRating.delete({ where: { id: canonicalRating.id } });
+      await tx.userAgentRating.update({
+        where: { id: rating.id },
+        data: { agentId: canonicalAgentId },
+      });
+    } else {
+      await tx.userAgentRating.delete({ where: { id: rating.id } });
+    }
+  }
+
+  const duplicate = await tx.agent.findUnique({
+    where: { id: duplicateAgentId },
+    select: {
+      categories: { select: { id: true } },
+      metadataOverride: { select: { id: true } },
+    },
+  });
+  if (duplicate?.categories.length) {
+    await tx.agent.update({
+      where: { id: canonicalAgentId },
+      data: {
+        categories: {
+          connect: duplicate.categories.map((category) => ({
+            id: category.id,
+          })),
+        },
+      },
+    });
+  }
+  if (duplicate?.metadataOverride) {
+    const canonicalOverride = await tx.agentMetadataOverride.findUnique({
+      where: { agentId: canonicalAgentId },
+      select: { id: true },
+    });
+    // AgentMetadataOverride.agentId is unique: only move when free.
+    if (!canonicalOverride) {
+      await tx.agentMetadataOverride.update({
+        where: { id: duplicate.metadataOverride.id },
+        data: { agentId: canonicalAgentId },
+      });
+    }
+  }
+
+  await tx.$executeRaw`
+    UPDATE "notification"
+    SET "metadata" = jsonb_set(
+      "metadata"::jsonb,
+      '{agentId}',
+      to_jsonb(${canonicalAgentId}::text)
+    )::text
+    WHERE "metadata" IS NOT NULL
+      AND pg_input_is_valid("metadata", 'jsonb')
+      AND "metadata"::jsonb ->> 'agentId' = ${duplicateAgentId}`;
+}
+
 async function upsertRegistryAgent(
   entry: RegistryDiffEntry,
   pricing: ParsedAgentPricing,
@@ -706,6 +798,17 @@ async function upsertRegistryAgent(
         where: { agentId: conflictingByIdentifier.id },
         data: { agentId: existing.id },
       });
+
+      // Consolidate the duplicate's user-owned relations onto the canonical
+      // row before parking it, mirroring migration 20260728090000 — parking
+      // alone would strand them on a hidden INVALID row. Registry-owned tags
+      // are deliberately excluded: the canonical update below SETs them from
+      // this entry, which is the authoritative list.
+      await consolidateDuplicateAgentRelations(
+        tx,
+        conflictingByIdentifier.id,
+        existing.id,
+      );
 
       const parkedIdentifier = `legacy-v2:${conflictingByIdentifier.id}:${conflictingByIdentifier.blockchainIdentifier}`;
       await tx.agent.update({

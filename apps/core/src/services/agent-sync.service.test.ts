@@ -12,6 +12,12 @@ const {
   captureExceptionMock,
   exampleOutputDeleteManyMock,
   agentFindFirstMock,
+  ratingFindManyMock,
+  ratingUpdateMock,
+  ratingDeleteMock,
+  overrideFindUniqueMock,
+  overrideUpdateMock,
+  executeRawMock,
   agentFindManyMock,
   agentFindUniqueMock,
   agentFixedPricingDeleteMock,
@@ -36,6 +42,12 @@ const {
   captureExceptionMock: vi.fn(),
   exampleOutputDeleteManyMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
+  ratingFindManyMock: vi.fn(),
+  ratingUpdateMock: vi.fn(),
+  ratingDeleteMock: vi.fn(),
+  overrideFindUniqueMock: vi.fn(),
+  overrideUpdateMock: vi.fn(),
+  executeRawMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   agentFindUniqueMock: vi.fn(),
   agentFixedPricingDeleteMock: vi.fn(),
@@ -153,6 +165,7 @@ function createTransactionClientMock() {
   return {
     agent: {
       update: agentUpdateMock,
+      findUnique: agentFindUniqueMock,
     },
     agentPricing: {
       findUnique: agentPricingFindUniqueMock,
@@ -173,6 +186,16 @@ function createTransactionClientMock() {
     job: {
       updateMany: jobUpdateManyMock,
     },
+    userAgentRating: {
+      findMany: ratingFindManyMock,
+      update: ratingUpdateMock,
+      delete: ratingDeleteMock,
+    },
+    agentMetadataOverride: {
+      findUnique: overrideFindUniqueMock,
+      update: overrideUpdateMock,
+    },
+    $executeRaw: executeRawMock,
   };
 }
 
@@ -265,6 +288,12 @@ describe("agentSyncService.syncRegistryAgents", () => {
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     tagUpsertMock.mockResolvedValue(undefined);
     agentFindFirstMock.mockResolvedValue(null);
+    ratingFindManyMock.mockResolvedValue([]);
+    ratingUpdateMock.mockResolvedValue(undefined);
+    ratingDeleteMock.mockResolvedValue(undefined);
+    overrideFindUniqueMock.mockResolvedValue(null);
+    overrideUpdateMock.mockResolvedValue(undefined);
+    executeRawMock.mockResolvedValue(0);
     agentFindUniqueMock.mockResolvedValue(null);
     agentCreateMock.mockResolvedValue(undefined);
     agentUpdateMock.mockResolvedValue(undefined);

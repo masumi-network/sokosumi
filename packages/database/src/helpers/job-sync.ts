@@ -1,6 +1,5 @@
 import {
   AgentJobStatus,
-  AgentStatus,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
@@ -67,9 +66,13 @@ export function buildJobsNeedingPurchaseSyncWhere(
 
 export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
   return {
-    agent: {
-      status: AgentStatus.ONLINE,
-    },
+    // Deliberately NOT gated on the agent's current status. Hiring is gated on
+    // ONLINE by the availability filter; an already-started job must keep
+    // polling the revision it was pinned to (agentBlockchainIdentifier /
+    // agentApiBaseUrl snapshots), because one stable Agent row now advances to
+    // the newest V2 revision — a newer revision going offline would otherwise
+    // strand every in-flight job started against the older one, and their
+    // local credit refunds would never trigger.
     jobType: {
       in: [JobType.FREE, JobType.PAID],
     },

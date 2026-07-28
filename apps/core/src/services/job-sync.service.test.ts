@@ -94,7 +94,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@sokosumi/masumi", () => ({
+vi.mock("@sokosumi/masumi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/masumi")>()),
   createAgentClient: () => ({
     fetchAgentJobStatus: fetchAgentJobStatusMock,
   }),
@@ -233,7 +234,7 @@ function createJob(
     submitResultTime: new Date(now.getTime() + 40 * 60 * 1000),
     unlockTime: new Date(now.getTime() + 50 * 60 * 1000),
     externalDisputeUnlockTime: new Date(now.getTime() + 60 * 60 * 1000),
-    inputHash: null,
+    inputHash: "job-input-hash",
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
@@ -246,8 +247,11 @@ function matchingResolvedPurchase(
   job: Record<string, unknown>,
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
+  const agent = job.agent as { blockchainIdentifier?: string } | undefined;
   return {
-    inputHash: job.inputHash ?? "matching-input-hash",
+    inputHash: job.inputHash,
+    agentIdentifier:
+      job.agentBlockchainIdentifier ?? agent?.blockchainIdentifier ?? null,
     payByTime: String((job.payByTime as Date).getTime()),
     submitResultTime: String((job.submitResultTime as Date).getTime()),
     unlockTime: String((job.unlockTime as Date).getTime()),
@@ -400,7 +404,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       ok({
         id: "purchase_backfilled",
         resultHash: "result-hash",
-        inputHash: "backfill-input-hash",
+        inputHash: pendingBackfillJob.inputHash as string,
+        agentIdentifier: (
+          pendingBackfillJob.agent as { blockchainIdentifier: string }
+        ).blockchainIdentifier,
         payByTime: String((pendingBackfillJob.payByTime as Date).getTime()),
         submitResultTime: String(
           (pendingBackfillJob.submitResultTime as Date).getTime(),
@@ -634,6 +641,56 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         ),
       }),
     );
+  });
+
+  it("refuses to backfill a purchase signed for a different agent", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    // Same identifier and same deadlines, but signed for another agent.
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_other_agent",
+          agentIdentifier: "agent-chain-someone-else",
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
+  });
+
+  it("refuses to backfill when the job has no input hash to match on", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+      inputHash: null,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_unverifiable",
+          inputHash: "some-hash",
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    // A missing hash is never a wildcard.
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
   });
 
   it("reconciles timed-out missing purchases without running the standard sync pipeline", async () => {
