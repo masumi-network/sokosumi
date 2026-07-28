@@ -20,7 +20,9 @@ import { getEnv } from "@/config/env";
 import {
   CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
   CARDANO_V2_RAIL_READINESS_KEY,
+  type CardanoV2ReadySource,
   getAgentDescription,
+  getCardanoV2ReadySources,
   normalizeMasumiPaymentUnit,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
@@ -266,28 +268,45 @@ function projectSourcePricing(
  * V2 entries price each payment source independently. The agent-level pricing
  * (credits math, availability) comes from the Cardano V2 source matching this
  * deployment's network; no match means the agent is not purchasable here.
+ * Among matching sources, one that is currently purchase-ready is preferred so
+ * the displayed price stays consistent with the source a hire can actually
+ * use (readiness is refreshed just before registry sync in the same cron; a
+ * readiness flip between syncs can still leave the stored price stale until
+ * the entry next changes).
  */
-function projectV2AgentPricing(entry: RegistryDiffEntry): ParsedAgentPricing {
+function projectV2AgentPricing(
+  entry: RegistryDiffEntry,
+  readySources: readonly CardanoV2ReadySource[],
+): ParsedAgentPricing {
   const network = getEnv().NETWORK;
   // Defensive `?? []`: the generated client does no runtime validation, so a
   // registry deployment predating the V2 surface must not crash the sync.
-  const source = (entry.SupportedPaymentSources ?? []).find(
+  const matching = (entry.SupportedPaymentSources ?? []).filter(
     (candidate) =>
       candidate.chain === "Cardano" &&
       candidate.network === network &&
       candidate.paymentSourceType === "Web3CardanoV2",
   );
+  const source =
+    matching.find((candidate) =>
+      readySources.some(
+        (ready) => ready.smartContractAddress === candidate.address,
+      ),
+    ) ?? matching[0];
   if (!source) {
     return { pricingType: PricingType.UNKNOWN };
   }
   return projectSourcePricing(source.pricing, entry.agentIdentifier);
 }
 
-function resolveEntryPricing(entry: RegistryDiffEntry): ParsedAgentPricing {
+function resolveEntryPricing(
+  entry: RegistryDiffEntry,
+  readySources: readonly CardanoV2ReadySource[],
+): ParsedAgentPricing {
   // V2 pricing belongs to the registry policy/source model, not the legacy
   // top-level payment type. Free and EVM-only V2 entries report `None`.
   if (isV2RegistryIdentifier(entry.agentIdentifier)) {
-    return projectV2AgentPricing(entry);
+    return projectV2AgentPricing(entry, readySources);
   }
   return parseEntryAgentPricing(entry.AgentPricing, entry.agentIdentifier);
 }
@@ -517,6 +536,7 @@ async function upsertRegistryAgent(
     id: true,
     pricingId: true,
     registryVersion: true,
+    blockchainIdentifier: true,
   } as const;
   const existingByRegistryIdentity = await prisma.agent.findUnique({
     where: { registryIdentity: version.registryIdentity },
@@ -531,6 +551,21 @@ async function upsertRegistryAgent(
       where: { blockchainIdentifier: entry.agentIdentifier },
       select: existingAgentSelect,
     }));
+
+  // A malformed V2 identifier keeps its FULL string as registryIdentity; if
+  // that string happens to equal a valid agent's stripped identity, refuse to
+  // overwrite the canonical row with malformed data (reachable only from a
+  // corrupted registry response, never from honest chain data).
+  if (
+    !version.isValid &&
+    existing &&
+    existing.blockchainIdentifier !== entry.agentIdentifier
+  ) {
+    console.warn(
+      `[sync/agents] Malformed V2 entry ${entry.agentIdentifier} collides with canonical identity ${version.registryIdentity}; skipping`,
+    );
+    return;
+  }
 
   if (!existing) {
     await prisma.agent.create({
@@ -579,10 +614,35 @@ async function upsertRegistryAgent(
   const isRevisionPromotion =
     version.registryVersion > existing.registryVersion;
 
+  // A rollback-era binary can also have stored this revision's identifier as
+  // its OWN row (registryIdentity=NULL) while the canonical row resolved via
+  // registryIdentity above. Park that duplicate before the canonical row
+  // adopts the identifier, or the promotion update collides on
+  // Agent_blockchainIdentifier_key on every retry (permanent cursor wedge).
+  const conflictingByIdentifier =
+    existing.blockchainIdentifier !== entry.agentIdentifier
+      ? await prisma.agent.findUnique({
+          where: { blockchainIdentifier: entry.agentIdentifier },
+          select: { id: true, blockchainIdentifier: true },
+        })
+      : null;
+
   // Scalars refresh on every diff. A V2 revision promotion additionally
   // replaces registry-owned collections and invalidates the generated summary
   // so the stable Agent row never presents a mixture of two revisions.
   await prisma.$transaction(async (tx) => {
+    if (conflictingByIdentifier && conflictingByIdentifier.id !== existing.id) {
+      const parkedIdentifier = `legacy-v2:${conflictingByIdentifier.id}:${conflictingByIdentifier.blockchainIdentifier}`;
+      await tx.agent.update({
+        where: { id: conflictingByIdentifier.id },
+        data: {
+          blockchainIdentifier: parkedIdentifier,
+          registryIdentity: parkedIdentifier,
+          status: AgentStatus.INVALID,
+          isShown: false,
+        },
+      });
+    }
     await replaceAgentPricing(tx, existing.pricingId, pricing);
     await tx.agentPaymentSource.deleteMany({
       where: { agentId: existing.id },
@@ -689,6 +749,10 @@ async function syncRegistryAgents(
   let cursorId = metadata?.cursorId ?? null;
 
   const deferV2Ingestion = !isCardanoV2Enabled;
+  // Loaded once per run: readiness was refreshed immediately before this sync
+  // (route ordering), and V2 pricing projection prefers purchase-ready
+  // sources so listed prices match hireable sources.
+  const cardanoV2ReadySources = await getCardanoV2ReadySources();
   let totalProcessedCount = 0;
   let totalDeferredCount = 0;
   let batchCount = 0;
@@ -766,7 +830,7 @@ async function syncRegistryAgents(
       }
 
       try {
-        const pricing = resolveEntryPricing(entry);
+        const pricing = resolveEntryPricing(entry, cardanoV2ReadySources);
         await upsertRegistryAgent(entry, pricing);
         processedEntryCount++;
       } catch (error) {
@@ -924,6 +988,19 @@ async function syncCardanoV2RailReadiness(
   // short-circuits), so skip the node round-trip. After a flag flip the next
   // cron cycle populates the cache within 5 minutes.
   if (!isCardanoV2Enabled) {
+    try {
+      // Disabling the flag resets the Sentry dedupe latch so a re-enable
+      // reports a fresh failure streak instead of inheriting an old marker.
+      await prisma.syncMetadata.deleteMany({
+        where: { key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY },
+      });
+    } catch (cleanupError) {
+      // Readiness bookkeeping must never crash the registry sync loop.
+      console.warn(
+        "[sync/agents] Failed to clear Cardano V2 readiness failure marker:",
+        cleanupError,
+      );
+    }
     return;
   }
   const readinessResult = await paymentClient().getCardanoV2RailReadiness({

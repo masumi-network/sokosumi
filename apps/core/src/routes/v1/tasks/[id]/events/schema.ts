@@ -12,7 +12,8 @@ import {
 } from "@/schemas/task.schema";
 
 const masumiPaymentAmountSchema = z.object({
-  amount: z.string().min(1).openapi({ example: "470000000000" }),
+  // The node caps amount strings at 25 characters — mirror it pre-charge.
+  amount: z.string().min(1).max(25).openapi({ example: "470000000000" }),
   unit: z.string().min(1).openapi({
     example: "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde",
   }),
@@ -36,9 +37,16 @@ const masumiPaymentPayloadSchema = z
     blockchainIdentifier: z.string().min(1).openapi({
       example: "0b00e04c0860a60c61066056281180462d0b12",
     }),
-    identifierFromPurchaser: z.string().min(1).openapi({
-      example: "1234567890",
-    }),
+    // Mirrors the payment node's request limits (min 14 / max 26, hex) so a
+    // payload the node deterministically rejects fails BEFORE the charge.
+    identifierFromPurchaser: z
+      .string()
+      .min(14)
+      .max(26)
+      .regex(/^[0-9a-f]+$/i, "identifierFromPurchaser must be hex")
+      .openapi({
+        example: "aabbccddeeff00112233",
+      }),
     agentIdentifier: z.string().min(1).openapi({
       example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
     }),
@@ -58,7 +66,12 @@ const masumiPaymentPayloadSchema = z
     }),
     paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
     supportedPaymentSourceIndex: z.number().int().min(0).max(24).optional(),
-    Amounts: z.array(masumiPaymentAmountSchema).min(1).openapi({ example: [] }),
+    // The node caps Amounts at 7 entries — fail before the charge, not after.
+    Amounts: z
+      .array(masumiPaymentAmountSchema)
+      .min(1)
+      .max(7)
+      .openapi({ example: [] }),
     PaymentSource: masumiPaymentSourceSchema.optional(),
   })
   .openapi("MasumiPayment");

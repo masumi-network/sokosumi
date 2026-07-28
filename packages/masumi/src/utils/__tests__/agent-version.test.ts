@@ -43,6 +43,14 @@ describe("isV2RegistryIdentifier", () => {
     ).toBe(true);
   });
 
+  it("recognizes uppercase-hex identifiers case-insensitively", () => {
+    expect(
+      isV2RegistryIdentifier(
+        `${V2_POLICY_ID.toUpperCase()}${"AB".repeat(29)}000001`,
+      ),
+    ).toBe(true);
+  });
+
   it("rejects identifiers under other policies", () => {
     expect(
       isV2RegistryIdentifier(

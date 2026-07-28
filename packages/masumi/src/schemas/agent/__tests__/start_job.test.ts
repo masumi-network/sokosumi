@@ -44,6 +44,15 @@ describe("startPaidJobResponseSchema", () => {
     expect(result.supportedPaymentSourceIndex).toBe(3);
   });
 
+  it("treats a null payment-source index as absent, not index 0", () => {
+    const result = startPaidJobResponseSchema.parse({
+      ...paidJobResponse,
+      supportedPaymentSourceIndex: null,
+    });
+
+    expect(result.supportedPaymentSourceIndex).toBeUndefined();
+  });
+
   it("rejects a payment-source index on a V1 response", () => {
     const result = startPaidJobResponseSchema.safeParse({
       ...paidJobResponse,

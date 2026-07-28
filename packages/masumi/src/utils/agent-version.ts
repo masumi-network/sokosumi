@@ -24,8 +24,11 @@ const V2_REGISTRY_POLICY_IDS = new Set([
  * versioned too.
  */
 export function isV2RegistryIdentifier(agentIdentifier: string): boolean {
+  // Case-insensitive on purpose: hex casing must not decide whether V2
+  // gating applies (an uppercase identifier would otherwise dodge every
+  // policy-keyed check while the payment node still treats it as V2).
   return V2_REGISTRY_POLICY_IDS.has(
-    agentIdentifier.slice(0, POLICY_ID_HEX_LENGTH),
+    agentIdentifier.slice(0, POLICY_ID_HEX_LENGTH).toLowerCase(),
   );
 }
 

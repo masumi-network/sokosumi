@@ -433,7 +433,12 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(tagUpsertMock).toHaveBeenCalled();
     expect(agentFindUniqueMock).toHaveBeenCalledWith({
       where: { registryIdentity: "identifier-entry-1" },
-      select: { id: true, pricingId: true, registryVersion: true },
+      select: {
+        id: true,
+        pricingId: true,
+        registryVersion: true,
+        blockchainIdentifier: true,
+      },
     });
     expect(agentCreateMock).toHaveBeenCalledTimes(3);
 
@@ -608,6 +613,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
       id: "agent-stable-1",
       pricingId: "pricing-1",
       registryVersion: 1,
+      blockchainIdentifier: createV2AgentIdentifier(1),
     });
     const newerIdentifier = createV2AgentIdentifier(2);
     getAgentsDiffMock.mockResolvedValue(
@@ -630,7 +636,12 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(agentFindUniqueMock).toHaveBeenCalledWith({
       where: { registryIdentity: V2_AGENT_ROOT },
-      select: { id: true, pricingId: true, registryVersion: true },
+      select: {
+        id: true,
+        pricingId: true,
+        registryVersion: true,
+        blockchainIdentifier: true,
+      },
     });
     expect(agentUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -667,6 +678,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
       id: "agent-legacy-rollback",
       pricingId: "pricing-1",
       registryVersion: 0,
+      blockchainIdentifier: "identifier-entry-rollback-v1",
     });
     getAgentsDiffMock.mockResolvedValue(
       ok([createRegistryEntry("entry-rollback-v1")]),
@@ -680,7 +692,12 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(agentFindUniqueMock).toHaveBeenNthCalledWith(2, {
       where: { blockchainIdentifier: "identifier-entry-rollback-v1" },
-      select: { id: true, pricingId: true, registryVersion: true },
+      select: {
+        id: true,
+        pricingId: true,
+        registryVersion: true,
+        blockchainIdentifier: true,
+      },
     });
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(agentUpdateMock).toHaveBeenCalledWith(

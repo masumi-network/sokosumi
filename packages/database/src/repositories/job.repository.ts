@@ -218,8 +218,9 @@ export const jobRepository = {
  *
  * A job is considered "finished" if it meets any of the following criteria:
  * - AgentJobStatus is either Completed or Failed
- * - OnChainStatus is not FUNDS_LOCKED or REFUND_REQUESTED
- *   or is null for FREE jobs
+ * - OnChainStatus is not FUNDS_LOCKED, REFUND_REQUESTED, or
+ *   REFUND_AUTHORIZED (an authorized refund still needs its on-chain
+ *   withdrawal), or is null for FREE jobs
  */
 function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {

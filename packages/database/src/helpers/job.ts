@@ -184,10 +184,12 @@ function getFundsLockedJobStatus(
  * 4. Otherwise, resolve based on the on-chain status and agent status:
  *    - null: return PAYMENT_PENDING while the purchase remains unresolved on-chain.
  *    - FUNDS_LOCKED: Use `getFundsLockedJobStatus` for further resolution.
- *    - RESULT_SUBMITTED: If agent completed, return COMPLETED; else RESULT_PENDING.
+ *    - RESULT_SUBMITTED / WITHDRAW_AUTHORIZED (withdrawal authorized but not
+ *      yet executed): If agent completed, return COMPLETED; else RESULT_PENDING.
  *    - FUNDS_WITHDRAWN: If agent completed, return COMPLETED; else FAILED.
  *    - FUNDS_OR_DATUM_INVALID: return PAYMENT_FAILED.
- *    - REFUND_REQUESTED: return REFUND_PENDING.
+ *    - REFUND_REQUESTED / REFUND_AUTHORIZED (refund authorized but not yet
+ *      withdrawn): return REFUND_PENDING.
  *    - REFUND_WITHDRAWN: return REFUND_RESOLVED.
  *    - DISPUTED: return DISPUTE_PENDING.
  *    - DISPUTED_WITHDRAWN: return DISPUTE_RESOLVED.

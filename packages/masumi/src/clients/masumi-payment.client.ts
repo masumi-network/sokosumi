@@ -335,7 +335,11 @@ export function createPaymentClient(
             blockchainIdentifier: input.blockchainIdentifier,
             error: response.error,
           });
-          return err("Failed to create purchase request");
+          // The event is already charged when this error surfaces — carry the
+          // node's status and reason so the alert is actionable.
+          return err(
+            `Failed to create purchase request (status ${response.response?.status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
+          );
         }
 
         const data = response.data.data;

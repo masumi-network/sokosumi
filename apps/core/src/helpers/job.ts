@@ -32,6 +32,7 @@ import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
   buildAvailableAgentWhereClause,
+  type CardanoV2ReadySource,
   calculateCentsFromMasumiAmountStrings,
   getAgentCost,
   getCardanoV2ReadySources,
@@ -266,22 +267,30 @@ export interface JobOwnerContext {
 const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
 
 /**
- * The lowest credits cost among an agent's fixed-priced V2 payment sources.
- * Sources whose units have no CreditCost row cannot be selected for billing
- * and are skipped; null when no source is priceable.
+ * The lowest credits cost among an agent's fixed-priced, purchase-ready V2
+ * payment sources. Only purchase-ready sources count — the seller can never
+ * validly select an unready one (enforced after start_job), so a cheap
+ * unready source must not understate the floor. Sources whose units have no
+ * CreditCost row cannot be selected for billing and are skipped; null when
+ * no source is priceable.
  */
 function cheapestEligibleV2SourceCents(
   sources: readonly {
     pricingType: PricingType;
+    address: string;
     amounts: { unit: string; amount: bigint }[];
   }[],
   creditCosts: CreditCost[],
+  readySources: readonly CardanoV2ReadySource[],
 ): bigint | null {
   let cheapest: bigint | null = null;
   for (const source of sources) {
     if (
       source.pricingType !== PricingType.FIXED ||
-      source.amounts.length === 0
+      source.amounts.length === 0 ||
+      !readySources.some(
+        (ready) => ready.smartContractAddress === source.address,
+      )
     ) {
       continue;
     }
@@ -368,19 +377,23 @@ export async function createAgentJobForUser(
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
   // For V2 agents the authoritative cost follows the seller-selected payment
-  // source (checked again after start_job), but no selection can cost less
-  // than the cheapest eligible source — rejecting here avoids orphaning a
-  // seller-side job the cap was always going to refuse.
-  if (
-    agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 &&
-    maxCents !== null
-  ) {
+  // source (checked again after start_job), but no valid selection can cost
+  // less than the cheapest purchase-ready source — rejecting here avoids
+  // orphaning a seller-side job the post-response cap (maxCredits, or the
+  // listed price when no cap was given) was always going to refuse.
+  if (agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2) {
     const cheapestCents = cheapestEligibleV2SourceCents(
       agentRecord.paymentSources,
       creditCosts,
+      cardanoV2ReadySources,
     );
-    if (cheapestCents !== null && cheapestCents > maxCents) {
-      throw badRequest("Credit cost exceeds maximum accepted credits");
+    const acceptedCeilingCents = maxCents ?? cost.cents;
+    if (cheapestCents !== null && cheapestCents > acceptedCeilingCents) {
+      throw badRequest(
+        maxCents !== null
+          ? "Credit cost exceeds maximum accepted credits"
+          : "The agent's purchase-ready payment sources exceed its listed price",
+      );
     }
   }
   const displayedCostCents = cost.cents;

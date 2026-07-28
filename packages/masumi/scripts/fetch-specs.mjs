@@ -16,11 +16,18 @@ function parseVersion(version) {
   return match ? match.slice(1, 4).map(Number) : null;
 }
 
-function isOlderVersion(candidate, current) {
+export function isOlderVersion(candidate, current) {
   const a = parseVersion(candidate);
   const b = parseVersion(current);
-  if (!a || !b) {
+  if (!b) {
+    // No parsable pinned version to protect — nothing to compare against.
     return false;
+  }
+  if (!a) {
+    // Unparsable DEPLOYED version while the pinned one is well-formed: fail
+    // closed. The guard exists to refuse suspect deployments, and a spec
+    // without a semver info.version is exactly that.
+    return true;
   }
   for (let i = 0; i < 3; i++) {
     if (a[i] !== b[i]) {

@@ -1,7 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { findMissingSpecLandmarks, SPEC_LANDMARKS } from "./fetch-specs.mjs";
+import {
+  findMissingSpecLandmarks,
+  isOlderVersion,
+  SPEC_LANDMARKS,
+} from "./fetch-specs.mjs";
+
+test("version guard compares semver and fails closed on unparsable deployed versions", () => {
+  assert.equal(isOlderVersion("1.2.2", "1.2.3"), true);
+  assert.equal(isOlderVersion("1.2.3", "1.2.3"), false);
+  assert.equal(isOlderVersion("2.0.0", "1.9.9"), false);
+  // Unparsable deployed version vs a well-formed pinned one: refuse.
+  assert.equal(isOlderVersion("beta", "1.2.3"), true);
+  assert.equal(isOlderVersion(undefined, "1.2.3"), true);
+  // No parsable pinned version to protect (first fetch): allow.
+  assert.equal(isOlderVersion("1.2.3", undefined), false);
+  assert.equal(isOlderVersion("beta", undefined), false);
+});
 
 test("rejects an equal-version legacy payment spec", () => {
   const legacySpec = {
