@@ -207,6 +207,21 @@ export interface CardanoV2ReadySource {
   smartContractAddress: string;
 }
 
+export function isCardanoV2SourceReady(
+  agentIdentifier: string,
+  smartContractAddress: string,
+  readySources: readonly CardanoV2ReadySource[],
+): boolean {
+  const normalizedAgentIdentifier = agentIdentifier.toLowerCase();
+  const normalizedSmartContractAddress = smartContractAddress.toLowerCase();
+  return readySources.some(
+    (source) =>
+      normalizedAgentIdentifier.startsWith(source.policyId.toLowerCase()) &&
+      source.smartContractAddress.toLowerCase() ===
+        normalizedSmartContractAddress,
+  );
+}
+
 /**
  * Readiness older than this is treated as unknown (fail-closed). The value is
  * refreshed by the agents-sync cron, so a healthy deployment stays well

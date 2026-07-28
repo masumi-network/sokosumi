@@ -37,6 +37,7 @@ import {
   getAgentCost,
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
+  isCardanoV2SourceReady,
   normalizeMasumiPaymentUnit,
   toMasumiAgent,
 } from "@/helpers/agent";
@@ -275,6 +276,7 @@ const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
  * no source is priceable.
  */
 function cheapestEligibleV2SourceCents(
+  agentIdentifier: string,
   sources: readonly {
     pricingType: PricingType;
     address: string;
@@ -288,9 +290,7 @@ function cheapestEligibleV2SourceCents(
     if (
       source.pricingType !== PricingType.FIXED ||
       source.amounts.length === 0 ||
-      !readySources.some(
-        (ready) => ready.smartContractAddress === source.address,
-      )
+      !isCardanoV2SourceReady(agentIdentifier, source.address, readySources)
     ) {
       continue;
     }
@@ -387,17 +387,11 @@ export async function createAgentJobForUser(
     agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 &&
     agentRecord.pricing.pricingType === PricingType.FIXED
   ) {
-    // Readiness is a (policyId, contract) tuple; restrict to the agent's own
-    // policy so the floor matches the sources the post-response check accepts.
-    const agentReadySources = cardanoV2ReadySources.filter((source) =>
-      agentRecord.blockchainIdentifier
-        .toLowerCase()
-        .startsWith(source.policyId),
-    );
     const cheapestCents = cheapestEligibleV2SourceCents(
+      agentRecord.blockchainIdentifier,
       agentRecord.paymentSources,
       creditCosts,
-      agentReadySources,
+      cardanoV2ReadySources,
     );
     const acceptedCeilingCents = maxCents ?? cost.cents;
     if (cheapestCents !== null && cheapestCents > acceptedCeilingCents) {
@@ -512,12 +506,10 @@ export async function createAgentJobForUser(
             "Paid V2 agent job returned an unexpected payment source",
           );
         }
-        const isSelectedSourcePurchaseReady = cardanoV2ReadySources.some(
-          (readySource) =>
-            agent.blockchainIdentifier
-              .toLowerCase()
-              .startsWith(readySource.policyId) &&
-            selectedSource.address === readySource.smartContractAddress,
+        const isSelectedSourcePurchaseReady = isCardanoV2SourceReady(
+          agent.blockchainIdentifier,
+          selectedSource.address,
+          cardanoV2ReadySources,
         );
         if (!isSelectedSourcePurchaseReady) {
           throw unprocessableEntity(

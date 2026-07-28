@@ -22,16 +22,16 @@ CREATE TEMP TABLE "_v2_agent_identity_repair" AS
 WITH candidates AS (
   SELECT
     "id" AS "agentId",
-    LEFT("blockchainIdentifier", -6) AS "registryIdentity",
+    LOWER(LEFT("blockchainIdentifier", -6)) AS "registryIdentity",
     ('x' || RIGHT("blockchainIdentifier", 6))::bit(24)::integer AS "registryVersion",
     "blockchainIdentifier",
     "createdAt",
     CASE
-      WHEN "registryIdentity" = LEFT("blockchainIdentifier", -6) THEN 0
+      WHEN LOWER("registryIdentity") = LOWER(LEFT("blockchainIdentifier", -6)) THEN 0
       ELSE 1
     END AS "canonicalPriority"
   FROM "Agent"
-  WHERE LEFT("blockchainIdentifier", 56) = '67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b'
+  WHERE LOWER(LEFT("blockchainIdentifier", 56)) = '67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b'
     AND LENGTH("blockchainIdentifier") = 120
     AND "blockchainIdentifier" ~ '^[0-9A-Fa-f]{120}$'
 ),
@@ -186,6 +186,7 @@ WHERE agent."id" = repair."agentId"
 
 UPDATE "Agent" agent
 SET
+  "blockchainIdentifier" = LOWER(agent."blockchainIdentifier"),
   "registryIdentity" = repair."registryIdentity",
   "registryVersion" = repair."registryVersion"
 FROM "_v2_agent_identity_repair" repair

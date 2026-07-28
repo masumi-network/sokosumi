@@ -15,6 +15,16 @@ describe("parseVersionedAgentIdentifier", () => {
     });
   });
 
+  it("canonicalizes uppercase identifiers to one stable identity", () => {
+    const uppercaseIdentifier =
+      `${V2_POLICY_ID}${"ab".repeat(29)}00000A`.toUpperCase();
+
+    expect(parseVersionedAgentIdentifier(uppercaseIdentifier)).toEqual({
+      registryIdentity: `${V2_POLICY_ID}${"ab".repeat(29)}`,
+      registryVersion: 10,
+    });
+  });
+
   it("rejects missing and non-hex version suffixes", () => {
     expect(parseVersionedAgentIdentifier("000001")).toBeUndefined();
     expect(

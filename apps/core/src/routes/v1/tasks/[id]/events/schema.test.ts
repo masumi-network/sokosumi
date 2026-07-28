@@ -27,6 +27,8 @@ const validMasumiPayment = {
   ],
 } as const;
 
+const V2_POLICY_ID = "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b";
+
 describe("createTaskEventRequestSchema", () => {
   it("rejects a payment-source index on a V1 masumiPayment", () => {
     const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
@@ -36,6 +38,25 @@ describe("createTaskEventRequestSchema", () => {
         ...validMasumiPayment,
         paymentSourceType: "Web3CardanoV1",
         supportedPaymentSourceIndex: 2,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a malformed identifier under the V2 registry policy", () => {
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        agentIdentifier: `${V2_POLICY_ID}abcd`,
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress:
+            "addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm",
+          policyId: V2_POLICY_ID,
+        },
       },
     });
 

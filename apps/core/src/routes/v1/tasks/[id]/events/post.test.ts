@@ -2108,6 +2108,45 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a malformed V2 identifier before charging", async () => {
+    const chargeSpy = vi.fn();
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: chargeSpy,
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: {
+          ...validV2MasumiPaymentBody,
+          agentIdentifier: `${V2_READY_POLICY_ID}abcd`,
+          paymentSourceType: "Web3CardanoV2",
+          supportedPaymentSourceIndex: 2,
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(chargeSpy).not.toHaveBeenCalled();
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
+  });
+
   it("creates purchase when coworker completes with masumiPayment", async () => {
     const tx: TransactionMock = {
       taskEvent: {

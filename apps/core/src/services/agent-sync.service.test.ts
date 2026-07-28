@@ -21,6 +21,7 @@ const {
   getAgentsDiffMock,
   getCardanoV2RailReadinessMock,
   getEnvEnableCardanoV2Mock,
+  jobUpdateManyMock,
   openrouterGenerateAgentSummaryMock,
   syncMetadataDeleteManyMock,
   syncMetadataCreateManyMock,
@@ -43,6 +44,7 @@ const {
   getAgentsDiffMock: vi.fn(),
   getCardanoV2RailReadinessMock: vi.fn(),
   getEnvEnableCardanoV2Mock: vi.fn().mockReturnValue(true),
+  jobUpdateManyMock: vi.fn(),
   openrouterGenerateAgentSummaryMock: vi.fn(),
   syncMetadataDeleteManyMock: vi.fn(),
   syncMetadataCreateManyMock: vi.fn(),
@@ -165,6 +167,9 @@ function createTransactionClientMock() {
     exampleOutput: {
       deleteMany: exampleOutputDeleteManyMock,
     },
+    job: {
+      updateMany: jobUpdateManyMock,
+    },
   };
 }
 
@@ -265,6 +270,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     agentFixedPricingDeleteMock.mockResolvedValue(undefined);
     agentPaymentSourceDeleteManyMock.mockResolvedValue({ count: 0 });
     exampleOutputDeleteManyMock.mockResolvedValue({ count: 0 });
+    jobUpdateManyMock.mockResolvedValue({ count: 0 });
     syncMetadataUpsertMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -352,6 +358,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
           return {
             id: "agent-rollback-dup",
             blockchainIdentifier: createV2AgentIdentifier(2),
+            apiBaseUrl: "https://rollback-agent.example.com",
+            metadataOverride: null,
           };
         }
         return null;
@@ -365,6 +373,26 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
 
     const parkedIdentifier = `legacy-v2:agent-rollback-dup:${createV2AgentIdentifier(2)}`;
+    expect(jobUpdateManyMock).toHaveBeenNthCalledWith(1, {
+      where: {
+        agentId: "agent-rollback-dup",
+        agentBlockchainIdentifier: null,
+      },
+      data: {
+        agentBlockchainIdentifier: createV2AgentIdentifier(2),
+      },
+    });
+    expect(jobUpdateManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        agentId: "agent-rollback-dup",
+        agentApiBaseUrl: null,
+      },
+      data: { agentApiBaseUrl: "https://rollback-agent.example.com" },
+    });
+    expect(jobUpdateManyMock).toHaveBeenNthCalledWith(3, {
+      where: { agentId: "agent-rollback-dup" },
+      data: { agentId: "agent-canonical" },
+    });
     expect(agentUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "agent-rollback-dup" },
@@ -805,6 +833,105 @@ describe("agentSyncService.syncRegistryAgents", () => {
           cursorId: "entry-v2",
           lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
         },
+      }),
+    );
+  });
+
+  it("projects pricing only from a source ready for the agent policy", async () => {
+    const policyId = V2_AGENT_ROOT.slice(0, 56);
+    const wrongPolicyId = "ff".repeat(28);
+    syncMetadataFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { key: string } }) =>
+        where.key === "cardano-v2-rail-readiness"
+          ? {
+              cursorId: JSON.stringify([
+                {
+                  policyId: wrongPolicyId,
+                  smartContractAddress: "addr_test1_shared_contract",
+                },
+                {
+                  policyId,
+                  smartContractAddress: "addr_test1_exact_contract",
+                },
+              ]),
+              lastSyncedAt: new Date(),
+            }
+          : {
+              key: "agents-sync-metadata",
+              lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+              cursorId: null,
+            },
+    );
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-policy-source", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [
+            createCardanoV2PaymentSource({
+              address: "addr_test1_shared_contract",
+              pricing: {
+                pricingType: "Fixed",
+                fixed: [{ asset: "lovelace", amount: "1000000" }],
+              },
+            }),
+            createCardanoV2PaymentSource({
+              sourceIndex: 1,
+              address: "addr_test1_exact_contract",
+              pricing: {
+                pricingType: "Fixed",
+                fixed: [{ asset: "lovelace", amount: "2000000" }],
+              },
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(
+      createCall.data.pricing.create.fixedPricing.create.amounts.createMany
+        .data,
+    ).toEqual([{ unit: "lovelace", amount: BigInt(2_000_000) }]);
+  });
+
+  it("canonicalizes uppercase V2 identifiers before persistence", async () => {
+    const uppercaseIdentifier = createV2AgentIdentifier(1).toUpperCase();
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-uppercase", {
+          agentIdentifier: uppercaseIdentifier,
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [createCardanoV2PaymentSource()],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { registryIdentity: V2_AGENT_ROOT },
+      }),
+    );
+    expect(agentCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          blockchainIdentifier: createV2AgentIdentifier(1),
+          registryIdentity: V2_AGENT_ROOT,
+        }),
       }),
     );
   });
@@ -1822,7 +1949,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getEnvEnableCardanoV2Mock.mockReturnValue(false);
 
     const agentSyncService = await getAgentSyncService();
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
+      false,
+    );
 
     expect(getCardanoV2RailReadinessMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
@@ -1840,6 +1969,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getEnvEnableCardanoV2Mock.mockReturnValue(true);
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
     syncMetadataUpsertMock.mockResolvedValue(undefined);
   });
 
@@ -1847,7 +1977,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
 
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
+      true,
+    );
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
@@ -1865,6 +1997,18 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
       where: { key: "cardano-v2-rail-readiness-failure" },
     });
+  });
+
+  it("reports no change when the cached source set is unchanged", async () => {
+    const agentSyncService = await getAgentSyncService();
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify(readySources),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
+
+    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
+      false,
+    );
   });
 
   it("caches an empty list when no source is purchase-ready", async () => {
@@ -1922,9 +2066,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     );
     syncMetadataCreateManyMock.mockRejectedValue(new Error("database down"));
 
-    await expect(
-      agentSyncService.syncCardanoV2RailReadiness(),
-    ).resolves.toBeUndefined();
+    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
+      false,
+    );
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalledWith(

@@ -17,6 +17,7 @@ import {
   getCreditCostsOrThrow,
   getRecentAgentReviews,
   getUserAgentReview,
+  isCardanoV2SourceReady,
   requireAvailableAgentOrThrow,
   toMasumiAgent,
   toMasumiAgentForJob,
@@ -254,6 +255,42 @@ describe("getCardanoV2ReadySources", () => {
     });
 
     await expect(getCardanoV2ReadySources(tx)).resolves.toEqual([]);
+  });
+});
+
+describe("isCardanoV2SourceReady", () => {
+  it("requires the exact policy and contract pair", () => {
+    const identifier = `${CARDANO_V2_READY_SOURCE.policyId}${"ab".repeat(32)}`;
+
+    expect(
+      isCardanoV2SourceReady(
+        identifier,
+        CARDANO_V2_READY_SOURCE.smartContractAddress,
+        [CARDANO_V2_READY_SOURCE],
+      ),
+    ).toBe(true);
+    expect(
+      isCardanoV2SourceReady(
+        identifier,
+        CARDANO_V2_READY_SOURCE.smartContractAddress,
+        [
+          {
+            ...CARDANO_V2_READY_SOURCE,
+            policyId: "cd".repeat(28),
+          },
+        ],
+      ),
+    ).toBe(false);
+  });
+
+  it("normalizes identifier and contract casing", () => {
+    expect(
+      isCardanoV2SourceReady(
+        `${CARDANO_V2_READY_SOURCE.policyId}${"ab".repeat(32)}`.toUpperCase(),
+        CARDANO_V2_READY_SOURCE.smartContractAddress.toUpperCase(),
+        [CARDANO_V2_READY_SOURCE],
+      ),
+    ).toBe(true);
   });
 });
 

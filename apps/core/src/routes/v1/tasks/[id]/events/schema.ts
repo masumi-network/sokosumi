@@ -1,5 +1,9 @@
 import { z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import {
+  isV2RegistryIdentifier,
+  parseVersionedAgentIdentifier,
+} from "@sokosumi/masumi";
 
 import { LIMITS } from "@/config/constants";
 import {
@@ -161,6 +165,19 @@ export function createTaskEventRequestSchema(
             message:
               "supportedPaymentSourceIndex is only valid for Web3CardanoV2 payments",
             path: ["masumiPayment", "supportedPaymentSourceIndex"],
+          });
+        }
+
+        if (
+          isV2RegistryIdentifier(data.masumiPayment.agentIdentifier) &&
+          parseVersionedAgentIdentifier(data.masumiPayment.agentIdentifier) ===
+            undefined
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "V2 registry agentIdentifier must include a valid stable identity and version",
+            path: ["masumiPayment", "agentIdentifier"],
           });
         }
 

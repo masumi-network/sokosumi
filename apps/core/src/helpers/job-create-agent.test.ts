@@ -42,6 +42,22 @@ vi.mock("@/helpers/agent", () => ({
   getAgentCost: getAgentCostMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
+  isCardanoV2SourceReady: (
+    agentIdentifier: string,
+    smartContractAddress: string,
+    readySources: {
+      policyId: string;
+      smartContractAddress: string;
+    }[],
+  ) =>
+    readySources.some(
+      (source) =>
+        agentIdentifier
+          .toLowerCase()
+          .startsWith(source.policyId.toLowerCase()) &&
+        smartContractAddress.toLowerCase() ===
+          source.smartContractAddress.toLowerCase(),
+    ),
   normalizeMasumiPaymentUnit: (unit: string) =>
     unit === "" || unit.toLowerCase() === "lovelace" ? "lovelace" : unit,
   toMasumiAgent: (agent: {

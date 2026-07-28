@@ -23,6 +23,7 @@ import {
   type CardanoV2ReadySource,
   getAgentDescription,
   getCardanoV2ReadySources,
+  isCardanoV2SourceReady,
   normalizeMasumiPaymentUnit,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
@@ -188,6 +189,22 @@ type RegistryDiffEntry = PostRegistryDiffResponse["data"]["entries"][number];
 type RegistryPaymentSource =
   RegistryDiffEntry["SupportedPaymentSources"][number];
 
+function normalizeRegistryIdentifier(identifier: string): string {
+  return isV2RegistryIdentifier(identifier)
+    ? identifier.toLowerCase()
+    : identifier;
+}
+
+function normalizeRegistryEntry(entry: RegistryDiffEntry): RegistryDiffEntry {
+  return {
+    ...entry,
+    agentIdentifier: normalizeRegistryIdentifier(entry.agentIdentifier),
+    supersededByAgentIdentifier: entry.supersededByAgentIdentifier
+      ? normalizeRegistryIdentifier(entry.supersededByAgentIdentifier)
+      : entry.supersededByAgentIdentifier,
+  };
+}
+
 interface RegistryAgentVersion {
   registryIdentity: string;
   registryVersion: number;
@@ -287,15 +304,12 @@ function projectV2AgentPricing(
       candidate.network === network &&
       candidate.paymentSourceType === "Web3CardanoV2",
   );
-  // Readiness is a (policyId, contract) tuple: restrict to the entry's own
-  // policy before matching addresses, mirroring the hire-time enforcement.
-  const entryPolicyReadySources = readySources.filter((ready) =>
-    entry.agentIdentifier.toLowerCase().startsWith(ready.policyId),
-  );
   const source =
     matching.find((candidate) =>
-      entryPolicyReadySources.some(
-        (ready) => ready.smartContractAddress === candidate.address,
+      isCardanoV2SourceReady(
+        entry.agentIdentifier,
+        candidate.address,
+        readySources,
       ),
     ) ?? matching[0];
   if (!source) {
@@ -553,10 +567,20 @@ async function upsertRegistryAgent(
   // new release returns instead of colliding on blockchainIdentifier.
   const existing =
     existingByRegistryIdentity ??
-    (await prisma.agent.findUnique({
-      where: { blockchainIdentifier: entry.agentIdentifier },
-      select: existingAgentSelect,
-    }));
+    (isV2RegistryIdentifier(entry.agentIdentifier)
+      ? await prisma.agent.findFirst({
+          where: {
+            blockchainIdentifier: {
+              equals: entry.agentIdentifier,
+              mode: "insensitive",
+            },
+          },
+          select: existingAgentSelect,
+        })
+      : await prisma.agent.findUnique({
+          where: { blockchainIdentifier: entry.agentIdentifier },
+          select: existingAgentSelect,
+        }));
 
   // A malformed V2 identifier keeps its FULL string as registryIdentity; if
   // that string happens to equal a valid agent's stripped identity, refuse to
@@ -635,9 +659,19 @@ async function upsertRegistryAgent(
   // Agent_blockchainIdentifier_key on every retry (permanent cursor wedge).
   const conflictingByIdentifier =
     existing.blockchainIdentifier !== entry.agentIdentifier
-      ? await prisma.agent.findUnique({
-          where: { blockchainIdentifier: entry.agentIdentifier },
-          select: { id: true, blockchainIdentifier: true },
+      ? await prisma.agent.findFirst({
+          where: {
+            blockchainIdentifier: {
+              equals: entry.agentIdentifier,
+              mode: "insensitive",
+            },
+          },
+          select: {
+            id: true,
+            blockchainIdentifier: true,
+            apiBaseUrl: true,
+            metadataOverride: { select: { apiBaseUrl: true } },
+          },
         })
       : null;
 
@@ -646,6 +680,33 @@ async function upsertRegistryAgent(
   // so the stable Agent row never presents a mixture of two revisions.
   await prisma.$transaction(async (tx) => {
     if (conflictingByIdentifier && conflictingByIdentifier.id !== existing.id) {
+      await tx.job.updateMany({
+        where: {
+          agentId: conflictingByIdentifier.id,
+          agentBlockchainIdentifier: null,
+        },
+        data: {
+          agentBlockchainIdentifier:
+            conflictingByIdentifier.blockchainIdentifier,
+        },
+      });
+      const duplicateApiBaseUrl =
+        conflictingByIdentifier.metadataOverride?.apiBaseUrl ??
+        conflictingByIdentifier.apiBaseUrl;
+      if (duplicateApiBaseUrl) {
+        await tx.job.updateMany({
+          where: {
+            agentId: conflictingByIdentifier.id,
+            agentApiBaseUrl: null,
+          },
+          data: { agentApiBaseUrl: duplicateApiBaseUrl },
+        });
+      }
+      await tx.job.updateMany({
+        where: { agentId: conflictingByIdentifier.id },
+        data: { agentId: existing.id },
+      });
+
       const parkedIdentifier = `legacy-v2:${conflictingByIdentifier.id}:${conflictingByIdentifier.blockchainIdentifier}`;
       await tx.agent.update({
         where: { id: conflictingByIdentifier.id },
@@ -848,8 +909,12 @@ async function syncRegistryAgents(
       }
 
       try {
-        const pricing = resolveEntryPricing(entry, cardanoV2ReadySources);
-        await upsertRegistryAgent(entry, pricing);
+        const normalizedEntry = normalizeRegistryEntry(entry);
+        const pricing = resolveEntryPricing(
+          normalizedEntry,
+          cardanoV2ReadySources,
+        );
+        await upsertRegistryAgent(normalizedEntry, pricing);
         processedEntryCount++;
       } catch (error) {
         // Failure (infra error, or a data shape the defensive parsing above
@@ -1000,7 +1065,7 @@ async function syncAgentSummaries(
  */
 async function syncCardanoV2RailReadiness(
   options: { signal?: AbortSignal } = {},
-): Promise<void> {
+): Promise<boolean> {
   const isCardanoV2Enabled = getEnv().ENABLE_CARDANO_V2_AGENTS;
   // Nothing reads the cache while the flag is off (isCardanoV2RailReady
   // short-circuits), so skip the node round-trip. After a flag flip the next
@@ -1022,7 +1087,7 @@ async function syncCardanoV2RailReadiness(
         cleanupError,
       );
     }
-    return;
+    return false;
   }
   const readinessResult = await paymentClient().getCardanoV2RailReadiness({
     signal: options.signal,
@@ -1063,19 +1128,30 @@ async function syncCardanoV2RailReadiness(
         );
       }
     }
-    return;
+    return false;
   }
 
-  const readySources = readinessResult.value;
+  const readySources = [...readinessResult.value].sort((left, right) => {
+    const policyComparison = left.policyId.localeCompare(right.policyId);
+    return policyComparison !== 0
+      ? policyComparison
+      : left.smartContractAddress.localeCompare(right.smartContractAddress);
+  });
+  const serializedReadySources = JSON.stringify(readySources);
+  const previousReadiness = await prisma.syncMetadata.findUnique({
+    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+  });
+  const readinessChanged =
+    previousReadiness?.cursorId !== serializedReadySources;
   await prisma.syncMetadata.upsert({
     where: { key: CARDANO_V2_RAIL_READINESS_KEY },
     create: {
       key: CARDANO_V2_RAIL_READINESS_KEY,
-      cursorId: JSON.stringify(readySources),
+      cursorId: serializedReadySources,
       lastSyncedAt: new Date(),
     },
     update: {
-      cursorId: JSON.stringify(readySources),
+      cursorId: serializedReadySources,
       lastSyncedAt: new Date(),
     },
   });
@@ -1088,6 +1164,7 @@ async function syncCardanoV2RailReadiness(
       "[sync/agents] No Cardano V2 source is purchase-ready; V2 agents stay unavailable despite ENABLE_CARDANO_V2_AGENTS",
     );
   }
+  return readinessChanged;
 }
 
 export const agentSyncService = {

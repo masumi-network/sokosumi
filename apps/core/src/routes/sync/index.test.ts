@@ -131,7 +131,7 @@ describe("sync routes", () => {
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
-    syncCardanoV2RailReadinessMock.mockResolvedValue(undefined);
+    syncCardanoV2RailReadinessMock.mockResolvedValue(false);
     syncJobsMock.mockResolvedValue({
       processed: 0,
       unfinishedFound: 0,
@@ -351,7 +351,25 @@ describe("sync routes", () => {
     );
   });
 
-  it("requests a cursor reset only on the dedicated reset-cursor route", async () => {
+  it("requests a cursor reset when the readiness source set changes", async () => {
+    syncCardanoV2RailReadinessMock.mockResolvedValue(true);
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      "agents-sync-metadata",
+      expect.objectContaining({ resetCursor: true }),
+    );
+  });
+
+  it("refreshes readiness and resets the cursor on the recovery route", async () => {
     const app = await createApp();
 
     const response = await app.request(
@@ -366,6 +384,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     expect(acquireLockMock).toHaveBeenCalledWith("agents-sync");
     await flushMicrotasks();
+    expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
       "agents-sync-metadata",
       expect.objectContaining({ resetCursor: true }),

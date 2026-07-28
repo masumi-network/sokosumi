@@ -51,20 +51,21 @@ export interface VersionedAgentIdentifier {
 export function parseVersionedAgentIdentifier(
   agentIdentifier: string,
 ): VersionedAgentIdentifier | undefined {
+  const normalizedIdentifier = agentIdentifier.toLowerCase();
   if (
-    agentIdentifier.length !== V2_AGENT_IDENTIFIER_HEX_LENGTH ||
-    !HEX_PATTERN.test(agentIdentifier)
+    normalizedIdentifier.length !== V2_AGENT_IDENTIFIER_HEX_LENGTH ||
+    !HEX_PATTERN.test(normalizedIdentifier)
   ) {
     return undefined;
   }
 
-  const versionHex = agentIdentifier.slice(-V2_VERSION_HEX_LENGTH);
+  const versionHex = normalizedIdentifier.slice(-V2_VERSION_HEX_LENGTH);
   if (!V2_VERSION_PATTERN.test(versionHex)) {
     return undefined;
   }
 
   return {
-    registryIdentity: agentIdentifier.slice(0, -V2_VERSION_HEX_LENGTH),
+    registryIdentity: normalizedIdentifier.slice(0, -V2_VERSION_HEX_LENGTH),
     registryVersion: Number.parseInt(versionHex, 16),
   };
 }
