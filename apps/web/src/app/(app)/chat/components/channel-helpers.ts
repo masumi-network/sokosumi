@@ -193,31 +193,6 @@ export function getChannelDisplayName(
   );
 }
 
-export function getDirectChannelSubtitle(
-  channel: ChatRoom,
-  currentUserId: string,
-  options: {
-    fallback: string;
-    participantCountLabel: (count: number) => string;
-  },
-): string {
-  const participants = getDirectChannelParticipants(channel, currentUserId);
-
-  if (participants.length === 1) {
-    const participant = participants[0];
-    if (participant.kind === "coworker") {
-      return participant.detail ?? options.fallback;
-    }
-    return participant.detail ?? options.fallback;
-  }
-
-  if (participants.length > 1) {
-    return options.participantCountLabel(participants.length);
-  }
-
-  return options.fallback;
-}
-
 export function getChannelParticipantPreviews(
   channel: ChatRoom,
 ): ChannelParticipantPreview[] {

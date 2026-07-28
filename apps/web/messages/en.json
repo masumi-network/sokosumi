@@ -4639,7 +4639,6 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
-      "directParticipantCount": "{count, plural, one {# participant} other {# participants}}",
       "directMessages": "Direct Messages",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
@@ -4677,7 +4676,7 @@
       },
       "MentionStatus": {
         "pending": "Calling {name}",
-        "sent": "{name} thinking",
+        "sent": "{name} is thinking",
         "responded": "{name} replied",
         "failed": "{name} failed",
         "nameFallback": "Coworker"
