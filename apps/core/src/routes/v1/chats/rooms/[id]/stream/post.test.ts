@@ -26,6 +26,11 @@ const {
   conversationMessageCreateMock,
   persistUserMessageToChatRoomMock,
   persistAssistantToChatRoomMock,
+  isUiStreamResumptionConfiguredMock,
+  getResumableUiStreamContextMock,
+  createNewResumableStreamMock,
+  setActiveUiStreamIdForRoomMock,
+  clearActiveUiStreamIdForRoomMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
@@ -45,6 +50,11 @@ const {
   conversationMessageCreateMock: vi.fn(),
   persistUserMessageToChatRoomMock: vi.fn(),
   persistAssistantToChatRoomMock: vi.fn(),
+  isUiStreamResumptionConfiguredMock: vi.fn(),
+  getResumableUiStreamContextMock: vi.fn(),
+  createNewResumableStreamMock: vi.fn(),
+  setActiveUiStreamIdForRoomMock: vi.fn(),
+  clearActiveUiStreamIdForRoomMock: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -60,6 +70,16 @@ vi.mock("@/lib/sokosumi-ai-provider", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
+}));
+
+vi.mock("@/helpers/active-ui-stream-room-metadata", () => ({
+  setActiveUiStreamIdForRoom: setActiveUiStreamIdForRoomMock,
+  clearActiveUiStreamIdForRoom: clearActiveUiStreamIdForRoomMock,
+}));
+
+vi.mock("@/lib/resumable-ui-stream-context", () => ({
+  isUiStreamResumptionConfigured: isUiStreamResumptionConfiguredMock,
+  getResumableUiStreamContext: getResumableUiStreamContextMock,
 }));
 
 vi.mock("@/helpers/persist-assistant-to-chat-room", () => ({
@@ -207,6 +227,19 @@ beforeEach(() => {
   chatRoomUpdateManyMock.mockResolvedValue({ count: 1 });
   persistUserMessageToChatRoomMock.mockResolvedValue({ id: "msg_user_1" });
   persistAssistantToChatRoomMock.mockResolvedValue({ id: "msg_asst_1" });
+  isUiStreamResumptionConfiguredMock.mockReturnValue(false);
+  getResumableUiStreamContextMock.mockReturnValue({
+    createNewResumableStream: createNewResumableStreamMock,
+  });
+  createNewResumableStreamMock.mockResolvedValue(
+    new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    }),
+  );
+  setActiveUiStreamIdForRoomMock.mockResolvedValue(undefined);
+  clearActiveUiStreamIdForRoomMock.mockResolvedValue(undefined);
   toUIMessageStreamResponseMock.mockImplementation(
     (opts?: { headers?: Record<string, string> }) =>
       new Response(null, {
@@ -389,5 +422,70 @@ describe("POST /chats/rooms/{id}/stream", () => {
     );
     expect(conversationCreateMock).not.toHaveBeenCalled();
     expect(conversationMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("registers active UI stream id via consumeSseStream when resumption is configured", async () => {
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+    const response = await postStream();
+    expect(response.status).toBe(200);
+    expect(clearActiveUiStreamIdForRoomMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      userId: USER_ID,
+    });
+
+    const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+      consumeSseStream?: (args: {
+        stream: ReadableStream<string>;
+      }) => Promise<void>;
+    };
+    expect(init.consumeSseStream).toEqual(expect.any(Function));
+
+    const sseCopy = new ReadableStream<string>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    await init.consumeSseStream!({ stream: sseCopy });
+
+    expect(createNewResumableStreamMock).toHaveBeenCalledWith(
+      "generated-id-test",
+      expect.any(Function),
+    );
+    expect(setActiveUiStreamIdForRoomMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      userId: USER_ID,
+      streamId: "generated-id-test",
+    });
+  });
+
+  it("clears active UI stream id on UI onFinish after successful resumable registration", async () => {
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+    const response = await postStream();
+    expect(response.status).toBe(200);
+    expect(clearActiveUiStreamIdForRoomMock).toHaveBeenCalledTimes(1);
+
+    const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+      consumeSseStream?: (args: {
+        stream: ReadableStream<string>;
+      }) => Promise<void>;
+      onFinish?: () => Promise<void>;
+    };
+    const sseCopy = new ReadableStream<string>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    await init.consumeSseStream!({ stream: sseCopy });
+    await init.onFinish!();
+
+    expect(clearActiveUiStreamIdForRoomMock).toHaveBeenCalledTimes(2);
+    expect(clearActiveUiStreamIdForRoomMock).toHaveBeenLastCalledWith({
+      roomId: ROOM_ID,
+      userId: USER_ID,
+    });
   });
 });

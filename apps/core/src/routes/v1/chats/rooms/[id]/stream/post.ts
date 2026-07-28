@@ -10,6 +10,10 @@ import {
 
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import {
+  clearActiveUiStreamIdForRoom,
+  setActiveUiStreamIdForRoom,
+} from "@/helpers/active-ui-stream-room-metadata";
+import {
   badRequest,
   serviceUnavailable,
   unprocessableEntity,
@@ -25,6 +29,10 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import {
+  getResumableUiStreamContext,
+  isUiStreamResumptionConfigured,
+} from "@/lib/resumable-ui-stream-context";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { throwCoworkerRemoteConversationHttpError } from "@/routes/v1/chats/stream/coworker-conversation";
@@ -43,7 +51,6 @@ import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-c
  * Deferred to follow-up (parity with legacy conversation stream):
  * - Image generation / OpenRouter paths
  * - Web search
- * - Resumable UI streams (GET /stream — Task 4)
  * - Pending-response mirror / conversation metadata chain
  */
 
@@ -194,6 +201,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    const enableResumableUiStream = isUiStreamResumptionConfigured();
+    if (enableResumableUiStream) {
+      try {
+        await clearActiveUiStreamIdForRoom({
+          roomId: room.id,
+          userId: userContext.userId,
+        });
+      } catch (error) {
+        console.error(
+          "Failed to clear active UI stream id before new room stream:",
+          error,
+        );
+      }
+    }
+
+    let uiStreamResumptionRegistered = false;
+    let uiStreamResumptionRegistration: Promise<void> | undefined;
+
     const modelMessages = await convertToModelMessages(
       uiMessages.map(({ id: _id, ...rest }) => rest),
     );
@@ -270,6 +295,60 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         Connection: "keep-alive",
         "x-sokosumi-room-id": room.id,
       },
+      ...(enableResumableUiStream
+        ? {
+            consumeSseStream: async ({ stream }) => {
+              const streamId = generateId();
+              const registration = (async () => {
+                try {
+                  const ctx = getResumableUiStreamContext();
+                  await ctx.createNewResumableStream(streamId, () => stream);
+                  await setActiveUiStreamIdForRoom({
+                    roomId: room.id,
+                    userId: userContext.userId,
+                    streamId,
+                  });
+                  uiStreamResumptionRegistered = true;
+                } catch (error) {
+                  console.error(
+                    "Failed to register resumable UI message stream:",
+                    error,
+                  );
+                }
+              })();
+              uiStreamResumptionRegistration = registration;
+              await registration;
+            },
+            onFinish: async () => {
+              if (uiStreamResumptionRegistration) {
+                await uiStreamResumptionRegistration;
+              }
+              if (!uiStreamResumptionRegistered) {
+                return;
+              }
+              const clearParams = {
+                roomId: room.id,
+                userId: userContext.userId,
+              };
+              try {
+                await clearActiveUiStreamIdForRoom(clearParams);
+              } catch (error) {
+                console.error(
+                  "Failed to clear active UI stream id on stream finish:",
+                  error,
+                );
+                try {
+                  await clearActiveUiStreamIdForRoom(clearParams);
+                } catch (retryError) {
+                  console.error(
+                    "Retry failed to clear active UI stream id on stream finish:",
+                    retryError,
+                  );
+                }
+              }
+            },
+          }
+        : {}),
     });
   });
 }
