@@ -1623,6 +1623,8 @@ model ChatRoom {
   slug       String
   kind       String    @default("channel")
   directKey  String?
+  /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
+  providerConversationId String?
   topic      String?
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
