@@ -90,7 +90,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/stream",
     description:
-      "Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Requires exactly one coworker member.",
+      "Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Requires a direct room with exactly one user member (the caller) and one coworker member.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -137,9 +137,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       requireChatRoomUserWriteAccess(roomId, userContext.userId, tx),
     );
 
-    if (room.coworkerMembers.length !== 1) {
+    // Match web `isCoworkerOnlyDirectRoom` and message-POST skip-mention:
+    // stream is only for 1:1 human↔coworker directs, never multi-human
+    // channels that happen to include a coworker.
+    const isCoworkerOnlyDirect =
+      room.kind === "direct" &&
+      room.coworkerMembers.length === 1 &&
+      room.userMembers.length === 1 &&
+      room.userMembers[0]?.userId === userContext.userId;
+    if (!isCoworkerOnlyDirect) {
       throw badRequest(
-        "Room stream requires exactly one AI coworker member. Use message POST for human-only rooms.",
+        "Room stream requires a 1:1 direct with exactly one AI coworker member. Use message POST for channels and human-only rooms.",
       );
     }
 

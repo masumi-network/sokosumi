@@ -176,8 +176,10 @@ function createApp(
 
 function roomWithOneCoworker(
   overrides: {
+    kind?: string;
     organizationId?: string | null;
     providerConversationId?: string | null;
+    userMembers?: Array<{ userId: string }>;
     coworkerMembers?: Array<{
       coworker: { id: string; name: string; slug: string };
     }>;
@@ -185,12 +187,14 @@ function roomWithOneCoworker(
 ) {
   return {
     id: ROOM_ID,
+    kind: overrides.kind ?? "direct",
     organizationId:
       "organizationId" in overrides ? overrides.organizationId : "org_1",
     providerConversationId:
       "providerConversationId" in overrides
         ? (overrides.providerConversationId ?? null)
         : "conv_remote_1",
+    userMembers: overrides.userMembers ?? [{ userId: USER_ID }],
     coworkerMembers: overrides.coworkerMembers ?? [
       {
         coworker: {
@@ -345,6 +349,36 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(response.status).toBe(400);
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when room is a channel with one coworker", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      roomWithOneCoworker({ kind: "channel" }),
+    );
+
+    const response = await postStream({
+      messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+    });
+
+    expect(response.status).toBe(400);
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when direct has multiple human members", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      roomWithOneCoworker({
+        userMembers: [{ userId: USER_ID }, { userId: "user_other" }],
+      }),
+    );
+
+    const response = await postStream({
+      messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+    });
+
+    expect(response.status).toBe(400);
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
   });
 
   it("persists user message to chat_room_message and streams without conversation* rows", async () => {

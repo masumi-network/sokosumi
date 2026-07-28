@@ -286,3 +286,71 @@ describe("chat room user auth guards", () => {
     expect(prismaTransactionMock).toHaveBeenCalled();
   });
 });
+
+const membershipScopedCases: AuthRequestCase[] = [
+  {
+    label: "GET /{id}",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}` }),
+  },
+  {
+    label: "PATCH /{id}",
+    request: () => ({
+      method: "PATCH",
+      path: `/${ROOM_ID}`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Renamed" }),
+    }),
+  },
+  {
+    label: "POST /{id}/read",
+    request: () => ({ method: "POST", path: `/${ROOM_ID}/read` }),
+  },
+  {
+    label: "GET /{id}/messages",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}/messages` }),
+  },
+  {
+    label: "POST /{id}/messages",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/messages`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: "hello" }),
+    }),
+  },
+  {
+    label: "POST /{id}/messages/{messageId}/reactions",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ emoji: "👍" }),
+    }),
+  },
+];
+
+describe("chat room membership isolation", () => {
+  it.each(membershipScopedCases)(
+    "$label returns 404 when caller is not a room member",
+    async ({ request }) => {
+      prismaTransactionMock.mockImplementation(
+        async (callback: (tx: unknown) => Promise<unknown>) =>
+          callback({
+            chatRoom: {
+              findFirst: vi.fn().mockResolvedValue(null),
+            },
+          }),
+      );
+
+      const { method, path, headers, body } = request();
+      const response = await createApp(userAuthContext).request(path, {
+        method,
+        headers,
+        body,
+      });
+
+      expect(response.status).toBe(404);
+      expect(prismaTransactionMock).toHaveBeenCalled();
+    },
+  );
+});

@@ -38,7 +38,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/{id}/stream/messages",
     description:
-      "Load persisted room messages as AI SDK UIMessage[] for coworker stream UI hydrate.",
+      "Load persisted room messages as AI SDK UIMessage[] for coworker stream UI hydrate. Uncursored requests return the newest page (reading order); nextCursor walks older history.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -108,7 +108,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const [items, count] = await Promise.all([
           tx.chatRoomMessage.findMany({
             where,
-            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            // Newest-first page (same as GET /messages): open hydrate is the
+            // most recent window, not the first 200 messages ever written.
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
             take: takePlusOne,
             skip,
             cursor: cursor ? { id: cursor } : undefined,
@@ -129,8 +131,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const hasMore = items.length === takePlusOne;
       const pagedItems = items.slice(0, take);
+      // nextCursor is this page's oldest id (last in newest-first page).
+      const paginationMeta = createPaginationMeta(
+        pagedItems,
+        count,
+        take,
+        hasMore,
+        cursor,
+      );
+      const orderedItems = [...pagedItems].reverse();
 
-      const messages = chatRoomMessagesToUiMessages(pagedItems);
+      const messages = chatRoomMessagesToUiMessages(orderedItems);
       try {
         await validateUIMessages({ messages });
       } catch (error) {
@@ -142,14 +153,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const parsed = getChatUiMessagesResponseDataSchema.parse({ messages });
-
-      const paginationMeta = createPaginationMeta(
-        pagedItems,
-        count,
-        take,
-        hasMore,
-        cursor,
-      );
 
       return ok(c, parsed, paginationMeta);
     } catch (error) {

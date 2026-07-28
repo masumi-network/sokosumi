@@ -125,15 +125,8 @@ describe("GET /chats/rooms/{id}/stream/messages", () => {
       organizationId: "org_1",
     });
     chatRoomMessageCountMock.mockResolvedValue(2);
+    // findMany is newest-first; handler reverses to reading order.
     chatRoomMessageFindManyMock.mockResolvedValue([
-      {
-        id: "m1",
-        content: "Hi",
-        senderUserId: USER_ID,
-        senderCoworkerId: null,
-        metadata: null,
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      },
       {
         id: "m2",
         content: "Hello back",
@@ -141,6 +134,14 @@ describe("GET /chats/rooms/{id}/stream/messages", () => {
         senderCoworkerId: "coworker_1",
         metadata: null,
         createdAt: new Date("2026-01-01T00:00:01.000Z"),
+      },
+      {
+        id: "m1",
+        content: "Hi",
+        senderUserId: USER_ID,
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
     ]);
 
@@ -157,6 +158,7 @@ describe("GET /chats/rooms/{id}/stream/messages", () => {
     expect(body.data.messages).toHaveLength(2);
     expect(body.data.messages[0]?.id).toBe("m1");
     expect(body.data.messages[0]?.role).toBe("user");
+    expect(body.data.messages[1]?.id).toBe("m2");
     expect(body.data.messages[1]?.role).toBe("assistant");
     expect(body.meta.pagination.total).toBe(2);
     expect(body.meta.pagination.nextCursor).toBeNull();
@@ -166,7 +168,56 @@ describe("GET /chats/rooms/{id}/stream/messages", () => {
           roomId: ROOM_ID,
           parentMessageId: null,
         },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     );
+  });
+
+  it("pages newest-first so nextCursor is the oldest id on the page", async () => {
+    roomFindFirstMock.mockResolvedValue({
+      id: ROOM_ID,
+      organizationId: "org_1",
+    });
+    chatRoomMessageCountMock.mockResolvedValue(3);
+    chatRoomMessageFindManyMock.mockResolvedValue([
+      {
+        id: "m3",
+        content: "newest",
+        senderUserId: USER_ID,
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-01-01T00:00:02.000Z"),
+      },
+      {
+        id: "m2",
+        content: "middle",
+        senderUserId: USER_ID,
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-01-01T00:00:01.000Z"),
+      },
+      {
+        id: "m1",
+        content: "oldest on page",
+        senderUserId: USER_ID,
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request(`/${ROOM_ID}/stream/messages?limit=2`);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: { messages: Array<{ id: string }> };
+      meta: { pagination: { nextCursor: string | null; limit: number } };
+    };
+    expect(body.meta.pagination.limit).toBe(2);
+    // Reading order after reverse of newest-first page of 2: m2 then m3.
+    expect(body.data.messages.map((m) => m.id)).toEqual(["m2", "m3"]);
+    // nextCursor anchors older history at the oldest id on the page (m2).
+    expect(body.meta.pagination.nextCursor).toBe("m2");
   });
 });
