@@ -1,0 +1,275 @@
+import { createRoute, z } from "@hono/zod-openapi";
+import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import {
+  convertToModelMessages,
+  generateId,
+  streamText,
+  type UIMessage,
+  validateUIMessages,
+} from "ai";
+
+import { requireCoworkerChatCapability } from "@/helpers/access-control";
+import {
+  badRequest,
+  serviceUnavailable,
+  unprocessableEntity,
+} from "@/helpers/error";
+import { extractMessageText } from "@/helpers/message-content";
+import { jsonErrorResponse } from "@/helpers/openapi";
+import {
+  persistAssistantToChatRoom,
+  persistUserMessageToChatRoom,
+} from "@/helpers/persist-assistant-to-chat-room";
+import prisma from "@/lib/db/prisma";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
+import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
+import { requireUserAuthContext } from "@/middleware/auth";
+import { throwCoworkerRemoteConversationHttpError } from "@/routes/v1/chats/stream/coworker-conversation";
+import { mapChatRequestToUiMessages } from "@/routes/v1/chats/stream/map-chat-request-to-ui-messages.js";
+import {
+  AI_SDK_CHAT_MESSAGES_REQUIREMENT,
+  aiSdkChatRequestSchema,
+} from "@/schemas/chat-request.schema.js";
+
+import { requireChatRoomUserWriteAccess } from "../../helpers";
+import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-conversation";
+
+/**
+ * Room-keyed coworker 1:1 stream (MVP).
+ *
+ * Deferred to follow-up (parity with legacy conversation stream):
+ * - Image generation / OpenRouter paths
+ * - Web search
+ * - Resumable UI streams (GET /stream — Task 4)
+ * - Pending-response mirror / conversation metadata chain
+ */
+
+const paramsSchema = z.object({
+  id: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "id", in: "path" },
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+});
+
+async function validateUiMessagesOrBadRequest(
+  messages: UIMessage[],
+): Promise<void> {
+  try {
+    await validateUIMessages({ messages });
+  } catch (error) {
+    throw badRequest(
+      error instanceof Error
+        ? error.message
+        : "Invalid chat messages for AI SDK.",
+    );
+  }
+}
+
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/{id}/stream",
+    description:
+      "Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Requires exactly one coworker member.",
+    tags: ["Chat Rooms"],
+    request: {
+      params: paramsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: aiSdkChatRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Streaming UI message response (AI SDK)",
+        content: {
+          "text/event-stream": {
+            schema: z.string(),
+          },
+        },
+      },
+      400: jsonErrorResponse("Invalid request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Room not found"),
+      503: jsonErrorResponse("Service Unavailable"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const userContext = requireUserAuthContext(c.var.authContext);
+    const { id: roomId } = c.req.valid("param");
+    const { messages, model } = c.req.valid("json");
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      throw unprocessableEntity(AI_SDK_CHAT_MESSAGES_REQUIREMENT);
+    }
+
+    const room = await prisma.$transaction(async (tx) =>
+      requireChatRoomUserWriteAccess(roomId, userContext.userId, tx),
+    );
+
+    if (room.coworkerMembers.length !== 1) {
+      throw badRequest(
+        "Room stream requires exactly one AI coworker member. Use message POST for human-only rooms.",
+      );
+    }
+
+    const roomCoworker = room.coworkerMembers[0]!.coworker;
+    const coworker = await requireCoworkerChatCapability(roomCoworker.id);
+    if (!coworker.baseURL?.trim()) {
+      throw serviceUnavailable(
+        "Coworker chat is not available: no Responses API URL configured for this coworker.",
+      );
+    }
+
+    const uiMessages = mapChatRequestToUiMessages(messages);
+    await validateUiMessagesOrBadRequest(uiMessages);
+
+    const lastMessage = messages[messages.length - 1]!;
+    const lastUserMessageText =
+      lastMessage.role === "user" || lastMessage.role === "system"
+        ? (() => {
+            if ("parts" in lastMessage && Array.isArray(lastMessage.parts)) {
+              return lastMessage.parts
+                .map((part: { type?: string; text?: string }) =>
+                  part.type === "text" && part.text ? part.text : "",
+                )
+                .filter(Boolean)
+                .join("");
+            }
+            return extractMessageText(lastMessage as Record<string, unknown>);
+          })()
+        : "";
+
+    if (
+      (lastMessage.role === "user" || lastMessage.role === "system") &&
+      !lastUserMessageText.trim()
+    ) {
+      throw badRequest(
+        "Coworker chat requires a user or system message with text to respond to.",
+      );
+    }
+
+    if (lastMessage.role === "user" || lastMessage.role === "system") {
+      await persistUserMessageToChatRoom({
+        roomId: room.id,
+        senderUserId: userContext.userId,
+        contentText: lastUserMessageText,
+      });
+    }
+
+    let providerConversationId = room.providerConversationId?.trim() || null;
+    if (!providerConversationId) {
+      try {
+        const ensured = await ensureCoworkerProviderConversationForRoom({
+          roomId: room.id,
+          userId: userContext.userId,
+          organizationId: userContext.organizationId ?? room.organizationId,
+          coworkerSlug: coworker.slug,
+          responsesApiBaseUrl: coworker.baseURL.trim(),
+        });
+        providerConversationId = ensured.providerConversationId;
+      } catch (error) {
+        throwCoworkerRemoteConversationHttpError(error);
+      }
+    }
+
+    if (!providerConversationId?.trim()) {
+      throw serviceUnavailable(
+        "Coworker chat could not create or resolve a remote conversation. Try again shortly.",
+      );
+    }
+
+    const modelMessages = await convertToModelMessages(
+      uiMessages.map(({ id: _id, ...rest }) => rest),
+    );
+
+    const responsesApiResponseIdRef: { current: string | null } = {
+      current: null,
+    };
+
+    const onInvalidProviderConversationId = async () => {
+      try {
+        await prisma.chatRoom.update({
+          where: { id: room.id },
+          data: { providerConversationId: null },
+        });
+      } catch (error) {
+        console.error(
+          "Failed to clear providerConversationId after invalid remote conversation (POST /rooms/{id}/stream):",
+          error,
+        );
+      }
+    };
+
+    const sokosumiProviderOptions: SokosumiProviderCallOptions = {
+      mode: "coworker",
+      coworkerBaseUrl: coworker.baseURL.trim(),
+      coworkerSlug: coworker.slug,
+      sokosumiUserId: userContext.userId,
+      sokosumiOrganizationId: userContext.organizationId ?? room.organizationId,
+      previousResponseId: null,
+      providerConversationId,
+      imageGenerationModel: null,
+      webSearchEnabled: false,
+      onResponseStarted: async (responseId: string) => {
+        responsesApiResponseIdRef.current = responseId;
+      },
+      onInvalidProviderConversationId,
+    };
+
+    const result = streamText({
+      model: getSokosumiProvider()(model ?? null),
+      messages: modelMessages,
+      allowSystemInMessages: true,
+      maxRetries: 0,
+      providerOptions: {
+        sokosumi: sokosumiProviderOptions,
+      } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
+      onFinish: async (finishEvent) => {
+        try {
+          const text = finishEvent.text?.trim() ?? "";
+          if (!text) {
+            return;
+          }
+          await persistAssistantToChatRoom({
+            roomId: room.id,
+            senderCoworkerId: coworker.id,
+            contentText: text,
+            responsesApiResponseId: responsesApiResponseIdRef.current,
+            reasoning: finishEvent.reasoning,
+          });
+        } catch (error) {
+          console.error(
+            "Failed to persist assistant message (POST /rooms/{id}/stream):",
+            error,
+          );
+        }
+      },
+    });
+
+    return result.toUIMessageStreamResponse({
+      originalMessages: uiMessages,
+      generateMessageId: generateId,
+      headers: {
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "x-sokosumi-room-id": room.id,
+      },
+    });
+  });
+}

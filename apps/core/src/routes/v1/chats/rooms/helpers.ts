@@ -433,6 +433,7 @@ const chatRoomWriteSelect = {
   organizationId: true,
   slug: true,
   kind: true,
+  providerConversationId: true,
   coworkerMembers: {
     select: {
       coworker: {
