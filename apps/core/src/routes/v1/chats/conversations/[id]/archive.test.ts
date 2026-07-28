@@ -117,19 +117,7 @@ describe("PATCH /conversations/{id}/archive", () => {
     expect(conversationUpdateMock).toHaveBeenCalled();
   });
 
-  it("allows a delegated coworker on its own conversation", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce(
-      conversation({ coworker_id: "cow_123" }),
-    );
-
-    expect((await archive(createApp(delegatedCoworker))).status).toBe(200);
-  });
-
-  it("rejects a delegated coworker on another coworker's conversation", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce(
-      conversation({ coworker_id: "cow_other" }),
-    );
-
+  it("returns 403 for coworker API keys (no X-Context-User-Id impersonation)", async () => {
     expect((await archive(createApp(delegatedCoworker))).status).toBe(403);
     expect(conversationUpdateMock).not.toHaveBeenCalled();
   });

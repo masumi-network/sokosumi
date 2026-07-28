@@ -110,29 +110,11 @@ describe("POST /conversations", () => {
     expect(data.metadata.userId).toBe("user_123");
   });
 
-  it("stamps the acting coworker id for a delegated coworker", async () => {
+  it("returns 403 for coworker API keys (no X-Context-User-Id impersonation)", async () => {
     const response = await create(createApp(delegatedCoworker));
 
-    expect(response.status).toBe(201);
-    const data = conversationCreateMock.mock.calls[0]![0].data as {
-      metadata: Record<string, unknown>;
-    };
-    expect(data.metadata.coworker_id).toBe("cow_123");
-    expect(data.metadata.userId).toBe("delegated_user_123");
-  });
-
-  it("drops a client coworker_slug for a delegated coworker so it cannot diverge", async () => {
-    const response = await create(createApp(delegatedCoworker), {
-      coworker_slug: "victim-agent",
-      coworker_id: "cow_other",
-    });
-
-    expect(response.status).toBe(201);
-    const data = conversationCreateMock.mock.calls[0]![0].data as {
-      metadata: Record<string, unknown>;
-    };
-    expect(data.metadata.coworker_id).toBe("cow_123");
-    expect(data.metadata.coworker_slug).toBeUndefined();
+    expect(response.status).toBe(403);
+    expect(conversationCreateMock).not.toHaveBeenCalled();
   });
 
   it("preserves a client coworker_slug for a user session", async () => {

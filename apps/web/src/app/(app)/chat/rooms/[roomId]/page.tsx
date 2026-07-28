@@ -113,6 +113,12 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     redirect("/chat?notice=room-unavailable");
   }
 
+  // Active org: only rooms for this org. Cross-org membership or personal
+  // directs must not render under the wrong org chrome/roster.
+  if (selectedRoom.organizationId !== activeOrganization.id) {
+    redirect("/chat?notice=room-unavailable");
+  }
+
   return (
     <RoomsClient
       activeOrganization={activeOrganization}

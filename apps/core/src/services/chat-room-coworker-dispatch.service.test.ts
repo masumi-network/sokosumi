@@ -8,9 +8,11 @@ const {
   findFirstMock,
   findManyMock,
   createMock,
+  deleteMock,
   generateTextMock,
   createCoworkerConversationMock,
   getSokosumiProviderMock,
+  transactionUpdateManyMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   findManyMentionMock: vi.fn(),
@@ -19,9 +21,11 @@ const {
   findFirstMock: vi.fn(),
   findManyMock: vi.fn(),
   createMock: vi.fn(),
+  deleteMock: vi.fn(),
   generateTextMock: vi.fn(),
   createCoworkerConversationMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
+  transactionUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -36,14 +40,15 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomMessage: {
       findMany: findManyMock,
       create: createMock,
+      delete: deleteMock,
     },
     chatRoom: {
       update: vi.fn(),
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
-        chatRoomMessage: { create: createMock },
-        chatRoomMention: { update: updateMock },
+        chatRoomMessage: { create: createMock, delete: deleteMock },
+        chatRoomMention: { updateMany: transactionUpdateManyMock },
         chatRoom: { update: vi.fn() },
       }),
     ),
@@ -110,8 +115,10 @@ beforeEach(() => {
   findManyMock.mockResolvedValue([]);
   generateTextMock.mockResolvedValue({ text: "Hello back" });
   createMock.mockResolvedValue({ id: "reply_1" });
+  deleteMock.mockResolvedValue({ id: "reply_1" });
   updateMock.mockResolvedValue({});
   updateManyMock.mockResolvedValue({ count: 1 });
+  transactionUpdateManyMock.mockResolvedValue({ count: 1 });
 });
 
 describe("buildRoomMentionPrompt", () => {
@@ -217,6 +224,30 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(generateTextMock).toHaveBeenCalled();
     expect(createCoworkerConversationMock).toHaveBeenCalled();
+    expect(createMock).toHaveBeenCalled();
+    expect(transactionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: "sent" },
+      data: expect.objectContaining({
+        status: "responded",
+        responseMessageId: "reply_1",
+      }),
+    });
+    expect(deleteMock).not.toHaveBeenCalled();
+  });
+
+  it("discards the reply when finalize loses the claim race", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    transactionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).toHaveBeenCalled();
+    expect(transactionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: "sent" },
+      data: expect.objectContaining({ status: "responded" }),
+    });
+    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
   });
 
   it("reclaims a stale sent mention and runs provider work", async () => {

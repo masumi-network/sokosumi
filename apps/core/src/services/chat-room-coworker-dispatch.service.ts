@@ -337,6 +337,9 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   }
 
   await prisma.$transaction(async (tx) => {
+    // Persist the reply first, then claim the mention transition. If another
+    // worker already finalized (or reclaim stole the claim), discard this
+    // duplicate reply so the room does not double-post.
     const responseMessage = await tx.chatRoomMessage.create({
       data: {
         roomId: mention.message.roomId,
@@ -350,8 +353,8 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       },
     });
 
-    await tx.chatRoomMention.update({
-      where: { id: mention.id },
+    const finalized = await tx.chatRoomMention.updateMany({
+      where: { id: mention.id, status: "sent" },
       data: {
         status: "responded",
         error: null,
@@ -359,6 +362,11 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         responseMessageId: responseMessage.id,
       },
     });
+
+    if (finalized.count !== 1) {
+      await tx.chatRoomMessage.delete({ where: { id: responseMessage.id } });
+      return;
+    }
 
     await tx.chatRoom.update({
       where: { id: mention.message.roomId },

@@ -83,19 +83,12 @@ describe("GET /conversations", () => {
     expect(body.data.map((c) => c.id)).toEqual([idA, idB, idC]);
   });
 
-  it("filters to the delegated coworker's own conversations", async () => {
-    conversationFindManyMock.mockResolvedValueOnce([
-      conversation(idA, { coworker_id: "cow_123" }),
-      conversation(idB, { coworker_id: "cow_other" }),
-      conversation(idC, { userId: "user_123" }),
-    ]);
-
+  it("returns 403 for coworker API keys (no X-Context-User-Id impersonation)", async () => {
     const response =
       await createApp(delegatedCoworker).request("http://localhost/");
-    const body = (await response.json()) as { data: Array<{ id: string }> };
 
-    expect(response.status).toBe(200);
-    expect(body.data.map((c) => c.id)).toEqual([idA]);
+    expect(response.status).toBe(403);
+    expect(conversationFindManyMock).not.toHaveBeenCalled();
   });
 
   it("returns every conversation for orchestrator with context headers", async () => {

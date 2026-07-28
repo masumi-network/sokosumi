@@ -188,8 +188,8 @@ describe("GET /conversations/{id}/messages", () => {
     expect(response.status).toBe(403);
   });
 
-  it("returns 403 for delegated coworker on another coworker's conversation", async () => {
-    mockConversationWithMessages({ coworker_id: "cow_other" });
+  it("returns 403 for coworker API keys (no X-Context-User-Id impersonation)", async () => {
+    mockConversationWithMessages({ coworker_id: "cow_123" });
 
     const response = await createApp({
       actor: "coworker",

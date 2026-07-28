@@ -13,7 +13,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { ensureCoworkerProviderConversation } from "@/routes/v1/chats/stream/coworker-conversation";
 import { warmupCoworkerConversation } from "@/routes/v1/chats/stream/warmup-coworker";
 import {
@@ -67,7 +67,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const userContext = requireUserContext(c.var.authContext);
+      const userContext = requireOwnerUserContext(c.var.authContext);
       const body = c.req.valid("json");
 
       // Database is the source of truth - create conversation directly in DB

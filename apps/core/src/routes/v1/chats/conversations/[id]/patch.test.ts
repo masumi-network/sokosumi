@@ -117,44 +117,8 @@ describe("PATCH /conversations/{id}", () => {
     expect(conversationUpdateMock).toHaveBeenCalled();
   });
 
-  it("allows a delegated coworker on its own conversation", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce(
-      conversation({ coworker_id: "cow_123" }),
-    );
-
-    expect((await patch(createApp(delegatedCoworker))).status).toBe(200);
-  });
-
-  it("rejects a delegated coworker on another coworker's conversation", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce(
-      conversation({ coworker_id: "cow_other" }),
-    );
-
+  it("returns 403 for coworker API keys (no X-Context-User-Id impersonation)", async () => {
     expect((await patch(createApp(delegatedCoworker))).status).toBe(403);
     expect(conversationUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("re-pins the coworker binding so a coworker cannot rebind its conversation", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce(
-      conversation({ coworker_id: "cow_123" }),
-    );
-
-    const response = await createApp(delegatedCoworker).request(
-      `http://localhost/${cid}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          metadata: { coworker_id: "cow_other", coworker_slug: "victim-agent" },
-        }),
-      },
-    );
-
-    expect(response.status).toBe(200);
-    const data = conversationUpdateMock.mock.calls[0]![0].data as {
-      metadata: Record<string, unknown>;
-    };
-    expect(data.metadata.coworker_id).toBe("cow_123");
-    expect(data.metadata.coworker_slug).toBeUndefined();
   });
 });

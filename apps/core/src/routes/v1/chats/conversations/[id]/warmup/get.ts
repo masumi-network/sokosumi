@@ -12,7 +12,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { readCoworkerReadyState } from "@/routes/v1/chats/stream/warmup-coworker";
 import { conversationWarmupStateSchema } from "@/schemas/conversation.schema";
 
@@ -66,7 +66,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const userContext = requireUserContext(c.var.authContext);
+      const userContext = requireOwnerUserContext(c.var.authContext);
       const { id } = c.req.valid("param");
 
       const conversation = await prisma.$transaction(async (tx) => {
