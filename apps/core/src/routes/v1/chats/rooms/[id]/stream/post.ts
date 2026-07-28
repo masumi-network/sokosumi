@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
   generateId,
@@ -14,7 +15,13 @@ import {
   setActiveUiStreamIdForRoom,
 } from "@/helpers/active-ui-stream-room-metadata";
 import {
+  acquireStreamLock,
+  releaseStreamLock,
+  startStreamLockHeartbeat,
+} from "@/helpers/coworker-stream-lock";
+import {
   badRequest,
+  conflict,
   serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
@@ -108,6 +115,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      409: jsonErrorResponse("Conflict"),
       503: jsonErrorResponse("Service Unavailable"),
       422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
@@ -171,184 +179,245 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    if (lastMessage.role === "user" || lastMessage.role === "system") {
-      await persistUserMessageToChatRoom({
-        roomId: room.id,
-        senderUserId: userContext.userId,
-        contentText: lastUserMessageText,
-      });
-    }
-
-    let providerConversationId = room.providerConversationId?.trim() || null;
-    if (!providerConversationId) {
-      try {
-        const ensured = await ensureCoworkerProviderConversationForRoom({
-          roomId: room.id,
-          userId: userContext.userId,
-          organizationId: userContext.organizationId ?? room.organizationId,
-          coworkerSlug: coworker.slug,
-          responsesApiBaseUrl: coworker.baseURL.trim(),
-        });
-        providerConversationId = ensured.providerConversationId;
-      } catch (error) {
-        throwCoworkerRemoteConversationHttpError(error);
-      }
-    }
-
-    if (!providerConversationId?.trim()) {
-      throw serviceUnavailable(
-        "Coworker chat could not create or resolve a remote conversation. Try again shortly.",
+    // Acquire before persist so concurrent POSTs cannot duplicate turns.
+    const streamLock = await acquireStreamLock(room.id);
+    if (streamLock.status === "held") {
+      throw conflict(
+        "A coworker response is already in progress for this room.",
       );
     }
+    const streamLockOwnerToken =
+      streamLock.status === "acquired" ? streamLock.ownerToken : null;
 
-    const enableResumableUiStream = isUiStreamResumptionConfigured();
-    if (enableResumableUiStream) {
-      try {
-        await clearActiveUiStreamIdForRoom({
+    const stopHeartbeat = streamLockOwnerToken
+      ? startStreamLockHeartbeat(room.id, streamLockOwnerToken)
+      : null;
+
+    let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null =
+      async () => {
+        stopHeartbeat?.();
+        if (streamLockOwnerToken) {
+          await releaseStreamLock(room.id, streamLockOwnerToken);
+        }
+      };
+
+    const finalizeCoworkerStreamLock = () => {
+      const release = releaseOwnedCoworkerStreamLock;
+      if (!release) {
+        return;
+      }
+      releaseOwnedCoworkerStreamLock = null;
+      waitUntil(release());
+    };
+
+    try {
+      if (lastMessage.role === "user" || lastMessage.role === "system") {
+        await persistUserMessageToChatRoom({
           roomId: room.id,
-          userId: userContext.userId,
+          senderUserId: userContext.userId,
+          contentText: lastUserMessageText,
         });
-      } catch (error) {
-        console.error(
-          "Failed to clear active UI stream id before new room stream:",
-          error,
-        );
       }
-    }
 
-    let uiStreamResumptionRegistered = false;
-    let uiStreamResumptionRegistration: Promise<void> | undefined;
-
-    const modelMessages = await convertToModelMessages(
-      uiMessages.map(({ id: _id, ...rest }) => rest),
-    );
-
-    const responsesApiResponseIdRef: { current: string | null } = {
-      current: null,
-    };
-
-    const onInvalidProviderConversationId = async () => {
-      try {
-        await prisma.chatRoom.update({
-          where: { id: room.id },
-          data: { providerConversationId: null },
-        });
-      } catch (error) {
-        console.error(
-          "Failed to clear providerConversationId after invalid remote conversation (POST /rooms/{id}/stream):",
-          error,
-        );
-      }
-    };
-
-    const sokosumiProviderOptions: SokosumiProviderCallOptions = {
-      mode: "coworker",
-      coworkerBaseUrl: coworker.baseURL.trim(),
-      coworkerSlug: coworker.slug,
-      sokosumiUserId: userContext.userId,
-      sokosumiOrganizationId: userContext.organizationId ?? room.organizationId,
-      previousResponseId: null,
-      providerConversationId,
-      imageGenerationModel: null,
-      webSearchEnabled: false,
-      onResponseStarted: async (responseId: string) => {
-        responsesApiResponseIdRef.current = responseId;
-      },
-      onInvalidProviderConversationId,
-    };
-
-    const result = streamText({
-      model: getSokosumiProvider()(model ?? null),
-      messages: modelMessages,
-      allowSystemInMessages: true,
-      maxRetries: 0,
-      providerOptions: {
-        sokosumi: sokosumiProviderOptions,
-      } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
-      onFinish: async (finishEvent) => {
+      let providerConversationId = room.providerConversationId?.trim() || null;
+      if (!providerConversationId) {
         try {
-          const text = finishEvent.text?.trim() ?? "";
-          if (!text) {
-            return;
-          }
-          await persistAssistantToChatRoom({
+          const ensured = await ensureCoworkerProviderConversationForRoom({
             roomId: room.id,
-            senderCoworkerId: coworker.id,
-            contentText: text,
-            responsesApiResponseId: responsesApiResponseIdRef.current,
-            reasoning: finishEvent.reasoning,
+            userId: userContext.userId,
+            organizationId: userContext.organizationId ?? room.organizationId,
+            coworkerSlug: coworker.slug,
+            responsesApiBaseUrl: coworker.baseURL.trim(),
+          });
+          providerConversationId = ensured.providerConversationId;
+        } catch (error) {
+          throwCoworkerRemoteConversationHttpError(error);
+        }
+      }
+
+      if (!providerConversationId?.trim()) {
+        throw serviceUnavailable(
+          "Coworker chat could not create or resolve a remote conversation. Try again shortly.",
+        );
+      }
+
+      const enableResumableUiStream = isUiStreamResumptionConfigured();
+      if (enableResumableUiStream) {
+        try {
+          await clearActiveUiStreamIdForRoom({
+            roomId: room.id,
+            userId: userContext.userId,
           });
         } catch (error) {
           console.error(
-            "Failed to persist assistant message (POST /rooms/{id}/stream):",
+            "Failed to clear active UI stream id before new room stream:",
             error,
           );
         }
-      },
-    });
+      }
 
-    return result.toUIMessageStreamResponse({
-      originalMessages: uiMessages,
-      generateMessageId: generateId,
-      headers: {
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "x-sokosumi-room-id": room.id,
-      },
-      ...(enableResumableUiStream
-        ? {
-            consumeSseStream: async ({ stream }) => {
-              const streamId = generateId();
-              const registration = (async () => {
-                try {
-                  const ctx = getResumableUiStreamContext();
-                  await ctx.createNewResumableStream(streamId, () => stream);
-                  await setActiveUiStreamIdForRoom({
-                    roomId: room.id,
-                    userId: userContext.userId,
-                    streamId,
-                  });
-                  uiStreamResumptionRegistered = true;
-                } catch (error) {
-                  console.error(
-                    "Failed to register resumable UI message stream:",
-                    error,
-                  );
+      let uiStreamResumptionRegistered = false;
+      let uiStreamResumptionRegistration: Promise<void> | undefined;
+
+      const modelMessages = await convertToModelMessages(
+        uiMessages.map(({ id: _id, ...rest }) => rest),
+      );
+
+      const responsesApiResponseIdRef: { current: string | null } = {
+        current: null,
+      };
+
+      const onInvalidProviderConversationId = async () => {
+        try {
+          await prisma.chatRoom.update({
+            where: { id: room.id },
+            data: { providerConversationId: null },
+          });
+        } catch (error) {
+          console.error(
+            "Failed to clear providerConversationId after invalid remote conversation (POST /rooms/{id}/stream):",
+            error,
+          );
+        }
+      };
+
+      const sokosumiProviderOptions: SokosumiProviderCallOptions = {
+        mode: "coworker",
+        coworkerBaseUrl: coworker.baseURL.trim(),
+        coworkerSlug: coworker.slug,
+        sokosumiUserId: userContext.userId,
+        sokosumiOrganizationId:
+          userContext.organizationId ?? room.organizationId,
+        previousResponseId: null,
+        providerConversationId,
+        imageGenerationModel: null,
+        webSearchEnabled: false,
+        onResponseStarted: async (responseId: string) => {
+          responsesApiResponseIdRef.current = responseId;
+        },
+        onInvalidProviderConversationId,
+      };
+
+      const result = streamText({
+        model: getSokosumiProvider()(model ?? null),
+        messages: modelMessages,
+        allowSystemInMessages: true,
+        maxRetries: 0,
+        providerOptions: {
+          sokosumi: sokosumiProviderOptions,
+        } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
+        onFinish: async (finishEvent) => {
+          try {
+            const text = finishEvent.text?.trim() ?? "";
+            if (!text) {
+              return;
+            }
+            await persistAssistantToChatRoom({
+              roomId: room.id,
+              senderCoworkerId: coworker.id,
+              contentText: text,
+              responsesApiResponseId: responsesApiResponseIdRef.current,
+              reasoning: finishEvent.reasoning,
+            });
+          } catch (error) {
+            console.error(
+              "Failed to persist assistant message (POST /rooms/{id}/stream):",
+              error,
+            );
+          }
+        },
+      });
+
+      return result.toUIMessageStreamResponse({
+        originalMessages: uiMessages,
+        generateMessageId: generateId,
+        headers: {
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "x-sokosumi-room-id": room.id,
+        },
+        onError: (error: unknown) => {
+          console.error(
+            "Coworker chat UI stream error (POST /rooms/{id}/stream):",
+            error,
+          );
+          finalizeCoworkerStreamLock();
+          return "An error occurred.";
+        },
+        ...(enableResumableUiStream
+          ? {
+              consumeSseStream: async ({ stream }) => {
+                const streamId = generateId();
+                const registration = (async () => {
+                  try {
+                    const ctx = getResumableUiStreamContext();
+                    await ctx.createNewResumableStream(streamId, () => stream);
+                    await setActiveUiStreamIdForRoom({
+                      roomId: room.id,
+                      userId: userContext.userId,
+                      streamId,
+                    });
+                    uiStreamResumptionRegistered = true;
+                  } catch (error) {
+                    console.error(
+                      "Failed to register resumable UI message stream:",
+                      error,
+                    );
+                  }
+                })();
+                uiStreamResumptionRegistration = registration;
+                await registration;
+              },
+              onFinish: async () => {
+                finalizeCoworkerStreamLock();
+                if (uiStreamResumptionRegistration) {
+                  await uiStreamResumptionRegistration;
                 }
-              })();
-              uiStreamResumptionRegistration = registration;
-              await registration;
-            },
-            onFinish: async () => {
-              if (uiStreamResumptionRegistration) {
-                await uiStreamResumptionRegistration;
-              }
-              if (!uiStreamResumptionRegistered) {
-                return;
-              }
-              const clearParams = {
-                roomId: room.id,
-                userId: userContext.userId,
-              };
-              try {
-                await clearActiveUiStreamIdForRoom(clearParams);
-              } catch (error) {
-                console.error(
-                  "Failed to clear active UI stream id on stream finish:",
-                  error,
-                );
+                if (!uiStreamResumptionRegistered) {
+                  return;
+                }
+                const clearParams = {
+                  roomId: room.id,
+                  userId: userContext.userId,
+                };
                 try {
                   await clearActiveUiStreamIdForRoom(clearParams);
-                } catch (retryError) {
+                } catch (error) {
                   console.error(
-                    "Retry failed to clear active UI stream id on stream finish:",
-                    retryError,
+                    "Failed to clear active UI stream id on stream finish:",
+                    error,
                   );
+                  try {
+                    await clearActiveUiStreamIdForRoom(clearParams);
+                  } catch (retryError) {
+                    console.error(
+                      "Retry failed to clear active UI stream id on stream finish:",
+                      retryError,
+                    );
+                  }
                 }
-              }
-            },
-          }
-        : {}),
-    });
+              },
+            }
+          : {
+              onFinish: async () => {
+                finalizeCoworkerStreamLock();
+              },
+            }),
+      });
+    } catch (error) {
+      if (releaseOwnedCoworkerStreamLock) {
+        const release = releaseOwnedCoworkerStreamLock;
+        releaseOwnedCoworkerStreamLock = null;
+        try {
+          await release();
+        } catch (releaseError) {
+          console.error(
+            "Failed to release coworker stream lock (POST /rooms/{id}/stream):",
+            releaseError,
+          );
+        }
+      }
+      throw error;
+    }
   });
 }

@@ -31,6 +31,10 @@ const {
   createNewResumableStreamMock,
   setActiveUiStreamIdForRoomMock,
   clearActiveUiStreamIdForRoomMock,
+  acquireStreamLockMock,
+  releaseStreamLockMock,
+  startStreamLockHeartbeatMock,
+  waitUntilMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
@@ -55,6 +59,14 @@ const {
   createNewResumableStreamMock: vi.fn(),
   setActiveUiStreamIdForRoomMock: vi.fn(),
   clearActiveUiStreamIdForRoomMock: vi.fn(),
+  acquireStreamLockMock: vi.fn(),
+  releaseStreamLockMock: vi.fn(),
+  startStreamLockHeartbeatMock: vi.fn(),
+  waitUntilMock: vi.fn(),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (...args: unknown[]) => waitUntilMock(...args),
 }));
 
 vi.mock("ai", () => ({
@@ -75,6 +87,12 @@ vi.mock("@/helpers/access-control", () => ({
 vi.mock("@/helpers/active-ui-stream-room-metadata", () => ({
   setActiveUiStreamIdForRoom: setActiveUiStreamIdForRoomMock,
   clearActiveUiStreamIdForRoom: clearActiveUiStreamIdForRoomMock,
+}));
+
+vi.mock("@/helpers/coworker-stream-lock", () => ({
+  acquireStreamLock: acquireStreamLockMock,
+  releaseStreamLock: releaseStreamLockMock,
+  startStreamLockHeartbeat: startStreamLockHeartbeatMock,
 }));
 
 vi.mock("@/lib/resumable-ui-stream-context", () => ({
@@ -240,6 +258,15 @@ beforeEach(() => {
   );
   setActiveUiStreamIdForRoomMock.mockResolvedValue(undefined);
   clearActiveUiStreamIdForRoomMock.mockResolvedValue(undefined);
+  acquireStreamLockMock.mockResolvedValue({
+    status: "acquired",
+    ownerToken: "instance-test:token-1",
+  });
+  releaseStreamLockMock.mockResolvedValue(true);
+  startStreamLockHeartbeatMock.mockReturnValue(() => {});
+  waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+    void promise;
+  });
   toUIMessageStreamResponseMock.mockImplementation(
     (opts?: { headers?: Record<string, string> }) =>
       new Response(null, {
@@ -486,6 +513,124 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(clearActiveUiStreamIdForRoomMock).toHaveBeenLastCalledWith({
       roomId: ROOM_ID,
       userId: USER_ID,
+    });
+  });
+
+  describe("room stream lock", () => {
+    it("returns 409 when the coworker stream lock is already held", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "held" });
+
+      const response = await postStream();
+
+      expect(response.status).toBe(409);
+      expect(streamTextMock).not.toHaveBeenCalled();
+      expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+      expect(releaseStreamLockMock).not.toHaveBeenCalled();
+      expect(startStreamLockHeartbeatMock).not.toHaveBeenCalled();
+    });
+
+    it("proceeds unlocked when redis is unavailable", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "unavailable" });
+
+      const response = await postStream();
+
+      expect(response.status).toBe(200);
+      expect(streamTextMock).toHaveBeenCalledOnce();
+      expect(startStreamLockHeartbeatMock).not.toHaveBeenCalled();
+      expect(persistUserMessageToChatRoomMock).toHaveBeenCalledOnce();
+    });
+
+    it("acquires the room lock before persisting the user message", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      const order: string[] = [];
+      acquireStreamLockMock.mockImplementation(async () => {
+        order.push("lock");
+        return { status: "acquired", ownerToken: "instance-test:token-1" };
+      });
+      persistUserMessageToChatRoomMock.mockImplementation(async () => {
+        order.push("persist");
+        return { id: "msg_user_1" };
+      });
+
+      const response = await postStream();
+
+      expect(response.status).toBe(200);
+      expect(order).toEqual(["lock", "persist"]);
+      expect(acquireStreamLockMock).toHaveBeenCalledWith(ROOM_ID);
+      expect(startStreamLockHeartbeatMock).toHaveBeenCalledWith(
+        ROOM_ID,
+        "instance-test:token-1",
+      );
+    });
+
+    it("releases the stream lock on UI onFinish", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      const waitUntilPromises: Promise<unknown>[] = [];
+      waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+        waitUntilPromises.push(promise);
+      });
+
+      const response = await postStream();
+      expect(response.status).toBe(200);
+
+      const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+        onFinish?: () => Promise<void>;
+      };
+      await init.onFinish!();
+      expect(waitUntilPromises).toHaveLength(1);
+      await waitUntilPromises[0]!;
+
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        ROOM_ID,
+        "instance-test:token-1",
+      );
+    });
+
+    it("releases the stream lock when setup fails after the lock is acquired", async () => {
+      roomFindFirstMock
+        .mockResolvedValueOnce(
+          roomWithOneCoworker({ providerConversationId: null }),
+        )
+        .mockResolvedValueOnce({ providerConversationId: null });
+      createCoworkerConversationMock.mockRejectedValueOnce(
+        new Error("provider down"),
+      );
+
+      const response = await postStream();
+
+      expect(response.status).toBe(503);
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        ROOM_ID,
+        "instance-test:token-1",
+      );
+      expect(streamTextMock).not.toHaveBeenCalled();
+    });
+
+    it("releases the stream lock when the UI stream errors before finish", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      const waitUntilPromises: Promise<unknown>[] = [];
+      waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+        waitUntilPromises.push(promise);
+      });
+
+      const response = await postStream();
+      expect(response.status).toBe(200);
+
+      const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+        onError?: (error: unknown) => string;
+      };
+      expect(init.onError?.(new Error("stream boom"))).toBe(
+        "An error occurred.",
+      );
+      expect(waitUntilPromises).toHaveLength(1);
+      await waitUntilPromises[0]!;
+
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        ROOM_ID,
+        "instance-test:token-1",
+      );
     });
   });
 });
