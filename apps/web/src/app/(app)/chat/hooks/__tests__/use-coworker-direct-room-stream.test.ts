@@ -6,6 +6,7 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import {
   createResumePendingCoworkerShell,
   RESUME_PENDING_STREAM_MESSAGE_ID,
+  shouldShowResumePendingCoworkerShell,
 } from "../use-coworker-direct-room-stream";
 
 const coworker = {
@@ -41,6 +42,52 @@ function persistedUser(content: string): ChatRoomMessage {
     metadata: null,
   };
 }
+
+describe("shouldShowResumePendingCoworkerShell", () => {
+  it("shows shell only while status is streaming with empty messages", () => {
+    expect(
+      shouldShowResumePendingCoworkerShell({
+        messagesEmpty: true,
+        status: "streaming",
+        hasCoworker: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("hides shell for submitted-only (idle enter / 204 resume)", () => {
+    expect(
+      shouldShowResumePendingCoworkerShell({
+        messagesEmpty: true,
+        status: "submitted",
+        hasCoworker: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("hides shell when idle, missing coworker, or messages already present", () => {
+    expect(
+      shouldShowResumePendingCoworkerShell({
+        messagesEmpty: true,
+        status: "ready",
+        hasCoworker: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowResumePendingCoworkerShell({
+        messagesEmpty: true,
+        status: "streaming",
+        hasCoworker: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowResumePendingCoworkerShell({
+        messagesEmpty: false,
+        status: "streaming",
+        hasCoworker: true,
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("createResumePendingCoworkerShell", () => {
   it("builds empty stream coworker shell for Thinking UI", () => {

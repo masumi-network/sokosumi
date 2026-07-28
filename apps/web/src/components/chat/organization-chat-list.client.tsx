@@ -186,7 +186,7 @@ function SectionHeader({
   label,
 }: {
   children: ReactNode;
-  href: string;
+  href?: string;
   isOpen: boolean;
   label: string;
 }) {
@@ -202,18 +202,20 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      <SheetClose asChild>
-        <Link
-          aria-label={label}
-          // The only entry point for creating a channel or DM. 24px is well
-          // under a comfortable tap target, so widen the hit area on touch with
-          // an invisible inset rather than changing how the row looks.
-          className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-          href={href}
-        >
-          <Plus className="size-3.5" aria-hidden />
-        </Link>
-      </SheetClose>
+      {href ? (
+        <SheetClose asChild>
+          <Link
+            aria-label={label}
+            // The only entry point for creating a channel or DM. 24px is well
+            // under a comfortable tap target, so widen the hit area on touch with
+            // an invisible inset rather than changing how the row looks.
+            className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
+            href={href}
+          >
+            <Plus className="size-3.5" aria-hidden />
+          </Link>
+        </SheetClose>
+      ) : null}
     </div>
   );
 }
@@ -366,7 +368,7 @@ export function OrganizationChatList({
       <SidebarGroupContent className="space-y-2">
         <Collapsible open={channelsOpen} onOpenChange={setChannelsOpen}>
           <SectionHeader
-            href="/chat?create=channel"
+            href={hasOrganization ? "/chat?create=channel" : undefined}
             isOpen={channelsOpen}
             label={t("createChannel")}
           >

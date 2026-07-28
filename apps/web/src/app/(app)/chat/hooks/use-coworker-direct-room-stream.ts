@@ -19,8 +19,24 @@ const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
 /** Survives React Strict Mode remount so draft auto-stream fires once per room. */
 const autoStreamStartedRoomIds = new Set<string>();
 
-/** Empty coworker shell shown while resume reconnect is submitted but SSE empty. */
+/** Empty coworker shell shown while resume SSE is active but messages empty. */
 export const RESUME_PENDING_STREAM_MESSAGE_ID = "stream:resume-pending";
+
+/**
+ * Show resume-pending shell only for `streaming` (active SSE), not `submitted`.
+ * Idle room enter gets 204 while status is briefly `submitted` — shell would flash.
+ */
+export function shouldShowResumePendingCoworkerShell({
+  messagesEmpty,
+  status,
+  hasCoworker,
+}: {
+  messagesEmpty: boolean;
+  status: string;
+  hasCoworker: boolean;
+}): boolean {
+  return messagesEmpty && status === "streaming" && hasCoworker;
+}
 
 export function createResumePendingCoworkerShell({
   roomId,
@@ -230,19 +246,26 @@ export function useCoworkerDirectRoomStream({
       return [];
     }
     const baseMs = Date.now();
-    // Resume gap: status is submitted/streaming before first SSE chunk lands.
-    // Show empty coworker shell so Thinking… returns immediately on reopen.
+    // Resume gap: only `streaming` (active SSE) before first chunk — not
+    // `submitted` (idle enter / 204 would flash Thinking…).
     if (messages.length === 0) {
-      if (!isStreaming || !coworker) {
-        return [];
+      if (
+        coworker &&
+        shouldShowResumePendingCoworkerShell({
+          messagesEmpty: true,
+          status,
+          hasCoworker: true,
+        })
+      ) {
+        return [
+          createResumePendingCoworkerShell({
+            roomId,
+            coworker,
+            createdAt: new Date(baseMs),
+          }),
+        ];
       }
-      return [
-        createResumePendingCoworkerShell({
-          roomId,
-          coworker,
-          createdAt: new Date(baseMs),
-        }),
-      ];
+      return [];
     }
     // Index-offset createdAt keeps useChat order when clocks share a ms.
     // Keep empty assistant shells so the coworker avatar/name show while tokens
@@ -260,7 +283,7 @@ export function useCoworkerDirectRoomStream({
           createdAt: new Date(baseMs + index),
         }),
       );
-  }, [enabled, roomId, messages, currentUser, coworker, isStreaming]);
+  }, [enabled, roomId, messages, currentUser, coworker, status]);
 
   const sendStreamMessage = useCallback(
     (text: string) => {

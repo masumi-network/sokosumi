@@ -161,4 +161,61 @@ describe("mergeMessagesWithStreamOverlay", () => {
       "stream:assistant",
     ]);
   });
+
+  it("hides only one persisted user per overlay user with same content", () => {
+    const olderSame = message(
+      "persisted-older",
+      "2026-07-01T11:00:00.000Z",
+      "hello",
+    );
+    const newerSame = message(
+      "persisted-newer",
+      "2026-07-01T12:00:00.000Z",
+      "hello",
+    );
+    const streamUser = message(
+      "stream:user",
+      "2026-07-01T12:00:00.001Z",
+      "hello",
+    );
+    const streamAssistant = coworkerMessage(
+      "stream:assistant",
+      "2026-07-01T12:00:00.002Z",
+      "hi",
+    );
+
+    const merged = mergeMessagesWithStreamOverlay(
+      [olderSame, newerSame],
+      [streamUser, streamAssistant],
+    );
+
+    // Prefer dropping the latest persisted match; keep the earlier duplicate.
+    expect(merged.map((row) => row.id)).toEqual([
+      "persisted-older",
+      "stream:user",
+      "stream:assistant",
+    ]);
+  });
+
+  it("hides one persisted match per overlay occurrence of same content", () => {
+    const first = message("p1", "2026-07-01T11:00:00.000Z", "ping");
+    const second = message("p2", "2026-07-01T12:00:00.000Z", "ping");
+    const overlayFirst = message(
+      "stream:u1",
+      "2026-07-01T12:00:01.000Z",
+      "ping",
+    );
+    const overlaySecond = message(
+      "stream:u2",
+      "2026-07-01T12:00:02.000Z",
+      "ping",
+    );
+
+    const merged = mergeMessagesWithStreamOverlay(
+      [first, second],
+      [overlayFirst, overlaySecond],
+    );
+
+    expect(merged.map((row) => row.id)).toEqual(["stream:u1", "stream:u2"]);
+  });
 });

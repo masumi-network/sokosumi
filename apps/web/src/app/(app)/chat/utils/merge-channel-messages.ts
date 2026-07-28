@@ -75,14 +75,40 @@ export function mergeMessagesWithStreamOverlay(
   }
 
   const overlayIds = new Set(streamOverlay.map((message) => message.id));
-  const overlayUserContents = new Set(
-    streamOverlay
-      .filter(
-        (message) =>
-          message.sender.type === "user" && hasVisibleMessageBody(message),
-      )
-      .map((message) => message.content.trim()),
-  );
+  // One hide per overlay user occurrence (prefer latest persisted match).
+  // Same text sent twice must not wipe both history rows for one overlay.
+  const overlayUserContentRemaining = new Map<string, number>();
+  for (const message of streamOverlay) {
+    if (message.sender.type !== "user" || !hasVisibleMessageBody(message)) {
+      continue;
+    }
+    const content = message.content.trim();
+    overlayUserContentRemaining.set(
+      content,
+      (overlayUserContentRemaining.get(content) ?? 0) + 1,
+    );
+  }
+
+  const hidePersistedUserIds = new Set<string>();
+  for (let index = persisted.length - 1; index >= 0; index -= 1) {
+    const message = persisted[index];
+    if (!message) {
+      continue;
+    }
+    if (overlayIds.has(message.id)) {
+      continue;
+    }
+    if (message.sender.type !== "user" || !hasVisibleMessageBody(message)) {
+      continue;
+    }
+    const content = message.content.trim();
+    const remaining = overlayUserContentRemaining.get(content) ?? 0;
+    if (remaining <= 0) {
+      continue;
+    }
+    hidePersistedUserIds.add(message.id);
+    overlayUserContentRemaining.set(content, remaining - 1);
+  }
 
   const history = persisted.filter((message) => {
     if (overlayIds.has(message.id)) {
@@ -93,10 +119,7 @@ export function mergeMessagesWithStreamOverlay(
     }
     // Core persists the user turn as soon as stream POST starts — drop that
     // duplicate while the stream: user bubble is already in the overlay.
-    if (
-      message.sender.type === "user" &&
-      overlayUserContents.has(message.content.trim())
-    ) {
+    if (hidePersistedUserIds.has(message.id)) {
       return false;
     }
     return true;
