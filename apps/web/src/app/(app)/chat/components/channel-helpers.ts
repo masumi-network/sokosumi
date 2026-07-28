@@ -140,6 +140,22 @@ export function getDirectChannelParticipants(
   ];
 }
 
+/**
+ * Coworker 1:1 DM — room stream owns the assistant reply (not mention POST).
+ * Creator is usually the sole user member (`userMembers.length === 1`).
+ */
+export function isCoworkerOnlyDirectRoom(room: {
+  kind: string;
+  userMembers: { id?: string; userId?: string }[];
+  coworkerMembers: { id?: string; coworkerId?: string }[];
+}): boolean {
+  return (
+    room.kind === "direct" &&
+    room.coworkerMembers.length === 1 &&
+    room.userMembers.length <= 1
+  );
+}
+
 /** Direct rooms: @ only when the roster has more than two people (incl. you). */
 export function shouldShowRoomMentionShortcut(channel: ChatRoom): boolean {
   if (channel.kind !== "direct") {

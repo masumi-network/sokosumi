@@ -13,9 +13,9 @@ import {
 import { toast } from "sonner";
 import {
   ensureCoworkerDirectRoomAction,
-  sendChannelMessageAction,
   sendNewDirectMessageAction,
 } from "@/app/chat/actions";
+import { stashPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -138,25 +138,8 @@ export function DraftDirectMessage({
       selectedCoworkerIds.length === 1
     ) {
       startSendingTransition(async () => {
-        if (canCreateRoomDirect) {
-          const result = await sendNewDirectMessageAction({
-            memberUserIds: selectedMemberUserIds,
-            coworkerIds: selectedCoworkerIds,
-            content,
-            mentionedCoworkerIds,
-          });
-          if (!result.ok) {
-            toast.error(result.message);
-            return;
-          }
-          setComposerValue("");
-          setComposerAttachments([]);
-          setMentionedCoworkerIds([]);
-          router.replace(`/chat/rooms/${result.data.channel.id}`);
-          router.refresh();
-          return;
-        }
-
+        // Coworker 1:1 uses room stream — create room, stash draft, navigate.
+        // Do not POST message here (mention dispatch is skipped; stream owns reply).
         const roomResult = await ensureCoworkerDirectRoomAction(
           selectedCoworkerIds[0],
         );
@@ -169,16 +152,7 @@ export function DraftDirectMessage({
           return;
         }
 
-        const sendResult = await sendChannelMessageAction(
-          roomResult.data.id,
-          content,
-          mentionedCoworkerIds,
-        );
-        if (!sendResult.ok) {
-          toast.error(sendResult.message);
-          return;
-        }
-
+        stashPendingRoomMessage(roomResult.data.id, content);
         setComposerValue("");
         setComposerAttachments([]);
         setMentionedCoworkerIds([]);

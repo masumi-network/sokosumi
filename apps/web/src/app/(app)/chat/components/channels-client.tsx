@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -19,8 +20,13 @@ import {
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { useCoworkerDirectRoomStream } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import { mergeChannelMessages } from "@/app/chat/utils/merge-channel-messages";
+import {
+  clearPendingRoomMessage,
+  peekPendingRoomMessage,
+} from "@/app/chat/utils/pending-room-message";
 import { markOrganizationChatChannelReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,6 +54,7 @@ import {
   getChannelParticipantPreviews,
   getDirectChannelSubtitle,
   hasPendingCoworkerMention,
+  isCoworkerOnlyDirectRoom,
   messageDayKey,
   presenceLabel,
   shouldShowRoomMentionShortcut,
@@ -195,6 +202,62 @@ export function ChannelsClient({
     ? getChannelDisplayName(selectedChannel, currentUserId)
     : "";
   const isDirectChannel = selectedChannel?.kind === "direct";
+  const isCoworkerStreamRoom = selectedChannel
+    ? isCoworkerOnlyDirectRoom(selectedChannel)
+    : false;
+
+  const refreshRoomMessagesAfterStream = useCallback(async (roomId: string) => {
+    const result = await listChannelMessagesAction(roomId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    setMessagesState((current) =>
+      mergeChannelMessages(current, result.data.messages),
+    );
+  }, []);
+
+  const {
+    streamOverlayMessages,
+    isStreaming: isCoworkerStreaming,
+    sendStreamMessage,
+    consumePendingStreamMessage,
+  } = useCoworkerDirectRoomStream({
+    room: selectedChannel,
+    enabled: isCoworkerStreamRoom,
+    currentUserId,
+    organizationSlug: activeOrganization?.slug ?? null,
+    onStreamSettled: refreshRoomMessagesAfterStream,
+  });
+
+  const displayMessages = useMemo(() => {
+    if (streamOverlayMessages.length === 0) {
+      return messagesState;
+    }
+    return mergeChannelMessages(messagesState, streamOverlayMessages);
+  }, [messagesState, streamOverlayMessages]);
+
+  // Draft coworker DM stashes text then navigates — auto-stream once room opens.
+  // Keep sessionStorage until stream actually starts so Strict Mode remount
+  // cannot lose the draft before send begins.
+  useEffect(() => {
+    if (!isCoworkerStreamRoom || !selectedChannelId) {
+      return;
+    }
+    const pending = peekPendingRoomMessage(selectedChannelId);
+    if (!pending) {
+      return;
+    }
+    consumePendingStreamMessage(pending);
+  }, [isCoworkerStreamRoom, selectedChannelId, consumePendingStreamMessage]);
+
+  useEffect(() => {
+    if (!selectedChannelId || !isCoworkerStreaming) {
+      return;
+    }
+    clearPendingRoomMessage(selectedChannelId);
+  }, [selectedChannelId, isCoworkerStreaming]);
+
   const breadcrumbOverride = useMemo(
     () => ({
       pathname: selectedChannel ? `/chat/rooms/${selectedChannel.id}` : "/chat",
@@ -300,12 +363,13 @@ export function ChannelsClient({
 
   // Scroll on channel switch or when the newest message changes — not when
   // an older page is prepended (length grows, last id stays the same).
-  const latestMessageId = messagesState.at(-1)?.id ?? null;
+  const latestMessageId = displayMessages.at(-1)?.id ?? null;
+  const latestStreamContent = streamOverlayMessages.at(-1)?.content ?? "";
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [latestMessageId, selectedChannelId]);
+  }, [latestMessageId, latestStreamContent, selectedChannelId]);
 
-  const latestVisibleMessageId = messagesState.at(-1)?.id ?? "empty";
+  const latestVisibleMessageId = displayMessages.at(-1)?.id ?? "empty";
   const selectedChannelReadId = selectedChannel?.id ?? null;
 
   useEffect(() => {
@@ -409,16 +473,21 @@ export function ChannelsClient({
 
   // Peer traffic while the channel stays open: light poll + focus/visibility
   // refetch. Merges into local state so previously loaded older pages survive.
+  // Skip ticks while a coworker DM stream is in flight (avoids duplicate overlay).
   useEffect(() => {
     if (!selectedChannel) {
       return;
     }
 
     const channelId = selectedChannel.id;
+    const skipWhileStreaming = isCoworkerOnlyDirectRoom(selectedChannel);
     let cancelled = false;
 
     const refreshLatest = async () => {
       if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (skipWhileStreaming && isCoworkerStreaming) {
         return;
       }
       const result = await listChannelMessagesAction(channelId);
@@ -452,7 +521,7 @@ export function ChannelsClient({
       window.removeEventListener("focus", refreshLatest);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [selectedChannel?.id]);
+  }, [selectedChannel?.id, isCoworkerStreaming]);
 
   useEffect(() => {
     if (
@@ -676,6 +745,14 @@ export function ChannelsClient({
     const content = composerValue.trim();
     if (!content) return;
 
+    if (isCoworkerOnlyDirectRoom(selectedChannel)) {
+      setComposerValue("");
+      setComposerAttachments([]);
+      setMentionedCoworkerIds([]);
+      sendStreamMessage(content);
+      return;
+    }
+
     startSendingTransition(async () => {
       const result = await sendChannelMessageAction(
         selectedChannel.id,
@@ -783,7 +860,7 @@ export function ChannelsClient({
                         {t("Empty.messagesLoadFailedDescription")}
                       </p>
                     </div>
-                  ) : messagesState.length === 0 ? (
+                  ) : displayMessages.length === 0 ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
                       <p className="font-medium">
                         {t("Empty.noMessagesTitle")}
@@ -813,12 +890,13 @@ export function ChannelsClient({
                       </Button>
                     </div>
                   ) : null}
-                  {messagesState.map((message, index) => {
-                    const previousMessage = messagesState[index - 1];
+                  {displayMessages.map((message, index) => {
+                    const previousMessage = displayMessages[index - 1];
                     const showDaySeparator =
                       !previousMessage ||
                       messageDayKey(previousMessage.createdAt) !==
                         messageDayKey(message.createdAt);
+                    const isStreamOverlay = message.id.startsWith("stream:");
                     return (
                       <div key={message.id}>
                         {showDaySeparator ? (
@@ -832,11 +910,21 @@ export function ChannelsClient({
                           coworkersById={coworkersById}
                           coworkersBySlug={coworkersBySlug}
                           onToggleReaction={handleToggleReaction}
-                          onOpenThread={loadThreadMessages}
+                          onOpenThread={
+                            isStreamOverlay ? undefined : loadThreadMessages
+                          }
+                          showThreadButton={!isStreamOverlay}
                         />
                       </div>
                     );
                   })}
+                  {isCoworkerStreaming &&
+                  (streamOverlayMessages.at(-1)?.content.trim().length ?? 0) ===
+                    0 ? (
+                    <div className="text-muted-foreground flex items-center gap-2 px-2 py-2 text-sm">
+                      <Loader2 className="size-4 animate-spin" />
+                    </div>
+                  ) : null}
                   <div ref={bottomRef} />
                 </div>
               </ScrollArea>
@@ -858,7 +946,7 @@ export function ChannelsClient({
                 attachments={composerAttachments}
                 onAttachmentsChange={setComposerAttachments}
                 onSubmit={handleSend}
-                isSending={isSending}
+                isSending={isSending || isCoworkerStreaming}
                 sendDisabled={composerValue.trim().length === 0}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedChannel,
