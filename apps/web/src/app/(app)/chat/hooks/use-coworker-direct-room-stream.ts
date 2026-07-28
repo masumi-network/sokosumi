@@ -4,8 +4,8 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { CHAT_API_PATH } from "@/app/chat-ui/utils/chat-route-base";
-import { extractMessageContent } from "@/app/chat-ui/utils/message-utils";
+import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
+import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,

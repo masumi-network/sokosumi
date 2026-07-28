@@ -10,7 +10,6 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
-import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import QueryProvider from "@/contexts/query-provider";
@@ -64,71 +63,69 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   return (
     <QueryProvider>
       <AuthSessionGuard />
-      <ConversationsProvider>
-        <DynamicAblyProvider>
-          <NotificationProvider userId={session.user.id}>
-            <AccountNoticeProvider notice={null} sessionId={session.session.id}>
-              <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
-                <NoticeDialogProvider
-                  legalNotices={EMPTY_NOTICES}
-                  announcementNotices={EMPTY_NOTICES}
+      <DynamicAblyProvider>
+        <NotificationProvider userId={session.user.id}>
+          <AccountNoticeProvider notice={null} sessionId={session.session.id}>
+            <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
+              <NoticeDialogProvider
+                legalNotices={EMPTY_NOTICES}
+                announcementNotices={EMPTY_NOTICES}
+              >
+                <NotificationToaster />
+                <NotificationToastListener userId={session.user.id} />
+                <LoginAccountNoticeToast />
+                <SidebarProvider
+                  defaultOpen={defaultOpen}
+                  data-app-shell
+                  className="flex max-w-svw overflow-clip"
                 >
-                  <NotificationToaster />
-                  <NotificationToastListener userId={session.user.id} />
-                  <LoginAccountNoticeToast />
-                  <SidebarProvider
-                    defaultOpen={defaultOpen}
-                    data-app-shell
-                    className="flex max-w-svw overflow-clip"
+                  <HistorySearchDialogProvider
+                    activeOrganizationId={
+                      session.session.activeOrganizationId ?? null
+                    }
                   >
-                    <HistorySearchDialogProvider
-                      activeOrganizationId={
-                        session.session.activeOrganizationId ?? null
-                      }
-                    >
-                      <BreadcrumbOverrideProvider>
-                        <Suspense fallback={<AppSidebarFallback />}>
-                          <AppShellChrome session={session} />
-                        </Suspense>
+                    <BreadcrumbOverrideProvider>
+                      <Suspense fallback={<AppSidebarFallback />}>
+                        <AppShellChrome session={session} />
+                      </Suspense>
+                      <div
+                        className="flex min-w-0 flex-1 overflow-clip"
+                        data-app-content
+                      >
                         <div
-                          className="flex min-w-0 flex-1 overflow-clip"
-                          data-app-content
+                          className="flex min-w-0 flex-1 flex-col overflow-clip"
+                          data-app-content-inner
                         >
-                          <div
-                            className="flex min-w-0 flex-1 flex-col overflow-clip"
-                            data-app-content-inner
+                          <Header className="h-16 p-4" session={session} />
+                          {/* Below md the header is `fixed` (out of flow), so
+                              main starts at y=0 and must be a full viewport
+                              tall — subtracting the header height there left
+                              a dead 64px strip along the bottom of every
+                              page, which a bottom-anchored composer sits on
+                              top of. From md the header is `sticky` and does
+                              occupy flow, so the subtraction is correct. */}
+                          <main
+                            className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-64px)] md:min-h-[calc(100svh-64px)] md:pt-4"
+                            data-app-main
                           >
-                            <Header className="h-16 p-4" session={session} />
-                            {/* Below md the header is `fixed` (out of flow), so
-                                main starts at y=0 and must be a full viewport
-                                tall — subtracting the header height there left
-                                a dead 64px strip along the bottom of every
-                                page, which a bottom-anchored composer sits on
-                                top of. From md the header is `sticky` and does
-                                occupy flow, so the subtraction is correct. */}
-                            <main
-                              className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-64px)] md:min-h-[calc(100svh-64px)] md:pt-4"
-                              data-app-main
+                            <EmergencyDialog />
+                            <div
+                              className="flex h-full flex-1 flex-col overflow-visible"
+                              data-app-main-inner
                             >
-                              <EmergencyDialog />
-                              <div
-                                className="flex h-full flex-1 flex-col overflow-visible"
-                                data-app-main-inner
-                              >
-                                {children}
-                              </div>
-                            </main>
-                          </div>
+                              {children}
+                            </div>
+                          </main>
                         </div>
-                      </BreadcrumbOverrideProvider>
-                    </HistorySearchDialogProvider>
-                  </SidebarProvider>
-                </NoticeDialogProvider>
-              </CoworkersProvider>
-            </AccountNoticeProvider>
-          </NotificationProvider>
-        </DynamicAblyProvider>
-      </ConversationsProvider>
+                      </div>
+                    </BreadcrumbOverrideProvider>
+                  </HistorySearchDialogProvider>
+                </SidebarProvider>
+              </NoticeDialogProvider>
+            </CoworkersProvider>
+          </AccountNoticeProvider>
+        </NotificationProvider>
+      </DynamicAblyProvider>
     </QueryProvider>
   );
 }
