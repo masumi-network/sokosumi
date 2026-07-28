@@ -503,6 +503,7 @@ export async function createAgentJobForUser(
       ) {
         throw unprocessableEntity(
           "Paid agent job returned a different agent identifier",
+          { reportToSentry: true },
         );
       }
 
@@ -512,6 +513,7 @@ export async function createAgentJobForUser(
       if (response.identifierFromPurchaser !== identifierFromPurchaser) {
         throw unprocessableEntity(
           "Paid agent job returned a different purchaser identifier",
+          { reportToSentry: true },
         );
       }
 
@@ -523,6 +525,7 @@ export async function createAgentJobForUser(
         if (!selectedSource) {
           throw unprocessableEntity(
             "Paid V2 agent job returned an unexpected payment source",
+            { reportToSentry: true },
           );
         }
         const isSelectedSourcePurchaseReady = isCardanoV2SourceReady(
@@ -533,6 +536,7 @@ export async function createAgentJobForUser(
         if (!isSelectedSourcePurchaseReady) {
           throw unprocessableEntity(
             "Paid V2 agent job selected a payment source that is not purchase-ready",
+            { reportToSentry: true },
           );
         }
         if (
@@ -541,6 +545,7 @@ export async function createAgentJobForUser(
         ) {
           throw unprocessableEntity(
             "Paid V2 agent job returned an invalid payment source type",
+            { reportToSentry: true },
           );
         }
         if (
@@ -577,6 +582,7 @@ export async function createAgentJobForUser(
         if (maxCents === null && cost.cents > displayedCostCents) {
           throw unprocessableEntity(
             "Selected payment source exceeds the agent's listed price",
+            { reportToSentry: true },
           );
         }
         paidJobResult = {
@@ -590,11 +596,13 @@ export async function createAgentJobForUser(
         ) {
           throw unprocessableEntity(
             "Legacy agent job returned an invalid payment source type",
+            { reportToSentry: true },
           );
         }
         if (response.supportedPaymentSourceIndex !== undefined) {
           throw unprocessableEntity(
             "Legacy agent job returned a V2 payment source index",
+            { reportToSentry: true },
           );
         }
         // Price-drift guard: pass the exact amounts the credits charge was

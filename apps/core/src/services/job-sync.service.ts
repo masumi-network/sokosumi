@@ -51,6 +51,12 @@ import { refundJob } from "@/services/job-refund";
 import { sourceImportService } from "@/services/source-import.service";
 
 const JOB_SYNC_CONCURRENCY = 5;
+/**
+ * Per-phase row cap. At 5 concurrent polls with a 10s remote timeout, this is
+ * comfortably pollable inside one run's budget while leaving room for the
+ * phases that follow.
+ */
+const JOB_SYNC_PHASE_LIMIT = 200;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
 const JOB_SYNC_TRANSACTION_OPTIONS = {
@@ -902,6 +908,11 @@ async function runSyncPhase(
     await prisma.job.findMany({
       where,
       include: jobInclude,
+      // Bounded and deterministically ordered: a phase that outgrows the run
+      // budget must not starve the phases after it, and the oldest jobs must
+      // not be perpetually skipped in favour of the newest ones.
+      orderBy: { createdAt: "asc" },
+      take: JOB_SYNC_PHASE_LIMIT,
     })
   ).map(mapJobWithStatus);
 

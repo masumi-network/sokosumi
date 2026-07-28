@@ -4,6 +4,7 @@ import { describe, it } from "vitest";
 
 import {
   AgentJobStatus,
+  AgentStatus,
   JobType,
   OnChainJobStatus,
   type Prisma,
@@ -192,13 +193,17 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
 
 describe("buildJobsNeedingAgentStatusSyncWhere", () => {
   it("keeps free and paid jobs with unfinished agent work in the agent sync set", () => {
-    const where = buildJobsNeedingAgentStatusSyncWhere();
+    const now = new Date("2026-07-28T12:00:00.000Z");
+    const where = buildJobsNeedingAgentStatusSyncWhere(now);
 
-    // Deliberately unfiltered by agent status: hiring is gated on ONLINE by
-    // the availability filter, but an in-flight job must keep polling the
-    // revision it was pinned to even after the stable Agent row advances to a
-    // newer (possibly offline) revision.
-    assert.equal(where.agent, undefined);
+    // The ONLINE gate stays for MIP-003 polling, but a paid job still inside
+    // its on-chain window keeps polling even when the stable Agent row has
+    // advanced to a newer, offline revision. The bypass is time-bounded so
+    // jobs against dead agents leave the set instead of accumulating.
+    assert.deepEqual(where.OR, [
+      { agent: { status: AgentStatus.ONLINE } },
+      { jobType: JobType.PAID, externalDisputeUnlockTime: { gt: now } },
+    ]);
     assert.deepEqual(where.jobType, {
       in: [JobType.FREE, JobType.PAID],
     });

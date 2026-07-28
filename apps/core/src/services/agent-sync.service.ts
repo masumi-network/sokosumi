@@ -6,6 +6,7 @@ import {
   PaymentType,
   PricingType,
   type Prisma,
+  RiskClassification,
 } from "@sokosumi/database";
 import {
   isV2RegistryIdentifier,
@@ -29,6 +30,13 @@ import {
 import prisma from "@/lib/db/prisma";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
+/**
+ * The per-entry upsert transaction fans out across pricing, payment sources,
+ * example outputs and — on a rollback-era collision — relation consolidation,
+ * so Prisma's 5s default is too tight to be safe here: a timeout rolls the
+ * park back and parks the sync cursor on a permanently failing entry.
+ */
+const AGENT_UPSERT_TRANSACTION_OPTIONS = { timeout: 20_000 } as const;
 const AGENT_SYNC_BATCH_SIZE = 50;
 const CARDANO_V2_SYNC_METADATA_SUFFIX = "-cardano-v2";
 
@@ -616,17 +624,112 @@ async function consolidateDuplicateAgentRelations(
       });
     }
   }
+}
 
-  await tx.$executeRaw`
-    UPDATE "notification"
-    SET "metadata" = jsonb_set(
-      "metadata"::jsonb,
-      '{agentId}',
-      to_jsonb(${canonicalAgentId}::text)
-    )::text
-    WHERE "metadata" IS NOT NULL
-      AND pg_input_is_valid("metadata", 'jsonb')
-      AND "metadata"::jsonb ->> 'agentId' = ${duplicateAgentId}`;
+/**
+ * Retargets job-notification deep links from a parked duplicate to the
+ * canonical row. Runs OUTSIDE the park transaction on purpose: `metadata` is
+ * an unindexed text column, so this is a sequential scan whose duration grows
+ * with the notification table — inside the transaction it would eventually
+ * exceed the timeout and roll back the park, wedging the sync cursor.
+ * A failure here only leaves a stale deep link, so it is reported and
+ * swallowed rather than retried into that wedge.
+ *
+ * The inner CASE (rather than a WHERE on pg_input_is_valid) keeps the jsonb
+ * cast from ever being evaluated on malformed rows: PostgreSQL does not
+ * guarantee WHERE-clause evaluation order.
+ */
+async function retargetDuplicateAgentNotifications(
+  duplicateAgentId: string,
+  canonicalAgentId: string,
+): Promise<void> {
+  try {
+    await prisma.$executeRaw`
+      UPDATE "notification"
+      SET "metadata" = jsonb_set(
+        "metadata"::jsonb,
+        '{agentId}',
+        to_jsonb(${canonicalAgentId}::text)
+      )::text
+      WHERE "id" IN (
+        SELECT "id" FROM "notification"
+        WHERE CASE
+          WHEN "metadata" IS NULL THEN FALSE
+          WHEN NOT pg_input_is_valid("metadata", 'jsonb') THEN FALSE
+          ELSE "metadata"::jsonb ->> 'agentId' = ${duplicateAgentId}
+        END
+      )`;
+  } catch (error) {
+    console.warn(
+      `[sync/agents] Failed to retarget notifications from ${duplicateAgentId} to ${canonicalAgentId}:`,
+      error,
+    );
+    Sentry.captureException(error);
+  }
+}
+
+interface CuratedTwinDefaults {
+  categoryIds: string[];
+  isShown: boolean;
+  riskClassification: RiskClassification;
+}
+
+/**
+ * Curation defaults for a newly discovered registry entry, inherited from an
+ * existing row for the same agent under a DIFFERENT registry policy (the V1
+ * twin of a seller who re-registered under V2). Admin decisions live on the
+ * local row, not in the registry, so without this a V2 registration would
+ * resurrect a suppressed agent and reset its risk rating.
+ *
+ * Suppression is inherited pessimistically: if ANY twin is hidden the new row
+ * starts hidden. The admin metadata override is deliberately NOT moved — it
+ * is unique per agent and still serves the twin.
+ */
+async function resolveCuratedTwinDefaults(
+  entry: RegistryDiffEntry,
+): Promise<CuratedTwinDefaults> {
+  const fallback: CuratedTwinDefaults = {
+    categoryIds: [],
+    isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
+    riskClassification: RiskClassification.MINIMAL,
+  };
+  if (!entry.apiBaseUrl || !entry.name) {
+    return fallback;
+  }
+
+  try {
+    const twins = await prisma.agent.findMany({
+      where: {
+        name: entry.name,
+        apiBaseUrl: entry.apiBaseUrl,
+        blockchainIdentifier: { not: entry.agentIdentifier },
+      },
+      select: {
+        isShown: true,
+        riskClassification: true,
+        updatedAt: true,
+        categories: { select: { id: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (twins.length === 0) {
+      return fallback;
+    }
+
+    const newest = twins[0];
+    return {
+      categoryIds: newest.categories.map((category) => category.id),
+      isShown: twins.every((twin) => twin.isShown) && fallback.isShown,
+      riskClassification: newest.riskClassification,
+    };
+  } catch (error) {
+    // Curation lookup must never break ingestion; fail to the safe default.
+    console.warn(
+      `[sync/agents] Failed to resolve curated twin for ${entry.agentIdentifier}; using defaults:`,
+      error,
+    );
+    return fallback;
+  }
 }
 
 async function upsertRegistryAgent(
@@ -690,6 +793,11 @@ async function upsertRegistryAgent(
   }
 
   if (!existing) {
+    // A seller re-registering under the V2 policy produces a BRAND NEW row
+    // with no link to their existing one, so admin curation must be carried
+    // across explicitly — otherwise turning the rollout flag on silently
+    // re-publishes agents an admin suppressed and resets their risk rating.
+    const curation = await resolveCuratedTwinDefaults(entry);
     await prisma.agent.create({
       data: {
         blockchainIdentifier: entry.agentIdentifier,
@@ -697,7 +805,15 @@ async function upsertRegistryAgent(
         registryVersion: version.registryVersion,
         ...registryFields,
         tags: { connect: tagReferences },
-        isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
+        ...(curation.categoryIds.length > 0
+          ? {
+              categories: {
+                connect: curation.categoryIds.map((id) => ({ id })),
+              },
+            }
+          : {}),
+        riskClassification: curation.riskClassification,
+        isShown: curation.isShown,
         pricing: {
           create: {
             pricingType: pricing.pricingType,
@@ -859,7 +975,16 @@ async function upsertRegistryAgent(
         },
       },
     });
-  });
+  }, AGENT_UPSERT_TRANSACTION_OPTIONS);
+
+  // Deep-link retargeting runs after the park commits — see the function's
+  // note on why it must stay out of the transaction.
+  if (conflictingByIdentifier && conflictingByIdentifier.id !== existing.id) {
+    await retargetDuplicateAgentNotifications(
+      conflictingByIdentifier.id,
+      existing.id,
+    );
+  }
 }
 
 /**
@@ -1266,6 +1391,15 @@ async function syncCardanoV2RailReadiness(
     console.warn(
       "[sync/agents] No Cardano V2 source is purchase-ready; V2 agents stay unavailable despite ENABLE_CARDANO_V2_AGENTS",
     );
+    // A successful check reporting ZERO ready sources hides the entire V2
+    // catalog just as effectively as a failed check, so it must page too —
+    // only report on the transition, so a lasting outage does not spam.
+    if (readinessChanged) {
+      Sentry.captureMessage(
+        "Cardano V2 rail reports no purchase-ready source; all V2 agents are hidden",
+        "error",
+      );
+    }
   }
   return readinessChanged;
 }

@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   agentCreateMock,
   captureExceptionMock,
+  captureMessageMock,
   exampleOutputDeleteManyMock,
   agentFindFirstMock,
   ratingFindManyMock,
@@ -40,6 +41,7 @@ const {
 } = vi.hoisted(() => ({
   agentCreateMock: vi.fn(),
   captureExceptionMock: vi.fn(),
+  captureMessageMock: vi.fn(),
   exampleOutputDeleteManyMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
   ratingFindManyMock: vi.fn(),
@@ -71,6 +73,7 @@ const {
 
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
+  captureMessage: (...args: unknown[]) => captureMessageMock(...args),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -136,6 +139,7 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: syncMetadataUpsertMock,
     },
     $transaction: transactionMock,
+    $executeRaw: executeRawMock,
   },
 }));
 
@@ -288,6 +292,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     tagUpsertMock.mockResolvedValue(undefined);
     agentFindFirstMock.mockResolvedValue(null);
+    // Curated-twin lookup for newly discovered registry entries.
+    agentFindManyMock.mockResolvedValue([]);
     ratingFindManyMock.mockResolvedValue([]);
     ratingUpdateMock.mockResolvedValue(undefined);
     ratingDeleteMock.mockResolvedValue(undefined);
@@ -455,6 +461,203 @@ describe("agentSyncService.syncRegistryAgents", () => {
         }),
       }),
     );
+  });
+
+  it("consolidates ratings, categories and the override onto the canonical row", async () => {
+    const entries = [
+      createRegistryEntry("entry-v2-consolidate", {
+        agentIdentifier: createV2AgentIdentifier(2),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    agentFindUniqueMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        if (where.registryIdentity) {
+          return {
+            id: "agent-canonical",
+            pricingId: "pricing-canonical",
+            registryVersion: 1,
+            blockchainIdentifier: createV2AgentIdentifier(1),
+            metadataVersion: 1,
+          };
+        }
+        if (where.id === "agent-rollback-dup") {
+          return {
+            categories: [{ id: "cat-1" }, { id: "cat-2" }],
+            metadataOverride: { id: "override-dup" },
+          };
+        }
+        return null;
+      },
+    );
+    agentFindFirstMock.mockResolvedValue({
+      id: "agent-rollback-dup",
+      blockchainIdentifier: createV2AgentIdentifier(2),
+      apiBaseUrl: "https://rollback-agent.example.com",
+      metadataOverride: null,
+    });
+    ratingFindManyMock.mockImplementation(
+      async ({ where }: { where: { agentId: string } }) =>
+        where.agentId === "agent-rollback-dup"
+          ? [
+              // moves (canonical has none for u2)
+              {
+                id: "rating-dup-u2",
+                userId: "u2",
+                updatedAt: new Date("2026-01-02"),
+              },
+              // newer than canonical's → replaces it
+              {
+                id: "rating-dup-u1",
+                userId: "u1",
+                updatedAt: new Date("2026-02-01"),
+              },
+            ]
+          : [
+              {
+                id: "rating-canon-u1",
+                userId: "u1",
+                updatedAt: new Date("2026-01-01"),
+              },
+            ],
+    );
+    overrideFindUniqueMock.mockResolvedValue(null);
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    // The user's newer duplicate rating wins; the canonical loser is removed.
+    expect(ratingDeleteMock).toHaveBeenCalledWith({
+      where: { id: "rating-canon-u1" },
+    });
+    expect(ratingUpdateMock).toHaveBeenCalledWith({
+      where: { id: "rating-dup-u1" },
+      data: { agentId: "agent-canonical" },
+    });
+    // The unheld rating simply moves.
+    expect(ratingUpdateMock).toHaveBeenCalledWith({
+      where: { id: "rating-dup-u2" },
+      data: { agentId: "agent-canonical" },
+    });
+    // Categories follow the stable row.
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-canonical" },
+        data: expect.objectContaining({
+          categories: { connect: [{ id: "cat-1" }, { id: "cat-2" }] },
+        }),
+      }),
+    );
+    // The override moves only because the canonical row has none.
+    expect(overrideUpdateMock).toHaveBeenCalledWith({
+      where: { id: "override-dup" },
+      data: { agentId: "agent-canonical" },
+    });
+    // Deep links are retargeted OUTSIDE the park transaction.
+    expect(executeRawMock).toHaveBeenCalled();
+  });
+
+  it("keeps an existing canonical override instead of moving the duplicate's", async () => {
+    const entries = [
+      createRegistryEntry("entry-v2-override", {
+        agentIdentifier: createV2AgentIdentifier(2),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    agentFindUniqueMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        if (where.registryIdentity) {
+          return {
+            id: "agent-canonical",
+            pricingId: "pricing-canonical",
+            registryVersion: 1,
+            blockchainIdentifier: createV2AgentIdentifier(1),
+            metadataVersion: 1,
+          };
+        }
+        if (where.id === "agent-rollback-dup") {
+          return { categories: [], metadataOverride: { id: "override-dup" } };
+        }
+        return null;
+      },
+    );
+    agentFindFirstMock.mockResolvedValue({
+      id: "agent-rollback-dup",
+      blockchainIdentifier: createV2AgentIdentifier(2),
+      apiBaseUrl: "https://rollback-agent.example.com",
+      metadataOverride: null,
+    });
+    // AgentMetadataOverride.agentId is unique — the slot is taken.
+    overrideFindUniqueMock.mockResolvedValue({ id: "override-canonical" });
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(overrideUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("inherits suppression and risk rating from an existing twin under another policy", async () => {
+    const entries = [
+      createRegistryEntry("entry-v2-twin", {
+        agentIdentifier: createV2AgentIdentifier(0),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    // Same name + endpoint under the V1 policy, hidden by an admin.
+    agentFindManyMock.mockResolvedValue([
+      {
+        isShown: false,
+        riskClassification: "HIGH",
+        updatedAt: new Date("2026-05-01"),
+        categories: [{ id: "cat-legal" }],
+      },
+    ]);
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    const created = agentCreateMock.mock.calls[0]?.[0];
+    // An admin's suppression must not be undone by a V2 re-registration.
+    expect(created.data.isShown).toBe(false);
+    expect(created.data.riskClassification).toBe("HIGH");
+    expect(created.data.categories).toEqual({
+      connect: [{ id: "cat-legal" }],
+    });
+  });
+
+  it("uses defaults when a newly discovered entry has no twin", async () => {
+    const entries = [createRegistryEntry("entry-no-twin")];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    agentFindManyMock.mockResolvedValue([]);
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const created = agentCreateMock.mock.calls[0]?.[0];
+    expect(created.data.riskClassification).toBe("MINIMAL");
+    expect(created.data.categories).toBeUndefined();
   });
 
   it("skips a malformed V2 entry whose full-string identity collides with a canonical row", async () => {

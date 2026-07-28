@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  AgentStatus,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
@@ -64,15 +65,35 @@ export function buildJobsNeedingPurchaseSyncWhere(
   };
 }
 
-export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
+/**
+ * A paid job whose on-chain window is still open must keep polling even when
+ * its agent is no longer ONLINE: one stable Agent row now advances to the
+ * newest V2 revision, so a newer revision reporting Offline would otherwise
+ * strand every in-flight job pinned to an older one (they carry their own
+ * agentBlockchainIdentifier / agentApiBaseUrl snapshots).
+ *
+ * Scoped deliberately: the bypass ends with the dispute window, so jobs
+ * against permanently dead agents leave the poll set instead of accumulating
+ * forever and starving later sync phases.
+ */
+function buildInFlightAgentSnapshotWhere(now: Date): Prisma.JobWhereInput {
   return {
-    // Deliberately NOT gated on the agent's current status. Hiring is gated on
-    // ONLINE by the availability filter; an already-started job must keep
-    // polling the revision it was pinned to (agentBlockchainIdentifier /
-    // agentApiBaseUrl snapshots), because one stable Agent row now advances to
-    // the newest V2 revision — a newer revision going offline would otherwise
-    // strand every in-flight job started against the older one, and their
-    // local credit refunds would never trigger.
+    jobType: JobType.PAID,
+    externalDisputeUnlockTime: { gt: now },
+  };
+}
+
+export function buildJobsNeedingAgentStatusSyncWhere(
+  now: Date = new Date(),
+): Prisma.JobWhereInput {
+  return {
+    // Hiring is gated on ONLINE by the availability filter. Here the gate only
+    // controls MIP-003 status polling, so it stays in place for dead agents
+    // and is bypassed only for paid jobs still inside their on-chain window.
+    OR: [
+      { agent: { status: AgentStatus.ONLINE } },
+      buildInFlightAgentSnapshotWhere(now),
+    ],
     jobType: {
       in: [JobType.FREE, JobType.PAID],
     },

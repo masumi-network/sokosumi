@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { AgentJobStatus, AgentStatus } from "@sokosumi/database";
+import { AgentJobStatus, AgentStatus, JobType } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
@@ -149,7 +149,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Job endpoints are pinned to the agent revision the job started with, so
     // an offline/deregistered agent would otherwise keep receiving user input.
-    if (jobEvent.job.agent.status !== AgentStatus.ONLINE) {
+    // The exception mirrors buildJobsNeedingAgentStatusSyncWhere: a paid job
+    // still inside its on-chain window keeps accepting input even when the
+    // stable Agent row advanced to a newer, offline revision — otherwise sync
+    // would ask the user for input the platform then refuses to accept.
+    const isInFlightPaidJob =
+      jobEvent.job.jobType === JobType.PAID &&
+      jobEvent.job.externalDisputeUnlockTime !== null &&
+      jobEvent.job.externalDisputeUnlockTime.getTime() > Date.now();
+    if (
+      jobEvent.job.agent.status !== AgentStatus.ONLINE &&
+      !isInFlightPaidJob
+    ) {
       throw unprocessableEntity("Agent is no longer available");
     }
 
