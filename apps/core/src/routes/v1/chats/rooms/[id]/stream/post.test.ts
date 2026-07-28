@@ -16,7 +16,7 @@ const {
   memberFindUniqueMock,
   prismaTransactionMock,
   requireCoworkerChatCapabilityMock,
-  ensureCoworkerProviderConversationForRoomMock,
+  createCoworkerConversationMock,
   streamTextMock,
   toUIMessageStreamResponseMock,
   convertToModelMessagesMock,
@@ -35,7 +35,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
-  ensureCoworkerProviderConversationForRoomMock: vi.fn(),
+  createCoworkerConversationMock: vi.fn(),
   streamTextMock: vi.fn(),
   toUIMessageStreamResponseMock: vi.fn(),
   convertToModelMessagesMock: vi.fn(),
@@ -67,10 +67,20 @@ vi.mock("@/helpers/persist-assistant-to-chat-room", () => ({
   persistUserMessageToChatRoom: persistUserMessageToChatRoomMock,
 }));
 
-vi.mock("./coworker-provider-conversation", () => ({
-  ensureCoworkerProviderConversationForRoom:
-    ensureCoworkerProviderConversationForRoomMock,
-}));
+vi.mock(
+  "@/routes/v1/chats/stream/coworker-conversation",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/routes/v1/chats/stream/coworker-conversation")
+      >();
+    return {
+      ...actual,
+      createCoworkerConversation: (...args: unknown[]) =>
+        createCoworkerConversationMock(...args),
+    };
+  },
+);
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -137,7 +147,10 @@ function roomWithOneCoworker(
   return {
     id: ROOM_ID,
     organizationId: "org_1",
-    providerConversationId: overrides.providerConversationId ?? "conv_remote_1",
+    providerConversationId:
+      "providerConversationId" in overrides
+        ? (overrides.providerConversationId ?? null)
+        : "conv_remote_1",
     coworkerMembers: overrides.coworkerMembers ?? [
       {
         coworker: {
@@ -148,6 +161,19 @@ function roomWithOneCoworker(
       },
     ],
   };
+}
+
+async function postStream(body?: unknown) {
+  const app = createApp();
+  return await app.request(`/${ROOM_ID}/stream`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(
+      body ?? {
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      },
+    ),
+  });
 }
 
 beforeEach(() => {
@@ -177,10 +203,8 @@ beforeEach(() => {
     slug: "hannah",
     baseURL: "https://responses.example.com/v1",
   });
-  ensureCoworkerProviderConversationForRoomMock.mockResolvedValue({
-    providerConversationId: "conv_remote_1",
-    justCreated: false,
-  });
+  createCoworkerConversationMock.mockResolvedValue({ id: "conv_new_1" });
+  chatRoomUpdateManyMock.mockResolvedValue({ count: 1 });
   persistUserMessageToChatRoomMock.mockResolvedValue({ id: "msg_user_1" });
   persistAssistantToChatRoomMock.mockResolvedValue({ id: "msg_asst_1" });
   toUIMessageStreamResponseMock.mockImplementation(
@@ -202,13 +226,8 @@ describe("POST /chats/rooms/{id}/stream", () => {
   it("returns 404 when room is missing or caller is not a member", async () => {
     roomFindFirstMock.mockResolvedValue(null);
 
-    const app = createApp();
-    const response = await app.request(`/${ROOM_ID}/stream`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
-      }),
+    const response = await postStream({
+      messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
     });
 
     expect(response.status).toBe(404);
@@ -223,13 +242,8 @@ describe("POST /chats/rooms/{id}/stream", () => {
       roomWithOneCoworker({ coworkerMembers: [] }),
     );
 
-    const app = createApp();
-    const response = await app.request(`/${ROOM_ID}/stream`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
-      }),
+    const response = await postStream({
+      messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
     });
 
     expect(response.status).toBe(400);
@@ -237,17 +251,41 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when room has more than one coworker member", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      roomWithOneCoworker({
+        coworkerMembers: [
+          {
+            coworker: {
+              id: COWORKER_ID,
+              name: "Hannah",
+              slug: "hannah",
+            },
+          },
+          {
+            coworker: {
+              id: "coworker_2",
+              name: "Otto",
+              slug: "otto",
+            },
+          },
+        ],
+      }),
+    );
+
+    const response = await postStream({
+      messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+    });
+
+    expect(response.status).toBe(400);
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+  });
+
   it("persists user message to chat_room_message and streams without conversation* rows", async () => {
     roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
 
-    const app = createApp();
-    const response = await app.request(`/${ROOM_ID}/stream`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        messages: [{ role: "user", parts: [{ type: "text", text: "Hello" }] }],
-      }),
-    });
+    const response = await postStream();
 
     expect(response.status).toBe(200);
     expect(response.headers.get("x-sokosumi-room-id")).toBe(ROOM_ID);
@@ -276,6 +314,79 @@ describe("POST /chats/rooms/{id}/stream", () => {
     );
     expect(streamArgs.providerOptions.sokosumi.coworkerSlug).toBe("hannah");
 
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+    expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+    expect(conversationCreateMock).not.toHaveBeenCalled();
+    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("ensures providerConversationId on chatRoom when missing (no conversation* writes)", async () => {
+    roomFindFirstMock
+      .mockResolvedValueOnce(
+        roomWithOneCoworker({ providerConversationId: null }),
+      )
+      .mockResolvedValueOnce({ providerConversationId: null });
+
+    const response = await postStream();
+
+    expect(response.status).toBe(200);
+
+    expect(createCoworkerConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sokosumiUserId: USER_ID,
+        sokosumiOrganizationId: "org_1",
+        coworkerSlug: "hannah",
+        sokosumiConversationId: ROOM_ID,
+        responsesApiBaseUrl: "https://responses.example.com/v1",
+      }),
+    );
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: ROOM_ID,
+        providerConversationId: null,
+        userMembers: { some: { userId: USER_ID } },
+      },
+      data: { providerConversationId: "conv_new_1" },
+    });
+
+    const streamArgs = streamTextMock.mock.calls[0]![0] as {
+      providerOptions: {
+        sokosumi: { providerConversationId: string | null };
+      };
+    };
+    expect(streamArgs.providerOptions.sokosumi.providerConversationId).toBe(
+      "conv_new_1",
+    );
+
+    expect(conversationCreateMock).not.toHaveBeenCalled();
+    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("persists assistant turn on stream onFinish via persistAssistantToChatRoom", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+    const response = await postStream();
+    expect(response.status).toBe(200);
+
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+
+    await streamCall.onFinish({
+      text: "Assistant reply",
+      reasoning: [],
+    });
+
+    expect(persistAssistantToChatRoomMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        senderCoworkerId: COWORKER_ID,
+        contentText: "Assistant reply",
+      }),
+    );
     expect(conversationCreateMock).not.toHaveBeenCalled();
     expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
