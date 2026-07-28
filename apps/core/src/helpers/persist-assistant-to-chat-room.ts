@@ -1,4 +1,3 @@
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import type { PersistedChatUiPart } from "./message-content";
 
@@ -54,6 +53,10 @@ function buildAssistantMessageMetadata(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/**
+ * Persists an assistant turn to `chat_room_message`.
+ * Callers must not pass empty content (no text, reasoning, or ui parts) — throws if empty.
+ */
 export async function persistAssistantToChatRoom(params: {
   roomId: string;
   senderCoworkerId: string;
@@ -107,38 +110,17 @@ export async function persistAssistantToChatRoom(params: {
     responseId,
   );
 
-  try {
-    const created = await prisma.chatRoomMessage.create({
-      data: {
-        roomId,
-        senderCoworkerId,
-        senderUserId: null,
-        content: contentText,
-        metadata,
-      },
-      select: { id: true },
-    });
-    return { id: created.id };
-  } catch (error) {
-    if (isPrismaUniqueViolation(error)) {
-      const existing = responseId
-        ? await prisma.chatRoomMessage.findFirst({
-            where: {
-              roomId,
-              metadata: {
-                path: ["responses_api_response_id"],
-                equals: responseId,
-              },
-            },
-            select: { id: true },
-          })
-        : null;
-      if (existing) {
-        return { id: existing.id };
-      }
-    }
-    throw error;
-  }
+  const created = await prisma.chatRoomMessage.create({
+    data: {
+      roomId,
+      senderCoworkerId,
+      senderUserId: null,
+      content: contentText,
+      metadata,
+    },
+    select: { id: true },
+  });
+  return { id: created.id };
 }
 
 export async function persistUserMessageToChatRoom(params: {

@@ -40,6 +40,45 @@ describe("persistAssistantToChatRoom", () => {
     );
   });
 
+  it("returns existing message id when responsesApiResponseId already persisted", async () => {
+    vi.mocked(prisma.chatRoomMessage.findFirst).mockResolvedValue({
+      id: "msg_existing",
+    } as never);
+
+    const result = await persistAssistantToChatRoom({
+      roomId: "room_1",
+      senderCoworkerId: "coworker_1",
+      contentText: "Duplicate finish",
+      responsesApiResponseId: "resp_1",
+    });
+
+    expect(result.id).toBe("msg_existing");
+    expect(prisma.chatRoomMessage.findFirst).toHaveBeenCalledWith({
+      where: {
+        roomId: "room_1",
+        metadata: {
+          path: ["responses_api_response_id"],
+          equals: "resp_1",
+        },
+      },
+      select: { id: true },
+    });
+    expect(prisma.chatRoomMessage.create).not.toHaveBeenCalled();
+  });
+
+  it("throws when assistant payload is empty", async () => {
+    await expect(
+      persistAssistantToChatRoom({
+        roomId: "room_1",
+        senderCoworkerId: "coworker_1",
+        contentText: "   ",
+      }),
+    ).rejects.toThrow("Cannot persist empty assistant chat room message");
+
+    expect(prisma.chatRoomMessage.findFirst).not.toHaveBeenCalled();
+    expect(prisma.chatRoomMessage.create).not.toHaveBeenCalled();
+  });
+
   it("persists reasoning, thought timing, and ui parts in metadata", async () => {
     await persistAssistantToChatRoom({
       roomId: "room_1",
