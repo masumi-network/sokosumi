@@ -53,7 +53,10 @@ export const chatRoomService = (() => {
       const response = await coreClient.getChatRoom(id);
       return response.data;
     } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
+      if (
+        error instanceof CoreApiRequestError &&
+        (error.status === 404 || error.status === 403)
+      ) {
         return null;
       }
       throw error;

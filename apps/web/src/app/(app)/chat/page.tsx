@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatWelcomeClient } from "@/app/chat/components/chat-welcome-client";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ interface ChatPageProps {
   searchParams: Promise<{
     create?: string | string[];
     dm?: string | string[];
+    notice?: string | string[];
   }>;
 }
 
@@ -48,6 +50,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
   const isNewDirectMessage = firstSearchValue(query.dm) === "new";
+  const notice = firstSearchValue(query.notice);
+  const landingNotice = <ChatLandingNotice notice={notice} />;
 
   if (isCreateChannelRequested || isNewDirectMessage) {
     // Channels / create stay org-only. Start New DM (`?dm=new`) also works in
@@ -56,39 +60,45 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     if (!activeOrganization) {
       if (!isNewDirectMessage) {
         return (
-          <div className="min-h-full w-full px-4 py-6">
-            <div className="mx-auto max-w-3xl">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{tChannels("NoOrganization.title")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    {tChannels("NoOrganization.description")}
-                  </p>
-                </CardContent>
-              </Card>
+          <>
+            {landingNotice}
+            <div className="min-h-full w-full px-4 py-6">
+              <div className="mx-auto max-w-3xl">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{tChannels("NoOrganization.title")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      {tChannels("NoOrganization.description")}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
+          </>
         );
       }
 
       const coworkers = await coworkerService.listCoworkers("chat");
 
       return (
-        <ChannelsClient
-          activeOrganization={null}
-          channels={[]}
-          organizationMembers={[]}
-          currentUserId={session?.user.id ?? ""}
-          coworkers={coworkers}
-          selectedChannelId={null}
-          isCreateChannelRequested={false}
-          isNewDirectMessage
-          messageLoadFailed={false}
-          messages={[]}
-          messagesNextCursor={null}
-        />
+        <>
+          {landingNotice}
+          <ChannelsClient
+            activeOrganization={null}
+            channels={[]}
+            organizationMembers={[]}
+            currentUserId={session?.user.id ?? ""}
+            coworkers={coworkers}
+            selectedChannelId={null}
+            isCreateChannelRequested={false}
+            isNewDirectMessage
+            messageLoadFailed={false}
+            messages={[]}
+            messagesNextCursor={null}
+          />
+        </>
       );
     }
 
@@ -101,19 +111,22 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       ]);
 
     return (
-      <ChannelsClient
-        activeOrganization={activeOrganization}
-        channels={listedChannels}
-        organizationMembers={organizationMembers}
-        currentUserId={currentMember?.userId ?? ""}
-        coworkers={coworkers}
-        selectedChannelId={null}
-        isCreateChannelRequested={isCreateChannelRequested}
-        isNewDirectMessage={isNewDirectMessage}
-        messageLoadFailed={false}
-        messages={[]}
-        messagesNextCursor={null}
-      />
+      <>
+        {landingNotice}
+        <ChannelsClient
+          activeOrganization={activeOrganization}
+          channels={listedChannels}
+          organizationMembers={organizationMembers}
+          currentUserId={currentMember?.userId ?? ""}
+          coworkers={coworkers}
+          selectedChannelId={null}
+          isCreateChannelRequested={isCreateChannelRequested}
+          isNewDirectMessage={isNewDirectMessage}
+          messageLoadFailed={false}
+          messages={[]}
+          messagesNextCursor={null}
+        />
+      </>
     );
   }
 
@@ -122,9 +135,12 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   );
 
   return (
-    <ChatWelcomeClient
-      coworkers={coworkers}
-      userName={session?.user.name ?? undefined}
-    />
+    <>
+      {landingNotice}
+      <ChatWelcomeClient
+        coworkers={coworkers}
+        userName={session?.user.name ?? undefined}
+      />
+    </>
   );
 }

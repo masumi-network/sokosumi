@@ -136,8 +136,42 @@ export async function persistUserMessageToChatRoom(params: {
   senderUserId: string;
   contentText: string;
   metadata?: Record<string, unknown>;
+  /**
+   * AI SDK / client message id. Retries of the same stream turn reuse this so
+   * we do not insert duplicate user rows after a failed/aborted stream.
+   */
+  clientMessageId?: string | null;
 }): Promise<{ id: string }> {
-  const { roomId, senderUserId, contentText, metadata } = params;
+  const { roomId, senderUserId, contentText, metadata, clientMessageId } =
+    params;
+
+  const trimmedClientId =
+    typeof clientMessageId === "string" ? clientMessageId.trim() : "";
+  if (trimmedClientId.length > 0) {
+    const existing = await prisma.chatRoomMessage.findFirst({
+      where: {
+        roomId,
+        senderUserId,
+        metadata: {
+          path: ["client_message_id"],
+          equals: trimmedClientId,
+        },
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      return { id: existing.id };
+    }
+  }
+
+  const mergedMetadata: Record<string, unknown> = {
+    ...(metadata ?? {}),
+    ...(trimmedClientId.length > 0
+      ? { client_message_id: trimmedClientId }
+      : {}),
+  };
+  const metadataToStore =
+    Object.keys(mergedMetadata).length > 0 ? mergedMetadata : undefined;
 
   const created = await prisma.$transaction(async (tx) => {
     const message = await tx.chatRoomMessage.create({
@@ -146,7 +180,7 @@ export async function persistUserMessageToChatRoom(params: {
         senderUserId,
         senderCoworkerId: null,
         content: contentText,
-        metadata,
+        metadata: metadataToStore,
       },
       select: { id: true },
     });

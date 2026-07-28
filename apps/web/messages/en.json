@@ -4732,7 +4732,8 @@
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       },
       "loadOlder": "Load older messages",
-      "loadingOlder": "Loading older messages…"
+      "loadingOlder": "Loading older messages…",
+      "roomUnavailable": "This chat is unavailable or you no longer have access."
     }
   },
   "Share": {

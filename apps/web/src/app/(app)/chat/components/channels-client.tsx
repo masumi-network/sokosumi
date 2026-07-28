@@ -26,10 +26,7 @@ import {
   mergeChannelMessages,
   mergeMessagesWithStreamOverlay,
 } from "@/app/chat/utils/merge-channel-messages";
-import {
-  clearPendingRoomMessage,
-  peekPendingRoomMessage,
-} from "@/app/chat/utils/pending-room-message";
+import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { markOrganizationChatChannelReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -255,12 +252,9 @@ export function ChannelsClient({
     consumePendingStreamMessage(pending);
   }, [isCoworkerStreamRoom, selectedChannelId, consumePendingStreamMessage]);
 
-  useEffect(() => {
-    if (!selectedChannelId || !isCoworkerStreaming) {
-      return;
-    }
-    clearPendingRoomMessage(selectedChannelId);
-  }, [selectedChannelId, isCoworkerStreaming]);
+  // Pending draft stays in sessionStorage until stream settles successfully
+  // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
+  // start lost the draft when the request failed after submit.
 
   const breadcrumbOverride = useMemo(
     () => ({

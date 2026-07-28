@@ -4613,7 +4613,8 @@
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       },
       "loadOlder": "以前のメッセージを読み込む",
-      "loadingOlder": "以前のメッセージを読み込み中…"
+      "loadingOlder": "以前のメッセージを読み込み中…",
+      "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。"
     }
   },
   "Share": {

@@ -149,6 +149,7 @@ describe("persistAssistantToChatRoom", () => {
 describe("persistUserMessageToChatRoom", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.chatRoomMessage.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.chatRoomMessage.create).mockResolvedValue({
       id: "msg_user",
     } as never);
@@ -204,6 +205,53 @@ describe("persistUserMessageToChatRoom", () => {
           content: "Make an image",
           metadata: { image_generation: true },
         },
+      }),
+    );
+  });
+
+  it("skips create when clientMessageId already persisted", async () => {
+    vi.mocked(prisma.chatRoomMessage.findFirst).mockResolvedValue({
+      id: "msg_existing_user",
+    } as never);
+
+    const result = await persistUserMessageToChatRoom({
+      roomId: "room_1",
+      senderUserId: "user_1",
+      contentText: "Hello again",
+      clientMessageId: "ui_msg_1",
+    });
+
+    expect(result.id).toBe("msg_existing_user");
+    expect(prisma.chatRoomMessage.findFirst).toHaveBeenCalledWith({
+      where: {
+        roomId: "room_1",
+        senderUserId: "user_1",
+        metadata: {
+          path: ["client_message_id"],
+          equals: "ui_msg_1",
+        },
+      },
+      select: { id: true },
+    });
+    expect(prisma.chatRoomMessage.create).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("stores client_message_id in metadata on create", async () => {
+    vi.mocked(prisma.chatRoomMessage.findFirst).mockResolvedValue(null);
+
+    await persistUserMessageToChatRoom({
+      roomId: "room_1",
+      senderUserId: "user_1",
+      contentText: "Hello",
+      clientMessageId: "ui_msg_2",
+    });
+
+    expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: { client_message_id: "ui_msg_2" },
+        }),
       }),
     );
   });
