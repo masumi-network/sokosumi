@@ -187,13 +187,18 @@ export function createPaymentClient(
         }
         const readySources = new Map<string, CardanoV2ReadySource>();
         for (const source of cardanoV2Rail.PurchaseSources) {
+          // Normalize BEFORE validating and keying: everything downstream
+          // (ingestion, availability, the pre-charge tuple checks) compares
+          // against lowercase hex, so an uppercase policy id must not be
+          // silently dropped as invalid — it is the same source.
+          const policyId = source.policyId?.toLowerCase();
           if (
             source.isPurchaseReady &&
-            source.policyId &&
-            CARDANO_POLICY_ID_PATTERN.test(source.policyId)
+            policyId &&
+            CARDANO_POLICY_ID_PATTERN.test(policyId)
           ) {
             const readySource = {
-              policyId: source.policyId,
+              policyId,
               smartContractAddress: source.smartContractAddress,
             };
             readySources.set(

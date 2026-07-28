@@ -612,6 +612,14 @@ async function syncPurchaseState(
         job.agentBlockchainIdentifier ??
         job.agent?.blockchainIdentifier ??
         null;
+      // The job snapshots the rail it was created on, so a purchase settling
+      // through the other contract can never belong to it.
+      const purchasePaymentSourceType =
+        purchase.PaymentSource?.paymentSourceType ?? null;
+      const doesPaymentSourceTypeMatch =
+        job.paymentSourceType === null ||
+        purchasePaymentSourceType === null ||
+        purchasePaymentSourceType === job.paymentSourceType;
       const doesPurchaseMatchJob =
         typeof job.inputHash === "string" &&
         job.inputHash.length > 0 &&
@@ -619,6 +627,7 @@ async function syncPurchaseState(
         expectedAgentIdentifier !== null &&
         normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
           normalizeV2RegistryIdentifier(expectedAgentIdentifier) &&
+        doesPaymentSourceTypeMatch &&
         purchase.payByTime === String(job.payByTime.getTime()) &&
         purchase.submitResultTime === String(job.submitResultTime.getTime()) &&
         purchase.unlockTime === String(job.unlockTime.getTime()) &&

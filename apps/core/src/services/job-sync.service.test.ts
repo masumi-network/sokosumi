@@ -235,6 +235,7 @@ function createJob(
     unlockTime: new Date(now.getTime() + 50 * 60 * 1000),
     externalDisputeUnlockTime: new Date(now.getTime() + 60 * 60 * 1000),
     inputHash: "job-input-hash",
+    paymentSourceType: null,
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
@@ -655,6 +656,35 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         matchingResolvedPurchase(pendingJob, {
           id: "purchase_other_agent",
           agentIdentifier: "agent-chain-someone-else",
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
+  });
+
+  it("refuses to backfill a purchase settled through the other rail", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+      paymentSourceType: "Web3CardanoV2",
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    // Everything matches except the contract it settles through.
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_wrong_rail",
+          PaymentSource: { paymentSourceType: "Web3CardanoV1" },
         }),
       ),
     );
