@@ -8,6 +8,7 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountDeleteProject from "./delete.js";
 import mountGetProject from "./get.js";
+import mountDeleteProjectJob from "./jobs/[jobId]/delete.js";
 import mountPostProjectJob from "./jobs/post.js";
 import mountPatchProject from "./patch.js";
 
@@ -17,12 +18,14 @@ const {
   projectDeleteManyMock,
   jobFindFirstMock,
   jobUpdateMock,
+  jobUpdateManyMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
+  jobUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -35,6 +38,7 @@ vi.mock("@/lib/db/prisma", () => ({
     job: {
       findFirst: jobFindFirstMock,
       update: jobUpdateMock,
+      updateMany: jobUpdateManyMock,
     },
   },
 }));
@@ -274,5 +278,22 @@ describe("POST /projects/{id}/jobs", () => {
     expect(res.status).toBe(403);
     expect(jobFindFirstMock).not.toHaveBeenCalled();
     expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /projects/{id}/jobs/{jobId}", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    mountDeleteProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}/jobs/job_1`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(403);
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
   });
 });
