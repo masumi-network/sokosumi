@@ -24,8 +24,10 @@ The two rails differ structurally, not just by network:
   can recover funds when a seller never delivers.
 - **x402** is synchronous and terminal: call the resource, receive a 402 with
   payment requirements, have the node sign a payment, replay the call, and
-  the HTTP response *is* the result. Settlement finishes at `Verified`; there
-  is no escrow, no result hash, and no on-chain refund path.
+  the HTTP response *is* the result. The buyer node's OUTBOUND attempt
+  lifecycle terminates at `Verified` (or `Failed`) once the payment is
+  signed; settlement to `Settled` is the receiving side's concern. There is
+  no escrow, no result hash, and no on-chain refund path.
 
 Relevant payment-node surface (pinned in `packages/masumi/spec/payment.openapi.json`):
 
@@ -66,16 +68,17 @@ instead of inferring the rail from identifier shapes or agent entry types.
 
 A dedicated model records the payment leg of an x402 job:
 
-- `attemptId` — the node's payment-attempt id, our join key for
-  reconciliation against `/x402/payments`.
+- `attemptId` — the node's payment-attempt id, our join key against
+  `/x402/payments`.
 - `paymentPayloadHash` — hash of the signed payment payload we replayed.
 - `paymentIdentifier` — present when the 402 advertises the Masumi
   payment-identifier extension.
 - `caip2Network`, `asset`, `amount` (BigInt), `decimals` — what was paid,
   denominated chain-natively.
-- Status mirrors the node's attempt lifecycle and terminates at `Verified`;
-  a settle failure after verification keeps the row `Verified` with the error
-  recorded (the node never auto-fails a verified single-use payment).
+- Status mirrors the node's OUTBOUND attempt lifecycle: `PaymentRequired` →
+  `Verified` | `Failed`, terminal at `Verified` once the payment is signed.
+  There is no settle leg on this row — `Settled` belongs to the receiving
+  node's inbound lifecycle and never arrives for our outbound attempts.
 
 ### 4. Job flow
 
@@ -87,8 +90,12 @@ A dedicated model records the payment leg of an x402 job:
    same flow.
 
 Timeouts and non-2xx replays leave the job failed with the payment attempt
-recorded; reconciliation against `/x402/payments` by `attemptId` resolves
-ambiguous outcomes.
+recorded. `/x402/payments` lookups by `attemptId` can confirm what was
+signed and charged, but NOT whether funds actually moved: the node's
+reconciler covers inbound settlements only, and outbound attempts never
+advance past `Verified`. A timed-out replay therefore stays genuinely
+ambiguous — the failure-handling and credit-refund policy must assume the
+payment may have been taken.
 
 ### 5. Credits pricing via CAIP-19-style unit keys
 
@@ -142,6 +149,8 @@ either answer.
   payment sources; flipping availability is gated on this rail shipping.
 - The jobs pipeline gains one discriminator and one sibling model; escrow
   code paths remain untouched.
-- Reconciliation tooling must learn `/x402/payments` lookups by `attemptId`.
+- Status tooling must learn `/x402/payments` lookups by `attemptId` —
+  understanding they confirm signing/charging only, never settlement
+  (outbound attempts have no reconcilable settle state).
 - The credit-refund product decision is the rollout gate; engineering can
   proceed to implementation behind a flag without it.
