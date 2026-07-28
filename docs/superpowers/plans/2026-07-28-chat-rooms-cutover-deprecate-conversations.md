@@ -269,9 +269,7 @@ EOF
 
 **Interfaces:**
 - `GET /v1/chats/rooms/{id}/stream` — returns UIMessage[] (or `{ messages }`) for client hydrate
-- `GET /v1/chats/rooms/{id}/stream/resume` or path mirroring legacy `GET /v1/chats/stream/{conversationId}` → use `GET /v1/chats/rooms/{id}/stream/active` for resumable SSE (pick one name; document in OpenAPI). Prefer: **`GET /v1/chats/rooms/{id}/stream/active`** for resume to avoid clashing with message-list GET.
-
-Clarify OpenAPI:
+OpenAPI (locked):
 
 | Method | Path | Role |
 |--------|------|------|
