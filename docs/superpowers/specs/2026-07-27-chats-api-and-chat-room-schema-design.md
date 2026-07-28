@@ -126,9 +126,9 @@ Unchanged: Core calls `baseURL` Conversations + Responses SSE; writes room repli
 
 ## Deferred
 
-- Full absorb: drop `conversation*` once /chat messaging is room-backed (today `/chat` create-or-gets a `kind=direct` shell room scoped to the active organization when set; stream still uses `conversation*`)
+- **Full absorb (product path superseded):** [2026-07-28 chat rooms cutover](./2026-07-28-chat-rooms-cutover-deprecate-conversations-design.md) ships room-keyed `/chat` UX and soft-deprecates `conversation*` in the product (no table drop, no history migration). Remaining follow-up: drop `conversation*` tables/models once restore/migration policy is decided.
 - Group directs (multi-human / human+coworker) — directs are **1:1 only** until then
-- Room-level `providerConversationId` after the conversation absorb
+- Room-level `providerConversationId` — shipped on `ChatRoom` as the provider bridge; see cutover spec for stream/transcript ownership
 
 ## Org scope
 
