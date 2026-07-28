@@ -1378,6 +1378,8 @@
           "placeholder": "{coworkerSlug} にメッセージ...",
           "coworkerSlugFallback": "コワーカー",
           "suggestionsLabel": "試してみる",
+          "startingChat": "{name} とのチャットを開始しています…",
+          "startingChatFallback": "チャットを開始しています…",
           "prompts": {
             "alex": {
               "1": "調査結果のダッシュボードを作成してください。",

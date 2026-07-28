@@ -1378,6 +1378,8 @@
           "placeholder": "Message à {coworkerSlug}...",
           "coworkerSlugFallback": "le coworker",
           "suggestionsLabel": "Essayez de demander",
+          "startingChat": "Démarrage du chat avec {name}…",
+          "startingChatFallback": "Démarrage du chat…",
           "prompts": {
             "alex": {
               "1": "Créez-moi un tableau de bord pour mes résultats de recherche.",

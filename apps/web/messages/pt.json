@@ -1378,6 +1378,8 @@
           "placeholder": "Mensagem para {coworkerSlug}...",
           "coworkerSlugFallback": "o coworker",
           "suggestionsLabel": "Experimente perguntar",
+          "startingChat": "A iniciar conversa com {name}…",
+          "startingChatFallback": "A iniciar conversa…",
           "prompts": {
             "alex": {
               "1": "Crie-me um dashboard para os meus resultados de pesquisa.",

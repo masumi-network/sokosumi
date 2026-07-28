@@ -91,10 +91,12 @@ export function ChatWelcomeClient({
         const roomResult = await ensureCoworkerDirectRoomAction(selected.id);
         if (!roomResult.ok) {
           toast.error(roomResult.message);
+          setIsSubmitting(false);
           return false;
         }
         if (!roomResult.data) {
           toast.error(t("welcomeSendFailed"));
+          setIsSubmitting(false);
           return false;
         }
 
@@ -102,9 +104,13 @@ export function ChatWelcomeClient({
         setInput("");
         notifyOrganizationChatRoomsChanged(roomResult.data);
         router.replace(`/chat/rooms/${roomResult.data.id}`);
+        // Stay blocked until this welcome unmounts — clearing here flashes
+        // an interactive welcome under a slow room RSC paint.
         return true;
-      } finally {
+      } catch {
+        toast.error(t("welcomeSendFailed"));
         setIsSubmitting(false);
+        return false;
       }
     },
     [coworkers, isSubmitting, router, selectedCoworker, t],

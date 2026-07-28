@@ -1378,6 +1378,8 @@
           "placeholder": "给 {coworkerSlug} 发消息...",
           "coworkerSlugFallback": "协作者",
           "suggestionsLabel": "试试问",
+          "startingChat": "正在与 {name} 开始聊天…",
+          "startingChatFallback": "正在开始聊天…",
           "prompts": {
             "alex": {
               "1": "为我的研究结果搭建一个仪表板。",

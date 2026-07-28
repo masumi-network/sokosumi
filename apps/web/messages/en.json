@@ -1389,6 +1389,8 @@
           "placeholder": "Message {coworkerSlug}...",
           "coworkerSlugFallback": "the coworker",
           "suggestionsLabel": "Try asking",
+          "startingChat": "Starting chat with {name}…",
+          "startingChatFallback": "Starting chat…",
           "prompts": {
             "alex": {
               "1": "Build me a Dashboard for my research results.",
