@@ -131,6 +131,20 @@ const validMasumiPaymentBody = {
   ],
 } as const;
 
+const V2_READY_POLICY_ID =
+  "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b";
+const V2_READY_CONTRACT_ADDRESS = "addr_test1_ready_contract";
+
+const validV2MasumiPaymentBody = {
+  ...validMasumiPaymentBody,
+  agentIdentifier: `${V2_READY_POLICY_ID}${"ab".repeat(29)}000002`,
+  PaymentSource: {
+    network: "Preprod",
+    policyId: V2_READY_POLICY_ID,
+    smartContractAddress: V2_READY_CONTRACT_ADDRESS,
+  },
+} as const;
+
 interface TaskEventRecord {
   id: string;
   taskId: string;
@@ -277,8 +291,8 @@ describe("POST /{id}/events", () => {
     // Default: V2 rail purchase-ready (individual tests override to []).
     getCardanoV2ReadySourcesMock.mockResolvedValue([
       {
-        policyId: "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
-        smartContractAddress: "addr_test1_ready_contract",
+        policyId: V2_READY_POLICY_ID,
+        smartContractAddress: V2_READY_CONTRACT_ADDRESS,
       },
     ]);
     getCreditCostsOrThrowMock.mockResolvedValue([
@@ -2128,7 +2142,7 @@ describe("POST /{id}/events", () => {
       body: JSON.stringify({
         status: TaskStatus.COMPLETED,
         masumiPayment: {
-          ...validMasumiPaymentBody,
+          ...validV2MasumiPaymentBody,
           paymentSourceType: "Web3CardanoV2",
           supportedPaymentSourceIndex: 2,
         },
@@ -2163,6 +2177,90 @@ describe("POST /{id}/events", () => {
     };
     expect(createPayload?.data).not.toHaveProperty("id");
     expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a V2 masumiPayment whose payment source tuple is not purchase-ready", async () => {
+    getCardanoV2ReadySourcesMock.mockResolvedValue([
+      {
+        policyId: V2_READY_POLICY_ID,
+        smartContractAddress: "addr_test1_other_contract",
+      },
+    ]);
+    const chargeSpy = vi.fn();
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: chargeSpy,
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: {
+          ...validV2MasumiPaymentBody,
+          paymentSourceType: "Web3CardanoV2",
+          supportedPaymentSourceIndex: 2,
+        },
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.text()).toContain("not purchase-ready");
+    expect(chargeSpy).not.toHaveBeenCalled();
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an inferred-V2 masumiPayment that omits PaymentSource", async () => {
+    const chargeSpy = vi.fn();
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: chargeSpy,
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    // No paymentSourceType, index, or PaymentSource — V2 is inferred from the
+    // registry policy prefix of the agent identifier alone.
+    const { PaymentSource: _paymentSource, ...inferredV2Body } =
+      validV2MasumiPaymentBody;
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: inferredV2Body,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.text()).toContain("must include PaymentSource");
+    expect(chargeSpy).not.toHaveBeenCalled();
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
   it("still schedules Masumi purchase when notification lookup fails", async () => {

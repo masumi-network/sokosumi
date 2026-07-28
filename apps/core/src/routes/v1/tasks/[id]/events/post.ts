@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { NotificationKind, Prisma, TaskStatus } from "@sokosumi/database";
+import { isV2RegistryIdentifier } from "@sokosumi/masumi";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
@@ -225,17 +226,36 @@ async function settleTaskEventCharge({
       masumiPayment,
     });
     // V2 payments are gated exactly like the job flow: rollout flag AND a
-    // payment node that recently reported purchase-ready V2 sources.
-    // Rejecting BEFORE the charge avoids charged-but-unpayable events (the
-    // async purchase later has no compensation path).
+    // payment node that recently reported the payload's EXACT policy/contract
+    // source as purchase-ready. Rejecting BEFORE the charge avoids
+    // charged-but-unpayable events (the async purchase later has no
+    // compensation path).
     const isV2TaskPayment =
       masumiPayment.paymentSourceType === "Web3CardanoV2" ||
-      masumiPayment.supportedPaymentSourceIndex !== undefined;
+      masumiPayment.supportedPaymentSourceIndex !== undefined ||
+      masumiPayment.PaymentSource !== undefined ||
+      isV2RegistryIdentifier(masumiPayment.agentIdentifier);
     if (isV2TaskPayment) {
       const readySources = await getCardanoV2ReadySources(tx);
       if (readySources.length === 0) {
         throw unprocessableEntity(
           "Cardano V2 payments are not enabled on this deployment",
+        );
+      }
+      const paymentSource = masumiPayment.PaymentSource;
+      if (!paymentSource) {
+        throw unprocessableEntity(
+          "V2 masumi payments must include PaymentSource with the seller's policyId and smartContractAddress",
+        );
+      }
+      const isSourceReady = readySources.some(
+        (source) =>
+          source.policyId === paymentSource.policyId &&
+          source.smartContractAddress === paymentSource.smartContractAddress,
+      );
+      if (!isSourceReady) {
+        throw unprocessableEntity(
+          "The selected Cardano V2 payment source is not purchase-ready on this deployment",
         );
       }
     }

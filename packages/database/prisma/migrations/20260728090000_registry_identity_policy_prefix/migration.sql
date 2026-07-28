@@ -75,6 +75,20 @@ FROM "_v2_agent_identity_repair" repair
 WHERE job."agentId" = repair."agentId"
   AND repair."agentId" <> repair."canonicalAgentId";
 
+-- Job notifications deep-link through metadata.agentId; retarget links that
+-- point at a soon-to-be-parked duplicate row so navigation keeps resolving.
+UPDATE "notification" notification
+SET "metadata" = jsonb_set(
+  notification."metadata"::jsonb,
+  '{agentId}',
+  to_jsonb(repair."canonicalAgentId")
+)::text
+FROM "_v2_agent_identity_repair" repair
+WHERE repair."agentId" <> repair."canonicalAgentId"
+  AND notification."metadata" IS NOT NULL
+  AND pg_input_is_valid(notification."metadata", 'jsonb')
+  AND notification."metadata"::jsonb ->> 'agentId' = repair."agentId";
+
 -- Keep the most recently updated rating per user and stable identity, avoiding
 -- the UserAgentRating(userId, agentId) unique constraint while consolidating.
 CREATE TEMP TABLE "_v2_agent_rating_repair" AS
