@@ -9,6 +9,7 @@ import {
   HISTORY_SEARCH_MAX_LENGTH,
   isHistoryStatusAllowedForType,
   parseHistoryFilters,
+  resolveHistoryApiTypes,
   sanitizeHistoryProjectIdInput,
   sanitizeHistoryScopeInput,
   sanitizeHistorySearchInput,
@@ -83,7 +84,7 @@ describe("history-filters", () => {
     it("accepts history types and drops unknown labels", () => {
       expect(sanitizeHistoryTypeInput("task")).toBe("task");
       expect(sanitizeHistoryTypeInput(" job ")).toBe("job");
-      expect(sanitizeHistoryTypeInput("conversation")).toBe("conversation");
+      expect(sanitizeHistoryTypeInput("conversation")).toBeNull();
       expect(sanitizeHistoryTypeInput("project")).toBeNull();
       expect(sanitizeHistoryTypeInput(null)).toBeNull();
     });
@@ -164,10 +165,6 @@ describe("history-filters", () => {
 
   describe("getHistoryStatusOptionsForType", () => {
     it("scopes status options to the selected history kind", () => {
-      expect(getHistoryStatusOptionsForType("conversation")).toEqual([
-        "active",
-        "archived",
-      ]);
       expect(getHistoryStatusOptionsForType("task")).toContain("archived");
       expect(getHistoryStatusOptionsForType("task")).not.toContain("active");
       expect(getHistoryStatusOptionsForType("job")).toContain(
@@ -178,11 +175,18 @@ describe("history-filters", () => {
     });
   });
 
+  describe("resolveHistoryApiTypes", () => {
+    it("returns task and job when no type filter is selected", () => {
+      expect(resolveHistoryApiTypes(null)).toEqual(["task", "job"]);
+    });
+
+    it("returns a single type when filtered", () => {
+      expect(resolveHistoryApiTypes("task")).toEqual(["task"]);
+    });
+  });
+
   describe("sanitizeHistoryStatusForType", () => {
     it("keeps compatible statuses and drops incompatible ones", () => {
-      expect(sanitizeHistoryStatusForType("active", "conversation")).toBe(
-        "active",
-      );
       expect(sanitizeHistoryStatusForType("active", "task")).toBeNull();
       expect(sanitizeHistoryStatusForType(TaskStatus.READY, "task")).toBe(
         TaskStatus.READY,
@@ -294,14 +298,14 @@ describe("history-filters", () => {
         {
           q: "research",
           scope: "workspace",
-          type: "conversation",
+          type: "job",
           status: "archived",
           projectId: PROJECT_ID,
         },
         "org-1",
       ),
     ).toBe(
-      "org-1:research:workspace:conversation:archived:33333333-3333-4333-8333-333333333333",
+      "org-1:research:workspace:job:archived:33333333-3333-4333-8333-333333333333",
     );
   });
 });

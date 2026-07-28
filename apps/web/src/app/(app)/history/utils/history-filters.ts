@@ -2,7 +2,8 @@ import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 export const HISTORY_SEARCH_MAX_LENGTH = 200;
 export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;
-export const HISTORY_TYPE_VALUES = ["task", "job", "conversation"] as const;
+export const HISTORY_TYPE_VALUES = ["task", "job"] as const;
+export const HISTORY_DEFAULT_API_TYPES = HISTORY_TYPE_VALUES;
 export const HISTORY_NON_TASK_STATUS_VALUES = ["active", "archived"] as const;
 export const HISTORY_JOB_ONLY_STATUS_VALUES = [
   SokosumiJobStatus.STARTED,
@@ -32,8 +33,6 @@ export const HISTORY_TASK_STATUS_VALUES_FOR_JOB_FILTER = [
   TaskStatus.INPUT_REQUIRED,
   TaskStatus.RUNNING,
 ] as const;
-
-const HISTORY_CONVERSATION_STATUS_VALUES = HISTORY_NON_TASK_STATUS_VALUES;
 
 const HISTORY_TASK_STATUS_VALUES = [
   "archived",
@@ -119,8 +118,6 @@ export function getHistoryStatusOptionsForType(
   type: HistoryType | null,
 ): readonly HistoryStatus[] {
   switch (type) {
-    case "conversation":
-      return HISTORY_CONVERSATION_STATUS_VALUES;
     case "task":
       return HISTORY_TASK_STATUS_VALUES;
     case "job":
@@ -128,6 +125,15 @@ export function getHistoryStatusOptionsForType(
     default:
       return HISTORY_STATUS_OPTIONS;
   }
+}
+
+export function resolveHistoryApiTypes(
+  type: HistoryType | null,
+): HistoryType[] {
+  if (type) {
+    return [type];
+  }
+  return [...HISTORY_DEFAULT_API_TYPES];
 }
 
 export function isHistoryStatusAllowedForType(

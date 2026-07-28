@@ -161,7 +161,9 @@ export function HistorySearchDialog({
     // Use the same close path as the dialog itself so we reset state
     // and ignore any in-flight history requests.
     handleOpenChange(false);
-    router.push(href);
+    if (href) {
+      router.push(href);
+    }
   }
 
   return (

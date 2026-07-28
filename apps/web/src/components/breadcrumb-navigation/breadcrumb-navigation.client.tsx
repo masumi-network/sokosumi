@@ -36,8 +36,8 @@ interface BreadcrumbNavigationClientProps {
   className?: string | undefined;
 }
 
-const CHAT_CHANNEL_BREADCRUMB_LABEL_KEY = "__chatChannelLabel";
-const CHAT_CHANNEL_BREADCRUMB_HREF_KEY = "__chatChannelHref";
+const CHAT_ROOM_BREADCRUMB_LABEL_KEY = "__chatChannelLabel";
+const CHAT_ROOM_BREADCRUMB_HREF_KEY = "__chatChannelHref";
 
 export default function BreadcrumbNavigationClient({
   breadcrumbMessages,
@@ -103,8 +103,16 @@ function generateSegments(
   const pathSegments = pathname.split("/").filter(Boolean);
   if (!pathSegments.length) return [];
 
-  if (pathSegments.length === 1 && pathSegments[0] === "channels") {
-    return generateChatChannelSegments(segmentLabels, breadcrumbMessages);
+  if (
+    pathSegments[0] === "chat" &&
+    pathSegments[1] === "rooms" &&
+    pathSegments[2]
+  ) {
+    return generateChatRoomSegments(
+      pathSegments[2],
+      segmentLabels,
+      breadcrumbMessages,
+    );
   }
 
   return pathSegments
@@ -165,16 +173,17 @@ function generateSegments(
     .filter(Boolean) as BreadcrumbSegment[];
 }
 
-function generateChatChannelSegments(
+function generateChatRoomSegments(
+  roomId: string,
   segmentLabels: Record<string, string>,
   breadcrumbMessages?: Record<string, string>,
 ): BreadcrumbSegment[] {
   const chatLabel = breadcrumbMessages?.chat ?? "Chat";
-  const channelLabel = segmentLabels[CHAT_CHANNEL_BREADCRUMB_LABEL_KEY];
-  const channelHref =
-    segmentLabels[CHAT_CHANNEL_BREADCRUMB_HREF_KEY] ?? "/channels";
+  const roomLabel = segmentLabels[CHAT_ROOM_BREADCRUMB_LABEL_KEY];
+  const roomHref =
+    segmentLabels[CHAT_ROOM_BREADCRUMB_HREF_KEY] ?? `/chat/rooms/${roomId}`;
 
-  if (!channelLabel) {
+  if (!roomLabel) {
     return [
       {
         label: chatLabel,
@@ -190,8 +199,8 @@ function generateChatChannelSegments(
       href: "/chat",
     },
     {
-      label: channelLabel,
-      href: channelHref,
+      label: roomLabel,
+      href: roomHref,
       isCurrent: true,
     },
   ];

@@ -47,6 +47,14 @@ export async function handleNotificationNavigation(
     metadata: notification.metadata,
   });
 
+  if (!href) {
+    console.warn("Notification has no navigation target", {
+      kind: notification.kind,
+      referenceId: notification.referenceId,
+    });
+    return;
+  }
+
   const workspaceId = getWorkspaceIdFromMetadata(notification.metadata);
   if (!workspaceId) {
     console.warn(
