@@ -205,11 +205,20 @@ export function ChatMessageRow({
           </time>
         </div>
         <div className="text-foreground wrap-break-word text-sm leading-7">
-          <ChannelMessageText
-            content={message.content}
-            coworkersById={coworkersById}
-            coworkersBySlug={coworkersBySlug}
-          />
+          {message.content.trim().length === 0 &&
+          message.id.startsWith("stream:") &&
+          message.sender.type === "coworker" ? (
+            <Loader2
+              className="text-muted-foreground size-4 animate-spin"
+              aria-hidden
+            />
+          ) : (
+            <ChannelMessageText
+              content={message.content}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+            />
+          )}
         </div>
         {message.reactions.length > 0 ? (
           <div className="flex flex-wrap gap-1.5 pt-1">

@@ -19,6 +19,7 @@ import type {
   ChatComposeSubmitOptions,
   Coworker,
 } from "@/app/chat/utils/types";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 
 function composeMessageText(message: ChatComposeMessage): string {
   if (typeof message === "string") {
@@ -99,8 +100,8 @@ export function ChatWelcomeClient({
 
         stashPendingRoomMessage(roomResult.data.id, content);
         setInput("");
+        notifyOrganizationChatRoomsChanged(roomResult.data);
         router.replace(`/chat/rooms/${roomResult.data.id}`);
-        router.refresh();
         return true;
       } finally {
         setIsSubmitting(false);

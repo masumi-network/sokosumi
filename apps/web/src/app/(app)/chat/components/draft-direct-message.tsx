@@ -16,6 +16,7 @@ import {
   sendNewDirectMessageAction,
 } from "@/app/chat/actions";
 import { stashPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -156,8 +157,8 @@ export function DraftDirectMessage({
         setComposerValue("");
         setComposerAttachments([]);
         setMentionedCoworkerIds([]);
+        notifyOrganizationChatRoomsChanged(roomResult.data);
         router.replace(`/chat/rooms/${roomResult.data.id}`);
-        router.refresh();
       });
       return;
     }
@@ -186,12 +187,8 @@ export function DraftDirectMessage({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
+      notifyOrganizationChatRoomsChanged(result.data.channel);
       router.replace(`/chat/rooms/${result.data.channel.id}`);
-      // No speculative refresh burst for coworker replies: the destination
-      // view already polls while a mention is unresolved, and these timers
-      // outlived the component — they fired against whatever page the user had
-      // navigated to.
-      router.refresh();
     });
   }
 

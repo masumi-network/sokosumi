@@ -53,10 +53,18 @@ function hasVisibleMessageBody(message: ChatRoomMessage): boolean {
   return message.content.trim().length > 0;
 }
 
+/** Empty stream coworker shells stay visible (avatar/name + waiting state). */
+function shouldRenderInTranscript(message: ChatRoomMessage): boolean {
+  if (hasVisibleMessageBody(message)) {
+    return true;
+  }
+  return message.id.startsWith("stream:") && message.sender.type === "coworker";
+}
+
 /**
  * Build the room transcript while a coworker stream overlay is active.
  * Overlay rows keep their array order (user then assistant) and are appended
- * after persisted history. Empty coworker shells never render.
+ * after persisted history. Empty coworker stream shells stay for waiting UX.
  */
 export function mergeMessagesWithStreamOverlay(
   persisted: readonly ChatRoomMessage[],
@@ -94,6 +102,6 @@ export function mergeMessagesWithStreamOverlay(
     return true;
   });
 
-  const visibleOverlay = streamOverlay.filter(hasVisibleMessageBody);
-  return [...history, ...visibleOverlay];
+  const orderedOverlay = streamOverlay.filter(shouldRenderInTranscript);
+  return [...history, ...orderedOverlay];
 }

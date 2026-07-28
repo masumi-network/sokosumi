@@ -5,7 +5,6 @@ import { ChannelsClient } from "@/app/chat/components/channels-client";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
@@ -45,33 +44,30 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/**
+ * Open one room. Avoid `listRooms()` here — sidebar already owns the list, and
+ * full pagination blocked first paint after `/chat` → `/chat/rooms/{id}`.
+ */
 export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
-  const [{ roomId }, t, activeOrganization] = await Promise.all([
+  const [{ roomId }, t, activeOrganization, session] = await Promise.all([
     params,
     getTranslations("App.Channels"),
     userService.getActiveOrganization(),
+    getSession(),
   ]);
 
+  const currentUserId = session?.user.id ?? "";
+
   // Personal workspace: coworker 1:1 directs may have null organizationId.
-  // Channels (and org-scoped directs) still require an active organization.
   if (!activeOrganization) {
-    const messagesPromise = loadRoomMessages(roomId);
-    const [session, listedChannels, coworkers, fetched] = await Promise.all([
-      getSession(),
-      chatRoomService.listRooms(),
-      coworkerService.listCoworkers("chat"),
+    const [selectedChannel, coworkers, messagePage] = await Promise.all([
       chatRoomService.getRoom(roomId),
+      coworkerService.listCoworkers("chat"),
+      loadRoomMessages(roomId),
     ]);
 
-    let channels = listedChannels;
-    let selectedChannel: ChatRoom | null =
-      channels.find((channel) => channel.id === roomId) ?? null;
     if (!selectedChannel) {
-      if (!fetched) {
-        notFound();
-      }
-      channels = [fetched, ...channels];
-      selectedChannel = fetched;
+      notFound();
     }
 
     if (
@@ -86,71 +82,48 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
       );
     }
 
-    const {
-      messages,
-      nextCursor: messagesNextCursor,
-      failed: messageLoadFailed,
-    } = await messagesPromise;
-
     return (
       <ChannelsClient
         activeOrganization={null}
-        channels={channels}
+        channels={[selectedChannel]}
         organizationMembers={[]}
-        currentUserId={session?.user.id ?? ""}
+        currentUserId={currentUserId}
         coworkers={coworkers}
         selectedChannelId={selectedChannel.id}
         isCreateChannelRequested={false}
         isNewDirectMessage={false}
-        messageLoadFailed={messageLoadFailed}
-        messages={messages}
-        messagesNextCursor={messagesNextCursor}
+        messageLoadFailed={messagePage.failed}
+        messages={messagePage.messages}
+        messagesNextCursor={messagePage.nextCursor}
       />
     );
   }
 
-  const messagesPromise = loadRoomMessages(roomId);
-
-  const [listedChannels, organizationMembers, coworkers, currentMember] =
+  const [selectedChannel, organizationMembers, coworkers, messagePage] =
     await Promise.all([
-      chatRoomService.listRooms(),
+      chatRoomService.getRoom(roomId),
       userService.getOrganizationMembers(activeOrganization.id),
       coworkerService.listCoworkers("chat"),
-      userService.getMyMemberInOrganization(activeOrganization.id),
+      loadRoomMessages(roomId),
     ]);
 
-  // Deep-link may miss the membership list (race, or room not yet returned).
-  let channels = listedChannels;
-  let selectedChannel: ChatRoom | null =
-    channels.find((channel) => channel.id === roomId) ?? null;
   if (!selectedChannel) {
-    const fetched = await chatRoomService.getRoom(roomId);
-    if (!fetched) {
-      notFound();
-    }
-    channels = [fetched, ...channels];
-    selectedChannel = fetched;
+    notFound();
   }
-
-  const {
-    messages,
-    nextCursor: messagesNextCursor,
-    failed: messageLoadFailed,
-  } = await messagesPromise;
 
   return (
     <ChannelsClient
       activeOrganization={activeOrganization}
-      channels={channels}
+      channels={[selectedChannel]}
       organizationMembers={organizationMembers}
-      currentUserId={currentMember?.userId ?? ""}
+      currentUserId={currentUserId}
       coworkers={coworkers}
       selectedChannelId={selectedChannel.id}
       isCreateChannelRequested={false}
       isNewDirectMessage={false}
-      messageLoadFailed={messageLoadFailed}
-      messages={messages}
-      messagesNextCursor={messagesNextCursor}
+      messageLoadFailed={messagePage.failed}
+      messages={messagePage.messages}
+      messagesNextCursor={messagePage.nextCursor}
     />
   );
 }

@@ -23,6 +23,7 @@ import {
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import { listOrganizationChatChannelsAction } from "./organization-chat-list.actions";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
@@ -291,6 +292,40 @@ export function OrganizationChatList({
       window.removeEventListener(
         "organization-chat-channel-read",
         handleChannelRead,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleRoomsChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ channel?: ChatRoom }>).detail;
+      const channel = detail?.channel;
+      if (channel) {
+        setChannelRows((current) => {
+          const without = current.filter((row) => row.id !== channel.id);
+          return [channel, ...without];
+        });
+        return;
+      }
+
+      void listOrganizationChatChannelsAction().then((result) => {
+        if (!cancelled && result.ok) {
+          setChannelRows(result.data);
+        }
+      });
+    };
+
+    window.addEventListener(
+      ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+      handleRoomsChanged,
+    );
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+        handleRoomsChanged,
       );
     };
   }, []);

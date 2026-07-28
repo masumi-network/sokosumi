@@ -195,18 +195,13 @@ export function useCoworkerDirectRoomStream({
       return [];
     }
     // Index-offset createdAt keeps useChat order when clocks share a ms.
-    // Empty assistant stubs are omitted — the waiting spinner covers that gap.
+    // Keep empty assistant shells so the coworker avatar/name show while tokens
+    // arrive (merge appends overlay in array order — user stays first).
     const baseMs = Date.now();
     return messages
-      .filter((message) => {
-        if (message.role === "user") {
-          return true;
-        }
-        if (message.role !== "assistant") {
-          return false;
-        }
-        return extractMessageContent(message).trim().length > 0;
-      })
+      .filter(
+        (message) => message.role === "user" || message.role === "assistant",
+      )
       .map((message, index) =>
         uiMessageToTransientRoomMessage({
           message,

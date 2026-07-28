@@ -922,16 +922,6 @@ export function ChannelsClient({
                       </div>
                     );
                   })}
-                  {isCoworkerStreaming &&
-                  !streamOverlayMessages.some(
-                    (message) =>
-                      message.sender.type === "coworker" &&
-                      message.content.trim().length > 0,
-                  ) ? (
-                    <div className="text-muted-foreground flex items-center gap-2 px-2 py-2 text-sm">
-                      <Loader2 className="size-4 animate-spin" />
-                    </div>
-                  ) : null}
                   <div ref={bottomRef} />
                 </div>
               </ScrollArea>

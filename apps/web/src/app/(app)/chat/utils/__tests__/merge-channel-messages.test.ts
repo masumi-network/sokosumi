@@ -134,7 +134,7 @@ describe("mergeMessagesWithStreamOverlay", () => {
     ]);
   });
 
-  it("hides empty coworker shells and dedupes persisted user turn", () => {
+  it("keeps empty stream coworker shell after user for waiting UX", () => {
     const persistedUser = message(
       "persisted-user",
       "2026-07-01T12:00:00.000Z",
@@ -153,9 +153,12 @@ describe("mergeMessagesWithStreamOverlay", () => {
 
     const merged = mergeMessagesWithStreamOverlay(
       [persistedUser],
-      [emptyAssistant, streamUser],
+      [streamUser, emptyAssistant],
     );
 
-    expect(merged.map((row) => row.id)).toEqual(["stream:user"]);
+    expect(merged.map((row) => row.id)).toEqual([
+      "stream:user",
+      "stream:assistant",
+    ]);
   });
 });
