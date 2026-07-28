@@ -19,6 +19,7 @@ import {
 } from "@/helpers/access-control";
 import {
   calculateCentsFromMasumiAmountStrings,
+  getCardanoV2ReadySources,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import {
@@ -223,6 +224,21 @@ async function settleTaskEventCharge({
     console.info("[tasks] masumi task payment: using masumiPayment", {
       masumiPayment,
     });
+    // V2 payments are gated exactly like the job flow: rollout flag AND a
+    // payment node that recently reported purchase-ready V2 sources.
+    // Rejecting BEFORE the charge avoids charged-but-unpayable events (the
+    // async purchase later has no compensation path).
+    const isV2TaskPayment =
+      masumiPayment.paymentSourceType === "Web3CardanoV2" ||
+      masumiPayment.supportedPaymentSourceIndex !== undefined;
+    if (isV2TaskPayment) {
+      const readySources = await getCardanoV2ReadySources(tx);
+      if (readySources.length === 0) {
+        throw unprocessableEntity(
+          "Cardano V2 payments are not enabled on this deployment",
+        );
+      }
+    }
     const creditCosts = await getCreditCostsOrThrow(tx);
     const cents = calculateCentsFromMasumiAmountStrings(
       masumiPayment.Amounts,

@@ -461,10 +461,9 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
-    // The status suffix lets callers distinguish non-transient 4xx rejections
-    // (price drift) from transient node failures.
+    // Preserve both the status and the node's structured explanation.
     expect(result.isErr() && result.error).toBe(
-      "Failed to create purchase request (status 400)",
+      "Failed to create purchase request (status 400): Bad request",
     );
     expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
   });
@@ -475,13 +474,24 @@ describe("getCardanoV2RailReadiness", () => {
     vi.clearAllMocks();
   });
 
-  it("returns ok(true) when the CardanoV2 rail reports ready", async () => {
+  it("returns purchase-ready sources even when inbound selling is not ready", async () => {
     getRailReadinessMock.mockResolvedValue({
       data: {
         status: "success",
         data: {
           Rails: [
-            { rail: "CardanoV2", isReady: true },
+            {
+              rail: "CardanoV2",
+              isReady: false,
+              PurchaseSources: [
+                {
+                  policyId: "ab".repeat(28),
+                  smartContractAddress: "addr_test1_v2_contract",
+                  isPurchaseReady: true,
+                  Checks: [],
+                },
+              ],
+            },
             { rail: "X402", isReady: false },
           ],
         },
@@ -498,15 +508,33 @@ describe("getCardanoV2RailReadiness", () => {
     const result = await client.getCardanoV2RailReadiness();
 
     expect(result.isOk()).toBe(true);
-    expect(result.isOk() && result.value).toBe(true);
+    expect(result.isOk() && result.value).toEqual([
+      {
+        policyId: "ab".repeat(28),
+        smartContractAddress: "addr_test1_v2_contract",
+      },
+    ]);
   });
 
-  it("returns ok(false) when the CardanoV2 rail reports not ready", async () => {
+  it("excludes sources that are not purchase-ready", async () => {
     getRailReadinessMock.mockResolvedValue({
       data: {
         status: "success",
         data: {
-          Rails: [{ rail: "CardanoV2", isReady: false }],
+          Rails: [
+            {
+              rail: "CardanoV2",
+              isReady: false,
+              PurchaseSources: [
+                {
+                  policyId: "ab".repeat(28),
+                  smartContractAddress: "addr_test1_v2_contract",
+                  isPurchaseReady: false,
+                  Checks: [],
+                },
+              ],
+            },
+          ],
         },
       },
       error: undefined,
@@ -521,7 +549,68 @@ describe("getCardanoV2RailReadiness", () => {
     const result = await client.getCardanoV2RailReadiness();
 
     expect(result.isOk()).toBe(true);
-    expect(result.isOk() && result.value).toBe(false);
+    expect(result.isOk() && result.value).toEqual([]);
+  });
+
+  it("drops purchase-ready sources with malformed policy ids", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          Rails: [
+            {
+              rail: "CardanoV2",
+              isReady: true,
+              PurchaseSources: [
+                {
+                  policyId: "too-short",
+                  smartContractAddress: "addr_test1_v2_contract",
+                  isPurchaseReady: true,
+                  Checks: [],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value).toEqual([]);
+  });
+
+  it("fails closed when the node omits per-source readiness", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          Rails: [{ rail: "CardanoV2", isReady: true }],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain(
+      "does not include per-source purchase readiness",
+    );
   });
 
   it("returns an error when the readiness endpoint reports an error", async () => {
@@ -567,7 +656,7 @@ describe("getCardanoV2RailReadiness", () => {
       data: {
         status: "success",
         data: {
-          Rails: [{ rail: "CardanoV2", isReady: true }],
+          Rails: [{ rail: "CardanoV2", isReady: true, PurchaseSources: [] }],
         },
       },
       error: undefined,

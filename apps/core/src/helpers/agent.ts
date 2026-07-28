@@ -175,6 +175,15 @@ export const getCreditCostsOrThrow = async (
 };
 
 /**
+ * Masumi/Cardano uses both an empty string and "lovelace" for ADA. Sokosumi
+ * stores the non-empty spelling so CreditCost remains configurable through
+ * its public API.
+ */
+export function normalizeMasumiPaymentUnit(unit: string): string {
+  return unit === "" || unit.toLowerCase() === "lovelace" ? "lovelace" : unit;
+}
+
+/**
  * Builds a Prisma where clause for filtering agents by availability and valid pricing.
  *
  * Availability rules:
@@ -190,6 +199,13 @@ export const getCreditCostsOrThrow = async (
  * @returns Prisma where clause for agent queries
  */
 export const CARDANO_V2_RAIL_READINESS_KEY = "cardano-v2-rail-readiness";
+export const CARDANO_V2_RAIL_READINESS_FAILURE_KEY =
+  "cardano-v2-rail-readiness-failure";
+
+export interface CardanoV2ReadySource {
+  policyId: string;
+  smartContractAddress: string;
+}
 
 /**
  * Readiness older than this is treated as unknown (fail-closed). The value is
@@ -197,35 +213,66 @@ export const CARDANO_V2_RAIL_READINESS_KEY = "cardano-v2-rail-readiness";
  * inside the window; an extended payment-node outage hides V2 agents.
  */
 const CARDANO_V2_RAIL_READINESS_TTL_MS = 30 * 60 * 1000;
+const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
 /**
- * Whether the payment node reported the Cardano V2 rail purchase-ready
- * recently (cached by the agents-sync cron). Always false while the rollout
- * flag is off.
+ * Exact Cardano V2 policy/contract sources the payment node reported
+ * purchase-ready recently. Returns an empty list while the rollout flag is
+ * off, the cache is stale, or the cache payload is invalid.
  */
-export const isCardanoV2RailReady = async (
+export const getCardanoV2ReadySources = async (
   tx: Prisma.TransactionClient = prisma,
-): Promise<boolean> => {
+): Promise<CardanoV2ReadySource[]> => {
   if (!getEnv().ENABLE_CARDANO_V2_AGENTS) {
-    return false;
+    return [];
   }
   const readiness = await tx.syncMetadata.findUnique({
     where: { key: CARDANO_V2_RAIL_READINESS_KEY },
   });
-  if (!readiness || readiness.cursorId !== "ready") {
-    return false;
+  if (
+    !readiness?.cursorId ||
+    Date.now() - readiness.lastSyncedAt.getTime() >=
+      CARDANO_V2_RAIL_READINESS_TTL_MS
+  ) {
+    return [];
   }
-  return (
-    Date.now() - readiness.lastSyncedAt.getTime() <
-    CARDANO_V2_RAIL_READINESS_TTL_MS
-  );
+
+  try {
+    const payload: unknown = JSON.parse(readiness.cursorId);
+    if (!Array.isArray(payload)) {
+      return [];
+    }
+    return payload.filter(
+      (source): source is CardanoV2ReadySource =>
+        typeof source === "object" &&
+        source !== null &&
+        "policyId" in source &&
+        typeof source.policyId === "string" &&
+        CARDANO_POLICY_ID_PATTERN.test(source.policyId) &&
+        "smartContractAddress" in source &&
+        typeof source.smartContractAddress === "string" &&
+        source.smartContractAddress.length > 0,
+    );
+  } catch {
+    return [];
+  }
 };
 
 export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
-  cardanoV2RailReady: boolean,
+  cardanoV2ReadySources: readonly CardanoV2ReadySource[],
 ): Prisma.AgentWhereInput => {
-  const validUnits = creditCosts.map((c) => c.unit);
+  const validUnits = Array.from(
+    new Set(
+      creditCosts.flatMap((creditCost) =>
+        normalizeMasumiPaymentUnit(creditCost.unit) === "lovelace"
+          ? [creditCost.unit, "lovelace", ""]
+          : [creditCost.unit],
+      ),
+    ),
+  );
+  const isCardanoV2Enabled =
+    getEnv().ENABLE_CARDANO_V2_AGENTS && cardanoV2ReadySources.length > 0;
 
   const pricingFilter = {
     pricingType: { not: PricingType.UNKNOWN },
@@ -252,17 +299,14 @@ export const buildAvailableAgentWhereClause = (
     type: AgentEntryType.STANDARD,
     // Allowlist of payment rails the job flow can actually purchase through.
     // UNKNOWN (unrecognized future rails) is always excluded; V2 requires the
-    // rollout flag AND a payment node that recently reported its V2 rail
-    // configured (see isCardanoV2RailReady). Note the node's readiness checks
-    // are existence-only — wallet FUNDING is not covered and stays a runbook
-    // step.
+    // rollout flag AND an exact policy/contract source that the payment node
+    // recently reported purchase-ready (see getCardanoV2ReadySources). Wallet
+    // funding is not covered and stays a runbook step.
     paymentType: {
       in: [
         PaymentType.WEB3_CARDANO_V1,
         PaymentType.NONE,
-        ...(getEnv().ENABLE_CARDANO_V2_AGENTS && cardanoV2RailReady
-          ? [PaymentType.WEB3_CARDANO_V2]
-          : []),
+        ...(isCardanoV2Enabled ? [PaymentType.WEB3_CARDANO_V2] : []),
       ],
     },
     // A metadata override can supply the endpoint when the registry entry
@@ -274,6 +318,29 @@ export const buildAvailableAgentWhereClause = (
           { metadataOverride: { apiBaseUrl: { not: null } } },
         ],
       },
+      ...(isCardanoV2Enabled
+        ? [
+            {
+              OR: [
+                { paymentType: { not: PaymentType.WEB3_CARDANO_V2 } },
+                ...cardanoV2ReadySources.map((source) => ({
+                  paymentType: PaymentType.WEB3_CARDANO_V2,
+                  blockchainIdentifier: {
+                    startsWith: source.policyId,
+                  },
+                  paymentSources: {
+                    some: {
+                      chain: "Cardano",
+                      network: getEnv().NETWORK,
+                      paymentSourceType: "Web3CardanoV2",
+                      address: source.smartContractAddress,
+                    },
+                  },
+                })),
+              ],
+            },
+          ]
+        : []),
     ],
     pricing: pricingFilter,
   };
@@ -289,11 +356,11 @@ export const requireAvailableAgentOrThrow = async (
   tx: Prisma.TransactionClient,
 ): Promise<void> => {
   const creditCosts = await getCreditCostsOrThrow(tx);
-  const cardanoV2RailReady = await isCardanoV2RailReady(tx);
+  const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
   const agent = await tx.agent.findFirst({
     where: {
       id: agentId,
-      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2RailReady),
+      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
     },
     select: { id: true },
   });
@@ -330,9 +397,12 @@ function calculateCentsFromPricingAmountRows(
 ): bigint {
   let totalCents = BigInt(0);
   for (const row of rows) {
-    const creditCost = creditCosts.find((c) => c.unit === row.unit);
+    const unit = normalizeMasumiPaymentUnit(row.unit);
+    const creditCost = creditCosts.find(
+      (candidate) => normalizeMasumiPaymentUnit(candidate.unit) === unit,
+    );
     if (!creditCost) {
-      throw unprocessableEntity(`Credit cost not found for unit ${row.unit}`);
+      throw unprocessableEntity(`Credit cost not found for unit ${unit}`);
     }
     totalCents += row.amount * creditCost.centsPerUnit;
   }
@@ -361,10 +431,11 @@ export function calculateCentsFromMasumiAmountStrings(
     if (amount <= 0n) {
       throw unprocessableEntity("Amount must be positive");
     }
-    if (entry.unit.trim().length === 0) {
+    const unit = normalizeMasumiPaymentUnit(entry.unit);
+    if (unit.trim().length === 0) {
       throw unprocessableEntity("Unit must not be empty");
     }
-    rows.push({ unit: entry.unit, amount });
+    rows.push({ unit, amount });
   }
 
   return calculateCentsFromPricingAmountRows(rows, creditCosts);

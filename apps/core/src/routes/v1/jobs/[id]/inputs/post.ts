@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { AgentJobStatus } from "@sokosumi/database";
+import { AgentJobStatus, AgentStatus } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
@@ -118,6 +118,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   blockchainIdentifier: true,
                   name: true,
                   apiBaseUrl: true,
+                  status: true,
                   metadataOverride: {
                     select: {
                       apiBaseUrl: true,
@@ -144,6 +145,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (!jobEvent.inputSchema) {
       throw unprocessableEntity("Agent did not provide an input schema");
+    }
+
+    // Job endpoints are pinned to the agent revision the job started with, so
+    // an offline/deregistered agent would otherwise keep receiving user input.
+    if (jobEvent.job.agent.status !== AgentStatus.ONLINE) {
+      throw unprocessableEntity("Agent is no longer available");
     }
 
     const provideInputResult = await createAgentClient().provideJobInput(

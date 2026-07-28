@@ -21,6 +21,8 @@ test("rejects an equal-version legacy payment spec", () => {
     findMissingSpecLandmarks(legacySpec, SPEC_LANDMARKS.payment),
     [
       "supportedPaymentSourceIndex",
+      "PurchaseSources",
+      "isPurchaseReady",
       "WithdrawAuthorized",
       "AuthorizeWithdrawalRequested",
     ],
@@ -30,6 +32,8 @@ test("rejects an equal-version legacy payment spec", () => {
 test("accepts a payment spec with the required V2 landmarks", () => {
   const v2Spec = {
     supportedPaymentSourceIndex: true,
+    PurchaseSources: [],
+    isPurchaseReady: true,
     states: ["WithdrawAuthorized"],
     actions: ["AuthorizeWithdrawalRequested"],
   };

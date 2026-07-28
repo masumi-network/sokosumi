@@ -7,8 +7,8 @@ import {
 } from "@sokosumi/database";
 import {
   buildAvailableAgentWhereClause,
+  getCardanoV2ReadySources,
   getCreditCostsOrThrow,
-  isCardanoV2RailReady,
 } from "@/helpers/agent";
 import { buildAgentSummaries } from "@/helpers/agent-summary";
 import {
@@ -137,10 +137,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const result = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
-      const cardanoV2RailReady = await isCardanoV2RailReady(tx);
+      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
       const baseWhere = buildAvailableAgentWhereClause(
         creditCosts,
-        cardanoV2RailReady,
+        cardanoV2ReadySources,
       );
       const categoryWhere = buildCategoryWhereClause(categorySlugs);
       const where: Prisma.AgentWhereInput = categoryWhere

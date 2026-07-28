@@ -23,7 +23,7 @@ Record the new provenance below whenever a snapshot changes.
 
 | File | Source | Version | Recorded |
 | --- | --- | --- | --- |
-| `payment.openapi.json` | masumi-payment-service `dev` @ `98e3470a` (checked-in `frontend/openapi-docs.json`) | 1.0.0 | 2026-07-27 |
+| `payment.openapi.json` | masumi-payment-service `codex/cardano-purchase-readiness` (based on `dev` @ `98e3470a`; checked-in `src/utils/generator/swagger-generator/openapi-docs.json`) | 1.0.0 | 2026-07-28 |
 | `registry.openapi.json` | masumi-registry-service `dev` @ `fe9ac5e` (checked-in `src/utils/swagger-generator/openapi-docs.json`) | 0.1.2 | 2026-07-27 |
 
 Both snapshots come from the service repos directly (not the deployed

@@ -131,6 +131,49 @@ export function createTaskEventRequestSchema(
             path: ["masumiPayment", "PaymentSource", "network"],
           });
         }
+
+        // Fail fast pre-charge on payloads the payment node would reject
+        // post-charge (the async purchase has no compensation path).
+        if (
+          data.masumiPayment.paymentSourceType === "Web3CardanoV1" &&
+          data.masumiPayment.supportedPaymentSourceIndex !== undefined
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "supportedPaymentSourceIndex is only valid for Web3CardanoV2 payments",
+            path: ["masumiPayment", "supportedPaymentSourceIndex"],
+          });
+        }
+
+        const paymentSource = data.masumiPayment.PaymentSource;
+        if (paymentSource !== undefined) {
+          const identifierPolicyId = data.masumiPayment.agentIdentifier.slice(
+            0,
+            56,
+          );
+          if (paymentSource.policyId !== identifierPolicyId) {
+            ctx.addIssue({
+              code: "custom",
+              message:
+                "PaymentSource.policyId must match the agentIdentifier's policy prefix",
+              path: ["masumiPayment", "PaymentSource", "policyId"],
+            });
+          }
+          const expectedAddressPrefix =
+            serverNetwork === "Mainnet" ? "addr1" : "addr_test1";
+          if (
+            !paymentSource.smartContractAddress.startsWith(
+              expectedAddressPrefix,
+            )
+          ) {
+            ctx.addIssue({
+              code: "custom",
+              message: `PaymentSource.smartContractAddress must be a ${serverNetwork} bech32 address`,
+              path: ["masumiPayment", "PaymentSource", "smartContractAddress"],
+            });
+          }
+        }
       }
 
       if (

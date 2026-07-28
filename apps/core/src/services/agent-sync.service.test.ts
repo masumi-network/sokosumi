@@ -23,6 +23,7 @@ const {
   getEnvEnableCardanoV2Mock,
   openrouterGenerateAgentSummaryMock,
   syncMetadataDeleteManyMock,
+  syncMetadataCreateManyMock,
   syncMetadataFindUniqueMock,
   syncMetadataUpsertMock,
   tagUpsertMock,
@@ -44,6 +45,7 @@ const {
   getEnvEnableCardanoV2Mock: vi.fn().mockReturnValue(true),
   openrouterGenerateAgentSummaryMock: vi.fn(),
   syncMetadataDeleteManyMock: vi.fn(),
+  syncMetadataCreateManyMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
   syncMetadataUpsertMock: vi.fn(),
   tagUpsertMock: vi.fn(),
@@ -111,6 +113,7 @@ vi.mock("@/lib/db/prisma", () => ({
       deleteMany: exampleOutputDeleteManyMock,
     },
     syncMetadata: {
+      createMany: syncMetadataCreateManyMock,
       deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
       upsert: syncMetadataUpsertMock,
@@ -234,7 +237,9 @@ function createCardanoV2PaymentSource(
   };
 }
 
-const V2_AGENT_ROOT = "ab".repeat(57);
+// Root = real V2 registry policy prefix + 29-byte asset root: version
+// detection keys on the policy prefix, not the entry's payment type.
+const V2_AGENT_ROOT = `67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b${"ab".repeat(29)}`;
 
 function createV2AgentIdentifier(version: number): string {
   return `${V2_AGENT_ROOT}${version.toString(16).padStart(6, "0")}`;
@@ -738,11 +743,48 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(createCall.data.type).toBe(AgentEntryType.UNKNOWN);
   });
 
+  it("keeps one identity for V2-policy entries whose paymentType is None", async () => {
+    // Free and EVM-only V2 agents are versioned like paid ones — the registry
+    // maps them to paymentType "None", which must not disable stripping.
+    const entries = [
+      createRegistryEntry("entry-free-v2", {
+        agentIdentifier: createV2AgentIdentifier(3),
+        paymentType: "None",
+        AgentPricing: null,
+        apiBaseUrl: "https://free-v2.example.com",
+        SupportedPaymentSources: [
+          createCardanoV2PaymentSource({
+            pricing: { pricingType: "Free" },
+          }),
+        ],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { registryIdentity: V2_AGENT_ROOT },
+      }),
+    );
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.registryIdentity).toBe(V2_AGENT_ROOT);
+    expect(createCall.data.registryVersion).toBe(3);
+    expect(createCall.data.pricing.create.pricingType).toBe(PricingType.FREE);
+  });
+
   it("stores a malformed V2 identifier as unavailable", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
-    const malformedIdentifier = "not-a-versioned-v2-identifier";
+    // V2 policy prefix with a non-hex version suffix: policy membership is
+    // what triggers version parsing now, not the payment type.
+    const malformedIdentifier = `67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b${"ab".repeat(26)}nothex`;
     getAgentsDiffMock.mockResolvedValue(
       ok([
         createRegistryEntry("entry-malformed-v2", {
@@ -1201,7 +1243,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     });
   });
 
-  it("keeps the registry's empty-string ADA unit verbatim in projected V2 pricing", async () => {
+  it("normalizes the registry's empty-string ADA unit in projected V2 pricing", async () => {
     const entries = [
       createRegistryEntry("entry-v2-ada", {
         agentIdentifier: createV2AgentIdentifier(1),
@@ -1230,7 +1272,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(
       createCall.data.pricing.create.fixedPricing.create.amounts.createMany
         .data,
-    ).toEqual([{ unit: "", amount: BigInt(2000000) }]);
+    ).toEqual([{ unit: "lovelace", amount: BigInt(2000000) }]);
   });
 
   it("defers rollback-unsafe entries while the rollout flag is off but advances the cursor", async () => {
@@ -1556,15 +1598,34 @@ describe("agentSyncService.syncAgentSummaries", () => {
 });
 
 describe("agentSyncService.syncCardanoV2RailReadiness", () => {
+  it("skips the node round-trip entirely while the rollout flag is off", async () => {
+    getEnvEnableCardanoV2Mock.mockReturnValue(false);
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(getCardanoV2RailReadinessMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+  });
+
+  const readySources = [
+    {
+      policyId: "ab".repeat(28),
+      smartContractAddress: "addr_test1_v2_contract",
+    },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
     getEnvEnableCardanoV2Mock.mockReturnValue(true);
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
+    syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataUpsertMock.mockResolvedValue(undefined);
   });
 
-  it("caches a purchase-ready rail under the readiness key", async () => {
+  it("caches exact purchase-ready sources under the readiness key", async () => {
     const agentSyncService = await getAgentSyncService();
-    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
 
     await agentSyncService.syncCardanoV2RailReadiness();
 
@@ -1573,29 +1634,32 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       where: { key: "cardano-v2-rail-readiness" },
       create: {
         key: "cardano-v2-rail-readiness",
-        cursorId: "ready",
+        cursorId: JSON.stringify(readySources),
         lastSyncedAt: expect.any(Date),
       },
       update: {
-        cursorId: "ready",
+        cursorId: JSON.stringify(readySources),
         lastSyncedAt: expect.any(Date),
       },
     });
+    expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
+      where: { key: "cardano-v2-rail-readiness-failure" },
+    });
   });
 
-  it("caches a not-ready rail as not-ready", async () => {
+  it("caches an empty list when no source is purchase-ready", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
     const agentSyncService = await getAgentSyncService();
-    getCardanoV2RailReadinessMock.mockResolvedValue(ok(false));
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok([]));
 
     await agentSyncService.syncCardanoV2RailReadiness();
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { key: "cardano-v2-rail-readiness" },
-        update: expect.objectContaining({ cursorId: "not-ready" }),
+        update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
 
@@ -1614,13 +1678,45 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     await agentSyncService.syncCardanoV2RailReadiness();
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(syncMetadataCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        {
+          key: "cardano-v2-rail-readiness-failure",
+          cursorId: "failed",
+          lastSyncedAt: expect.any(Date),
+        },
+      ],
+      skipDuplicates: true,
+    });
 
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not crash registry sync when the failure marker cannot be stored", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    syncMetadataCreateManyMock.mockRejectedValue(new Error("database down"));
+
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness(),
+    ).resolves.toBeUndefined();
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[sync/agents] Failed to persist Cardano V2 readiness failure marker:",
+      expect.any(Error),
+    );
     consoleWarnSpy.mockRestore();
   });
 
   it("forwards the abort signal to the readiness check", async () => {
     const agentSyncService = await getAgentSyncService();
-    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     const signal = new AbortController().signal;
 
     await agentSyncService.syncCardanoV2RailReadiness({ signal });
@@ -1636,13 +1732,6 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       .mockImplementation(() => undefined);
     const agentSyncService = await getAgentSyncService();
 
-    // The dedupe flag is module-level state that survives across tests in
-    // this file (the dynamic import returns the same module instance), so
-    // re-arm it with a successful check before running the failure streak.
-    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
-    await agentSyncService.syncCardanoV2RailReadiness();
-    captureExceptionMock.mockClear();
-
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
     );
@@ -1655,7 +1744,8 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       }),
     );
 
-    // Second consecutive failure: deduped, no new Sentry event.
+    // A different process loses the atomic insert race and also dedupes.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
@@ -1668,20 +1758,19 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       .mockImplementation(() => undefined);
     const agentSyncService = await getAgentSyncService();
 
-    // Reset the module-level dedupe flag left behind by earlier tests.
-    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
-    await agentSyncService.syncCardanoV2RailReadiness();
-    captureExceptionMock.mockClear();
-
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
     );
     await agentSyncService.syncCardanoV2RailReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
-    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     await agentSyncService.syncCardanoV2RailReadiness();
+    expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
+      where: { key: "cardano-v2-rail-readiness-failure" },
+    });
 
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
     );
@@ -1697,11 +1786,6 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       .mockImplementation(() => undefined);
     const agentSyncService = await getAgentSyncService();
 
-    // Re-arm the module-level dedupe flag so a capture would be possible.
-    getCardanoV2RailReadinessMock.mockResolvedValue(ok(true));
-    await agentSyncService.syncCardanoV2RailReadiness();
-    captureExceptionMock.mockClear();
-
     getEnvEnableCardanoV2Mock.mockReturnValue(false);
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
@@ -1709,6 +1793,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     await agentSyncService.syncCardanoV2RailReadiness();
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(syncMetadataFindUniqueMock).not.toHaveBeenCalled();
+    expect(syncMetadataCreateManyMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
 
     consoleWarnSpy.mockRestore();
   });

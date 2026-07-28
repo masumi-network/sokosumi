@@ -15,6 +15,7 @@ const {
   creditBucketPrepareConsumptionMock,
   generateJobNameMock,
   getAgentCostMock,
+  getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
   projectFindFirstMock,
   prismaTransactionMock,
@@ -27,6 +28,7 @@ const {
   creditBucketPrepareConsumptionMock: vi.fn(),
   generateJobNameMock: vi.fn(),
   getAgentCostMock: vi.fn(),
+  getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -39,7 +41,9 @@ vi.mock("@/helpers/agent", () => ({
     calculateCentsFromMasumiAmountStringsMock,
   getAgentCost: getAgentCostMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
-  isCardanoV2RailReady: () => Promise.resolve(true),
+  getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
+  normalizeMasumiPaymentUnit: (unit: string) =>
+    unit === "" || unit.toLowerCase() === "lovelace" ? "lovelace" : unit,
   toMasumiAgent: (agent: {
     id: string;
     name: string;
@@ -128,11 +132,13 @@ function createPaidV2AgentRecord() {
     paymentSources: [
       {
         sourceIndex: 0,
+        address: "addr_test1_v2_contract",
         pricingType: PricingType.FIXED,
         amounts: [{ unit: "lovelace", amount: BigInt(1_000_000) }],
       },
       {
         sourceIndex: 2,
+        address: "addr_test1_v2_contract",
         pricingType: PricingType.FIXED,
         amounts: [{ unit: "lovelace", amount: BigInt(2_000_000) }],
       },
@@ -205,6 +211,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     vi.clearAllMocks();
     getCreditCostsOrThrowMock.mockResolvedValue([{ unit: "lovelace" }]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
+    getCardanoV2ReadySourcesMock.mockResolvedValue([
+      {
+        policyId: "agent-chain",
+        smartContractAddress: "addr_test1_v2_contract",
+      },
+    ]);
     calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(2));
     creditBucketPrepareConsumptionMock.mockResolvedValue([]);
     createPurchaseMock.mockResolvedValue(err("payment unavailable"));
@@ -416,15 +428,89 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
   it("enforces maxAcceptedCents against the selected V2 source", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
-    calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(11));
+    // Cheap source (index 0) stays under the cap so the cheapest-source
+    // pre-check passes; the seller-selected source (index 2) exceeds it.
+    calculateCentsFromMasumiAmountStringsMock.mockImplementation(
+      (amounts: { unit: string; amount: string }[]) =>
+        amounts.some((entry) => entry.amount === "2000000")
+          ? BigInt(11)
+          : BigInt(2),
+    );
+    const startPaidAgentJobMock = vi
+      .fn()
+      .mockResolvedValue(ok(paidV2JobResponse));
     createAgentClientMock.mockReturnValue({
-      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV2JobResponse)),
+      startPaidAgentJob: startPaidAgentJobMock,
     });
 
     await expect(createAgentJobForUser(createInput())).rejects.toThrow(
       "Credit cost exceeds maximum accepted credits",
     );
 
+    expect(startPaidAgentJobMock).toHaveBeenCalled();
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects maxCredits below the cheapest eligible V2 source before contacting the seller", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    // Every stored source costs more than the accepted cap of 10 cents, so
+    // no seller selection could ever satisfy it.
+    calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(11));
+    const startPaidAgentJobMock = vi
+      .fn()
+      .mockResolvedValue(ok(paidV2JobResponse));
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: startPaidAgentJobMock,
+    });
+
+    const promise = createAgentJobForUser(createInput());
+
+    await expect(promise).rejects.toThrow(
+      "Credit cost exceeds maximum accepted credits",
+    );
+    await expect(promise).rejects.toMatchObject({ status: 400 });
+
+    expect(startPaidAgentJobMock).not.toHaveBeenCalled();
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seller-selected source above the listed price without maxCredits", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    // The displayed cost is derived from agent-level pricing, whose fixture
+    // amounts (1_000_000 lovelace) mirror the cheap source 0; the mocked
+    // getAgentCost must agree with the cents mapping for that source.
+    getAgentCostMock.mockReturnValue({ cents: BigInt(2) });
+    calculateCentsFromMasumiAmountStringsMock.mockImplementation(
+      (amounts: { unit: string; amount: string }[]) =>
+        amounts.some((entry) => entry.amount === "2000000")
+          ? BigInt(11)
+          : BigInt(2),
+    );
+    // The seller response selects source index 2, the expensive source.
+    const startPaidAgentJobMock = vi
+      .fn()
+      .mockResolvedValue(ok(paidV2JobResponse));
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: startPaidAgentJobMock,
+    });
+
+    const promise = createAgentJobForUser(
+      createInput({
+        agentInput: {
+          ...createInput().agentInput,
+          maxAcceptedCents: undefined,
+        },
+      }),
+    );
+
+    await expect(promise).rejects.toThrow(
+      "Selected payment source exceeds the agent's listed price",
+    );
+    await expect(promise).rejects.toMatchObject({ status: 422 });
+
+    expect(startPaidAgentJobMock).toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
@@ -446,5 +532,79 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stored V2 source that the payment node cannot purchase through", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    getCardanoV2ReadySourcesMock.mockResolvedValue([
+      {
+        policyId: "agent-chain",
+        smartContractAddress: "addr_test1_other_contract",
+      },
+    ]);
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV2JobResponse)),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid V2 agent job selected a payment source that is not purchase-ready",
+    );
+
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a V2 source with more assets than the purchase API can guard", async () => {
+    const agent = createPaidV2AgentRecord();
+    agent.paymentSources = agent.paymentSources.map((source) =>
+      source.sourceIndex === 2
+        ? {
+            ...source,
+            amounts: Array.from({ length: 8 }, (_, index) => ({
+              unit: `unit-${index}`,
+              amount: BigInt(index + 1),
+            })),
+          }
+        : source,
+    );
+    agentFindFirstMock.mockResolvedValue(agent);
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV2JobResponse)),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid V2 agent selected a payment source with too many assets",
+    );
+
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("omits the optional V1 price guard when metadata has more than seven units", async () => {
+    agentFindFirstMock.mockResolvedValue({
+      ...createPaidV1AgentRecord(),
+      pricing: {
+        pricingType: PricingType.FIXED,
+        fixedPricing: {
+          amounts: Array.from({ length: 8 }, (_, index) => ({
+            unit: `unit-${index}`,
+            amount: BigInt(index + 1),
+          })),
+        },
+      },
+    });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(ok(paidV1JobResponse)),
+    });
+
+    await createAgentJobForUser(createInput());
+
+    expect(createPurchaseMock).toHaveBeenCalledWith(
+      "agent-chain",
+      paidV1JobResponse,
+      { prompt: "hello" },
+      expect.any(String),
+      undefined,
+    );
   });
 });

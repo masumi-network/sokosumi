@@ -33,4 +33,24 @@ describe("startPaidJobResponseSchema", () => {
     expect(result.paymentSourceType).toBeUndefined();
     expect(result.supportedPaymentSourceIndex).toBeUndefined();
   });
+
+  it("coerces a stringified payment-source index like the time fields", () => {
+    const result = startPaidJobResponseSchema.parse({
+      ...paidJobResponse,
+      paymentSourceType: "Web3CardanoV2",
+      supportedPaymentSourceIndex: "3",
+    });
+
+    expect(result.supportedPaymentSourceIndex).toBe(3);
+  });
+
+  it("rejects a payment-source index on a V1 response", () => {
+    const result = startPaidJobResponseSchema.safeParse({
+      ...paidJobResponse,
+      paymentSourceType: "Web3CardanoV1",
+      supportedPaymentSourceIndex: 3,
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

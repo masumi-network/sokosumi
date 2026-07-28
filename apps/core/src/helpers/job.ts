@@ -3,6 +3,7 @@ import {
   AgentJobStatus,
   agentMetadataOverrideScalarsInclude,
   agentPricingInclude,
+  type CreditCost,
   JobType,
   PaymentType,
   PricingType,
@@ -33,8 +34,9 @@ import {
   buildAvailableAgentWhereClause,
   calculateCentsFromMasumiAmountStrings,
   getAgentCost,
+  getCardanoV2ReadySources,
   getCreditCostsOrThrow,
-  isCardanoV2RailReady,
+  normalizeMasumiPaymentUnit,
   toMasumiAgent,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
@@ -261,6 +263,43 @@ export interface JobOwnerContext {
   workspaceId: string;
 }
 
+const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
+
+/**
+ * The lowest credits cost among an agent's fixed-priced V2 payment sources.
+ * Sources whose units have no CreditCost row cannot be selected for billing
+ * and are skipped; null when no source is priceable.
+ */
+function cheapestEligibleV2SourceCents(
+  sources: readonly {
+    pricingType: PricingType;
+    amounts: { unit: string; amount: bigint }[];
+  }[],
+  creditCosts: CreditCost[],
+): bigint | null {
+  let cheapest: bigint | null = null;
+  for (const source of sources) {
+    if (
+      source.pricingType !== PricingType.FIXED ||
+      source.amounts.length === 0
+    ) {
+      continue;
+    }
+    try {
+      const cents = calculateCentsFromMasumiAmountStrings(
+        aggregateAmountsByUnit(source.amounts),
+        creditCosts,
+      );
+      if (cheapest === null || cents < cheapest) {
+        cheapest = cents;
+      }
+    } catch {
+      // Un-priced source — selecting it fails later anyway.
+    }
+  }
+  return cheapest;
+}
+
 /**
  * Sums pricing rows per unit. The payment node compares Amounts as per-unit
  * sums and caps the array at 7 entries, so duplicate-unit registrations must
@@ -271,7 +310,8 @@ function aggregateAmountsByUnit(
 ): { unit: string; amount: string }[] {
   const sums = new Map<string, bigint>();
   for (const row of rows) {
-    sums.set(row.unit, (sums.get(row.unit) ?? 0n) + row.amount);
+    const unit = normalizeMasumiPaymentUnit(row.unit);
+    sums.set(unit, (sums.get(unit) ?? 0n) + row.amount);
   }
   return Array.from(sums, ([unit, amount]) => ({
     unit,
@@ -290,12 +330,12 @@ export async function createAgentJobForUser(
       : null);
 
   const creditCosts = await getCreditCostsOrThrow();
-  const cardanoV2RailReady = await isCardanoV2RailReady();
+  const cardanoV2ReadySources = await getCardanoV2ReadySources();
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
       id: agentInput.agentId,
-      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2RailReady),
+      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
     },
     include: {
       ...agentPricingInclude,
@@ -327,6 +367,23 @@ export async function createAgentJobForUser(
   ) {
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
+  // For V2 agents the authoritative cost follows the seller-selected payment
+  // source (checked again after start_job), but no selection can cost less
+  // than the cheapest eligible source — rejecting here avoids orphaning a
+  // seller-side job the cap was always going to refuse.
+  if (
+    agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 &&
+    maxCents !== null
+  ) {
+    const cheapestCents = cheapestEligibleV2SourceCents(
+      agentRecord.paymentSources,
+      creditCosts,
+    );
+    if (cheapestCents !== null && cheapestCents > maxCents) {
+      throw badRequest("Credit cost exceeds maximum accepted credits");
+    }
+  }
+  const displayedCostCents = cost.cents;
 
   const agent = agentRecord;
 
@@ -430,6 +487,16 @@ export async function createAgentJobForUser(
             "Paid V2 agent job returned an unexpected payment source",
           );
         }
+        const isSelectedSourcePurchaseReady = cardanoV2ReadySources.some(
+          (readySource) =>
+            agent.blockchainIdentifier.startsWith(readySource.policyId) &&
+            selectedSource.address === readySource.smartContractAddress,
+        );
+        if (!isSelectedSourcePurchaseReady) {
+          throw unprocessableEntity(
+            "Paid V2 agent job selected a payment source that is not purchase-ready",
+          );
+        }
         if (
           response.paymentSourceType !== undefined &&
           response.paymentSourceType !== "Web3CardanoV2"
@@ -446,15 +513,33 @@ export async function createAgentJobForUser(
             "Paid V2 agent job selected a source without fixed pricing",
           );
         }
-        purchaseAmounts = aggregateAmountsByUnit(selectedSource.amounts);
+        const selectedSourceAmounts = aggregateAmountsByUnit(
+          selectedSource.amounts,
+        );
+        if (selectedSourceAmounts.length > MAX_PAYMENT_NODE_PURCHASE_AMOUNTS) {
+          throw unprocessableEntity(
+            "Paid V2 agent selected a payment source with too many assets",
+          );
+        }
+        // V2 purchases must always carry the exact source amounts: omitting
+        // them lets the node use current on-chain pricing while Sokosumi bills
+        // from its registry snapshot.
+        purchaseAmounts = selectedSourceAmounts;
         cost = {
           cents: calculateCentsFromMasumiAmountStrings(
-            purchaseAmounts,
+            selectedSourceAmounts,
             creditCosts,
           ),
         };
         if (maxCents !== null && cost.cents > maxCents) {
           throw badRequest("Credit cost exceeds maximum accepted credits");
+        }
+        // Without an explicit maxCredits consent, the seller-selected source
+        // must not charge more than the listed agent price.
+        if (maxCents === null && cost.cents > displayedCostCents) {
+          throw unprocessableEntity(
+            "Selected payment source exceeds the agent's listed price",
+          );
         }
         paidJobResult = {
           ...response,
@@ -469,9 +554,16 @@ export async function createAgentJobForUser(
         // Price-drift guard: pass the exact amounts the credits charge was
         // computed from; the node rejects the purchase if the agent's
         // on-chain pricing has drifted from what we synced.
-        purchaseAmounts = agent.pricing.fixedPricing
+        const fixedPricingAmounts = agent.pricing.fixedPricing
           ? aggregateAmountsByUnit(agent.pricing.fixedPricing.amounts)
-          : null;
+          : [];
+        // Legacy V1 metadata permits more entries than POST /purchase accepts.
+        // Preserve those agents' old behavior by omitting the optional drift
+        // guard until the node's request limit is widened.
+        purchaseAmounts =
+          fixedPricingAmounts.length <= MAX_PAYMENT_NODE_PURCHASE_AMOUNTS
+            ? fixedPricingAmounts
+            : null;
         paidJobResult = response;
       }
 

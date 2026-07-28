@@ -16,6 +16,7 @@ const {
   createNotificationMock,
   createPurchaseFromMasumiTaskPaymentMock,
   createTaskEventTransactionMock,
+  getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
   orchestratorFindFirstMock,
   prismaTaskFindUniqueMock,
@@ -29,6 +30,7 @@ const {
   createNotificationMock: vi.fn(),
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
+  getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   orchestratorFindFirstMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn().mockResolvedValue({
@@ -92,6 +94,7 @@ vi.mock("@/helpers/agent", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/helpers/agent")>();
   return {
     ...actual,
+    getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
     getCreditCostsOrThrow: getCreditCostsOrThrowMock,
     calculateCentsFromMasumiAmountStrings:
       calculateCentsFromMasumiAmountStringsMock,
@@ -271,6 +274,13 @@ describe("POST /{id}/events", () => {
       created: true,
     });
     publishTaskEventDataMock.mockResolvedValue(undefined);
+    // Default: V2 rail purchase-ready (individual tests override to []).
+    getCardanoV2ReadySourcesMock.mockResolvedValue([
+      {
+        policyId: "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+        smartContractAddress: "addr_test1_ready_contract",
+      },
+    ]);
     getCreditCostsOrThrowMock.mockResolvedValue([
       {
         id: "cc_1",
@@ -2040,6 +2050,48 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(2);
     expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects a V2 masumiPayment before charging when no ready V2 source is cached", async () => {
+    getCardanoV2ReadySourcesMock.mockResolvedValue([]);
+    const chargeSpy = vi.fn();
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: chargeSpy,
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: {
+          ...validMasumiPaymentBody,
+          paymentSourceType: "Web3CardanoV2",
+          supportedPaymentSourceIndex: 2,
+        },
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.text()).toContain(
+      "Cardano V2 payments are not enabled",
+    );
+    expect(chargeSpy).not.toHaveBeenCalled();
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
   it("creates purchase when coworker completes with masumiPayment", async () => {

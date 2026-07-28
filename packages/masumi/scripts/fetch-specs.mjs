@@ -60,7 +60,11 @@ export function containsJsonString(value, targetValue) {
 
 export const SPEC_LANDMARKS = {
   payment: {
-    requiredKeys: ["supportedPaymentSourceIndex"],
+    requiredKeys: [
+      "supportedPaymentSourceIndex",
+      "PurchaseSources",
+      "isPurchaseReady",
+    ],
     requiredValues: ["WithdrawAuthorized", "AuthorizeWithdrawalRequested"],
   },
   registry: {

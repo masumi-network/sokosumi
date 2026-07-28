@@ -2,8 +2,8 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import {
   buildAvailableAgentWhereClause,
+  getCardanoV2ReadySources,
   getCreditCostsOrThrow,
-  isCardanoV2RailReady,
 } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -35,10 +35,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const categories = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
-      const cardanoV2RailReady = await isCardanoV2RailReady(tx);
+      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
       const agentWhere = buildAvailableAgentWhereClause(
         creditCosts,
-        cardanoV2RailReady,
+        cardanoV2ReadySources,
       );
 
       return tx.category.findMany({

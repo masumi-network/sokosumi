@@ -34,20 +34,39 @@ export type StartFreeJobResponseSchemaType = z.infer<
 
 export const startPaidJobResponseSchema = z.preprocess(
   preprocessStartJobResponse,
-  z.object({
-    id: z.string().min(1),
-    input_hash: z.string().min(1),
-    identifierFromPurchaser: z.string().min(1),
-    blockchainIdentifier: z.string().min(1),
-    payByTime: z.coerce.number().int(),
-    submitResultTime: z.coerce.number().int(),
-    unlockTime: z.coerce.number().int(),
-    externalDisputeUnlockTime: z.coerce.number().int(),
-    agentIdentifier: z.string().min(1),
-    sellerVKey: z.string().min(1),
-    paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
-    supportedPaymentSourceIndex: z.number().int().min(0).max(24).optional(),
-  }),
+  z
+    .object({
+      id: z.string().min(1),
+      input_hash: z.string().min(1),
+      identifierFromPurchaser: z.string().min(1),
+      blockchainIdentifier: z.string().min(1),
+      payByTime: z.coerce.number().int(),
+      submitResultTime: z.coerce.number().int(),
+      unlockTime: z.coerce.number().int(),
+      externalDisputeUnlockTime: z.coerce.number().int(),
+      agentIdentifier: z.string().min(1),
+      sellerVKey: z.string().min(1),
+      paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
+      // Coerced like the sibling time fields — sellers serialize inconsistently.
+      supportedPaymentSourceIndex: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(24)
+        .optional(),
+    })
+    .refine(
+      (data) =>
+        !(
+          data.paymentSourceType === "Web3CardanoV1" &&
+          data.supportedPaymentSourceIndex !== undefined
+        ),
+      {
+        message:
+          "supportedPaymentSourceIndex is only valid for Web3CardanoV2 payments",
+        path: ["supportedPaymentSourceIndex"],
+      },
+    ),
 );
 
 export type StartPaidJobResponseSchemaType = z.infer<

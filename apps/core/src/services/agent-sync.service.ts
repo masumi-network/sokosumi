@@ -7,7 +7,10 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import { parseVersionedAgentIdentifier } from "@sokosumi/masumi";
+import {
+  isV2RegistryIdentifier,
+  parseVersionedAgentIdentifier,
+} from "@sokosumi/masumi";
 import type { PostRegistryDiffResponse } from "@sokosumi/masumi/clients";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
@@ -15,8 +18,10 @@ import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
 import {
+  CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
   CARDANO_V2_RAIL_READINESS_KEY,
   getAgentDescription,
+  normalizeMasumiPaymentUnit,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
@@ -152,7 +157,7 @@ function parseEntryAgentPricing(
           pricingType: PricingType.FIXED,
           fixedPricingAmounts: amounts.map((amount) => ({
             amount: BigInt(amount.amount),
-            unit: amount.unit,
+            unit: normalizeMasumiPaymentUnit(amount.unit),
           })),
         };
       } catch {
@@ -190,7 +195,11 @@ interface RegistryAgentVersion {
 function resolveRegistryAgentVersion(
   entry: RegistryDiffEntry,
 ): RegistryAgentVersion {
-  if (entry.paymentType !== "Web3CardanoV2") {
+  // Version semantics are a property of the V2 registry POLICY, not of the
+  // payment type: free and EVM-only V2 agents carry paymentType "None" but
+  // are still versioned. Keying on the policy prefix (like the registry
+  // service does) keeps one stable Agent row across their revisions too.
+  if (!isV2RegistryIdentifier(entry.agentIdentifier)) {
     return {
       registryIdentity: entry.agentIdentifier,
       registryVersion: 0,
@@ -228,11 +237,8 @@ function projectSourcePricing(
   switch (pricing.pricingType) {
     case "Fixed": {
       try {
-        // Units are stored verbatim, matching V1 ingestion — including the
-        // registry's empty-string spelling for ADA/lovelace. Availability
-        // still requires a CreditCost row for every unit.
         const amounts = pricing.fixed.map((fixedAmount) => ({
-          unit: fixedAmount.asset,
+          unit: normalizeMasumiPaymentUnit(fixedAmount.asset),
           amount: BigInt(fixedAmount.amount),
         }));
         if (amounts.length === 0 || amounts.some((row) => row.amount <= 0n)) {
@@ -278,7 +284,9 @@ function projectV2AgentPricing(entry: RegistryDiffEntry): ParsedAgentPricing {
 }
 
 function resolveEntryPricing(entry: RegistryDiffEntry): ParsedAgentPricing {
-  if (entry.paymentType === "Web3CardanoV2") {
+  // V2 pricing belongs to the registry policy/source model, not the legacy
+  // top-level payment type. Free and EVM-only V2 entries report `None`.
+  if (isV2RegistryIdentifier(entry.agentIdentifier)) {
     return projectV2AgentPricing(entry);
   }
   return parseEntryAgentPricing(entry.AgentPricing, entry.agentIdentifier);
@@ -903,18 +911,21 @@ async function syncAgentSummaries(
   );
 }
 
-// Dedupe: a down payment node would otherwise page Sentry every cron cycle.
-let reportedRailReadinessFailure = false;
-
 /**
  * Refreshes the cached Cardano V2 rail readiness of the payment node (read by
- * isCardanoV2RailReady). On check failure the last known value is kept — its
- * TTL fails closed during an extended outage.
+ * getCardanoV2ReadySources). On check failure the last known value is kept —
+ * its TTL fails closed during an extended outage.
  */
 async function syncCardanoV2RailReadiness(
   options: { signal?: AbortSignal } = {},
 ): Promise<void> {
   const isCardanoV2Enabled = getEnv().ENABLE_CARDANO_V2_AGENTS;
+  // Nothing reads the cache while the flag is off (isCardanoV2RailReady
+  // short-circuits), so skip the node round-trip. After a flag flip the next
+  // cron cycle populates the cache within 5 minutes.
+  if (!isCardanoV2Enabled) {
+    return;
+  }
   const readinessResult = await paymentClient().getCardanoV2RailReadiness({
     signal: options.signal,
   });
@@ -924,35 +935,59 @@ async function syncCardanoV2RailReadiness(
       "[sync/agents] Cardano V2 rail readiness check failed:",
       readinessResult.error,
     );
-    if (isCardanoV2Enabled && !reportedRailReadinessFailure) {
-      reportedRailReadinessFailure = true;
-      Sentry.captureException(
-        new Error(
-          `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
-        ),
-      );
+    if (isCardanoV2Enabled) {
+      try {
+        // createMany + skipDuplicates is an atomic cross-instance latch:
+        // exactly one serverless worker creates the marker and reports the
+        // failure; later workers see count=0 until a successful check clears it.
+        const marker = await prisma.syncMetadata.createMany({
+          data: [
+            {
+              key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
+              cursorId: "failed",
+              lastSyncedAt: new Date(),
+            },
+          ],
+          skipDuplicates: true,
+        });
+        if (marker.count > 0) {
+          Sentry.captureException(
+            new Error(
+              `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
+            ),
+          );
+        }
+      } catch (markerError) {
+        // Readiness is advisory and must never crash the registry sync loop.
+        console.warn(
+          "[sync/agents] Failed to persist Cardano V2 readiness failure marker:",
+          markerError,
+        );
+      }
     }
     return;
   }
-  reportedRailReadinessFailure = false;
 
-  const isReady = readinessResult.value;
+  const readySources = readinessResult.value;
   await prisma.syncMetadata.upsert({
     where: { key: CARDANO_V2_RAIL_READINESS_KEY },
     create: {
       key: CARDANO_V2_RAIL_READINESS_KEY,
-      cursorId: isReady ? "ready" : "not-ready",
+      cursorId: JSON.stringify(readySources),
       lastSyncedAt: new Date(),
     },
     update: {
-      cursorId: isReady ? "ready" : "not-ready",
+      cursorId: JSON.stringify(readySources),
       lastSyncedAt: new Date(),
     },
   });
+  await prisma.syncMetadata.deleteMany({
+    where: { key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY },
+  });
 
-  if (isCardanoV2Enabled && !isReady) {
+  if (isCardanoV2Enabled && readySources.length === 0) {
     console.warn(
-      "[sync/agents] Cardano V2 rail is not purchase-ready; V2 agents stay unavailable despite ENABLE_CARDANO_V2_AGENTS",
+      "[sync/agents] No Cardano V2 source is purchase-ready; V2 agents stay unavailable despite ENABLE_CARDANO_V2_AGENTS",
     );
   }
 }

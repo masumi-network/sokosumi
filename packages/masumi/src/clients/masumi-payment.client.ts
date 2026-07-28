@@ -18,6 +18,8 @@ interface PaymentClientRequestOptions {
   signal?: AbortSignal;
 }
 
+const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
+
 function extractNodeErrorMessage(error: unknown): string {
   if (
     typeof error === "object" &&
@@ -30,7 +32,12 @@ function extractNodeErrorMessage(error: unknown): string {
   ) {
     return error.error.message;
   }
-  return JSON.stringify(error);
+  return JSON.stringify(error) ?? String(error);
+}
+
+export interface CardanoV2ReadySource {
+  policyId: string;
+  smartContractAddress: string;
 }
 
 type ResolvedPurchase =
@@ -130,12 +137,12 @@ export function createPaymentClient(
     },
 
     /**
-     * Whether the payment node can execute Cardano V2 purchases right now
-     * (per the node's own blocking readiness checks).
+     * Exact Cardano V2 policy/contract sources the payment node can purchase
+     * through right now.
      */
     async getCardanoV2RailReadiness(
       options: PaymentClientRequestOptions = {},
-    ): Promise<Result<boolean, string>> {
+    ): Promise<Result<CardanoV2ReadySource[], string>> {
       try {
         const response = await getRailReadiness({
           client: client(),
@@ -150,7 +157,29 @@ export function createPaymentClient(
         const cardanoV2Rail = response.data.data.Rails.find(
           (rail) => rail.rail === "CardanoV2",
         );
-        return ok(cardanoV2Rail?.isReady === true);
+        if (!cardanoV2Rail?.PurchaseSources) {
+          return err(
+            "rail-readiness response does not include per-source purchase readiness",
+          );
+        }
+        const readySources = new Map<string, CardanoV2ReadySource>();
+        for (const source of cardanoV2Rail.PurchaseSources) {
+          if (
+            source.isPurchaseReady &&
+            source.policyId &&
+            CARDANO_POLICY_ID_PATTERN.test(source.policyId)
+          ) {
+            const readySource = {
+              policyId: source.policyId,
+              smartContractAddress: source.smartContractAddress,
+            };
+            readySources.set(
+              `${readySource.policyId}:${readySource.smartContractAddress}`,
+              readySource,
+            );
+          }
+        }
+        return ok(Array.from(readySources.values()));
       } catch (error) {
         return err(String(error) || "Failed to get rail readiness");
       }
@@ -225,7 +254,7 @@ export function createPaymentClient(
           }
           console.error("Failed to create purchase request", response.error);
           return err(
-            `Failed to create purchase request (status ${response.response?.status ?? "unknown"})`,
+            `Failed to create purchase request (status ${response.response?.status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
           );
         }
 

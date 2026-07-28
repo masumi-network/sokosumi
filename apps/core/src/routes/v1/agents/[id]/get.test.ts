@@ -36,7 +36,7 @@ const {
 }));
 
 vi.mock("@/helpers/agent", () => ({
-  isCardanoV2RailReady: () => Promise.resolve(true),
+  getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   calculateAgentRating: calculateAgentRatingMock,
   calculateAverageExecutionTime: calculateAverageExecutionTimeMock,

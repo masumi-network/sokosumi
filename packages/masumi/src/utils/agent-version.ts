@@ -1,5 +1,33 @@
 const V2_VERSION_HEX_LENGTH = 6;
 const V2_VERSION_PATTERN = /^[0-9a-f]{6}$/i;
+const POLICY_ID_HEX_LENGTH = 56;
+const V2_STABLE_ASSET_NAME_HEX_LENGTH = 58;
+const V2_AGENT_IDENTIFIER_HEX_LENGTH =
+  POLICY_ID_HEX_LENGTH +
+  V2_STABLE_ASSET_NAME_HEX_LENGTH +
+  V2_VERSION_HEX_LENGTH;
+const HEX_PATTERN = /^[0-9a-f]+$/i;
+
+/**
+ * The Masumi V2 registry minting policy. The validator is unparameterized, so
+ * the policy hash is identical on Preprod and Mainnet (mirrors
+ * masumi-registry-service isV2Policy).
+ */
+const V2_REGISTRY_POLICY_IDS = new Set([
+  "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+]);
+
+/**
+ * Whether an agent identifier was minted by the V2 registry policy. Version
+ * semantics (stable identity + 3-byte version suffix) apply to ALL V2-policy
+ * assets regardless of their payment type — free and EVM-only V2 agents are
+ * versioned too.
+ */
+export function isV2RegistryIdentifier(agentIdentifier: string): boolean {
+  return V2_REGISTRY_POLICY_IDS.has(
+    agentIdentifier.slice(0, POLICY_ID_HEX_LENGTH),
+  );
+}
 
 export interface VersionedAgentIdentifier {
   registryIdentity: string;
@@ -13,7 +41,10 @@ export interface VersionedAgentIdentifier {
 export function parseVersionedAgentIdentifier(
   agentIdentifier: string,
 ): VersionedAgentIdentifier | undefined {
-  if (agentIdentifier.length <= V2_VERSION_HEX_LENGTH) {
+  if (
+    agentIdentifier.length !== V2_AGENT_IDENTIFIER_HEX_LENGTH ||
+    !HEX_PATTERN.test(agentIdentifier)
+  ) {
     return undefined;
   }
 

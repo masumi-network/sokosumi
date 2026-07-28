@@ -28,6 +28,56 @@ const validMasumiPayment = {
 } as const;
 
 describe("createTaskEventRequestSchema", () => {
+  it("rejects a payment-source index on a V1 masumiPayment", () => {
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV1",
+        supportedPaymentSourceIndex: 2,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a PaymentSource whose policyId mismatches the agent identifier", () => {
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress:
+            "addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm",
+          policyId: "ff".repeat(28),
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a smart contract address with the wrong network prefix", () => {
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress:
+            "addr1wxs4e6wc95hkwezlccjw9mdvq0r0rsgx6zk34avptga3ftgge2j6d",
+          policyId: validMasumiPayment.agentIdentifier.slice(0, 56),
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts a valid channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
