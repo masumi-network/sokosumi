@@ -287,9 +287,14 @@ function projectV2AgentPricing(
       candidate.network === network &&
       candidate.paymentSourceType === "Web3CardanoV2",
   );
+  // Readiness is a (policyId, contract) tuple: restrict to the entry's own
+  // policy before matching addresses, mirroring the hire-time enforcement.
+  const entryPolicyReadySources = readySources.filter((ready) =>
+    entry.agentIdentifier.toLowerCase().startsWith(ready.policyId),
+  );
   const source =
     matching.find((candidate) =>
-      readySources.some(
+      entryPolicyReadySources.some(
         (ready) => ready.smartContractAddress === candidate.address,
       ),
     ) ?? matching[0];

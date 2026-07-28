@@ -262,10 +262,14 @@ async function settleTaskEventCharge({
           "V2 masumi payments must include PaymentSource with the seller's policyId and smartContractAddress",
         );
       }
+      // Ready-source tuples are validated lowercase; normalize the payload's
+      // casing so hex/bech32 case never decides readiness (matches the
+      // case-insensitive V2 classification).
       const isSourceReady = readySources.some(
         (source) =>
-          source.policyId === paymentSource.policyId &&
-          source.smartContractAddress === paymentSource.smartContractAddress,
+          source.policyId === paymentSource.policyId.toLowerCase() &&
+          source.smartContractAddress ===
+            paymentSource.smartContractAddress.toLowerCase(),
       );
       if (!isSourceReady) {
         throw unprocessableEntity(

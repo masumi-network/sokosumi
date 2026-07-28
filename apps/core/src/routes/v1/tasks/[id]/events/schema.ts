@@ -166,11 +166,12 @@ export function createTaskEventRequestSchema(
 
         const paymentSource = data.masumiPayment.PaymentSource;
         if (paymentSource !== undefined) {
-          const identifierPolicyId = data.masumiPayment.agentIdentifier.slice(
-            0,
-            56,
-          );
-          if (paymentSource.policyId !== identifierPolicyId) {
+          // Case-insensitive: hex casing must never decide validity (the V2
+          // classifier and readiness checks normalize the same way).
+          const identifierPolicyId = data.masumiPayment.agentIdentifier
+            .slice(0, 56)
+            .toLowerCase();
+          if (paymentSource.policyId.toLowerCase() !== identifierPolicyId) {
             ctx.addIssue({
               code: "custom",
               message:
