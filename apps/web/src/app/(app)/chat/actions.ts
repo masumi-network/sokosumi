@@ -5,7 +5,7 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 
-export type ChannelActionResult<T> =
+export type RoomActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; message: string };
 
@@ -16,14 +16,14 @@ interface CreateChannelInput {
   coworkerIds?: string[];
 }
 
-interface UpdateChannelInput {
+interface UpdateRoomInput {
   name?: string;
   topic?: string | null;
   memberUserIds?: string[];
   coworkerIds?: string[];
 }
 
-interface CreateDirectChannelInput {
+interface CreateDirectRoomInput {
   memberUserId?: string;
   coworkerId?: string;
   memberUserIds?: string[];
@@ -47,7 +47,7 @@ interface SendNewChannelMessageInput {
 }
 
 interface SendNewDirectMessageResult {
-  channel: ChatRoom;
+  room: ChatRoom;
   message: ChatRoomMessage;
 }
 
@@ -89,7 +89,7 @@ function actionErrorMessage(error: unknown, fallback: string): string {
 
 export async function createChannelAction(
   input: CreateChannelInput,
-): Promise<ChannelActionResult<ChatRoom>> {
+): Promise<RoomActionResult<ChatRoom>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
     return { ok: false, message: "Select an organization first." };
@@ -101,7 +101,7 @@ export async function createChannelAction(
   }
 
   try {
-    const channel = await chatRoomService.createRoom({
+    const room = await chatRoomService.createRoom({
       kind: "channel",
       name,
       topic: cleanString(input.topic),
@@ -109,7 +109,7 @@ export async function createChannelAction(
       coworkerIds: cleanIds(input.coworkerIds),
     });
     revalidatePath("/chat");
-    return { ok: true, data: channel };
+    return { ok: true, data: room };
   } catch (error) {
     return {
       ok: false,
@@ -118,9 +118,9 @@ export async function createChannelAction(
   }
 }
 
-export async function createDirectChannelAction(
-  input: CreateDirectChannelInput,
-): Promise<ChannelActionResult<ChatRoom>> {
+export async function createDirectRoomAction(
+  input: CreateDirectRoomInput,
+): Promise<RoomActionResult<ChatRoom>> {
   const cleanMemberUserId = cleanString(input.memberUserId);
   const cleanCoworkerId = cleanString(input.coworkerId);
   const memberUserIds = cleanIds([
@@ -147,13 +147,13 @@ export async function createDirectChannelAction(
   }
 
   try {
-    const channel = await chatRoomService.createRoom({
+    const room = await chatRoomService.createRoom({
       kind: "direct",
       memberUserIds,
       coworkerIds,
     });
     revalidatePath("/chat");
-    return { ok: true, data: channel };
+    return { ok: true, data: room };
   } catch (error) {
     return {
       ok: false,
@@ -168,19 +168,19 @@ export async function createDirectChannelAction(
  */
 export async function ensureCoworkerDirectRoomAction(
   coworkerId: string,
-): Promise<ChannelActionResult<ChatRoom | null>> {
+): Promise<RoomActionResult<ChatRoom | null>> {
   const cleanCoworkerId = cleanString(coworkerId);
   if (!cleanCoworkerId) {
     return { ok: false, message: "Coworker is required." };
   }
 
   try {
-    const channel = await chatRoomService.createRoom({
+    const room = await chatRoomService.createRoom({
       kind: "direct",
       memberUserIds: [],
       coworkerIds: [cleanCoworkerId],
     });
-    return { ok: true, data: channel };
+    return { ok: true, data: room };
   } catch (error) {
     return {
       ok: false,
@@ -194,7 +194,7 @@ export async function ensureCoworkerDirectRoomAction(
 
 export async function sendNewDirectMessageAction(
   input: SendNewDirectMessageInput,
-): Promise<ChannelActionResult<SendNewDirectMessageResult>> {
+): Promise<RoomActionResult<SendNewDirectMessageResult>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
     return { ok: false, message: "Select an organization first." };
@@ -213,17 +213,17 @@ export async function sendNewDirectMessageAction(
   }
 
   try {
-    const channel = await chatRoomService.createRoom({
+    const room = await chatRoomService.createRoom({
       kind: "direct",
       memberUserIds,
       coworkerIds,
     });
-    const message = await chatRoomService.sendMessage(channel.id, {
+    const message = await chatRoomService.sendMessage(room.id, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
     });
     revalidatePath("/chat");
-    return { ok: true, data: { channel, message } };
+    return { ok: true, data: { room, message } };
   } catch (error) {
     return {
       ok: false,
@@ -234,7 +234,7 @@ export async function sendNewDirectMessageAction(
 
 export async function sendNewChannelMessageAction(
   input: SendNewChannelMessageInput,
-): Promise<ChannelActionResult<SendNewDirectMessageResult>> {
+): Promise<RoomActionResult<SendNewDirectMessageResult>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
     return { ok: false, message: "Select an organization first." };
@@ -251,19 +251,19 @@ export async function sendNewChannelMessageAction(
   }
 
   try {
-    const channel = await chatRoomService.createRoom({
+    const room = await chatRoomService.createRoom({
       kind: "channel",
       name,
       topic: cleanString(input.topic),
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
-    const message = await chatRoomService.sendMessage(channel.id, {
+    const message = await chatRoomService.sendMessage(room.id, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
     });
     revalidatePath("/chat");
-    return { ok: true, data: { channel, message } };
+    return { ok: true, data: { room, message } };
   } catch (error) {
     return {
       ok: false,
@@ -272,10 +272,10 @@ export async function sendNewChannelMessageAction(
   }
 }
 
-export async function updateChannelAction(
-  channelId: string,
-  input: UpdateChannelInput,
-): Promise<ChannelActionResult<ChatRoom>> {
+export async function updateRoomAction(
+  roomId: string,
+  input: UpdateRoomInput,
+): Promise<RoomActionResult<ChatRoom>> {
   const body = {
     ...(input.name !== undefined && { name: cleanString(input.name) }),
     ...(input.topic !== undefined && { topic: cleanString(input.topic) }),
@@ -288,9 +288,9 @@ export async function updateChannelAction(
   };
 
   try {
-    const channel = await chatRoomService.updateRoom(channelId, body);
+    const room = await chatRoomService.updateRoom(roomId, body);
     revalidatePath("/chat");
-    return { ok: true, data: channel };
+    return { ok: true, data: room };
   } catch (error) {
     return {
       ok: false,
@@ -299,19 +299,19 @@ export async function updateChannelAction(
   }
 }
 
-export async function sendChannelMessageAction(
-  channelId: string,
+export async function sendRoomMessageAction(
+  roomId: string,
   content: string,
   mentionedCoworkerIds: string[],
   parentMessageId?: string,
-): Promise<ChannelActionResult<ChatRoomMessage>> {
+): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
   if (!cleanContent) {
     return { ok: false, message: "Message is required." };
   }
 
   try {
-    const message = await chatRoomService.sendMessage(channelId, {
+    const message = await chatRoomService.sendMessage(roomId, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(mentionedCoworkerIds),
       ...(parentMessageId && { parentMessageId }),
@@ -327,17 +327,17 @@ export async function sendChannelMessageAction(
   }
 }
 
-export async function listChannelMessagesAction(
-  channelId: string,
+export async function listRoomMessagesAction(
+  roomId: string,
   options?: { cursor?: string },
 ): Promise<
-  ChannelActionResult<{
+  RoomActionResult<{
     messages: ChatRoomMessage[];
     nextCursor: string | null;
   }>
 > {
   try {
-    const page = await chatRoomService.listMessages(channelId, {
+    const page = await chatRoomService.listMessages(roomId, {
       cursor: options?.cursor,
     });
     return { ok: true, data: page };
@@ -350,18 +350,18 @@ export async function listChannelMessagesAction(
 }
 
 export async function listThreadMessagesAction(
-  channelId: string,
+  roomId: string,
   parentMessageId: string,
   options?: { cursor?: string },
 ): Promise<
-  ChannelActionResult<{
+  RoomActionResult<{
     messages: ChatRoomMessage[];
     nextCursor: string | null;
   }>
 > {
   try {
     const page = await chatRoomService.listThreadMessages(
-      channelId,
+      roomId,
       parentMessageId,
       { cursor: options?.cursor },
     );
@@ -375,10 +375,10 @@ export async function listThreadMessagesAction(
 }
 
 export async function toggleMessageReactionAction(
-  channelId: string,
+  roomId: string,
   messageId: string,
   emoji: string,
-): Promise<ChannelActionResult<ChatRoomMessage>> {
+): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanEmoji = cleanString(emoji);
   if (!cleanEmoji) {
     return { ok: false, message: "Reaction is required." };
@@ -386,7 +386,7 @@ export async function toggleMessageReactionAction(
 
   try {
     const message = await chatRoomService.toggleReaction(
-      channelId,
+      roomId,
       messageId,
       cleanEmoji,
     );

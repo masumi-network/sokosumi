@@ -37,11 +37,10 @@ import {
   getUserFileUploadErrorMessage,
   uploadUserFileDirect,
 } from "@/lib/utils/user-file-upload.client";
-import { AiCoworkerIcon } from "./channel-draft-shared";
-import { appendComposerBlock } from "./channel-helpers";
+import { AiCoworkerIcon } from "./room-draft-shared";
+import { appendComposerBlock } from "./room-helpers";
 
-export interface ChannelComposerAttachment
-  extends RoomMessageComposerAttachment {
+export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
@@ -71,7 +70,7 @@ function CoworkerSuggestion({
   );
 }
 
-export function ChannelComposer({
+export function RoomComposer({
   value,
   onValueChange,
   mentions,
@@ -89,8 +88,8 @@ export function ChannelComposer({
   mentions: Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>;
   onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
-  attachments: ChannelComposerAttachment[];
-  onAttachmentsChange: Dispatch<SetStateAction<ChannelComposerAttachment[]>>;
+  attachments: RoomComposerAttachment[];
+  onAttachmentsChange: Dispatch<SetStateAction<RoomComposerAttachment[]>>;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   isSending: boolean;
   sendDisabled: boolean;
@@ -122,7 +121,7 @@ export function ChannelComposer({
       );
 
       try {
-        const uploadedAttachments: ChannelComposerAttachment[] = [];
+        const uploadedAttachments: RoomComposerAttachment[] = [];
         for (const file of selectedFiles) {
           const uploaded = await uploadUserFileDirect(file);
           uploadedAttachments.push({
@@ -163,7 +162,7 @@ export function ChannelComposer({
     [onAttachmentsChange, onValueChange, t],
   );
 
-  function removeAttachment(attachment: ChannelComposerAttachment) {
+  function removeAttachment(attachment: RoomComposerAttachment) {
     onAttachmentsChange((current) =>
       current.filter((item) => item.url !== attachment.url),
     );

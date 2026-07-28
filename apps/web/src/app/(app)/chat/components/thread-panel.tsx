@@ -10,11 +10,8 @@ import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
 } from "@/lib/clients/generated/core";
-import {
-  ChannelComposer,
-  type ChannelComposerAttachment,
-} from "./channel-composer";
-import { ChatMessageRow } from "./channel-message-row";
+import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
+import { ChatMessageRow } from "./room-message-row";
 
 export function ThreadPanel({
   parentMessage,
@@ -52,10 +49,8 @@ export function ThreadPanel({
   replyValue: string;
   onReplyValueChange: Dispatch<SetStateAction<string>>;
   replyMentionedCoworkerIdsChange: (selectedKeys: string[]) => void;
-  replyAttachments: ChannelComposerAttachment[];
-  onReplyAttachmentsChange: Dispatch<
-    SetStateAction<ChannelComposerAttachment[]>
-  >;
+  replyAttachments: RoomComposerAttachment[];
+  onReplyAttachmentsChange: Dispatch<SetStateAction<RoomComposerAttachment[]>>;
   onSubmitReply: (event: FormEvent<HTMLFormElement>) => void;
   isSendingReply: boolean;
   onClose: () => void;
@@ -152,7 +147,7 @@ export function ThreadPanel({
           )}
         </div>
       </ScrollArea>
-      <ChannelComposer
+      <RoomComposer
         value={replyValue}
         onValueChange={onReplyValueChange}
         mentions={mentionRecords}

@@ -26,17 +26,14 @@ import type {
   Member,
 } from "@/lib/clients/generated/core";
 import { getInitials } from "@/lib/utils/text";
-import {
-  ChannelComposer,
-  type ChannelComposerAttachment,
-} from "./channel-composer";
+import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
 import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
   type DirectDraftTarget,
   DirectDraftTargetList,
   filterDraftTargets,
-} from "./channel-draft-shared";
+} from "./room-draft-shared";
 
 export function DraftDirectMessage({
   members,
@@ -58,7 +55,7 @@ export function DraftDirectMessage({
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
-    ChannelComposerAttachment[]
+    RoomComposerAttachment[]
   >([]);
   const [mentionedCoworkerIds, setMentionedCoworkerIds] = useState<string[]>(
     [],
@@ -187,8 +184,8 @@ export function DraftDirectMessage({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
-      notifyOrganizationChatRoomsChanged(result.data.channel);
-      router.replace(`/chat/rooms/${result.data.channel.id}`);
+      notifyOrganizationChatRoomsChanged(result.data.room);
+      router.replace(`/chat/rooms/${result.data.room.id}`);
     });
   }
 
@@ -296,7 +293,7 @@ export function DraftDirectMessage({
         </div>
       </ScrollArea>
 
-      <ChannelComposer
+      <RoomComposer
         value={composerValue}
         onValueChange={setComposerValue}
         mentions={selectedCoworkerParticipants}

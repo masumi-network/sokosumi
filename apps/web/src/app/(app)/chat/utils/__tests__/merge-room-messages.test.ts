@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
-  mergeChannelMessages,
   mergeMessagesWithStreamOverlay,
-} from "../merge-channel-messages";
+  mergeRoomMessages,
+} from "../merge-room-messages";
 
 function message(id: string, createdAt: string, content = id): ChatRoomMessage {
   return {
@@ -53,7 +53,7 @@ function coworkerMessage(
   };
 }
 
-describe("mergeChannelMessages", () => {
+describe("mergeRoomMessages", () => {
   it("keeps older loaded history when refreshing the latest page", () => {
     const older = message("m1", "2026-07-01T10:00:00.000Z");
     const mid = message("m2", "2026-07-01T11:00:00.000Z");
@@ -65,7 +65,7 @@ describe("mergeChannelMessages", () => {
     );
     const newer = message("m4", "2026-07-01T13:00:00.000Z");
 
-    const merged = mergeChannelMessages(
+    const merged = mergeRoomMessages(
       [older, mid, latest],
       [refreshedLatest, newer],
     );
@@ -79,7 +79,7 @@ describe("mergeChannelMessages", () => {
     const mid = message("m2", "2026-07-01T11:00:00.000Z");
     const latest = message("m3", "2026-07-01T12:00:00.000Z");
 
-    const merged = mergeChannelMessages([mid, latest], [older, mid]);
+    const merged = mergeRoomMessages([mid, latest], [older, mid]);
 
     expect(merged.map((row) => row.id)).toEqual(["m1", "m2", "m3"]);
   });
@@ -98,7 +98,7 @@ describe("mergeChannelMessages", () => {
     );
 
     // Assistant id sorts before user id lexicographically — must not win.
-    const merged = mergeChannelMessages([], [streamCoworker, streamUser]);
+    const merged = mergeRoomMessages([], [streamCoworker, streamUser]);
 
     expect(merged.map((row) => row.id)).toEqual([
       "stream:zzz-user",

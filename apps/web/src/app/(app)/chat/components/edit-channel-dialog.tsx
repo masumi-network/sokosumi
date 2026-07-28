@@ -11,7 +11,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { updateChannelAction } from "@/app/chat/actions";
+import { updateRoomAction } from "@/app/chat/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,8 +31,8 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
-import { AiCoworkerIcon } from "./channel-draft-shared";
-import { toggleId } from "./channel-helpers";
+import { AiCoworkerIcon } from "./room-draft-shared";
+import { toggleId } from "./room-helpers";
 
 function ParticipantCheckboxes({
   members,
@@ -255,7 +255,7 @@ export function EditChannelDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     startTransition(async () => {
-      const result = await updateChannelAction(channel.id, {
+      const result = await updateRoomAction(channel.id, {
         name,
         topic,
         memberUserIds: memberIds,

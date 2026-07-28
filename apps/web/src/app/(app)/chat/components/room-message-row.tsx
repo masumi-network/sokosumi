@@ -25,12 +25,12 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
-import { AiCoworkerIcon } from "./channel-draft-shared";
+import { AiCoworkerIcon } from "./room-draft-shared";
 import {
-  formatChannelMarkdownMentions,
   formatMessageTime,
+  formatRoomMarkdownMentions,
   messageSender,
-} from "./channel-helpers";
+} from "./room-helpers";
 
 function ChannelMarkdownSegment({
   content,
@@ -47,7 +47,7 @@ function ChannelMarkdownSegment({
 
   return (
     <Markdown className="prose-p:my-0 prose-p:leading-7 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
-      {formatChannelMarkdownMentions({
+      {formatRoomMarkdownMentions({
         content,
         coworkersById,
         coworkersBySlug,

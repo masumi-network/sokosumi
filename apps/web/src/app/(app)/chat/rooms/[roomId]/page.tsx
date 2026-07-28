@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ChannelsClient } from "@/app/chat/components/channels-client";
+import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
@@ -62,19 +62,19 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
 
   // Personal workspace: coworker 1:1 directs may have null organizationId.
   if (!activeOrganization) {
-    const [selectedChannel, coworkers, messagePage] = await Promise.all([
+    const [selectedRoom, coworkers, messagePage] = await Promise.all([
       chatRoomService.getRoom(roomId),
       coworkerService.listCoworkers("chat"),
       loadRoomMessages(roomId),
     ]);
 
-    if (!selectedChannel) {
+    if (!selectedRoom) {
       redirect("/chat?notice=room-unavailable");
     }
 
     if (
-      selectedChannel.organizationId !== null ||
-      selectedChannel.kind !== "direct"
+      selectedRoom.organizationId !== null ||
+      selectedRoom.kind !== "direct"
     ) {
       return (
         <NoOrganizationCard
@@ -85,13 +85,13 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     }
 
     return (
-      <ChannelsClient
+      <RoomsClient
         activeOrganization={null}
-        channels={[selectedChannel]}
+        rooms={[selectedRoom]}
         organizationMembers={[]}
         currentUserId={currentUserId}
         coworkers={coworkers}
-        selectedChannelId={selectedChannel.id}
+        selectedRoomId={selectedRoom.id}
         isCreateChannelRequested={false}
         isNewDirectMessage={false}
         messageLoadFailed={messagePage.failed}
@@ -101,7 +101,7 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     );
   }
 
-  const [selectedChannel, organizationMembers, coworkers, messagePage] =
+  const [selectedRoom, organizationMembers, coworkers, messagePage] =
     await Promise.all([
       chatRoomService.getRoom(roomId),
       userService.getOrganizationMembers(activeOrganization.id),
@@ -109,18 +109,18 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
       loadRoomMessages(roomId),
     ]);
 
-  if (!selectedChannel) {
+  if (!selectedRoom) {
     redirect("/chat?notice=room-unavailable");
   }
 
   return (
-    <ChannelsClient
+    <RoomsClient
       activeOrganization={activeOrganization}
-      channels={[selectedChannel]}
+      rooms={[selectedRoom]}
       organizationMembers={organizationMembers}
       currentUserId={currentUserId}
       coworkers={coworkers}
-      selectedChannelId={selectedChannel.id}
+      selectedRoomId={selectedRoom.id}
       isCreateChannelRequested={false}
       isNewDirectMessage={false}
       messageLoadFailed={messagePage.failed}

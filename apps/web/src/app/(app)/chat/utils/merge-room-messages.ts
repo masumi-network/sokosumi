@@ -1,10 +1,10 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /**
- * Merge channel message pages by id. Incoming rows win (fresh reactions /
+ * Merge room message pages by id. Incoming rows win (fresh reactions /
  * mention status). Result is sorted oldest → newest for reading order.
  */
-export function mergeChannelMessages(
+export function mergeRoomMessages(
   existing: readonly ChatRoomMessage[],
   incoming: readonly ChatRoomMessage[],
 ): ChatRoomMessage[] {

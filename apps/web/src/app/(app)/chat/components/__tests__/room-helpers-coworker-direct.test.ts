@@ -3,7 +3,7 @@ import {
   isCoworkerOnlyDirectRoom,
   shouldShowChatRoomThreadButton,
   shouldUseCoworkerRoomStream,
-} from "../channel-helpers";
+} from "../room-helpers";
 
 const coworkerOnlyDirect = {
   kind: "direct",
@@ -74,7 +74,7 @@ describe("isCoworkerOnlyDirectRoom", () => {
   });
 });
 
-describe("coworker DM cutover gating (channels-client wiring)", () => {
+describe("coworker DM cutover gating (rooms-client wiring)", () => {
   it("routes coworker-only direct composer to room stream (not message POST)", () => {
     expect(shouldUseCoworkerRoomStream(coworkerOnlyDirect)).toBe(true);
     expect(shouldUseCoworkerRoomStream(humanChannel)).toBe(false);

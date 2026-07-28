@@ -8,7 +8,7 @@ export const ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT =
  * full layout RSC including paginated `listRooms`).
  */
 export function notifyOrganizationChatRoomsChanged(
-  channel?: ChatRoom | null,
+  room?: ChatRoom | null,
 ): void {
   if (typeof window === "undefined") {
     return;
@@ -16,7 +16,7 @@ export function notifyOrganizationChatRoomsChanged(
 
   window.dispatchEvent(
     new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
-      detail: channel ? { channel } : {},
+      detail: room ? { room } : {},
     }),
   );
 }

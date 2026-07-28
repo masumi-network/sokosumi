@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeMessagesWithStreamOverlay } from "@/app/chat/utils/merge-channel-messages";
+import { mergeMessagesWithStreamOverlay } from "@/app/chat/utils/merge-room-messages";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {

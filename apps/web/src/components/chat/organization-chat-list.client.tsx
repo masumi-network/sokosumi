@@ -24,12 +24,12 @@ import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
-import { listOrganizationChatChannelsAction } from "./organization-chat-list.actions";
+import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
 interface OrganizationChatListProps {
-  channels: ChatRoom[];
+  rooms: ChatRoom[];
   currentUserId: string;
   hasOrganization: boolean;
 }
@@ -42,10 +42,10 @@ interface DirectParticipant {
 }
 
 function getDirectParticipants(
-  channel: ChatRoom,
+  room: ChatRoom,
   currentUserId: string,
 ): DirectParticipant[] {
-  const humans = channel.userMembers
+  const humans = room.userMembers
     .filter((member) => member.id !== currentUserId)
     .map((member) => ({
       id: member.id,
@@ -54,7 +54,7 @@ function getDirectParticipants(
       presence: member.presence,
     }));
 
-  const coworkers = channel.coworkerMembers.map((coworker) => ({
+  const coworkers = room.coworkerMembers.map((coworker) => ({
     id: coworker.id,
     name: coworker.name,
     image: coworker.image,
@@ -70,24 +70,24 @@ const DIRECT_NAME_PREVIEW_LIMIT = 3;
  * Single source of truth for direct-channel titles: the sidebar and the
  * channels pane must never label the same conversation differently.
  */
-export function getDirectChannelDisplayName(
-  channel: ChatRoom,
+export function getDirectRoomDisplayName(
+  room: ChatRoom,
   currentUserId: string,
 ): string {
-  if (channel.kind !== "direct") {
-    return channel.name;
+  if (room.kind !== "direct") {
+    return room.name;
   }
 
   const names = [
-    ...channel.userMembers
+    ...room.userMembers
       .filter((member) => member.id !== currentUserId)
       .map((member) => member.name || member.email),
-    ...channel.coworkerMembers.map((coworker) => coworker.name),
+    ...room.coworkerMembers.map((coworker) => coworker.name),
   ];
 
   if (names.length === 0) {
-    const self = channel.userMembers[0] ?? null;
-    return self?.name || channel.name;
+    const self = room.userMembers[0] ?? null;
+    return self?.name || room.name;
   }
 
   if (names.length <= DIRECT_NAME_PREVIEW_LIMIT) {
@@ -114,17 +114,14 @@ function presenceLabel(
 }
 
 function DirectAvatarStack({
-  channel,
+  room,
   currentUserId,
 }: {
-  channel: ChatRoom;
+  room: ChatRoom;
   currentUserId: string;
 }) {
   const t = useTranslations("App.Channels");
-  const participants = getDirectParticipants(channel, currentUserId).slice(
-    0,
-    3,
-  );
+  const participants = getDirectParticipants(room, currentUserId).slice(0, 3);
 
   if (participants.length === 0) {
     return (
@@ -230,71 +227,65 @@ function getActiveRoomIdFromPathname(pathname: string | null): string | null {
 }
 
 export function OrganizationChatList({
-  channels,
+  rooms,
   currentUserId,
   hasOrganization,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const pathname = usePathname();
-  const [channelRows, setChannelRows] = useState(channels);
-  const [channelsOpen, setChannelsOpen] = useState(true);
+  const [roomRows, setRoomRows] = useState(rooms);
+  const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [directOpen, setDirectOpen] = useState(true);
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
 
   useEffect(() => {
-    setChannelRows(channels);
-  }, [channels]);
+    setRoomRows(rooms);
+  }, [rooms]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const refreshChannels = async () => {
-      const result = await listOrganizationChatChannelsAction();
+    const refreshRooms = async () => {
+      const result = await listOrganizationChatRoomsAction();
       if (!cancelled && result.ok) {
-        setChannelRows(result.data);
+        setRoomRows(result.data);
       }
     };
 
     const intervalId = window.setInterval(
-      refreshChannels,
+      refreshRooms,
       ORGANIZATION_CHAT_POLL_MS,
     );
-    window.addEventListener("focus", refreshChannels);
+    window.addEventListener("focus", refreshRooms);
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshChannels);
+      window.removeEventListener("focus", refreshRooms);
     };
   }, []);
 
   useEffect(() => {
-    const handleChannelRead = (event: Event) => {
+    const handleRoomRead = (event: Event) => {
       const detail = (
-        event as CustomEvent<{ channel?: ChatRoom; channelId?: string }>
+        event as CustomEvent<{ room?: ChatRoom; roomId?: string }>
       ).detail;
-      if (!detail?.channelId) {
+      if (!detail?.roomId) {
         return;
       }
 
-      setChannelRows((current) =>
-        current.map((channel) =>
-          channel.id === detail.channelId
-            ? (detail.channel ?? { ...channel, unreadCount: 0 })
-            : channel,
+      setRoomRows((current) =>
+        current.map((room) =>
+          room.id === detail.roomId
+            ? (detail.room ?? { ...room, unreadCount: 0 })
+            : room,
         ),
       );
     };
 
-    window.addEventListener(
-      "organization-chat-channel-read",
-      handleChannelRead,
-    );
+    window.addEventListener("organization-chat-room-read", handleRoomRead);
     return () => {
-      window.removeEventListener(
-        "organization-chat-channel-read",
-        handleChannelRead,
-      );
+      window.removeEventListener("organization-chat-room-read", handleRoomRead);
     };
   }, []);
 
@@ -302,19 +293,19 @@ export function OrganizationChatList({
     let cancelled = false;
 
     const handleRoomsChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ channel?: ChatRoom }>).detail;
-      const channel = detail?.channel;
-      if (channel) {
-        setChannelRows((current) => {
-          const without = current.filter((row) => row.id !== channel.id);
-          return [channel, ...without];
+      const detail = (event as CustomEvent<{ room?: ChatRoom }>).detail;
+      const room = detail?.room;
+      if (room) {
+        setRoomRows((current) => {
+          const without = current.filter((row) => row.id !== room.id);
+          return [room, ...without];
         });
         return;
       }
 
-      void listOrganizationChatChannelsAction().then((result) => {
+      void listOrganizationChatRoomsAction().then((result) => {
         if (!cancelled && result.ok) {
-          setChannelRows(result.data);
+          setRoomRows(result.data);
         }
       });
     };
@@ -332,23 +323,23 @@ export function OrganizationChatList({
     };
   }, []);
 
-  const { directMessages, publicChannels } = useMemo(() => {
+  const { directMessages, namedChannels } = useMemo(() => {
     const directMessages: ChatRoom[] = [];
-    const publicChannels: ChatRoom[] = [];
+    const namedChannels: ChatRoom[] = [];
 
-    for (const channel of channelRows) {
-      if (channel.kind === "channel") {
-        publicChannels.push(channel);
+    for (const room of roomRows) {
+      if (room.kind === "channel") {
+        namedChannels.push(room);
         continue;
       }
 
-      if (channel.kind === "direct") {
-        directMessages.push(channel);
+      if (room.kind === "direct") {
+        directMessages.push(room);
       }
     }
 
     // Channels: A–Z. DMs: most recent activity first (`updatedAt` bumps on send).
-    publicChannels.sort((a, b) =>
+    namedChannels.sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
     );
     directMessages.sort((a, b) => {
@@ -360,39 +351,40 @@ export function OrganizationChatList({
       return a.id.localeCompare(b.id);
     });
 
-    return { directMessages, publicChannels };
-  }, [channelRows]);
+    return { directMessages, namedChannels };
+  }, [roomRows]);
 
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent className="space-y-2">
-        <Collapsible open={channelsOpen} onOpenChange={setChannelsOpen}>
+        <Collapsible
+          open={channelSectionOpen}
+          onOpenChange={setChannelSectionOpen}
+        >
           <SectionHeader
             href={hasOrganization ? "/chat?create=channel" : undefined}
-            isOpen={channelsOpen}
+            isOpen={channelSectionOpen}
             label={t("createChannel")}
           >
             {t("title")}
           </SectionHeader>
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
-              {publicChannels.map((channel) => {
-                const isActive = activeRoomId === channel.id;
-                const unreadCount = isActive ? 0 : channel.unreadCount;
+              {namedChannels.map((room) => {
+                const isActive = activeRoomId === room.id;
+                const unreadCount = isActive ? 0 : room.unreadCount;
 
                 return (
-                  <SidebarMenuItem key={channel.id}>
+                  <SidebarMenuItem key={room.id}>
                     <SidebarMenuButton asChild isActive={isActive}>
                       <SheetClose asChild>
                         <Link
                           aria-current={isActive ? "page" : undefined}
                           className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/chat/rooms/${channel.id}`}
+                          href={`/chat/rooms/${room.id}`}
                         >
                           <Hash className="size-4 shrink-0" aria-hidden />
-                          <span className="flex-1 truncate">
-                            {channel.name}
-                          </span>
+                          <span className="flex-1 truncate">{room.name}</span>
                           <UnreadBadge count={unreadCount} />
                         </Link>
                       </SheetClose>
@@ -400,7 +392,7 @@ export function OrganizationChatList({
                   </SidebarMenuItem>
                 );
               })}
-              {publicChannels.length === 0 ? (
+              {namedChannels.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
                     {hasOrganization
@@ -416,9 +408,9 @@ export function OrganizationChatList({
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
             Sidebar rows = messaged history only. `+` opens Start New DM
-            (`/chat?dm=new`): org members + coworkers (+ group). Personal
-            workspace soft-gates channels but still mounts the same draft with
-            empty members (coworkers only).
+            (`/chat?dm=new`): org members + coworkers (1:1 only). Personal
+            workspace soft-gates named channels but still mounts the same draft
+            with empty members (coworkers only).
           */}
           <SectionHeader
             href="/chat?dm=new"
@@ -429,24 +421,21 @@ export function OrganizationChatList({
           </SectionHeader>
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
-              {directMessages.map((channel) => {
-                const isActive = activeRoomId === channel.id;
-                const label = getDirectChannelDisplayName(
-                  channel,
-                  currentUserId,
-                );
-                const unreadCount = isActive ? 0 : channel.unreadCount;
+              {directMessages.map((room) => {
+                const isActive = activeRoomId === room.id;
+                const label = getDirectRoomDisplayName(room, currentUserId);
+                const unreadCount = isActive ? 0 : room.unreadCount;
                 return (
-                  <SidebarMenuItem key={channel.id}>
+                  <SidebarMenuItem key={room.id}>
                     <SidebarMenuButton asChild isActive={isActive}>
                       <SheetClose asChild>
                         <Link
                           aria-current={isActive ? "page" : undefined}
                           className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/chat/rooms/${channel.id}`}
+                          href={`/chat/rooms/${room.id}`}
                         >
                           <DirectAvatarStack
-                            channel={channel}
+                            room={room}
                             currentUserId={currentUserId}
                           />
                           <span className="min-w-0 flex-1 truncate">

@@ -20,8 +20,8 @@ export async function loadRoomMessages(roomId: string | null): Promise<{
     };
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
-      console.error("Failed to load channel messages", {
-        channelId: roomId,
+      console.error("Failed to load room messages", {
+        roomId,
         status: error.status,
         kind: error.kind,
       });

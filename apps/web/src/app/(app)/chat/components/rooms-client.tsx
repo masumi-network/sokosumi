@@ -14,20 +14,20 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
-  listChannelMessagesAction,
+  listRoomMessagesAction,
   listThreadMessagesAction,
-  sendChannelMessageAction,
+  sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { useCoworkerDirectRoomStream } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
-  mergeChannelMessages,
   mergeMessagesWithStreamOverlay,
-} from "@/app/chat/utils/merge-channel-messages";
+  mergeRoomMessages,
+} from "@/app/chat/utils/merge-room-messages";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
-import { markOrganizationChatChannelReadAction } from "@/components/chat/organization-chat-list.actions";
+import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -44,35 +44,32 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
-import {
-  ChannelComposer,
-  type ChannelComposerAttachment,
-} from "./channel-composer";
+import { DraftChannel } from "./draft-channel";
+import { DraftDirectMessage } from "./draft-direct-message";
+import { EditChannelDialog } from "./edit-channel-dialog";
+import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
 import {
   appendMessage,
-  getChannelDisplayName,
-  getChannelParticipantPreviews,
+  getRoomDisplayName,
+  getRoomParticipantPreviews,
   hasPendingCoworkerMention,
   messageDayKey,
   presenceLabel,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
   shouldUseCoworkerRoomStream,
-} from "./channel-helpers";
-import { ChatMessageRow } from "./channel-message-row";
-import { DraftChannel } from "./draft-channel";
-import { DraftDirectMessage } from "./draft-direct-message";
-import { EditChannelDialog } from "./edit-channel-dialog";
+} from "./room-helpers";
+import { ChatMessageRow } from "./room-message-row";
 import { ThreadPanel } from "./thread-panel";
 
-interface ChannelsClientProps {
+interface RoomsClientProps {
   /** Null in personal workspace when mounting Start New DM only. */
   activeOrganization: Organization | null;
-  channels: ChatRoom[];
+  rooms: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
   coworkers: Coworker[];
-  selectedChannelId: string | null;
+  selectedRoomId: string | null;
   isCreateChannelRequested: boolean;
   isNewDirectMessage: boolean;
   messageLoadFailed: boolean;
@@ -84,12 +81,12 @@ interface ChannelsClientProps {
 const COWORKER_RESPONSE_POLL_MS = 2500;
 /** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
 const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
-/** Match sidebar channel-list cadence for peer traffic while a channel is open. */
-const CHANNEL_LIVE_POLL_MS = 15_000;
+/** Match sidebar channel-list cadence for peer traffic while a room is open. */
+const ROOM_LIVE_POLL_MS = 15_000;
 
-function ChannelParticipantStack({ channel }: { channel: ChatRoom }) {
+function RoomParticipantStack({ room }: { room: ChatRoom }) {
   const t = useTranslations("App.Channels");
-  const participants = getChannelParticipantPreviews(channel);
+  const participants = getRoomParticipantPreviews(room);
   const visibleParticipants = participants.slice(0, 4);
   const remainingCount = participants.length - visibleParticipants.length;
 
@@ -142,25 +139,25 @@ function ChannelParticipantStack({ channel }: { channel: ChatRoom }) {
   );
 }
 
-export function ChannelsClient({
+export function RoomsClient({
   activeOrganization,
-  channels,
+  rooms,
   organizationMembers,
   currentUserId,
   coworkers,
-  selectedChannelId,
+  selectedRoomId,
   isCreateChannelRequested,
   isNewDirectMessage,
   messageLoadFailed,
   messages,
   messagesNextCursor,
-}: ChannelsClientProps) {
+}: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const router = useRouter();
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
-    ChannelComposerAttachment[]
+    RoomComposerAttachment[]
   >([]);
   const [mentionedCoworkerIds, setMentionedCoworkerIds] = useState<string[]>(
     [],
@@ -178,14 +175,14 @@ export function ChannelsClient({
   >(null);
   const [threadComposerValue, setThreadComposerValue] = useState("");
   const [threadComposerAttachments, setThreadComposerAttachments] = useState<
-    ChannelComposerAttachment[]
+    RoomComposerAttachment[]
   >([]);
   const [threadMentionedCoworkerIds, setThreadMentionedCoworkerIds] = useState<
     string[]
   >([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const readMarkerRef = useRef<string | null>(null);
-  const syncedChannelIdRef = useRef<string | null>(null);
+  const syncedRoomIdRef = useRef<string | null>(null);
   const [isSending, startSendingTransition] = useTransition();
   const [isThreadLoading, startThreadLoadingTransition] = useTransition();
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
@@ -195,26 +192,26 @@ export function ChannelsClient({
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
-  const selectedChannel = isNewDirectMessage
+  const selectedRoom = isNewDirectMessage
     ? null
-    : (channels.find((channel) => channel.id === selectedChannelId) ?? null);
-  const selectedChannelDisplayName = selectedChannel
-    ? getChannelDisplayName(selectedChannel, currentUserId)
+    : (rooms.find((room) => room.id === selectedRoomId) ?? null);
+  const selectedRoomDisplayName = selectedRoom
+    ? getRoomDisplayName(selectedRoom, currentUserId)
     : "";
-  const isDirectChannel = selectedChannel?.kind === "direct";
-  const isCoworkerStreamRoom = selectedChannel
-    ? shouldUseCoworkerRoomStream(selectedChannel)
+  const isDirectRoom = selectedRoom?.kind === "direct";
+  const isCoworkerStreamRoom = selectedRoom
+    ? shouldUseCoworkerRoomStream(selectedRoom)
     : false;
 
   const refreshRoomMessagesAfterStream = useCallback(
     async (roomId: string): Promise<boolean> => {
-      const result = await listChannelMessagesAction(roomId);
+      const result = await listRoomMessagesAction(roomId);
       if (!result.ok) {
         toast.error(result.message);
         return false;
       }
       setMessagesState((current) =>
-        mergeChannelMessages(current, result.data.messages),
+        mergeRoomMessages(current, result.data.messages),
       );
       return true;
     },
@@ -227,7 +224,7 @@ export function ChannelsClient({
     sendStreamMessage,
     consumePendingStreamMessage,
   } = useCoworkerDirectRoomStream({
-    room: selectedChannel,
+    room: selectedRoom,
     enabled: isCoworkerStreamRoom,
     currentUserId,
     organizationSlug: activeOrganization?.slug ?? null,
@@ -242,15 +239,15 @@ export function ChannelsClient({
   // Keep sessionStorage until stream actually starts so Strict Mode remount
   // cannot lose the draft before send begins.
   useEffect(() => {
-    if (!isCoworkerStreamRoom || !selectedChannelId) {
+    if (!isCoworkerStreamRoom || !selectedRoomId) {
       return;
     }
-    const pending = peekPendingRoomMessage(selectedChannelId);
+    const pending = peekPendingRoomMessage(selectedRoomId);
     if (!pending) {
       return;
     }
     consumePendingStreamMessage(pending);
-  }, [isCoworkerStreamRoom, selectedChannelId, consumePendingStreamMessage]);
+  }, [isCoworkerStreamRoom, selectedRoomId, consumePendingStreamMessage]);
 
   // Pending draft stays in sessionStorage until stream settles successfully
   // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
@@ -258,17 +255,17 @@ export function ChannelsClient({
 
   const breadcrumbOverride = useMemo(
     () => ({
-      pathname: selectedChannel ? `/chat/rooms/${selectedChannel.id}` : "/chat",
+      pathname: selectedRoom ? `/chat/rooms/${selectedRoom.id}` : "/chat",
       segments: [
         {
           label: tBreadcrumb("chat"),
           href: "/chat",
         },
-        ...(selectedChannel
+        ...(selectedRoom
           ? [
               {
-                label: selectedChannelDisplayName,
-                href: `/chat/rooms/${selectedChannel.id}`,
+                label: selectedRoomDisplayName,
+                href: `/chat/rooms/${selectedRoom.id}`,
               },
             ]
           : isCreateChannelRequested
@@ -289,8 +286,8 @@ export function ChannelsClient({
       ],
     }),
     [
-      selectedChannel,
-      selectedChannelDisplayName,
+      selectedRoom,
+      selectedRoomDisplayName,
       isCreateChannelRequested,
       isNewDirectMessage,
       t,
@@ -300,25 +297,25 @@ export function ChannelsClient({
   useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
     return new Map(
-      (selectedChannel?.coworkerMembers ?? []).map((coworker) => [
+      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
         coworker.id,
         coworker,
       ]),
     );
-  }, [selectedChannel]);
+  }, [selectedRoom]);
   const coworkersBySlug = useMemo(() => {
     return new Map(
-      (selectedChannel?.coworkerMembers ?? []).map((coworker) => [
+      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
         coworker.slug,
         coworker,
       ]),
     );
-  }, [selectedChannel]);
+  }, [selectedRoom]);
   const mentionRecords = useMemo<
     Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
   >(() => {
     return Object.fromEntries(
-      (selectedChannel?.coworkerMembers ?? []).map((coworker) => [
+      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
         coworker.id,
         {
           value: coworker.name,
@@ -327,26 +324,26 @@ export function ChannelsClient({
         },
       ]),
     );
-  }, [selectedChannel]);
+  }, [selectedRoom]);
 
   useEffect(() => {
-    const isChannelSwitch = syncedChannelIdRef.current !== selectedChannelId;
-    syncedChannelIdRef.current = selectedChannelId;
+    const isChannelSwitch = syncedRoomIdRef.current !== selectedRoomId;
+    syncedRoomIdRef.current = selectedRoomId;
 
-    // Channel switch: replace. Same channel RSC refresh (e.g. revalidatePath):
+    // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
     // merge so client-loaded older pages are not wiped by the latest page.
     if (isChannelSwitch) {
       setMessagesState(messages);
       setOlderNextCursor(messagesNextCursor);
     } else {
-      setMessagesState((current) => mergeChannelMessages(current, messages));
+      setMessagesState((current) => mergeRoomMessages(current, messages));
     }
     setThreadParentMessage((current) =>
       current
         ? (messages.find((message) => message.id === current.id) ?? current)
         : current,
     );
-  }, [messages, messagesNextCursor, selectedChannelId]);
+  }, [messages, messagesNextCursor, selectedRoomId]);
 
   useEffect(() => {
     setComposerValue("");
@@ -357,50 +354,48 @@ export function ChannelsClient({
     setThreadComposerValue("");
     setThreadComposerAttachments([]);
     setThreadMentionedCoworkerIds([]);
-  }, [selectedChannelId, isNewDirectMessage, isCreateChannelRequested]);
+  }, [selectedRoomId, isNewDirectMessage, isCreateChannelRequested]);
 
-  // Scroll on channel switch or when the newest message changes — not when
+  // Scroll on room switch or when the newest message changes — not when
   // an older page is prepended (length grows, last id stays the same).
   const latestMessageId = displayMessages.at(-1)?.id ?? null;
   const latestStreamContent = streamOverlayMessages.at(-1)?.content ?? "";
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [latestMessageId, latestStreamContent, selectedChannelId]);
+  }, [latestMessageId, latestStreamContent, selectedRoomId]);
 
   const latestVisibleMessageId = displayMessages.at(-1)?.id ?? "empty";
-  const selectedChannelReadId = selectedChannel?.id ?? null;
+  const selectedRoomReadId = selectedRoom?.id ?? null;
 
   useEffect(() => {
-    if (!selectedChannelReadId) {
+    if (!selectedRoomReadId) {
       return;
     }
 
-    const marker = `${selectedChannelReadId}:${latestVisibleMessageId}`;
+    const marker = `${selectedRoomReadId}:${latestVisibleMessageId}`;
     if (readMarkerRef.current === marker) {
       return;
     }
     readMarkerRef.current = marker;
 
     let cancelled = false;
-    markOrganizationChatChannelReadAction(selectedChannelReadId).then(
-      (result) => {
-        if (cancelled || !result.ok) {
-          return;
-        }
-        window.dispatchEvent(
-          new CustomEvent("organization-chat-channel-read", {
-            detail: { channel: result.data, channelId: selectedChannelReadId },
-          }),
-        );
-      },
-    );
+    markOrganizationChatRoomReadAction(selectedRoomReadId).then((result) => {
+      if (cancelled || !result.ok) {
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent("organization-chat-room-read", {
+          detail: { room: result.data, roomId: selectedRoomReadId },
+        }),
+      );
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [latestVisibleMessageId, selectedChannelReadId]);
+  }, [latestVisibleMessageId, selectedRoomReadId]);
 
-  const hasPendingChannelCoworkerMention = useMemo(
+  const hasPendingRoomCoworkerMention = useMemo(
     () => hasPendingCoworkerMention(messagesState),
     [messagesState],
   );
@@ -410,11 +405,11 @@ export function ChannelsClient({
   );
 
   useEffect(() => {
-    if (!selectedChannel || !hasPendingChannelCoworkerMention) {
+    if (!selectedRoom || !hasPendingRoomCoworkerMention) {
       return;
     }
 
-    const channelId = selectedChannel.id;
+    const roomId = selectedRoom.id;
     let cancelled = false;
     let timeoutId: number | undefined;
 
@@ -432,13 +427,13 @@ export function ChannelsClient({
         return;
       }
       attempts += 1;
-      const result = await listChannelMessagesAction(channelId);
+      const result = await listRoomMessagesAction(roomId);
       if (cancelled) {
         return;
       }
       if (result.ok) {
         setMessagesState((current) =>
-          mergeChannelMessages(current, result.data.messages),
+          mergeRoomMessages(current, result.data.messages),
         );
         setThreadParentMessage((current) =>
           current
@@ -467,18 +462,18 @@ export function ChannelsClient({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [selectedChannel?.id, hasPendingChannelCoworkerMention]);
+  }, [selectedRoom?.id, hasPendingRoomCoworkerMention]);
 
-  // Peer traffic while the channel stays open: light poll + focus/visibility
+  // Peer traffic while the room stays open: light poll + focus/visibility
   // refetch. Merges into local state so previously loaded older pages survive.
   // Skip ticks while a coworker DM stream is in flight (avoids duplicate overlay).
   useEffect(() => {
-    if (!selectedChannel) {
+    if (!selectedRoom) {
       return;
     }
 
-    const channelId = selectedChannel.id;
-    const skipWhileStreaming = shouldUseCoworkerRoomStream(selectedChannel);
+    const roomId = selectedRoom.id;
+    const skipWhileStreaming = shouldUseCoworkerRoomStream(selectedRoom);
     let cancelled = false;
 
     const refreshLatest = async () => {
@@ -488,12 +483,12 @@ export function ChannelsClient({
       if (skipWhileStreaming && isCoworkerStreaming) {
         return;
       }
-      const result = await listChannelMessagesAction(channelId);
+      const result = await listRoomMessagesAction(roomId);
       if (cancelled || !result.ok) {
         return;
       }
       setMessagesState((current) =>
-        mergeChannelMessages(current, result.data.messages),
+        mergeRoomMessages(current, result.data.messages),
       );
       setThreadParentMessage((current) =>
         current
@@ -504,7 +499,7 @@ export function ChannelsClient({
       );
     };
 
-    const intervalId = window.setInterval(refreshLatest, CHANNEL_LIVE_POLL_MS);
+    const intervalId = window.setInterval(refreshLatest, ROOM_LIVE_POLL_MS);
     window.addEventListener("focus", refreshLatest);
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -519,18 +514,18 @@ export function ChannelsClient({
       window.removeEventListener("focus", refreshLatest);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [selectedChannel?.id, isCoworkerStreaming]);
+  }, [selectedRoom?.id, isCoworkerStreaming]);
 
   useEffect(() => {
     if (
-      !selectedChannel ||
+      !selectedRoom ||
       !threadParentMessage ||
       !hasPendingThreadCoworkerMention
     ) {
       return;
     }
 
-    const channelId = selectedChannel.id;
+    const roomId = selectedRoom.id;
     const parentMessageId = threadParentMessage.id;
     let cancelled = false;
     let timeoutId: number | undefined;
@@ -538,7 +533,7 @@ export function ChannelsClient({
     let threadAttempts = 0;
 
     const pollThreadMessages = async () => {
-      // Same gating as the channel poll above.
+      // Same gating as the room poll above.
       if (document.visibilityState !== "visible") {
         timeoutId = window.setTimeout(
           pollThreadMessages,
@@ -550,25 +545,25 @@ export function ChannelsClient({
         return;
       }
       threadAttempts += 1;
-      const [threadResult, channelResult] = await Promise.all([
-        listThreadMessagesAction(channelId, parentMessageId),
-        listChannelMessagesAction(channelId),
+      const [threadResult, roomResult] = await Promise.all([
+        listThreadMessagesAction(roomId, parentMessageId),
+        listRoomMessagesAction(roomId),
       ]);
       if (cancelled) {
         return;
       }
       if (threadResult.ok) {
         setThreadMessages((current) =>
-          mergeChannelMessages(current, threadResult.data.messages),
+          mergeRoomMessages(current, threadResult.data.messages),
         );
       }
-      if (channelResult.ok) {
+      if (roomResult.ok) {
         setMessagesState((current) =>
-          mergeChannelMessages(current, channelResult.data.messages),
+          mergeRoomMessages(current, roomResult.data.messages),
         );
         setThreadParentMessage((current) =>
           current
-            ? (channelResult.data.messages.find(
+            ? (roomResult.data.messages.find(
                 (message) => message.id === current.id,
               ) ?? current)
             : current,
@@ -603,7 +598,7 @@ export function ChannelsClient({
       }
     };
   }, [
-    selectedChannel?.id,
+    selectedRoom?.id,
     threadParentMessage?.id,
     hasPendingThreadCoworkerMention,
   ]);
@@ -644,13 +639,13 @@ export function ChannelsClient({
   }
 
   function loadThreadMessages(parentMessage: ChatRoomMessage) {
-    if (!selectedChannel) return;
+    if (!selectedRoom) return;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(
-        selectedChannel.id,
+        selectedRoom.id,
         parentMessage.id,
       );
       if (!result.ok) {
@@ -663,20 +658,20 @@ export function ChannelsClient({
   }
 
   function handleLoadOlderMessages() {
-    if (!selectedChannel || !olderNextCursor || isLoadingOlder) {
+    if (!selectedRoom || !olderNextCursor || isLoadingOlder) {
       return;
     }
 
-    const channelId = selectedChannel.id;
+    const roomId = selectedRoom.id;
     const cursor = olderNextCursor;
     startLoadingOlderTransition(async () => {
-      const result = await listChannelMessagesAction(channelId, { cursor });
+      const result = await listRoomMessagesAction(roomId, { cursor });
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
       setMessagesState((current) =>
-        mergeChannelMessages(current, result.data.messages),
+        mergeRoomMessages(current, result.data.messages),
       );
       setOlderNextCursor(result.data.nextCursor);
     });
@@ -684,7 +679,7 @@ export function ChannelsClient({
 
   function handleLoadOlderThreadMessages() {
     if (
-      !selectedChannel ||
+      !selectedRoom ||
       !threadParentMessage ||
       !threadOlderNextCursor ||
       isLoadingOlderThread
@@ -692,30 +687,26 @@ export function ChannelsClient({
       return;
     }
 
-    const channelId = selectedChannel.id;
+    const roomId = selectedRoom.id;
     const parentMessageId = threadParentMessage.id;
     const cursor = threadOlderNextCursor;
     startLoadingOlderThreadTransition(async () => {
-      const result = await listThreadMessagesAction(
-        channelId,
-        parentMessageId,
-        {
-          cursor,
-        },
-      );
+      const result = await listThreadMessagesAction(roomId, parentMessageId, {
+        cursor,
+      });
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
       setThreadMessages((current) =>
-        mergeChannelMessages(current, result.data.messages),
+        mergeRoomMessages(current, result.data.messages),
       );
       setThreadOlderNextCursor(result.data.nextCursor);
     });
   }
 
   function handleToggleReaction(message: ChatRoomMessage, emoji: string) {
-    if (!selectedChannel) return;
+    if (!selectedRoom) return;
     // Guard the in-flight toggle: on a slow connection nothing changed
     // visibly, so users tapped again and the second call flipped the reaction
     // straight back off.
@@ -724,7 +715,7 @@ export function ChannelsClient({
     pendingReactionsRef.current.add(pendingKey);
     startReactionTransition(async () => {
       const result = await toggleMessageReactionAction(
-        selectedChannel.id,
+        selectedRoom.id,
         message.id,
         emoji,
       );
@@ -739,11 +730,11 @@ export function ChannelsClient({
 
   function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedChannel) return;
+    if (!selectedRoom) return;
     const content = composerValue.trim();
     if (!content) return;
 
-    if (shouldUseCoworkerRoomStream(selectedChannel)) {
+    if (shouldUseCoworkerRoomStream(selectedRoom)) {
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
@@ -752,8 +743,8 @@ export function ChannelsClient({
     }
 
     startSendingTransition(async () => {
-      const result = await sendChannelMessageAction(
-        selectedChannel.id,
+      const result = await sendRoomMessageAction(
+        selectedRoom.id,
         content,
         mentionedCoworkerIds,
       );
@@ -770,15 +761,15 @@ export function ChannelsClient({
 
   function handleSendThreadReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedChannel || !threadParentMessage) return;
+    if (!selectedRoom || !threadParentMessage) return;
     // Coworker 1:1 thread AI replies: SOK-656. Hide UI for now; fail closed if opened.
-    if (shouldUseCoworkerRoomStream(selectedChannel)) return;
+    if (shouldUseCoworkerRoomStream(selectedRoom)) return;
     const content = threadComposerValue.trim();
     if (!content) return;
 
     startSendingThreadReplyTransition(async () => {
-      const result = await sendChannelMessageAction(
-        selectedChannel.id,
+      const result = await sendRoomMessageAction(
+        selectedRoom.id,
         content,
         threadMentionedCoworkerIds,
         threadParentMessage.id,
@@ -814,24 +805,24 @@ export function ChannelsClient({
               currentUserId={currentUserId}
               canCreateRoomDirect={activeOrganization != null}
             />
-          ) : selectedChannel ? (
+          ) : selectedRoom ? (
             <>
               <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
                 <div className="flex min-w-0 items-center gap-2">
-                  {isDirectChannel ? (
+                  {isDirectRoom ? (
                     <MessageCircle className="text-muted-foreground size-4 shrink-0" />
                   ) : (
                     <Hash className="text-muted-foreground size-4 shrink-0" />
                   )}
                   <p className="text-muted-foreground truncate text-sm">
-                    {selectedChannelDisplayName}
+                    {selectedRoomDisplayName}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <ChannelParticipantStack channel={selectedChannel} />
-                  {isDirectChannel ? null : (
+                  <RoomParticipantStack room={selectedRoom} />
+                  {isDirectRoom ? null : (
                     <EditChannelDialog
-                      channel={selectedChannel}
+                      channel={selectedRoom}
                       members={organizationMembers}
                       coworkers={coworkers}
                     />
@@ -902,7 +893,7 @@ export function ChannelsClient({
                           onToggleReaction={handleToggleReaction}
                           onOpenThread={
                             shouldShowChatRoomThreadButton({
-                              room: selectedChannel,
+                              room: selectedRoom,
                               isStreamOverlay,
                             })
                               ? loadThreadMessages
@@ -910,7 +901,7 @@ export function ChannelsClient({
                           }
                           // Coworker 1:1: stream owns replies; threads deferred (SOK-656).
                           showThreadButton={shouldShowChatRoomThreadButton({
-                            room: selectedChannel,
+                            room: selectedRoom,
                             isStreamOverlay,
                           })}
                         />
@@ -921,18 +912,18 @@ export function ChannelsClient({
                 </div>
               </ScrollArea>
 
-              <ChannelComposer
+              <RoomComposer
                 value={composerValue}
                 onValueChange={setComposerValue}
                 mentions={mentionRecords}
                 onSelectedKeysChange={setMentionedCoworkerIds}
                 placeholder={
-                  isDirectChannel
+                  isDirectRoom
                     ? t("directComposerPlaceholder", {
-                        member: selectedChannelDisplayName,
+                        member: selectedRoomDisplayName,
                       })
                     : t("composerPlaceholderWithChannel", {
-                        channel: selectedChannelDisplayName,
+                        channel: selectedRoomDisplayName,
                       })
                 }
                 attachments={composerAttachments}
@@ -941,7 +932,7 @@ export function ChannelsClient({
                 isSending={isSending || isCoworkerStreaming}
                 sendDisabled={composerValue.trim().length === 0}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedChannel,
+                  selectedRoom,
                 )}
               />
             </>
@@ -968,7 +959,7 @@ export function ChannelsClient({
             </div>
           )}
         </section>
-        {selectedChannel && threadParentMessage ? (
+        {selectedRoom && threadParentMessage ? (
           <ThreadPanel
             parentMessage={threadParentMessage}
             replies={threadMessages}
@@ -992,7 +983,7 @@ export function ChannelsClient({
               setThreadOlderNextCursor(null);
             }}
             onToggleReaction={handleToggleReaction}
-            showMentionShortcut={shouldShowRoomMentionShortcut(selectedChannel)}
+            showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
           />
         ) : null}
       </main>

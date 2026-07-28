@@ -57,8 +57,8 @@ export default async function Sidebar({
     .getMyMembersWithOrganizations()
     .catch(() => []);
   // Personal coworker directs exist with no active org; Core returns those when
-  // organization context is null. Channels still need an org (empty list then).
-  const chatChannelsPromise = chatRoomService.listRooms().catch(() => []);
+  // organization context is null. Named channels still need an org (empty list then).
+  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
   const planLabelPromise = tCreditPromise.then((tCredit) =>
     resolvePlanSecondaryLabel({
       plan: planForLabel,
@@ -71,13 +71,13 @@ export default async function Sidebar({
   const [
     tPlan,
     members,
-    chatChannels,
+    chatRooms,
     { showVendors: showDeveloperVendors },
     planLabel,
   ] = await Promise.all([
     tPlanPromise,
     membersPromise,
-    chatChannelsPromise,
+    chatRoomsPromise,
     getDeveloperVendorAdminAccess(),
     planLabelPromise,
   ]);
@@ -106,7 +106,7 @@ export default async function Sidebar({
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
             <SidebarSeparator />
             <OrganizationChatList
-              channels={chatChannels}
+              rooms={chatRooms}
               currentUserId={session.user.id}
               hasOrganization={Boolean(activeOrganizationId)}
             />

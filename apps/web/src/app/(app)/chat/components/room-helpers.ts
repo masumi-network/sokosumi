@@ -15,7 +15,7 @@ export interface DirectParticipantPreview {
   kind: "human" | "coworker";
 }
 
-export interface ChannelParticipantPreview {
+export interface RoomParticipantPreview {
   id: string;
   name: string;
   image: string | null;
@@ -103,23 +103,20 @@ export function messageDayKey(value: Date | string): string {
  * the timestamps are.
  */
 
-export function getDirectChannelTarget(
-  channel: ChatRoom,
-  currentUserId: string,
-) {
+export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
   return (
-    channel.userMembers.find((member) => member.id !== currentUserId) ??
-    channel.userMembers[0] ??
+    room.userMembers.find((member) => member.id !== currentUserId) ??
+    room.userMembers[0] ??
     null
   );
 }
 
-export function getDirectChannelParticipants(
-  channel: ChatRoom,
+export function getDirectRoomParticipants(
+  room: ChatRoom,
   currentUserId: string,
 ): DirectParticipantPreview[] {
   return [
-    ...channel.userMembers
+    ...room.userMembers
       .filter((member) => member.id !== currentUserId)
       .map((member) => ({
         id: member.id,
@@ -129,7 +126,7 @@ export function getDirectChannelParticipants(
         presence: member.presence,
         kind: "human" as const,
       })),
-    ...channel.coworkerMembers.map((coworker) => ({
+    ...room.coworkerMembers.map((coworker) => ({
       id: coworker.id,
       name: coworker.name,
       detail: coworker.caption,
@@ -158,7 +155,7 @@ export function isCoworkerOnlyDirectRoom(room: {
 
 /**
  * Main composer: coworker 1:1 uses room stream; everyone else message POST.
- * channels-client must call this (not invent a second predicate).
+ * rooms-client must call this (not invent a second predicate).
  */
 export function shouldUseCoworkerRoomStream(room: {
   kind: string;
@@ -186,11 +183,11 @@ export function shouldShowChatRoomThreadButton(options: {
 }
 
 /** Direct rooms: @ only when the roster has more than two people (incl. you). */
-export function shouldShowRoomMentionShortcut(channel: ChatRoom): boolean {
-  if (channel.kind !== "direct") {
+export function shouldShowRoomMentionShortcut(room: ChatRoom): boolean {
+  if (room.kind !== "direct") {
     return true;
   }
-  return channel.userMembers.length + channel.coworkerMembers.length > 2;
+  return room.userMembers.length + room.coworkerMembers.length > 2;
 }
 
 export function formatDirectParticipantNames(
@@ -209,31 +206,31 @@ export function formatDirectParticipantNames(
   return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
 }
 
-export function getChannelDisplayName(
-  channel: ChatRoom,
+export function getRoomDisplayName(
+  room: ChatRoom,
   currentUserId: string,
 ): string {
-  if (channel.kind !== "direct") {
-    return channel.name;
+  if (room.kind !== "direct") {
+    return room.name;
   }
   return formatDirectParticipantNames(
-    getDirectChannelParticipants(channel, currentUserId),
-    getDirectChannelTarget(channel, currentUserId)?.name || channel.name,
+    getDirectRoomParticipants(room, currentUserId),
+    getDirectRoomTarget(room, currentUserId)?.name || room.name,
   );
 }
 
-export function getChannelParticipantPreviews(
-  channel: ChatRoom,
-): ChannelParticipantPreview[] {
+export function getRoomParticipantPreviews(
+  room: ChatRoom,
+): RoomParticipantPreview[] {
   return [
-    ...channel.userMembers.map((member) => ({
+    ...room.userMembers.map((member) => ({
       id: member.id,
       name: member.name || member.email,
       image: member.image,
       presence: member.presence,
       kind: "human" as const,
     })),
-    ...channel.coworkerMembers.map((coworker) => ({
+    ...room.coworkerMembers.map((coworker) => ({
       id: coworker.id,
       name: coworker.name,
       image: coworker.image,
@@ -264,7 +261,7 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export function formatChannelMarkdownMentions({
+export function formatRoomMarkdownMentions({
   content,
   coworkersById,
   coworkersBySlug,

@@ -8,7 +8,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
-import { ChannelsClient } from "./components/channels-client";
+import { RoomsClient } from "./components/rooms-client";
 import { firstSearchValue } from "./load-room-messages";
 
 interface ChatPageProps {
@@ -85,13 +85,13 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       return (
         <>
           {landingNotice}
-          <ChannelsClient
+          <RoomsClient
             activeOrganization={null}
-            channels={[]}
+            rooms={[]}
             organizationMembers={[]}
             currentUserId={session?.user.id ?? ""}
             coworkers={coworkers}
-            selectedChannelId={null}
+            selectedRoomId={null}
             isCreateChannelRequested={false}
             isNewDirectMessage
             messageLoadFailed={false}
@@ -102,7 +102,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       );
     }
 
-    const [listedChannels, organizationMembers, coworkers, currentMember] =
+    const [listedRooms, organizationMembers, coworkers, currentMember] =
       await Promise.all([
         chatRoomService.listRooms(),
         userService.getOrganizationMembers(activeOrganization.id),
@@ -113,13 +113,13 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     return (
       <>
         {landingNotice}
-        <ChannelsClient
+        <RoomsClient
           activeOrganization={activeOrganization}
-          channels={listedChannels}
+          rooms={listedRooms}
           organizationMembers={organizationMembers}
           currentUserId={currentMember?.userId ?? ""}
           coworkers={coworkers}
-          selectedChannelId={null}
+          selectedRoomId={null}
           isCreateChannelRequested={isCreateChannelRequested}
           isNewDirectMessage={isNewDirectMessage}
           messageLoadFailed={false}

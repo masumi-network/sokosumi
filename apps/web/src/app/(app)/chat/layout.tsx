@@ -4,7 +4,7 @@ import { ChatErrorFallback } from "./components/chat-error-fallback";
 
 /**
  * When the virtual keyboard opens on mobile, the layout viewport resizes so
- * the channel composer stays above the keyboard.
+ * the room composer stays above the keyboard.
  */
 export const viewport = {
   interactiveWidget: "resizes-content" as const,
