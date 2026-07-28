@@ -23,14 +23,16 @@ function uiMessageToTransientRoomMessage({
   roomId,
   currentUser,
   coworker,
+  createdAt,
 }: {
   message: UIMessage;
   roomId: string;
   currentUser: ChatRoomUserParticipant | null;
   coworker: ChatRoomCoworkerParticipant | null;
+  /** Monotonic clock — must preserve useChat array order across equal ms. */
+  createdAt: Date;
 }): ChatRoomMessage {
   const content = extractMessageContent(message);
-  const createdAt = new Date();
 
   if (message.role === "user") {
     return {
@@ -192,16 +194,26 @@ export function useCoworkerDirectRoomStream({
     if (!enabled || !roomId || messages.length === 0) {
       return [];
     }
+    // Index-offset createdAt keeps useChat order when clocks share a ms.
+    // Empty assistant stubs are omitted — the waiting spinner covers that gap.
+    const baseMs = Date.now();
     return messages
-      .filter(
-        (message) => message.role === "user" || message.role === "assistant",
-      )
-      .map((message) =>
+      .filter((message) => {
+        if (message.role === "user") {
+          return true;
+        }
+        if (message.role !== "assistant") {
+          return false;
+        }
+        return extractMessageContent(message).trim().length > 0;
+      })
+      .map((message, index) =>
         uiMessageToTransientRoomMessage({
           message,
           roomId,
           currentUser,
           coworker,
+          createdAt: new Date(baseMs + index),
         }),
       );
   }, [enabled, roomId, messages, currentUser, coworker]);

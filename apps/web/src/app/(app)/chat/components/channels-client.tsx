@@ -22,7 +22,10 @@ import {
 import DaySeparator from "@/app/chat/components/day-separator";
 import { useCoworkerDirectRoomStream } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
-import { mergeChannelMessages } from "@/app/chat/utils/merge-channel-messages";
+import {
+  mergeChannelMessages,
+  mergeMessagesWithStreamOverlay,
+} from "@/app/chat/utils/merge-channel-messages";
 import {
   clearPendingRoomMessage,
   peekPendingRoomMessage,
@@ -235,10 +238,7 @@ export function ChannelsClient({
   });
 
   const displayMessages = useMemo(() => {
-    if (streamOverlayMessages.length === 0) {
-      return messagesState;
-    }
-    return mergeChannelMessages(messagesState, streamOverlayMessages);
+    return mergeMessagesWithStreamOverlay(messagesState, streamOverlayMessages);
   }, [messagesState, streamOverlayMessages]);
 
   // Draft coworker DM stashes text then navigates — auto-stream once room opens.
@@ -923,8 +923,11 @@ export function ChannelsClient({
                     );
                   })}
                   {isCoworkerStreaming &&
-                  (streamOverlayMessages.at(-1)?.content.trim().length ?? 0) ===
-                    0 ? (
+                  !streamOverlayMessages.some(
+                    (message) =>
+                      message.sender.type === "coworker" &&
+                      message.content.trim().length > 0,
+                  ) ? (
                     <div className="text-muted-foreground flex items-center gap-2 px-2 py-2 text-sm">
                       <Loader2 className="size-4 animate-spin" />
                     </div>
