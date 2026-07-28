@@ -3,6 +3,7 @@ import { TaskStatus } from "@/lib/clients/generated/core";
 
 import {
   canArchiveParkedTaskForViewer,
+  canCancelTaskForViewer,
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
 } from "../task-read-only";
@@ -179,6 +180,68 @@ describe("canCommentOnTaskForViewer", () => {
   it("blocks comments while vendor grant approval is pending", () => {
     expect(
       canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("canCancelTaskForViewer", () => {
+  it("allows organization workspace collaborators to cancel without ownership", () => {
+    expect(
+      canCancelTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "member_2",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.RUNNING,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows the task owner to cancel", () => {
+    expect(
+      canCancelTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.RUNNING,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks cancel when forced read-only", () => {
+    expect(
+      canCancelTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "member_2",
+        forceReadOnly: true,
+        taskStatus: TaskStatus.RUNNING,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not allow cancel for non-owners on personal workspace tasks", () => {
+    expect(
+      canCancelTaskForViewer({
+        taskWorkspaceOrganizationId: null,
+        taskOwnerId: "owner_1",
+        sessionUserId: "someone_else",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.RUNNING,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks cancel while vendor grant approval is pending", () => {
+    expect(
+      canCancelTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
         taskOwnerId: "owner_1",
         sessionUserId: "owner_1",
