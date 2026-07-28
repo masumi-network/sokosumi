@@ -142,7 +142,7 @@ export function getDirectChannelParticipants(
 
 /**
  * Coworker 1:1 DM — room stream owns the assistant reply (not mention POST).
- * Creator is usually the sole user member (`userMembers.length === 1`).
+ * Matches Core skip-mention: exactly one user + one coworker.
  */
 export function isCoworkerOnlyDirectRoom(room: {
   kind: string;
@@ -152,7 +152,7 @@ export function isCoworkerOnlyDirectRoom(room: {
   return (
     room.kind === "direct" &&
     room.coworkerMembers.length === 1 &&
-    room.userMembers.length <= 1
+    room.userMembers.length === 1
   );
 }
 

@@ -770,6 +770,8 @@ export function ChannelsClient({
   function handleSendThreadReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedChannel || !threadParentMessage) return;
+    // Coworker 1:1 thread AI replies: SOK-656. Hide UI for now; fail closed if opened.
+    if (isCoworkerOnlyDirectRoom(selectedChannel)) return;
     const content = threadComposerValue.trim();
     if (!content) return;
 
@@ -898,9 +900,14 @@ export function ChannelsClient({
                           coworkersBySlug={coworkersBySlug}
                           onToggleReaction={handleToggleReaction}
                           onOpenThread={
-                            isStreamOverlay ? undefined : loadThreadMessages
+                            isStreamOverlay || isCoworkerStreamRoom
+                              ? undefined
+                              : loadThreadMessages
                           }
-                          showThreadButton={!isStreamOverlay}
+                          // Coworker 1:1: stream owns replies; threads deferred (SOK-656).
+                          showThreadButton={
+                            !isStreamOverlay && !isCoworkerStreamRoom
+                          }
                         />
                       </div>
                     );

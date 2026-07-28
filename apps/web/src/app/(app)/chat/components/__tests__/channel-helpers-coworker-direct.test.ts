@@ -12,14 +12,14 @@ describe("isCoworkerOnlyDirectRoom", () => {
     ).toBe(true);
   });
 
-  it("returns true when userMembers is empty (edge)", () => {
+  it("returns false when userMembers is empty (align with Core === 1)", () => {
     expect(
       isCoworkerOnlyDirectRoom({
         kind: "direct",
         userMembers: [],
         coworkerMembers: [{ id: "coworker-1" }],
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("returns false for channels", () => {

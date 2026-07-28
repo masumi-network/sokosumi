@@ -176,6 +176,7 @@ function createApp(
 
 function roomWithOneCoworker(
   overrides: {
+    organizationId?: string | null;
     providerConversationId?: string | null;
     coworkerMembers?: Array<{
       coworker: { id: string; name: string; slug: string };
@@ -184,7 +185,8 @@ function roomWithOneCoworker(
 ) {
   return {
     id: ROOM_ID,
-    organizationId: "org_1",
+    organizationId:
+      "organizationId" in overrides ? overrides.organizationId : "org_1",
     providerConversationId:
       "providerConversationId" in overrides
         ? (overrides.providerConversationId ?? null)
@@ -201,8 +203,11 @@ function roomWithOneCoworker(
   };
 }
 
-async function postStream(body?: unknown) {
-  const app = createApp();
+async function postStream(
+  body?: unknown,
+  authContext: AuthVariables["authContext"] = userAuthContext,
+) {
+  const app = createApp(authContext);
   return await app.request(`/${ROOM_ID}/stream`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -429,15 +434,20 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(response.status).toBe(200);
 
     const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onChunk: (args: { chunk: { type: string } }) => void;
       onFinish: (finishEvent: {
         text: string;
         reasoning?: unknown[];
       }) => Promise<void>;
     };
 
+    streamCall.onChunk({ chunk: { type: "reasoning-start" } });
+    streamCall.onChunk({ chunk: { type: "reasoning-delta" } });
+    streamCall.onChunk({ chunk: { type: "reasoning-end" } });
+
     await streamCall.onFinish({
       text: "Assistant reply",
-      reasoning: [],
+      reasoning: [{ type: "reasoning", text: "step" }],
     });
 
     expect(persistAssistantToChatRoomMock).toHaveBeenCalledWith(
@@ -445,10 +455,46 @@ describe("POST /chats/rooms/{id}/stream", () => {
         roomId: ROOM_ID,
         senderCoworkerId: COWORKER_ID,
         contentText: "Assistant reply",
+        thoughtTiming: expect.objectContaining({
+          startedAtMs: expect.any(Number),
+          endedAtMs: expect.any(Number),
+        }),
       }),
     );
     expect(conversationCreateMock).not.toHaveBeenCalled();
     expect(conversationMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("uses room.organizationId (not active session org) for personal rooms", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      roomWithOneCoworker({
+        organizationId: null,
+        providerConversationId: null,
+      }),
+    );
+
+    const response = await postStream(undefined, {
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_active_session",
+      role: "user",
+    });
+    expect(response.status).toBe(200);
+
+    expect(createCoworkerConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sokosumiOrganizationId: null,
+      }),
+    );
+
+    const streamArgs = streamTextMock.mock.calls[0]![0] as {
+      providerOptions: {
+        sokosumi: { sokosumiOrganizationId: string | null };
+      };
+    };
+    expect(streamArgs.providerOptions.sokosumi.sokosumiOrganizationId).toBe(
+      null,
+    );
   });
 
   it("registers active UI stream id via consumeSseStream when resumption is configured", async () => {

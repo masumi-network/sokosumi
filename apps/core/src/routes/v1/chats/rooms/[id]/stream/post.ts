@@ -222,13 +222,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
 
+      // Room owns org scope (null = personal). Do not inherit active session org.
+      const roomOrganizationId = room.organizationId;
+
       let providerConversationId = room.providerConversationId?.trim() || null;
       if (!providerConversationId) {
         try {
           const ensured = await ensureCoworkerProviderConversationForRoom({
             roomId: room.id,
             userId: userContext.userId,
-            organizationId: userContext.organizationId ?? room.organizationId,
+            organizationId: roomOrganizationId,
             coworkerSlug: coworker.slug,
             responsesApiBaseUrl: coworker.baseURL.trim(),
           });
@@ -270,6 +273,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         current: null,
       };
 
+      const thoughtPhaseMs = {
+        start: null as number | null,
+        end: null as number | null,
+        sawReasoningChunk: false,
+      };
+
       const onInvalidProviderConversationId = async () => {
         try {
           await prisma.chatRoom.update({
@@ -289,8 +298,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         coworkerBaseUrl: coworker.baseURL.trim(),
         coworkerSlug: coworker.slug,
         sokosumiUserId: userContext.userId,
-        sokosumiOrganizationId:
-          userContext.organizationId ?? room.organizationId,
+        sokosumiOrganizationId: roomOrganizationId,
         previousResponseId: null,
         providerConversationId,
         imageGenerationModel: null,
@@ -309,17 +317,55 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         providerOptions: {
           sokosumi: sokosumiProviderOptions,
         } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
+        onChunk: ({ chunk }) => {
+          const chunkType = chunk.type as string;
+          if (
+            chunkType === "reasoning-start" ||
+            chunkType === "reasoning-delta"
+          ) {
+            thoughtPhaseMs.sawReasoningChunk = true;
+            thoughtPhaseMs.start = thoughtPhaseMs.start ?? Date.now();
+          }
+          if (chunkType === "reasoning-end") {
+            thoughtPhaseMs.end = Date.now();
+          }
+          if (
+            chunk.type === "text-delta" &&
+            thoughtPhaseMs.sawReasoningChunk &&
+            thoughtPhaseMs.end == null
+          ) {
+            thoughtPhaseMs.end = Date.now();
+          }
+        },
         onFinish: async (finishEvent) => {
           const text = finishEvent.text?.trim() ?? "";
           if (!text) {
             return;
           }
+          const hasReasoning =
+            Array.isArray(finishEvent.reasoning) &&
+            finishEvent.reasoning.length > 0;
+          if (
+            hasReasoning &&
+            thoughtPhaseMs.start != null &&
+            thoughtPhaseMs.end == null
+          ) {
+            thoughtPhaseMs.end = Date.now();
+          }
+          const thoughtTiming =
+            hasReasoning && thoughtPhaseMs.start != null
+              ? {
+                  startedAtMs: thoughtPhaseMs.start,
+                  endedAtMs: thoughtPhaseMs.end ?? Date.now(),
+                }
+              : undefined;
           const persistArgs = {
             roomId: room.id,
             senderCoworkerId: coworker.id,
             contentText: text,
             responsesApiResponseId: responsesApiResponseIdRef.current,
             reasoning: finishEvent.reasoning,
+            thoughtTiming,
           };
           // Retries: silent persist loss made streamed replies vanish after refetch.
           let lastError: unknown;
