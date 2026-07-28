@@ -345,6 +345,19 @@ export function OrganizationChatList({
       }
     }
 
+    // Channels: A–Z. DMs: most recent activity first (`updatedAt` bumps on send).
+    publicChannels.sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+    directMessages.sort((a, b) => {
+      const byActivity =
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      if (byActivity !== 0) {
+        return byActivity;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
     return { directMessages, publicChannels };
   }, [channelRows]);
 
