@@ -56,9 +56,9 @@ export default async function Sidebar({
   const membersPromise = userService
     .getMyMembersWithOrganizations()
     .catch(() => []);
-  const chatChannelsPromise = activeOrganizationId
-    ? chatRoomService.listRooms().catch(() => [])
-    : Promise.resolve([]);
+  // Personal coworker directs exist with no active org; Core returns those when
+  // organization context is null. Channels still need an org (empty list then).
+  const chatChannelsPromise = chatRoomService.listRooms().catch(() => []);
   const planLabelPromise = tCreditPromise.then((tCredit) =>
     resolvePlanSecondaryLabel({
       plan: planForLabel,

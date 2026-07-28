@@ -243,10 +243,6 @@ export function OrganizationChatList({
   }, [channels]);
 
   useEffect(() => {
-    if (!hasOrganization) {
-      return;
-    }
-
     let cancelled = false;
 
     const refreshChannels = async () => {
@@ -267,7 +263,7 @@ export function OrganizationChatList({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshChannels);
     };
-  }, [hasOrganization]);
+  }, []);
 
   useEffect(() => {
     const handleChannelRead = (event: Event) => {
@@ -416,9 +412,7 @@ export function OrganizationChatList({
               {directMessages.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
-                    {hasOrganization
-                      ? t("Empty.noDirectMessages")
-                      : t("Empty.onlyInOrganizations")}
+                    {t("Empty.noDirectMessages")}
                   </div>
                 </SidebarMenuItem>
               ) : null}
