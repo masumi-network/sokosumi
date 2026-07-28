@@ -4,15 +4,12 @@ import { getTasksEmptyStateGuideContent } from "@/app/tasks/components/tasks-emp
 const labels = {
   title: "Welcome",
   description: "Create your first task",
-  chatTitle: "Use chat",
-  chatDescription: "Ask Elena to draft a research task",
   getStartedTitle: "Ready to start",
   getStartedDescription: "Open the guide and create a task",
   getStartedButton: "Get started",
   next: "Next",
   back: "Back",
   addTaskHint: "Add a task first",
-  chatHint: "Use chat next",
   elenaAvatarAlt: "Elena avatar",
 };
 
@@ -25,11 +22,11 @@ describe("getTasksEmptyStateGuideContent", () => {
     });
   });
 
-  it("returns chat guide content for the second step", () => {
-    expect(getTasksEmptyStateGuideContent("chat", labels)).toEqual({
-      title: labels.chatTitle,
-      description: labels.chatDescription,
-      hint: labels.chatHint,
+  it("returns get-started guide content for the final step", () => {
+    expect(getTasksEmptyStateGuideContent("getStarted", labels)).toEqual({
+      title: labels.getStartedTitle,
+      description: labels.getStartedDescription,
+      hint: "",
     });
   });
 });

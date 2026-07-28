@@ -37,7 +37,6 @@ const labels = {
   typeOptions: {
     task: "Task",
     job: "Job",
-    conversation: "Chat",
   },
   statusOptions: {
     active: "Active",

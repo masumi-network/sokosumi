@@ -24,6 +24,9 @@ export interface Coworker {
   useCase: string;
   slug: string;
   capabilities?: Array<"chat" | "tasks">;
+  archivedAt?: Date | string | null;
+  isWhitelisted?: boolean;
+  canChat?: boolean;
   /** Present when mapped from API; used for contact channels on gallery cards. */
   metadata?: CoworkerMetadata | null;
 }

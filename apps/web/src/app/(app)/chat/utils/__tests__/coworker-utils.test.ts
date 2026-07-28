@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  coworkerCanChat,
   coworkerHasCapability,
   filterCoworkersForComposeKind,
   findCoworkerBySlugOrId,
@@ -11,10 +12,14 @@ import type { Coworker } from "../types";
 function baseCoworker(
   overrides: Partial<Coworker> & Pick<Coworker, "id" | "slug" | "name">,
 ): Coworker {
+  const capabilities = overrides.capabilities ?? [];
   return {
     description: "",
     useCase: "",
-    capabilities: [],
+    capabilities,
+    archivedAt: null,
+    isWhitelisted: true,
+    canChat: capabilities.includes("chat"),
     ...overrides,
   };
 }
@@ -56,6 +61,9 @@ describe("mapDbCoworkerToChatCoworker", () => {
       name: "Elena",
       description: "Ops helper",
       useCase: "",
+      archivedAt: null,
+      isWhitelisted: false,
+      canChat: false,
       metadata: null,
     });
   });
@@ -140,5 +148,77 @@ describe("filterCoworkersForComposeKind", () => {
     expect(coworkerHasCapability(noCapabilities, "chat")).toBe(false);
     expect(filterCoworkersForComposeKind([noCapabilities], "chat")).toEqual([]);
     expect(filterCoworkersForComposeKind([noCapabilities], "task")).toEqual([]);
+  });
+
+  it("excludes chat coworkers without an active runnable chat endpoint", () => {
+    const inactiveChatCoworkers = [
+      baseCoworker({
+        id: "5",
+        slug: "missing-url",
+        name: "Missing URL",
+        capabilities: ["chat"],
+        canChat: false,
+      }),
+      baseCoworker({
+        id: "6",
+        slug: "blank-url",
+        name: "Blank URL",
+        capabilities: ["chat"],
+        canChat: false,
+      }),
+      baseCoworker({
+        id: "7",
+        slug: "archived",
+        name: "Archived",
+        capabilities: ["chat"],
+        canChat: false,
+      }),
+      baseCoworker({
+        id: "8",
+        slug: "not-whitelisted",
+        name: "Not whitelisted",
+        capabilities: ["chat"],
+        canChat: false,
+      }),
+    ];
+
+    expect(
+      filterCoworkersForComposeKind(inactiveChatCoworkers, "chat"),
+    ).toEqual([]);
+    expect(
+      inactiveChatCoworkers.every((coworker) => !coworkerCanChat(coworker)),
+    ).toBe(true);
+    expect(
+      coworkerCanChat({
+        archivedAt: null,
+        isWhitelisted: true,
+        baseURL: null,
+        capabilities: ["chat"],
+      }),
+    ).toBe(false);
+    expect(
+      coworkerCanChat({
+        archivedAt: null,
+        isWhitelisted: true,
+        baseURL: "  ",
+        capabilities: ["chat"],
+      }),
+    ).toBe(false);
+    expect(
+      coworkerCanChat({
+        archivedAt: new Date("2026-01-01T00:00:00.000Z"),
+        isWhitelisted: true,
+        baseURL: "https://responses.example.com/v1",
+        capabilities: ["chat"],
+      }),
+    ).toBe(false);
+    expect(
+      coworkerCanChat({
+        archivedAt: null,
+        isWhitelisted: false,
+        baseURL: "https://responses.example.com/v1",
+        capabilities: ["chat"],
+      }),
+    ).toBe(false);
   });
 });

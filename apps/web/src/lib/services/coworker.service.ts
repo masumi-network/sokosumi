@@ -1,6 +1,9 @@
 import "server-only";
 
-import type { CoworkerCapability } from "@/app/chat/utils/coworker-utils";
+import {
+  type CoworkerCapability,
+  coworkerCanChat,
+} from "@/app/chat/utils/coworker-utils";
 import { coreClient } from "@/lib/clients/core.client";
 import type { Coworker } from "@/lib/clients/generated/core";
 
@@ -14,7 +17,13 @@ export const coworkerService = (() => {
         capability: [capability],
       }),
     });
-    return response.data ?? [];
+    const coworkers = response.data ?? [];
+
+    if (capability === "chat") {
+      return coworkers.filter(coworkerCanChat);
+    }
+
+    return coworkers;
   }
 
   return {

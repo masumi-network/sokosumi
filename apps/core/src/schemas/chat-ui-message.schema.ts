@@ -112,6 +112,30 @@ export const getChatUiMessagesResponseDataSchema = z
   })
   .openapi("GetChatUiMessagesResponseData");
 
+export const getRoomChatUiMessagesQuerySchema = z
+  .object({
+    cursor: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "cursor", in: "query" },
+        description:
+          "Cursor for pagination (id of the last message from the previous page).",
+      }),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT)
+      .default(LIMITS.CHAT_UI_MESSAGES_DEFAULT_LIMIT)
+      .openapi({
+        param: { name: "limit", in: "query" },
+        description: `Page size (max ${LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT}). Cursor pagination metadata is always returned for forward compatibility.`,
+        example: LIMITS.CHAT_UI_MESSAGES_DEFAULT_LIMIT,
+      }),
+  })
+  .openapi("GetRoomChatUiMessagesQuery");
+
 export const getChatUiMessagesQuerySchema = z
   .object({
     conversationId: z

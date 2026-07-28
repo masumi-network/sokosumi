@@ -52,7 +52,7 @@ describe("chat route", () => {
 
       const response = await GET(
         new Request(
-          "https://app.sokosumi.com/api/chat?conversationId=550e8400-e29b-41d4-a716-446655440000",
+          "https://app.sokosumi.com/api/chat?roomId=550e8400-e29b-41d4-a716-446655440000",
         ) as never,
       );
 
@@ -60,7 +60,7 @@ describe("chat route", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("returns 400 when conversationId is missing", async () => {
+    it("returns 400 when roomId is missing", async () => {
       getSessionMock.mockResolvedValue({
         session: { activeOrganizationId: null },
         user: { id: "user-1" },
@@ -74,7 +74,7 @@ describe("chat route", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("forwards to Core GET /v1/chat with conversationId", async () => {
+    it("forwards to Core GET /v1/chats/rooms/{roomId}/stream/messages", async () => {
       getSessionMock.mockResolvedValue({
         session: { activeOrganizationId: null },
         user: { id: "user-1" },
@@ -108,10 +108,10 @@ describe("chat route", () => {
         ),
       );
 
-      const convId = "550e8400-e29b-41d4-a716-446655440000";
+      const roomId = "550e8400-e29b-41d4-a716-446655440000";
       const response = await GET(
         new Request(
-          `https://app.sokosumi.com/api/chat?${new URLSearchParams({ conversationId: convId })}`,
+          `https://app.sokosumi.com/api/chat?${new URLSearchParams({ roomId })}`,
         ) as never,
       );
 
@@ -120,7 +120,7 @@ describe("chat route", () => {
 
       expect(response.status).toBe(200);
       expect(url).toBe(
-        `https://core.example.com/v1/chat?${new URLSearchParams({ conversationId: convId })}`,
+        `https://core.example.com/v1/chats/rooms/${roomId}/stream/messages`,
       );
       expect(init.method).toBe("GET");
       expect(forwardedHeaders.get("cookie")).toBe("session=abc");
@@ -141,6 +141,23 @@ describe("chat route", () => {
       );
 
       expect(response.status).toBe(401);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when roomId is missing", async () => {
+      getSessionMock.mockResolvedValue({
+        session: { activeOrganizationId: null },
+        user: { id: "user-1" },
+      });
+
+      const response = await POST(
+        new Request("https://app.sokosumi.com/api/chat", {
+          method: "POST",
+          body: JSON.stringify({ prompt: "Hello" }),
+        }) as never,
+      );
+
+      expect(response.status).toBe(400);
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -166,7 +183,8 @@ describe("chat route", () => {
         }),
       );
 
-      const body = { prompt: "Hello" };
+      const roomId = "550e8400-e29b-41d4-a716-446655440000";
+      const body = { roomId, prompt: "Hello" };
       const response = await POST(
         new Request("https://app.sokosumi.com/api/chat", {
           method: "POST",
@@ -177,7 +195,9 @@ describe("chat route", () => {
       const forwardedHeaders = init.headers as Headers;
 
       expect(response.status).toBe(200);
-      expect(url).toBe("https://core.example.com/v1/chat");
+      expect(url).toBe(
+        `https://core.example.com/v1/chats/rooms/${roomId}/stream`,
+      );
       expect(init.method).toBe("POST");
       expect(init.body).toBe(JSON.stringify(body));
       expect(forwardedHeaders).toBeInstanceOf(Headers);

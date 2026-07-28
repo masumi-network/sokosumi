@@ -12,7 +12,12 @@ const ScrollArea = React.forwardRef<
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn("relative", className)}
+      // `overflow-hidden` belongs to shadcn's own Root and was missing here.
+      // The viewport already clips what you see, but without it the Root
+      // reports its full unclipped content height to ancestors — so a
+      // ScrollArea inside a scrollable container (a max-height dialog, say)
+      // handed that container hundreds of pixels of empty scroll space.
+      className={cn("relative overflow-hidden", className)}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport

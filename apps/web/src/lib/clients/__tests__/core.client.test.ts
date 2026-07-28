@@ -52,7 +52,7 @@ vi.mock("@/lib/clients/generated/core", () => ({
   deleteJobsByIdShare: deleteJobsByIdShareMock,
   deleteTasksByIdShare: deleteTasksByIdShareMock,
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
-  getConversations: getConversationsMock,
+  getChatsConversations: getConversationsMock,
   getHistory: getHistoryMock,
   getTasks: getTasksMock,
   getShareByToken: getShareByTokenMock,

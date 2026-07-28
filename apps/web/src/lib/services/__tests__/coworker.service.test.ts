@@ -99,4 +99,58 @@ describe("coworker.service", () => {
       capability: ["tasks"],
     });
   });
+
+  it("filters chat coworkers to active runnable entries", async () => {
+    const runnableChatCoworker = {
+      id: "cow-1",
+      slug: "hannah",
+      name: "Hannah",
+      archivedAt: null,
+      isWhitelisted: true,
+      baseURL: "https://responses.example.com/v1",
+      capabilities: ["chat"],
+    };
+
+    coreClientMock.getCoworkers.mockResolvedValue({
+      data: [
+        runnableChatCoworker,
+        {
+          id: "cow-2",
+          slug: "no-base-url",
+          name: "No base URL",
+          archivedAt: null,
+          isWhitelisted: true,
+          baseURL: null,
+          capabilities: ["chat"],
+        },
+        {
+          id: "cow-3",
+          slug: "archived",
+          name: "Archived",
+          archivedAt: new Date("2026-01-01T00:00:00.000Z"),
+          isWhitelisted: true,
+          baseURL: "https://responses.example.com/v1",
+          capabilities: ["chat"],
+        },
+        {
+          id: "cow-4",
+          slug: "not-whitelisted",
+          name: "Not whitelisted",
+          archivedAt: null,
+          isWhitelisted: false,
+          baseURL: "https://responses.example.com/v1",
+          capabilities: ["chat"],
+        },
+      ],
+    });
+
+    const { coworkerService } = await import("../coworker.service");
+    const result = await coworkerService.listCoworkers("chat");
+
+    expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
+      scope: "whitelisted",
+      capability: ["chat"],
+    });
+    expect(result).toEqual([runnableChatCoworker]);
+  });
 });
