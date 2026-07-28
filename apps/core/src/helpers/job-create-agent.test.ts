@@ -35,31 +35,17 @@ const {
   txJobCreateMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/agent", () => ({
+// Partial mock: the readiness matcher and unit normalizer come from the REAL
+// module. A hand-written copy here would mean every V2 readiness assertion in
+// this file validated the test's own logic instead of production's.
+vi.mock("@/helpers/agent", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/agent")>()),
   buildAvailableAgentWhereClause: () => ({}),
   calculateCentsFromMasumiAmountStrings:
     calculateCentsFromMasumiAmountStringsMock,
   getAgentCost: getAgentCostMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
-  isCardanoV2SourceReady: (
-    agentIdentifier: string,
-    smartContractAddress: string,
-    readySources: {
-      policyId: string;
-      smartContractAddress: string;
-    }[],
-  ) =>
-    readySources.some(
-      (source) =>
-        agentIdentifier
-          .toLowerCase()
-          .startsWith(source.policyId.toLowerCase()) &&
-        smartContractAddress.toLowerCase() ===
-          source.smartContractAddress.toLowerCase(),
-    ),
-  normalizeMasumiPaymentUnit: (unit: string) =>
-    unit === "" || unit.toLowerCase() === "lovelace" ? "lovelace" : unit,
   toMasumiAgent: (agent: {
     id: string;
     name: string;

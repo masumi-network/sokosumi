@@ -644,6 +644,58 @@ describe("agentSyncService.syncRegistryAgents", () => {
     });
   });
 
+  it("ignores parked duplicates when inheriting curation", async () => {
+    const entries = [
+      createRegistryEntry("entry-after-park", {
+        agentIdentifier: createV2AgentIdentifier(0),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    // A parked row keeps its name/apiBaseUrl but is hidden as bookkeeping —
+    // the query must exclude it, so the lookup returns no twin at all.
+    agentFindManyMock.mockResolvedValue([]);
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const where = agentFindManyMock.mock.calls[0]?.[0]?.where;
+    expect(where.status).toEqual({ not: "INVALID" });
+    expect(where.NOT).toEqual({
+      blockchainIdentifier: { startsWith: "legacy-v2:" },
+    });
+  });
+
+  it("defers a free V2-policy entry while the rollout flag is off", async () => {
+    getEnvEnableCardanoV2Mock.mockReturnValue(false);
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-free-v2", {
+          agentIdentifier: createV2AgentIdentifier(0),
+          // Free/EVM-only V2 entries report "None", which used to slip past
+          // the rollback fence and onto the marketplace before the flag.
+          paymentType: "None",
+          AgentPricing: null,
+          SupportedPaymentSources: [createCardanoV2PaymentSource()],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).not.toHaveBeenCalled();
+    expect(agentUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("uses defaults when a newly discovered entry has no twin", async () => {
     const entries = [createRegistryEntry("entry-no-twin")];
     getAgentsDiffMock.mockResolvedValue(ok(entries));

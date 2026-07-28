@@ -51,12 +51,6 @@ import { refundJob } from "@/services/job-refund";
 import { sourceImportService } from "@/services/source-import.service";
 
 const JOB_SYNC_CONCURRENCY = 5;
-/**
- * Per-phase row cap. At 5 concurrent polls with a 10s remote timeout, this is
- * comfortably pollable inside one run's budget while leaving room for the
- * phases that follow.
- */
-const JOB_SYNC_PHASE_LIMIT = 200;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
 const JOB_SYNC_TRANSACTION_OPTIONS = {
@@ -913,15 +907,17 @@ async function runSyncPhase(
     options: JobSyncExecutionOptions,
   ) => Promise<boolean>,
 ): Promise<JobSyncPhaseResult> {
+  // Deliberately unbounded and unordered. A cap combined with a stable order
+  // is worse than no cap here: nothing evicts a job that never reaches a
+  // terminal agent status (free jobs have no other exit at all), so a fixed
+  // prefix of permanently stuck jobs would hide every newer job from the
+  // phase forever. The selectors themselves keep this set small — the agent
+  // phase is gated on ONLINE plus in-window paid jobs — and the per-run
+  // deadline bounds the work actually performed.
   const jobs = (
     await prisma.job.findMany({
       where,
       include: jobInclude,
-      // Bounded and deterministically ordered: a phase that outgrows the run
-      // budget must not starve the phases after it, and the oldest jobs must
-      // not be perpetually skipped in favour of the newest ones.
-      orderBy: { createdAt: "asc" },
-      take: JOB_SYNC_PHASE_LIMIT,
     })
   ).map(mapJobWithStatus);
 

@@ -1,4 +1,4 @@
-import { AgentStatus } from "@sokosumi/database";
+import { AgentStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -122,7 +122,10 @@ function createApp() {
   return app;
 }
 
-function createAwaitingInputJobEvent(agentStatus: AgentStatus) {
+function createAwaitingInputJobEvent(
+  agentStatus: AgentStatus,
+  jobOverrides: Record<string, unknown> = {},
+) {
   return {
     id: "event_123",
     inputSchema: '{"input_data":[{"id":"answer","type":"string"}]}',
@@ -132,6 +135,11 @@ function createAwaitingInputJobEvent(agentStatus: AgentStatus) {
       agentJobId: "agent_job_123",
       agentBlockchainIdentifier: "agent-chain",
       agentApiBaseUrl: "https://agent.example.com",
+      jobType: JobType.FREE,
+      externalDisputeUnlockTime: null,
+      refundedTransactionId: null,
+      purchase: null,
+      ...jobOverrides,
       agent: {
         id: "agent_123",
         blockchainIdentifier: "agent-chain",
@@ -143,6 +151,11 @@ function createAwaitingInputJobEvent(agentStatus: AgentStatus) {
     },
   };
 }
+
+const IN_FLIGHT_PAID_JOB = {
+  jobType: JobType.PAID,
+  externalDisputeUnlockTime: new Date(Date.now() + 60 * 60 * 1000),
+};
 
 async function postInputs(app: ReturnType<typeof createApp>) {
   return await app.request("http://localhost/job_123/inputs", {
@@ -204,6 +217,50 @@ describe("POST /jobs/{id}/inputs", () => {
     expect(await response.text()).toContain("Agent is no longer available");
     expect(provideJobInputMock).not.toHaveBeenCalled();
     expect(jobInputCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts input for an in-flight paid job whose agent went offline", async () => {
+    // The stable Agent row advanced to a newer, offline revision; sync still
+    // polls this job (and can ask for input), so the endpoint must accept it.
+    jobEventFindFirstMock.mockResolvedValue(
+      createAwaitingInputJobEvent(AgentStatus.OFFLINE, IN_FLIGHT_PAID_JOB),
+    );
+
+    const app = createApp();
+    const response = await postInputs(app);
+
+    expect(response.status).toBe(201);
+    expect(provideJobInputMock).toHaveBeenCalled();
+  });
+
+  it("rejects input for an offline agent once the job is refunded", async () => {
+    jobEventFindFirstMock.mockResolvedValue(
+      createAwaitingInputJobEvent(AgentStatus.OFFLINE, {
+        ...IN_FLIGHT_PAID_JOB,
+        refundedTransactionId: "txn_refund",
+      }),
+    );
+
+    const app = createApp();
+    const response = await postInputs(app);
+
+    expect(response.status).toBe(422);
+    expect(provideJobInputMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects input for an offline agent once the purchase is disputed", async () => {
+    jobEventFindFirstMock.mockResolvedValue(
+      createAwaitingInputJobEvent(AgentStatus.OFFLINE, {
+        ...IN_FLIGHT_PAID_JOB,
+        purchase: { onChainStatus: OnChainJobStatus.DISPUTED },
+      }),
+    );
+
+    const app = createApp();
+    const response = await postInputs(app);
+
+    expect(response.status).toBe(422);
+    expect(provideJobInputMock).not.toHaveBeenCalled();
   });
 
   it("provides input to an online agent and persists the job input", async () => {

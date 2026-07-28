@@ -108,13 +108,27 @@ describe("buildAvailableAgentWhereClause", () => {
     expect(where.paymentType).toEqual({
       in: [PaymentType.WEB3_CARDANO_V1, PaymentType.NONE],
     });
-    // Endpoint requirement accepts a metadata-override URL.
+    // Endpoint requirement accepts a metadata-override URL, and V2-POLICY
+    // rows are excluded by identifier — free/EVM-only V2 entries report
+    // paymentType "None", so the allowlist alone would let them through.
     expect(where.AND).toEqual([
       {
         OR: [
           { apiBaseUrl: { not: null } },
           { metadataOverride: { apiBaseUrl: { not: null } } },
         ],
+      },
+      {
+        NOT: {
+          OR: [
+            {
+              blockchainIdentifier: {
+                startsWith:
+                  "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+              },
+            },
+          ],
+        },
       },
     ]);
   });
@@ -139,9 +153,19 @@ describe("buildAvailableAgentWhereClause", () => {
     expect(where.AND).toHaveLength(2);
     expect(where.AND).toContainEqual({
       OR: [
-        { paymentType: { not: PaymentType.WEB3_CARDANO_V2 } },
         {
-          paymentType: PaymentType.WEB3_CARDANO_V2,
+          NOT: {
+            OR: [
+              {
+                blockchainIdentifier: {
+                  startsWith:
+                    "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+                },
+              },
+            ],
+          },
+        },
+        {
           blockchainIdentifier: { startsWith: "ab".repeat(28) },
           paymentSources: {
             some: {

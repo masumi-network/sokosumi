@@ -22,6 +22,7 @@ import {
   calculateCentsFromMasumiAmountStrings,
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
+  isCardanoV2SourceReady,
 } from "@/helpers/agent";
 import {
   badRequest,
@@ -262,14 +263,14 @@ async function settleTaskEventCharge({
           "V2 masumi payments must include PaymentSource with the seller's policyId and smartContractAddress",
         );
       }
-      // Ready-source tuples are validated lowercase; normalize the payload's
-      // casing so hex/bech32 case never decides readiness (matches the
-      // case-insensitive V2 classification).
-      const isSourceReady = readySources.some(
-        (source) =>
-          source.policyId === paymentSource.policyId.toLowerCase() &&
-          source.smartContractAddress ===
-            paymentSource.smartContractAddress.toLowerCase(),
+      // Use the SAME matcher as the job flow. A local copy previously compared
+      // a lowercased payload address against the stored address verbatim —
+      // only the policy id is normalized on the way into the cache — so a
+      // mixed-case address from the node rejected a genuinely ready source.
+      const isSourceReady = isCardanoV2SourceReady(
+        masumiPayment.agentIdentifier,
+        paymentSource.smartContractAddress,
+        readySources,
       );
       if (!isSourceReady) {
         throw unprocessableEntity(

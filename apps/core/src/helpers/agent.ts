@@ -9,6 +9,7 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
@@ -306,6 +307,13 @@ export const buildAvailableAgentWhereClause = (
     ],
   };
 
+  // "Belongs to a V2 registry policy", expressed as a Prisma predicate.
+  const v2PolicyIdentifierFilter = {
+    OR: listV2RegistryPolicyIds().map((policyId) => ({
+      blockchainIdentifier: { startsWith: policyId },
+    })),
+  };
+
   return {
     status: AgentStatus.ONLINE,
     isShown: true,
@@ -333,29 +341,30 @@ export const buildAvailableAgentWhereClause = (
           { metadataOverride: { apiBaseUrl: { not: null } } },
         ],
       },
-      ...(isCardanoV2Enabled
-        ? [
-            {
-              OR: [
-                { paymentType: { not: PaymentType.WEB3_CARDANO_V2 } },
-                ...cardanoV2ReadySources.map((source) => ({
-                  paymentType: PaymentType.WEB3_CARDANO_V2,
-                  blockchainIdentifier: {
-                    startsWith: source.policyId,
+      // Membership of the V2 registry policy — NOT the payment type — decides
+      // whether the V2 rules apply: free and EVM-only V2 agents report
+      // paymentType "None" and would otherwise skip both the rollout flag and
+      // the purchase-ready requirement (mirrors isV2RegistryIdentifier).
+      isCardanoV2Enabled
+        ? {
+            OR: [
+              { NOT: v2PolicyIdentifierFilter },
+              ...cardanoV2ReadySources.map((source) => ({
+                blockchainIdentifier: {
+                  startsWith: source.policyId,
+                },
+                paymentSources: {
+                  some: {
+                    chain: "Cardano",
+                    network: getEnv().NETWORK,
+                    paymentSourceType: "Web3CardanoV2",
+                    address: source.smartContractAddress,
                   },
-                  paymentSources: {
-                    some: {
-                      chain: "Cardano",
-                      network: getEnv().NETWORK,
-                      paymentSourceType: "Web3CardanoV2",
-                      address: source.smartContractAddress,
-                    },
-                  },
-                })),
-              ],
-            },
-          ]
-        : []),
+                },
+              })),
+            ],
+          }
+        : { NOT: v2PolicyIdentifierFilter },
     ],
     pricing: pricingFilter,
   };

@@ -45,6 +45,17 @@ export function isV2RegistryIdentifier(agentIdentifier: string): boolean {
  * readiness tuples carry); anything else is returned untouched, because only
  * V2 identifiers are known to be case-insensitive hex.
  */
+/**
+ * The V2 registry policy ids, for callers that must express "is a V2-policy
+ * identifier" as a DATABASE predicate (a prefix match) rather than a function
+ * call — the availability filter and the rollback fence have to agree with
+ * isV2RegistryIdentifier, and payment type is not a reliable proxy (free and
+ * EVM-only V2 agents report "None").
+ */
+export function listV2RegistryPolicyIds(): string[] {
+  return Array.from(V2_REGISTRY_POLICY_IDS);
+}
+
 export function normalizeV2RegistryIdentifier(agentIdentifier: string): string {
   return isV2RegistryIdentifier(agentIdentifier)
     ? agentIdentifier.toLowerCase()

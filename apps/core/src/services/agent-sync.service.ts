@@ -38,6 +38,12 @@ const AGENT_SUMMARY_SYNC_LIMIT = 20;
  */
 const AGENT_UPSERT_TRANSACTION_OPTIONS = { timeout: 20_000 } as const;
 const AGENT_SYNC_BATCH_SIZE = 50;
+/**
+ * Prefix stamped onto a duplicate Agent row's identifiers when it is parked,
+ * matching migration 20260728090000. Parked rows are bookkeeping artifacts:
+ * they must never be read as admin curation.
+ */
+const PARKED_IDENTIFIER_PREFIX = "legacy-v2:";
 const CARDANO_V2_SYNC_METADATA_SUFFIX = "-cardano-v2";
 
 interface SyncExecutionOptions {
@@ -459,11 +465,7 @@ function buildPaymentSourcesCreate(rows: AgentPaymentSourceRow[]) {
   }));
 }
 
-/**
- * Replaces the pricing referenced by an existing AgentPricing row in place
- * (the Agent keeps its pricingId), cleaning up the previous fixed-pricing
- * rows.
- */
+/** Whether two projected pricings are equivalent (no write needed). */
 function isSameAgentPricing(
   current: {
     pricingType: PricingType;
@@ -486,6 +488,11 @@ function isSameAgentPricing(
   return sortedCurrent.every((value, index) => value === sortedNext[index]);
 }
 
+/**
+ * Replaces the pricing referenced by an existing AgentPricing row in place
+ * (the Agent keeps its pricingId), cleaning up the previous fixed-pricing
+ * rows.
+ */
 async function replaceAgentPricing(
   tx: Prisma.TransactionClient,
   pricingId: string,
@@ -703,6 +710,15 @@ async function resolveCuratedTwinDefaults(
         name: entry.name,
         apiBaseUrl: entry.apiBaseUrl,
         blockchainIdentifier: { not: entry.agentIdentifier },
+        // Parked duplicates keep their name and endpoint but are hidden and
+        // INVALID as bookkeeping, not as an admin decision. Treating them as
+        // curation twins would pin every future registration of that agent to
+        // hidden forever — and since parking bumps updatedAt they would
+        // usually also win the risk/category inheritance below.
+        status: { not: AgentStatus.INVALID },
+        NOT: {
+          blockchainIdentifier: { startsWith: PARKED_IDENTIFIER_PREFIX },
+        },
       },
       select: {
         isShown: true,
@@ -926,7 +942,7 @@ async function upsertRegistryAgent(
         existing.id,
       );
 
-      const parkedIdentifier = `legacy-v2:${conflictingByIdentifier.id}:${conflictingByIdentifier.blockchainIdentifier}`;
+      const parkedIdentifier = `${PARKED_IDENTIFIER_PREFIX}${conflictingByIdentifier.id}:${conflictingByIdentifier.blockchainIdentifier}`;
       await tx.agent.update({
         where: { id: conflictingByIdentifier.id },
         data: {
@@ -997,6 +1013,11 @@ async function upsertRegistryAgent(
 function isRollbackUnsafeEntry(entry: RegistryDiffEntry): boolean {
   return (
     (entry.paymentType !== "Web3CardanoV1" && entry.paymentType !== "None") ||
+    // Free and EVM-only V2 entries report paymentType "None", so the payment
+    // type alone would let them through the fence and onto the marketplace
+    // before the rollout flag is ever enabled. Membership of the V2 registry
+    // policy is the authoritative test, exactly as it is for versioning.
+    isV2RegistryIdentifier(entry.agentIdentifier) ||
     !entry.apiBaseUrl ||
     convertEntryType(entry.type) !== AgentEntryType.STANDARD
   );
@@ -1295,7 +1316,7 @@ async function syncCardanoV2RailReadiness(
   options: { signal?: AbortSignal } = {},
 ): Promise<boolean> {
   const isCardanoV2Enabled = getEnv().ENABLE_CARDANO_V2_AGENTS;
-  // Nothing reads the cache while the flag is off (isCardanoV2RailReady
+  // Nothing reads the cache while the flag is off (getCardanoV2ReadySources
   // short-circuits), so skip the node round-trip. After a flag flip the next
   // cron cycle populates the cache within 5 minutes.
   if (!isCardanoV2Enabled) {
