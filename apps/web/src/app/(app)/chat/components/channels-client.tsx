@@ -53,10 +53,11 @@ import {
   getChannelDisplayName,
   getChannelParticipantPreviews,
   hasPendingCoworkerMention,
-  isCoworkerOnlyDirectRoom,
   messageDayKey,
   presenceLabel,
+  shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
+  shouldUseCoworkerRoomStream,
 } from "./channel-helpers";
 import { ChatMessageRow } from "./channel-message-row";
 import { DraftChannel } from "./draft-channel";
@@ -202,7 +203,7 @@ export function ChannelsClient({
     : "";
   const isDirectChannel = selectedChannel?.kind === "direct";
   const isCoworkerStreamRoom = selectedChannel
-    ? isCoworkerOnlyDirectRoom(selectedChannel)
+    ? shouldUseCoworkerRoomStream(selectedChannel)
     : false;
 
   const refreshRoomMessagesAfterStream = useCallback(
@@ -477,7 +478,7 @@ export function ChannelsClient({
     }
 
     const channelId = selectedChannel.id;
-    const skipWhileStreaming = isCoworkerOnlyDirectRoom(selectedChannel);
+    const skipWhileStreaming = shouldUseCoworkerRoomStream(selectedChannel);
     let cancelled = false;
 
     const refreshLatest = async () => {
@@ -742,7 +743,7 @@ export function ChannelsClient({
     const content = composerValue.trim();
     if (!content) return;
 
-    if (isCoworkerOnlyDirectRoom(selectedChannel)) {
+    if (shouldUseCoworkerRoomStream(selectedChannel)) {
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
@@ -771,7 +772,7 @@ export function ChannelsClient({
     event.preventDefault();
     if (!selectedChannel || !threadParentMessage) return;
     // Coworker 1:1 thread AI replies: SOK-656. Hide UI for now; fail closed if opened.
-    if (isCoworkerOnlyDirectRoom(selectedChannel)) return;
+    if (shouldUseCoworkerRoomStream(selectedChannel)) return;
     const content = threadComposerValue.trim();
     if (!content) return;
 
@@ -900,14 +901,18 @@ export function ChannelsClient({
                           coworkersBySlug={coworkersBySlug}
                           onToggleReaction={handleToggleReaction}
                           onOpenThread={
-                            isStreamOverlay || isCoworkerStreamRoom
-                              ? undefined
-                              : loadThreadMessages
+                            shouldShowChatRoomThreadButton({
+                              room: selectedChannel,
+                              isStreamOverlay,
+                            })
+                              ? loadThreadMessages
+                              : undefined
                           }
                           // Coworker 1:1: stream owns replies; threads deferred (SOK-656).
-                          showThreadButton={
-                            !isStreamOverlay && !isCoworkerStreamRoom
-                          }
+                          showThreadButton={shouldShowChatRoomThreadButton({
+                            room: selectedChannel,
+                            isStreamOverlay,
+                          })}
                         />
                       </div>
                     );

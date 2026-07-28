@@ -156,6 +156,35 @@ export function isCoworkerOnlyDirectRoom(room: {
   );
 }
 
+/**
+ * Main composer: coworker 1:1 uses room stream; everyone else message POST.
+ * channels-client must call this (not invent a second predicate).
+ */
+export function shouldUseCoworkerRoomStream(room: {
+  kind: string;
+  userMembers: { id?: string; userId?: string }[];
+  coworkerMembers: { id?: string; coworkerId?: string }[];
+}): boolean {
+  return isCoworkerOnlyDirectRoom(room);
+}
+
+/**
+ * Thread chrome on room messages.
+ * Stream overlays never show threads. Coworker 1:1 hides until SOK-656.
+ */
+export function shouldShowChatRoomThreadButton(options: {
+  room: {
+    kind: string;
+    userMembers: { id?: string; userId?: string }[];
+    coworkerMembers: { id?: string; coworkerId?: string }[];
+  };
+  isStreamOverlay: boolean;
+}): boolean {
+  if (options.isStreamOverlay) return false;
+  if (isCoworkerOnlyDirectRoom(options.room)) return false;
+  return true;
+}
+
 /** Direct rooms: @ only when the roster has more than two people (incl. you). */
 export function shouldShowRoomMentionShortcut(channel: ChatRoom): boolean {
   if (channel.kind !== "direct") {
