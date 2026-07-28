@@ -224,5 +224,32 @@ export const reactToChatRoomMessageRequestSchema = z
   })
   .openapi("ReactToChatRoomMessageRequest");
 
+/**
+ * Archiving and leaving both make the room unreachable for the caller, so
+ * echoing the whole room back would describe something they can no longer
+ * read. These report only what changed.
+ */
+export const archivedChatRoomSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    archivedAt: dateTimeSchema,
+  })
+  .openapi("ArchivedChatRoom");
+
+export const leftChatRoomSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    remainingUserMemberCount: z.number().int().min(1).openapi({
+      description:
+        "Human members left in the room after the caller leaves. Always at least one: the final member has to archive instead.",
+      example: 3,
+    }),
+  })
+  .openapi("LeftChatRoom");
+
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
