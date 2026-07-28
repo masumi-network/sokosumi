@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomMessage: { create: vi.fn(), findFirst: vi.fn() },
+    chatRoom: { update: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -12,6 +14,12 @@ import {
   persistUserMessageToChatRoom,
 } from "../persist-assistant-to-chat-room";
 
+async function runTransactionCallback<T>(
+  callback: (tx: typeof prisma) => Promise<T>,
+): Promise<T> {
+  return callback(prisma);
+}
+
 describe("persistAssistantToChatRoom", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -19,6 +27,15 @@ describe("persistAssistantToChatRoom", () => {
     vi.mocked(prisma.chatRoomMessage.create).mockResolvedValue({
       id: "msg_assistant",
     } as never);
+    vi.mocked(prisma.chatRoom.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.$transaction).mockImplementation((async (arg: unknown) => {
+      if (typeof arg === "function") {
+        return runTransactionCallback(
+          arg as (tx: typeof prisma) => Promise<unknown>,
+        );
+      }
+      return arg;
+    }) as never);
   });
 
   it("creates chat_room_message with senderCoworkerId and content", async () => {
@@ -38,6 +55,10 @@ describe("persistAssistantToChatRoom", () => {
         }),
       }),
     );
+    expect(prisma.chatRoom.update).toHaveBeenCalledWith({
+      where: { id: "room_1" },
+      data: { updatedAt: expect.any(Date) },
+    });
   });
 
   it("returns existing message id when responsesApiResponseId already persisted", async () => {
@@ -131,6 +152,15 @@ describe("persistUserMessageToChatRoom", () => {
     vi.mocked(prisma.chatRoomMessage.create).mockResolvedValue({
       id: "msg_user",
     } as never);
+    vi.mocked(prisma.chatRoom.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.$transaction).mockImplementation((async (arg: unknown) => {
+      if (typeof arg === "function") {
+        return runTransactionCallback(
+          arg as (tx: typeof prisma) => Promise<unknown>,
+        );
+      }
+      return arg;
+    }) as never);
   });
 
   it("creates chat_room_message with senderUserId and content", async () => {
@@ -151,6 +181,10 @@ describe("persistUserMessageToChatRoom", () => {
         },
       }),
     );
+    expect(prisma.chatRoom.update).toHaveBeenCalledWith({
+      where: { id: "room_1" },
+      data: { updatedAt: expect.any(Date) },
+    });
   });
 
   it("persists optional metadata", async () => {

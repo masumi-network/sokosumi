@@ -335,8 +335,12 @@ export function ChatMessageRow({
         </Avatar>
         <div
           className={cn(
-            "flex min-w-0 max-w-[min(70%,28rem)] flex-col gap-1",
-            isMine ? "items-end" : "items-start",
+            "flex min-w-0 flex-col gap-1",
+            // Column already capped on wide screens; mine stays short bubble,
+            // others use most of the column like classic coworker chat.
+            isMine
+              ? "max-w-[min(85%,28rem)] items-end"
+              : "w-full max-w-full items-start",
           )}
         >
           {isThinking ? (

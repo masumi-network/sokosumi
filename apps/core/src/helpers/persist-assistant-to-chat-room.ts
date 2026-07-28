@@ -110,15 +110,23 @@ export async function persistAssistantToChatRoom(params: {
     responseId,
   );
 
-  const created = await prisma.chatRoomMessage.create({
-    data: {
-      roomId,
-      senderCoworkerId,
-      senderUserId: null,
-      content: contentText,
-      metadata,
-    },
-    select: { id: true },
+  const created = await prisma.$transaction(async (tx) => {
+    const message = await tx.chatRoomMessage.create({
+      data: {
+        roomId,
+        senderCoworkerId,
+        senderUserId: null,
+        content: contentText,
+        metadata,
+      },
+      select: { id: true },
+    });
+    // Sidebar / room list order by activity — keep in sync with stream writes.
+    await tx.chatRoom.update({
+      where: { id: roomId },
+      data: { updatedAt: new Date() },
+    });
+    return message;
   });
   return { id: created.id };
 }
@@ -131,15 +139,22 @@ export async function persistUserMessageToChatRoom(params: {
 }): Promise<{ id: string }> {
   const { roomId, senderUserId, contentText, metadata } = params;
 
-  const created = await prisma.chatRoomMessage.create({
-    data: {
-      roomId,
-      senderUserId,
-      senderCoworkerId: null,
-      content: contentText,
-      metadata,
-    },
-    select: { id: true },
+  const created = await prisma.$transaction(async (tx) => {
+    const message = await tx.chatRoomMessage.create({
+      data: {
+        roomId,
+        senderUserId,
+        senderCoworkerId: null,
+        content: contentText,
+        metadata,
+      },
+      select: { id: true },
+    });
+    await tx.chatRoom.update({
+      where: { id: roomId },
+      data: { updatedAt: new Date() },
+    });
+    return message;
   });
 
   return { id: created.id };

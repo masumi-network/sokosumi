@@ -152,10 +152,37 @@ export async function getChatRoomUnreadCounts(
   return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
 }
 
+/** Latest message time per room — used to order the sidebar by real activity. */
+export async function getChatRoomLastMessageAts(
+  roomIds: readonly string[],
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, Date>> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+
+  const groups = await tx.chatRoomMessage.groupBy({
+    by: ["roomId"],
+    where: { roomId: { in: uniqueRoomIds } },
+    _max: { createdAt: true },
+  });
+
+  return new Map(
+    groups.flatMap((group) =>
+      group._max.createdAt
+        ? ([[group.roomId, group._max.createdAt]] as const)
+        : [],
+    ),
+  );
+}
+
 export function mapChatRoom(
   room: ChatRoomWithMembers,
   currentUserId?: string,
   unreadCount = 0,
+  /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
+  lastActivityAt?: Date | null,
 ) {
   return {
     id: room.id,
@@ -167,7 +194,7 @@ export function mapChatRoom(
     topic: room.topic,
     createdByUserId: room.createdByUserId,
     createdAt: room.createdAt,
-    updatedAt: room.updatedAt,
+    updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,

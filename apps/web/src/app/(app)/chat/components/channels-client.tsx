@@ -854,7 +854,13 @@ export function ChannelsClient({
               </header>
 
               <ScrollArea className="min-h-0 flex-1">
-                <div className="flex w-full flex-col px-5 pt-6 pb-8">
+                <div
+                  className={cn(
+                    "flex w-full flex-col px-5 pt-6 pb-8",
+                    // Match classic coworker chat: centered column on wide screens.
+                    isDirectChannel && "mx-auto max-w-4xl",
+                  )}
+                >
                   {messageLoadFailed ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
                       <p className="font-medium">
@@ -928,29 +934,33 @@ export function ChannelsClient({
                 </div>
               </ScrollArea>
 
-              <ChannelComposer
-                value={composerValue}
-                onValueChange={setComposerValue}
-                mentions={mentionRecords}
-                onSelectedKeysChange={setMentionedCoworkerIds}
-                placeholder={
-                  isDirectChannel
-                    ? t("directComposerPlaceholder", {
-                        member: selectedChannelDisplayName,
-                      })
-                    : t("composerPlaceholderWithChannel", {
-                        channel: selectedChannelDisplayName,
-                      })
-                }
-                attachments={composerAttachments}
-                onAttachmentsChange={setComposerAttachments}
-                onSubmit={handleSend}
-                isSending={isSending || isCoworkerStreaming}
-                sendDisabled={composerValue.trim().length === 0}
-                showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedChannel,
-                )}
-              />
+              <div
+                className={cn(isDirectChannel && "mx-auto w-full max-w-4xl")}
+              >
+                <ChannelComposer
+                  value={composerValue}
+                  onValueChange={setComposerValue}
+                  mentions={mentionRecords}
+                  onSelectedKeysChange={setMentionedCoworkerIds}
+                  placeholder={
+                    isDirectChannel
+                      ? t("directComposerPlaceholder", {
+                          member: selectedChannelDisplayName,
+                        })
+                      : t("composerPlaceholderWithChannel", {
+                          channel: selectedChannelDisplayName,
+                        })
+                  }
+                  attachments={composerAttachments}
+                  onAttachmentsChange={setComposerAttachments}
+                  onSubmit={handleSend}
+                  isSending={isSending || isCoworkerStreaming}
+                  sendDisabled={composerValue.trim().length === 0}
+                  showMentionShortcut={shouldShowRoomMentionShortcut(
+                    selectedChannel,
+                  )}
+                />
+              </div>
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center p-6">
