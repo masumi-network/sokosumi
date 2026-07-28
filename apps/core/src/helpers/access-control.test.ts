@@ -936,6 +936,32 @@ describe("requireTaskCancelAccess", () => {
       },
     });
   });
+
+  it("rejects cancel while the task is parked", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.GRANT_PENDING,
+      pendingVendorGrantId: "grant_1",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskCancelAccess(vars, "tsk_123", tx),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "task_parked",
+      });
+      return true;
+    });
+  });
 });
 
 describe("requireTaskReadForRouteVars vendor grants", () => {

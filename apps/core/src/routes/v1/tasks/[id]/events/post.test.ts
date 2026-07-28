@@ -2585,6 +2585,58 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(201);
     expect(requireTaskCancelAccessMock).toHaveBeenCalled();
     expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.CANCELED,
+          userId: "user_member",
+          coworkerId: null,
+        }),
+      }),
+    );
+    expect(tx.task.updateMany).toHaveBeenCalled();
+  });
+
+  it("keeps cancel with credits on collaboration for org peers", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.RUNNING,
+        ownerId: "user_owner",
+        assigneeId: null,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        credits: 5,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
   it("keeps non-cancel status writes on collaboration for org peers", async () => {
