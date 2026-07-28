@@ -97,7 +97,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         // Strict org match: active org → only that org's channels/directs.
-        // No active org → personal coworker directs only.
+        // No active org → personal coworker directs only. A kind=channel filter
+        // with no org cannot match anything — return an empty page instead of
+        // silently overriding the filter to directs.
+        if (!organizationId && kind === "channel") {
+          return {
+            rooms: [],
+            unreadCounts: new Map<string, number>(),
+            lastMessageAts: new Map<string, Date>(),
+            count: 0,
+            hasMore: false,
+          };
+        }
+
         const where = {
           archivedAt: null,
           ...(kind ? { kind } : {}),

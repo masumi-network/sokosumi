@@ -23,6 +23,7 @@ const {
   readStateCreateManyMock,
   coworkerMemberDeleteManyMock,
   coworkerMemberCreateManyMock,
+  mentionUpdateManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -38,6 +39,7 @@ const {
   readStateCreateManyMock: vi.fn(),
   coworkerMemberDeleteManyMock: vi.fn(),
   coworkerMemberCreateManyMock: vi.fn(),
+  mentionUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -79,6 +81,9 @@ const tx = {
   chatRoomCoworkerMember: {
     deleteMany: coworkerMemberDeleteManyMock,
     createMany: coworkerMemberCreateManyMock,
+  },
+  chatRoomMention: {
+    updateMany: mentionUpdateManyMock,
   },
 };
 
@@ -267,5 +272,51 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(response.status).toBe(404);
     expect(await response.text()).toContain("Room not found");
     expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("fails open mentions when coworkers are removed from the roster", async () => {
+    const existing = channelRoom();
+    const keptCoworkerId = "cow_keep";
+    const updated = channelRoom({
+      coworkerMembers: [
+        {
+          coworker: {
+            id: keptCoworkerId,
+            name: "Kept",
+            slug: "kept",
+            image: null,
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    coworkerFindManyMock.mockResolvedValue([{ id: keptCoworkerId }]);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    mentionUpdateManyMock.mockResolvedValue({ count: 1 });
+    coworkerMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ coworkerIds: [keptCoworkerId] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mentionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        status: { in: ["pending", "sent"] },
+        coworkerId: { notIn: [keptCoworkerId] },
+        message: { roomId: ROOM_ID },
+      },
+      data: {
+        status: "failed",
+        error: "Coworker is no longer a member of this room",
+      },
+    });
+    expect(coworkerMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID },
+    });
   });
 });

@@ -73,18 +73,12 @@ export function ChatWelcomeClient({
         return false;
       }
 
-      const selected =
-        (coworker && coworkerCanChat(coworker) ? coworker : null) ??
-        (selectedCoworker && coworkerCanChat(selectedCoworker)
-          ? selectedCoworker
-          : null) ??
-        coworkers.find((candidate) => coworkerCanChat(candidate)) ??
-        null;
-
-      if (!selected) {
+      const candidate = coworker ?? selectedCoworker ?? null;
+      if (!candidate || !coworkerCanChat(candidate)) {
         toast.error(t("noCoworkersAvailable"));
         return false;
       }
+      const selected = candidate;
 
       setIsSubmitting(true);
       try {
@@ -113,7 +107,7 @@ export function ChatWelcomeClient({
         return false;
       }
     },
-    [coworkers, isSubmitting, router, selectedCoworker, t],
+    [isSubmitting, router, selectedCoworker, t],
   );
 
   return (

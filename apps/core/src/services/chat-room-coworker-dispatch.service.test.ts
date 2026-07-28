@@ -13,6 +13,7 @@ const {
   createCoworkerConversationMock,
   getSokosumiProviderMock,
   transactionUpdateManyMock,
+  coworkerMemberFindUniqueMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   findManyMentionMock: vi.fn(),
@@ -26,6 +27,7 @@ const {
   createCoworkerConversationMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
   transactionUpdateManyMock: vi.fn(),
+  coworkerMemberFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -42,6 +44,9 @@ vi.mock("@/lib/db/prisma", () => ({
       create: createMock,
       delete: deleteMock,
     },
+    chatRoomCoworkerMember: {
+      findUnique: coworkerMemberFindUniqueMock,
+    },
     chatRoom: {
       update: vi.fn(),
     },
@@ -49,6 +54,7 @@ vi.mock("@/lib/db/prisma", () => ({
       callback({
         chatRoomMessage: { create: createMock, delete: deleteMock },
         chatRoomMention: { updateMany: transactionUpdateManyMock },
+        chatRoomCoworkerMember: { findUnique: coworkerMemberFindUniqueMock },
         chatRoom: { update: vi.fn() },
       }),
     ),
@@ -119,6 +125,7 @@ beforeEach(() => {
   updateMock.mockResolvedValue({});
   updateManyMock.mockResolvedValue({ count: 1 });
   transactionUpdateManyMock.mockResolvedValue({ count: 1 });
+  coworkerMemberFindUniqueMock.mockResolvedValue({ id: "membership_1" });
 });
 
 describe("buildRoomMentionPrompt", () => {
@@ -291,6 +298,46 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(generateTextMock).not.toHaveBeenCalled();
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the coworker is no longer a room member", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    coworkerMemberFindUniqueMock.mockResolvedValue(null);
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: { not: "responded" } },
+      data: {
+        status: "failed",
+        error: "Coworker is no longer a member of this room",
+      },
+    });
+    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when membership disappears during generateText", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    coworkerMemberFindUniqueMock
+      .mockResolvedValueOnce({ id: "membership_1" })
+      .mockResolvedValueOnce(null);
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(generateTextMock).toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+    expect(transactionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: MENTION_ID,
+        status: { in: ["pending", "sent"] },
+      },
+      data: {
+        status: "failed",
+        error: "Coworker is no longer a member of this room",
+      },
+    });
   });
 });
 

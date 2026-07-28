@@ -105,7 +105,9 @@ CREATE TABLE "chat_room_mention" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
 
-  CONSTRAINT "chat_room_mention_pkey" PRIMARY KEY ("id")
+  CONSTRAINT "chat_room_mention_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "chat_room_mention_status_check"
+    CHECK ("status" IN ('pending', 'sent', 'responded', 'failed'))
 );
 
 -- CreateIndex

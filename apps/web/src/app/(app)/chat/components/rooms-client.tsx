@@ -183,6 +183,10 @@ export function RoomsClient({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
+  // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
+  // handlers must not merge into messagesState after the selection moved.
+  const selectedRoomIdRef = useRef(selectedRoomId);
+  selectedRoomIdRef.current = selectedRoomId;
   const [isSending, startSendingTransition] = useTransition();
   const [isThreadLoading, startThreadLoadingTransition] = useTransition();
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
@@ -195,6 +199,10 @@ export function RoomsClient({
   const selectedRoom = isNewDirectMessage
     ? null
     : (rooms.find((room) => room.id === selectedRoomId) ?? null);
+
+  function isStillSelectedRoom(roomId: string): boolean {
+    return selectedRoomIdRef.current === roomId;
+  }
   const selectedRoomDisplayName = selectedRoom
     ? getRoomDisplayName(selectedRoom, currentUserId)
     : "";
@@ -208,6 +216,9 @@ export function RoomsClient({
       const result = await listRoomMessagesAction(roomId);
       if (!result.ok) {
         toast.error(result.message);
+        return false;
+      }
+      if (!isStillSelectedRoom(roomId)) {
         return false;
       }
       setMessagesState((current) =>
@@ -640,16 +651,17 @@ export function RoomsClient({
 
   function loadThreadMessages(parentMessage: ChatRoomMessage) {
     if (!selectedRoom) return;
+    const roomId = selectedRoom.id;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
     startThreadLoadingTransition(async () => {
-      const result = await listThreadMessagesAction(
-        selectedRoom.id,
-        parentMessage.id,
-      );
+      const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
         toast.error(result.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
         return;
       }
       setThreadMessages(result.data.messages);
@@ -668,6 +680,9 @@ export function RoomsClient({
       const result = await listRoomMessagesAction(roomId, { cursor });
       if (!result.ok) {
         toast.error(result.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
         return;
       }
       setMessagesState((current) =>
@@ -698,6 +713,9 @@ export function RoomsClient({
         toast.error(result.message);
         return;
       }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
       setThreadMessages((current) =>
         mergeRoomMessages(current, result.data.messages),
       );
@@ -710,18 +728,22 @@ export function RoomsClient({
     // Guard the in-flight toggle: on a slow connection nothing changed
     // visibly, so users tapped again and the second call flipped the reaction
     // straight back off.
+    const roomId = selectedRoom.id;
     const pendingKey = `${message.id}:${emoji}`;
     if (pendingReactionsRef.current.has(pendingKey)) return;
     pendingReactionsRef.current.add(pendingKey);
     startReactionTransition(async () => {
       const result = await toggleMessageReactionAction(
-        selectedRoom.id,
+        roomId,
         message.id,
         emoji,
       );
       pendingReactionsRef.current.delete(pendingKey);
       if (!result.ok) {
         toast.error(result.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
         return;
       }
       mergeUpdatedMessage(result.data);
@@ -731,6 +753,7 @@ export function RoomsClient({
   function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedRoom) return;
+    const roomId = selectedRoom.id;
     const content = composerValue.trim();
     if (!content) return;
 
@@ -742,14 +765,14 @@ export function RoomsClient({
       return;
     }
 
+    const mentionIds = mentionedCoworkerIds;
     startSendingTransition(async () => {
-      const result = await sendRoomMessageAction(
-        selectedRoom.id,
-        content,
-        mentionedCoworkerIds,
-      );
+      const result = await sendRoomMessageAction(roomId, content, mentionIds);
       if (!result.ok) {
         toast.error(result.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
         return;
       }
       setMessagesState((current) => appendMessage(current, result.data));
@@ -764,23 +787,29 @@ export function RoomsClient({
     if (!selectedRoom || !threadParentMessage) return;
     // Coworker 1:1 thread AI replies: SOK-656. Hide UI for now; fail closed if opened.
     if (shouldUseCoworkerRoomStream(selectedRoom)) return;
+    const roomId = selectedRoom.id;
+    const parentMessageId = threadParentMessage.id;
     const content = threadComposerValue.trim();
     if (!content) return;
 
+    const mentionIds = threadMentionedCoworkerIds;
     startSendingThreadReplyTransition(async () => {
       const result = await sendRoomMessageAction(
-        selectedRoom.id,
+        roomId,
         content,
-        threadMentionedCoworkerIds,
-        threadParentMessage.id,
+        mentionIds,
+        parentMessageId,
       );
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
 
       setThreadMessages((current) => [...current, result.data]);
-      updateParentThreadPreview(threadParentMessage.id, result.data);
+      updateParentThreadPreview(parentMessageId, result.data);
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedCoworkerIds([]);

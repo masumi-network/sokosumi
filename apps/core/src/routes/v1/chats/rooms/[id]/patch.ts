@@ -171,6 +171,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             body.coworkerIds,
             tx,
           );
+          // Fail open mentions for coworkers dropped from the roster so a
+          // queued dispatch cannot post after eviction.
+          await tx.chatRoomMention.updateMany({
+            where: {
+              status: { in: ["pending", "sent"] },
+              coworkerId: { notIn: coworkerIds },
+              message: { roomId: existing.id },
+            },
+            data: {
+              status: "failed",
+              error: "Coworker is no longer a member of this room",
+            },
+          });
           await tx.chatRoomCoworkerMember.deleteMany({
             where: { roomId: existing.id },
           });

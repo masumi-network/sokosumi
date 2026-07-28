@@ -215,6 +215,25 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
+  // Roster is source of truth: a PATCH that drops this coworker must stop an
+  // in-flight mention from posting after eviction.
+  const membership = await prisma.chatRoomCoworkerMember.findUnique({
+    where: {
+      roomId_coworkerId: {
+        roomId: mention.message.roomId,
+        coworkerId: coworker.id,
+      },
+    },
+    select: { id: true },
+  });
+  if (!membership) {
+    await markMentionFailed(
+      mentionId,
+      "Coworker is no longer a member of this room",
+    );
+    return;
+  }
+
   // Claim before any provider work so concurrent dispatches cannot both run
   // generateText. Fresh `sent` (in flight) loses quietly; stale `sent` is
   // reclaimed after ROOM_SENT_STALE_MS.
@@ -337,6 +356,31 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   }
 
   await prisma.$transaction(async (tx) => {
+    // Re-check membership after the provider call: eviction during generateText
+    // must not land a reply in a room the coworker left.
+    const stillMember = await tx.chatRoomCoworkerMember.findUnique({
+      where: {
+        roomId_coworkerId: {
+          roomId: mention.message.roomId,
+          coworkerId: coworker.id,
+        },
+      },
+      select: { id: true },
+    });
+    if (!stillMember) {
+      await tx.chatRoomMention.updateMany({
+        where: {
+          id: mention.id,
+          status: { in: ["pending", "sent"] },
+        },
+        data: {
+          status: "failed",
+          error: "Coworker is no longer a member of this room",
+        },
+      });
+      return;
+    }
+
     // Persist the reply first, then claim the mention transition. If another
     // worker already finalized (or reclaim stole the claim), discard this
     // duplicate reply so the room does not double-post.
