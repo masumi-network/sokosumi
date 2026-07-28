@@ -130,6 +130,26 @@ function roomWithMembers() {
   };
 }
 
+function coworkerOnlyDirectRoom() {
+  return {
+    id: ROOM_ID,
+    organizationId: null,
+    slug: "hannah",
+    kind: "direct",
+    providerConversationId: "conv_remote_1",
+    userMembers: [{ userId: USER_ID }],
+    coworkerMembers: [
+      {
+        coworker: {
+          id: COWORKER_ID,
+          name: "Hannah",
+          slug: "hannah",
+        },
+      },
+    ],
+  };
+}
+
 function createdMessage(
   overrides: Partial<{
     senderUserId: string | null;
@@ -244,6 +264,36 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(response.status).toBe(404);
       expect(messageCreateMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("coworker-only directs", () => {
+    it("creates a message without mention rows or dispatch", async () => {
+      roomFindFirstMock.mockResolvedValue(coworkerOnlyDirectRoom());
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello coworker" }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.mentions).toEqual([]);
+
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            mentionsAsSource: { create: [] },
+          }),
+        }),
+      );
+      expect(dispatchMock).not.toHaveBeenCalled();
+      expect(waitUntilMock).not.toHaveBeenCalled();
     });
   });
 

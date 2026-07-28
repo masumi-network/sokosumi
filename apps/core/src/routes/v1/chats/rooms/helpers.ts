@@ -434,6 +434,12 @@ const chatRoomWriteSelect = {
   slug: true,
   kind: true,
   providerConversationId: true,
+  userMembers: {
+    select: {
+      userId: true,
+    },
+    orderBy: { createdAt: "asc" },
+  },
   coworkerMembers: {
     select: {
       coworker: {
