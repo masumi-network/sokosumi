@@ -2719,6 +2719,14 @@
       "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "Monatliche Credits",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "Details nicht verfügbar",
+        "planLabel": "Plan",
+        "openSummary": "Kontoübersicht öffnen: {name}, {summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "Neue Aufgabe",

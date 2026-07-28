@@ -2719,6 +2719,14 @@
       "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "Crediti mensili",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "Dettagli non disponibili",
+        "planLabel": "Piano",
+        "openSummary": "Apri il riepilogo dell'account: {name}, {summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "Nuova attività",

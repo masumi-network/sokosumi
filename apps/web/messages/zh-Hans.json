@@ -2719,6 +2719,14 @@
       "description": "雇用智能体来完成最耗时的任务"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "每月积分",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "详情不可用",
+        "planLabel": "套餐",
+        "openSummary": "打开账户摘要：{name}，{summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "新建任务",

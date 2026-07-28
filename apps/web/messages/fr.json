@@ -2719,6 +2719,14 @@
       "description": "Engagez un agent pour terminer vos tâches les plus chronophages"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "Crédits mensuels",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "Détails indisponibles",
+        "planLabel": "Forfait",
+        "openSummary": "Ouvrir le récapitulatif du compte : {name}, {summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "Nouvelle tâche",
