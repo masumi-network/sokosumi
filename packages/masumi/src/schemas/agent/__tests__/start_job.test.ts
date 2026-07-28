@@ -53,6 +53,17 @@ describe("startPaidJobResponseSchema", () => {
     expect(result.supportedPaymentSourceIndex).toBeUndefined();
   });
 
+  it("treats absent-intent junk as absent, never index 0", () => {
+    for (const junk of ["", " ", false, [], {}, "abc"]) {
+      const result = startPaidJobResponseSchema.parse({
+        ...paidJobResponse,
+        supportedPaymentSourceIndex: junk,
+      });
+
+      expect(result.supportedPaymentSourceIndex).toBeUndefined();
+    }
+  });
+
   it("rejects a payment-source index on a V1 response", () => {
     const result = startPaidJobResponseSchema.safeParse({
       ...paidJobResponse,

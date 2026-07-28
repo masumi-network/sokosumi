@@ -589,7 +589,31 @@ async function syncPurchaseState(
     }
 
     if (purchaseResult.isOk()) {
-      const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
+      const purchase = purchaseResult.value;
+      // Attach ONLY a purchase matching the job's own seller-signed terms.
+      // Without this, a foreign purchase sharing the blockchainIdentifier —
+      // the exact case the 409 duplicate guard refuses at creation — would be
+      // silently adopted here one cron cycle later.
+      const doesPurchaseMatchJob =
+        (job.inputHash === null || purchase.inputHash === job.inputHash) &&
+        purchase.payByTime === String(job.payByTime.getTime()) &&
+        purchase.submitResultTime === String(job.submitResultTime.getTime()) &&
+        purchase.unlockTime === String(job.unlockTime.getTime()) &&
+        purchase.externalDisputeUnlockTime ===
+          String(job.externalDisputeUnlockTime.getTime());
+      if (!doesPurchaseMatchJob) {
+        const mismatchError = new Error(
+          `Resolved purchase does not match job terms; refusing purchase backfill for job ${job.id}`,
+        );
+        console.error(mismatchError.message, {
+          jobId: job.id,
+          blockchainIdentifier: job.blockchainIdentifier,
+          purchaseId: purchase.id,
+        });
+        Sentry.captureException(mismatchError);
+        return false;
+      }
+      const purchaseData = transformPurchaseToJobUpdate(purchase);
       try {
         await jobPurchaseRepository.createJobPurchase(
           {

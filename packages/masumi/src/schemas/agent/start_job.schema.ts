@@ -48,12 +48,18 @@ export const startPaidJobResponseSchema = z.preprocess(
       sellerVKey: z.string().min(1),
       paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
       // Coerced like the sibling time fields — sellers serialize
-      // inconsistently — but null means ABSENT, never a selection of index 0
-      // (bare z.coerce would turn null into 0 via Number(null)).
-      supportedPaymentSourceIndex: z.preprocess(
-        (value) => (value === null ? undefined : value),
-        z.coerce.number().int().min(0).max(24).optional(),
-      ),
+      // inconsistently — but only genuine numbers and numeric strings count
+      // as a selection. Absent-intent junk (null, "", false, []) must never
+      // coerce into index 0 via Number() semantics.
+      supportedPaymentSourceIndex: z.preprocess((value) => {
+        if (typeof value === "number") {
+          return value;
+        }
+        if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+          return value.trim();
+        }
+        return undefined;
+      }, z.coerce.number().int().min(0).max(24).optional()),
     })
     .refine(
       (data) =>

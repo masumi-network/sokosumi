@@ -537,6 +537,7 @@ async function upsertRegistryAgent(
     pricingId: true,
     registryVersion: true,
     blockchainIdentifier: true,
+    metadataVersion: true,
   } as const;
   const existingByRegistryIdentity = await prisma.agent.findUnique({
     where: { registryIdentity: version.registryIdentity },
@@ -613,6 +614,14 @@ async function upsertRegistryAgent(
 
   const isRevisionPromotion =
     version.registryVersion > existing.registryVersion;
+  // Registry-owned collections and the generated summary also refresh when
+  // the entry's metadataVersion moves without a revision promotion — V1
+  // agents never promote (always version 0), so this is their only path to
+  // shed stale examples and regenerate the summary after a metadata edit.
+  const shouldReplaceCollections =
+    isRevisionPromotion ||
+    (entry.metadataVersion != null &&
+      entry.metadataVersion !== existing.metadataVersion);
 
   // A rollback-era binary can also have stored this revision's identifier as
   // its OWN row (registryIdentity=NULL) while the canonical row resolved via
@@ -647,7 +656,7 @@ async function upsertRegistryAgent(
     await tx.agentPaymentSource.deleteMany({
       where: { agentId: existing.id },
     });
-    if (isRevisionPromotion) {
+    if (shouldReplaceCollections) {
       await tx.exampleOutput.deleteMany({
         where: { agentId: existing.id },
       });
@@ -659,10 +668,14 @@ async function upsertRegistryAgent(
         registryIdentity: version.registryIdentity,
         registryVersion: version.registryVersion,
         ...registryFields,
-        ...(isRevisionPromotion
+        // Tags are registry-owned and every diff entry carries the full list,
+        // so they are SET (not connected) on every update. This also heals
+        // the historical tag unions the 20260728090000 repair left on
+        // consolidated rows, which same-version replays could never remove.
+        tags: { set: tagReferences },
+        ...(shouldReplaceCollections
           ? {
               summary: null,
-              tags: { set: tagReferences },
               ...(exampleOutputRows.length > 0
                 ? {
                     exampleOutput: {
@@ -671,7 +684,7 @@ async function upsertRegistryAgent(
                   }
                 : {}),
             }
-          : { tags: { connect: tagReferences } }),
+          : {}),
         paymentSources: {
           create: buildPaymentSourcesCreate(paymentSourceRows),
         },
@@ -991,6 +1004,9 @@ async function syncCardanoV2RailReadiness(
     try {
       // Disabling the flag resets the Sentry dedupe latch so a re-enable
       // reports a fresh failure streak instead of inheriting an old marker.
+      // Known trade-off: during a mixed-flag rollout a flag-off instance
+      // wipes the latch every cycle, so a flag-on instance re-pages per cron
+      // until the fleet converges — noise only, never a missed page.
       await prisma.syncMetadata.deleteMany({
         where: { key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY },
       });

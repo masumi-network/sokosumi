@@ -207,6 +207,24 @@ interface SettleTaskEventChargeParams {
   tx: Prisma.TransactionClient;
 }
 
+/**
+ * V2 detection for a task masumiPayment. PaymentSource alone does NOT imply
+ * V2: it predates the V2 gate on this public API and V1 callers may populate
+ * it with their V1 source tuple. Every real V2 payload is caught by the
+ * explicit fields or the V2 registry policy prefix of its agent identifier —
+ * which must stay in lockstep with the payment node's configured V2 policies
+ * (see V2_REGISTRY_POLICY_IDS in @sokosumi/masumi).
+ */
+function isV2MasumiTaskPayment(
+  masumiPayment: NonNullable<SettleTaskEventChargeParams["masumiPayment"]>,
+): boolean {
+  return (
+    masumiPayment.paymentSourceType === "Web3CardanoV2" ||
+    masumiPayment.supportedPaymentSourceIndex !== undefined ||
+    isV2RegistryIdentifier(masumiPayment.agentIdentifier)
+  );
+}
+
 interface SettleTaskEventChargeResult {
   cents: bigint | undefined;
   transactionId: string | null;
@@ -230,14 +248,7 @@ async function settleTaskEventCharge({
     // source as purchase-ready. Rejecting BEFORE the charge avoids
     // charged-but-unpayable events (the async purchase later has no
     // compensation path).
-    // PaymentSource alone does NOT imply V2: it predates this gate on the
-    // public API and V1 callers may populate it with their V1 source tuple.
-    // Every real V2 payload is caught by the explicit fields or the V2
-    // registry policy prefix of its agent identifier.
-    const isV2TaskPayment =
-      masumiPayment.paymentSourceType === "Web3CardanoV2" ||
-      masumiPayment.supportedPaymentSourceIndex !== undefined ||
-      isV2RegistryIdentifier(masumiPayment.agentIdentifier);
+    const isV2TaskPayment = isV2MasumiTaskPayment(masumiPayment);
     if (isV2TaskPayment) {
       const readySources = await getCardanoV2ReadySources(tx);
       if (readySources.length === 0) {
@@ -710,8 +721,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           Amounts: masumiPayment.Amounts,
           identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
           paymentSourceType: masumiPayment.paymentSourceType,
-          smartContractAddress:
-            masumiPayment.PaymentSource?.smartContractAddress,
+          // A V1 payload's PaymentSource echo is informational — forwarding
+          // its address to the node caused post-charge rejections for
+          // addresses the node does not operate. Only V2 payloads (whose
+          // tuple was checked against readiness pre-charge) forward it.
+          smartContractAddress: isV2MasumiTaskPayment(masumiPayment)
+            ? masumiPayment.PaymentSource?.smartContractAddress
+            : undefined,
           supportedPaymentSourceIndex:
             masumiPayment.supportedPaymentSourceIndex,
           metadata: JSON.stringify({

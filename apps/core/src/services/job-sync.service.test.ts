@@ -230,11 +230,30 @@ function createJob(
       notificationsOptIn: true,
     },
     payByTime: new Date(now.getTime() + 30 * 60 * 1000),
+    submitResultTime: new Date(now.getTime() + 40 * 60 * 1000),
+    unlockTime: new Date(now.getTime() + 50 * 60 * 1000),
     externalDisputeUnlockTime: new Date(now.getTime() + 60 * 60 * 1000),
+    inputHash: null,
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
     workspaceId: "11111111-1111-7111-8111-111111111111",
+    ...overrides,
+  };
+}
+
+function matchingResolvedPurchase(
+  job: Record<string, unknown>,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    inputHash: job.inputHash ?? "matching-input-hash",
+    payByTime: String((job.payByTime as Date).getTime()),
+    submitResultTime: String((job.submitResultTime as Date).getTime()),
+    unlockTime: String((job.unlockTime as Date).getTime()),
+    externalDisputeUnlockTime: String(
+      (job.externalDisputeUnlockTime as Date).getTime(),
+    ),
     ...overrides,
   };
 }
@@ -367,19 +386,29 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       },
       status: SokosumiJobStatus.PAYMENT_PENDING,
     });
+    const pendingBackfillJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
     mockInitialJobQueries({
-      purchase: [
-        createJob({
-          purchase: null,
-          status: SokosumiJobStatus.PAYMENT_PENDING,
-        }),
-      ],
+      purchase: [pendingBackfillJob],
       agent: [backfilledJob],
     });
+    // The resolved purchase echoes the job's own seller-signed terms — the
+    // backfill guard refuses anything else.
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_backfilled",
         resultHash: "result-hash",
+        inputHash: "backfill-input-hash",
+        payByTime: String((pendingBackfillJob.payByTime as Date).getTime()),
+        submitResultTime: String(
+          (pendingBackfillJob.submitResultTime as Date).getTime(),
+        ),
+        unlockTime: String((pendingBackfillJob.unlockTime as Date).getTime()),
+        externalDisputeUnlockTime: String(
+          (pendingBackfillJob.externalDisputeUnlockTime as Date).getTime(),
+        ),
       }),
     );
     getJobByIdMock.mockResolvedValueOnce(backfilledJob);
@@ -571,6 +600,40 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
     expect(publishJobStatusDataMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to backfill a purchase that does not match the job's terms", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    // Foreign purchase sharing the blockchainIdentifier: terms differ.
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({
+        id: "purchase_foreign",
+        resultHash: null,
+        inputHash: "foreign-input-hash",
+        payByTime: "1700000000000",
+        submitResultTime: "1700000000001",
+        unlockTime: "1700000000002",
+        externalDisputeUnlockTime: "1700000000003",
+      }),
+    );
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result.unfinishedFound).toBe(1);
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
   });
 
   it("reconciles timed-out missing purchases without running the standard sync pipeline", async () => {
@@ -1998,7 +2061,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     mockInitialJobQueries({ purchase: [job] });
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
-      ok({ id: "purchase_concurrent" }),
+      ok(matchingResolvedPurchase(job, { id: "purchase_concurrent" })),
     );
     createJobPurchaseMock.mockRejectedValue(
       Object.assign(new Error("violates required relation"), { code: "P2014" }),
@@ -2021,7 +2084,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     mockInitialJobQueries({ purchase: [job] });
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
-      ok({ id: "purchase_missing" }),
+      ok(matchingResolvedPurchase(job, { id: "purchase_missing" })),
     );
     createJobPurchaseMock.mockRejectedValue(
       Object.assign(new Error("record to update not found"), { code: "P2025" }),
@@ -2044,7 +2107,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     mockInitialJobQueries({ purchase: [job] });
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
-      ok({ id: "purchase_duplicate" }),
+      ok(matchingResolvedPurchase(job, { id: "purchase_duplicate" })),
     );
     createJobPurchaseMock.mockRejectedValue(
       Object.assign(new Error("unique constraint failed"), { code: "P2002" }),
@@ -2065,7 +2128,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     mockInitialJobQueries({ purchase: [job] });
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
-      ok({ id: "purchase_bad" }),
+      ok(matchingResolvedPurchase(job, { id: "purchase_bad" })),
     );
     const unexpectedError = Object.assign(new Error("unexpected db error"), {
       code: "P2003",

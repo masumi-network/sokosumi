@@ -376,16 +376,28 @@ export async function createAgentJobForUser(
   ) {
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
-  // For V2 agents the authoritative cost follows the seller-selected payment
-  // source (checked again after start_job), but no valid selection can cost
-  // less than the cheapest purchase-ready source — rejecting here avoids
-  // orphaning a seller-side job the post-response cap (maxCredits, or the
-  // listed price when no cap was given) was always going to refuse.
-  if (agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2) {
+  // For PAID V2 agents the authoritative cost follows the seller-selected
+  // payment source (checked again after start_job), but no valid selection
+  // can cost less than the cheapest purchase-ready source — rejecting here
+  // avoids orphaning a seller-side job the post-response cap (maxCredits, or
+  // the listed price when no cap was given) was always going to refuse.
+  // FREE-priced agents take the free flow, which never charges and consults
+  // no cap, so the floor must not apply there.
+  if (
+    agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 &&
+    agentRecord.pricing.pricingType === PricingType.FIXED
+  ) {
+    // Readiness is a (policyId, contract) tuple; restrict to the agent's own
+    // policy so the floor matches the sources the post-response check accepts.
+    const agentReadySources = cardanoV2ReadySources.filter((source) =>
+      agentRecord.blockchainIdentifier
+        .toLowerCase()
+        .startsWith(source.policyId),
+    );
     const cheapestCents = cheapestEligibleV2SourceCents(
       agentRecord.paymentSources,
       creditCosts,
-      cardanoV2ReadySources,
+      agentReadySources,
     );
     const acceptedCeilingCents = maxCents ?? cost.cents;
     if (cheapestCents !== null && cheapestCents > acceptedCeilingCents) {
@@ -502,7 +514,9 @@ export async function createAgentJobForUser(
         }
         const isSelectedSourcePurchaseReady = cardanoV2ReadySources.some(
           (readySource) =>
-            agent.blockchainIdentifier.startsWith(readySource.policyId) &&
+            agent.blockchainIdentifier
+              .toLowerCase()
+              .startsWith(readySource.policyId) &&
             selectedSource.address === readySource.smartContractAddress,
         );
         if (!isSelectedSourcePurchaseReady) {

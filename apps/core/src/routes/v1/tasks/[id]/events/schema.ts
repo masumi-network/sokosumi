@@ -37,13 +37,18 @@ const masumiPaymentPayloadSchema = z
     blockchainIdentifier: z.string().min(1).openapi({
       example: "0b00e04c0860a60c61066056281180462d0b12",
     }),
-    // Mirrors the payment node's request limits (min 14 / max 26, hex) so a
-    // payload the node deterministically rejects fails BEFORE the charge.
+    // Mirrors the payment node's request limits (min 14 / max 26, hex with an
+    // even number of digits — it must decode to whole bytes) so a payload the
+    // node deterministically rejects fails BEFORE the charge.
     identifierFromPurchaser: z
       .string()
       .min(14)
       .max(26)
       .regex(/^[0-9a-f]+$/i, "identifierFromPurchaser must be hex")
+      .refine(
+        (value) => value.length % 2 === 0,
+        "identifierFromPurchaser must be even-length hex",
+      )
       .openapi({
         example: "aabbccddeeff00112233",
       }),

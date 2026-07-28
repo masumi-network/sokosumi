@@ -287,6 +287,206 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
+  it("continues to the next batch when the diff returns a full page", async () => {
+    const batchOne = Array.from({ length: 50 }, (_, index) =>
+      createRegistryEntry(`page1-${index}`),
+    );
+    const batchTwo = [
+      createRegistryEntry("page2-0", {
+        statusUpdatedAt: "2026-02-24T13:00:00.000Z",
+      }),
+    ];
+    getAgentsDiffMock
+      .mockResolvedValueOnce(ok(batchOne))
+      .mockResolvedValueOnce(ok(batchTwo));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(getAgentsDiffMock).toHaveBeenCalledTimes(2);
+    // The second request resumes from the last entry of the first page.
+    expect(getAgentsDiffMock).toHaveBeenNthCalledWith(
+      2,
+      new Date("2026-02-24T12:00:00.000Z"),
+      "page1-49",
+      50,
+      expect.anything(),
+    );
+    // The cursor advanced after each batch, ending on the short page.
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(2);
+    expect(syncMetadataUpsertMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ cursorId: "page2-0" }),
+      }),
+    );
+    expect(agentCreateMock).toHaveBeenCalledTimes(51);
+  });
+
+  it("parks a rollback-created duplicate before the canonical row adopts its identifier", async () => {
+    const entries = [
+      createRegistryEntry("entry-v2-promote", {
+        agentIdentifier: createV2AgentIdentifier(2),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    // Canonical row resolves via registryIdentity while a rollback-era row
+    // already holds the new revision's full identifier.
+    agentFindUniqueMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        if (where.registryIdentity) {
+          return {
+            id: "agent-canonical",
+            pricingId: "pricing-canonical",
+            registryVersion: 1,
+            blockchainIdentifier: createV2AgentIdentifier(1),
+            metadataVersion: 1,
+          };
+        }
+        if (where.blockchainIdentifier === createV2AgentIdentifier(2)) {
+          return {
+            id: "agent-rollback-dup",
+            blockchainIdentifier: createV2AgentIdentifier(2),
+          };
+        }
+        return null;
+      },
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const parkedIdentifier = `legacy-v2:agent-rollback-dup:${createV2AgentIdentifier(2)}`;
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-rollback-dup" },
+        data: expect.objectContaining({
+          blockchainIdentifier: parkedIdentifier,
+          registryIdentity: parkedIdentifier,
+          isShown: false,
+        }),
+      }),
+    );
+    // The canonical promotion still lands after the duplicate is parked.
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-canonical" },
+        data: expect.objectContaining({
+          blockchainIdentifier: createV2AgentIdentifier(2),
+        }),
+      }),
+    );
+  });
+
+  it("skips a malformed V2 entry whose full-string identity collides with a canonical row", async () => {
+    // 114 hex chars: V2 policy prefix but no version suffix, so parsing fails
+    // and the FULL string doubles as the (colliding) registryIdentity.
+    const malformedIdentifier = V2_AGENT_ROOT;
+    const entries = [
+      createRegistryEntry("entry-malformed-collision", {
+        agentIdentifier: malformedIdentifier,
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    agentFindUniqueMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        where.registryIdentity === malformedIdentifier
+          ? {
+              id: "agent-canonical",
+              pricingId: "pricing-canonical",
+              registryVersion: 0,
+              blockchainIdentifier: createV2AgentIdentifier(0),
+              metadataVersion: 1,
+            }
+          : null,
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    // The canonical row is never overwritten with malformed data…
+    expect(agentCreateMock).not.toHaveBeenCalled();
+    expect(agentUpdateMock).not.toHaveBeenCalled();
+    // …and the cursor still advances past the skipped entry.
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces collections and summary when metadataVersion moves without a promotion", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-v1-existing",
+      pricingId: "pricing-1",
+      registryVersion: 0,
+      blockchainIdentifier: "identifier-entry-meta",
+      metadataVersion: 1,
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([createRegistryEntry("entry-meta", { metadataVersion: 2 })]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(exampleOutputDeleteManyMock).toHaveBeenCalledWith({
+      where: { agentId: "agent-v1-existing" },
+    });
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-v1-existing" },
+        data: expect.objectContaining({
+          summary: null,
+          tags: { set: [{ name: "tag-a" }, { name: "tag-b" }] },
+        }),
+      }),
+    );
+  });
+
+  it("keeps collections but still sets tags when nothing changed", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-v1-existing",
+      pricingId: "pricing-1",
+      registryVersion: 0,
+      blockchainIdentifier: "identifier-entry-same",
+      metadataVersion: 1,
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([createRegistryEntry("entry-same", { metadataVersion: 1 })]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(exampleOutputDeleteManyMock).not.toHaveBeenCalled();
+    const updateCall = agentUpdateMock.mock.calls[0]?.[0] as {
+      data: Record<string, unknown>;
+    };
+    // Tags are registry-owned: SET on every update (heals repair-era unions).
+    expect(updateCall.data.tags).toEqual({
+      set: [{ name: "tag-a" }, { name: "tag-b" }],
+    });
+    expect(updateCall.data.summary).toBeUndefined();
+    expect(updateCall.data.exampleOutput).toBeUndefined();
+  });
+
   it("starts a full replay from the independent V2 cursor when enabled", async () => {
     const agentSyncService = await getAgentSyncService();
     syncMetadataFindUniqueMock.mockResolvedValue(null);
@@ -438,6 +638,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         pricingId: true,
         registryVersion: true,
         blockchainIdentifier: true,
+        metadataVersion: true,
       },
     });
     expect(agentCreateMock).toHaveBeenCalledTimes(3);
@@ -641,6 +842,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         pricingId: true,
         registryVersion: true,
         blockchainIdentifier: true,
+        metadataVersion: true,
       },
     });
     expect(agentUpdateMock).toHaveBeenCalledWith(
@@ -697,6 +899,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         pricingId: true,
         registryVersion: true,
         blockchainIdentifier: true,
+        metadataVersion: true,
       },
     });
     expect(agentCreateMock).not.toHaveBeenCalled();

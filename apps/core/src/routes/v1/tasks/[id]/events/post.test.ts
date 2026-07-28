@@ -2273,11 +2273,52 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(201);
     expect(getCardanoV2ReadySourcesMock).not.toHaveBeenCalled();
     expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
+    // The V1 tuple is informational — its address must NOT be forwarded to
+    // the node (an unoperated address would fail the purchase post-charge).
     expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        smartContractAddress: "addr_test1_v1_escrow_contract",
+        smartContractAddress: undefined,
       }),
     );
+  });
+
+  it("rejects an odd-length hex identifierFromPurchaser before charging", async () => {
+    const chargeSpy = vi.fn();
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: chargeSpy,
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: {
+          ...validMasumiPaymentBody,
+          // 15 hex chars: within 14-26 but not whole bytes — the node
+          // rejects it, so the schema must too (before any charge).
+          identifierFromPurchaser: "aabbccddeeff001",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(chargeSpy).not.toHaveBeenCalled();
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
   it("rejects an inferred-V2 masumiPayment that omits PaymentSource", async () => {

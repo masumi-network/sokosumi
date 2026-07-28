@@ -12,6 +12,13 @@ const HEX_PATTERN = /^[0-9a-f]+$/i;
  * The Masumi V2 registry minting policy. The validator is unparameterized, so
  * the policy hash is identical on Preprod and Mainnet (mirrors
  * masumi-registry-service isV2Policy).
+ *
+ * LOCKSTEP REQUIREMENT: this set is the only involuntary V2 trigger for
+ * payloads that omit paymentSourceType and supportedPaymentSourceIndex (both
+ * legitimately optional). If Masumi ever mints under a second V2 registry
+ * policy, it MUST be added here before the payment node serves it, or such
+ * payloads bypass the V2 readiness gates and charge before failing at the
+ * node.
  */
 const V2_REGISTRY_POLICY_IDS = new Set([
   "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",

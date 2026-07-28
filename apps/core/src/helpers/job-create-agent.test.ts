@@ -471,6 +471,40 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 
+  it("takes the free flow for a FREE-priced V2 agent even with a paid source and no cap", async () => {
+    // Regression guard: a Free+Fixed multi-source V2 agent projects FREE
+    // pricing; the cheapest-ready-source floor must not run for the free
+    // flow, which never charges and consults no cap.
+    agentFindFirstMock.mockResolvedValue({
+      ...createPaidV2AgentRecord(),
+      pricing: {
+        pricingType: PricingType.FREE,
+        fixedPricing: null,
+      },
+    });
+    getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
+    // The agent's fixed source is expensive; it must be irrelevant here.
+    calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(999));
+    const startFreeAgentJobMock = vi
+      .fn()
+      .mockResolvedValue(ok({ id: "agent_job_free" }));
+    createAgentClientMock.mockReturnValue({
+      startFreeAgentJob: startFreeAgentJobMock,
+    });
+
+    await createAgentJobForUser(
+      createInput({
+        agentInput: {
+          ...createInput().agentInput,
+          maxAcceptedCents: undefined,
+        },
+      }),
+    );
+
+    expect(startFreeAgentJobMock).toHaveBeenCalled();
+    expect(txJobCreateMock).toHaveBeenCalled();
+  });
+
   it("rejects maxCredits below the cheapest eligible V2 source before contacting the seller", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     // Every stored source costs more than the accepted cap of 10 cents, so
