@@ -2224,6 +2224,62 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
+  it("does not V2-gate a V1 masumiPayment that includes its PaymentSource tuple", async () => {
+    // PaymentSource predates the V2 gate on this public API; a V1 caller
+    // echoing its V1 source tuple must charge as V1 without any readiness
+    // consultation (regression guard for the compat break found in review).
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_v1_source",
+            status: TaskStatus.COMPLETED,
+            cents: null,
+            transactionId: "txn_masumi_v1",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_masumi_v1");
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: {
+          ...validMasumiPaymentBody,
+          PaymentSource: {
+            network: "Preprod",
+            policyId: validMasumiPaymentBody.agentIdentifier.slice(0, 56),
+            smartContractAddress: "addr_test1_v1_escrow_contract",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(getCardanoV2ReadySourcesMock).not.toHaveBeenCalled();
+    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
+    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        smartContractAddress: "addr_test1_v1_escrow_contract",
+      }),
+    );
+  });
+
   it("rejects an inferred-V2 masumiPayment that omits PaymentSource", async () => {
     const chargeSpy = vi.fn();
     const tx: TransactionMock = {

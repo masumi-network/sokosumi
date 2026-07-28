@@ -230,10 +230,13 @@ async function settleTaskEventCharge({
     // source as purchase-ready. Rejecting BEFORE the charge avoids
     // charged-but-unpayable events (the async purchase later has no
     // compensation path).
+    // PaymentSource alone does NOT imply V2: it predates this gate on the
+    // public API and V1 callers may populate it with their V1 source tuple.
+    // Every real V2 payload is caught by the explicit fields or the V2
+    // registry policy prefix of its agent identifier.
     const isV2TaskPayment =
       masumiPayment.paymentSourceType === "Web3CardanoV2" ||
       masumiPayment.supportedPaymentSourceIndex !== undefined ||
-      masumiPayment.PaymentSource !== undefined ||
       isV2RegistryIdentifier(masumiPayment.agentIdentifier);
     if (isV2TaskPayment) {
       const readySources = await getCardanoV2ReadySources(tx);
