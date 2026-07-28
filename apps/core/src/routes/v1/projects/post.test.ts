@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostProject from "./post.js";
 
@@ -32,7 +33,7 @@ const WORKSPACE_CONTEXT = {
   organizationId: null,
 } satisfies WorkspaceVariables["workspaceContext"];
 
-function createApp() {
+function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables & { requestId: string };
   }>();
@@ -40,7 +41,7 @@ function createApp() {
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
-    c.set("authContext", USER_AUTH_CONTEXT);
+    c.set("authContext", authContext);
     c.set("workspaceContext", WORKSPACE_CONTEXT);
 
     return await next();
@@ -83,5 +84,24 @@ describe("POST /projects", () => {
         description: null,
       },
     });
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    const coworkerAuth: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_123", organizationId: null },
+    };
+
+    const app = createApp(coworkerAuth);
+    const res = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Hijack" }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(projectCreateMock).not.toHaveBeenCalled();
   });
 });
