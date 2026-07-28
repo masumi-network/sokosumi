@@ -11,6 +11,7 @@ const {
   agentCreateMock,
   captureExceptionMock,
   exampleOutputDeleteManyMock,
+  agentFindFirstMock,
   agentFindManyMock,
   agentFindUniqueMock,
   agentFixedPricingDeleteMock,
@@ -34,6 +35,7 @@ const {
   agentCreateMock: vi.fn(),
   captureExceptionMock: vi.fn(),
   exampleOutputDeleteManyMock: vi.fn(),
+  agentFindFirstMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   agentFindUniqueMock: vi.fn(),
   agentFixedPricingDeleteMock: vi.fn(),
@@ -94,6 +96,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     agent: {
       create: agentCreateMock,
+      findFirst: agentFindFirstMock,
       findMany: agentFindManyMock,
       findUnique: agentFindUniqueMock,
       update: agentUpdateMock,
@@ -261,6 +264,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     tagUpsertMock.mockResolvedValue(undefined);
+    agentFindFirstMock.mockResolvedValue(null);
     agentFindUniqueMock.mockResolvedValue(null);
     agentCreateMock.mockResolvedValue(undefined);
     agentUpdateMock.mockResolvedValue(undefined);
@@ -332,6 +336,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("parks a rollback-created duplicate before the canonical row adopts its identifier", async () => {
+    const rollbackDuplicateIdentifier =
+      createV2AgentIdentifier(2).toUpperCase();
     const entries = [
       createRegistryEntry("entry-v2-promote", {
         agentIdentifier: createV2AgentIdentifier(2),
@@ -354,17 +360,15 @@ describe("agentSyncService.syncRegistryAgents", () => {
             metadataVersion: 1,
           };
         }
-        if (where.blockchainIdentifier === createV2AgentIdentifier(2)) {
-          return {
-            id: "agent-rollback-dup",
-            blockchainIdentifier: createV2AgentIdentifier(2),
-            apiBaseUrl: "https://rollback-agent.example.com",
-            metadataOverride: null,
-          };
-        }
         return null;
       },
     );
+    agentFindFirstMock.mockResolvedValue({
+      id: "agent-rollback-dup",
+      blockchainIdentifier: rollbackDuplicateIdentifier,
+      apiBaseUrl: "https://rollback-agent.example.com",
+      metadataOverride: null,
+    });
 
     const agentSyncService = await getAgentSyncService();
     await agentSyncService.syncRegistryAgents(
@@ -372,14 +376,24 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    const parkedIdentifier = `legacy-v2:agent-rollback-dup:${createV2AgentIdentifier(2)}`;
+    expect(agentFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          blockchainIdentifier: {
+            equals: createV2AgentIdentifier(2),
+            mode: "insensitive",
+          },
+        },
+      }),
+    );
+    const parkedIdentifier = `legacy-v2:agent-rollback-dup:${rollbackDuplicateIdentifier}`;
     expect(jobUpdateManyMock).toHaveBeenNthCalledWith(1, {
       where: {
         agentId: "agent-rollback-dup",
         agentBlockchainIdentifier: null,
       },
       data: {
-        agentBlockchainIdentifier: createV2AgentIdentifier(2),
+        agentBlockchainIdentifier: rollbackDuplicateIdentifier,
       },
     });
     expect(jobUpdateManyMock).toHaveBeenNthCalledWith(2, {
