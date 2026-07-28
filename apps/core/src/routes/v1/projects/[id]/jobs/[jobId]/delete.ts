@@ -8,7 +8,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectSchema } from "@/schemas/project.schema";
 
@@ -30,7 +30,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
     path: "/{id}/jobs/{jobId}",
-    description: "Remove a job from a project without deleting the job",
+    description:
+      "Remove a job from a project without deleting the job. Session user or orchestrator with context headers; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -46,7 +47,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, jobId } = c.req.valid("param");
 
