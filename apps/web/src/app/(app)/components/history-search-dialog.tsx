@@ -9,7 +9,10 @@ import {
   HistoryOwnerAvatar,
 } from "@/app/history/components/history-meta";
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
-import { getDefaultHistoryScope } from "@/app/history/utils/history-filters";
+import {
+  getDefaultHistoryScope,
+  resolveHistoryApiTypes,
+} from "@/app/history/utils/history-filters";
 import {
   buildHistoryBucketLookupsFromItems,
   type CoworkerBucketSource,
@@ -97,6 +100,7 @@ export function HistorySearchDialog({
         q: searchQuery || undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope,
+        types: resolveHistoryApiTypes(null),
       });
 
       if (requestId !== requestIdRef.current) return;
