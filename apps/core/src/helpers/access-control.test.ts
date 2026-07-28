@@ -26,6 +26,7 @@ import {
   requireMutableTaskOwnership,
   requireTaskArchiveAccess,
   requireTaskAssignableCoworker,
+  requireTaskCancelAccess,
   requireTaskCollaboration,
   requireTaskCommentAccess,
   requireTaskOwnership,
@@ -819,6 +820,121 @@ describe("requireTaskCommentAccess", () => {
 
     expect(requestWorkspaceGrantMock).not.toHaveBeenCalled();
     expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireTaskCancelAccess", () => {
+  it("allows the task owner to cancel", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      ownerId: "user_123",
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskCancelAccess(vars, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+  });
+
+  it("allows an org workspace member who does not own the task to cancel", async () => {
+    const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskCancelAccess(vars, "tsk_123", tx);
+  });
+
+  it("rejects a personal-workspace non-owner", async () => {
+    const tx = createTransactionClient();
+    const personalWorkspace: WorkspaceContext = {
+      workspaceId,
+      userId: "user_member",
+      organizationId: null,
+    };
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: null,
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: personalWorkspace,
+    };
+
+    await expect(requireTaskCancelAccess(vars, "tsk_123", tx)).rejects.toThrow(
+      "Task not found",
+    );
+  });
+
+  it("uses coworker collaboration for coworker actors", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123");
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
+      id: "tsk_123",
+      assigneeId: "cow_123",
+      status: TaskStatus.READY,
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: null,
+    };
+
+    await requireTaskCancelAccess(vars, "tsk_123", tx);
+
+    expect(tx.task.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        status: { not: TaskStatus.DRAFT },
+        archivedAt: null,
+      },
+    });
   });
 });
 

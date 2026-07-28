@@ -86,3 +86,31 @@ export function canCommentOnTaskForViewer({
     sessionUserId !== undefined
   );
 }
+
+type CanCancelTaskForViewerParams = ReadOnlyForViewerParams;
+
+/**
+ * Organization workspace collaborators may cancel without owning the task.
+ * Other mutations stay gated by {@link isReadOnlyForViewer}.
+ */
+export function canCancelTaskForViewer({
+  taskWorkspaceOrganizationId,
+  taskOwnerId,
+  sessionUserId,
+  forceReadOnly,
+  taskStatus,
+}: CanCancelTaskForViewerParams): boolean {
+  if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
+    return false;
+  }
+
+  if (sessionUserId === taskOwnerId) {
+    return true;
+  }
+
+  return (
+    taskWorkspaceOrganizationId !== null &&
+    sessionUserId !== null &&
+    sessionUserId !== undefined
+  );
+}
