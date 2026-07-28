@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -137,6 +137,7 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: 50,
         scope: "owned",
+        types: ["task", "job"],
       });
     });
   });
@@ -156,6 +157,7 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: 50,
         scope: "owned",
+        types: ["task", "job"],
       });
     });
   });
@@ -227,115 +229,33 @@ describe("HistorySearchDialog", () => {
     });
   });
 
-  it("falls back to model icon when bucketSlug has no matching coworker", async () => {
-    getCoworkersMock.mockResolvedValue({
-      data: [
-        {
-          id: "coworker-elena",
-          slug: "elena",
-          name: "Elena",
-          image: "https://example.com/elena.webp",
-        },
-      ],
-    });
-    getHistoryMock.mockResolvedValue({
-      data: [
-        {
-          id: "conversation-unknown",
-          kind: "conversation",
-          title: "Unknown chat",
-          status: "active",
-          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-          archivedAt: null,
-          description: null,
-          credits: null,
-          bucketSlug: "missing-coworker",
-          owner: null,
-        },
-        {
-          id: "conversation-elena",
-          kind: "conversation",
-          title: "Elena chat",
-          status: "active",
-          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-          archivedAt: null,
-          description: null,
-          credits: null,
-          bucketSlug: "elena",
-          owner: null,
-        },
-      ],
+  it("passes task and job types when searching", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
     render(
       <HistorySearchDialog
         open
         onOpenChange={vi.fn()}
-        activeOrganizationId={null}
+        activeOrganizationId="org-1"
         labels={labels}
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByText("Elena chat")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Search history..."), "new");
+
+    await act(async () => {
+      vi.advanceTimersByTime(250);
     });
 
-    const unknownItem = screen
-      .getByText("Unknown chat")
-      .closest('[data-slot="command-item"]');
-    const elenaItem = screen
-      .getByText("Elena chat")
-      .closest('[data-slot="command-item"]');
-
-    expect(unknownItem).not.toBeNull();
-    expect(elenaItem).not.toBeNull();
-
-    expect(
-      within(unknownItem as HTMLElement).getByTestId("chat-model-icon"),
-    ).toHaveTextContent(":Conversation");
-    expect(
-      (unknownItem as HTMLElement).querySelector('[data-slot="avatar"]'),
-    ).toBeNull();
-
-    expect(
-      (elenaItem as HTMLElement).querySelector('[data-slot="avatar"]'),
-    ).not.toBeNull();
-    expect(
-      within(elenaItem as HTMLElement).queryByTestId("chat-model-icon"),
-    ).toBeNull();
-  });
-
-  it("renders resolved model icons for conversation history items", async () => {
-    getHistoryMock.mockResolvedValue({
-      data: [
-        {
-          id: "conversation-1",
-          kind: "conversation",
-          title: "Are you there?",
-          status: "active",
-          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-          archivedAt: null,
-          description: null,
-          credits: null,
-          bucketSlug: "grok-4-1-fast",
-          owner: null,
-        },
-      ],
-    });
-
-    render(
-      <HistorySearchDialog
-        open
-        onOpenChange={vi.fn()}
-        activeOrganizationId={null}
-        labels={labels}
-      />,
-    );
-
     await waitFor(() => {
-      expect(screen.getByTestId("chat-model-icon")).toHaveTextContent(
-        "grok-4-1-fast:Grok 4.1 Fast",
-      );
+      expect(getHistoryMock).toHaveBeenLastCalledWith({
+        q: "new",
+        limit: 50,
+        scope: "owned",
+        types: ["task", "job"],
+      });
     });
   });
 });

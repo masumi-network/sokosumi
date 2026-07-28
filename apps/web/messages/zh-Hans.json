@@ -1378,6 +1378,8 @@
           "placeholder": "给 {coworkerSlug} 发消息...",
           "coworkerSlugFallback": "协作者",
           "suggestionsLabel": "试试问",
+          "startingChat": "正在与 {name} 开始聊天…",
+          "startingChatFallback": "正在开始聊天…",
           "prompts": {
             "alex": {
               "1": "为我的研究结果搭建一个仪表板。",
@@ -4518,17 +4520,16 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
-      "directParticipantCount": "{count, plural, one {# participant} other {# participants}}",
       "directMessages": "Direct Messages",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
-        "title": "Organization required",
-        "description": "Switch to an organization workspace to use chat channels."
+        "title": "频道即将推出",
+        "description": "频道目前正在组织工作区中测试。个人使用支持即将上线。"
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
-        "onlyInOrganizations": "Only in organisations",
+        "onlyInOrganizations": "即将推出",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -4555,10 +4556,11 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Calling coworker",
-        "sent": "Coworker thinking",
-        "responded": "Coworker replied",
-        "failed": "Coworker failed"
+        "pending": "正在呼叫 {name}",
+        "sent": "{name} 正在思考",
+        "responded": "{name} 已回复",
+        "failed": "{name} 失败",
+        "nameFallback": "同事"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -4610,7 +4612,8 @@
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       },
       "loadOlder": "加载更早的消息",
-      "loadingOlder": "正在加载更早的消息…"
+      "loadingOlder": "正在加载更早的消息…",
+      "roomUnavailable": "此聊天不可用，或你已没有访问权限。"
     }
   },
   "Share": {

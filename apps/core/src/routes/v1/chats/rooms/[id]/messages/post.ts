@@ -153,8 +153,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userContext.userId,
         tx,
       );
+      const skipCoworkerMentions =
+        room.kind === "direct" &&
+        room.coworkerMembers.length === 1 &&
+        room.userMembers.length === 1 &&
+        room.userMembers[0]?.userId === userContext.userId;
+
       const directCoworkerIds =
-        room.kind === "direct"
+        room.kind === "direct" && !skipCoworkerMentions
           ? room.coworkerMembers.map(({ coworker }) => coworker.id)
           : [];
 
@@ -188,19 +194,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ]);
       }
 
-      const mentionedCoworkerIds = resolveMentionedCoworkerIds({
-        content: body.content,
-        explicitCoworkerIds: [
-          ...(body.mentionedCoworkerIds ?? []),
-          ...directCoworkerIds,
-          ...threadCoworkerIds,
-        ],
-        roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
-          id: coworker.id,
-          name: coworker.name,
-          slug: coworker.slug,
-        })),
-      });
+      const mentionedCoworkerIds = skipCoworkerMentions
+        ? []
+        : resolveMentionedCoworkerIds({
+            content: body.content,
+            explicitCoworkerIds: [
+              ...(body.mentionedCoworkerIds ?? []),
+              ...directCoworkerIds,
+              ...threadCoworkerIds,
+            ],
+            roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
+              id: coworker.id,
+              name: coworker.name,
+              slug: coworker.slug,
+            })),
+          });
 
       const message = await tx.chatRoomMessage.create({
         data: {

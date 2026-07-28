@@ -1378,6 +1378,8 @@
           "placeholder": "Nachricht an {coworkerSlug}...",
           "coworkerSlugFallback": "den Coworker",
           "suggestionsLabel": "Probiere zum Beispiel",
+          "startingChat": "Chat mit {name} wird gestartet…",
+          "startingChatFallback": "Chat wird gestartet…",
           "prompts": {
             "alex": {
               "1": "Erstelle mir ein Dashboard für meine Rechercheergebnisse.",
@@ -4518,17 +4520,16 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
-      "directParticipantCount": "{count, plural, one {# participant} other {# participants}}",
       "directMessages": "Direct Messages",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
-        "title": "Organization required",
-        "description": "Switch to an organization workspace to use chat channels."
+        "title": "Channels kommen bald",
+        "description": "Channels sind für Organisations-Arbeitsbereiche gerade im Test. Die Unterstützung für persönliche Nutzung folgt bald."
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
-        "onlyInOrganizations": "Only in organisations",
+        "onlyInOrganizations": "Demnächst",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -4555,10 +4556,11 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Calling coworker",
-        "sent": "Coworker thinking",
-        "responded": "Coworker replied",
-        "failed": "Coworker failed"
+        "pending": "Rufe {name}",
+        "sent": "{name} denkt nach",
+        "responded": "{name} hat geantwortet",
+        "failed": "{name} fehlgeschlagen",
+        "nameFallback": "Coworker"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -4610,7 +4612,8 @@
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       },
       "loadOlder": "Ältere Nachrichten laden",
-      "loadingOlder": "Ältere Nachrichten werden geladen…"
+      "loadingOlder": "Ältere Nachrichten werden geladen…",
+      "roomUnavailable": "Dieser Chat ist nicht verfügbar oder du hast keinen Zugriff mehr."
     }
   },
   "Share": {

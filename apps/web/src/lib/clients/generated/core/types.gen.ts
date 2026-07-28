@@ -1211,6 +1211,38 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 };
 
+export type GetChatUiMessagesResponseData = {
+    messages: Array<ChatUiMessage>;
+};
+
+export type ChatUiMessage = {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    parts: Array<{
+        type: 'file';
+        url: string;
+        mediaType: string;
+        filename?: string;
+    } | {
+        type: 'text';
+        text: string;
+    } | {
+        type: 'input_text';
+        text: string;
+    } | {
+        type: 'output_text';
+        text: string;
+    } | {
+        type: string;
+        text: string;
+    }>;
+    metadata?: {
+        thoughtStartedAtMs?: number;
+        thoughtEndedAtMs?: number;
+        imageGeneration?: boolean;
+    };
+};
+
 export type UpdateChatRoomRequest = {
     name?: string;
     topic?: string | null;
@@ -1447,38 +1479,6 @@ export type CreateConversationMessageRequest = {
         type: string;
         text: string;
     }>;
-};
-
-export type GetChatUiMessagesResponseData = {
-    messages: Array<ChatUiMessage>;
-};
-
-export type ChatUiMessage = {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    parts: Array<{
-        type: 'file';
-        url: string;
-        mediaType: string;
-        filename?: string;
-    } | {
-        type: 'text';
-        text: string;
-    } | {
-        type: 'input_text';
-        text: string;
-    } | {
-        type: 'output_text';
-        text: string;
-    } | {
-        type: string;
-        text: string;
-    }>;
-    metadata?: {
-        thoughtStartedAtMs?: number;
-        thoughtEndedAtMs?: number;
-        imageGeneration?: boolean;
-    };
 };
 
 export type CreditCheckoutSession = {
@@ -8832,6 +8832,457 @@ export type PostChatsRoomsResponses = {
 
 export type PostChatsRoomsResponse = PostChatsRoomsResponses[keyof PostChatsRoomsResponses];
 
+export type GetChatsRoomsByIdStreamMessagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (id of the last message from the previous page).
+         */
+        cursor?: string;
+        /**
+         * Page size (max 200). Cursor pagination metadata is always returned for forward compatibility.
+         */
+        limit?: number;
+    };
+    url: '/chats/rooms/{id}/stream/messages';
+};
+
+export type GetChatsRoomsByIdStreamMessagesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdStreamMessagesError = GetChatsRoomsByIdStreamMessagesErrors[keyof GetChatsRoomsByIdStreamMessagesErrors];
+
+export type GetChatsRoomsByIdStreamMessagesResponses = {
+    /**
+     * UIMessages for the room stream (standard data + meta envelope; messages in data.messages)
+     */
+    200: {
+        data: GetChatUiMessagesResponseData;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdStreamMessagesResponse = GetChatsRoomsByIdStreamMessagesResponses[keyof GetChatsRoomsByIdStreamMessagesResponses];
+
+export type GetChatsRoomsByIdStreamActiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/stream/active';
+};
+
+export type GetChatsRoomsByIdStreamActiveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdStreamActiveError = GetChatsRoomsByIdStreamActiveErrors[keyof GetChatsRoomsByIdStreamActiveErrors];
+
+export type GetChatsRoomsByIdStreamActiveResponses = {
+    /**
+     * Resumable UI message stream (SSE)
+     */
+    200: string;
+    /**
+     * No active resumable stream for this room
+     */
+    204: void;
+};
+
+export type GetChatsRoomsByIdStreamActiveResponse = GetChatsRoomsByIdStreamActiveResponses[keyof GetChatsRoomsByIdStreamActiveResponses];
+
+export type PostChatsRoomsByIdStreamData = {
+    body?: {
+        messages?: Array<{
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: 'file';
+                url: string;
+                mediaType: string;
+                filename?: string;
+            } | {
+                type: 'text';
+                text: string;
+            } | {
+                type: 'input_text';
+                text: string;
+            } | {
+                type: 'output_text';
+                text: string;
+            } | {
+                type: string;
+                text: string;
+            }>;
+            content?: string | Array<{
+                type: 'file';
+                url: string;
+                mediaType: string;
+                filename?: string;
+            } | {
+                type: 'text';
+                text: string;
+            } | {
+                type: 'input_text';
+                text: string;
+            } | {
+                type: 'output_text';
+                text: string;
+            } | {
+                type: string;
+                text: string;
+            }>;
+            metadata?: {
+                imageGeneration?: boolean;
+                [key: string]: unknown;
+            };
+            id?: string;
+        }>;
+        message?: {
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: 'file';
+                url: string;
+                mediaType: string;
+                filename?: string;
+            } | {
+                type: 'text';
+                text: string;
+            } | {
+                type: 'input_text';
+                text: string;
+            } | {
+                type: 'output_text';
+                text: string;
+            } | {
+                type: string;
+                text: string;
+            }>;
+            content?: string | Array<{
+                type: 'file';
+                url: string;
+                mediaType: string;
+                filename?: string;
+            } | {
+                type: 'text';
+                text: string;
+            } | {
+                type: 'input_text';
+                text: string;
+            } | {
+                type: 'output_text';
+                text: string;
+            } | {
+                type: string;
+                text: string;
+            }>;
+            metadata?: {
+                imageGeneration?: boolean;
+                [key: string]: unknown;
+            };
+            id?: string;
+        };
+        id?: string;
+        trigger?: 'submit-message' | 'regenerate-message';
+        messageId?: string;
+        conversationId?: string;
+        previousResponseId?: string;
+        model?: string | null;
+        imageGeneration?: boolean;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/stream';
+};
+
+export type PostChatsRoomsByIdStreamErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdStreamError = PostChatsRoomsByIdStreamErrors[keyof PostChatsRoomsByIdStreamErrors];
+
+export type PostChatsRoomsByIdStreamResponses = {
+    /**
+     * Streaming UI message response (AI SDK)
+     */
+    200: string;
+};
+
+export type PostChatsRoomsByIdStreamResponse = PostChatsRoomsByIdStreamResponses[keyof PostChatsRoomsByIdStreamResponses];
+
 export type GetChatsRoomsByIdData = {
     body?: never;
     headers?: {
@@ -10310,474 +10761,6 @@ export type PostChatsConversationsByIdMessagesResponses = {
 };
 
 export type PostChatsConversationsByIdMessagesResponse = PostChatsConversationsByIdMessagesResponses[keyof PostChatsConversationsByIdMessagesResponses];
-
-export type GetChatsStreamData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path?: never;
-    query: {
-        /**
-         * Internal conversation id
-         */
-        conversationId: string;
-        /**
-         * Cursor for pagination (id of the last message from the previous page).
-         */
-        cursor?: string;
-        /**
-         * Page size (max 200). Cursor pagination metadata is always returned for forward compatibility.
-         */
-        limit?: number;
-    };
-    url: '/chats/stream';
-};
-
-export type GetChatsStreamErrors = {
-    /**
-     * Invalid request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsStreamError = GetChatsStreamErrors[keyof GetChatsStreamErrors];
-
-export type GetChatsStreamResponses = {
-    /**
-     * UIMessages for the conversation (standard data + meta envelope; messages in data.messages)
-     */
-    200: {
-        data: GetChatUiMessagesResponseData;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsStreamResponse = GetChatsStreamResponses[keyof GetChatsStreamResponses];
-
-export type PostChatsStreamData = {
-    body?: {
-        messages?: Array<{
-            role: 'user' | 'assistant' | 'system';
-            parts?: Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
-                type: string;
-                text: string;
-            }>;
-            content?: string | Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
-                type: string;
-                text: string;
-            }>;
-            metadata?: {
-                imageGeneration?: boolean;
-                [key: string]: unknown;
-            };
-            id?: string;
-        }>;
-        message?: {
-            role: 'user' | 'assistant' | 'system';
-            parts?: Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
-                type: string;
-                text: string;
-            }>;
-            content?: string | Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
-                type: string;
-                text: string;
-            }>;
-            metadata?: {
-                imageGeneration?: boolean;
-                [key: string]: unknown;
-            };
-            id?: string;
-        };
-        id?: string;
-        trigger?: 'submit-message' | 'regenerate-message';
-        messageId?: string;
-        conversationId?: string;
-        previousResponseId?: string;
-        model?: string | null;
-        imageGeneration?: boolean;
-    };
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/stream';
-};
-
-export type PostChatsStreamErrors = {
-    /**
-     * Invalid request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostChatsStreamError = PostChatsStreamErrors[keyof PostChatsStreamErrors];
-
-export type PostChatsStreamResponses = {
-    /**
-     * Streaming UI message response (AI SDK)
-     */
-    200: string;
-};
-
-export type PostChatsStreamResponse = PostChatsStreamResponses[keyof PostChatsStreamResponses];
-
-export type GetChatsStreamByConversationIdData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal conversation id
-         */
-        conversationId: string;
-    };
-    query?: never;
-    url: '/chats/stream/{conversationId}';
-};
-
-export type GetChatsStreamByConversationIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsStreamByConversationIdError = GetChatsStreamByConversationIdErrors[keyof GetChatsStreamByConversationIdErrors];
-
-export type GetChatsStreamByConversationIdResponses = {
-    /**
-     * Resumable UI message stream (SSE)
-     */
-    200: string;
-    /**
-     * No active resumable stream for this conversation
-     */
-    204: void;
-};
-
-export type GetChatsStreamByConversationIdResponse = GetChatsStreamByConversationIdResponses[keyof GetChatsStreamByConversationIdResponses];
 
 export type CreateCreditCheckoutSessionData = {
     body?: CreateCreditCheckoutSession;

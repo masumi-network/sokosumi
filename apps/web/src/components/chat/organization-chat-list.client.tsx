@@ -2,15 +2,9 @@
 
 import { ChevronDown, Hash, MessageCircle, Plus } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import {
-  displaySlugFromMetadata,
-  getBucketKeyFromMetadata,
-  slugify,
-} from "@/app/chat/utils/bucket-slug";
-import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -26,12 +20,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useConversationsContext } from "@/contexts/conversations-context";
-import { useCoworkersContext } from "@/contexts/coworkers-context";
-import type { Conversation } from "@/lib/actions/conversation";
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import { listOrganizationChatChannelsAction } from "./organization-chat-list.actions";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
@@ -47,27 +39,6 @@ interface DirectParticipant {
   name: string;
   image: string | null;
   presence: ChatRoomPresence;
-}
-
-interface CoworkerDirectConversation {
-  conversationId: string;
-  key: string;
-  href: string;
-  image: string | null;
-  name: string;
-  updatedAtMs: number;
-}
-
-function isCoworkerOnlyDirectChannel(channel: ChatRoom, currentUserId: string) {
-  if (channel.kind !== "direct") {
-    return false;
-  }
-
-  const hasOtherHuman = channel.userMembers.some(
-    (member) => member.id !== currentUserId,
-  );
-
-  return !hasOtherHuman && channel.coworkerMembers.length === 1;
 }
 
 function getDirectParticipants(
@@ -125,65 +96,6 @@ export function getDirectChannelDisplayName(
 
   const shown = names.slice(0, DIRECT_NAME_PREVIEW_LIMIT);
   return `${shown.join(", ")} and ${names.length - shown.length} more`;
-}
-
-/**
- * Coworker DM history only — no zero-history "start menu" rows.
- * Start New DM is the section `+` → `/channels?dm=new` (DraftDirectMessage:
- * org members, coworkers, or both). `/chat` landing picker is a separate surface.
- */
-function buildCoworkerDirectConversations(
-  conversations: Conversation[],
-  coworkers: ReturnType<typeof useCoworkersContext>["coworkers"],
-): CoworkerDirectConversation[] {
-  const byBucket = new Map<string, CoworkerDirectConversation>();
-  const coworkersById = new Map(
-    coworkers.map((coworker) => [coworker.id, coworker]),
-  );
-  const coworkersBySlug = new Map(
-    coworkers.map((coworker) => [coworker.slug, coworker]),
-  );
-
-  for (const conversation of conversations) {
-    const metadata =
-      (conversation.metadata as Record<string, unknown> | null) ?? null;
-    const bucket = getBucketKeyFromMetadata(metadata);
-    if (!bucket.startsWith("coworker:")) {
-      continue;
-    }
-
-    const coworkerId = metadata?.coworker_id as string | undefined;
-    const coworkerSlug = metadata?.coworker_slug as string | undefined;
-    const coworkerName = metadata?.coworker_name as string | undefined;
-    const coworker =
-      (coworkerId ? coworkersById.get(coworkerId) : undefined) ??
-      (coworkerSlug ? coworkersBySlug.get(coworkerSlug) : undefined);
-    const displaySlug =
-      displaySlugFromMetadata(metadata) ||
-      slugify(coworker?.slug ?? coworkerSlug ?? coworkerName ?? bucket);
-    if (!displaySlug) {
-      continue;
-    }
-    const updatedAtMs = new Date(conversation.updatedAt).getTime();
-
-    const row: CoworkerDirectConversation = {
-      conversationId: conversation.id,
-      key: bucket,
-      href: `${CHAT_APP_ROUTE_PREFIX}/${displaySlug}/conversation/${conversation.id}`,
-      image: coworker?.avatar ?? null,
-      name: coworker?.name ?? coworkerName ?? "Coworker",
-      updatedAtMs,
-    };
-
-    const existing = byBucket.get(bucket);
-    if (!existing || row.updatedAtMs > existing.updatedAtMs) {
-      byBucket.set(bucket, row);
-    }
-  }
-
-  return Array.from(byBucket.values()).sort(
-    (left, right) => right.updatedAtMs - left.updatedAtMs,
-  );
 }
 
 function presenceLabel(
@@ -250,28 +162,6 @@ function DirectAvatarStack({
   );
 }
 
-function CoworkerDirectAvatar({ row }: { row: CoworkerDirectConversation }) {
-  const t = useTranslations("App.Channels");
-
-  return (
-    <span className="flex size-5 shrink-0 items-center">
-      <span className="relative block size-5">
-        <Avatar className="border-sidebar-background size-5 border">
-          <AvatarImage alt={row.name} src={row.image ?? undefined} />
-          <AvatarFallback className="text-[9px] font-medium">
-            {getInitials(row.name)}
-          </AvatarFallback>
-        </Avatar>
-        <PresenceDot
-          className="-right-0.5 -bottom-0.5 absolute size-2"
-          label={t("Presence.online")}
-          presence="online"
-        />
-      </span>
-    </span>
-  );
-}
-
 function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) {
     return null;
@@ -296,7 +186,7 @@ function SectionHeader({
   label,
 }: {
   children: ReactNode;
-  href: string;
+  href?: string;
   isOpen: boolean;
   label: string;
 }) {
@@ -312,20 +202,31 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      <SheetClose asChild>
-        <Link
-          aria-label={label}
-          // The only entry point for creating a channel or DM. 24px is well
-          // under a comfortable tap target, so widen the hit area on touch with
-          // an invisible inset rather than changing how the row looks.
-          className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-          href={href}
-        >
-          <Plus className="size-3.5" aria-hidden />
-        </Link>
-      </SheetClose>
+      {href ? (
+        <SheetClose asChild>
+          <Link
+            aria-label={label}
+            // The only entry point for creating a channel or DM. 24px is well
+            // under a comfortable tap target, so widen the hit area on touch with
+            // an invisible inset rather than changing how the row looks.
+            className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
+            href={href}
+          >
+            <Plus className="size-3.5" aria-hidden />
+          </Link>
+        </SheetClose>
+      ) : null}
     </div>
   );
+}
+
+function getActiveRoomIdFromPathname(pathname: string | null): string | null {
+  if (!pathname?.startsWith("/chat/rooms/")) {
+    return null;
+  }
+
+  const roomId = pathname.split("/")[3];
+  return roomId || null;
 }
 
 export function OrganizationChatList({
@@ -335,25 +236,16 @@ export function OrganizationChatList({
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { conversations } = useConversationsContext();
-  const { coworkers } = useCoworkersContext();
   const [channelRows, setChannelRows] = useState(channels);
   const [channelsOpen, setChannelsOpen] = useState(true);
   const [directOpen, setDirectOpen] = useState(true);
-  const selectedChannelId = searchParams.get("channel");
-  const isChannelsPath = pathname === "/channels";
-  const activeConversationId = pathname?.split("/").filter(Boolean).at(-1);
+  const activeRoomId = getActiveRoomIdFromPathname(pathname);
 
   useEffect(() => {
     setChannelRows(channels);
   }, [channels]);
 
   useEffect(() => {
-    if (!hasOrganization) {
-      return;
-    }
-
     let cancelled = false;
 
     const refreshChannels = async () => {
@@ -374,7 +266,7 @@ export function OrganizationChatList({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshChannels);
     };
-  }, [hasOrganization]);
+  }, []);
 
   useEffect(() => {
     const handleChannelRead = (event: Event) => {
@@ -406,6 +298,40 @@ export function OrganizationChatList({
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleRoomsChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ channel?: ChatRoom }>).detail;
+      const channel = detail?.channel;
+      if (channel) {
+        setChannelRows((current) => {
+          const without = current.filter((row) => row.id !== channel.id);
+          return [channel, ...without];
+        });
+        return;
+      }
+
+      void listOrganizationChatChannelsAction().then((result) => {
+        if (!cancelled && result.ok) {
+          setChannelRows(result.data);
+        }
+      });
+    };
+
+    window.addEventListener(
+      ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+      handleRoomsChanged,
+    );
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+        handleRoomsChanged,
+      );
+    };
+  }, []);
+
   const { directMessages, publicChannels } = useMemo(() => {
     const directMessages: ChatRoom[] = [];
     const publicChannels: ChatRoom[] = [];
@@ -416,27 +342,33 @@ export function OrganizationChatList({
         continue;
       }
 
-      if (
-        channel.kind === "direct" &&
-        !isCoworkerOnlyDirectChannel(channel, currentUserId)
-      ) {
+      if (channel.kind === "direct") {
         directMessages.push(channel);
       }
     }
 
+    // Channels: A–Z. DMs: most recent activity first (`updatedAt` bumps on send).
+    publicChannels.sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+    directMessages.sort((a, b) => {
+      const byActivity =
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      if (byActivity !== 0) {
+        return byActivity;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
     return { directMessages, publicChannels };
-  }, [channelRows, currentUserId]);
-  const coworkerDirectMessages = useMemo(
-    () => buildCoworkerDirectConversations(conversations, coworkers),
-    [conversations, coworkers],
-  );
+  }, [channelRows]);
 
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent className="space-y-2">
         <Collapsible open={channelsOpen} onOpenChange={setChannelsOpen}>
           <SectionHeader
-            href="/channels?create=channel"
+            href={hasOrganization ? "/chat?create=channel" : undefined}
             isOpen={channelsOpen}
             label={t("createChannel")}
           >
@@ -445,8 +377,7 @@ export function OrganizationChatList({
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
               {publicChannels.map((channel) => {
-                const isActive =
-                  isChannelsPath && selectedChannelId === channel.id;
+                const isActive = activeRoomId === channel.id;
                 const unreadCount = isActive ? 0 : channel.unreadCount;
 
                 return (
@@ -456,7 +387,7 @@ export function OrganizationChatList({
                         <Link
                           aria-current={isActive ? "page" : undefined}
                           className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/channels?channel=${channel.id}`}
+                          href={`/chat/rooms/${channel.id}`}
                         >
                           <Hash className="size-4 shrink-0" aria-hidden />
                           <span className="flex-1 truncate">
@@ -485,12 +416,12 @@ export function OrganizationChatList({
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
             Sidebar rows = messaged history only. `+` opens Start New DM
-            (`/channels?dm=new`): org members + coworkers (+ group). Personal
+            (`/chat?dm=new`): org members + coworkers (+ group). Personal
             workspace soft-gates channels but still mounts the same draft with
             empty members (coworkers only).
           */}
           <SectionHeader
-            href="/channels?dm=new"
+            href="/chat?dm=new"
             isOpen={directOpen}
             label={t("Draft.title")}
           >
@@ -499,8 +430,7 @@ export function OrganizationChatList({
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
               {directMessages.map((channel) => {
-                const isActive =
-                  isChannelsPath && selectedChannelId === channel.id;
+                const isActive = activeRoomId === channel.id;
                 const label = getDirectChannelDisplayName(
                   channel,
                   currentUserId,
@@ -513,7 +443,7 @@ export function OrganizationChatList({
                         <Link
                           aria-current={isActive ? "page" : undefined}
                           className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/channels?channel=${channel.id}`}
+                          href={`/chat/rooms/${channel.id}`}
                         >
                           <DirectAvatarStack
                             channel={channel}
@@ -529,34 +459,10 @@ export function OrganizationChatList({
                   </SidebarMenuItem>
                 );
               })}
-              {coworkerDirectMessages.map((row) => {
-                const isActive = activeConversationId === row.conversationId;
-
-                return (
-                  <SidebarMenuItem key={row.key}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <SheetClose asChild>
-                        <Link
-                          aria-current={isActive ? "page" : undefined}
-                          className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={row.href}
-                        >
-                          <CoworkerDirectAvatar row={row} />
-                          <span className="min-w-0 flex-1 truncate">
-                            {row.name}
-                          </span>
-                        </Link>
-                      </SheetClose>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-              {directMessages.length + coworkerDirectMessages.length === 0 ? (
+              {directMessages.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
-                    {hasOrganization
-                      ? t("Empty.noDirectMessages")
-                      : t("Empty.onlyInOrganizations")}
+                    {t("Empty.noDirectMessages")}
                   </div>
                 </SidebarMenuItem>
               ) : null}

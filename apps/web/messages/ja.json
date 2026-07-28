@@ -1378,6 +1378,8 @@
           "placeholder": "{coworkerSlug} にメッセージ...",
           "coworkerSlugFallback": "コワーカー",
           "suggestionsLabel": "試してみる",
+          "startingChat": "{name} とのチャットを開始しています…",
+          "startingChatFallback": "チャットを開始しています…",
           "prompts": {
             "alex": {
               "1": "調査結果のダッシュボードを作成してください。",
@@ -4518,17 +4520,16 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
-      "directParticipantCount": "{count, plural, one {# participant} other {# participants}}",
       "directMessages": "Direct Messages",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
-        "title": "Organization required",
-        "description": "Switch to an organization workspace to use chat channels."
+        "title": "チャンネルは近日公開",
+        "description": "チャンネルは組織ワークスペース向けにテスト中です。個人利用への対応もまもなくです。"
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
-        "onlyInOrganizations": "Only in organisations",
+        "onlyInOrganizations": "近日公開",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -4555,10 +4556,11 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Calling coworker",
-        "sent": "Coworker thinking",
-        "responded": "Coworker replied",
-        "failed": "Coworker failed"
+        "pending": "{name} を呼び出しています",
+        "sent": "{name} が考えています",
+        "responded": "{name} が返信しました",
+        "failed": "{name} が失敗しました",
+        "nameFallback": "コワーカー"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -4610,7 +4612,8 @@
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       },
       "loadOlder": "以前のメッセージを読み込む",
-      "loadingOlder": "以前のメッセージを読み込み中…"
+      "loadingOlder": "以前のメッセージを読み込み中…",
+      "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。"
     }
   },
   "Share": {

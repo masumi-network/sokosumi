@@ -4,6 +4,7 @@ import {
   applyHistoryProjectAllowlist,
   type HistoryFilters,
   parseHistoryFilters,
+  resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
 import type { HistoryBucketLookups } from "@/app/history/utils/history-row-subtitle";
 import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
@@ -53,7 +54,7 @@ export const loadMoreHistory = withSession<
     q: resolvedFilters.q ?? undefined,
     scope: resolvedFilters.scope,
     status: resolvedFilters.status ? [resolvedFilters.status] : undefined,
-    types: resolvedFilters.type ? [resolvedFilters.type] : undefined,
+    types: resolveHistoryApiTypes(resolvedFilters.type),
   });
   const bucketLookups = await buildHistoryBucketLookups(page.history);
 

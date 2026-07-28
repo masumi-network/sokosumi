@@ -1389,6 +1389,8 @@
           "placeholder": "Message {coworkerSlug}...",
           "coworkerSlugFallback": "the coworker",
           "suggestionsLabel": "Try asking",
+          "startingChat": "Starting chat with {name}…",
+          "startingChatFallback": "Starting chat…",
           "prompts": {
             "alex": {
               "1": "Build me a Dashboard for my research results.",
@@ -4637,17 +4639,16 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
-      "directParticipantCount": "{count, plural, one {# participant} other {# participants}}",
       "directMessages": "Direct Messages",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
-        "title": "Organization required",
-        "description": "Switch to an organization workspace to use chat channels."
+        "title": "Channels coming soon",
+        "description": "Channels are in testing for organization workspaces. Support for personal use is coming soon."
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
-        "onlyInOrganizations": "Only in organisations",
+        "onlyInOrganizations": "Coming soon",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -4674,10 +4675,11 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Calling coworker",
-        "sent": "Coworker thinking",
-        "responded": "Coworker replied",
-        "failed": "Coworker failed"
+        "pending": "Calling {name}",
+        "sent": "{name} is thinking",
+        "responded": "{name} replied",
+        "failed": "{name} failed",
+        "nameFallback": "Coworker"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -4729,7 +4731,8 @@
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       },
       "loadOlder": "Load older messages",
-      "loadingOlder": "Loading older messages…"
+      "loadingOlder": "Loading older messages…",
+      "roomUnavailable": "This chat is unavailable or you no longer have access."
     }
   },
   "Share": {

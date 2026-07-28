@@ -1,5 +1,4 @@
 export * from "./auth";
-export * from "./conversation";
 export * from "./credits";
 export * from "./design-md";
 export * from "./errors";

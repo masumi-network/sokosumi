@@ -22,6 +22,7 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import {
   chatRoomInclude,
+  getChatRoomLastMessageAts,
   getChatRoomUnreadCounts,
   mapChatRoom,
 } from "./helpers";
@@ -85,8 +86,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
     const organizationId = userContext.organizationId;
 
-    const { rooms, unreadCounts, count, hasMore } = await prisma.$transaction(
-      async (tx) => {
+    const { rooms, unreadCounts, lastMessageAts, count, hasMore } =
+      await prisma.$transaction(async (tx) => {
         if (organizationId) {
           await resolveMemberOrganizationById({
             id: organizationId,
@@ -131,15 +132,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         const hasMore = rows.length === takePlusOne;
         const rooms = rows.slice(0, take);
-        const unreadCounts = await getChatRoomUnreadCounts(
-          rooms.map((room) => room.id),
-          userContext.userId,
-          tx,
-        );
+        const roomIds = rooms.map((room) => room.id);
+        const [unreadCounts, lastMessageAts] = await Promise.all([
+          getChatRoomUnreadCounts(roomIds, userContext.userId, tx),
+          getChatRoomLastMessageAts(roomIds, tx),
+        ]);
 
-        return { rooms, unreadCounts, count, hasMore };
-      },
-    );
+        // Keep DB cursor order (`updatedAt` desc). Stream/message writes bump
+        // room.updatedAt; do not re-sort by lastMessageAts after `take` — that
+        // breaks cursor paging when membership exceeds one page.
+        return { rooms, unreadCounts, lastMessageAts, count, hasMore };
+      });
 
     const paginationMeta = createPaginationMeta(
       rooms,
@@ -159,6 +162,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               room,
               userContext.userId,
               unreadCounts.get(room.id) ?? 0,
+              lastMessageAts.get(room.id) ?? room.updatedAt,
             ),
           ),
         ),

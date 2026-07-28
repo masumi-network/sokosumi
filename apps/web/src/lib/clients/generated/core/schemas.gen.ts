@@ -4380,6 +4380,160 @@ export const CreateChatRoomRequestSchema = {
     ]
 } as const;
 
+export const GetChatUiMessagesResponseDataSchema = {
+    type: 'object',
+    properties: {
+        messages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatUiMessage'
+            }
+        }
+    },
+    required: [
+        'messages'
+    ]
+} as const;
+
+export const ChatUiMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'user',
+                'assistant',
+                'system'
+            ]
+        },
+        parts: {
+            type: 'array',
+            items: {
+                anyOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'file'
+                                ]
+                            },
+                            url: {
+                                type: 'string',
+                                format: 'uri'
+                            },
+                            mediaType: {
+                                type: 'string'
+                            },
+                            filename: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'url',
+                            'mediaType'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'text'
+                                ]
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'input_text'
+                                ]
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ],
+                        description: 'Responses API easy-input text item (maps to user/assistant text in model input).'
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'output_text'
+                                ]
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string'
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ]
+                    }
+                ]
+            }
+        },
+        metadata: {
+            type: 'object',
+            properties: {
+                thoughtStartedAtMs: {
+                    type: 'number'
+                },
+                thoughtEndedAtMs: {
+                    type: 'number'
+                },
+                imageGeneration: {
+                    type: 'boolean'
+                }
+            }
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'parts'
+    ]
+} as const;
+
 export const UpdateChatRoomRequestSchema = {
     type: 'object',
     properties: {
@@ -5156,160 +5310,6 @@ export const CreateConversationMessageRequestSchema = {
     required: [
         'role',
         'content'
-    ]
-} as const;
-
-export const GetChatUiMessagesResponseDataSchema = {
-    type: 'object',
-    properties: {
-        messages: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/ChatUiMessage'
-            }
-        }
-    },
-    required: [
-        'messages'
-    ]
-} as const;
-
-export const ChatUiMessageSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        role: {
-            type: 'string',
-            enum: [
-                'user',
-                'assistant',
-                'system'
-            ]
-        },
-        parts: {
-            type: 'array',
-            items: {
-                anyOf: [
-                    {
-                        type: 'object',
-                        properties: {
-                            type: {
-                                type: 'string',
-                                enum: [
-                                    'file'
-                                ]
-                            },
-                            url: {
-                                type: 'string',
-                                format: 'uri'
-                            },
-                            mediaType: {
-                                type: 'string'
-                            },
-                            filename: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'type',
-                            'url',
-                            'mediaType'
-                        ]
-                    },
-                    {
-                        type: 'object',
-                        properties: {
-                            type: {
-                                type: 'string',
-                                enum: [
-                                    'text'
-                                ]
-                            },
-                            text: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'type',
-                            'text'
-                        ]
-                    },
-                    {
-                        type: 'object',
-                        properties: {
-                            type: {
-                                type: 'string',
-                                enum: [
-                                    'input_text'
-                                ]
-                            },
-                            text: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'type',
-                            'text'
-                        ],
-                        description: 'Responses API easy-input text item (maps to user/assistant text in model input).'
-                    },
-                    {
-                        type: 'object',
-                        properties: {
-                            type: {
-                                type: 'string',
-                                enum: [
-                                    'output_text'
-                                ]
-                            },
-                            text: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'type',
-                            'text'
-                        ]
-                    },
-                    {
-                        type: 'object',
-                        properties: {
-                            type: {
-                                type: 'string'
-                            },
-                            text: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'type',
-                            'text'
-                        ]
-                    }
-                ]
-            }
-        },
-        metadata: {
-            type: 'object',
-            properties: {
-                thoughtStartedAtMs: {
-                    type: 'number'
-                },
-                thoughtEndedAtMs: {
-                    type: 'number'
-                },
-                imageGeneration: {
-                    type: 'boolean'
-                }
-            }
-        }
-    },
-    required: [
-        'id',
-        'role',
-        'parts'
     ]
 } as const;
 

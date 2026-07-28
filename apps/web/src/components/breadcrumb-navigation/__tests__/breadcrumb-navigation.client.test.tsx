@@ -43,7 +43,7 @@ const breadcrumbMessages = {
 
 function BreadcrumbOverrideFixture({ label }: { label: string }) {
   useRegisterBreadcrumbOverride({
-    pathname: "/channels",
+    pathname: "/chat/rooms/direct-1",
     segments: [
       {
         label: "Chat",
@@ -51,7 +51,7 @@ function BreadcrumbOverrideFixture({ label }: { label: string }) {
       },
       {
         label,
-        href: "/channels?channel=direct-1",
+        href: "/chat/rooms/direct-1",
       },
     ],
   });
@@ -62,7 +62,7 @@ function BreadcrumbOverrideFixture({ label }: { label: string }) {
       breadcrumbMessages={breadcrumbMessages}
       segmentLabels={{
         __chatChannelLabel: "Test Channel",
-        __chatChannelHref: "/channels?channel=stale-channel",
+        __chatChannelHref: "/chat/rooms/stale-channel",
       }}
     />
   );
@@ -130,8 +130,8 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.getByText("Research Copilot")).toBeInTheDocument();
   });
 
-  it("shows selected chat channel under Chat breadcrumbs", () => {
-    usePathnameMock.mockReturnValue("/channels");
+  it("shows selected chat room under Chat breadcrumbs", () => {
+    usePathnameMock.mockReturnValue("/chat/rooms/channel-1");
 
     render(
       <BreadcrumbNavigationClient
@@ -139,7 +139,7 @@ describe("BreadcrumbNavigationClient", () => {
         breadcrumbMessages={breadcrumbMessages}
         segmentLabels={{
           __chatChannelLabel: "Test Channel",
-          __chatChannelHref: "/channels?channel=channel-1",
+          __chatChannelHref: "/chat/rooms/channel-1",
         }}
       />,
     );
@@ -149,11 +149,11 @@ describe("BreadcrumbNavigationClient", () => {
       "/chat",
     );
     expect(screen.getByText("Test Channel")).toBeInTheDocument();
-    expect(screen.queryByText("channels")).not.toBeInTheDocument();
+    expect(screen.queryByText("rooms")).not.toBeInTheDocument();
   });
 
-  it("uses registered channel breadcrumb over stale server labels", async () => {
-    usePathnameMock.mockReturnValue("/channels");
+  it("uses registered room breadcrumb over stale server labels", async () => {
+    usePathnameMock.mockReturnValue("/chat/rooms/direct-1");
 
     render(
       <BreadcrumbOverrideProvider>
