@@ -546,6 +546,14 @@ export async function createAgentJobForUser(
           paymentSourceType: "Web3CardanoV2",
         };
       } else {
+        if (
+          response.paymentSourceType !== undefined &&
+          response.paymentSourceType !== "Web3CardanoV1"
+        ) {
+          throw unprocessableEntity(
+            "Legacy agent job returned an invalid payment source type",
+          );
+        }
         if (response.supportedPaymentSourceIndex !== undefined) {
           throw unprocessableEntity(
             "Legacy agent job returned a V2 payment source index",

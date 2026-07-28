@@ -396,6 +396,25 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     );
   });
 
+  it("rejects a V2 payment type returned by a legacy agent", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(
+        ok({
+          ...paidV1JobResponse,
+          paymentSourceType: "Web3CardanoV2",
+        }),
+      ),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Legacy agent job returned an invalid payment source type",
+    );
+
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
   it("aggregates duplicate-unit V1 pricing rows into one purchase amount", async () => {
     agentFindFirstMock.mockResolvedValue({
       ...createPaidV1AgentRecord(),

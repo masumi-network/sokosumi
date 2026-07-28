@@ -7,6 +7,7 @@ import { err, ok, type Result } from "neverthrow";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   getRailReadiness,
+  type PostPurchaseData,
   type PostPurchaseResolveBlockchainIdentifierResponses,
   type PostPurchaseResponses,
   postPurchase,
@@ -43,6 +44,7 @@ export interface CardanoV2ReadySource {
 type ResolvedPurchase =
   PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
+type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
 interface MasumiTaskPurchaseInput {
   blockchainIdentifier: string;
@@ -101,22 +103,43 @@ export function createPaymentClient(
   };
 
   const recoverDuplicatePurchase = async (
-    blockchainIdentifier: string,
+    request: PurchaseRequest,
   ): Promise<Result<CreatedPurchase, string>> => {
     // The node's duplicate check is NOT wallet-scope filtered, so the 409's
     // embedded purchase may belong to another API key's scope. Only accept a
-    // purchase returned by the scope-filtered resolve endpoint. On a transient
-    // resolve failure, Core's job-sync backfill retries this lookup safely.
+    // matching purchase returned by the scope-filtered resolve endpoint. On a
+    // transient resolve failure, Core's job-sync backfill retries this lookup
+    // safely.
     try {
       const response = await postPurchaseResolveBlockchainIdentifier({
         client: client(),
         body: {
-          blockchainIdentifier,
+          blockchainIdentifier: request.blockchainIdentifier,
           network,
         },
       });
       if (response.data && !response.error) {
-        return ok(response.data.data);
+        const purchase = response.data.data;
+        const matchesRequest =
+          purchase.blockchainIdentifier === request.blockchainIdentifier &&
+          purchase.agentIdentifier === request.agentIdentifier &&
+          purchase.inputHash === request.inputHash &&
+          purchase.payByTime === request.payByTime &&
+          purchase.submitResultTime === request.submitResultTime &&
+          purchase.unlockTime === request.unlockTime &&
+          purchase.externalDisputeUnlockTime ===
+            request.externalDisputeUnlockTime &&
+          purchase.metadata === (request.metadata ?? null) &&
+          (request.paymentSourceType === undefined ||
+            purchase.PaymentSource.paymentSourceType ===
+              request.paymentSourceType) &&
+          (request.smartContractAddress === undefined ||
+            purchase.PaymentSource.smartContractAddress ===
+              request.smartContractAddress);
+        if (!matchesRequest) {
+          return err("Duplicate purchase does not match request");
+        }
+        return ok(purchase);
       }
       if (response.response?.status === 404) {
         return err("Duplicate purchase is not visible to this API key");
@@ -213,33 +236,34 @@ export function createPaymentClient(
       amounts?: Array<{ amount: string; unit: string }>,
     ): Promise<Result<PostPurchaseResponses["200"]["data"], string>> {
       try {
+        const body: PurchaseRequest = {
+          agentIdentifier: agentBlockchainIdentifier,
+          inputHash: startJobResponse.input_hash,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          network,
+          sellerVkey: startJobResponse.sellerVKey,
+          identifierFromPurchaser,
+          paymentSourceType: startJobResponse.paymentSourceType,
+          supportedPaymentSourceIndex:
+            startJobResponse.supportedPaymentSourceIndex,
+          payByTime: startJobResponse.payByTime.toString(),
+          externalDisputeUnlockTime:
+            startJobResponse.externalDisputeUnlockTime.toString(),
+          submitResultTime: startJobResponse.submitResultTime.toString(),
+          unlockTime: startJobResponse.unlockTime.toString(),
+          // Price-drift guard: when supplied, the node rejects the purchase
+          // unless these exactly match the agent's current on-chain pricing,
+          // so the escrow can never lock a different amount than the credits
+          // the user was charged.
+          ...(amounts ? { Amounts: amounts } : {}),
+          metadata: JSON.stringify({
+            inputData,
+            jobId: startJobResponse.id,
+          }),
+        };
         const response = await postPurchase({
           client: client(),
-          body: {
-            agentIdentifier: agentBlockchainIdentifier,
-            inputHash: startJobResponse.input_hash,
-            blockchainIdentifier: startJobResponse.blockchainIdentifier,
-            network,
-            sellerVkey: startJobResponse.sellerVKey,
-            identifierFromPurchaser,
-            paymentSourceType: startJobResponse.paymentSourceType,
-            supportedPaymentSourceIndex:
-              startJobResponse.supportedPaymentSourceIndex,
-            payByTime: startJobResponse.payByTime.toString(),
-            externalDisputeUnlockTime:
-              startJobResponse.externalDisputeUnlockTime.toString(),
-            submitResultTime: startJobResponse.submitResultTime.toString(),
-            unlockTime: startJobResponse.unlockTime.toString(),
-            // Price-drift guard: when supplied, the node rejects the purchase
-            // unless these exactly match the agent's current on-chain pricing,
-            // so the escrow can never lock a different amount than the credits
-            // the user was charged.
-            ...(amounts ? { Amounts: amounts } : {}),
-            metadata: JSON.stringify({
-              inputData: inputData,
-              jobId: startJobResponse.id,
-            }),
-          },
+          body,
         });
 
         if (response.error || !response.data) {
@@ -248,9 +272,7 @@ export function createPaymentClient(
               "[masumi-payment] createPurchase: purchase already exists",
               { blockchainIdentifier: startJobResponse.blockchainIdentifier },
             );
-            return recoverDuplicatePurchase(
-              startJobResponse.blockchainIdentifier,
-            );
+            return recoverDuplicatePurchase(body);
           }
           console.error("Failed to create purchase request", response.error);
           return err(
@@ -278,27 +300,26 @@ export function createPaymentClient(
       });
 
       try {
+        const body: PurchaseRequest = {
+          blockchainIdentifier: input.blockchainIdentifier,
+          agentIdentifier: input.agentIdentifier,
+          sellerVkey: input.sellerVkey,
+          submitResultTime: input.submitResultTime,
+          payByTime: input.payByTime,
+          unlockTime: input.unlockTime,
+          externalDisputeUnlockTime: input.externalDisputeUnlockTime,
+          inputHash: input.inputHash,
+          Amounts: input.Amounts,
+          identifierFromPurchaser: input.identifierFromPurchaser,
+          network,
+          paymentSourceType: input.paymentSourceType,
+          smartContractAddress: input.smartContractAddress,
+          supportedPaymentSourceIndex: input.supportedPaymentSourceIndex,
+          ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
+        };
         const response = await postPurchase({
           client: client(),
-          body: {
-            blockchainIdentifier: input.blockchainIdentifier,
-            agentIdentifier: input.agentIdentifier,
-            sellerVkey: input.sellerVkey,
-            submitResultTime: input.submitResultTime,
-            payByTime: input.payByTime,
-            unlockTime: input.unlockTime,
-            externalDisputeUnlockTime: input.externalDisputeUnlockTime,
-            inputHash: input.inputHash,
-            Amounts: input.Amounts,
-            identifierFromPurchaser: input.identifierFromPurchaser,
-            network,
-            paymentSourceType: input.paymentSourceType,
-            smartContractAddress: input.smartContractAddress,
-            supportedPaymentSourceIndex: input.supportedPaymentSourceIndex,
-            ...(input.metadata !== undefined
-              ? { metadata: input.metadata }
-              : {}),
-          },
+          body,
         });
 
         if (response.error || !response.data) {
@@ -307,7 +328,7 @@ export function createPaymentClient(
               network,
               blockchainIdentifier: input.blockchainIdentifier,
             });
-            return recoverDuplicatePurchase(input.blockchainIdentifier);
+            return recoverDuplicatePurchase(body);
           }
           console.error(`${logLabel} payment API error`, {
             network,

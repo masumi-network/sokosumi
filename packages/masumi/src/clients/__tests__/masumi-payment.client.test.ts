@@ -30,6 +30,26 @@ const startJobResponse: StartPaidJobResponseSchemaType = {
   sellerVKey: "vkey1",
 };
 
+function createResolvedPurchase(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "purchase_existing",
+    blockchainIdentifier: startJobResponse.blockchainIdentifier,
+    agentIdentifier: startJobResponse.agentIdentifier,
+    inputHash: startJobResponse.input_hash,
+    payByTime: startJobResponse.payByTime.toString(),
+    submitResultTime: startJobResponse.submitResultTime.toString(),
+    unlockTime: startJobResponse.unlockTime.toString(),
+    externalDisputeUnlockTime:
+      startJobResponse.externalDisputeUnlockTime.toString(),
+    metadata: JSON.stringify({ inputData: {}, jobId: startJobResponse.id }),
+    PaymentSource: {
+      paymentSourceType: "Web3CardanoV1",
+      smartContractAddress: "addr_test1_contract",
+    },
+    ...overrides,
+  };
+}
+
 describe("createPaymentClient polling requests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -99,7 +119,7 @@ describe("createPurchase duplicate handling", () => {
     vi.clearAllMocks();
     postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
       data: {
-        data: { id: "purchase_existing" },
+        data: createResolvedPurchase(),
       },
       error: undefined,
       response: { status: 200 },
@@ -233,6 +253,41 @@ describe("createPurchase duplicate handling", () => {
     expect(result.isOk() && result.value.id).toBe("purchase_existing");
     expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledTimes(
       1,
+    );
+  });
+
+  it("rejects a same-key duplicate that does not match the request", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        status: "error",
+        error: { message: "Purchase already exists" },
+      },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({ inputHash: "different-input-hash" }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "Duplicate purchase does not match request",
     );
   });
 
@@ -383,7 +438,7 @@ describe("createPurchase duplicate handling", () => {
     });
     postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
       data: {
-        data: { id: "purchase_existing" },
+        data: createResolvedPurchase(),
       },
       error: undefined,
       response: { status: 200 },
@@ -749,7 +804,12 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
     });
     postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
       data: {
-        data: { id: "task_purchase_existing" },
+        data: createResolvedPurchase({
+          id: "task_purchase_existing",
+          blockchainIdentifier: "chain1",
+          inputHash: "abc",
+          metadata: null,
+        }),
       },
       error: undefined,
       response: { status: 200 },
