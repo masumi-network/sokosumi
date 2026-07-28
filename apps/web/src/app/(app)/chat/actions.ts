@@ -108,7 +108,7 @@ export async function createChannelAction(
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
-    revalidatePath("/channels");
+    revalidatePath("/chat");
     return { ok: true, data: channel };
   } catch (error) {
     return {
@@ -152,7 +152,7 @@ export async function createDirectChannelAction(
       memberUserIds,
       coworkerIds,
     });
-    revalidatePath("/channels");
+    revalidatePath("/chat");
     return { ok: true, data: channel };
   } catch (error) {
     return {
@@ -222,7 +222,7 @@ export async function sendNewDirectMessageAction(
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
     });
-    revalidatePath("/channels");
+    revalidatePath("/chat");
     return { ok: true, data: { channel, message } };
   } catch (error) {
     return {
@@ -262,7 +262,7 @@ export async function sendNewChannelMessageAction(
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
     });
-    revalidatePath("/channels");
+    revalidatePath("/chat");
     return { ok: true, data: { channel, message } };
   } catch (error) {
     return {
@@ -289,7 +289,7 @@ export async function updateChannelAction(
 
   try {
     const channel = await chatRoomService.updateRoom(channelId, body);
-    revalidatePath("/channels");
+    revalidatePath("/chat");
     return { ok: true, data: channel };
   } catch (error) {
     return {
@@ -391,7 +391,7 @@ export async function toggleMessageReactionAction(
       cleanEmoji,
     );
     // No revalidatePath: the updated message is returned and merged client
-    // side, so a full RSC re-render of /channels would only duplicate work.
+    // side, so a full RSC re-render of /chat would only duplicate work.
     return { ok: true, data: message };
   } catch (error) {
     return {

@@ -4,7 +4,7 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ensureCoworkerDirectRoomAction } from "@/app/channels/actions";
+import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import {

@@ -11,7 +11,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { sendNewChannelMessageAction } from "@/app/channels/actions";
+import { sendNewChannelMessageAction } from "@/app/chat/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -151,7 +151,7 @@ export function DraftChannel({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
-      router.replace(`/channels?channel=${result.data.channel.id}`);
+      router.replace(`/chat/rooms/${result.data.channel.id}`);
       // No speculative refresh burst for coworker replies: the destination
       // view already polls while a mention is unresolved, and these timers
       // outlived the component — they fired against whatever page the user had

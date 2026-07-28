@@ -29,7 +29,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
-import { ensureCoworkerDirectRoomAction } from "@/app/channels/actions";
+import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import ChatInputContainer from "@/app/chat/components/chat-input-container";
 import SelectCoworkerModal from "@/app/chat/components/select-coworker-modal";
 import WelcomeScreen from "@/app/chat/components/welcome-screen";

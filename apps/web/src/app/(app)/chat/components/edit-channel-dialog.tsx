@@ -11,7 +11,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { updateChannelAction } from "@/app/channels/actions";
+import { updateChannelAction } from "@/app/chat/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

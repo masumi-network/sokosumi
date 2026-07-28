@@ -17,10 +17,10 @@ import {
   listThreadMessagesAction,
   sendChannelMessageAction,
   toggleMessageReactionAction,
-} from "@/app/channels/actions";
-import { mergeChannelMessages } from "@/app/channels/utils/merge-channel-messages";
+} from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
+import { mergeChannelMessages } from "@/app/chat/utils/merge-channel-messages";
 import { markOrganizationChatChannelReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -197,7 +197,7 @@ export function ChannelsClient({
   const isDirectChannel = selectedChannel?.kind === "direct";
   const breadcrumbOverride = useMemo(
     () => ({
-      pathname: "/channels",
+      pathname: selectedChannel ? `/chat/rooms/${selectedChannel.id}` : "/chat",
       segments: [
         {
           label: tBreadcrumb("chat"),
@@ -207,21 +207,21 @@ export function ChannelsClient({
           ? [
               {
                 label: selectedChannelDisplayName,
-                href: `/channels?channel=${selectedChannel.id}`,
+                href: `/chat/rooms/${selectedChannel.id}`,
               },
             ]
           : isCreateChannelRequested
             ? [
                 {
                   label: t("Dialog.createTitle"),
-                  href: "/channels?create=channel",
+                  href: "/chat?create=channel",
                 },
               ]
             : isNewDirectMessage
               ? [
                   {
                     label: t("Draft.breadcrumb"),
-                    href: "/channels?dm=new",
+                    href: "/chat?dm=new",
                   },
                 ]
               : []),
@@ -879,7 +879,7 @@ export function ChannelsClient({
                   <Button
                     type="button"
                     variant="primary"
-                    onClick={() => router.push("/channels?create=channel")}
+                    onClick={() => router.push("/chat?create=channel")}
                   >
                     {t("createChannel")}
                   </Button>

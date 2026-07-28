@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   ensureCoworkerDirectRoomAction,
   sendNewDirectMessageAction,
-} from "@/app/channels/actions";
+} from "@/app/chat/actions";
 import { slugify } from "@/app/chat/utils/bucket-slug";
 import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import { writePendingCoworkerDirectMessage } from "@/app/chat-ui/utils/pending-coworker-direct-message";
@@ -188,7 +188,7 @@ export function DraftDirectMessage({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedCoworkerIds([]);
-      router.replace(`/channels?channel=${result.data.channel.id}`);
+      router.replace(`/chat/rooms/${result.data.channel.id}`);
       // No speculative refresh burst for coworker replies: the destination
       // view already polls while a mention is unresolved, and these timers
       // outlived the component — they fired against whatever page the user had
