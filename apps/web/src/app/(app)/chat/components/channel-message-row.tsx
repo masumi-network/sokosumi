@@ -169,23 +169,16 @@ function MessageActions({
   onToggleReaction,
   onOpenThread,
   showThreadButton,
-  align,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
-  align: "start" | "end";
 }) {
   const t = useTranslations("App.Channels");
 
   return (
-    <div
-      className={cn(
-        "border-border bg-background absolute top-1.5 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
-        align === "end" ? "left-2" : "right-2",
-      )}
-    >
+    <div className="border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
       <MessageEmojiPicker
         label={t("Reactions.add")}
         onSelect={(emoji) => onToggleReaction(message, emoji)}
@@ -212,25 +205,18 @@ function MessageMetaFooter({
   onToggleReaction,
   onOpenThread,
   showThreadButton,
-  align,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
-  align: "start" | "end";
 }) {
   const t = useTranslations("App.Channels");
 
   return (
     <>
       {message.reactions.length > 0 ? (
-        <div
-          className={cn(
-            "flex flex-wrap gap-1.5 pt-1",
-            align === "end" && "justify-end",
-          )}
-        >
+        <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => (
             <button
               key={reaction.emoji}
@@ -252,22 +238,14 @@ function MessageMetaFooter({
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
         <button
           type="button"
-          className={cn(
-            "text-primary hover:text-primary/80 -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
-            align === "end" && "self-end",
-          )}
+          className="text-primary hover:text-primary/80 -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0"
           onClick={() => onOpenThread(message)}
         >
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
       {message.mentions.length > 0 ? (
-        <div
-          className={cn(
-            "flex flex-wrap gap-1.5 pt-1.5",
-            align === "end" && "justify-end",
-          )}
-        >
+        <div className="flex flex-wrap gap-1.5 pt-1.5">
           {message.mentions.map((mention) => (
             <Badge
               key={mention.id}
@@ -294,8 +272,6 @@ export function ChatMessageRow({
   onToggleReaction,
   onOpenThread,
   showThreadButton = true,
-  layout = "channel",
-  currentUserId,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -303,9 +279,6 @@ export function ChatMessageRow({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
-  /** `bubble` = IM layout (mine right, others left). Default Slack-style channel. */
-  layout?: "channel" | "bubble";
-  currentUserId?: string;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const sender = messageSender(message);
@@ -314,97 +287,6 @@ export function ChatMessageRow({
     isStreamOverlay &&
     message.sender.type === "coworker" &&
     message.content.trim().length === 0;
-  const isMine =
-    message.sender.type === "user" &&
-    Boolean(currentUserId) &&
-    message.sender.user.id === currentUserId;
-
-  if (layout === "bubble") {
-    return (
-      <article
-        className={cn(
-          "group relative flex min-h-11 gap-3 px-2 py-2",
-          isMine ? "flex-row-reverse" : "flex-row",
-        )}
-      >
-        <Avatar className="mt-0.5 size-8 shrink-0">
-          <AvatarImage src={sender.image ?? undefined} alt="" />
-          <AvatarFallback className="text-xs">
-            {getInitials(sender.name)}
-          </AvatarFallback>
-        </Avatar>
-        <div
-          className={cn(
-            "flex min-w-0 flex-col gap-1",
-            // Column already capped on wide screens; mine stays short bubble,
-            // others use most of the column like classic coworker chat.
-            isMine
-              ? "max-w-[min(85%,28rem)] items-end"
-              : "w-full max-w-full items-start",
-          )}
-        >
-          {isThinking ? (
-            <span
-              className="reasoning-text-shine pt-1 text-sm leading-5"
-              role="status"
-              aria-live="polite"
-            >
-              {tChat("reasoning.thinking")}
-            </span>
-          ) : (
-            <>
-              {!isMine ? (
-                <div className="flex min-w-0 items-center gap-1.5 px-0.5">
-                  <span className="truncate text-sm font-semibold">
-                    {sender.name}
-                  </span>
-                  {sender.kind === "coworker" ? (
-                    <AiCoworkerIcon className="size-3" />
-                  ) : null}
-                </div>
-              ) : null}
-              <div
-                className={cn(
-                  "wrap-break-word text-sm leading-7",
-                  isMine
-                    ? "bg-muted text-foreground rounded-2xl px-4 py-2"
-                    : "text-foreground px-0.5",
-                )}
-              >
-                <ChannelMessageText
-                  content={message.content}
-                  coworkersById={coworkersById}
-                  coworkersBySlug={coworkersBySlug}
-                />
-              </div>
-              <time
-                className="text-muted-foreground px-0.5 text-xs"
-                suppressHydrationWarning
-              >
-                {formatMessageTime(message.createdAt)}
-              </time>
-              <MessageMetaFooter
-                message={message}
-                onToggleReaction={onToggleReaction}
-                onOpenThread={onOpenThread}
-                showThreadButton={showThreadButton && !isStreamOverlay}
-                align={isMine ? "end" : "start"}
-              />
-            </>
-          )}
-        </div>
-        {!isThinking && !isStreamOverlay ? (
-          <MessageActions
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            showThreadButton={showThreadButton}
-            align={isMine ? "end" : "start"}
-          />
-        ) : null}
-      </article>
-    );
-  }
 
   return (
     <article className="group relative -mx-2 flex min-h-11 gap-3.5 rounded-md py-2.5 pr-20 pl-2 transition-colors hover:bg-muted/45">
@@ -447,7 +329,6 @@ export function ChatMessageRow({
           onToggleReaction={onToggleReaction}
           onOpenThread={onOpenThread}
           showThreadButton={showThreadButton}
-          align="start"
         />
       </div>
       {!isThinking ? (
@@ -456,7 +337,6 @@ export function ChatMessageRow({
           onToggleReaction={onToggleReaction}
           onOpenThread={onOpenThread}
           showThreadButton={showThreadButton}
-          align="start"
         />
       ) : null}
     </article>

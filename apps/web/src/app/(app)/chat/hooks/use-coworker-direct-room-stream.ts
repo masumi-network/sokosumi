@@ -18,6 +18,33 @@ const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
 /** Survives React Strict Mode remount so draft auto-stream fires once per room. */
 const autoStreamStartedRoomIds = new Set<string>();
 
+/** Empty coworker shell shown while resume reconnect is submitted but SSE empty. */
+export const RESUME_PENDING_STREAM_MESSAGE_ID = "stream:resume-pending";
+
+export function createResumePendingCoworkerShell({
+  roomId,
+  coworker,
+  createdAt = new Date(),
+}: {
+  roomId: string;
+  coworker: ChatRoomCoworkerParticipant;
+  createdAt?: Date;
+}): ChatRoomMessage {
+  return {
+    id: RESUME_PENDING_STREAM_MESSAGE_ID,
+    roomId,
+    parentMessageId: null,
+    content: "",
+    createdAt,
+    sender: { type: "coworker", coworker },
+    mentions: [],
+    reactions: [],
+    threadReplyCount: 0,
+    threadLastReplyAt: null,
+    metadata: { streaming: true },
+  };
+}
+
 function uiMessageToTransientRoomMessage({
   message,
   roomId,
@@ -144,8 +171,10 @@ export function useCoworkerDirectRoomStream({
     [],
   );
 
-  const { messages, sendMessage, status, setMessages } = useChat({
+  const { messages, sendMessage, status, setMessages, resumeStream } = useChat({
     id: roomId ?? "coworker-direct-idle",
+    // Drive resume ourselves keyed on roomId — AI SDK's `resume` effect only
+    // re-fires when the boolean flips, so room A→B would skip reconnect.
     resume: false,
     transport,
     onError(error) {
@@ -170,12 +199,16 @@ export function useCoworkerDirectRoomStream({
     },
   });
 
-  // Drop in-flight overlay when leaving a coworker stream room.
+  const isStreaming = status === "submitted" || status === "streaming";
+
+  // Leave: drop overlay. Enter: reconnect to Core active stream (Thinking…).
   useEffect(() => {
-    if (!enabled || !roomId) {
+    if (!roomId) {
       setMessages([]);
+      return;
     }
-  }, [enabled, roomId, setMessages]);
+    void resumeStream();
+  }, [roomId, resumeStream, setMessages]);
 
   const currentUser = useMemo(() => {
     if (!room) {
@@ -191,13 +224,27 @@ export function useCoworkerDirectRoomStream({
   const coworker = room?.coworkerMembers[0] ?? null;
 
   const streamOverlayMessages = useMemo(() => {
-    if (!enabled || !roomId || messages.length === 0) {
+    if (!enabled || !roomId) {
       return [];
+    }
+    const baseMs = Date.now();
+    // Resume gap: status is submitted/streaming before first SSE chunk lands.
+    // Show empty coworker shell so Thinking… returns immediately on reopen.
+    if (messages.length === 0) {
+      if (!isStreaming || !coworker) {
+        return [];
+      }
+      return [
+        createResumePendingCoworkerShell({
+          roomId,
+          coworker,
+          createdAt: new Date(baseMs),
+        }),
+      ];
     }
     // Index-offset createdAt keeps useChat order when clocks share a ms.
     // Keep empty assistant shells so the coworker avatar/name show while tokens
     // arrive (merge appends overlay in array order — user stays first).
-    const baseMs = Date.now();
     return messages
       .filter(
         (message) => message.role === "user" || message.role === "assistant",
@@ -211,9 +258,7 @@ export function useCoworkerDirectRoomStream({
           createdAt: new Date(baseMs + index),
         }),
       );
-  }, [enabled, roomId, messages, currentUser, coworker]);
-
-  const isStreaming = status === "submitted" || status === "streaming";
+  }, [enabled, roomId, messages, currentUser, coworker, isStreaming]);
 
   const sendStreamMessage = useCallback(
     (text: string) => {

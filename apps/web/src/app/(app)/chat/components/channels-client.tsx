@@ -924,8 +924,6 @@ export function ChannelsClient({
                             isStreamOverlay ? undefined : loadThreadMessages
                           }
                           showThreadButton={!isStreamOverlay}
-                          layout={isDirectChannel ? "bubble" : "channel"}
-                          currentUserId={currentUserId}
                         />
                       </div>
                     );
