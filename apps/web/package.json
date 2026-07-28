@@ -24,7 +24,7 @@
     "generate:core:snapshot": "pnpm --filter @sokosumi/core run write-openapi-snapshot-for-web && openapi-ts -f openapi-ts.core.config.ts -i openapi-core.snapshot.json"
   },
   "dependencies": {
-    "@ai-sdk/react": "4.0.40",
+    "@ai-sdk/react": "4.0.43",
     "@better-auth/api-key": "1.6.25",
     "@better-auth/i18n": "1.6.25",
     "@better-auth/oauth-provider": "1.6.25",
@@ -54,7 +54,7 @@
     "@vercel/related-projects": "1.1.0",
     "@vercel/speed-insights": "2.0.0",
     "ably": "2.26.0",
-    "ai": "7.0.37",
+    "ai": "7.0.40",
     "babel-plugin-react-compiler": "1.0.0",
     "better-auth": "1.6.25",
     "class-variance-authority": "0.7.1",

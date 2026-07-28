@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountDeleteProject from "./delete.js";
 import mountGetProject from "./get.js";
+import mountDeleteProjectJob from "./jobs/[jobId]/delete.js";
 import mountPostProjectJob from "./jobs/post.js";
 import mountPatchProject from "./patch.js";
 
@@ -16,12 +18,14 @@ const {
   projectDeleteManyMock,
   jobFindFirstMock,
   jobUpdateMock,
+  jobUpdateManyMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
+  jobUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -34,6 +38,7 @@ vi.mock("@/lib/db/prisma", () => ({
     job: {
       findFirst: jobFindFirstMock,
       update: jobUpdateMock,
+      updateMany: jobUpdateManyMock,
     },
   },
 }));
@@ -66,7 +71,14 @@ const sampleProject = {
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
 
-function createApp() {
+const COWORKER_CONTEXT_AUTH: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_1",
+  vendorId: TEST_VENDOR_ID,
+  context: { userId: "user_123", organizationId: null },
+};
+
+function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables & { requestId: string };
   }>();
@@ -74,7 +86,7 @@ function createApp() {
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
-    c.set("authContext", USER_AUTH_CONTEXT);
+    c.set("authContext", authContext);
     c.set("workspaceContext", WORKSPACE_CONTEXT);
 
     return await next();
@@ -141,6 +153,18 @@ describe("PATCH /projects/{id}", () => {
     const body = (await res.json()) as { data: { name: string } };
     expect(body.data.name).toBe("New");
   });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Hijack" }),
+    });
+    expect(res.status).toBe(403);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("DELETE /projects/{id}", () => {
@@ -168,6 +192,16 @@ describe("DELETE /projects/{id}", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { deleted: boolean } };
     expect(body.data.deleted).toBe(true);
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    mountDeleteProject(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(403);
+    expect(projectDeleteManyMock).not.toHaveBeenCalled();
   });
 });
 
@@ -231,5 +265,35 @@ describe("POST /projects/{id}/jobs", () => {
     });
     expect(res.status).toBe(200);
     expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: "job_1" }),
+    });
+    expect(res.status).toBe(403);
+    expect(jobFindFirstMock).not.toHaveBeenCalled();
+    expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /projects/{id}/jobs/{jobId}", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects coworker context even with X-Context-User-Id", async () => {
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    mountDeleteProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}/jobs/job_1`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(403);
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
   });
 });
