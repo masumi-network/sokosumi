@@ -9,9 +9,16 @@
 -- Duplicates remain as hidden historical rows so their registry-owned child
 -- data is not destroyed, but their identifiers are parked to free the real
 -- identifiers for the canonical row during the registry replay below.
-BEGIN;
+--
+-- POOLED-CONNECTION SAFETY: this migration can run through a transaction-mode
+-- pooler (Neon/PgBouncer when DATABASE_URL_UNPOOLED is absent), where session
+-- state does not survive across statements. The whole repair therefore runs
+-- inside a single DO block: one statement, one backend, one transaction —
+-- temp tables stay valid for its full duration and the repair is atomic.
+DO $repair$
+BEGIN
 
-CREATE TEMP TABLE "_v2_agent_identity_repair" ON COMMIT DROP AS
+CREATE TEMP TABLE "_v2_agent_identity_repair" AS
 WITH candidates AS (
   SELECT
     "id" AS "agentId",
@@ -70,7 +77,7 @@ WHERE job."agentId" = repair."agentId"
 
 -- Keep the most recently updated rating per user and stable identity, avoiding
 -- the UserAgentRating(userId, agentId) unique constraint while consolidating.
-CREATE TEMP TABLE "_v2_agent_rating_repair" ON COMMIT DROP AS
+CREATE TEMP TABLE "_v2_agent_rating_repair" AS
 SELECT
   rating."id" AS "ratingId",
   repair."canonicalAgentId",
@@ -123,7 +130,7 @@ WHERE relation."A" = repair."agentId"
 
 -- Preserve one admin metadata override on the stable row. Prefer an existing
 -- canonical override; otherwise move the most recently updated duplicate one.
-CREATE TEMP TABLE "_v2_agent_override_repair" ON COMMIT DROP AS
+CREATE TEMP TABLE "_v2_agent_override_repair" AS
 SELECT
   metadata_override."id" AS "overrideId",
   repair."canonicalAgentId",
@@ -179,4 +186,8 @@ WHERE "key" IN (
   'agents-sync-metadata-cardano-v2'
 );
 
-COMMIT;
+DROP TABLE "_v2_agent_override_repair";
+DROP TABLE "_v2_agent_rating_repair";
+DROP TABLE "_v2_agent_identity_repair";
+END
+$repair$;
