@@ -6,19 +6,17 @@ import { getSession } from "@/lib/auth/auth.server";
 import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-proxy-headers";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
-const CORE_CHAT_STREAM_PATH = "chats/stream" as const;
-
 export async function GET(
   _req: NextRequest,
-  context: { params: Promise<{ conversationId: string }> },
+  context: { params: Promise<{ roomId: string }> },
 ) {
   const session = await getSession();
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { conversationId } = await context.params;
-  if (!conversationId?.trim()) {
+  const { roomId } = await context.params;
+  if (!roomId?.trim()) {
     return new Response(null, { status: 400 });
   }
 
@@ -27,7 +25,7 @@ export async function GET(
       new Headers(await headers()),
     );
 
-    const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_STREAM_PATH}/${encodeURIComponent(conversationId)}`;
+    const coreUrl = `${getCoreApiBaseUrl()}/chats/rooms/${encodeURIComponent(roomId)}/stream/active`;
 
     const response = await fetch(coreUrl, {
       method: "GET",

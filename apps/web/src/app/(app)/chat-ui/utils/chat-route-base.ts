@@ -4,7 +4,13 @@ export const CHAT_APP_ROUTE_PREFIX = "/chat" as const;
 /** URL segment when conversation metadata has no slugifiable coworker or model. */
 export const FALLBACK_BUCKET_SEGMENT = "_" as const;
 
-/** Next.js BFF for Core `GET` / `POST` `/v1/chats/stream`. */
+/**
+ * Next.js BFF for room-keyed Core chat stream APIs.
+ *
+ * - `GET ${CHAT_API_PATH}?roomId=…` → Core `/v1/chats/rooms/{roomId}/stream/messages`
+ * - `POST ${CHAT_API_PATH}` with `{ roomId, … }` → Core `/v1/chats/rooms/{roomId}/stream`
+ * - `GET ${CHAT_API_PATH}/{roomId}/stream` → Core `/v1/chats/rooms/{roomId}/stream/active`
+ */
 export const CHAT_API_PATH = "/api/chat" as const;
 
 const PENDING_CONVERSATION_STORAGE_KEY = "chat-pending-conversation-id";
