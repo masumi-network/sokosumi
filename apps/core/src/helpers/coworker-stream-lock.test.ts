@@ -47,7 +47,7 @@ describe("coworker-stream-lock", () => {
     );
   });
 
-  it("returns unavailable when redis is unavailable", async () => {
+  it("returns unavailable when redis is not configured", async () => {
     getRedisClientMock.mockReturnValue(null);
 
     await expect(acquireStreamLock("conv-1")).resolves.toEqual({
@@ -81,11 +81,11 @@ describe("coworker-stream-lock", () => {
     });
   });
 
-  it("returns unavailable when redis acquisition fails", async () => {
+  it("returns error when redis is configured but acquisition fails", async () => {
     redisSetMock.mockRejectedValue(new Error("redis down"));
 
     await expect(acquireStreamLock("conv-1")).resolves.toEqual({
-      status: "unavailable",
+      status: "error",
     });
   });
 

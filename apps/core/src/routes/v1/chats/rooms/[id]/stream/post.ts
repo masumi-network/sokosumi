@@ -188,10 +188,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Acquire before persist so concurrent POSTs cannot duplicate turns.
+    // unavailable = Redis never configured (local) → fail-open with soft dedup.
+    // error = Redis configured but broken → fail-closed (no unlocked multi-instance races).
     const streamLock = await acquireStreamLock(room.id);
     if (streamLock.status === "held") {
       throw conflict(
         "A coworker response is already in progress for this room.",
+      );
+    }
+    if (streamLock.status === "error") {
+      throw serviceUnavailable(
+        "Coworker stream lock is temporarily unavailable. Retry shortly.",
       );
     }
     const streamLockOwnerToken =

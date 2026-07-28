@@ -32,6 +32,47 @@ vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   listStaleSentChatRoomMentionIds: vi.fn().mockResolvedValue([]),
 }));
 
+// Stream routes: auth/membership only — keep heavy stream deps inert.
+vi.mock("ai", () => ({
+  convertToModelMessages: vi.fn(),
+  generateId: vi.fn(() => "generated-id-test"),
+  streamText: vi.fn(),
+  validateUIMessages: vi.fn(
+    async ({ messages }: { messages: unknown[] }) => messages,
+  ),
+  UI_MESSAGE_STREAM_HEADERS: {},
+}));
+
+vi.mock("@/lib/sokosumi-ai-provider", () => ({
+  getSokosumiProvider: vi.fn(),
+}));
+
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerChatCapability: vi.fn(),
+}));
+
+vi.mock("@/helpers/active-ui-stream-room-metadata", () => ({
+  setActiveUiStreamIdForRoom: vi.fn(),
+  clearActiveUiStreamIdForRoom: vi.fn(),
+  readActiveUiStreamIdForRoom: vi.fn(),
+}));
+
+vi.mock("@/helpers/coworker-stream-lock", () => ({
+  acquireStreamLock: vi.fn(),
+  releaseStreamLock: vi.fn(),
+  startStreamLockHeartbeat: vi.fn(() => () => {}),
+}));
+
+vi.mock("@/helpers/persist-assistant-to-chat-room", () => ({
+  persistAssistantToChatRoom: vi.fn(),
+  persistUserMessageToChatRoom: vi.fn(),
+}));
+
+vi.mock("@/lib/resumable-ui-stream-context", () => ({
+  isUiStreamResumptionConfigured: vi.fn(() => false),
+  getResumableUiStreamContext: vi.fn(),
+}));
+
 const { default: mountGetChatRooms } = await import("./get");
 const { default: mountPostChatRoom } = await import("./post");
 const { default: mountGetChatRoom } = await import("./[id]/get");
@@ -46,6 +87,7 @@ const { default: mountPostChatRoomMessage } = await import(
 const { default: mountPostChatRoomMessageReaction } = await import(
   "./[id]/messages/[messageId]/reactions/post"
 );
+const { default: mountRoomStream } = await import("./[id]/stream/index");
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
@@ -96,6 +138,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountGetChatRoomMessages(typed);
   mountPostChatRoomMessage(typed);
   mountPostChatRoomMessageReaction(typed);
+  mountRoomStream(typed);
   return app;
 }
 
@@ -165,6 +208,25 @@ const userOnlyCases: AuthRequestCase[] = [
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ emoji: "👍" }),
     }),
+  },
+  {
+    label: "POST /{id}/stream",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/stream`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    }),
+  },
+  {
+    label: "GET /{id}/stream/messages",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}/stream/messages` }),
+  },
+  {
+    label: "GET /{id}/stream/active",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}/stream/active` }),
   },
 ];
 
@@ -326,6 +388,25 @@ const membershipScopedCases: AuthRequestCase[] = [
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ emoji: "👍" }),
     }),
+  },
+  {
+    label: "POST /{id}/stream",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/stream`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    }),
+  },
+  {
+    label: "GET /{id}/stream/messages",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}/stream/messages` }),
+  },
+  {
+    label: "GET /{id}/stream/active",
+    request: () => ({ method: "GET", path: `/${ROOM_ID}/stream/active` }),
   },
 ];
 

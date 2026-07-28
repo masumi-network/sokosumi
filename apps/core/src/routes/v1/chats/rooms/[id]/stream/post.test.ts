@@ -610,7 +610,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(startStreamLockHeartbeatMock).not.toHaveBeenCalled();
     });
 
-    it("proceeds unlocked when redis is unavailable", async () => {
+    it("proceeds unlocked when redis is not configured", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
       acquireStreamLockMock.mockResolvedValueOnce({ status: "unavailable" });
 
@@ -620,6 +620,19 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(streamTextMock).toHaveBeenCalledOnce();
       expect(startStreamLockHeartbeatMock).not.toHaveBeenCalled();
       expect(persistUserMessageToChatRoomMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns 503 when redis is configured but lock acquire fails", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "error" });
+
+      const response = await postStream();
+
+      expect(response.status).toBe(503);
+      expect(streamTextMock).not.toHaveBeenCalled();
+      expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+      expect(startStreamLockHeartbeatMock).not.toHaveBeenCalled();
+      expect(releaseStreamLockMock).not.toHaveBeenCalled();
     });
 
     it("acquires the room lock before persisting the user message", async () => {
