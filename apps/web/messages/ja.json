@@ -4557,10 +4557,11 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Calling coworker",
-        "sent": "Coworker thinking",
-        "responded": "Coworker replied",
-        "failed": "Coworker failed"
+        "pending": "{name} を呼び出しています",
+        "sent": "{name} が考えています",
+        "responded": "{name} が返信しました",
+        "failed": "{name} が失敗しました",
+        "nameFallback": "コワーカー"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",

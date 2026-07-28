@@ -202,11 +202,13 @@ function MessageActions({
 
 function MessageMetaFooter({
   message,
+  coworkersById,
   onToggleReaction,
   onOpenThread,
   showThreadButton,
 }: {
   message: ChatRoomMessage;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -246,19 +248,26 @@ function MessageMetaFooter({
       ) : null}
       {message.mentions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1.5">
-          {message.mentions.map((mention) => (
-            <Badge
-              key={mention.id}
-              variant={mention.status === "failed" ? "destructive" : "outline"}
-            >
-              {mention.status === "responded" ? (
-                <CheckCircle2 className="size-3" />
-              ) : mention.status === "failed" ? null : (
-                <Loader2 className="size-3 animate-spin" />
-              )}
-              {t(`MentionStatus.${mention.status}`)}
-            </Badge>
-          ))}
+          {message.mentions.map((mention) => {
+            const name =
+              coworkersById.get(mention.coworkerId)?.name ??
+              t("MentionStatus.nameFallback");
+            return (
+              <Badge
+                key={mention.id}
+                variant={
+                  mention.status === "failed" ? "destructive" : "outline"
+                }
+              >
+                {mention.status === "responded" ? (
+                  <CheckCircle2 className="size-3" />
+                ) : mention.status === "failed" ? null : (
+                  <Loader2 className="size-3 animate-spin" />
+                )}
+                {t(`MentionStatus.${mention.status}`, { name })}
+              </Badge>
+            );
+          })}
         </div>
       ) : null}
     </>
@@ -326,6 +335,7 @@ export function ChatMessageRow({
         </div>
         <MessageMetaFooter
           message={message}
+          coworkersById={coworkersById}
           onToggleReaction={onToggleReaction}
           onOpenThread={onOpenThread}
           showThreadButton={showThreadButton}

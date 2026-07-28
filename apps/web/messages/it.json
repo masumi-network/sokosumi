@@ -4557,10 +4557,11 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Calling coworker",
-        "sent": "Coworker thinking",
-        "responded": "Coworker replied",
-        "failed": "Coworker failed"
+        "pending": "Chiamata a {name}",
+        "sent": "{name} sta pensando",
+        "responded": "{name} ha risposto",
+        "failed": "{name} non è riuscito",
+        "nameFallback": "Coworker"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
