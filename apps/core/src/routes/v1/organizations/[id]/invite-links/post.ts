@@ -4,9 +4,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
 import { organizationInviteLinkRepository } from "@sokosumi/database/repositories";
 
-import { getWebAppBaseUrl } from "@/config/env";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { toOrganizationInviteLinkResponse } from "@/helpers/organization-invite-link-response";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -86,17 +86,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    return created(
-      c,
-      organizationInviteLinkSchema.parse({
-        token: link.token,
-        url: `${getWebAppBaseUrl()}/join/${link.token}`,
-        role: link.role,
-        expiresAt: link.expiresAt.toISOString(),
-        revokedAt: link.revokedAt?.toISOString() ?? null,
-        maxUses: link.maxUses,
-        useCount: link.useCount,
-      }),
-    );
+    return created(c, toOrganizationInviteLinkResponse(link));
   });
 }

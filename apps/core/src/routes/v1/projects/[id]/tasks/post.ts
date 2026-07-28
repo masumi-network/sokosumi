@@ -9,7 +9,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   addProjectTaskRequestSchema,
@@ -31,7 +31,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/tasks",
     description:
-      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Any workspace member may link a workspace task.",
+      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Session user or orchestrator with context headers; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -55,7 +55,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const body = c.req.valid("json");

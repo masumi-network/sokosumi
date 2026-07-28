@@ -6,10 +6,16 @@ import { getRedisClient } from "@/lib/redis";
 export const COWORKER_STREAM_LOCK_TTL_SECONDS = 120;
 export const COWORKER_STREAM_LOCK_HEARTBEAT_MS = 60_000;
 
+/**
+ * - acquired / held: normal single-flight outcomes
+ * - unavailable: Redis never configured (local/dev) — callers may fail-open
+ * - error: Redis client exists but acquire failed — callers should fail-closed
+ */
 export type AcquireStreamLockResult =
   | { status: "acquired"; ownerToken: string }
   | { status: "held" }
-  | { status: "unavailable" };
+  | { status: "unavailable" }
+  | { status: "error" };
 
 const RENEW_STREAM_LOCK_SCRIPT = `
 if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -42,8 +48,9 @@ export async function acquireStreamLock(
 ): Promise<AcquireStreamLockResult> {
   const redis = getRedisClient();
   if (!redis) {
+    // No REDIS_URL / KV_URL — local and some agent envs. Fail-open is intentional.
     console.warn(
-      "[coworker-stream-lock] Redis unavailable; skipping coworker stream lock.",
+      "[coworker-stream-lock] Redis not configured; skipping coworker stream lock.",
     );
     return { status: "unavailable" };
   }
@@ -63,11 +70,13 @@ export async function acquireStreamLock(
       ? { status: "acquired", ownerToken }
       : { status: "held" };
   } catch (error) {
-    console.warn(
-      "[coworker-stream-lock] Redis error; skipping coworker stream lock:",
+    // Redis is configured but broken — fail-closed so multi-instance cannot
+    // double-persist stream turns under a silent unlocked path.
+    console.error(
+      "[coworker-stream-lock] Redis error acquiring coworker stream lock:",
       error,
     );
-    return { status: "unavailable" };
+    return { status: "error" };
   }
 }
 

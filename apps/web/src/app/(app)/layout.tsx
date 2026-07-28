@@ -1,4 +1,3 @@
-import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -10,8 +9,7 @@ import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
-import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
-import { ConversationsProvider } from "@/contexts/conversations-context";
+import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import QueryProvider from "@/contexts/query-provider";
@@ -19,7 +17,6 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import type { Notice } from "@/lib/clients/generated/core";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
-import AppChatRailShell from "./components/app-chat-rail-shell";
 import AppShellChrome from "./components/app-shell-chrome";
 import { AppSidebarFallback } from "./components/app-sidebar-fallback";
 import { AuthSessionGuard } from "./components/auth-session-guard";
@@ -62,82 +59,73 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   const cookieStore = await cookieStorePromise;
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const defaultChatRailOpen =
-    cookieStore.get("chat_sidebar_state")?.value === "true";
-  const userImageUrl =
-    session.user.image ??
-    gravatarUrl(session.user.email ?? "", {
-      size: 80,
-      default: "404",
-    });
 
   return (
     <QueryProvider>
       <AuthSessionGuard />
-      <ConversationsProvider>
-        <DynamicAblyProvider>
-          <NotificationProvider userId={session.user.id}>
-            <AccountNoticeProvider notice={null} sessionId={session.session.id}>
-              <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
-                <NoticeDialogProvider
-                  legalNotices={EMPTY_NOTICES}
-                  announcementNotices={EMPTY_NOTICES}
+      <DynamicAblyProvider>
+        <NotificationProvider userId={session.user.id}>
+          <AccountNoticeProvider notice={null} sessionId={session.session.id}>
+            <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
+              <NoticeDialogProvider
+                legalNotices={EMPTY_NOTICES}
+                announcementNotices={EMPTY_NOTICES}
+              >
+                <NotificationToaster />
+                <NotificationToastListener userId={session.user.id} />
+                <LoginAccountNoticeToast />
+                <SidebarProvider
+                  defaultOpen={defaultOpen}
+                  data-app-shell
+                  className="flex max-w-svw overflow-clip"
                 >
-                  <NotificationToaster />
-                  <NotificationToastListener userId={session.user.id} />
-                  <LoginAccountNoticeToast />
-                  <SidebarProvider
-                    defaultOpen={defaultOpen}
-                    data-app-shell
-                    className="flex max-w-svw overflow-clip"
+                  <HistorySearchDialogProvider
+                    activeOrganizationId={
+                      session.session.activeOrganizationId ?? null
+                    }
                   >
-                    <HistorySearchDialogProvider
-                      activeOrganizationId={
-                        session.session.activeOrganizationId ?? null
-                      }
-                    >
-                      <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
-                        <Suspense fallback={<AppSidebarFallback />}>
-                          <AppShellChrome session={session} />
-                        </Suspense>
+                    <BreadcrumbOverrideProvider>
+                      <Suspense fallback={<AppSidebarFallback />}>
+                        <AppShellChrome session={session} />
+                      </Suspense>
+                      <div
+                        className="flex min-w-0 flex-1 overflow-clip"
+                        data-app-content
+                      >
                         <div
-                          className="flex min-w-0 flex-1 overflow-clip"
-                          data-app-content
+                          className="flex min-w-0 flex-1 flex-col overflow-clip"
+                          data-app-content-inner
                         >
-                          <div
-                            className="flex min-w-0 flex-1 flex-col overflow-clip"
-                            data-app-content-inner
+                          <Header className="h-16 p-4" session={session} />
+                          {/* Below md the header is `fixed` (out of flow), so
+                              main starts at y=0 and must be a full viewport
+                              tall — subtracting the header height there left
+                              a dead 64px strip along the bottom of every
+                              page, which a bottom-anchored composer sits on
+                              top of. From md the header is `sticky` and does
+                              occupy flow, so the subtraction is correct. */}
+                          <main
+                            className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-64px)] md:min-h-[calc(100svh-64px)] md:pt-4"
+                            data-app-main
                           >
-                            <Header className="h-16 p-4" session={session} />
-                            <main
-                              className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
-                              data-app-main
+                            <EmergencyDialog />
+                            <div
+                              className="flex h-full flex-1 flex-col overflow-visible"
+                              data-app-main-inner
                             >
-                              <EmergencyDialog />
-                              <div
-                                className="flex h-full flex-1 flex-col overflow-visible"
-                                data-app-main-inner
-                              >
-                                {children}
-                              </div>
-                            </main>
-                          </div>
-                          <Suspense fallback={null}>
-                            <AppChatRailShell
-                              session={session}
-                              userImageUrl={userImageUrl}
-                            />
-                          </Suspense>
+                              {children}
+                            </div>
+                          </main>
                         </div>
-                      </AppChatRailProvider>
-                    </HistorySearchDialogProvider>
-                  </SidebarProvider>
-                </NoticeDialogProvider>
-              </CoworkersProvider>
-            </AccountNoticeProvider>
-          </NotificationProvider>
-        </DynamicAblyProvider>
-      </ConversationsProvider>
+                      </div>
+                    </BreadcrumbOverrideProvider>
+                  </HistorySearchDialogProvider>
+                </SidebarProvider>
+              </NoticeDialogProvider>
+            </CoworkersProvider>
+          </AccountNoticeProvider>
+        </NotificationProvider>
+      </DynamicAblyProvider>
     </QueryProvider>
   );
 }

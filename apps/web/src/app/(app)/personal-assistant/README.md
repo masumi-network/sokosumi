@@ -235,13 +235,13 @@ project channel if you don't have them yet. Never commit them.
 
 ### Enabling the feature
 
-Web access is gated by the Hermes beta whitelist
-(`apps/web/src/lib/hermes/beta-access.ts`): only `nmkr.io` emails see the
-sidebar entry, and `/personal-assistant` 404s for everyone else via this
-route's `layout.tsx`. On top of that, activating **and using**
-(chat, onboard, settings mutations, skills, confirmations) are gated by a
-paid plan (or admin role) on the Core endpoints. Viewing history and
-destroying an instance stay open so cancelled users can tear down.
+The sidebar entry and `/personal-assistant` are open to every signed-in
+user — the page itself sells the feature. Activating **and using** it
+(chat, onboard, settings mutations, skills, confirmations) are gated on the
+Core endpoints by a plan of **Standard or better** (or an admin role, or a
+consumable enterprise contract); see `planUnlocksPersonalAssistant` in
+`@sokosumi/utils`. Viewing history and destroying an instance stay open so
+downgraded users can tear down.
 
 ### Bypassing the subscription gate
 

@@ -5,6 +5,7 @@ import UserCredits, {
   type UserCreditsData,
 } from "@/app/components/user-credits";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
+import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -12,15 +13,13 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { userService } from "@/lib/services";
+import { chatRoomService, userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
 import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
 import AnnouncementCards from "./components/announcement-cards";
-import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
-import NewChatTaskActions from "./components/new-chat-task-actions";
 import PersonalAssistantNav from "./components/personal-assistant-nav.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
@@ -43,30 +42,40 @@ export default async function Sidebar({
   session,
   lowCreditsThreshold,
 }: SidebarProps) {
-  const tCredit = await getTranslations("App.Header.Credit");
-  const tPlan = await getTranslations("App.Header.Plan");
+  const tCreditPromise = getTranslations("App.Header.Credit");
+  const tPlanPromise = getTranslations("App.Header.Plan");
   const currentPlan = creditsData?.subscription?.plan ?? "free";
   const planForLabel = creditsData === null ? null : currentPlan;
   const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
-  let members: Awaited<
-    ReturnType<typeof userService.getMyMembersWithOrganizations>
-  > = [];
-  try {
-    members = await userService.getMyMembersWithOrganizations();
-  } catch (_error) {
-    members = [];
-  }
-
-  const [{ showVendors: showDeveloperVendors }, planLabel] = await Promise.all([
-    getDeveloperVendorAdminAccess(),
+  const membersPromise = userService
+    .getMyMembersWithOrganizations()
+    .catch(() => []);
+  // Personal coworker directs exist with no active org; Core returns those when
+  // organization context is null. Named channels still need an org (empty list then).
+  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
+  const planLabelPromise = tCreditPromise.then((tCredit) =>
     resolvePlanSecondaryLabel({
       plan: planForLabel,
       organizationName: activeOrganizationId
         ? (organizationName ?? tCredit("unavailable"))
         : null,
     }),
+  );
+
+  const [
+    tPlan,
+    members,
+    chatRooms,
+    { showVendors: showDeveloperVendors },
+    planLabel,
+  ] = await Promise.all([
+    tPlanPromise,
+    membersPromise,
+    chatRoomsPromise,
+    getDeveloperVendorAdminAccess(),
+    planLabelPromise,
   ]);
 
   return (
@@ -87,14 +96,16 @@ export default async function Sidebar({
             showDeveloperVendors={showDeveloperVendors}
           >
             <PersonalAssistantNav />
-            <SidebarSeparator className="mx-0" />
-            <NewChatTaskActions />
-            <SidebarSeparator className="mx-0 mt-2" />
+            <SidebarSeparator className="-mt-px" />
             <MenuItems />
-            <SidebarSeparator className="mx-0" />
+            <SidebarSeparator />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
-            <SidebarSeparator className="mx-0" />
-            <ChatListsClient />
+            <SidebarSeparator />
+            <OrganizationChatList
+              rooms={chatRooms}
+              currentUserId={session.user.id}
+              hasOrganization={Boolean(activeOrganizationId)}
+            />
           </SidebarNav>
         </div>
       </SidebarContent>

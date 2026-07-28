@@ -1,7 +1,3 @@
-import {
-  CHAT_APP_ROUTE_PREFIX,
-  FALLBACK_BUCKET_SEGMENT,
-} from "@/app/chat-ui/utils/chat-route-base";
 import type { NotificationKind } from "@/lib/clients/generated/core";
 
 interface NotificationHrefItem {
@@ -16,7 +12,7 @@ interface NotificationHrefItem {
  */
 export function getNotificationHref(
   notification: NotificationHrefItem,
-): string {
+): string | null {
   switch (notification.kind) {
     case "TASK":
       return `/tasks/${encodeURIComponent(notification.referenceId)}`;
@@ -29,12 +25,8 @@ export function getNotificationHref(
       return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
     }
 
-    case "CONVERSATION": {
-      const bucketSlug = notification.metadata?.bucketSlug;
-      const bucketSegment =
-        typeof bucketSlug === "string" ? bucketSlug : FALLBACK_BUCKET_SEGMENT;
-      return `${CHAT_APP_ROUTE_PREFIX}/${encodeURIComponent(bucketSegment)}/conversation/${encodeURIComponent(notification.referenceId)}?open=1`;
-    }
+    case "CONVERSATION":
+      return null;
 
     default:
       return `/`;

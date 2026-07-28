@@ -160,7 +160,7 @@ describe("HistoryListItem", () => {
     );
   });
 
-  it("renders an em dash for conversation credits and links to the conversation", () => {
+  it("renders an em dash for conversation credits without a link", () => {
     const item: HistoryItem = {
       kind: "conversation",
       id: "conversation-1",
@@ -184,10 +184,7 @@ describe("HistoryListItem", () => {
     );
 
     expect(screen.queryAllByText("—").length).toBeGreaterThan(0);
-    expect(screen.getByRole("link")).toHaveAttribute(
-      "href",
-      "/chat/hannah/conversation/conversation-1?open=1",
-    );
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("links non-archived task rows", () => {
@@ -306,7 +303,7 @@ describe("HistoryListItem", () => {
     expect(getHistoryItemHref(job)).toBe("/agents/agent-1/jobs/job-1");
   });
 
-  it("adds open=1 to conversation links for mobile chat pane", () => {
+  it("returns null for conversation deep links", () => {
     const conversation: HistoryItem = {
       kind: "conversation",
       id: "conversation-1",
@@ -320,12 +317,10 @@ describe("HistoryListItem", () => {
       owner: null,
     };
 
-    expect(getHistoryItemHref(conversation)).toBe(
-      "/chat/hannah/conversation/conversation-1?open=1",
-    );
+    expect(getHistoryItemHref(conversation)).toBeNull();
   });
 
-  it("uses the fallback bucket segment when bucketSlug is null", () => {
+  it("returns null for conversation links when bucketSlug is null", () => {
     const conversation: HistoryItem = {
       kind: "conversation",
       id: "conversation-1",
@@ -339,9 +334,7 @@ describe("HistoryListItem", () => {
       owner: null,
     };
 
-    expect(getHistoryItemHref(conversation)).toBe(
-      "/chat/_/conversation/conversation-1?open=1",
-    );
+    expect(getHistoryItemHref(conversation)).toBeNull();
   });
 
   it("uses the agent name as the job fallback subtitle", () => {

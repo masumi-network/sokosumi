@@ -207,6 +207,7 @@ describe("POST /organizations/{id}/invite-links", () => {
       token: "tok_created",
       url: "https://app.sokosumi.test/join/tok_created",
       role: MemberRole.MEMBER,
+      createdAt: NOW.toISOString(),
       maxUses: null,
       useCount: 0,
       revokedAt: null,

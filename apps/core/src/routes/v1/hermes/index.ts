@@ -1546,12 +1546,11 @@ const finalizeIntegrationRoute = withGlobalHeaderParameters(
 
 const app = new OpenAPIHonoWithAuth();
 
-// Access posture: web navigation/page access is beta-gated to whitelisted
-// email domains (apps/web hermes beta-access); the Core API itself stays
-// available to authenticated users. Activating and using (chat, onboard,
-// settings mutations, skills) require paid coverage (or admin). Destroy /
-// purge / GET reads stay ungated so cancelled users can still see history
-// and tear down.
+// Access posture: the web page is open to any signed-in user; the Core API
+// likewise stays available to authenticated users. Activating and using
+// (chat, onboard, settings mutations, skills) require Standard-or-better
+// coverage (or admin). Destroy / purge / GET reads stay ungated so
+// downgraded users can still see history and tear down.
 app.openapi(postChatRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
   await requireAssistantPlanCoverage(userContext);

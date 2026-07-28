@@ -295,15 +295,12 @@ interface TasksViewProps {
     emptyState: {
       title: string;
       description: string;
-      chatTitle: string;
-      chatDescription: string;
       getStartedTitle: string;
       getStartedDescription: string;
       getStartedButton: string;
       next: string;
       back: string;
       addTaskHint: string;
-      chatHint: string;
       elenaAvatarAlt: string;
     };
     showGuideAriaLabel: string;

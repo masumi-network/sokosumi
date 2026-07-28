@@ -8,22 +8,59 @@ import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
 
 export type CoworkerCapability = "chat" | "tasks";
 
+interface CoworkerAvailability {
+  capabilities?: readonly CoworkerCapability[];
+  archivedAt?: Date | string | null;
+  isWhitelisted?: boolean;
+  canChat?: boolean;
+  baseURL?: string | null;
+}
+
 export function coworkerHasCapability(
-  coworker: Coworker,
+  coworker: CoworkerAvailability,
   capability: CoworkerCapability,
 ): boolean {
   return coworker.capabilities?.includes(capability) ?? false;
+}
+
+function hasRunnableChatEndpoint(coworker: CoworkerAvailability): boolean {
+  return typeof coworker.baseURL === "string" && coworker.baseURL.trim() !== "";
+}
+
+function isActiveWhitelistedCoworker(coworker: CoworkerAvailability): boolean {
+  return coworker.archivedAt == null && coworker.isWhitelisted !== false;
+}
+
+export function coworkerCanChat(coworker: CoworkerAvailability): boolean {
+  if (typeof coworker.canChat === "boolean") {
+    return coworker.canChat;
+  }
+
+  return (
+    isActiveWhitelistedCoworker(coworker) &&
+    coworkerHasCapability(coworker, "chat") &&
+    hasRunnableChatEndpoint(coworker)
+  );
+}
+
+export function coworkerCanHandleTasks(
+  coworker: CoworkerAvailability,
+): boolean {
+  return (
+    isActiveWhitelistedCoworker(coworker) &&
+    coworkerHasCapability(coworker, "tasks")
+  );
 }
 
 export function filterCoworkersForComposeKind(
   coworkers: Coworker[],
   composeKind: ChatComposeKind,
 ): Coworker[] {
-  const capability: CoworkerCapability =
-    composeKind === "task" ? "tasks" : "chat";
-  return coworkers.filter((coworker) =>
-    coworkerHasCapability(coworker, capability),
-  );
+  if (composeKind === "task") {
+    return coworkers.filter(coworkerCanHandleTasks);
+  }
+
+  return coworkers.filter(coworkerCanChat);
 }
 
 export const DEFAULT_COWORKER_SLUG = "elena";
@@ -86,6 +123,9 @@ export function mapDbCoworkerToChatCoworker(db: CoreCoworker): Coworker {
     description: db.description ?? "",
     useCase: "", // DB has no useCase; avoid duplicating description in UI
     capabilities: [...db.capabilities],
+    archivedAt: db.archivedAt,
+    isWhitelisted: db.isWhitelisted,
+    canChat: coworkerCanChat(db),
     metadata: db.metadata,
     ...(db.caption && { caption: db.caption }),
     ...(resolvedImage && { avatar: resolvedImage }),

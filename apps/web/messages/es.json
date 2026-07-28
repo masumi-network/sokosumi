@@ -1350,9 +1350,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "Chat"
-    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1362,7 +1359,7 @@
       "description": "Chatea con tus AI Coworkers",
       "Chat": {
         "newChat": "Nuevo chat",
-        "sidebarNew": "Nuevo",
+        "conversationSwitcher": "Conversaciones",
         "noChats": "Aún sin chats",
         "noCoworkersAvailable": "No hay Coworkers disponibles. Por favor, inténtalo más tarde.",
         "welcomeSendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
@@ -1381,6 +1378,8 @@
           "placeholder": "Mensaje a {coworkerSlug}...",
           "coworkerSlugFallback": "el coworker",
           "suggestionsLabel": "Por ejemplo",
+          "startingChat": "Iniciando chat con {name}…",
+          "startingChatFallback": "Iniciando chat…",
           "prompts": {
             "alex": {
               "1": "Crea un dashboard para mis resultados de investigación.",
@@ -1432,9 +1431,6 @@
         },
         "comingSoon": "Próximamente",
         "agenticCoworkers": "Coworkers agénticos",
-        "models": "Modelos",
-        "supportsImageAttachments": "Supports image attachments",
-        "supportsImageGeneration": "Puede crear imágenes",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",
@@ -1497,7 +1493,8 @@
         "coworkerNameFallback": "Tu coworker",
         "resend": "Reenviar",
         "noResponseConnectionLost": "Se perdió la conexión. Por favor, actualiza el navegador e inténtalo de nuevo.",
-        "authorize": "Autorizar"
+        "authorize": "Autorizar",
+        "sidebarNew": "Nuevo"
       }
     },
     "Tasks": {
@@ -1530,25 +1527,11 @@
         "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
       },
       "Actions": {
-        "add": "Añadir",
-        "addTask": "Añadir Task",
+        "add": "Nueva tarea",
+        "addTask": "Nueva tarea",
         "loading": "Cargando...",
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "O usa el chat para empezar una tarea",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
       },
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
@@ -1680,7 +1663,8 @@
         },
         "actionCommented": "comentó",
         "actionUpdatedStatus": "Estado cambiado a",
-        "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} cobrados",
+        "actionChargedCredits": "cobró {credits, plural, =1 {# crédito} other {# créditos}}",
+        "actionTriedChargedCredits": "intentó cobrar {credits, plural, =1 {# crédito} other {# créditos}}",
         "statusLabels": {
           "outOfCredits": "Sin Credits",
           "creditsToppedUp": "Credits recargados"
@@ -1947,6 +1931,17 @@
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
+      },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "getStartedTitle": "You're all set!",
+        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
+        "getStartedButton": "Get Started",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "elenaAvatarAlt": "Elena avatar"
       }
     },
     "Projects": {
@@ -2727,15 +2722,8 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "Chats Recientes",
-          "noChats": "Aún no hay chats",
-          "untitledChat": "Chat sin título",
-          "modelAlt": "Modelo",
-          "coworkerAlt": "Colaborador"
-        },
         "MenuItems": {
-          "chat": "Chat",
+          "newTask": "Nueva tarea",
           "search": "Buscar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
@@ -2747,7 +2735,15 @@
           "history": "Historial",
           "admin": "Administración",
           "settings": "Configuración",
-          "back": "Atrás"
+          "back": "Atrás",
+          "chat": "Chat"
+        },
+        "ChatLists": {
+          "title": "Chats Recientes",
+          "noChats": "Aún no hay chats",
+          "untitledChat": "Chat sin título",
+          "modelAlt": "Modelo",
+          "coworkerAlt": "Colaborador"
         }
       }
     },
@@ -4138,6 +4134,53 @@
             "grantSuccess": "Acceso de proveedor concedido",
             "grantError": "No se pudo conceder acceso de proveedor"
           }
+        },
+        "InviteLinks": {
+          "title": "Enlaces de invitación compartibles",
+          "description": "Crea enlaces para que cualquiera se una a tu organización sin una invitación por correo.",
+          "listTitle": "Enlaces",
+          "listEmpty": "Aún no hay enlaces de invitación.",
+          "createFormTitle": "Crear nuevo enlace",
+          "statusActive": "Activo",
+          "statusDepleted": "Agotado",
+          "statusExpired": "Caducado",
+          "statusRevoked": "Revocado",
+          "columnStatus": "Estado",
+          "columnUses": "Usos",
+          "columnExpires": "Caduca",
+          "columnCreated": "Creado",
+          "columnActions": "Acciones",
+          "usesUnlimited": "{useCount} usados (ilimitado)",
+          "usesLimited": "{useCount} / {maxUses} usados",
+          "copy": "Copiar enlace",
+          "copied": "Copiado",
+          "copyError": "No se pudo copiar el enlace",
+          "revoke": "Revocar",
+          "revokeSuccess": "Enlace de invitación revocado",
+          "revokeError": "No se pudo revocar el enlace de invitación",
+          "Form": {
+            "expiresInDaysLabel": "Caduca después de (días)",
+            "expiresInDaysHint": "Entre 1 y 90 días.",
+            "expiresInDaysError": "Introduce un número entre 1 y 90 días.",
+            "maxUsesLabel": "Usos máximos",
+            "unlimitedUses": "Usos ilimitados",
+            "maxUsesHint": "Límite opcional entre 1 y 10.000 usos.",
+            "maxUsesError": "Introduce un número entre 1 y 10.000 o elige ilimitado.",
+            "submit": "Crear enlace",
+            "success": "Enlace de invitación creado",
+            "error": "No se pudo crear el enlace de invitación",
+            "copied": "Enlace copiado al portapapeles",
+            "copyError": "No se pudo copiar el enlace"
+          },
+          "loadErrorTitle": "No se pudieron cargar los enlaces de invitación",
+          "loadError": "Algo salió mal al cargar los enlaces de invitación compartibles. Reintenta.",
+          "retry": "Reintentar",
+          "revokeDialog": {
+            "title": "¿Revocar enlace de invitación?",
+            "description": "Quien tenga este enlace ya no podrá unirse. Esta acción no se puede deshacer.",
+            "cancel": "Cancelar",
+            "confirm": "Revocar enlace"
+          }
         }
       }
     },
@@ -4464,6 +4507,115 @@
           "imageSaveFailed": "No se pudo actualizar la imagen."
         }
       }
+    },
+    "Channels": {
+      "Metadata": {
+        "title": "Channels",
+        "description": "Organization chat channels for humans and AI coworkers."
+      },
+      "title": "Channels",
+      "createChannel": "Create channel",
+      "editChannel": "Edit channel",
+      "send": "Send message",
+      "noTopic": "No topic set.",
+      "coworkerBadge": "AI coworker",
+      "humanCount": "{count, plural, one {# human} other {# humans}}",
+      "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "participantOverflow": "and {count} more",
+      "directMessages": "Direct Messages",
+      "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
+      "NoOrganization": {
+        "title": "Canales próximamente",
+        "description": "Los canales están en fase de prueba para espacios de organización. El uso personal llegará pronto."
+      },
+      "Empty": {
+        "noChannels": "No channels yet.",
+        "noDirectMessages": "No direct messages yet.",
+        "onlyInOrganizations": "Próximamente",
+        "noMessagesTitle": "No messages yet",
+        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "noChannelTitle": "Create a channel",
+        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+      },
+      "Dialog": {
+        "createTitle": "Create channel",
+        "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
+        "editTitle": "Edit channel",
+        "editDescription": "Update the channel details and participant list.",
+        "name": "Name",
+        "nameRequired": "El nombre del canal es obligatorio.",
+        "namePlaceholder": "Launch planning",
+        "topic": "Topic",
+        "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
+        "humans": "Humans",
+        "coworkers": "AI coworkers",
+        "cancel": "Cancel",
+        "create": "Create",
+        "save": "Save changes"
+      },
+      "MentionStatus": {
+        "pending": "Llamando a {name}",
+        "sent": "{name} está pensando",
+        "responded": "{name} respondió",
+        "failed": "{name} falló",
+        "nameFallback": "Coworker"
+      },
+      "composerPlaceholderWithChannel": "Message #{channel}",
+      "directComposerPlaceholder": "Message {member}",
+      "Draft": {
+        "breadcrumb": "New direct message",
+        "to": "To:",
+        "searchPlaceholder": "Search people or AI coworkers",
+        "searchPlaceholderMore": "Añadir más personas",
+        "noResults": "No matches",
+        "title": "New direct message",
+        "empty": "Elige a quién escribir.",
+        "ready": "Destinatario seleccionado",
+        "chooseRecipientError": "Elige un destinatario.",
+        "organizationRequiredForGroup": "Cambia a una organización para escribir a un compañero.",
+        "removeRecipient": "Remove {name}",
+        "composerPlaceholder": "Write the first message",
+        "composerPlaceholderNoRecipients": "Añade un destinatario para empezar",
+        "oneToOneOnlyError": "Los mensajes directos son 1:1. Elige un miembro o un coworker.",
+        "searchPlaceholderReplace": "Reemplazar destinatario"
+      },
+      "Toolbar": {
+        "mention": "Mention coworker",
+        "attach": "Attach file",
+        "emoji": "Emoji",
+        "format": "Formatting",
+        "bold": "Bold",
+        "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
+        "uploadFailed": "File upload failed",
+        "removeAttachment": "Remove {name}",
+        "attachmentFallback": "file"
+      },
+      "Reactions": {
+        "add": "Add reaction",
+        "toggle": "React with {emoji}"
+      },
+      "Presence": {
+        "online": "Online",
+        "afk": "Away",
+        "offline": "Offline"
+      },
+      "Thread": {
+        "title": "Thread",
+        "open": "Open thread",
+        "close": "Close thread",
+        "loading": "Loading replies",
+        "empty": "No replies yet",
+        "replyPlaceholder": "Reply in thread",
+        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+      },
+      "loadOlder": "Cargar mensajes anteriores",
+      "loadingOlder": "Cargando mensajes anteriores…",
+      "roomUnavailable": "Este chat no está disponible o ya no tienes acceso."
     }
   },
   "Share": {

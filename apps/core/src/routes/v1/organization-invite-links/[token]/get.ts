@@ -1,7 +1,7 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import { organizationInviteLinkRepository } from "@sokosumi/database/repositories";
+import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { evaluateInviteLinkStatus } from "@/helpers/organization-invite-link";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { resolveOrganizationInviteLinkResponseSchema } from "@/schemas/organization-invite-link.schema";

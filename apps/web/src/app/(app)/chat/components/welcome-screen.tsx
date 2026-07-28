@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction } from "react";
 import type {
@@ -22,7 +22,6 @@ interface WelcomeScreenProps {
   onSendMessage: (
     message: ChatComposeMessage,
     coworker?: Coworker,
-    model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
   welcomeSendBlocked?: boolean;
@@ -38,8 +37,6 @@ interface WelcomeScreenProps {
   coworkersLoading?: boolean;
   initialCoworker?: Coworker;
   onCoworkerChange?: (coworker: Coworker | null) => void;
-  selectedModel?: { id: string; name: string } | null;
-  onSelectModel?: (model: { id: string; name: string } | null) => void;
 }
 
 export default function WelcomeScreen({
@@ -48,6 +45,7 @@ export default function WelcomeScreen({
   userName,
   onSendMessage,
   welcomeSendBlocked = false,
+  isTransitioning,
   input,
   setInput,
   messages,
@@ -59,8 +57,6 @@ export default function WelcomeScreen({
   coworkersLoading,
   initialCoworker,
   onCoworkerChange,
-  selectedModel,
-  onSelectModel,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
   const promptKey =
@@ -74,20 +70,30 @@ export default function WelcomeScreen({
         return t.has(translationKey) ? t(translationKey) : null;
       }).filter((x): x is string => Boolean(x))
     : [];
-  const showSuggestions = promptsList.length > 0 && selectedModel == null;
+  const showSuggestions = promptsList.length > 0;
+  const isOpeningRoom = welcomeSendBlocked || isTransitioning;
+  const coworkerName = initialCoworker?.name?.trim() || null;
 
   function handleSuggestionClick(text: string) {
-    if (!text.trim() || !initialCoworker || welcomeSendBlocked) return;
-    void onSendMessage(text.trim(), initialCoworker, undefined, {
+    if (!text.trim() || !initialCoworker || isOpeningRoom) return;
+    void onSendMessage(text.trim(), initialCoworker, {
       kind: "chat",
     });
   }
 
   return (
-    <div className="relative flex h-full w-full flex-col">
+    <div
+      className="relative flex h-full w-full flex-col"
+      aria-busy={isOpeningRoom || undefined}
+    >
       {showGreetingAndSuggestions ? (
         <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center text-center">
-          <div className="welcome-message-block transition-all duration-300 ease-out">
+          <div
+            className={cn(
+              "welcome-message-block transition-all duration-300 ease-out",
+              isOpeningRoom && "opacity-60",
+            )}
+          >
             <h1 className="mb-2 text-3xl font-medium">
               {userName
                 ? t("welcomeScreen.greetingWithName", { name: userName })
@@ -97,6 +103,22 @@ export default function WelcomeScreen({
               {t("welcomeScreen.question")}
             </p>
           </div>
+
+          {isOpeningRoom ? (
+            <div
+              className="text-muted-foreground mt-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-4 py-2 text-sm"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
+              <span>
+                {coworkerName
+                  ? t("welcomeScreen.startingChat", { name: coworkerName })
+                  : t("welcomeScreen.startingChatFallback")}
+              </span>
+            </div>
+          ) : null}
+
           {promptsList.length > 0 && (
             <div
               key={`suggestions-${promptKey}`}
@@ -105,6 +127,7 @@ export default function WelcomeScreen({
                 showSuggestions
                   ? "max-h-[500px] opacity-100"
                   : "max-h-0 opacity-0",
+                isOpeningRoom && "pointer-events-none opacity-50",
               )}
             >
               <p className="text-muted-foreground mt-8 mb-2 text-xs font-medium">
@@ -120,11 +143,14 @@ export default function WelcomeScreen({
                     <button
                       type="button"
                       onClick={() => handleSuggestionClick(text)}
+                      disabled={isOpeningRoom}
+                      aria-disabled={isOpeningRoom || undefined}
                       className={cn(
                         "group border-border/60 bg-muted/30 w-full rounded-xl border px-4 py-3 text-left text-sm",
-                        "hover:border-primary hover:bg-muted/50 hover:shadow-sm transition-colors cursor-pointer",
+                        "hover:border-primary hover:bg-muted/50 hover:shadow-sm transition-colors",
                         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
                         "flex items-center justify-between gap-3",
+                        isOpeningRoom ? "cursor-not-allowed" : "cursor-pointer",
                       )}
                     >
                       <span className="text-muted-foreground leading-snug">
@@ -156,14 +182,12 @@ export default function WelcomeScreen({
             setMessages={setMessages}
             sendMessage={sendMessage}
             onSendMessage={onSendMessage}
-            submitBlocked={welcomeSendBlocked}
+            submitBlocked={isOpeningRoom}
             showSuggestedActions={true}
             coworkers={coworkers}
             coworkersLoading={coworkersLoading}
             coworker={initialCoworker}
-            onCoworkerChange={onCoworkerChange}
-            selectedModel={selectedModel ?? undefined}
-            onSelectModel={onSelectModel}
+            onCoworkerChange={isOpeningRoom ? undefined : onCoworkerChange}
           />
         </div>
       </div>

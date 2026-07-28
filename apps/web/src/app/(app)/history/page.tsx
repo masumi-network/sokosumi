@@ -8,6 +8,7 @@ import {
   getHistoryFiltersResetKey,
   HISTORY_JOB_ONLY_STATUS_VALUES,
   parseHistoryFilters,
+  resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
 import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
@@ -55,7 +56,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     q: filters.q ?? undefined,
     scope: filters.scope,
     status: filters.status ? [filters.status] : undefined,
-    types: filters.type ? [filters.type] : undefined,
+    types: resolveHistoryApiTypes(filters.type),
   });
   const bucketLookups = await buildHistoryBucketLookups(historyPage.history);
   const filterResetKey = getHistoryFiltersResetKey(
@@ -118,7 +119,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               typeOptions: {
                 task: t("Filters.typeOptions.task"),
                 job: t("Filters.typeOptions.job"),
-                conversation: t("Filters.typeOptions.conversation"),
               },
               statusOptions: {
                 active: t("Filters.statusOptions.active"),

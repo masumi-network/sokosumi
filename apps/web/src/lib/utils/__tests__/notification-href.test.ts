@@ -22,4 +22,14 @@ describe("getNotificationHref", () => {
       }),
     ).toBe("/tasks");
   });
+
+  it("does not deep-link legacy conversations", () => {
+    expect(
+      getNotificationHref({
+        kind: "CONVERSATION",
+        referenceId: "conv_1",
+        metadata: { bucketSlug: "hannah" },
+      }),
+    ).toBeNull();
+  });
 });

@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BreadcrumbNavigationClient from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
+import {
+  BreadcrumbOverrideProvider,
+  useRegisterBreadcrumbOverride,
+} from "@/contexts/breadcrumb-override-context";
 import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 const usePathnameMock = vi.fn();
@@ -34,7 +38,64 @@ const breadcrumbMessages = {
   agents: "Agents",
   account: "Account",
   editor: "Editor",
+  chat: "Chat",
 };
+
+function BreadcrumbOverrideFixture({ label }: { label: string }) {
+  useRegisterBreadcrumbOverride({
+    pathname: "/chat/rooms/direct-1",
+    segments: [
+      {
+        label: "Chat",
+        href: "/chat",
+      },
+      {
+        label,
+        href: "/chat/rooms/direct-1",
+      },
+    ],
+  });
+
+  return (
+    <BreadcrumbNavigationClient
+      organizations={organizations}
+      breadcrumbMessages={breadcrumbMessages}
+      segmentLabels={{
+        __chatChannelLabel: "Test Channel",
+        __chatChannelHref: "/chat/rooms/stale-channel",
+      }}
+    />
+  );
+}
+
+function ChatBucketBreadcrumbFixture({
+  pathname,
+  label,
+}: {
+  pathname: string;
+  label: string;
+}) {
+  useRegisterBreadcrumbOverride({
+    pathname,
+    segments: [
+      {
+        label: "Chat",
+        href: "/chat",
+      },
+      {
+        label,
+        href: "/chat/elena",
+      },
+    ],
+  });
+
+  return (
+    <BreadcrumbNavigationClient
+      organizations={organizations}
+      breadcrumbMessages={breadcrumbMessages}
+    />
+  );
+}
 
 describe("BreadcrumbNavigationClient", () => {
   beforeEach(() => {
@@ -67,6 +128,78 @@ describe("BreadcrumbNavigationClient", () => {
     );
 
     expect(screen.getByText("Research Copilot")).toBeInTheDocument();
+  });
+
+  it("shows selected chat room under Chat breadcrumbs", () => {
+    usePathnameMock.mockReturnValue("/chat/rooms/channel-1");
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+        segmentLabels={{
+          __chatChannelLabel: "Test Channel",
+          __chatChannelHref: "/chat/rooms/channel-1",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute(
+      "href",
+      "/chat",
+    );
+    expect(screen.getByText("Test Channel")).toBeInTheDocument();
+    expect(screen.queryByText("rooms")).not.toBeInTheDocument();
+  });
+
+  it("uses registered room breadcrumb over stale server labels", async () => {
+    usePathnameMock.mockReturnValue("/chat/rooms/direct-1");
+
+    render(
+      <BreadcrumbOverrideProvider>
+        <BreadcrumbOverrideFixture label="Andreas" />
+      </BreadcrumbOverrideProvider>,
+    );
+
+    expect(await screen.findByText("Andreas")).toBeInTheDocument();
+    expect(screen.queryByText("Test Channel")).not.toBeInTheDocument();
+  });
+
+  it("uses coworker display name instead of URL slug on chat bucket routes", async () => {
+    usePathnameMock.mockReturnValue(
+      "/chat/elena/conversation/11111111-1111-4111-8111-111111111111",
+    );
+
+    render(
+      <BreadcrumbOverrideProvider>
+        <ChatBucketBreadcrumbFixture
+          pathname="/chat/elena/conversation/11111111-1111-4111-8111-111111111111"
+          label="Elena"
+        />
+      </BreadcrumbOverrideProvider>,
+    );
+
+    expect(await screen.findByText("Elena")).toBeInTheDocument();
+    expect(screen.queryByText("elena")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute(
+      "href",
+      "/chat",
+    );
+  });
+
+  it("shows raw chat bucket slug when no override is registered", () => {
+    usePathnameMock.mockReturnValue(
+      "/chat/elena/conversation/11111111-1111-4111-8111-111111111111",
+    );
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByText("elena")).toBeInTheDocument();
   });
 
   it("shows admin organizations list breadcrumbs", () => {

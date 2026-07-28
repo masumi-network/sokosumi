@@ -57,26 +57,40 @@ export function isPrismaTransactionConflict(error: unknown): boolean {
 }
 
 /**
- * Returns true if the error is a Prisma unique constraint violation (P2002)
- * on the slug field. Used to map race-condition violations to conflict responses.
+ * Returns true if a Prisma P2002 unique violation targets the given field
+ * (alone or as part of a composite unique).
  */
-export function isSlugUniqueConstraintError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const code = (error as { code?: unknown }).code;
-  if (code !== "P2002") {
+function isPrismaUniqueViolationOnField(
+  error: unknown,
+  field: string,
+): boolean {
+  if (!isPrismaUniqueViolation(error)) {
     return false;
   }
 
   const target = (error as { meta?: { target?: unknown } }).meta?.target;
   if (Array.isArray(target)) {
-    return target.includes("slug");
+    return target.includes(field);
   }
   if (typeof target === "string") {
-    return target.includes("slug");
+    return target.includes(field);
   }
 
   return false;
+}
+
+/**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on the slug field. Used to map race-condition violations to conflict responses.
+ */
+export function isSlugUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "slug");
+}
+
+/**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on `directKey` (including composite `organizationId` + `directKey`).
+ */
+export function isDirectKeyUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "directKey");
 }

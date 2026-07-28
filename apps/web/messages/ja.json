@@ -1350,9 +1350,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "チャット"
-    },
     "Chat": {
       "Metadata": {
         "title": "チャット",
@@ -1362,7 +1359,7 @@
       "description": "AI同僚とチャット",
       "Chat": {
         "newChat": "新しいチャット",
-        "sidebarNew": "新規",
+        "conversationSwitcher": "会話",
         "noChats": "チャットはまだありません",
         "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
         "welcomeSendFailed": "メッセージを送信できませんでした。もう一度お試しください。",
@@ -1381,6 +1378,8 @@
           "placeholder": "{coworkerSlug} にメッセージ...",
           "coworkerSlugFallback": "コワーカー",
           "suggestionsLabel": "試してみる",
+          "startingChat": "{name} とのチャットを開始しています…",
+          "startingChatFallback": "チャットを開始しています…",
           "prompts": {
             "alex": {
               "1": "調査結果のダッシュボードを作成してください。",
@@ -1432,9 +1431,6 @@
         },
         "comingSoon": "近日公開",
         "agenticCoworkers": "エージェント型AI同僚",
-        "models": "モデル",
-        "supportsImageAttachments": "Supports image attachments",
-        "supportsImageGeneration": "画像を生成できます",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",
@@ -1497,7 +1493,8 @@
         "errorTitle": "エラー",
         "errorDescription": "メッセージの処理中にエラーが発生しました。もう一度お試しください。",
         "tryAgain": "再試行",
-        "networkErrorAfterRetry": "数回試しましたがサーバーに接続できませんでした。接続状況を確認して再試行してください。"
+        "networkErrorAfterRetry": "数回試しましたがサーバーに接続できませんでした。接続状況を確認して再試行してください。",
+        "sidebarNew": "新規"
       }
     },
     "Tasks": {
@@ -1530,25 +1527,11 @@
         "approvePartialError": "{total} 件中 {approved} 件のベンダーアクセスを承認しました。一部の承認に失敗したため、更新して再度お試しください。"
       },
       "Actions": {
-        "add": "追加",
-        "addTask": "タスクを追加",
+        "add": "新しいタスク",
+        "addTask": "新しいタスク",
         "loading": "読み込み中...",
         "loadMore": "さらに読み込む",
         "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "またはチャットでタスクを開始する",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
       },
       "Errors": {
         "updateStatus": "タスクステータスの更新に失敗しました",
@@ -1681,6 +1664,7 @@
         "actionCommented": "コメントしました",
         "actionUpdatedStatus": "ステータスを次に変更しました",
         "actionChargedCredits": "{credits, plural, =1 {# クレジットを消費} other {# クレジットを消費}}",
+        "actionTriedChargedCredits": "{credits, plural, =1 {# クレジットの課金を試行} other {# クレジットの課金を試行}}",
         "statusLabels": {
           "outOfCredits": "クレジット不足",
           "creditsToppedUp": "クレジットを追加しました"
@@ -1947,6 +1931,17 @@
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
+      },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "getStartedTitle": "You're all set!",
+        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
+        "getStartedButton": "Get Started",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "elenaAvatarAlt": "Elena avatar"
       }
     },
     "Projects": {
@@ -2727,15 +2722,8 @@
     },
     "Sidebar": {
       "Content": {
-        "ChatLists": {
-          "title": "最近のチャット",
-          "noChats": "まだチャットがありません",
-          "untitledChat": "無題のチャット",
-          "modelAlt": "モデル",
-          "coworkerAlt": "同僚"
-        },
         "MenuItems": {
-          "chat": "チャット",
+          "newTask": "新しいタスク",
           "search": "検索",
           "exploreAgents": "エージェント",
           "filesAndOutputs": "ファイルと出力",
@@ -2747,7 +2735,15 @@
           "history": "履歴",
           "admin": "管理",
           "settings": "設定",
-          "back": "戻る"
+          "back": "戻る",
+          "chat": "チャット"
+        },
+        "ChatLists": {
+          "title": "最近のチャット",
+          "noChats": "まだチャットがありません",
+          "untitledChat": "無題のチャット",
+          "modelAlt": "モデル",
+          "coworkerAlt": "同僚"
         }
       }
     },
@@ -4169,6 +4165,53 @@
             "grantSuccess": "ベンダーアクセスを付与しました",
             "grantError": "ベンダーアクセスの付与に失敗しました"
           }
+        },
+        "InviteLinks": {
+          "title": "共有可能な招待リンク",
+          "description": "メール招待なしで誰でも組織に参加できるリンクを作成します。",
+          "listTitle": "リンク",
+          "listEmpty": "招待リンクはまだありません。",
+          "createFormTitle": "新しいリンクを作成",
+          "statusActive": "有効",
+          "statusDepleted": "使い切り",
+          "statusExpired": "期限切れ",
+          "statusRevoked": "取り消し済み",
+          "columnStatus": "ステータス",
+          "columnUses": "利用回数",
+          "columnExpires": "有効期限",
+          "columnCreated": "作成日",
+          "columnActions": "操作",
+          "usesUnlimited": "{useCount} 回使用（無制限）",
+          "usesLimited": "{useCount} / {maxUses} 回使用",
+          "copy": "リンクをコピー",
+          "copied": "コピーしました",
+          "copyError": "リンクをコピーできませんでした",
+          "revoke": "取り消す",
+          "revokeSuccess": "招待リンクを取り消しました",
+          "revokeError": "招待リンクを取り消せませんでした",
+          "Form": {
+            "expiresInDaysLabel": "有効期限（日）",
+            "expiresInDaysHint": "1〜90日の範囲で指定してください。",
+            "expiresInDaysError": "1〜90日の数値を入力してください。",
+            "maxUsesLabel": "最大利用回数",
+            "unlimitedUses": "利用回数無制限",
+            "maxUsesHint": "1〜10,000回の任意の上限を設定できます。",
+            "maxUsesError": "1〜10,000の数値を入力するか、無制限を選択してください。",
+            "submit": "リンクを作成",
+            "success": "招待リンクを作成しました",
+            "error": "招待リンクを作成できませんでした",
+            "copied": "リンクをクリップボードにコピーしました",
+            "copyError": "リンクをコピーできませんでした"
+          },
+          "loadErrorTitle": "招待リンクを読み込めませんでした",
+          "loadError": "共有可能な招待リンクの読み込み中に問題が発生しました。再試行してください。",
+          "retry": "再試行",
+          "revokeDialog": {
+            "title": "招待リンクを取り消しますか？",
+            "description": "このリンクを持つ人は組織に参加できなくなります。この操作は元に戻せません。",
+            "cancel": "キャンセル",
+            "confirm": "リンクを取り消す"
+          }
         }
       }
     },
@@ -4464,6 +4507,115 @@
           "imageSaveFailed": "画像を更新できませんでした。"
         }
       }
+    },
+    "Channels": {
+      "Metadata": {
+        "title": "Channels",
+        "description": "Organization chat channels for humans and AI coworkers."
+      },
+      "title": "Channels",
+      "createChannel": "Create channel",
+      "editChannel": "Edit channel",
+      "send": "Send message",
+      "noTopic": "No topic set.",
+      "coworkerBadge": "AI coworker",
+      "humanCount": "{count, plural, one {# human} other {# humans}}",
+      "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "participantOverflow": "and {count} more",
+      "directMessages": "Direct Messages",
+      "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
+      "NoOrganization": {
+        "title": "チャンネルは近日公開",
+        "description": "チャンネルは組織ワークスペース向けにテスト中です。個人利用への対応もまもなくです。"
+      },
+      "Empty": {
+        "noChannels": "No channels yet.",
+        "noDirectMessages": "No direct messages yet.",
+        "onlyInOrganizations": "近日公開",
+        "noMessagesTitle": "No messages yet",
+        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "noChannelTitle": "Create a channel",
+        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+      },
+      "Dialog": {
+        "createTitle": "Create channel",
+        "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
+        "editTitle": "Edit channel",
+        "editDescription": "Update the channel details and participant list.",
+        "name": "Name",
+        "nameRequired": "チャンネル名は必須です。",
+        "namePlaceholder": "Launch planning",
+        "topic": "Topic",
+        "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
+        "humans": "Humans",
+        "coworkers": "AI coworkers",
+        "cancel": "Cancel",
+        "create": "Create",
+        "save": "Save changes"
+      },
+      "MentionStatus": {
+        "pending": "{name} を呼び出しています",
+        "sent": "{name} が考えています",
+        "responded": "{name} が返信しました",
+        "failed": "{name} が失敗しました",
+        "nameFallback": "コワーカー"
+      },
+      "composerPlaceholderWithChannel": "Message #{channel}",
+      "directComposerPlaceholder": "Message {member}",
+      "Draft": {
+        "breadcrumb": "New direct message",
+        "to": "To:",
+        "searchPlaceholder": "Search people or AI coworkers",
+        "searchPlaceholderMore": "さらに追加",
+        "noResults": "No matches",
+        "title": "New direct message",
+        "empty": "メッセージを送る相手を選んでください。",
+        "ready": "宛先を選択済み",
+        "chooseRecipientError": "宛先を選んでください。",
+        "organizationRequiredForGroup": "チームメイトにメッセージを送るには、組織ワークスペースに切り替えてください。",
+        "removeRecipient": "Remove {name}",
+        "composerPlaceholder": "Write the first message",
+        "composerPlaceholderNoRecipients": "宛先を追加して開始",
+        "oneToOneOnlyError": "ダイレクトメッセージは1対1です。メンバーまたはコワーカーを1人選んでください。",
+        "searchPlaceholderReplace": "宛先を差し替え"
+      },
+      "Toolbar": {
+        "mention": "Mention coworker",
+        "attach": "Attach file",
+        "emoji": "Emoji",
+        "format": "Formatting",
+        "bold": "Bold",
+        "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
+        "uploadFailed": "File upload failed",
+        "removeAttachment": "Remove {name}",
+        "attachmentFallback": "file"
+      },
+      "Reactions": {
+        "add": "Add reaction",
+        "toggle": "React with {emoji}"
+      },
+      "Presence": {
+        "online": "Online",
+        "afk": "Away",
+        "offline": "Offline"
+      },
+      "Thread": {
+        "title": "Thread",
+        "open": "Open thread",
+        "close": "Close thread",
+        "loading": "Loading replies",
+        "empty": "No replies yet",
+        "replyPlaceholder": "Reply in thread",
+        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+      },
+      "loadOlder": "以前のメッセージを読み込む",
+      "loadingOlder": "以前のメッセージを読み込み中…",
+      "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。"
     }
   },
   "Share": {
