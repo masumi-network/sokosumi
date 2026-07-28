@@ -20,6 +20,7 @@ import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import {
+  canCancelTaskForViewer,
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
@@ -442,6 +443,13 @@ async function TaskDetailActionsSlot({
     forceReadOnly,
     taskStatus: task.status,
   });
+  const canCancelTask = canCancelTaskForViewer({
+    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+    taskOwnerId: task.ownerId,
+    sessionUserId: session?.user.id,
+    forceReadOnly,
+    taskStatus: task.status,
+  });
   const orgId = task.workspace.organizationId ?? null;
   const viewerMembership =
     orgId === null
@@ -468,6 +476,7 @@ async function TaskDetailActionsSlot({
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
+      canCancel={canCancelTask}
       forceReadOnly={forceReadOnly}
       isTaskOwner={session?.user.id === task.ownerId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
