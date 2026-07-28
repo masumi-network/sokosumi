@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ChannelsClient } from "@/app/chat/components/channels-client";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
@@ -47,6 +47,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Open one room. Avoid `listRooms()` here — sidebar already owns the list, and
  * full pagination blocked first paint after `/chat` → `/chat/rooms/{id}`.
+ *
+ * Non-member / missing room → soft land on `/chat` (cutover design), not 404.
  */
 export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
   const [{ roomId }, t, activeOrganization, session] = await Promise.all([
@@ -67,7 +69,7 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     ]);
 
     if (!selectedChannel) {
-      notFound();
+      redirect("/chat?notice=room-unavailable");
     }
 
     if (
@@ -108,7 +110,7 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     ]);
 
   if (!selectedChannel) {
-    notFound();
+    redirect("/chat?notice=room-unavailable");
   }
 
   return (

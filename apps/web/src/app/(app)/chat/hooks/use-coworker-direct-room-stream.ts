@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
+import { clearPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
@@ -194,6 +195,7 @@ export function useCoworkerDirectRoomStream({
       // blanks the transcript for the await gap (or forever if refetch fails).
       const settled = await onStreamSettledRef.current(settledRoomId);
       if (settled && roomIdRef.current === settledRoomId) {
+        clearPendingRoomMessage(settledRoomId);
         setMessages([]);
       }
     },

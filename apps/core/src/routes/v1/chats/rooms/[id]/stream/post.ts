@@ -212,10 +212,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     try {
       if (lastMessage.role === "user" || lastMessage.role === "system") {
+        const clientMessageId =
+          typeof lastMessage.id === "string" ? lastMessage.id : null;
         await persistUserMessageToChatRoom({
           roomId: room.id,
           senderUserId: userContext.userId,
           contentText: lastUserMessageText,
+          clientMessageId,
         });
       }
 
@@ -307,24 +310,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           sokosumi: sokosumiProviderOptions,
         } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
         onFinish: async (finishEvent) => {
-          try {
-            const text = finishEvent.text?.trim() ?? "";
-            if (!text) {
-              return;
-            }
-            await persistAssistantToChatRoom({
-              roomId: room.id,
-              senderCoworkerId: coworker.id,
-              contentText: text,
-              responsesApiResponseId: responsesApiResponseIdRef.current,
-              reasoning: finishEvent.reasoning,
-            });
-          } catch (error) {
-            console.error(
-              "Failed to persist assistant message (POST /rooms/{id}/stream):",
-              error,
-            );
+          const text = finishEvent.text?.trim() ?? "";
+          if (!text) {
+            return;
           }
+          const persistArgs = {
+            roomId: room.id,
+            senderCoworkerId: coworker.id,
+            contentText: text,
+            responsesApiResponseId: responsesApiResponseIdRef.current,
+            reasoning: finishEvent.reasoning,
+          };
+          // Retries: silent persist loss made streamed replies vanish after refetch.
+          let lastError: unknown;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+              await persistAssistantToChatRoom(persistArgs);
+              return;
+            } catch (error) {
+              lastError = error;
+              console.error(
+                `Failed to persist assistant message (POST /rooms/{id}/stream) attempt ${attempt + 1}:`,
+                error,
+              );
+            }
+          }
+          throw lastError instanceof Error
+            ? lastError
+            : new Error("Failed to persist assistant chat room message");
         },
       });
 

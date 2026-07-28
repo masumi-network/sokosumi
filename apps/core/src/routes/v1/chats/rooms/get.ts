@@ -138,23 +138,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           getChatRoomLastMessageAts(roomIds, tx),
         ]);
 
-        // Prefer last message time over room.updatedAt — stream writes used to
-        // skip the activity bump, so create-order would win in the sidebar.
-        rooms.sort((a, b) => {
-          const aAt =
-            lastMessageAts.get(a.id)?.getTime() ?? a.updatedAt.getTime();
-          const bAt =
-            lastMessageAts.get(b.id)?.getTime() ?? b.updatedAt.getTime();
-          if (bAt !== aAt) {
-            return bAt - aAt;
-          }
-          const byCreated = b.createdAt.getTime() - a.createdAt.getTime();
-          if (byCreated !== 0) {
-            return byCreated;
-          }
-          return b.id.localeCompare(a.id);
-        });
-
+        // Keep DB cursor order (`updatedAt` desc). Stream/message writes bump
+        // room.updatedAt; do not re-sort by lastMessageAts after `take` — that
+        // breaks cursor paging when membership exceeds one page.
         return { rooms, unreadCounts, lastMessageAts, count, hasMore };
       });
 

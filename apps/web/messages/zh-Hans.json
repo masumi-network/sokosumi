@@ -4612,7 +4612,8 @@
         "replyCount": "{count, plural, one {# reply} other {# replies}}"
       },
       "loadOlder": "加载更早的消息",
-      "loadingOlder": "正在加载更早的消息…"
+      "loadingOlder": "正在加载更早的消息…",
+      "roomUnavailable": "此聊天不可用，或你已没有访问权限。"
     }
   },
   "Share": {
