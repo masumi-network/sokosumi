@@ -6,12 +6,47 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-const { prismaTransactionMock, prismaDefaultMock } = vi.hoisted(() => {
+const {
+  prismaTransactionMock,
+  prismaDefaultMock,
+  roomFindFirstMock,
+  organizationFindUniqueMock,
+  memberFindUniqueMock,
+  messageFindManyMock,
+  messageCountMock,
+  queryRawUnsafeMock,
+} = vi.hoisted(() => {
   const prismaTransactionMock = vi.fn();
+  const roomFindFirstMock = vi.fn();
+  const organizationFindUniqueMock = vi.fn();
+  const memberFindUniqueMock = vi.fn();
+  const messageFindManyMock = vi.fn();
+  const messageCountMock = vi.fn();
+  const queryRawUnsafeMock = vi.fn();
   return {
     prismaTransactionMock,
+    roomFindFirstMock,
+    organizationFindUniqueMock,
+    memberFindUniqueMock,
+    messageFindManyMock,
+    messageCountMock,
+    queryRawUnsafeMock,
     prismaDefaultMock: {
       $transaction: prismaTransactionMock,
+      $queryRawUnsafe: queryRawUnsafeMock,
+      chatRoom: {
+        findFirst: roomFindFirstMock,
+      },
+      organization: {
+        findUnique: organizationFindUniqueMock,
+      },
+      member: {
+        findUnique: memberFindUniqueMock,
+      },
+      chatRoomMessage: {
+        findMany: messageFindManyMock,
+        count: messageCountMock,
+      },
       chatRoomMention: {
         findMany: vi.fn().mockResolvedValue([]),
       },
@@ -145,6 +180,12 @@ function createApp(authContext: AuthVariables["authContext"]) {
 beforeEach(() => {
   vi.clearAllMocks();
   prismaDefaultMock.chatRoomMention.findMany.mockResolvedValue([]);
+  roomFindFirstMock.mockReset();
+  organizationFindUniqueMock.mockReset();
+  memberFindUniqueMock.mockReset();
+  messageFindManyMock.mockReset();
+  messageCountMock.mockReset();
+  queryRawUnsafeMock.mockReset();
 });
 
 const forbiddenActors = [
@@ -313,39 +354,40 @@ describe("chat room user auth guards", () => {
   });
 
   it("allows user actor past the auth gate on GET /{id}", async () => {
-    prismaTransactionMock.mockResolvedValueOnce({
-      room: {
-        id: ROOM_ID,
-        organizationId: ORG_ID,
-        name: "general",
-        slug: "general",
-        kind: "channel",
-        directKey: null,
-        topic: null,
-        createdByUserId: USER_ID,
-        createdAt: new Date("2025-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
-        archivedAt: null,
-        userMembers: [
-          {
-            user: {
-              id: USER_ID,
-              name: "Ada",
-              email: "ada@example.com",
-              image: null,
-              sessions: [],
-            },
+    roomFindFirstMock.mockResolvedValue({
+      id: ROOM_ID,
+      organizationId: ORG_ID,
+      name: "general",
+      slug: "general",
+      kind: "channel",
+      directKey: null,
+      topic: null,
+      createdByUserId: USER_ID,
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      archivedAt: null,
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
           },
-        ],
-        coworkerMembers: [],
-      },
-      unreadCounts: new Map([[ROOM_ID, 0]]),
+        },
+      ],
+      coworkerMembers: [],
     });
+    organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+    queryRawUnsafeMock.mockResolvedValue([]);
 
     const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
 
     expect(response.status).toBe(200);
-    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(roomFindFirstMock).toHaveBeenCalled();
   });
 });
 
@@ -410,10 +452,18 @@ const membershipScopedCases: AuthRequestCase[] = [
   },
 ];
 
+const membershipCasesWithoutInteractiveTx = new Set([
+  "GET /{id}",
+  "GET /{id}/messages",
+]);
+
 describe("chat room membership isolation", () => {
   it.each(membershipScopedCases)(
     "$label returns 404 when caller is not a room member",
-    async ({ request }) => {
+    async ({ label, request }) => {
+      // Read GETs no longer open interactive txs — membership miss is on the
+      // default client. Write / stream paths still go through $transaction.
+      roomFindFirstMock.mockResolvedValue(null);
       prismaTransactionMock.mockImplementation(
         async (callback: (tx: unknown) => Promise<unknown>) =>
           callback({
@@ -431,7 +481,12 @@ describe("chat room membership isolation", () => {
       });
 
       expect(response.status).toBe(404);
-      expect(prismaTransactionMock).toHaveBeenCalled();
+      if (membershipCasesWithoutInteractiveTx.has(label)) {
+        expect(prismaTransactionMock).not.toHaveBeenCalled();
+        expect(roomFindFirstMock).toHaveBeenCalled();
+      } else {
+        expect(prismaTransactionMock).toHaveBeenCalled();
+      }
     },
   );
 });
