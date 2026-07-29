@@ -104,7 +104,7 @@ beforeEach(() => {
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
-  queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  queryRawMock.mockResolvedValue([{ id: ROOM_ID, archivedAt: null }]);
   userMemberCountMock.mockResolvedValue(1);
   userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
   readStateDeleteManyMock.mockResolvedValue({ count: 1 });
@@ -128,6 +128,7 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     const sql = sqlParts.join(" ");
     expect(sql).toContain("FOR UPDATE");
     expect(sql).toContain("chat_room");
+    expect(sql).toContain("archivedAt");
     expect(userMemberCountMock).toHaveBeenCalledWith({
       where: { roomId: ROOM_ID, userId: { not: SELF_ID } },
     });
@@ -174,5 +175,16 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
 
     expect((await leave()).status).toBe(404);
     expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("404s when the room was archived under the lock", async () => {
+    roomFindFirstMock.mockResolvedValue(room());
+    queryRawMock.mockResolvedValue([
+      { id: ROOM_ID, archivedAt: new Date("2026-02-02T10:00:00.000Z") },
+    ]);
+
+    expect((await leave()).status).toBe(404);
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+    expect(readStateDeleteManyMock).not.toHaveBeenCalled();
   });
 });

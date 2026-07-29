@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { badRequest } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -68,13 +68,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Serialize concurrent leaves so two "last but one" members cannot both
       // exit under READ COMMITTED and leave an empty roster. Matches the
       // FOR UPDATE pattern used on reaction toggles and coworker warmup.
-      const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "chat_room"
+      // Re-read archivedAt under the lock: a concurrent archive can commit
+      // after the earlier access check and before we hold the row.
+      const lockedRooms = await tx.$queryRaw<
+        Array<{ id: string; archivedAt: Date | null }>
+      >`
+        SELECT "id", "archivedAt" FROM "chat_room"
         WHERE "id" = ${existing.id}::uuid
         FOR UPDATE
       `;
       if (lockedRooms.length === 0) {
         throw badRequest("Room could not be left.");
+      }
+      if (lockedRooms[0]?.archivedAt !== null) {
+        throw notFound("Room not found");
       }
 
       // Re-count under the lock — the earlier include snapshot can be stale
