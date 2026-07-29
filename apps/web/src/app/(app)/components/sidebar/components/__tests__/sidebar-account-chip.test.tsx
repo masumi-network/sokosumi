@@ -227,4 +227,52 @@ describe("SidebarAccountChip", () => {
       value: true,
     });
   });
+
+  it("collapses to an avatar-only trigger that still opens the summary", () => {
+    sidebarState.state = "collapsed";
+    renderChip();
+
+    expect(screen.getByText("PT")).toBeInTheDocument();
+    expect(screen.queryByText("Patrick Tobler")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/planAndCredits Pro balanceCreditsLabel 15750/),
+    ).not.toBeInTheDocument();
+
+    openChip();
+
+    expect(screen.getByText("Patrick Tobler")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
+    expect(screen.queryByText(/collapsedSummary/)).not.toBeInTheDocument();
+  });
+
+  it("shows extra credits when a metered period and a positive buffer exist", () => {
+    renderChip({
+      creditUsage: {
+        hasUsageData: true,
+        percentageUsed: 25,
+        remaining: 750,
+        total: 1_000,
+        used: 250,
+      },
+      extraCredits: 750,
+    });
+    openChip();
+
+    expect(screen.getByText("extraCredits")).toBeInTheDocument();
+    expect(screen.getByText("balanceCreditsLabel 750")).toBeInTheDocument();
+    expect(screen.getByText("extraCreditsDescription")).toBeInTheDocument();
+  });
+
+  it("hides the extra-credits block when usage data is missing", () => {
+    renderChip({
+      creditUsage: null,
+      extraCredits: 750,
+    });
+    openChip();
+
+    expect(screen.queryByText("extraCredits")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("extraCreditsDescription"),
+    ).not.toBeInTheDocument();
+  });
 });

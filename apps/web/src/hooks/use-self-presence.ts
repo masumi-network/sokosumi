@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 /**
- * Core derives everyone else's presence from how long ago their session was
- * touched (`apps/core/src/routes/v1/chats/rooms/helpers.ts`). Mirroring the
- * same idle window here keeps the dot you see for yourself in step with the dot
- * your teammates see for you, without a round-trip.
+ * Same 5-minute idle window as Core session presence
+ * (`apps/core/src/routes/v1/chats/rooms/helpers.ts`). This is a local
+ * self-approx only (navigator.onLine / document.hidden / activity) — not
+ * session presence, and not teammate parity. Core forces the viewing user's
+ * own session to "online".
  */
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 const TICK_INTERVAL_MS = 30 * 1000;

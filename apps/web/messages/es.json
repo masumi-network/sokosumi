@@ -2720,7 +2720,7 @@
     },
     "Sidebar": {
       "Account": {
-        "monthlyCredits": "Credits mensuales",
+        "monthlyCredits": "Créditos mensuales",
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",
         "planLabel": "Plan",
