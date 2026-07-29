@@ -149,7 +149,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
-      "addOrganization": "Add Organization",
+      "createOrganization": "Create Organization",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization"
     },
