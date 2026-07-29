@@ -696,6 +696,13 @@ Environment variables required by Vitest (or by code under test) must be set in 
 - Use `convertCreditsToCents()` when storing user-provided credit values
 - Take absolute value when displaying credits: `Math.abs(convertCentsToCredits(amount))`
 
+### Prisma Transactions
+
+- Do **not** use interactive `prisma.$transaction(async (tx) => …)` on read-only GETs — pass default `prisma` instead (see [Interactive Transactions](#interactive-transactions-avoid-on-read-only-gets))
+- Interactive txs hold a pool connection for the whole callback; parallel page loads cause **P2028** (`maxWait`)
+- Never `Promise.all` queries inside an interactive transaction (#2559)
+- Batch form `prisma.$transaction([...])` is fine for independent reads that need one round trip
+
 ### File/Blob Resources
 
 - Files have different behaviors based on `origin`:
