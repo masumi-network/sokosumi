@@ -5,6 +5,7 @@ import {
   buildTaskFilePrefix,
   clampTaskFileName,
   isOwnedTaskFileUrl,
+  resolveTaskFileContentType,
   sanitizeTaskFileFilename,
   TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
@@ -13,6 +14,20 @@ import {
 describe("task file upload helpers", () => {
   it("exposes a 50 MB max size", () => {
     expect(TASK_FILE_MAX_SIZE_BYTES).toBe(50 * 1024 * 1024);
+  });
+
+  it("resolves allowed MIME types and rejects SVG", () => {
+    expect(resolveTaskFileContentType("report.pdf", "application/pdf")).toBe(
+      "application/pdf",
+    );
+    expect(resolveTaskFileContentType("notes.txt", "text/plain")).toBe(
+      "text/plain",
+    );
+    expect(resolveTaskFileContentType("icon.svg", "image/svg+xml")).toBeNull();
+    expect(resolveTaskFileContentType("icon.svg", "")).toBeNull();
+    expect(
+      resolveTaskFileContentType("malware.exe", "application/x-msdownload"),
+    ).toBeNull();
   });
 
   it("clamps display names to the max length", () => {

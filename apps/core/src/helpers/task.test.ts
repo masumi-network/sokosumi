@@ -9,6 +9,7 @@ import {
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
+  mapTaskFile,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -1553,5 +1554,74 @@ describe("mapTask", () => {
 
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(5);
+  });
+});
+
+describe("mapTaskFile", () => {
+  it("maps user and coworker uploaders and coerces size to number", () => {
+    const createdAt = new Date("2026-01-02T00:00:00.000Z");
+    const updatedAt = new Date("2026-01-02T00:00:00.000Z");
+
+    const userUploaded = mapTaskFile({
+      id: "tfile_user",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "report.pdf",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/report.pdf",
+      mimeType: "application/pdf",
+      size: 2048n,
+      uploadedByUserId: "user_123",
+      uploadedByUser: defaultTaskUser,
+      uploadedByCoworkerId: null,
+      uploadedByCoworker: null,
+    } as unknown as Parameters<typeof mapTaskFile>[0]);
+
+    expect(userUploaded).toEqual({
+      id: "tfile_user",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "report.pdf",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/report.pdf",
+      mimeType: "application/pdf",
+      size: 2048,
+      uploader: {
+        type: "user",
+        id: "user_123",
+        user: defaultTaskUser,
+      },
+    });
+
+    const coworkerUploaded = mapTaskFile({
+      id: "tfile_cow",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "notes.txt",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/notes.txt",
+      mimeType: "text/plain",
+      size: null,
+      uploadedByUserId: null,
+      uploadedByUser: null,
+      uploadedByCoworkerId: "cow_123",
+      uploadedByCoworker: defaultTaskCoworker,
+    } as unknown as Parameters<typeof mapTaskFile>[0]);
+
+    expect(coworkerUploaded).toEqual({
+      id: "tfile_cow",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "notes.txt",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/notes.txt",
+      mimeType: "text/plain",
+      size: null,
+      uploader: {
+        type: "coworker",
+        id: "cow_123",
+        coworker: defaultTaskCoworker,
+      },
+    });
   });
 });

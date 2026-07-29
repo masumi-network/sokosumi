@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   clampTaskFileName,
-  resolveUserUploadContentType,
+  resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
 import { bodyLimit } from "hono/body-limit";
@@ -40,7 +40,7 @@ const multipartBodySchema = z.object({
   file: z.any().openapi({
     type: "string",
     format: "binary",
-    description: `Task file (max ${TASK_FILE_MAX_SIZE_BYTES} bytes; same MIME allowlist as user uploads)`,
+    description: `Task file (max ${TASK_FILE_MAX_SIZE_BYTES} bytes; user-upload MIME allowlist except image/svg+xml)`,
   }),
 });
 
@@ -48,7 +48,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/files",
   description:
-    "Upload a file for a task. Allowed for the task owner or the assigned coworker. Stores the file in public Vercel Blob storage and returns a public fileUrl.",
+    "Upload a file for a task. Allowed for the task owner or the assigned coworker. Stores the file in public Vercel Blob storage and returns a public fileUrl. MIME allowlist matches user uploads except image/svg+xml.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -120,13 +120,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const resolvedContentType = resolveUserUploadContentType(
+    const resolvedContentType = resolveTaskFileContentType(
       file.name,
       file.type,
     );
     if (!resolvedContentType) {
       throw badRequest(
-        `Unsupported content type. Allowed types match user uploads (e.g. application/pdf, image/png, text/plain).`,
+        `Unsupported content type. Allowed types match user uploads except SVG (e.g. application/pdf, image/png, text/plain).`,
       );
     }
 

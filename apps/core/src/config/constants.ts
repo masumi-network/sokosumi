@@ -1,7 +1,4 @@
-import {
-  DEFAULT_WEBHOOK_TIMEOUT_MS,
-  TASK_FILE_MAX_SIZE_BYTES,
-} from "@sokosumi/utils";
+import { DEFAULT_WEBHOOK_TIMEOUT_MS } from "@sokosumi/utils";
 
 /**
  * Application constants for the Core API
@@ -73,9 +70,6 @@ export const LIMITS = {
   /** Maximum upload size for direct user file uploads (1GB) */
   USER_UPLOAD_MAX_SIZE_BYTES: 1024 * 1024 * 1024,
 
-  /** Maximum upload size for task file multipart uploads (from @sokosumi/utils) */
-  TASK_FILE_MAX_SIZE_BYTES,
-
   /** Maximum size of a DESIGN.md document accepted for storage (1MB) */
   DESIGN_MD_MAX_SIZE_BYTES: 1024 * 1024,
 
@@ -106,9 +100,6 @@ export const STORAGE = {
 
   /** Root directory for user file uploads */
   USER_UPLOADS_DIR: "users",
-
-  /** Root directory for task file uploads */
-  TASK_FILES_DIR: "tasks",
 
   /** Directory for stored DESIGN.md documents */
   DESIGN_MD_UPLOAD_DIR: "design-md",

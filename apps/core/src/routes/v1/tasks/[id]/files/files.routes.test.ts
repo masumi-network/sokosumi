@@ -432,6 +432,27 @@ describe("task files routes", () => {
     expect(uploadTaskFileMock).not.toHaveBeenCalled();
   });
 
+  it("rejects SVG uploads (public-share XSS surface)", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["<svg onload=alert(1)></svg>"], "icon.svg", {
+        type: "image/svg+xml",
+      }),
+    );
+
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+  });
+
   it("rejects files over the 50 MB limit", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
 

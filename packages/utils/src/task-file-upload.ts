@@ -1,3 +1,4 @@
+import { resolveUserUploadContentType } from "./user-upload-content-type.js";
 import { sanitizeUserUploadFilename } from "./user-upload-path.js";
 
 const TASK_FILES_DIR = "tasks";
@@ -8,12 +9,37 @@ export const TASK_FILE_MAX_SIZE_BYTES = 50 * 1024 * 1024;
 /** Max stored display name length for task file uploads (server-enforced). */
 export const TASK_FILE_MAX_NAME_LENGTH = 255;
 
+/**
+ * Content types allowed for user uploads but blocked for task files.
+ * SVG is excluded because task files are public blobs linked from anonymous
+ * share pages; opening a scriptable SVG in a new tab is a click-XSS risk.
+ */
+const TASK_FILE_DISALLOWED_CONTENT_TYPES = new Set(["image/svg+xml"]);
+
 export function buildTaskFilePrefix(taskId: string): string {
   return `${TASK_FILES_DIR}/${taskId}/`;
 }
 
 export function sanitizeTaskFileFilename(fileName: string): string {
   return sanitizeUserUploadFilename(fileName);
+}
+
+/**
+ * Resolve task-file MIME like user uploads, then reject types unsafe on public
+ * share surfaces (currently SVG).
+ */
+export function resolveTaskFileContentType(
+  filename: string,
+  declaredContentType: string,
+): string | null {
+  const resolved = resolveUserUploadContentType(filename, declaredContentType);
+  if (resolved == null) {
+    return null;
+  }
+  if (TASK_FILE_DISALLOWED_CONTENT_TYPES.has(resolved)) {
+    return null;
+  }
+  return resolved;
 }
 
 /**
