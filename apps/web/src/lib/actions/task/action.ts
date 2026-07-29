@@ -381,8 +381,11 @@ export const createTask = withSession<
       revalidatePath("/projects");
       return { taskId: task.id, name: task.name };
     } catch (error) {
-      console.error("Failed to create task", error);
-      throw new Error("Failed to create task");
+      rethrowTaskActionError(
+        error,
+        "Failed to create task",
+        "Failed to create task",
+      );
     }
   },
 );
@@ -645,9 +648,11 @@ export const createTaskLink = withSession<
       linkId: link.id,
     };
   } catch (error) {
-    console.error("Failed to create task link", error);
-    const { message } = toCoreApiActionError(error);
-    throw new Error(message ?? "Failed to create task link");
+    rethrowTaskActionError(
+      error,
+      "Failed to create task link",
+      "Failed to create task link",
+    );
   }
 });
 
@@ -676,9 +681,11 @@ export const deleteTaskLink = withSession<
       relatedTaskId: link?.peerTask.id,
     };
   } catch (error) {
-    console.error("Failed to delete task link", error);
-    const { message } = toCoreApiActionError(error);
-    throw new Error(message ?? "Failed to delete task link");
+    rethrowTaskActionError(
+      error,
+      "Failed to delete task link",
+      "Failed to delete task link",
+    );
   }
 });
 
@@ -746,9 +753,11 @@ export const createTaskAndLink = withSession<
       if (createdTask) {
         await archiveCreatedTaskAfterFailure(createdTask.id);
       }
-      console.error("Failed to create and link task", error);
-      const { message } = toCoreApiActionError(error);
-      throw new Error(message ?? "Failed to create and link task");
+      rethrowTaskActionError(
+        error,
+        "Failed to create and link task",
+        "Failed to create and link task",
+      );
     }
   },
 );

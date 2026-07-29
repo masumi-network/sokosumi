@@ -11,6 +11,7 @@ import {
 import { orchestratorSummarySchema } from "@/schemas/orchestrator.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
+import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
@@ -277,6 +278,10 @@ export const taskSchema = taskBaseSchema
     // Mirrors `jobSchema.share`.
     share: z.union([taskShareSchema, z.null()]).openapi({ example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
+    files: z.array(taskFileSchema).openapi({
+      example: [],
+      description: "Files uploaded to this task (newest first).",
+    }),
   })
   .openapi("Task");
 

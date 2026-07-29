@@ -9,6 +9,7 @@ import {
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
+  mapTaskFile,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -1038,6 +1039,7 @@ describe("mapTask", () => {
       status: TaskStatus.READY,
       share,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       events: [],
@@ -1078,6 +1080,7 @@ describe("mapTask", () => {
       pendingVendorGrantId: grantId,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       events: [],
@@ -1137,6 +1140,7 @@ describe("mapTask", () => {
       status: TaskStatus.READY,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       events: [],
@@ -1194,6 +1198,7 @@ describe("mapTask", () => {
       share: null,
       linksFrom: [],
       linksTo: [],
+      files: [],
       events: [],
       workspace: {
         id: "11111111-1111-7111-8111-111111111111",
@@ -1265,6 +1270,7 @@ describe("mapTask", () => {
       status: TaskStatus.COMPLETED,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1361,6 +1367,7 @@ describe("mapTask", () => {
       status: TaskStatus.COMPLETED,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1435,6 +1442,7 @@ describe("mapTask", () => {
       status: TaskStatus.OUT_OF_CREDITS,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1511,6 +1519,7 @@ describe("mapTask", () => {
       status: TaskStatus.OUT_OF_CREDITS,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1545,5 +1554,74 @@ describe("mapTask", () => {
 
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(5);
+  });
+});
+
+describe("mapTaskFile", () => {
+  it("maps user and coworker uploaders and coerces size to number", () => {
+    const createdAt = new Date("2026-01-02T00:00:00.000Z");
+    const updatedAt = new Date("2026-01-02T00:00:00.000Z");
+
+    const userUploaded = mapTaskFile({
+      id: "tfile_user",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "report.pdf",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/report.pdf",
+      mimeType: "application/pdf",
+      size: 2048n,
+      uploadedByUserId: "user_123",
+      uploadedByUser: defaultTaskUser,
+      uploadedByCoworkerId: null,
+      uploadedByCoworker: null,
+    } as unknown as Parameters<typeof mapTaskFile>[0]);
+
+    expect(userUploaded).toEqual({
+      id: "tfile_user",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "report.pdf",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/report.pdf",
+      mimeType: "application/pdf",
+      size: 2048,
+      uploader: {
+        type: "user",
+        id: "user_123",
+        user: defaultTaskUser,
+      },
+    });
+
+    const coworkerUploaded = mapTaskFile({
+      id: "tfile_cow",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "notes.txt",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/notes.txt",
+      mimeType: "text/plain",
+      size: null,
+      uploadedByUserId: null,
+      uploadedByUser: null,
+      uploadedByCoworkerId: "cow_123",
+      uploadedByCoworker: defaultTaskCoworker,
+    } as unknown as Parameters<typeof mapTaskFile>[0]);
+
+    expect(coworkerUploaded).toEqual({
+      id: "tfile_cow",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "notes.txt",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/notes.txt",
+      mimeType: "text/plain",
+      size: null,
+      uploader: {
+        type: "coworker",
+        id: "cow_123",
+        coworker: defaultTaskCoworker,
+      },
+    });
   });
 });

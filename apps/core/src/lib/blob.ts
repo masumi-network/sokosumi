@@ -3,9 +3,11 @@ import crypto from "node:crypto";
 import * as Sentry from "@sentry/node";
 import {
   buildCoworkerImagePathname,
+  buildTaskFilePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
   isOwnedCoworkerImageUrl,
+  isOwnedTaskFileUrl,
 } from "@sokosumi/utils";
 import { del, list, put } from "@vercel/blob";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
@@ -388,6 +390,72 @@ export async function deleteCoworkerImageIfOwned(
       },
       extra: {
         coworkerId,
+        url,
+      },
+    });
+  }
+}
+
+export async function uploadTaskFile(params: {
+  taskId: string;
+  bytes: ArrayBuffer | Buffer | Blob;
+  contentType: string;
+  filename: string;
+}): Promise<string | null> {
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    console.warn(
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping task file upload",
+    );
+    return null;
+  }
+
+  const pathname = buildTaskFilePathname(params.taskId, params.filename);
+
+  try {
+    const blob = await put(pathname, params.bytes, {
+      access: "public",
+      contentType: params.contentType,
+      token: env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: true,
+    });
+    return blob.url;
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadTaskFile",
+      },
+    });
+    return null;
+  }
+}
+
+/**
+ * Best-effort delete of a task file blob when the URL is under
+ * `tasks/{taskId}/`. Used to roll back orphaned uploads after DB failures.
+ */
+export async function deleteTaskFileIfOwned(
+  url: string | null | undefined,
+  taskId: string,
+): Promise<void> {
+  if (!url || !isOwnedTaskFileUrl(url, taskId)) {
+    return;
+  }
+
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    return;
+  }
+
+  try {
+    await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "deleteTaskFileIfOwned",
+      },
+      extra: {
+        taskId,
         url,
       },
     });
