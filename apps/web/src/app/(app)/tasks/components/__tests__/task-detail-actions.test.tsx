@@ -750,6 +750,30 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
+  it("shows cancel and archive for org member on a queued scheduled task they do not own", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.QUEUED,
+      isReadOnly: true,
+      canCancel: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
   it("hides share and overflow actions in read-only workspace mode", () => {
     renderActions({
       isReadOnly: true,
