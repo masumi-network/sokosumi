@@ -341,4 +341,112 @@ describe("task files routes", () => {
 
     expect(response.status).toBe(503);
   });
+
+  it("rolls back the blob when DB create fails after upload", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+    uploadTaskFileMock.mockResolvedValueOnce(FILE_URL);
+    taskFileCreateMock.mockRejectedValueOnce(new Error("db write failed"));
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["hello"], "report.pdf", { type: "application/pdf" }),
+    );
+
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(500);
+    expect(deleteTaskFileIfOwnedMock).toHaveBeenCalledWith(FILE_URL, TASK_ID);
+  });
+
+  it("rejects unsupported content types", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["MZ"], "malware.exe", { type: "application/x-msdownload" }),
+    );
+
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects files over the 50 MB limit", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+
+    const oversized = new File(
+      [new Uint8Array(50 * 1024 * 1024 + 1)],
+      "big.pdf",
+      { type: "application/pdf" },
+    );
+
+    const form = new FormData();
+    form.append("file", oversized);
+
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(413);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker-with-context that is not the assignee", async () => {
+    coworkerFindFirstMock.mockResolvedValueOnce({
+      id: "cow_other",
+      slug: "other",
+      baseURL: null,
+    });
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cow_other",
+        vendorId: "11111111-1111-7111-8111-111111111111",
+        context: {
+          userId: OWNER_ID,
+          organizationId: null,
+        },
+      });
+      c.set("workspaceContext", {
+        workspaceId: WORKSPACE_ID,
+        userId: OWNER_ID,
+        organizationId: null,
+      });
+      return await next();
+    });
+    mountPostTaskFile(app as unknown as OpenAPIHonoWithAuth);
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["notes"], "notes.txt", { type: "text/plain" }),
+    );
+
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(403);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+  });
 });

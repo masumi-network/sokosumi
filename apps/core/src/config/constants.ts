@@ -1,4 +1,7 @@
-import { DEFAULT_WEBHOOK_TIMEOUT_MS } from "@sokosumi/utils";
+import {
+  DEFAULT_WEBHOOK_TIMEOUT_MS,
+  TASK_FILE_MAX_SIZE_BYTES,
+} from "@sokosumi/utils";
 
 /**
  * Application constants for the Core API
@@ -70,8 +73,8 @@ export const LIMITS = {
   /** Maximum upload size for direct user file uploads (1GB) */
   USER_UPLOAD_MAX_SIZE_BYTES: 1024 * 1024 * 1024,
 
-  /** Maximum upload size for task file multipart uploads (50MB) */
-  TASK_FILE_MAX_SIZE_BYTES: 50 * 1024 * 1024,
+  /** Maximum upload size for task file multipart uploads (from @sokosumi/utils) */
+  TASK_FILE_MAX_SIZE_BYTES,
 
   /** Maximum size of a DESIGN.md document accepted for storage (1MB) */
   DESIGN_MD_MAX_SIZE_BYTES: 1024 * 1024,

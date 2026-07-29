@@ -2,11 +2,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   resolveUserUploadContentType,
   TASK_FILE_MAX_SIZE_BYTES,
-  USER_UPLOAD_ALLOWED_CONTENT_TYPES,
 } from "@sokosumi/utils";
 import { bodyLimit } from "hono/body-limit";
 
-import { LIMITS } from "@/config/constants";
 import { requireTaskFileUploadAccess } from "@/helpers/access-control";
 import {
   badRequest,
@@ -28,7 +26,7 @@ import {
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskFileApiInclude } from "@/types/task";
 
-const TASK_FILE_MAX_BODY_BYTES = LIMITS.TASK_FILE_MAX_SIZE_BYTES + 256 * 1024;
+const TASK_FILE_MAX_BODY_BYTES = TASK_FILE_MAX_SIZE_BYTES + 256 * 1024;
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -91,7 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       maxSize: TASK_FILE_MAX_BODY_BYTES,
       onError: () => {
         throw payloadTooLarge(
-          `Request body is too large. Maximum file size is ${LIMITS.TASK_FILE_MAX_SIZE_BYTES} bytes.`,
+          `Request body is too large. Maximum file size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
         );
       },
     }),
@@ -115,9 +113,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("file must not be empty");
     }
 
-    if (file.size > LIMITS.TASK_FILE_MAX_SIZE_BYTES) {
+    if (file.size > TASK_FILE_MAX_SIZE_BYTES) {
       throw payloadTooLarge(
-        `File is too large. Maximum size is ${LIMITS.TASK_FILE_MAX_SIZE_BYTES} bytes.`,
+        `File is too large. Maximum size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
       );
     }
 
@@ -125,21 +123,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       file.name,
       file.type,
     );
-    if (
-      !resolvedContentType ||
-      !USER_UPLOAD_ALLOWED_CONTENT_TYPES.includes(
-        resolvedContentType as (typeof USER_UPLOAD_ALLOWED_CONTENT_TYPES)[number],
-      )
-    ) {
+    if (!resolvedContentType) {
       throw badRequest(
         `Unsupported content type. Allowed types match user uploads (e.g. application/pdf, image/png, text/plain).`,
       );
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    if (bytes.length > LIMITS.TASK_FILE_MAX_SIZE_BYTES) {
+    if (bytes.length > TASK_FILE_MAX_SIZE_BYTES) {
       throw payloadTooLarge(
-        `File is too large. Maximum size is ${LIMITS.TASK_FILE_MAX_SIZE_BYTES} bytes.`,
+        `File is too large. Maximum size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
       );
     }
 

@@ -1,5 +1,7 @@
 import type { createPrismaClient } from "@sokosumi/database/client";
 
+import { deleteTaskFileIfOwned } from "@/lib/blob";
+
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
 /**
@@ -10,12 +12,14 @@ type PrismaClient = ReturnType<typeof createPrismaClient>;
  *   row and re-point creator to the task owner as a user creator.
  * - Coworker assignments cascade-delete with the user; creatorCoworkerId is
  *   RESTRICT, so those refs must be cleared first.
+ * - Public blob files for owned tasks are best-effort deleted after the DB
+ *   cascade (URLs remain public if blob GC fails).
  */
 export async function prepareTasksForUserDeletion(
   userId: string,
   prisma: PrismaClient,
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  const ownedTaskFiles = await prisma.$transaction(async (tx) => {
     const coworkerIds = (
       await tx.coworkerAssignment.findMany({
         where: { userId },
@@ -48,8 +52,21 @@ export async function prepareTasksForUserDeletion(
       });
     }
 
+    const ownedFiles = await tx.taskFile.findMany({
+      where: { task: { ownerId: userId } },
+      select: { fileUrl: true, taskId: true },
+    });
+
     await tx.task.deleteMany({
       where: { ownerId: userId },
     });
+
+    return ownedFiles;
   });
+
+  await Promise.all(
+    ownedTaskFiles.map((file) =>
+      deleteTaskFileIfOwned(file.fileUrl, file.taskId),
+    ),
+  );
 }
