@@ -228,7 +228,43 @@ describe("requireTaskArchiveAccess", () => {
     );
   });
 
-  it("rejects non-owners for non-parked tasks", async () => {
+  it("keeps parked+scheduled archive OWNER/ADMIN-only for non-owners", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_parked_scheduled",
+        status: TaskStatus.GRANT_PENDING,
+        ownerId: "user_other",
+        metadata: JSON.stringify({
+          version: 1,
+          mode: "once",
+          scheduledAt: "2026-08-01T10:00:00.000Z",
+          runAt: "2026-08-01T10:00:00.000Z",
+        }),
+        nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
+        workspace: { organizationId: "org_123" },
+      } as never);
+
+    resolveMemberOrganizationByIdMock.mockRejectedValue(
+      new HTTPException(404, { message: "Organization not found" }),
+    );
+
+    await expect(
+      requireTaskArchiveAccess(sessionUserContext, "tsk_parked_scheduled", tx),
+    ).rejects.toThrow();
+
+    // Parked branch must win over scheduled any-member path.
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "org_123",
+        userId: "user_123",
+        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+      }),
+    );
+  });
+
+  it("rejects when task is missing", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)

@@ -155,7 +155,8 @@ export async function requireTaskArchiveAccess(
     throw notFound("Task not found");
   }
 
-  // Any org member may archive scheduled tasks (same membership gate as cancel).
+  // Any org member of the task workspace's organization (not workspace-scoped
+  // like cancel, which requires the active workspace context).
   await resolveMemberOrganizationById({
     id: organizationId,
     userId: userContext.userId,
