@@ -124,7 +124,8 @@ export default async function Sidebar({
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
-        <div className="flex min-h-0 flex-col gap-0">
+        {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
+        <div className="flex w-full flex-col gap-0">
           <SidebarNav
             members={members}
             activeOrganizationId={activeOrganizationId}
