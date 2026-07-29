@@ -345,6 +345,70 @@ function resolveEntryPricing(
   return parseEntryAgentPricing(entry.AgentPricing, entry.agentIdentifier);
 }
 
+/**
+ * Warns when a V2 entry exposes a purchase-ready source Sokosumi cannot bill.
+ *
+ * The agent-level price comes from ONE preferred source, so the availability
+ * filter and the displayed cost only ever validate that source's units. A
+ * seller may still select any other purchase-ready source at start_job — and
+ * if its units have no CreditCost row, or it carries no fixed pricing, the
+ * hire fails only AFTER start_job, stranding a seller-side job (see
+ * reportOrphanedSellerJob in helpers/job.ts).
+ *
+ * That is a registry-data defect, so surface it at ingestion where it is
+ * detectable once per sync rather than once per stranded hire. Advisory only:
+ * it never blocks the upsert, since the entry is still valid for every other
+ * source it offers.
+ */
+function warnOnUnbillableReadyV2Sources(
+  entry: RegistryDiffEntry,
+  readySources: readonly CardanoV2ReadySource[],
+  creditCostUnits: ReadonlySet<string>,
+): void {
+  if (!isV2RegistryIdentifier(entry.agentIdentifier)) {
+    return;
+  }
+  const network = getEnv().NETWORK;
+  for (const source of entry.SupportedPaymentSources ?? []) {
+    if (
+      source.chain !== "Cardano" ||
+      source.network !== network ||
+      source.paymentSourceType !== "Web3CardanoV2" ||
+      !isCardanoV2SourceReady(
+        entry.agentIdentifier,
+        source.address,
+        readySources,
+      )
+    ) {
+      continue;
+    }
+    const projected = projectSourcePricing(
+      source.pricing,
+      entry.agentIdentifier,
+    );
+    if (projected.pricingType === PricingType.FREE) {
+      continue;
+    }
+    if (
+      projected.pricingType !== PricingType.FIXED ||
+      !projected.fixedPricingAmounts?.length
+    ) {
+      console.warn(
+        `[sync/agents] Entry ${entry.agentIdentifier} source ${source.sourceIndex} is purchase-ready but has no usable fixed pricing; selecting it strands a seller job`,
+      );
+      continue;
+    }
+    const unbillableUnits = projected.fixedPricingAmounts
+      .map((amount) => amount.unit)
+      .filter((unit) => !creditCostUnits.has(unit));
+    if (unbillableUnits.length > 0) {
+      console.warn(
+        `[sync/agents] Entry ${entry.agentIdentifier} source ${source.sourceIndex} is purchase-ready but prices in units with no CreditCost (${unbillableUnits.join(", ")}); selecting it strands a seller job`,
+      );
+    }
+  }
+}
+
 interface AgentPaymentSourceRow {
   sourceIndex: number;
   chain: string;
@@ -1092,6 +1156,14 @@ async function syncRegistryAgents(
   // (route ordering), and V2 pricing projection prefers purchase-ready
   // sources so listed prices match hireable sources.
   const cardanoV2ReadySources = await getCardanoV2ReadySources();
+  // Units Sokosumi can convert to credits, for the advisory unbillable-source
+  // check below. Normalized so "" / "lovelace" compare as one unit, matching
+  // how projectSourcePricing stores them.
+  const creditCostUnits = new Set(
+    (await prisma.creditCost.findMany({ select: { unit: true } })).map(
+      (creditCost) => normalizeMasumiPaymentUnit(creditCost.unit),
+    ),
+  );
   let totalProcessedCount = 0;
   let totalDeferredCount = 0;
   let batchCount = 0;
@@ -1173,6 +1245,11 @@ async function syncRegistryAgents(
         const pricing = resolveEntryPricing(
           normalizedEntry,
           cardanoV2ReadySources,
+        );
+        warnOnUnbillableReadyV2Sources(
+          normalizedEntry,
+          cardanoV2ReadySources,
+          creditCostUnits,
         );
         await upsertRegistryAgent(normalizedEntry, pricing);
         processedEntryCount++;

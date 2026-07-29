@@ -471,6 +471,9 @@ export function calculateCentsFromMasumiAmountStrings(
       throw unprocessableEntity("Amount must be positive");
     }
     const unit = normalizeMasumiPaymentUnit(entry.unit);
+    // Deliberately AFTER normalization: an empty unit is Masumi's spelling of
+    // ADA and becomes "lovelace", so only a whitespace-only unit — which
+    // normalizes to itself and names no asset — is rejected here.
     if (unit.trim().length === 0) {
       throw unprocessableEntity("Unit must not be empty");
     }

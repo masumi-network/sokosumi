@@ -279,6 +279,27 @@ const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
  * CreditCost row cannot be selected for billing and are skipped; null when
  * no source is priceable.
  */
+/**
+ * Records that a hire failed AFTER `start_job` was accepted, so the seller is
+ * doing work for a job Sokosumi will never track. MIP-003 has no cancel, so
+ * there is nothing to compensate with — the only remedy is visibility.
+ *
+ * `page: false` for outcomes that are legitimate rather than defects (a buyer
+ * cap refusing the seller's chosen source); everything else is a registry-data
+ * or protocol defect that recurs on every hire of the agent.
+ */
+function reportOrphanedSellerJob(
+  reason: string,
+  context: Record<string, unknown>,
+  options: { page?: boolean } = {},
+): void {
+  const message = `Seller-side job orphaned after start_job: ${reason}`;
+  console.error(`[createAgentJobForUser] ${message}`, context);
+  if (options.page !== false) {
+    Sentry.captureException(new Error(message), { extra: context });
+  }
+}
+
 function cheapestEligibleV2SourceCents(
   agentIdentifier: string,
   sources: readonly {
@@ -552,12 +573,17 @@ export async function createAgentJobForUser(
             { reportToSentry: true },
           );
         }
+        // Registry-data defects, not per-request conditions: they recur on
+        // every hire of this agent and each attempt strands the seller-side
+        // job start_job already accepted, so they must page rather than fail
+        // quietly.
         if (
           selectedSource.pricingType !== PricingType.FIXED ||
           selectedSource.amounts.length === 0
         ) {
           throw unprocessableEntity(
             "Paid V2 agent job selected a source without fixed pricing",
+            { reportToSentry: true },
           );
         }
         const selectedSourceAmounts = aggregateAmountsByUnit(
@@ -566,19 +592,50 @@ export async function createAgentJobForUser(
         if (selectedSourceAmounts.length > MAX_PAYMENT_NODE_PURCHASE_AMOUNTS) {
           throw unprocessableEntity(
             "Paid V2 agent selected a payment source with too many assets",
+            { reportToSentry: true },
           );
         }
         // V2 purchases must always carry the exact source amounts: omitting
         // them lets the node use current on-chain pricing while Sokosumi bills
         // from its registry snapshot.
         purchaseAmounts = selectedSourceAmounts;
-        cost = {
-          cents: calculateCentsFromMasumiAmountStrings(
-            selectedSourceAmounts,
-            creditCosts,
-          ),
-        };
+        // A unit with no CreditCost row throws here — AFTER start_job. The
+        // pre-flight floor check cannot catch it: cheapestEligibleV2SourceCents
+        // silently skips un-priceable sources, and both the availability filter
+        // and the displayed cost validate only the agent-level pricing, which
+        // is projected from a single preferred source.
+        try {
+          cost = {
+            cents: calculateCentsFromMasumiAmountStrings(
+              selectedSourceAmounts,
+              creditCosts,
+            ),
+          };
+        } catch (error) {
+          reportOrphanedSellerJob(
+            "selected payment source has no credit cost for its units",
+            {
+              agentId: agent.id,
+              sourceIndex: selectedSource.sourceIndex,
+              units: selectedSourceAmounts.map((entry) => entry.unit),
+            },
+          );
+          throw error;
+        }
         if (maxCents !== null && cost.cents > maxCents) {
+          // Legitimate outcome rather than a defect — the buyer's cap simply
+          // refuses the source the seller chose — but it still strands a
+          // started job, so it is recorded without paging.
+          reportOrphanedSellerJob(
+            "selected payment source exceeds the buyer's accepted maximum",
+            {
+              agentId: agent.id,
+              sourceIndex: selectedSource.sourceIndex,
+              costCents: cost.cents.toString(),
+              maxCents: maxCents.toString(),
+            },
+            { page: false },
+          );
           throw badRequest("Credit cost exceeds maximum accepted credits");
         }
         // Without an explicit maxCredits consent, the seller-selected source

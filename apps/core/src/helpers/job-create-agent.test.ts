@@ -704,6 +704,70 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 
+  // The pre-flight floor check cannot catch an un-priceable source:
+  // cheapestEligibleV2SourceCents skips it, and the availability filter only
+  // validates the agent-level price projected from ONE preferred source. So
+  // the failure lands after start_job and must be recorded, not swallowed.
+  it("records an orphaned seller job when the selected source has no credit cost", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    calculateCentsFromMasumiAmountStringsMock.mockImplementation(() => {
+      throw new Error("Credit cost not found for unit some-token");
+    });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV2JobResponse),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Credit cost not found for unit some-token",
+    );
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Seller-side job orphaned after start_job: selected payment source has no credit cost for its units",
+      ),
+      expect.objectContaining({ agentId: "agent_1", sourceIndex: 2 }),
+    );
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("records an orphaned seller job when the selected source exceeds the buyer cap", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    // Cheapest source is within the cap, so pre-flight passes; the seller then
+    // selects the pricier source (index 2).
+    calculateCentsFromMasumiAmountStringsMock.mockImplementation(
+      (amounts: { unit: string; amount: string }[]) =>
+        amounts.some((entry) => entry.amount === "2000000")
+          ? BigInt(200)
+          : BigInt(100),
+    );
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV2JobResponse),
+    });
+
+    await expect(
+      createAgentJobForUser(
+        createInput({ agentInput: { maxAcceptedCents: 150 } }),
+      ),
+    ).rejects.toThrow("Credit cost exceeds maximum accepted credits");
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Seller-side job orphaned after start_job: selected payment source exceeds the buyer's accepted maximum",
+      ),
+      expect.objectContaining({ costCents: "200", maxCents: "150" }),
+    );
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
   it("omits the optional V1 price guard when metadata has more than seven units", async () => {
     agentFindFirstMock.mockResolvedValue({
       ...createPaidV1AgentRecord(),

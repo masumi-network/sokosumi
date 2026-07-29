@@ -82,13 +82,25 @@ type _AssertTransactionStatusCovered = AssertExtends<
  * Sentry capture is deduplicated per (kind, value) per process — this sits on
  * the every-minute job-sync path, so a single node-side enum addition would
  * otherwise flood Sentry until sokosumi regenerates its client.
+ *
+ * The latch is bounded because its keys come from remote input: a node serving
+ * unbounded distinct values would otherwise grow it without limit. Overflowing
+ * the cap clears it, which costs at most a repeated Sentry report per cycle —
+ * the real enum sets are far smaller than the cap, so this never triggers in
+ * practice.
  */
+const MAX_REPORTED_UNKNOWN_PURCHASE_VALUES = 256;
 const reportedUnknownPurchaseValues = new Set<string>();
 
 function reportUnknownPurchaseValue(kind: string, value: string): undefined {
   console.error("[purchase] skipping unknown value", { kind, value });
   const dedupeKey = `${kind}:${value}`;
   if (!reportedUnknownPurchaseValues.has(dedupeKey)) {
+    if (
+      reportedUnknownPurchaseValues.size >= MAX_REPORTED_UNKNOWN_PURCHASE_VALUES
+    ) {
+      reportedUnknownPurchaseValues.clear();
+    }
     reportedUnknownPurchaseValues.add(dedupeKey);
     Sentry.captureException(new Error(`Unknown purchase ${kind}: ${value}`));
   }

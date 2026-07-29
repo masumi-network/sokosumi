@@ -39,12 +39,6 @@ export function isV2RegistryIdentifier(agentIdentifier: string): boolean {
 }
 
 /**
- * Canonical form of an agent identifier for comparison and storage. V2-policy
- * identifiers are hex and lowercased (matching what ingestion stores and what
- * readiness tuples carry); anything else is returned untouched, because only
- * V2 identifiers are known to be case-insensitive hex.
- */
-/**
  * The V2 registry policy ids, for callers that must express "is a V2-policy
  * identifier" as a DATABASE predicate (a prefix match) rather than a function
  * call — the availability filter and the rollback fence have to agree with
@@ -55,6 +49,12 @@ export function listV2RegistryPolicyIds(): string[] {
   return Array.from(V2_REGISTRY_POLICY_IDS);
 }
 
+/**
+ * Canonical form of an agent identifier for comparison and storage. V2-policy
+ * identifiers are hex and lowercased (matching what ingestion stores and what
+ * readiness tuples carry); anything else is returned untouched, because only
+ * V2 identifiers are known to be case-insensitive hex.
+ */
 export function normalizeV2RegistryIdentifier(agentIdentifier: string): string {
   return isV2RegistryIdentifier(agentIdentifier)
     ? agentIdentifier.toLowerCase()

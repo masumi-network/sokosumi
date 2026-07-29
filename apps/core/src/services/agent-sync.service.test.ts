@@ -11,6 +11,7 @@ const {
   agentCreateMock,
   captureExceptionMock,
   captureMessageMock,
+  creditCostFindManyMock,
   exampleOutputDeleteManyMock,
   agentFindFirstMock,
   ratingFindManyMock,
@@ -42,6 +43,7 @@ const {
   agentCreateMock: vi.fn(),
   captureExceptionMock: vi.fn(),
   captureMessageMock: vi.fn(),
+  creditCostFindManyMock: vi.fn(),
   exampleOutputDeleteManyMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
   ratingFindManyMock: vi.fn(),
@@ -131,6 +133,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     exampleOutput: {
       deleteMany: exampleOutputDeleteManyMock,
+    },
+    creditCost: {
+      findMany: creditCostFindManyMock,
     },
     syncMetadata: {
       createMany: syncMetadataCreateManyMock,
@@ -284,6 +289,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getEnvEnableCardanoV2Mock.mockReturnValue(true);
+    creditCostFindManyMock.mockResolvedValue([{ unit: "lovelace" }]);
     syncMetadataFindUniqueMock.mockResolvedValue({
       key: "agents-sync-metadata",
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
