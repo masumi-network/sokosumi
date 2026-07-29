@@ -9,6 +9,11 @@ const organizationLogoSchema = z.preprocess(
   z.union([z.httpUrl(), z.literal(""), z.null()]),
 );
 
+/**
+ * Response schema for organization website URL. Invalid values must not be
+ * written (enforced on Better Auth create/update). A data migration clears
+ * legacy junk so this stays strict instead of masking bad rows on read.
+ */
 const organizationMetadataSchema = z
   .object({
     url: z.httpUrl().nullable().optional(),

@@ -96,12 +96,15 @@ describe("buildOrganizationMetadataWithUrl", () => {
       ),
       {
         invoiceEmail: "billing@example.com",
-        url: "https://acme.com",
+        url: "https://acme.com/",
       },
     );
+    assert.deepEqual(buildOrganizationMetadataWithUrl(null, "acme.com"), {
+      url: "https://acme.com/",
+    });
   });
 
-  it("removes empty url and returns null for empty metadata", () => {
+  it("removes empty or invalid url and returns null for empty metadata", () => {
     assert.deepEqual(
       buildOrganizationMetadataWithUrl(
         { invoiceEmail: "billing@example.com", url: "https://acme.com" },
@@ -112,6 +115,7 @@ describe("buildOrganizationMetadataWithUrl", () => {
       },
     );
     assert.equal(buildOrganizationMetadataWithUrl({ url: "x" }, ""), null);
+    assert.equal(buildOrganizationMetadataWithUrl({ url: "x" }, "acme"), null);
   });
 });
 

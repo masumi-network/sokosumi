@@ -117,6 +117,7 @@ export {
   OnChainTransactionStatus,
 } from "./masumi-protocol.js";
 export {
+  type MetadataRecord,
   serializeMetadataRecord,
   stringifyMetadataRecord,
 } from "./metadata-record.js";
@@ -221,3 +222,8 @@ export {
   type PostWebhookResult,
   postWebhook,
 } from "./webhook.js";
+export {
+  isEmptyOrValidWebsiteUrl,
+  isValidHttpUrl,
+  normalizeWebsiteUrl,
+} from "./website-url.js";

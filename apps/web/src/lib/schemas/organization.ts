@@ -1,3 +1,4 @@
+import { isEmptyOrValidWebsiteUrl } from "@sokosumi/utils";
 import * as z from "zod";
 
 export const organizationInformationFormSchema = (
@@ -10,7 +11,13 @@ export const organizationInformationFormSchema = (
       .min(2, t?.("Name.min"))
       .max(50, t?.("Name.max")),
     logo: z.string().nullable(),
-    url: z.string().nullable().optional(),
+    url: z
+      .string()
+      .nullable()
+      .optional()
+      .refine((value) => isEmptyOrValidWebsiteUrl(value ?? ""), {
+        error: t?.("Url.invalid"),
+      }),
     metadata: z
       .object({
         url: z.string().nullable().optional(),
