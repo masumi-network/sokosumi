@@ -4,9 +4,9 @@ vi.mock("server-only", () => ({}));
 
 const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
-const getOrganizationMembersMock = vi.fn();
 const getRoomMock = vi.fn();
 const listCoworkersMock = vi.fn();
+const loadOrganizationMembersMock = vi.fn();
 const loadRoomMessagesMock = vi.fn();
 const redirectMock = vi.fn((url: string) => {
   throw new Error(`REDIRECT:${url}`);
@@ -33,8 +33,6 @@ vi.mock("@/lib/services", () => ({
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
-    getOrganizationMembers: (...args: unknown[]) =>
-      getOrganizationMembersMock(...args),
   },
 }));
 
@@ -42,6 +40,11 @@ vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
   },
+}));
+
+vi.mock("@/app/chat/load-organization-members", () => ({
+  loadOrganizationMembers: (...args: unknown[]) =>
+    loadOrganizationMembersMock(...args),
 }));
 
 vi.mock("@/app/chat/load-room-messages", () => ({
@@ -88,7 +91,10 @@ describe("ChatRoomPage org deep-link guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
-    getOrganizationMembersMock.mockResolvedValue([]);
+    loadOrganizationMembersMock.mockResolvedValue({
+      members: [],
+      failed: false,
+    });
     listCoworkersMock.mockResolvedValue([]);
     loadRoomMessagesMock.mockResolvedValue({
       messages: [],
@@ -156,5 +162,26 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("still renders when organization members fail to load", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_A,
+      name: "Org A",
+      slug: "org-a",
+    });
+    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+    loadOrganizationMembersMock.mockResolvedValue({
+      members: [],
+      failed: true,
+    });
+
+    const element = await ChatRoomPage({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    });
+
+    expect(element).toBeTruthy();
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(loadOrganizationMembersMock).toHaveBeenCalledWith(ORG_A);
   });
 });
