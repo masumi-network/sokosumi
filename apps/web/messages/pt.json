@@ -4613,7 +4613,8 @@
       },
       "loadOlder": "Carregar mensagens anteriores",
       "loadingOlder": "A carregar mensagens anteriores…",
-      "roomUnavailable": "Este chat está indisponível ou já não tem acesso."
+      "roomUnavailable": "Este chat está indisponível ou já não tem acesso.",
+      "roomLoadFailed": "Não foi possível carregar este chat. Tente novamente dentro de momentos."
     }
   },
   "Share": {

@@ -4613,7 +4613,8 @@
       },
       "loadOlder": "加载更早的消息",
       "loadingOlder": "正在加载更早的消息…",
-      "roomUnavailable": "此聊天不可用，或你已没有访问权限。"
+      "roomUnavailable": "此聊天不可用，或你已没有访问权限。",
+      "roomLoadFailed": "无法加载此聊天。请稍后再试。"
     }
   },
   "Share": {

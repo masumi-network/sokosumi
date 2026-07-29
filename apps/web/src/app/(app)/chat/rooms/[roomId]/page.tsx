@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
+import { loadChatRoom } from "@/app/chat/load-chat-room";
 import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import { chatRoomService, userService } from "@/lib/services";
+import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
 interface ChatRoomPageProps {
@@ -63,15 +64,21 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
 
   // Personal workspace: coworker 1:1 directs may have null organizationId.
   if (!activeOrganization) {
-    const [selectedRoom, coworkers, messagePage] = await Promise.all([
-      chatRoomService.getRoom(roomId),
+    const [roomResult, coworkers, messagePage] = await Promise.all([
+      loadChatRoom(roomId),
       coworkerService.listCoworkers("chat"),
       loadRoomMessages(roomId),
     ]);
 
-    if (!selectedRoom) {
+    if (roomResult.failed) {
+      redirect("/chat?notice=room-load-failed");
+    }
+
+    if (!roomResult.room) {
       redirect("/chat?notice=room-unavailable");
     }
+
+    const selectedRoom = roomResult.room;
 
     if (
       selectedRoom.organizationId !== null ||
@@ -102,18 +109,22 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     );
   }
 
-  const [selectedRoom, membersPage, coworkers, messagePage] = await Promise.all(
-    [
-      chatRoomService.getRoom(roomId),
-      loadOrganizationMembers(activeOrganization.id),
-      coworkerService.listCoworkers("chat"),
-      loadRoomMessages(roomId),
-    ],
-  );
+  const [roomResult, membersPage, coworkers, messagePage] = await Promise.all([
+    loadChatRoom(roomId),
+    loadOrganizationMembers(activeOrganization.id),
+    coworkerService.listCoworkers("chat"),
+    loadRoomMessages(roomId),
+  ]);
 
-  if (!selectedRoom) {
+  if (roomResult.failed) {
+    redirect("/chat?notice=room-load-failed");
+  }
+
+  if (!roomResult.room) {
     redirect("/chat?notice=room-unavailable");
   }
+
+  const selectedRoom = roomResult.room;
 
   // Active org: only rooms for this org. Cross-org membership or personal
   // directs must not render under the wrong org chrome/roster.

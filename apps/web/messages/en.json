@@ -4732,7 +4732,8 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
-      "roomUnavailable": "This chat is unavailable or you no longer have access."
+      "roomUnavailable": "This chat is unavailable or you no longer have access.",
+      "roomLoadFailed": "This chat could not be loaded. Please try again in a moment."
     }
   },
   "Share": {

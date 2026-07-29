@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
-const getRoomMock = vi.fn();
+const loadChatRoomMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const loadOrganizationMembersMock = vi.fn();
 const loadRoomMessagesMock = vi.fn();
@@ -27,9 +27,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 
 vi.mock("@/lib/services", () => ({
-  chatRoomService: {
-    getRoom: (...args: unknown[]) => getRoomMock(...args),
-  },
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
@@ -40,6 +37,10 @@ vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
   },
+}));
+
+vi.mock("@/app/chat/load-chat-room", () => ({
+  loadChatRoom: (...args: unknown[]) => loadChatRoomMock(...args),
 }));
 
 vi.mock("@/app/chat/load-organization-members", () => ({
@@ -109,7 +110,10 @@ describe("ChatRoomPage org deep-link guard", () => {
       name: "Org B",
       slug: "org-b",
     });
-    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+    loadChatRoomMock.mockResolvedValue({
+      room: room({ organizationId: ORG_A }),
+      failed: false,
+    });
 
     await expect(
       ChatRoomPage({ params: Promise.resolve({ roomId: ROOM_ID }) }),
@@ -124,9 +128,10 @@ describe("ChatRoomPage org deep-link guard", () => {
       name: "Org A",
       slug: "org-a",
     });
-    getRoomMock.mockResolvedValue(
-      room({ organizationId: null, kind: "direct" }),
-    );
+    loadChatRoomMock.mockResolvedValue({
+      room: room({ organizationId: null, kind: "direct" }),
+      failed: false,
+    });
 
     await expect(
       ChatRoomPage({ params: Promise.resolve({ roomId: ROOM_ID }) }),
@@ -141,11 +146,26 @@ describe("ChatRoomPage org deep-link guard", () => {
       name: "Org A",
       slug: "org-a",
     });
-    getRoomMock.mockResolvedValue(null);
+    loadChatRoomMock.mockResolvedValue({ room: null, failed: false });
 
     await expect(
       ChatRoomPage({ params: Promise.resolve({ roomId: ROOM_ID }) }),
     ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
+  });
+
+  it("redirects with load-failed notice when Core room GET fails", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_A,
+      name: "Org A",
+      slug: "org-a",
+    });
+    loadChatRoomMock.mockResolvedValue({ room: null, failed: true });
+
+    await expect(
+      ChatRoomPage({ params: Promise.resolve({ roomId: ROOM_ID }) }),
+    ).rejects.toThrow(`REDIRECT:/chat?notice=room-load-failed`);
+
+    expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-load-failed");
   });
 
   it("renders when room matches the active org", async () => {
@@ -154,7 +174,10 @@ describe("ChatRoomPage org deep-link guard", () => {
       name: "Org A",
       slug: "org-a",
     });
-    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+    loadChatRoomMock.mockResolvedValue({
+      room: room({ organizationId: ORG_A }),
+      failed: false,
+    });
 
     const element = await ChatRoomPage({
       params: Promise.resolve({ roomId: ROOM_ID }),
@@ -170,7 +193,10 @@ describe("ChatRoomPage org deep-link guard", () => {
       name: "Org A",
       slug: "org-a",
     });
-    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+    loadChatRoomMock.mockResolvedValue({
+      room: room({ organizationId: ORG_A }),
+      failed: false,
+    });
     loadOrganizationMembersMock.mockResolvedValue({
       members: [],
       failed: true,
