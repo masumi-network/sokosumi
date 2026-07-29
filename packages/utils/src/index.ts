@@ -196,8 +196,10 @@ export {
 export {
   buildTaskFilePathname,
   buildTaskFilePrefix,
+  clampTaskFileName,
   isOwnedTaskFileUrl,
   sanitizeTaskFileFilename,
+  TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
 export {

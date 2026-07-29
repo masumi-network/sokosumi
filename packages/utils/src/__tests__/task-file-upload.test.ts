@@ -3,14 +3,24 @@ import { describe, expect, it } from "vitest";
 import {
   buildTaskFilePathname,
   buildTaskFilePrefix,
+  clampTaskFileName,
   isOwnedTaskFileUrl,
   sanitizeTaskFileFilename,
+  TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "../task-file-upload.js";
 
 describe("task file upload helpers", () => {
   it("exposes a 50 MB max size", () => {
     expect(TASK_FILE_MAX_SIZE_BYTES).toBe(50 * 1024 * 1024);
+  });
+
+  it("clamps display names to the max length", () => {
+    expect(clampTaskFileName("  report.pdf  ")).toBe("report.pdf");
+    expect(clampTaskFileName("   ")).toBe("file");
+    expect(clampTaskFileName("a".repeat(TASK_FILE_MAX_NAME_LENGTH + 10))).toBe(
+      "a".repeat(TASK_FILE_MAX_NAME_LENGTH),
+    );
   });
 
   it("builds the task file prefix", () => {

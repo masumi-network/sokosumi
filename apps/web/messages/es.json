@@ -1782,7 +1782,7 @@
           "description": "Esta tarea está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor.",
           "descriptionWithCoworker": "{coworkerName} creó esta tarea. Está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor."
         },
-        "files": "Files"
+        "files": "Archivos"
       },
       "NewTask": {
         "title": "Nuevo Task",

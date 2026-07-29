@@ -5,12 +5,28 @@ const TASK_FILES_DIR = "tasks";
 /** Max file size in bytes (50 MB) for task file uploads (server-enforced). */
 export const TASK_FILE_MAX_SIZE_BYTES = 50 * 1024 * 1024;
 
+/** Max stored display name length for task file uploads (server-enforced). */
+export const TASK_FILE_MAX_NAME_LENGTH = 255;
+
 export function buildTaskFilePrefix(taskId: string): string {
   return `${TASK_FILES_DIR}/${taskId}/`;
 }
 
 export function sanitizeTaskFileFilename(fileName: string): string {
   return sanitizeUserUploadFilename(fileName);
+}
+
+/**
+ * Normalize a client-provided file name for DB storage: trim, fall back to
+ * `"file"`, and clamp to {@link TASK_FILE_MAX_NAME_LENGTH}.
+ */
+export function clampTaskFileName(fileName: string): string {
+  const trimmed = fileName.trim();
+  const base = trimmed.length > 0 ? trimmed : "file";
+  if (base.length <= TASK_FILE_MAX_NAME_LENGTH) {
+    return base;
+  }
+  return base.slice(0, TASK_FILE_MAX_NAME_LENGTH);
 }
 
 /**

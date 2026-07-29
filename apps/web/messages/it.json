@@ -1782,7 +1782,7 @@
           "description": "Questa attività è bloccata finché un proprietario o admin del workspace non approva l'accesso vendor.",
           "descriptionWithCoworker": "{coworkerName} ha creato questa attività. È bloccata finché un proprietario o admin del workspace non approva l'accesso vendor."
         },
-        "files": "Files"
+        "files": "File"
       },
       "NewTask": {
         "title": "Nuovo task",

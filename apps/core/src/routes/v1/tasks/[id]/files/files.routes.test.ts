@@ -323,6 +323,56 @@ describe("task files routes", () => {
     expect(response.status).toBe(400);
   });
 
+  it("clamps long display names before upload and insert", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+    uploadTaskFileMock.mockResolvedValueOnce(FILE_URL);
+    const longName = `${"a".repeat(300)}.pdf`;
+    taskFileCreateMock.mockResolvedValueOnce({
+      id: "tfile_long",
+      taskId: TASK_ID,
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+      name: "a".repeat(255),
+      fileUrl: FILE_URL,
+      mimeType: "application/pdf",
+      size: 4n,
+      uploadedByUserId: OWNER_ID,
+      uploadedByCoworkerId: null,
+      uploadedByUser: {
+        id: OWNER_ID,
+        name: "Ada",
+        image: null,
+      },
+      uploadedByCoworker: null,
+    });
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["%PDF"], longName, { type: "application/pdf" }),
+    );
+
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(201);
+    expect(uploadTaskFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filename: "a".repeat(255),
+      }),
+    );
+    expect(taskFileCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "a".repeat(255),
+        }),
+      }),
+    );
+  });
+
   it("returns 503 when blob upload fails", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
     uploadTaskFileMock.mockResolvedValueOnce(null);

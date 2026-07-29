@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
+  clampTaskFileName,
   resolveUserUploadContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
@@ -136,11 +137,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    const displayName = clampTaskFileName(file.name || "file");
+
     const publicUrl = await uploadTaskFile({
       taskId,
       bytes,
       contentType: resolvedContentType,
-      filename: file.name || "file",
+      filename: displayName,
     });
 
     if (!publicUrl) {
@@ -161,7 +164,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const createdFile = await prisma.taskFile.create({
         data: {
           taskId,
-          name: file.name || "file",
+          name: displayName,
           fileUrl: publicUrl,
           mimeType: resolvedContentType,
           size: BigInt(bytes.length),

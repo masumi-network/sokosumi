@@ -1782,7 +1782,7 @@
           "description": "此任务已被阻塞，需工作区所有者或管理员批准供应商访问后才能继续。",
           "descriptionWithCoworker": "{coworkerName} 创建了此任务。需工作区所有者或管理员批准供应商访问后才能继续。"
         },
-        "files": "Files"
+        "files": "文件"
       },
       "NewTask": {
         "title": "新建任务",
