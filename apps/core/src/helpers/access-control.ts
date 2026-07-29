@@ -6,6 +6,7 @@ import {
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import { hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
@@ -26,7 +27,7 @@ import {
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
-import { hasActiveTaskSchedule } from "./task-schedule";
+
 import {
   getWorkspaceGrant,
   requestWorkspaceGrantCommitted,

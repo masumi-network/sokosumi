@@ -233,13 +233,6 @@ export function parseTaskScheduleMetadata(
   }
 }
 
-export function hasActiveTaskSchedule(
-  metadata: string | null | undefined,
-  nextRunAt: Date | null | undefined,
-): boolean {
-  return Boolean(parseTaskScheduleMetadata(metadata) || nextRunAt);
-}
-
 export function buildTaskScheduleMetadata(
   input: PutTaskScheduleRequest,
   scheduledAt: Date,

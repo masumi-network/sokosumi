@@ -1,5 +1,8 @@
-import type { SubscriptionPlanName } from "@sokosumi/utils";
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import {
+  hasActiveTaskSchedule,
+  resolveIpfsOrHttpUrl,
+  type SubscriptionPlanName,
+} from "@sokosumi/utils";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -35,7 +38,6 @@ import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { formatShortDateTime } from "@/lib/utils/datetime";
-import { hasActiveSchedule } from "@/lib/utils/task-schedule";
 import {
   buildVendorGrantReviewHref,
   canApproveVendorGrants,
@@ -484,7 +486,7 @@ async function TaskDetailActionsSlot({
       forceReadOnly={forceReadOnly}
       isTaskOwner={session?.user.id === task.ownerId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
-      hasActiveSchedule={hasActiveSchedule(task.metadata, task.nextRunAt)}
+      hasActiveSchedule={hasActiveTaskSchedule(task.metadata, task.nextRunAt)}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),
