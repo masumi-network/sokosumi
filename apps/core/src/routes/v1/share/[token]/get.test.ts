@@ -288,6 +288,7 @@ describe("GET /share/{token}", () => {
             actorImage: null,
           },
         ],
+        files: [],
       },
     });
 

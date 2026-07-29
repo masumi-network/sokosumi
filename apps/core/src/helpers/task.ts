@@ -535,12 +535,13 @@ function mapTaskBase(task: TaskWithIncludes) {
 
 export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
   const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
+  const files = "files" in task && Array.isArray(task.files) ? task.files : [];
 
   return {
     ...mapTaskBase(task),
     share: task.share,
     links,
-    files: task.files.map(mapTaskFile),
+    files: files.map(mapTaskFile),
   };
 }
 

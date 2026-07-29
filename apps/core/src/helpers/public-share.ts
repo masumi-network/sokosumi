@@ -177,7 +177,7 @@ function mapPublicTask(task: PublicTaskWithRelations) {
     events: task.events
       .map((event) => mapPublicTaskMilestone(event))
       .filter((event): event is PublicSharedTaskMilestone => event !== null),
-    files: task.files.map((file) => ({
+    files: (task.files ?? []).map((file) => ({
       id: file.id,
       name: file.name,
       fileUrl: file.fileUrl,

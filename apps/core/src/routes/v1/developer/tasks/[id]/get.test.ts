@@ -180,6 +180,7 @@ describe("GET /developer/tasks/{id}", () => {
       name: "Quarterly report",
       status: TaskStatus.RUNNING,
       links: [],
+      files: [],
     });
     expect(body.data.owner).toEqual({
       id: "user_workspace",
