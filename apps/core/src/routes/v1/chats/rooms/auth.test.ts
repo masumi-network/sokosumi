@@ -452,6 +452,8 @@ const membershipScopedCases: AuthRequestCase[] = [
   },
 ];
 
+// Room-scoped membership GETs that must not open interactive txs.
+// List GET / is not room-scoped (no single-room 404 path) — covered in get.test.ts.
 const membershipCasesWithoutInteractiveTx = new Set([
   "GET /{id}",
   "GET /{id}/messages",
