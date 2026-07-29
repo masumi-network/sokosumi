@@ -1,11 +1,14 @@
 import { Channel, GrantResumeStatus, TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
+  cascadeCancelNonTerminalParentChildren,
+  getTaskStatusUpdateDataForEvent,
+  isTerminalTaskStatus,
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
@@ -451,6 +454,7 @@ describe("validateStatusTransition", () => {
       [TaskStatus.READY, TaskStatus.QUEUED],
       [TaskStatus.QUEUED, TaskStatus.DRAFT],
       [TaskStatus.QUEUED, TaskStatus.READY],
+      [TaskStatus.QUEUED, TaskStatus.CANCELED],
     ])("accepts %s → %s", (from, to) => {
       expect(() =>
         validateStatusTransition(userContext, from, to),
@@ -714,6 +718,81 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow("Invalid status transition from QUEUED to RUNNING");
     });
+  });
+});
+
+describe("task cancel helpers", () => {
+  it("identifies terminal task statuses", () => {
+    expect(isTerminalTaskStatus(TaskStatus.COMPLETED)).toBe(true);
+    expect(isTerminalTaskStatus(TaskStatus.FAILED)).toBe(true);
+    expect(isTerminalTaskStatus(TaskStatus.CANCELED)).toBe(true);
+    expect(isTerminalTaskStatus(TaskStatus.RUNNING)).toBe(false);
+    expect(isTerminalTaskStatus(TaskStatus.QUEUED)).toBe(false);
+  });
+
+  it("clears schedule fields when canceling", () => {
+    expect(getTaskStatusUpdateDataForEvent(TaskStatus.CANCELED)).toEqual({
+      status: TaskStatus.CANCELED,
+      metadata: null,
+      nextRunAt: null,
+    });
+    expect(getTaskStatusUpdateDataForEvent(TaskStatus.READY)).toEqual({
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("cascades cancel to non-terminal PARENT children", async () => {
+    const taskEventCreate = vi.fn().mockResolvedValue({ id: "evt_child" });
+    const taskUpdateMany = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    const taskLinkFindMany = vi.fn().mockResolvedValue([
+      {
+        toTask: { id: "tsk_child_running", status: TaskStatus.RUNNING },
+      },
+      {
+        toTask: { id: "tsk_child_done", status: TaskStatus.COMPLETED },
+      },
+      {
+        toTask: { id: "tsk_child_ready", status: TaskStatus.READY },
+      },
+    ]);
+
+    await cascadeCancelNonTerminalParentChildren({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        taskEvent: { create: taskEventCreate },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      actorData: {
+        userId: "user_123",
+        coworkerId: null,
+        orchestratorId: null,
+      },
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "PARENT",
+        },
+      }),
+    );
+    expect(taskEventCreate).toHaveBeenCalledTimes(2);
+    expect(taskUpdateMany).toHaveBeenCalledTimes(2);
+    expect(taskUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "tsk_child_running", status: TaskStatus.RUNNING },
+        data: {
+          status: TaskStatus.CANCELED,
+          metadata: null,
+          nextRunAt: null,
+        },
+      }),
+    );
   });
 });
 

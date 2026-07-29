@@ -103,33 +103,38 @@ function getCloneTaskData(
   };
 }
 
-function clearTemplateSchedule(
+async function clearTemplateSchedule(
   tx: Prisma.TransactionClient,
   templateId: string,
-): Promise<unknown> {
-  return tx.task.update({
-    where: { id: templateId },
+): Promise<boolean> {
+  const updateResult = await tx.task.updateMany({
+    where: { id: templateId, status: TaskStatus.QUEUED },
     data: {
       status: TaskStatus.DRAFT,
       metadata: null,
       nextRunAt: null,
     },
   });
+
+  return updateResult.count === 1;
 }
 
 async function promoteOneTimeTask(
   tx: Prisma.TransactionClient,
   templateId: string,
   userId: string,
-): Promise<void> {
-  await tx.task.update({
-    where: { id: templateId },
+): Promise<boolean> {
+  const updateResult = await tx.task.updateMany({
+    where: { id: templateId, status: TaskStatus.QUEUED },
     data: {
       status: TaskStatus.READY,
       metadata: null,
       nextRunAt: null,
     },
   });
+  if (updateResult.count !== 1) {
+    return false;
+  }
 
   await tx.taskEvent.create({
     data: {
@@ -139,6 +144,20 @@ async function promoteOneTimeTask(
       userId,
     },
   });
+
+  return true;
+}
+
+async function isTemplateStillQueued(
+  tx: Prisma.TransactionClient,
+  templateId: string,
+): Promise<boolean> {
+  const template = await tx.task.findFirst({
+    where: { id: templateId, status: TaskStatus.QUEUED },
+    select: { id: true },
+  });
+
+  return template != null;
 }
 
 function getUpdatedRecurringMetadata(
@@ -242,15 +261,24 @@ async function processDueTask(
 
     const scheduleMetadata = parseTaskScheduleMetadata(template.metadata);
     if (!scheduleMetadata) {
-      await clearTemplateSchedule(tx, template.id);
+      const cleared = await clearTemplateSchedule(tx, template.id);
       return {
         outcome: "skipped",
-        publishEvents: [{ userId: template.ownerId, taskId: template.id }],
+        publishEvents: cleared
+          ? [{ userId: template.ownerId, taskId: template.id }]
+          : [],
       };
     }
 
     if (scheduleMetadata.mode === "once") {
-      await promoteOneTimeTask(tx, template.id, template.ownerId);
+      const promoted = await promoteOneTimeTask(
+        tx,
+        template.id,
+        template.ownerId,
+      );
+      if (!promoted) {
+        return { outcome: "skipped", publishEvents: [] };
+      }
       return {
         outcome: "promoted",
         publishEvents: [{ userId: template.ownerId, taskId: template.id }],
@@ -276,6 +304,10 @@ async function processDueTask(
         break;
       }
 
+      if (!(await isTemplateStillQueued(tx, template.id))) {
+        break;
+      }
+
       const cloneId = await cloneRecurringOccurrence(tx, template);
       clonedTaskIds.push(cloneId);
       clonesCreated += 1;
@@ -284,27 +316,27 @@ async function processDueTask(
       const computedNextRun = computeScheduleNextRun(metadata, nextRunAt);
 
       if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
-        await clearTemplateSchedule(tx, template.id);
+        const cleared = await clearTemplateSchedule(tx, template.id);
         return {
           outcome: clonesCreated > 0 ? "cloned" : "skipped",
           publishEvents: buildRecurringPublishEvents(
             template.ownerId,
             template.id,
             clonedTaskIds,
-            true,
+            cleared,
           ),
         };
       }
 
       if (!computedNextRun) {
-        await clearTemplateSchedule(tx, template.id);
+        const cleared = await clearTemplateSchedule(tx, template.id);
         return {
           outcome: clonesCreated > 0 ? "cloned" : "skipped",
           publishEvents: buildRecurringPublishEvents(
             template.ownerId,
             template.id,
             clonedTaskIds,
-            true,
+            cleared,
           ),
         };
       }
@@ -314,22 +346,35 @@ async function processDueTask(
 
     if (clonesCreated === 0) {
       if (isDueRunPastScheduleEnd(metadata, template.nextRunAt)) {
-        await clearTemplateSchedule(tx, template.id);
+        const cleared = await clearTemplateSchedule(tx, template.id);
         return {
           outcome: "skipped",
-          publishEvents: [{ userId: template.ownerId, taskId: template.id }],
+          publishEvents: cleared
+            ? [{ userId: template.ownerId, taskId: template.id }]
+            : [],
         };
       }
       return { outcome: "skipped", publishEvents: [] };
     }
 
-    await tx.task.update({
-      where: { id: template.id },
+    const updateResult = await tx.task.updateMany({
+      where: { id: template.id, status: TaskStatus.QUEUED },
       data: {
         metadata: JSON.stringify(metadata),
         nextRunAt,
       },
     });
+    if (updateResult.count !== 1) {
+      return {
+        outcome: clonesCreated > 0 ? "cloned" : "skipped",
+        publishEvents: buildRecurringPublishEvents(
+          template.ownerId,
+          template.id,
+          clonedTaskIds,
+          false,
+        ),
+      };
+    }
 
     return {
       outcome: "cloned",

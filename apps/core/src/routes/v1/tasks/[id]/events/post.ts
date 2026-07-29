@@ -33,6 +33,8 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
+  cascadeCancelNonTerminalParentChildren,
+  getTaskStatusUpdateDataForEvent,
   mapTaskEvent,
   taskEventApiInclude,
   validateStatusTransition,
@@ -573,10 +575,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (eventStatus != null) {
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
-            data: { status: eventStatus },
+            data: getTaskStatusUpdateDataForEvent(eventStatus),
           });
           if (updateResult.count !== 1) {
             throw conflict("Task status was changed by another request");
+          }
+
+          if (eventStatus === TaskStatus.CANCELED) {
+            await cascadeCancelNonTerminalParentChildren({
+              tx,
+              parentTaskId: taskId,
+              actorData,
+            });
           }
         }
 
