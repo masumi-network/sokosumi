@@ -63,8 +63,9 @@ export function canArchiveParkedTaskForViewer({
 
 /**
  * Any org-workspace collaborator may archive a scheduled task they do not own
- * (mirrors Core scheduled-archive membership gate). Parked (`GRANT_PENDING`)
- * stays on {@link canArchiveParkedTaskForViewer} (owner/admin only).
+ * (mirrors Core scheduled-archive active-workspace gate, same as cancel).
+ * Parked (`GRANT_PENDING`) stays on {@link canArchiveParkedTaskForViewer}
+ * (owner/admin only). Viewer only sees tasks in the active workspace.
  */
 export function canArchiveScheduledTaskForViewer({
   forceReadOnly,

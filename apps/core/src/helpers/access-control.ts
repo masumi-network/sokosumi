@@ -105,13 +105,18 @@ export async function requireMutableTaskOwnership(
 
 /**
  * Soft-archive access: task owner always; org OWNER/ADMIN for parked
- * (`GRANT_PENDING`); any org member for tasks with an active schedule.
+ * (`GRANT_PENDING`); for active schedules, any org-workspace member for a
+ * task in that workspace (same active-workspace gate as
+ * {@link requireTaskCancelAccess}). Coworker actors are out (route uses
+ * owner user context).
  */
 export async function requireTaskArchiveAccess(
-  userContext: UserContext,
+  vars: EnvVariables["Variables"],
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
+  const userContext = requireUserContext(vars.authContext);
+
   const owned = await tx.task.findFirst({
     where: {
       id: taskId,
@@ -156,15 +161,20 @@ export async function requireTaskArchiveAccess(
     throw notFound("Task not found");
   }
 
-  // Any org member of the task workspace's organization (not workspace-scoped
-  // like cancel, which requires the active workspace context).
-  await resolveMemberOrganizationById({
-    id: organizationId,
-    userId: userContext.userId,
+  // Match cancel: task must be in the active workspace; personal-workspace
+  // non-owners are denied.
+  const workspace = requireWorkspaceContext(vars.workspaceContext);
+  const workspaceTask = await requireTaskReadForWorkspace(
+    workspace,
+    taskId,
     tx,
-  });
+  );
 
-  return task;
+  if (workspace.organizationId !== null) {
+    return workspaceTask;
+  }
+
+  throw notFound("Task not found");
 }
 
 // -----------------------------------------------------------------------------

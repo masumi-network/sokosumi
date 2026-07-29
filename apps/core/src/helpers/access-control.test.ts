@@ -184,6 +184,24 @@ describe("requireMutableTaskOwnership", () => {
   });
 });
 
+function archiveAccessVars(
+  workspaceContext: WorkspaceContext | null = jobReadWorkspaceContext,
+  authContext: UserAuthenticationContext = userAuthContext,
+): EnvVariables["Variables"] {
+  return {
+    isAuthenticated: true,
+    authContext,
+    workspaceContext,
+  };
+}
+
+const scheduledTaskMetadata = JSON.stringify({
+  version: 1,
+  mode: "once",
+  scheduledAt: "2026-08-01T10:00:00.000Z",
+  runAt: "2026-08-01T10:00:00.000Z",
+});
+
 describe("requireTaskArchiveAccess", () => {
   beforeEach(() => {
     resolveMemberOrganizationByIdMock.mockReset();
@@ -198,7 +216,7 @@ describe("requireTaskArchiveAccess", () => {
     } as never);
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_123", tx),
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_123", tx),
     ).resolves.toMatchObject({ id: "tsk_123" });
   });
 
@@ -216,7 +234,7 @@ describe("requireTaskArchiveAccess", () => {
     resolveMemberOrganizationByIdMock.mockResolvedValue({ id: "org_123" });
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_parked", tx),
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_parked", tx),
     ).resolves.toMatchObject({ id: "tsk_parked" });
 
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
@@ -236,12 +254,7 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_parked_scheduled",
         status: TaskStatus.GRANT_PENDING,
         ownerId: "user_other",
-        metadata: JSON.stringify({
-          version: 1,
-          mode: "once",
-          scheduledAt: "2026-08-01T10:00:00.000Z",
-          runAt: "2026-08-01T10:00:00.000Z",
-        }),
+        metadata: scheduledTaskMetadata,
         nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
         workspace: { organizationId: "org_123" },
       } as never);
@@ -251,10 +264,10 @@ describe("requireTaskArchiveAccess", () => {
     );
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_parked_scheduled", tx),
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_parked_scheduled", tx),
     ).rejects.toThrow();
 
-    // Parked branch must win over scheduled any-member path.
+    // Parked branch must win over scheduled workspace-member path.
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "org_123",
@@ -271,48 +284,84 @@ describe("requireTaskArchiveAccess", () => {
       .mockResolvedValueOnce(null);
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_123", tx),
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_123", tx),
     ).rejects.toThrow("Task not found");
   });
 
-  it("allows any org member to archive scheduled tasks they do not own", async () => {
+  it("allows an org workspace member who does not own the scheduled task to archive", async () => {
     const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+    const scheduledTask = {
+      id: "tsk_scheduled",
+      status: TaskStatus.READY,
+      ownerId: "user_owner",
+      workspaceId,
+      metadata: scheduledTaskMetadata,
+      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
+      workspace: { organizationId: "org_123" },
+    };
+
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "tsk_scheduled",
-        status: TaskStatus.READY,
-        ownerId: "user_other",
-        metadata: JSON.stringify({
-          version: 1,
-          mode: "once",
-          scheduledAt: "2026-08-01T10:00:00.000Z",
-          runAt: "2026-08-01T10:00:00.000Z",
-        }),
-        nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
-        workspace: { organizationId: "org_123" },
-      } as never);
-
-    resolveMemberOrganizationByIdMock.mockResolvedValue({ id: "org_123" });
+      .mockResolvedValueOnce(scheduledTask as never)
+      .mockResolvedValueOnce(scheduledTask as never);
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_scheduled", tx),
+      requireTaskArchiveAccess(
+        archiveAccessVars(jobReadWorkspaceContext, memberAuthContext),
+        "tsk_scheduled",
+        tx,
+      ),
     ).resolves.toMatchObject({ id: "tsk_scheduled" });
 
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "org_123",
-        userId: "user_123",
-      }),
-    );
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.not.objectContaining({
-        allowedRoles: expect.anything(),
-      }),
-    );
+    expect(tx.task.findFirst).toHaveBeenNthCalledWith(3, {
+      where: {
+        id: "tsk_scheduled",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
-  it("rejects non-members for scheduled tasks they do not own", async () => {
+  it("rejects when scheduled task is in a different workspace than the active one", async () => {
+    const tx = createTransactionClient();
+    const otherWorkspaceId = "22222222-2222-7222-8222-222222222222";
+    const scheduledTask = {
+      id: "tsk_scheduled",
+      status: TaskStatus.READY,
+      ownerId: "user_owner",
+      workspaceId: otherWorkspaceId,
+      metadata: scheduledTaskMetadata,
+      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
+      workspace: { organizationId: "org_123" },
+    };
+
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(scheduledTask as never)
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_scheduled", tx),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).toHaveBeenNthCalledWith(3, {
+      where: {
+        id: "tsk_scheduled",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects scheduled archive when active workspace context is missing", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
@@ -320,18 +369,55 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_scheduled",
         status: TaskStatus.READY,
         ownerId: "user_other",
-        metadata: null,
+        metadata: scheduledTaskMetadata,
         nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
         workspace: { organizationId: "org_123" },
       } as never);
 
-    resolveMemberOrganizationByIdMock.mockRejectedValue(
-      new HTTPException(404, { message: "Organization not found" }),
-    );
+    await expect(
+      requireTaskArchiveAccess(archiveAccessVars(null), "tsk_scheduled", tx),
+    ).rejects.toThrow("Workspace is missing");
+
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a personal-workspace non-owner for scheduled archive", async () => {
+    const tx = createTransactionClient();
+    const personalWorkspace: WorkspaceContext = {
+      workspaceId,
+      userId: "user_member",
+      organizationId: null,
+    };
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: null,
+      role: "user",
+    };
+    const scheduledTask = {
+      id: "tsk_scheduled",
+      status: TaskStatus.READY,
+      ownerId: "user_owner",
+      workspaceId,
+      metadata: null,
+      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
+      workspace: { organizationId: "org_123" },
+    };
+
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(scheduledTask as never)
+      .mockResolvedValueOnce(scheduledTask as never);
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_scheduled", tx),
-    ).rejects.toThrow();
+      requireTaskArchiveAccess(
+        archiveAccessVars(personalWorkspace, memberAuthContext),
+        "tsk_scheduled",
+        tx,
+      ),
+    ).rejects.toThrow("Task not found");
+
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
   it("rejects org members for non-scheduled tasks they do not own", async () => {
@@ -348,7 +434,7 @@ describe("requireTaskArchiveAccess", () => {
       } as never);
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_plain", tx),
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_plain", tx),
     ).rejects.toThrow("Task not found");
 
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
@@ -368,7 +454,7 @@ describe("requireTaskArchiveAccess", () => {
       } as never);
 
     await expect(
-      requireTaskArchiveAccess(sessionUserContext, "tsk_personal", tx),
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_personal", tx),
     ).rejects.toThrow("Task not found");
 
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
