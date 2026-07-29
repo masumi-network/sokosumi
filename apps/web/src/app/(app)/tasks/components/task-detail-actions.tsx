@@ -486,6 +486,20 @@ export function TaskDetailActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            {canEdit ? (
+              <DropdownMenuItem asChild disabled={actionsDisabled}>
+                <Link
+                  href={`/tasks/${taskId}/edit`}
+                  className={
+                    actionsDisabled ? "pointer-events-none opacity-70" : ""
+                  }
+                >
+                  <Pencil className="size-4" aria-hidden />
+                  {labels.edit}
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+
             {statusActions.map((action) => {
               const StatusIcon = action.requiresComment
                 ? RotateCcw
@@ -508,23 +522,9 @@ export function TaskDetailActions({
               );
             })}
 
-            {statusActions.length > 0 &&
-            (canEdit || canManageRelations || canMove) ? (
+            {(canEdit || statusActions.length > 0) &&
+            (canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
-            ) : null}
-
-            {canEdit ? (
-              <DropdownMenuItem asChild disabled={actionsDisabled}>
-                <Link
-                  href={`/tasks/${taskId}/edit`}
-                  className={
-                    actionsDisabled ? "pointer-events-none opacity-70" : ""
-                  }
-                >
-                  <Pencil className="size-4" aria-hidden />
-                  {labels.edit}
-                </Link>
-              </DropdownMenuItem>
             ) : null}
 
             {canManageRelations ? (
@@ -991,6 +991,7 @@ function getTaskStatusActions(
   }
 
   if (
+    status === TaskStatus.QUEUED ||
     status === TaskStatus.INPUT_REQUIRED ||
     status === TaskStatus.APPROVAL_REQUIRED ||
     status === TaskStatus.AUTHENTICATION_REQUIRED ||

@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -14,7 +14,7 @@ import {
   taskEventApiInclude,
 } from "@/types/task";
 
-import { unprocessableEntity } from "./error";
+import { conflict, unprocessableEntity } from "./error";
 import {
   coworkerSummaryFromLoadedRelation,
   orchestratorSummaryFromLoadedRelation,
@@ -233,7 +233,11 @@ function getAllowedTransitions(
       TaskStatus.CANCELED,
       TaskStatus.QUEUED,
     ],
-    [TaskStatus.QUEUED]: [TaskStatus.DRAFT, TaskStatus.READY],
+    [TaskStatus.QUEUED]: [
+      TaskStatus.DRAFT,
+      TaskStatus.READY,
+      TaskStatus.CANCELED,
+    ],
     [TaskStatus.READY]: [
       TaskStatus.DRAFT,
       TaskStatus.CANCELED,
@@ -256,6 +260,104 @@ function getAllowedTransitions(
     // Users may reopen CANCELED → READY with a required comment (SOK-631).
     [TaskStatus.CANCELED]: [TaskStatus.READY],
   };
+}
+
+export const TERMINAL_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+  TaskStatus.CANCELED,
+]);
+
+export function isTerminalTaskStatus(status: TaskStatus): boolean {
+  return TERMINAL_TASK_STATUSES.has(status);
+}
+
+export function getTaskStatusUpdateDataForEvent(status: TaskStatus): {
+  status: TaskStatus;
+  metadata?: null;
+  nextRunAt?: null;
+} {
+  if (status === TaskStatus.CANCELED) {
+    return {
+      status,
+      metadata: null,
+      nextRunAt: null,
+    };
+  }
+
+  return { status };
+}
+
+interface TaskEventActorData {
+  userId: string | null;
+  coworkerId: string | null;
+  orchestratorId: string | null;
+}
+
+interface CascadeCancelParentChildrenParams {
+  tx: Prisma.TransactionClient;
+  parentTaskId: string;
+  actorData: TaskEventActorData;
+}
+
+export interface CascadedCancelChild {
+  taskId: string;
+  userId: string;
+}
+
+export async function cascadeCancelNonTerminalParentChildren({
+  tx,
+  parentTaskId,
+  actorData,
+}: CascadeCancelParentChildrenParams): Promise<CascadedCancelChild[]> {
+  const parentLinks = await tx.taskLink.findMany({
+    where: {
+      fromTaskId: parentTaskId,
+      type: TaskLinkType.PARENT,
+    },
+    select: {
+      toTask: {
+        select: {
+          id: true,
+          status: true,
+          ownerId: true,
+        },
+      },
+    },
+  });
+
+  const canceledChildren: CascadedCancelChild[] = [];
+
+  for (const link of parentLinks) {
+    const child = link.toTask;
+    if (isTerminalTaskStatus(child.status)) {
+      continue;
+    }
+
+    await tx.taskEvent.create({
+      data: {
+        taskId: child.id,
+        status: TaskStatus.CANCELED,
+        channel: Channel.SOKOSUMI,
+        ...actorData,
+      },
+    });
+
+    const childUpdate = await tx.task.updateMany({
+      where: { id: child.id, status: child.status },
+      data: getTaskStatusUpdateDataForEvent(TaskStatus.CANCELED),
+    });
+    if (childUpdate.count !== 1) {
+      throw conflict("Task status was changed by another request");
+    }
+
+    canceledChildren.push({
+      taskId: child.id,
+      userId: child.ownerId,
+    });
+  }
+
+  return canceledChildren;
 }
 
 export function validateStatusTransition(

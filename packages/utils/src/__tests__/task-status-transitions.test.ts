@@ -13,6 +13,7 @@ describe("canUserTransitionTaskStatus", () => {
   it.each([
     ["DRAFT", "QUEUED"],
     ["QUEUED", "READY"],
+    ["QUEUED", "CANCELED"],
     ["READY", "QUEUED"],
     ["RUNNING", "CANCELED"],
     ["AWAITING_EXTERNAL", "CANCELED"],

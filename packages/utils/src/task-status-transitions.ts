@@ -28,7 +28,7 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   readonly UserTransitionTaskStatus[]
 > = {
   DRAFT: ["READY", "CANCELED", "QUEUED"],
-  QUEUED: ["DRAFT", "READY"],
+  QUEUED: ["DRAFT", "READY", "CANCELED"],
   READY: ["DRAFT", "CANCELED", "QUEUED"],
   GRANT_PENDING: [],
   INPUT_REQUIRED: ["CANCELED"],
