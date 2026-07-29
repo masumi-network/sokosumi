@@ -66,11 +66,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("You cannot leave a direct room.");
       }
 
+      // Serialize concurrent leaves so two "last but one" members cannot both
+      // exit under READ COMMITTED and leave an empty roster. Matches the
+      // FOR UPDATE pattern used on reaction toggles and coworker warmup.
+      const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "chat_room"
+        WHERE "id" = ${existing.id}::uuid
+        FOR UPDATE
+      `;
+      if (lockedRooms.length === 0) {
+        throw badRequest("Room could not be left.");
+      }
+
+      // Re-count under the lock — the earlier include snapshot can be stale
+      // once a concurrent leave has already deleted its row.
+      const remainingUserMemberCount = await tx.chatRoomUserMember.count({
+        where: {
+          roomId: existing.id,
+          userId: { not: userContext.userId },
+        },
+      });
       // Nobody left to archive it afterwards: the room would linger with an
       // empty roster, invisible to every user yet still holding its slug.
-      const remainingUserMemberCount = existing.userMembers.filter(
-        (member) => member.user.id !== userContext.userId,
-      ).length;
+      // Last member can archive instead (see archive/post.ts).
       if (remainingUserMemberCount === 0) {
         throw badRequest(
           "You are the last member of this room. Archive it instead of leaving.",

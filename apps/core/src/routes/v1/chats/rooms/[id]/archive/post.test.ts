@@ -36,6 +36,18 @@ const tx = {
   member: { findUnique: memberFindUniqueMock },
 };
 
+function member(id: string) {
+  return {
+    user: {
+      id,
+      name: id,
+      email: `${id}@example.com`,
+      image: null,
+      sessions: [],
+    },
+  };
+}
+
 function createApp(userId: string) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>({
     defaultHook: defaultValidationHook,
@@ -59,6 +71,7 @@ function room(
     kind?: string;
     createdByUserId?: string;
     organizationId?: string | null;
+    memberIds?: string[];
   } = {},
 ) {
   return {
@@ -76,7 +89,9 @@ function room(
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     archivedAt: null,
-    userMembers: [],
+    // Default: caller (CREATOR_ID via archive()) plus another member so the
+    // "last human" escape hatch does not fire unless a test opts into it.
+    userMembers: (overrides.memberIds ?? [CREATOR_ID, OTHER_ID]).map(member),
     coworkerMembers: [],
   };
 }
@@ -134,12 +149,31 @@ describe("POST /chats/rooms/{id}/archive", () => {
     },
   );
 
-  it("rejects a plain member who is not the creator", async () => {
-    roomFindFirstMock.mockResolvedValue(room({ createdByUserId: OTHER_ID }));
+  it("rejects a plain member who is not the creator when others remain", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      room({
+        createdByUserId: OTHER_ID,
+        memberIds: [CREATOR_ID, OTHER_ID, "user_third"],
+      }),
+    );
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
     expect((await archive()).status).toBe(403);
     expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("lets the last human member archive even without elevated role", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      room({ createdByUserId: OTHER_ID, memberIds: [CREATOR_ID] }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+    roomUpdateMock.mockResolvedValue({
+      id: ROOM_ID,
+      archivedAt: new Date("2026-02-02T10:00:00.000Z"),
+    });
+
+    expect((await archive()).status).toBe(200);
+    expect(roomUpdateMock).toHaveBeenCalled();
   });
 
   it("refuses to archive a direct room", async () => {

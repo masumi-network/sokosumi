@@ -254,8 +254,8 @@ export function EditChannelDialog({
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
-  /** Creator or organization owner/admin — archiving hides the room for
-   * everyone, so it takes the same authority as rewriting the roster. */
+  /** Creator, organization owner/admin, or last human member — archiving
+   * hides the room for everyone; last member is the leave escape hatch. */
   canArchive: boolean;
   /** Any member can leave, except the last one: nobody would be left to
    * archive the room afterwards. */
@@ -445,8 +445,8 @@ export function EditChannelDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {pendingKind === "archive"
-                ? tActions("archiveConfirmTitle")
-                : tActions("leaveConfirmTitle")}
+                ? tActions("archiveConfirmTitle", { name: channel.name })
+                : tActions("leaveConfirmTitle", { name: channel.name })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingKind === "archive"

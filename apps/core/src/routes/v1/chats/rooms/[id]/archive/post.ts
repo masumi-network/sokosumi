@@ -30,7 +30,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/archive",
     description:
-      "Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. Only the room creator or an organization owner or admin can archive, and direct rooms cannot be archived.",
+      "Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. The room creator, an organization owner or admin, or the last remaining human member may archive. Direct rooms cannot be archived.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -69,11 +69,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (!existing.organizationId) {
-        throw badRequest("Channel rooms require an organization.");
+        throw badRequest("Organization rooms require an organization.");
       }
 
-      // Archiving hides the room for everyone, so it needs the same authority
-      // as rewriting the roster rather than mere membership.
+      // Archiving hides the room for everyone, so elevated authority is the
+      // default. The last human member is also allowed: leave refuses to empty
+      // the roster and points here, so without this escape hatch a plain
+      // member who outlasted the creator would be stuck with no exit.
+      const isLastHumanMember =
+        existing.userMembers.filter(
+          (member) => member.user.id !== userContext.userId,
+        ).length === 0;
+
       const { role } = await resolveMemberOrganizationById({
         id: existing.organizationId,
         userId: userContext.userId,
@@ -82,11 +89,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const canManageRoom =
         existing.createdByUserId === userContext.userId ||
         role === MemberRole.OWNER ||
-        role === MemberRole.ADMIN;
+        role === MemberRole.ADMIN ||
+        isLastHumanMember;
 
       if (!canManageRoom) {
         throw forbidden(
-          "Only the room creator or an organization owner or admin can archive this room.",
+          "Only the room creator, an organization owner or admin, or the last remaining member can archive this room.",
         );
       }
 

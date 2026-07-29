@@ -9,15 +9,19 @@ import mountLeaveChatRoom from "./delete";
 
 const {
   roomFindFirstMock,
+  userMemberCountMock,
   userMemberDeleteManyMock,
   readStateDeleteManyMock,
+  queryRawMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
+  userMemberCountMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
+  queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -33,10 +37,14 @@ const OTHER_ID = "user_other";
 
 const tx = {
   chatRoom: { findFirst: roomFindFirstMock },
-  chatRoomUserMember: { deleteMany: userMemberDeleteManyMock },
+  chatRoomUserMember: {
+    count: userMemberCountMock,
+    deleteMany: userMemberDeleteManyMock,
+  },
   chatRoomReadState: { deleteMany: readStateDeleteManyMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
+  $queryRaw: queryRawMock,
 };
 
 function createApp() {
@@ -96,6 +104,8 @@ beforeEach(() => {
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
+  queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  userMemberCountMock.mockResolvedValue(1);
   userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
   readStateDeleteManyMock.mockResolvedValue({ count: 1 });
 });
@@ -103,6 +113,7 @@ beforeEach(() => {
 describe("DELETE /chats/rooms/{id}/members/me", () => {
   it("removes only the caller's membership and read marker", async () => {
     roomFindFirstMock.mockResolvedValue(room());
+    userMemberCountMock.mockResolvedValue(1);
 
     const response = await leave();
 
@@ -113,6 +124,10 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
       remainingUserMemberCount: 1,
     });
 
+    expect(queryRawMock).toHaveBeenCalled();
+    expect(userMemberCountMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, userId: { not: SELF_ID } },
+    });
     expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
       where: { roomId: ROOM_ID, userId: SELF_ID },
     });
@@ -126,6 +141,7 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
       room({ memberIds: [SELF_ID, OTHER_ID, "user_third"] }),
     );
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
+    userMemberCountMock.mockResolvedValue(2);
 
     const response = await leave();
 
@@ -135,6 +151,7 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
 
   it("refuses to let the last member leave", async () => {
     roomFindFirstMock.mockResolvedValue(room({ memberIds: [SELF_ID] }));
+    userMemberCountMock.mockResolvedValue(0);
 
     expect((await leave()).status).toBe(400);
     expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
@@ -145,6 +162,7 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     roomFindFirstMock.mockResolvedValue(room({ kind: "direct" }));
 
     expect((await leave()).status).toBe(400);
+    expect(queryRawMock).not.toHaveBeenCalled();
     expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
   });
 

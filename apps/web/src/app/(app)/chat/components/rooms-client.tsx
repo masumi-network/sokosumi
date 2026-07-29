@@ -211,14 +211,15 @@ export function RoomsClient({
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;
-  // Archiving hides the room for everyone, so it takes the same authority as
-  // rewriting the roster: creator, or organization owner/admin.
+  // Archiving hides the room for everyone: creator, org owner/admin, or the
+  // last human member (leave refuses to empty the roster and points here).
   const canArchiveSelectedRoom = Boolean(
     selectedRoom &&
       !isDirectRoom &&
       (selectedRoom.createdByUserId === currentUserId ||
         currentMemberRole === "owner" ||
-        currentMemberRole === "admin"),
+        currentMemberRole === "admin" ||
+        selectedRoom.userMembers.length === 1),
   );
   // Any member can leave, but not the last one — nobody would be left to
   // archive the room afterwards, so Core refuses it too.
