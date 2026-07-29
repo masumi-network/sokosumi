@@ -4249,6 +4249,17 @@ export const ChatRoomKindSchema = {
     example: 'channel'
 } as const;
 
+export const ChatRoomListStatusSchema = {
+    type: 'string',
+    enum: [
+        'active',
+        'archived'
+    ],
+    default: 'active',
+    description: 'Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.',
+    example: 'active'
+} as const;
+
 export const ChatRoomSuccessResponseSchema = {
     type: 'object',
     properties: {

@@ -451,6 +451,35 @@ export async function requireChatRoomUserAccess(
   return room;
 }
 
+/**
+ * Membership-scoped lookup for soft-archived rooms. Active-room helpers filter
+ * `archivedAt: null`, so restore / archived list cannot reuse them.
+ */
+export async function requireArchivedChatRoomUserAccess(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomWithMembers> {
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      archivedAt: { not: null },
+      userMembers: {
+        some: { userId },
+      },
+    },
+    include: chatRoomInclude,
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
+
+  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+
+  return room;
+}
+
 // Write paths only need the room's identity plus the coworker roster used
 // for mention dispatch. Hydrating the full include here would pull every user
 // member, their user rows, and a session-presence lookup into the write

@@ -1172,6 +1172,16 @@ export const ChatRoomKind = { CHANNEL: 'channel', DIRECT: 'direct' } as const;
  */
 export type ChatRoomKind = typeof ChatRoomKind[keyof typeof ChatRoomKind];
 
+/**
+ * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.
+ */
+export const ChatRoomListStatus = { ACTIVE: 'active', ARCHIVED: 'archived' } as const;
+
+/**
+ * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.
+ */
+export type ChatRoomListStatus = typeof ChatRoomListStatus[keyof typeof ChatRoomListStatus];
+
 export type ChatRoomSuccessResponse = {
     data: ChatRoom;
     meta: {
@@ -8627,6 +8637,10 @@ export type GetChatsRoomsData = {
          * Filter rooms by kind. Omit to list every room.
          */
         kind?: ChatRoomKind;
+        /**
+         * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.
+         */
+        status?: ChatRoomListStatus;
     };
     url: '/chats/rooms';
 };
@@ -9652,6 +9666,106 @@ export type PostChatsRoomsByIdArchiveResponses = {
 
 export type PostChatsRoomsByIdArchiveResponse = PostChatsRoomsByIdArchiveResponses[keyof PostChatsRoomsByIdArchiveResponses];
 
+export type PostChatsRoomsByIdRestoreData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/restore';
+};
+
+export type PostChatsRoomsByIdRestoreErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdRestoreError = PostChatsRoomsByIdRestoreErrors[keyof PostChatsRoomsByIdRestoreErrors];
+
+export type PostChatsRoomsByIdRestoreResponses = {
+    /**
+     * Room restored
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdRestoreResponse = PostChatsRoomsByIdRestoreResponses[keyof PostChatsRoomsByIdRestoreResponses];
+
 export type DeleteChatsRoomsByIdMembersMeData = {
     body?: never;
     headers?: {
@@ -9694,20 +9808,6 @@ export type DeleteChatsRoomsByIdMembersMeErrors = {
      * Unauthorized
      */
     401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
         error: string;
         message: string;
         kind?: string;

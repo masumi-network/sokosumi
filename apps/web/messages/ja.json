@@ -4517,9 +4517,11 @@
         "leaveConfirm": "退出する",
         "leaveSuccess": "{name} から退出しました。",
         "archiveConfirmTitle": "{name} をアーカイブしますか？",
-        "archiveConfirmDescription": "組織の全員からこのチャンネルが見えなくなります。メッセージは保持されますが、ここから復元することはできません。",
+        "archiveConfirmDescription": "このチャンネルは組織の全員から非表示になります。メッセージは残ります。サイドバーのアーカイブから後で復元できます。",
         "archiveConfirm": "アーカイブする",
-        "archiveSuccess": "{name} をアーカイブしました。"
+        "archiveSuccess": "{name} をアーカイブしました。",
+        "restore": "復元",
+        "restoreSuccess": "{name} を復元しました。"
       },
       "Metadata": {
         "title": "Channels",
@@ -4627,7 +4629,8 @@
       },
       "loadOlder": "以前のメッセージを読み込む",
       "loadingOlder": "以前のメッセージを読み込み中…",
-      "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。"
+      "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。",
+      "archivedChannels": "アーカイブ"
     }
   },
   "Share": {

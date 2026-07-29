@@ -4517,9 +4517,11 @@
         "leaveConfirm": "退出频道",
         "leaveSuccess": "你已退出 {name}。",
         "archiveConfirmTitle": "归档 {name}？",
-        "archiveConfirmDescription": "该频道将对组织中的所有人隐藏。消息会被保留，但无法在此处恢复。",
+        "archiveConfirmDescription": "该频道将对组织中所有人隐藏。消息会保留。之后可在侧边栏的“已归档”中恢复。",
         "archiveConfirm": "归档频道",
-        "archiveSuccess": "{name} 已归档。"
+        "archiveSuccess": "{name} 已归档。",
+        "restore": "恢复",
+        "restoreSuccess": "已恢复 {name}。"
       },
       "Metadata": {
         "title": "Channels",
@@ -4627,7 +4629,8 @@
       },
       "loadOlder": "加载更早的消息",
       "loadingOlder": "正在加载更早的消息…",
-      "roomUnavailable": "此聊天不可用，或你已没有访问权限。"
+      "roomUnavailable": "此聊天不可用，或你已没有访问权限。",
+      "archivedChannels": "已归档"
     }
   },
   "Share": {

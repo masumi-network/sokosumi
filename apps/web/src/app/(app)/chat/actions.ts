@@ -316,6 +316,21 @@ export async function archiveRoomAction(
   }
 }
 
+export async function restoreRoomAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoom>> {
+  try {
+    const restored = await chatRoomService.restoreRoom(roomId);
+    revalidatePath("/chat");
+    return { ok: true, data: restored };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not restore channel."),
+    };
+  }
+}
+
 export async function leaveRoomAction(
   roomId: string,
 ): Promise<RoomActionResult<{ id: string }>> {

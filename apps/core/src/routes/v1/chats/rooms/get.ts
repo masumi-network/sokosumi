@@ -17,7 +17,11 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomKindSchema, chatRoomSchema } from "@/schemas/chat-room.schema";
+import {
+  chatRoomKindSchema,
+  chatRoomListStatusSchema,
+  chatRoomSchema,
+} from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import {
@@ -40,6 +44,12 @@ const querySchema = cursorPaginationQuerySchema.extend({
     description: "Filter rooms by kind. Omit to list every room.",
     example: "channel",
   }),
+  status: chatRoomListStatusSchema.default("active").openapi({
+    param: { name: "status", in: "query" },
+    description:
+      "Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.",
+    example: "active",
+  }),
   limit: z.coerce
     .number()
     .int()
@@ -58,7 +68,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null).",
+      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms for restore.",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -81,7 +91,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { kind } = queryParams;
+    const { kind, status } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
     const organizationId = userContext.organizationId;
@@ -99,8 +109,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Strict org match: active org → only that org's channels/directs.
         // No active org → personal coworker directs only. A kind=channel filter
         // with no org cannot match anything — return an empty page instead of
-        // silently overriding the filter to directs.
-        if (!organizationId && kind === "channel") {
+        // silently overriding the filter to directs. Archived rooms are always
+        // org channels, so personal workspace returns empty for status=archived.
+        if (
+          (!organizationId && kind === "channel") ||
+          (!organizationId && status === "archived")
+        ) {
           return {
             rooms: [],
             unreadCounts: new Map<string, number>(),
@@ -111,7 +125,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         const where = {
-          archivedAt: null,
+          archivedAt: status === "archived" ? { not: null } : null,
           ...(kind ? { kind } : {}),
           userMembers: {
             some: { userId: userContext.userId },
