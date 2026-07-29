@@ -50,8 +50,6 @@ interface OrganizationChatListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   currentUserId: string;
-  /** Active organization membership role; used to gate restore. */
-  currentMemberRole: string | null;
   hasOrganization: boolean;
 }
 
@@ -251,7 +249,6 @@ export function OrganizationChatList({
   rooms,
   archivedRooms,
   currentUserId,
-  currentMemberRole,
   hasOrganization,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
@@ -436,17 +433,10 @@ export function OrganizationChatList({
   }, [roomRows]);
 
   const sortedArchivedChannels = useMemo(() => {
-    const canManageAnyArchived =
-      currentMemberRole === "owner" || currentMemberRole === "admin";
-    return [...archivedRows]
-      .filter(
-        (room) =>
-          canManageAnyArchived || room.createdByUserId === currentUserId,
-      )
-      .sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-      );
-  }, [archivedRows, currentMemberRole, currentUserId]);
+    return [...archivedRows].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+  }, [archivedRows]);
 
   return (
     <SidebarGroup className="w-full">

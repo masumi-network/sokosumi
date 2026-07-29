@@ -377,7 +377,7 @@ export const getCategories = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms for restore.
+ * List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms the caller may restore (creator or organization owner/admin).
  */
 export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsData, ThrowOnError>): RequestResult<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsResponseTransformer,
@@ -456,7 +456,7 @@ export const postChatsRoomsByIdArchive = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members and frees its slug for normal use again. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.
+ * Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members while keeping its existing slug. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.
  */
 export const postChatsRoomsByIdRestore = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdRestoreData, ThrowOnError>): RequestResult<PostChatsRoomsByIdRestoreResponses, PostChatsRoomsByIdRestoreErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdRestoreResponses, PostChatsRoomsByIdRestoreErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdRestoreResponseTransformer,

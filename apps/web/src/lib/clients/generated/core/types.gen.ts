@@ -1173,12 +1173,12 @@ export const ChatRoomKind = { CHANNEL: 'channel', DIRECT: 'direct' } as const;
 export type ChatRoomKind = typeof ChatRoomKind[keyof typeof ChatRoomKind];
 
 /**
- * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.
+ * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).
  */
 export const ChatRoomListStatus = { ACTIVE: 'active', ARCHIVED: 'archived' } as const;
 
 /**
- * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.
+ * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).
  */
 export type ChatRoomListStatus = typeof ChatRoomListStatus[keyof typeof ChatRoomListStatus];
 
@@ -1268,7 +1268,7 @@ export type ArchivedChatRoom = {
 export type LeftChatRoom = {
     id: string;
     /**
-     * Human members left in the room after the caller leaves. Always at least one: the final member has to archive instead.
+     * Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.
      */
     remainingUserMemberCount: number;
 };
@@ -8638,7 +8638,7 @@ export type GetChatsRoomsData = {
          */
         kind?: ChatRoomKind;
         /**
-         * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.
+         * Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).
          */
         status?: ChatRoomListStatus;
     };

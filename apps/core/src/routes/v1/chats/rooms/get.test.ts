@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -59,13 +60,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
-  memberFindUniqueMock.mockResolvedValue({ role: "member" });
+  memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
 });
 
 describe("GET /chats/rooms", () => {
-  it("lists archived membership rooms with archivedAt not null", async () => {
+  it("lists archived rooms the plain member created", async () => {
     const response = await createApp(ORG_ID).request("/?status=archived");
 
     expect(response.status).toBe(200);
@@ -74,6 +75,7 @@ describe("GET /chats/rooms", () => {
         where: expect.objectContaining({
           archivedAt: { not: null },
           organizationId: ORG_ID,
+          createdByUserId: USER_ID,
           userMembers: { some: { userId: USER_ID } },
         }),
       }),
@@ -81,10 +83,35 @@ describe("GET /chats/rooms", () => {
     expect(roomCountMock).toHaveBeenCalledWith({
       where: expect.objectContaining({
         archivedAt: { not: null },
+        createdByUserId: USER_ID,
         organizationId: ORG_ID,
       }),
     });
   });
+
+  it.each([
+    ["admin", MemberRole.ADMIN],
+    ["owner", MemberRole.OWNER],
+  ])(
+    "lists all archived membership rooms for an organization %s",
+    async (_label, role) => {
+      memberFindUniqueMock.mockResolvedValue({ role });
+
+      const response = await createApp(ORG_ID).request("/?status=archived");
+
+      expect(response.status).toBe(200);
+      const where = roomFindManyMock.mock.calls[0]?.[0]?.where as Record<
+        string,
+        unknown
+      >;
+      expect(where).toMatchObject({
+        archivedAt: { not: null },
+        organizationId: ORG_ID,
+        userMembers: { some: { userId: USER_ID } },
+      });
+      expect(where).not.toHaveProperty("createdByUserId");
+    },
+  );
 
   it("returns an empty page for archived status with no active organization", async () => {
     const response = await createApp(null).request("/?status=archived");
@@ -96,17 +123,18 @@ describe("GET /chats/rooms", () => {
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("defaults to active rooms (archivedAt null)", async () => {
+  it("defaults to active rooms (archivedAt null) without creator filter", async () => {
     const response = await createApp(ORG_ID).request("/");
 
     expect(response.status).toBe(200);
-    expect(roomFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          archivedAt: null,
-          organizationId: ORG_ID,
-        }),
-      }),
-    );
+    const where = roomFindManyMock.mock.calls[0]?.[0]?.where as Record<
+      string,
+      unknown
+    >;
+    expect(where).toMatchObject({
+      archivedAt: null,
+      organizationId: ORG_ID,
+    });
+    expect(where).not.toHaveProperty("createdByUserId");
   });
 });

@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { MemberRole } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import {
@@ -47,7 +48,7 @@ const querySchema = cursorPaginationQuerySchema.extend({
   status: chatRoomListStatusSchema.default("active").openapi({
     param: { name: "status", in: "query" },
     description:
-      "Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller still belongs to so they can restore.",
+      "Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).",
     example: "active",
   }),
   limit: z.coerce
@@ -68,7 +69,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms for restore.",
+      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms the caller may restore (creator or organization owner/admin).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -98,12 +99,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { rooms, unreadCounts, lastMessageAts, count, hasMore } =
       await prisma.$transaction(async (tx) => {
+        let organizationRole: string | null = null;
         if (organizationId) {
-          await resolveMemberOrganizationById({
+          const membership = await resolveMemberOrganizationById({
             id: organizationId,
             userId: userContext.userId,
             tx,
           });
+          organizationRole = membership.role;
         }
 
         // Strict org match: active org → only that org's channels/directs.
@@ -124,12 +127,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           };
         }
 
+        // Archived list is for restore: same gate as archive/restore endpoints.
+        // Owners/admins see every archived room they still belong to; everyone
+        // else only rooms they created. Keep the filter in SQL so cursor pages
+        // and counts stay honest.
+        const canManageAnyArchived =
+          organizationRole === MemberRole.OWNER ||
+          organizationRole === MemberRole.ADMIN;
+        const archivedLifecycleWhere =
+          status === "archived" && !canManageAnyArchived
+            ? { createdByUserId: userContext.userId }
+            : {};
+
         const where = {
           archivedAt: status === "archived" ? { not: null } : null,
           ...(kind ? { kind } : {}),
           userMembers: {
             some: { userId: userContext.userId },
           },
+          ...archivedLifecycleWhere,
           ...(organizationId
             ? { organizationId }
             : {
