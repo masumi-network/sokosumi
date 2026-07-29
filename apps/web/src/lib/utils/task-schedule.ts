@@ -275,13 +275,6 @@ export function isValidCronExpression(expr: string, timezone: string): boolean {
   }
 }
 
-export function hasActiveSchedule(
-  metadata: string | null | undefined,
-  nextRunAt: Date | null | undefined,
-): boolean {
-  return Boolean(parseTaskScheduleMetadata(metadata) || nextRunAt);
-}
-
 function normalizeScheduleApiBodyValue(value: unknown): unknown {
   if (value instanceof Date) {
     return value.toISOString();

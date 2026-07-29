@@ -604,7 +604,7 @@ describe("TaskDetailActions", () => {
     },
   );
 
-  it("shows edit for queued tasks", async () => {
+  it("shows edit and cancel for queued tasks", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.QUEUED,
@@ -612,7 +612,36 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
-    expect(screen.getByRole("link", { name: labels.edit })).toBeInTheDocument();
+    const edit = screen.getByRole("link", { name: labels.edit });
+    const cancel = screen.getByRole("menuitem", { name: labels.cancel });
+    expect(edit).toBeInTheDocument();
+    expect(cancel).toBeInTheDocument();
+
+    // Edit above Cancel in the overflow menu
+    expect(
+      edit.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("sets task status to canceled when cancel is chosen for a queued task", async () => {
+    const user = userEvent.setup();
+    const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
+    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+
+    renderActions({
+      status: TaskStatus.QUEUED,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: labels.cancel }));
+
+    await waitFor(() => {
+      expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.CANCELED,
+      });
+    });
   });
 
   it("hides archive while the coworker is running", async () => {
@@ -695,6 +724,67 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
+  it("shows archive for org member on a scheduled task they do not own", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.READY,
+      isReadOnly: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
+  it("hides archive for plain org member on grant-pending scheduled task", async () => {
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      isReadOnly: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+  });
+
+  it("shows cancel and archive for org member on a queued scheduled task they do not own", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.QUEUED,
+      isReadOnly: true,
+      canCancel: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: labels.archive }),
     ).toBeInTheDocument();

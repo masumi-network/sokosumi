@@ -207,6 +207,7 @@ export {
   TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
+export { hasActiveTaskSchedule } from "./task-schedule.js";
 export {
   canUserTransitionTaskStatus,
   type UserTransitionTaskStatus,
