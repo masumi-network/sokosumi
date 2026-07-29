@@ -2324,6 +2324,43 @@ describe("Hermes route contracts", () => {
     );
   });
 
+  it("resolves member organization billing plans concurrently", async () => {
+    // Multi-org coverage must not await each org serially — chat/provision
+    // hit this path on every gated call. Concurrent max in-flight count
+    // proves the parallel fan-out (sequential loop stays at 1).
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([
+      { organizationId: "org_a" },
+      { organizationId: "org_b" },
+    ]);
+
+    let inFlight = 0;
+    let maxInFlight = 0;
+    resolveOrganizationBillingPlanMock.mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      inFlight -= 1;
+      return {
+        mode: "self_serve" as const,
+        plan: "starter",
+        purchasedSeats: 1,
+        subscriptionId: "sub_starter",
+        cancelAtPeriodEnd: false,
+        periodEnd: null,
+      };
+    });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(403);
+    expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledTimes(2);
+    expect(maxInFlight).toBeGreaterThanOrEqual(2);
+  });
+
   it("provisions when a member organization has an active enterprise contract", async () => {
     memberFindManyMock.mockResolvedValue([{ organizationId: "org_ent" }]);
     resolveActiveSubscriptionMock.mockResolvedValue(null);

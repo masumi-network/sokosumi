@@ -2085,27 +2085,32 @@ async function userHasAssistantPlanCoverage(userId: string): Promise<boolean> {
   // Org memberships via the canonical billing-plan resolver (enterprise
   // contract first, then self-serve Stripe). Enterprise orgs often have no
   // subscription row at all — the old Stripe-only loop missed them.
+  // Resolve orgs in parallel: this runs on every gated chat/provision call
+  // and sequential awaits scaled with membership count (SOK-661). Matches
+  // web's `hasAssistantPlanCoverage` fan-out.
   const memberships = await prisma.member.findMany({
     where: { userId },
     select: { organizationId: true },
   });
-  for (const { organizationId } of memberships) {
-    const billingPlan = await resolveOrganizationBillingPlan(
-      organizationId,
-      prisma,
-    );
+  if (memberships.length === 0) return false;
+
+  const billingPlans = await Promise.all(
+    memberships.map(({ organizationId }) =>
+      resolveOrganizationBillingPlan(organizationId, prisma),
+    ),
+  );
+
+  return billingPlans.some((billingPlan) => {
     // Match the canonical coverage checks (organization-subscription-auth,
     // seat service): an "active" contract past its commercial term is not
     // consumable and must not grant assistant access.
     if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable)
       return true;
-    if (
+    return (
       billingPlan.mode === "self_serve" &&
       planUnlocksPersonalAssistant(billingPlan.plan)
-    )
-      return true;
-  }
-  return false;
+    );
+  });
 }
 
 /**
