@@ -147,10 +147,22 @@ describe("GET /chats/rooms", () => {
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
   });
 
+  it("returns an empty page for kind=channel with no active organization", async () => {
+    const response = await createApp(null).request("/?kind=channel");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([]);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(roomFindManyMock).not.toHaveBeenCalled();
+    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("defaults to active rooms (archivedAt null) without creator filter", async () => {
     const response = await createApp(ORG_ID).request("/");
 
     expect(response.status).toBe(200);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
     const where = roomFindManyMock.mock.calls[0]?.[0]?.where as Record<
       string,
       unknown
