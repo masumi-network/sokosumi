@@ -991,6 +991,7 @@ function getTaskStatusActions(
   }
 
   if (
+    status === TaskStatus.QUEUED ||
     status === TaskStatus.INPUT_REQUIRED ||
     status === TaskStatus.APPROVAL_REQUIRED ||
     status === TaskStatus.AUTHENTICATION_REQUIRED ||

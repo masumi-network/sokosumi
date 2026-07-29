@@ -604,7 +604,7 @@ describe("TaskDetailActions", () => {
     },
   );
 
-  it("shows edit for queued tasks", async () => {
+  it("shows edit and cancel for queued tasks", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.QUEUED,
@@ -613,6 +613,30 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
     expect(screen.getByRole("link", { name: labels.edit })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+  });
+
+  it("sets task status to canceled when cancel is chosen for a queued task", async () => {
+    const user = userEvent.setup();
+    const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
+    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+
+    renderActions({
+      status: TaskStatus.QUEUED,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: labels.cancel }));
+
+    await waitFor(() => {
+      expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.CANCELED,
+      });
+    });
   });
 
   it("hides archive while the coworker is running", async () => {
