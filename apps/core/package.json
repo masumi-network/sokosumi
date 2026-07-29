@@ -59,7 +59,7 @@
     "@vercel/oidc": "3.8.1",
     "@vercel/related-projects": "1.1.0",
     "ably": "2.26.0",
-    "ai": "7.0.40",
+    "ai": "7.0.41",
     "better-auth": "1.6.25",
     "cron-parser": "5.6.2",
     "dotenv": "17.4.2",
