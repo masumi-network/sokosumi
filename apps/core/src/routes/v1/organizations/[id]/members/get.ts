@@ -67,15 +67,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const members = await prisma.$transaction(async (tx) => {
-      await resolveMemberOrganizationById({
-        id,
-        userId: userContext.userId,
-        tx,
-      });
-
-      return memberRepository.getMembersWithUserAndLastSeen(id, tx);
+    // Avoid interactive transaction on this read-only path — pool contention
+    // under parallel room-page loads caused P2028 (SOKOSUMI-Q7). Membership
+    // gate + last-seen lookup do not need a shared snapshot.
+    await resolveMemberOrganizationById({
+      id,
+      userId: userContext.userId,
+      tx: prisma,
     });
+
+    const members = await memberRepository.getMembersWithUserAndLastSeen(
+      id,
+      prisma,
+    );
 
     return ok(c, membersSchema.parse(members));
   });

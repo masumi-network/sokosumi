@@ -6,6 +6,7 @@ import {
   buildUserMetadataWithUrl,
   getUserMetadata,
   normalizeOrganizationLogo,
+  normalizeWebsiteUrl,
   parseUserMetadata,
   serializeMetadataRecord,
 } from "@sokosumi/utils";
@@ -194,7 +195,9 @@ export function BrandProfileSection({
     try {
       const nextMetadata = buildUserMetadataWithUrl(
         parseUserMetadata(metadata),
-        values.websiteUrl,
+        values.websiteUrl.trim()
+          ? (normalizeWebsiteUrl(values.websiteUrl) ?? "")
+          : "",
       );
       const serializedMetadata = serializeMetadataRecord(nextMetadata);
       const result = await authClient.updateUser({

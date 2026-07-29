@@ -2721,6 +2721,14 @@
       "description": "Engagez un agent pour terminer vos tâches les plus chronophages"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "Crédits mensuels",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "Détails indisponibles",
+        "planLabel": "Forfait",
+        "openSummary": "Ouvrir le récapitulatif du compte : {name}, {summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "Nouvelle tâche",
@@ -4509,6 +4517,22 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "Gérer le canal",
+        "leave": "Quitter le canal",
+        "archive": "Archiver le canal",
+        "cancel": "Annuler",
+        "leaveConfirmTitle": "Quitter {name} ?",
+        "leaveConfirmDescription": "Vous ne recevrez plus les messages de ce canal et il disparaîtra de votre liste. Les autres membres conservent leur accès et vous pourrez y être rajouté plus tard.",
+        "leaveConfirm": "Quitter le canal",
+        "leaveSuccess": "Vous avez quitté {name}.",
+        "archiveConfirmTitle": "Archiver {name} ?",
+        "archiveConfirmDescription": "Le canal disparaît pour toute l'organisation. Ses messages sont conservés. Vous pourrez le restaurer plus tard depuis Archivés dans la barre latérale.",
+        "archiveConfirm": "Archiver le canal",
+        "archiveSuccess": "{name} a été archivé.",
+        "restore": "Restaurer",
+        "restoreSuccess": "{name} a été restauré."
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."
@@ -4615,7 +4639,8 @@
       },
       "loadOlder": "Charger les messages plus anciens",
       "loadingOlder": "Chargement des messages plus anciens…",
-      "roomUnavailable": "Ce chat est indisponible ou vous n’y avez plus accès."
+      "roomUnavailable": "Ce chat est indisponible ou vous n’y avez plus accès.",
+      "archivedChannels": "Archivés"
     }
   },
   "Share": {

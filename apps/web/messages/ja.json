@@ -2721,6 +2721,14 @@
       "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "月間クレジット",
+        "planAndCredits": "{plan}・{credits}",
+        "detailsUnavailable": "詳細を利用できません",
+        "planLabel": "プラン",
+        "openSummary": "アカウント概要を開く: {name}、{summary}",
+        "collapsedSummary": "{name}・{summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "新しいタスク",
@@ -4509,6 +4517,22 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "チャンネルの管理",
+        "leave": "チャンネルから退出",
+        "archive": "チャンネルをアーカイブ",
+        "cancel": "キャンセル",
+        "leaveConfirmTitle": "{name} から退出しますか？",
+        "leaveConfirmDescription": "このチャンネルのメッセージは届かなくなり、一覧から消えます。他のメンバーのアクセスはそのままで、後から再度追加してもらうこともできます。",
+        "leaveConfirm": "退出する",
+        "leaveSuccess": "{name} から退出しました。",
+        "archiveConfirmTitle": "{name} をアーカイブしますか？",
+        "archiveConfirmDescription": "このチャンネルは組織の全員から非表示になります。メッセージは残ります。サイドバーのアーカイブから後で復元できます。",
+        "archiveConfirm": "アーカイブする",
+        "archiveSuccess": "{name} をアーカイブしました。",
+        "restore": "復元",
+        "restoreSuccess": "{name} を復元しました。"
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."
@@ -4615,7 +4639,8 @@
       },
       "loadOlder": "以前のメッセージを読み込む",
       "loadingOlder": "以前のメッセージを読み込み中…",
-      "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。"
+      "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。",
+      "archivedChannels": "アーカイブ"
     }
   },
   "Share": {

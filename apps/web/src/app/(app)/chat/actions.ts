@@ -299,6 +299,53 @@ export async function updateRoomAction(
   }
 }
 
+export async function archiveRoomAction(
+  roomId: string,
+): Promise<RoomActionResult<{ id: string }>> {
+  try {
+    const archived = await chatRoomService.archiveRoom(roomId);
+    // The room disappears from every member's list, so the server-rendered
+    // room list has to be rebuilt rather than patched client side.
+    revalidatePath("/chat");
+    return { ok: true, data: { id: archived.id } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not archive channel."),
+    };
+  }
+}
+
+export async function restoreRoomAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoom>> {
+  try {
+    const restored = await chatRoomService.restoreRoom(roomId);
+    revalidatePath("/chat");
+    return { ok: true, data: restored };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not restore channel."),
+    };
+  }
+}
+
+export async function leaveRoomAction(
+  roomId: string,
+): Promise<RoomActionResult<{ id: string }>> {
+  try {
+    const left = await chatRoomService.leaveRoom(roomId);
+    revalidatePath("/chat");
+    return { ok: true, data: { id: left.id } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not leave channel."),
+    };
+  }
+}
+
 export async function sendRoomMessageAction(
   roomId: string,
   content: string,
