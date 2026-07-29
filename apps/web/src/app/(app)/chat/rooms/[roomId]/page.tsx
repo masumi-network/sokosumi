@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
+import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
@@ -101,13 +102,14 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     );
   }
 
-  const [selectedRoom, organizationMembers, coworkers, messagePage] =
-    await Promise.all([
+  const [selectedRoom, membersPage, coworkers, messagePage] = await Promise.all(
+    [
       chatRoomService.getRoom(roomId),
-      userService.getOrganizationMembers(activeOrganization.id),
+      loadOrganizationMembers(activeOrganization.id),
       coworkerService.listCoworkers("chat"),
       loadRoomMessages(roomId),
-    ]);
+    ],
+  );
 
   if (!selectedRoom) {
     redirect("/chat?notice=room-unavailable");
@@ -123,7 +125,7 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
     <RoomsClient
       activeOrganization={activeOrganization}
       rooms={[selectedRoom]}
-      organizationMembers={organizationMembers}
+      organizationMembers={membersPage.members}
       currentUserId={currentUserId}
       coworkers={coworkers}
       selectedRoomId={selectedRoom.id}

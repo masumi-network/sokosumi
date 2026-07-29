@@ -1,3 +1,4 @@
+import { isEmptyOrValidWebsiteUrl } from "@sokosumi/utils";
 import * as z from "zod";
 
 import {
@@ -7,8 +8,6 @@ import {
   nameSchema,
   passwordSchema,
 } from "@/lib/auth/data";
-
-const emptyOrHttpUrlSchema = z.union([z.literal(""), z.httpUrl()]);
 
 export const nameFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
@@ -76,7 +75,7 @@ export const brandProfileFormSchema = (
     websiteUrl: z
       .string()
       .trim()
-      .refine((value) => emptyOrHttpUrlSchema.safeParse(value).success, {
+      .refine((value) => isEmptyOrValidWebsiteUrl(value), {
         error: t?.("websiteUrl"),
       }),
   });

@@ -9,6 +9,7 @@ import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
 import { RoomsClient } from "./components/rooms-client";
+import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
 
 interface ChatPageProps {
@@ -102,10 +103,10 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       );
     }
 
-    const [listedRooms, organizationMembers, coworkers, currentMember] =
+    const [listedRooms, membersPage, coworkers, currentMember] =
       await Promise.all([
         chatRoomService.listRooms(),
-        userService.getOrganizationMembers(activeOrganization.id),
+        loadOrganizationMembers(activeOrganization.id),
         coworkerService.listCoworkers("chat"),
         userService.getMyMemberInOrganization(activeOrganization.id),
       ]);
@@ -116,7 +117,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         <RoomsClient
           activeOrganization={activeOrganization}
           rooms={listedRooms}
-          organizationMembers={organizationMembers}
+          organizationMembers={membersPage.members}
           currentUserId={currentMember?.userId ?? ""}
           coworkers={coworkers}
           selectedRoomId={null}

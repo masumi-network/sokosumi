@@ -7,7 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { createJobRequestSchema, jobSummarySchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
@@ -23,7 +23,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/jobs",
-    description: "Create a new job for an agent",
+    description:
+      "Create a new job for an agent. Session user or orchestrator with context headers; coworker keys are rejected (assigned coworkers use POST /tasks/{id}/jobs).",
     tags: ["Agents"],
     request: {
       params,
@@ -50,7 +51,9 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    // Owner-only: coworker+context must not mint marketplace jobs that charge
+    // another user's credits. Assigned coworkers create jobs via /tasks/{id}/jobs.
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name, projectId } =
