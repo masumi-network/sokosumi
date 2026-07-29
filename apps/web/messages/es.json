@@ -2719,6 +2719,14 @@
       "description": "Contrata un Agent para tus tareas más complejas"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "Créditos mensuales",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "Detalles no disponibles",
+        "planLabel": "Plan",
+        "openSummary": "Abrir el resumen de la cuenta: {name}, {summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "Nueva tarea",

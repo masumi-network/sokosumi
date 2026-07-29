@@ -1,6 +1,5 @@
 "use client";
 
-import type { SessionUser } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
@@ -28,7 +27,6 @@ import {
 import { SidebarSubmenu, type SidebarSubmenuPanel } from "./sidebar-submenu";
 
 interface SidebarNavProps {
-  sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
   planLabel: string;
@@ -90,7 +88,6 @@ function ExternalLinkPanelContent({
 }
 
 function SidebarNavInner({
-  sessionUser,
   members,
   activeOrganizationId,
   planLabel,
@@ -110,7 +107,6 @@ function SidebarNavInner({
         header: <SettingsPanelHeader planLabel={planLabel} />,
         content: (
           <SettingsSubmenuContent
-            sessionUser={sessionUser}
             members={members}
             activeOrganizationId={activeOrganizationId}
           />
@@ -165,7 +161,6 @@ function SidebarNavInner({
       activeOrganizationId,
       members,
       planLabel,
-      sessionUser,
       showDeveloperVendors,
       tUserAvatar,
     ],
@@ -184,7 +179,6 @@ function SidebarNavInner({
 }
 
 export default function SidebarNav({
-  sessionUser,
   members,
   activeOrganizationId,
   planLabel,
@@ -204,7 +198,6 @@ export default function SidebarNav({
 
   return (
     <SidebarNavInner
-      sessionUser={sessionUser}
       members={members}
       activeOrganizationId={activeOrganizationId}
       planLabel={planLabel}

@@ -2719,6 +2719,14 @@
       "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "月間クレジット",
+        "planAndCredits": "{plan}・{credits}",
+        "detailsUnavailable": "詳細を利用できません",
+        "planLabel": "プラン",
+        "openSummary": "アカウント概要を開く: {name}、{summary}",
+        "collapsedSummary": "{name}・{summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "新しいタスク",
