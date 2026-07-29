@@ -45,12 +45,19 @@ const toCoreApiActionErrorMock = vi.fn();
 vi.mock("@/lib/clients/core.client", () => ({
   toCoreApiActionError: toCoreApiActionErrorMock,
   CoreApiRequestError: class CoreApiRequestError extends Error {
-    status: number;
+    details?: unknown;
+    kind?: string;
+    status?: number;
 
-    constructor(message: string, status = 400) {
+    constructor(
+      message: string,
+      options?: { details?: unknown; kind?: string; status?: number },
+    ) {
       super(message);
       this.name = "CoreApiRequestError";
-      this.status = status;
+      this.details = options?.details;
+      this.kind = options?.kind;
+      this.status = options?.status;
     }
   },
 }));
@@ -239,6 +246,29 @@ describe("task link actions", () => {
     expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
       "name",
     );
+  });
+
+  it("rethrows Core 404 Project not found from createTask (SOKOSUMI-QA)", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    const { createTask } = await import("../action");
+
+    const projectMissing = new CoreApiRequestError("Project not found", {
+      status: 404,
+    });
+    taskServiceMock.createTask.mockRejectedValue(projectMissing);
+
+    await expect(
+      createTask({
+        description: "Task with stale project",
+        assigneeId: null,
+        projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+        status: TaskStatus.READY,
+      }),
+    ).rejects.toMatchObject({
+      name: "CoreApiRequestError",
+      message: "Project not found",
+      status: 404,
+    });
   });
 
   it("keeps the existing parent when creating the new link fails", async () => {
