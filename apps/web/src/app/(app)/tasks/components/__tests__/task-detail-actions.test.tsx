@@ -701,6 +701,26 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
+  it("shows archive for org admin on a scheduled task they do not own", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.READY,
+      isReadOnly: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: true,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
   it("hides share and overflow actions in read-only workspace mode", () => {
     renderActions({
       isReadOnly: true,

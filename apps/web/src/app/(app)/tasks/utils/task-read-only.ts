@@ -1,3 +1,5 @@
+import { isTaskArchivableStatus } from "@sokosumi/utils";
+
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 interface ReadOnlyForViewerParams {
@@ -57,6 +59,36 @@ export function canArchiveParkedTaskForViewer({
   }
 
   return isTaskOwner || isOrgOwnerOrAdmin;
+}
+
+export function canArchiveScheduledTaskForViewer({
+  forceReadOnly,
+  taskStatus,
+  isTaskOwner,
+  isOrgOwnerOrAdmin,
+  taskWorkspaceOrganizationId,
+  hasActiveSchedule,
+}: {
+  forceReadOnly: boolean;
+  taskStatus: string;
+  isTaskOwner: boolean;
+  isOrgOwnerOrAdmin: boolean;
+  taskWorkspaceOrganizationId: string | null;
+  hasActiveSchedule: boolean;
+}): boolean {
+  if (forceReadOnly || isTaskOwner) {
+    return false;
+  }
+
+  if (!isOrgOwnerOrAdmin || taskWorkspaceOrganizationId === null) {
+    return false;
+  }
+
+  if (!hasActiveSchedule || !isTaskArchivableStatus(taskStatus)) {
+    return false;
+  }
+
+  return true;
 }
 
 type OrgCollaboratorViewerParams = ReadOnlyForViewerParams;

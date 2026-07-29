@@ -31,7 +31,10 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import {
+  canArchiveParkedTaskForViewer,
+  canArchiveScheduledTaskForViewer,
+} from "@/app/tasks/utils/task-read-only";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,6 +132,7 @@ interface TaskDetailActionsProps {
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
   isOrgOwnerOrAdmin?: boolean;
+  hasActiveSchedule?: boolean;
 }
 
 export function TaskDetailActions({
@@ -150,6 +154,7 @@ export function TaskDetailActions({
   forceReadOnly = false,
   isTaskOwner = false,
   isOrgOwnerOrAdmin = false,
+  hasActiveSchedule = false,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -210,8 +215,17 @@ export function TaskDetailActions({
     isTaskOwner,
     isOrgOwnerOrAdmin,
   });
+  const canArchiveScheduled = canArchiveScheduledTaskForViewer({
+    forceReadOnly,
+    taskStatus: status,
+    isTaskOwner,
+    isOrgOwnerOrAdmin,
+    taskWorkspaceOrganizationId: currentOrganizationId ?? null,
+    hasActiveSchedule,
+  });
   const canArchiveTask =
     canArchiveParked ||
+    canArchiveScheduled ||
     (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
   const isFinalized =
     status === TaskStatus.COMPLETED ||

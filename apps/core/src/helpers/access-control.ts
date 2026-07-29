@@ -23,10 +23,10 @@ import {
   requireWorkspaceContext,
   type WorkspaceContext,
 } from "@/middleware/workspace";
-
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
+import { hasActiveTaskSchedule } from "./task-schedule";
 import {
   getWorkspaceGrant,
   requestWorkspaceGrantCommitted,
@@ -104,7 +104,7 @@ export async function requireMutableTaskOwnership(
 
 /**
  * Soft-archive access: task owner always, or org OWNER/ADMIN when the task is
- * parked (`GRANT_PENDING`) in that organization workspace.
+ * parked (`GRANT_PENDING`) or has an active schedule in that organization workspace.
  */
 export async function requireTaskArchiveAccess(
   userContext: UserContext,
@@ -123,29 +123,36 @@ export async function requireTaskArchiveAccess(
     return owned;
   }
 
-  const parked = await tx.task.findFirst({
+  const task = await tx.task.findFirst({
     where: {
       id: taskId,
       archivedAt: null,
-      status: TaskStatus.GRANT_PENDING,
     },
     include: {
       workspace: { select: { organizationId: true } },
     },
   });
 
-  if (!parked?.workspace.organizationId) {
+  const organizationId = task?.workspace.organizationId;
+  if (!task || !organizationId) {
+    throw notFound("Task not found");
+  }
+
+  const isParked = task.status === TaskStatus.GRANT_PENDING;
+  const isScheduled = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
+
+  if (!isParked && !isScheduled) {
     throw notFound("Task not found");
   }
 
   await resolveMemberOrganizationById({
-    id: parked.workspace.organizationId,
+    id: organizationId,
     userId: userContext.userId,
     tx,
     allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
   });
 
-  return parked;
+  return task;
 }
 
 // -----------------------------------------------------------------------------
