@@ -1781,7 +1781,8 @@
           "title": "Aguardando aprovação de acesso do fornecedor",
           "description": "Esta tarefa está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor.",
           "descriptionWithCoworker": "{coworkerName} criou esta tarefa. Ela está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor."
-        }
+        },
+        "files": "Arquivos"
       },
       "NewTask": {
         "title": "Nova tarefa",

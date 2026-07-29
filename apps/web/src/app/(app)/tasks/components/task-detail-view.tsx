@@ -9,6 +9,7 @@ import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
+import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
@@ -184,6 +185,8 @@ export async function TaskDetailView({
               duplicate: t("actions.relations.duplicate"),
             }}
           />
+
+          <TaskFiles title={t("files")} files={task.files ?? []} />
 
           {task.jobs.length > 0 && (
             <>

@@ -1792,7 +1792,8 @@
           "title": "Waiting for vendor access approval",
           "description": "This task is blocked until a workspace owner or admin approves vendor access.",
           "descriptionWithCoworker": "{coworkerName} created this task. It is blocked until a workspace owner or admin approves vendor access."
-        }
+        },
+        "files": "Files"
       },
       "NewTask": {
         "title": "New Task",

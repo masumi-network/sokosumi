@@ -150,6 +150,7 @@ describe("GET /admin/tasks/{id}", () => {
       ownerId: "user_123",
       organizationId: "org_123",
       links: [],
+      files: [],
     });
     expect(body.data.owner).toEqual({
       id: "user_123",

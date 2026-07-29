@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createUserFileUploadSession,
   deleteCoworkerImageIfOwned,
+  deleteTaskFileIfOwned,
   listUserUploads,
   uploadCoworkerImage,
   uploadGeneratedChatImage,
   uploadProfileImage,
+  uploadTaskFile,
 } from "./blob";
 
 const {
@@ -413,6 +415,96 @@ describe("deleteCoworkerImageIfOwned", () => {
 
     await expect(
       deleteCoworkerImageIfOwned(url, "cow-1"),
+    ).resolves.toBeUndefined();
+    expect(captureExceptionMock).toHaveBeenCalled();
+  });
+});
+
+describe("uploadTaskFile", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("uploads under the task prefix with a random suffix", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/tasks/tsk_123/report-xyz.pdf",
+    });
+
+    const url = await uploadTaskFile({
+      taskId: "tsk_123",
+      bytes: Buffer.from("%PDF"),
+      contentType: "application/pdf",
+      filename: " my report.pdf ",
+    });
+
+    expect(url).toBe("https://blob.example/tasks/tsk_123/report-xyz.pdf");
+    expect(putMock).toHaveBeenCalledWith(
+      "tasks/tsk_123/my_report.pdf",
+      Buffer.from("%PDF"),
+      expect.objectContaining({
+        access: "public",
+        contentType: "application/pdf",
+        token: "rw_token",
+        addRandomSuffix: true,
+      }),
+    );
+  });
+
+  it("returns null when blob storage is not configured", async () => {
+    getEnvMock.mockReturnValue({});
+
+    await expect(
+      uploadTaskFile({
+        taskId: "tsk_123",
+        bytes: Buffer.from("%PDF"),
+        contentType: "application/pdf",
+        filename: "report.pdf",
+      }),
+    ).resolves.toBeNull();
+    expect(putMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteTaskFileIfOwned", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("deletes owned task file URLs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockResolvedValue(undefined);
+
+    const url =
+      "https://abc.public.blob.vercel-storage.com/tasks/tsk_123/report-xyz.pdf";
+
+    await deleteTaskFileIfOwned(url, "tsk_123");
+
+    expect(delMock).toHaveBeenCalledWith(url, { token: "rw_token" });
+  });
+
+  it("ignores foreign or invalid URLs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+
+    await deleteTaskFileIfOwned("https://example.com/evil.pdf", "tsk_123");
+    await deleteTaskFileIfOwned(
+      "https://abc.public.blob.vercel-storage.com/tasks/other/report.pdf",
+      "tsk_123",
+    );
+    await deleteTaskFileIfOwned(null, "tsk_123");
+
+    expect(delMock).not.toHaveBeenCalled();
+  });
+
+  it("captures delete failures without throwing", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockRejectedValue(new Error("blob delete failed"));
+
+    const url =
+      "https://abc.public.blob.vercel-storage.com/tasks/tsk_123/report-xyz.pdf";
+
+    await expect(
+      deleteTaskFileIfOwned(url, "tsk_123"),
     ).resolves.toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalled();
   });

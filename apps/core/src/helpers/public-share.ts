@@ -49,6 +49,17 @@ const publicTaskInclude = {
     },
     orderBy: { createdAt: "asc" },
   },
+  files: {
+    select: {
+      id: true,
+      name: true,
+      fileUrl: true,
+      mimeType: true,
+      size: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  },
   events: {
     select: {
       id: true,
@@ -166,6 +177,14 @@ function mapPublicTask(task: PublicTaskWithRelations) {
     events: task.events
       .map((event) => mapPublicTaskMilestone(event))
       .filter((event): event is PublicSharedTaskMilestone => event !== null),
+    files: (task.files ?? []).map((file) => ({
+      id: file.id,
+      name: file.name,
+      fileUrl: file.fileUrl,
+      mimeType: file.mimeType ?? null,
+      size: file.size != null ? Number(file.size) : null,
+      createdAt: file.createdAt,
+    })),
   };
 }
 

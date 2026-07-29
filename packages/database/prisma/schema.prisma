@@ -72,6 +72,7 @@ model User {
   ownedTasks         Task[]              @relation("TaskOwner")
   createdTasks       Task[]              @relation("TaskCreatorUser")
   taskEvents         TaskEvent[]
+  uploadedTaskFiles  TaskFile[]          @relation("TaskFileUploadedByUser")
   coworkerUsages     CoworkerUsage[]
   orchestratorUsages OrchestratorUsage[]
 
@@ -1302,6 +1303,7 @@ model Coworker {
   assignedTasks       Task[]                   @relation("TaskAssignee")
   createdTasks        Task[]                   @relation("TaskCreatorCoworker")
   taskEvents          TaskEvent[]
+  uploadedTaskFiles   TaskFile[]               @relation("TaskFileUploadedByCoworker")
   coworkerUsages      CoworkerUsage[]
   chatRoomMemberships ChatRoomCoworkerMember[]
   chatRoomMessages    ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
@@ -1436,6 +1438,7 @@ model Task {
 
   events TaskEvent[]
   jobs   Job[]
+  files  TaskFile[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -1459,6 +1462,33 @@ model Task {
   @@index([creatorCoworkerId])
   @@index([creatorOrchestratorId])
   @@map("task")
+}
+
+/// File uploaded to a task by the owner or assigned coworker. Stored in public
+/// Vercel Blob; `fileUrl` is world-readable.
+model TaskFile {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  name     String
+  fileUrl  String
+  mimeType String?
+  size     BigInt?
+
+  uploadedByUserId String?
+  uploadedByUser   User?   @relation("TaskFileUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  uploadedByCoworkerId String?
+  uploadedByCoworker   Coworker? @relation("TaskFileUploadedByCoworker", fields: [uploadedByCoworkerId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, createdAt])
+  @@index([uploadedByUserId])
+  @@index([uploadedByCoworkerId])
+  @@map("task_file")
 }
 
 enum TaskLinkType {

@@ -1781,7 +1781,8 @@
           "title": "Warten auf Freigabe des Vendor-Zugriffs",
           "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
           "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
-        }
+        },
+        "files": "Dateien"
       },
       "NewTask": {
         "title": "Neuer Task",

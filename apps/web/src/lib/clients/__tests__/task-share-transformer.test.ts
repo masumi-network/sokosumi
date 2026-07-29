@@ -74,6 +74,7 @@ function buildTask(overrides: Record<string, unknown> = {}) {
     workspace: { id: "ws_1", organizationId: null, organization: null },
     share: null,
     links: [],
+    files: [],
     ...overrides,
   };
 }
