@@ -750,6 +750,23 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
+  it("hides archive for plain org member on grant-pending scheduled task", async () => {
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      isReadOnly: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+  });
+
   it("shows cancel and archive for org member on a queued scheduled task they do not own", async () => {
     const user = userEvent.setup();
     renderActions({

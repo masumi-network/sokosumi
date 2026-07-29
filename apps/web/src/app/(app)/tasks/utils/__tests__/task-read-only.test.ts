@@ -201,6 +201,37 @@ describe("canArchiveScheduledTaskForViewer", () => {
       }),
     ).toBe(false);
   });
+
+  it("blocks grant-pending scheduled tasks for plain org members", () => {
+    expect(
+      canArchiveScheduledTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+        isTaskOwner: false,
+        taskWorkspaceOrganizationId: "org_1",
+        hasActiveSchedule: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps parked archive on owner/admin for grant-pending scheduled tasks", () => {
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+        isTaskOwner: true,
+        isOrgOwnerOrAdmin: false,
+      }),
+    ).toBe(true);
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+        isTaskOwner: false,
+        isOrgOwnerOrAdmin: true,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("canCommentOnTaskForViewer", () => {
