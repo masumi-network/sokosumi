@@ -356,10 +356,6 @@ export function EditChannelDialog({
         </DialogTrigger>
         {/* The fixed-height participant list makes this dialog ~755px tall, which
             overflows a shorter phone — on a 667px iPhone SE the title and close
-            button were cut off above the viewport and Cancel below it, with
-            nothing to scroll. Cap it to the viewport and scroll the body. */}
-        {/* The fixed-height participant list makes this dialog ~755px tall, which
-            overflows a shorter phone — on a 667px iPhone SE the title and close
             button sat above the viewport and Cancel below it, with nothing to
             scroll. Cap the dialog to the viewport and scroll the form body rather
             than the padded dialog box, whose children do not reflow around their

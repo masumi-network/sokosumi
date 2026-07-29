@@ -87,7 +87,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       // Nobody left to archive it afterwards: the room would linger with an
       // empty roster, invisible to every user yet still holding its slug.
-      // Last member can archive instead (see archive/post.ts).
+      // Last member cannot leave — creator or org owner/admin (who must also
+      // be members under current access rules) must archive instead.
       if (remainingUserMemberCount === 0) {
         throw badRequest(
           "You are the last member of this room. Ask the channel creator or an organization owner or admin to archive it.",

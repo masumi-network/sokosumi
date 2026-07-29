@@ -34,7 +34,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/restore",
     description:
-      "Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members and frees its slug for normal use again. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.",
+      "Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members while keeping its existing slug. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
