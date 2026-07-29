@@ -1,3 +1,4 @@
+import { APIError } from "better-auth/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -38,7 +39,40 @@ import {
   sanitizeOrganizationMetadataForUpdate,
   sanitizeUserMetadataForCreate,
   sanitizeUserMetadataForUpdate,
+  withValidatedWebsiteUrl,
 } from "./design-md-metadata-auth";
+
+describe("withValidatedWebsiteUrl", () => {
+  it("normalizes bare domains to https URLs", () => {
+    expect(withValidatedWebsiteUrl({ url: "acme.com" })).toEqual({
+      url: "https://acme.com/",
+    });
+  });
+
+  it("allows missing or empty url", () => {
+    expect(
+      withValidatedWebsiteUrl({ designMdUrl: "https://x.com/a.md" }),
+    ).toEqual({ designMdUrl: "https://x.com/a.md" });
+    expect(withValidatedWebsiteUrl({ url: "  " })).toBeNull();
+  });
+
+  it.each([
+    "acme",
+    "localhost",
+    "https://localhost",
+    "https://127.0.0.1",
+    "not a url",
+  ])("rejects invalid website url %s", (url) => {
+    expect(() => withValidatedWebsiteUrl({ url })).toThrow(APIError);
+    try {
+      withValidatedWebsiteUrl({ url });
+    } catch (error) {
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe("BAD_REQUEST");
+      expect((error as APIError).body?.code).toBe("INVALID_WEBSITE_URL");
+    }
+  });
+});
 
 describe("sanitizeOrganizationMetadataForCreate", () => {
   it("strips designMd fields from create payloads", () => {
@@ -47,7 +81,13 @@ describe("sanitizeOrganizationMetadataForCreate", () => {
         url: "https://acme.example",
         designMdUrl: "https://evil.example/ssrf",
       }),
-    ).toEqual({ url: "https://acme.example" });
+    ).toEqual({ url: "https://acme.example/" });
+  });
+
+  it("rejects invalid website urls on create", () => {
+    expect(() =>
+      sanitizeOrganizationMetadataForCreate({ url: "acme" }),
+    ).toThrow(APIError);
   });
 });
 
@@ -65,9 +105,15 @@ describe("sanitizeOrganizationMetadataForUpdate", () => {
         }),
       ),
     ).toEqual({
-      url: "https://acme.example",
+      url: "https://acme.example/",
       designMdUrl: "https://abc.public.blob.vercel-storage.com/design-md/ok.md",
     });
+  });
+
+  it("rejects invalid website urls on update", () => {
+    expect(() =>
+      sanitizeOrganizationMetadataForUpdate({ url: "https://localhost" }, null),
+    ).toThrow(APIError);
   });
 });
 
@@ -80,7 +126,7 @@ describe("sanitizeUserMetadataForCreate", () => {
           designMdUrl: "https://evil.example/ssrf",
         }),
       ),
-    ).toBe(JSON.stringify({ url: "https://acme.example" }));
+    ).toBe(JSON.stringify({ url: "https://acme.example/" }));
   });
 });
 
@@ -100,7 +146,7 @@ describe("sanitizeUserMetadataForUpdate", () => {
       ),
     ).toBe(
       JSON.stringify({
-        url: "https://acme.example",
+        url: "https://acme.example/",
         designMdUrl:
           "https://abc.public.blob.vercel-storage.com/design-md/ok.md",
         designMdExtractionId: "7",
@@ -126,7 +172,7 @@ describe("applyDesignMdMetadataGuardToUserCreate", () => {
       }),
     ).toEqual({
       email: "a@example.com",
-      metadata: JSON.stringify({ url: "https://acme.example" }),
+      metadata: JSON.stringify({ url: "https://acme.example/" }),
     });
   });
 });
@@ -166,7 +212,7 @@ describe("applyDesignMdMetadataGuardToUserUpdate", () => {
       ),
     ).resolves.toEqual({
       metadata: JSON.stringify({
-        url: "https://acme.example",
+        url: "https://acme.example/",
         designMdUrl:
           "https://abc.public.blob.vercel-storage.com/design-md/ok.md",
       }),
@@ -186,8 +232,17 @@ describe("applyDesignMdMetadataGuardToOrganizationCreate", () => {
       }),
     ).toEqual({
       name: "Acme",
-      metadata: { url: "https://acme.example" },
+      metadata: { url: "https://acme.example/" },
     });
+  });
+
+  it("rejects organization create with invalid website url", () => {
+    expect(() =>
+      applyDesignMdMetadataGuardToOrganizationCreate({
+        name: "Acme",
+        metadata: { url: "acme" },
+      }),
+    ).toThrow(APIError);
   });
 });
 
@@ -218,7 +273,7 @@ describe("applyDesignMdMetadataGuardToOrganizationUpdate", () => {
     ).resolves.toEqual({
       name: "Acme",
       metadata: {
-        url: "https://acme.example",
+        url: "https://acme.example/",
         designMdUrl:
           "https://abc.public.blob.vercel-storage.com/design-md/ok.md",
       },
