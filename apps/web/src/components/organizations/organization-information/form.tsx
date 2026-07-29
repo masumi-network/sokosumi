@@ -5,6 +5,7 @@ import {
   buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
   normalizeOrganizationLogo,
+  normalizeWebsiteUrl,
   parseOrganizationMetadata,
 } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
@@ -147,9 +148,13 @@ export default function OrganizationInformationForm({
       const logoForApi = normalizeOrganizationLogo(values.logo);
       const metadataSource =
         organizationMetadata ?? organization?.metadata ?? values.metadata;
+      const websiteUrl =
+        values.url?.trim() && values.url.trim().length > 0
+          ? (normalizeWebsiteUrl(values.url) ?? "")
+          : "";
       const metadataForApi = buildOrganizationMetadataWithUrl(
         parseOrganizationMetadata(metadataSource),
-        values.url ?? "",
+        websiteUrl,
       );
 
       if (isCreating) {

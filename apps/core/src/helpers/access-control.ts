@@ -483,6 +483,41 @@ export async function requireTaskCommentAccess(
   return task;
 }
 
+/**
+ * Cancel access: task owner always, or any org-workspace member for a task in
+ * that workspace. Personal-workspace non-owners are denied. Coworker actors
+ * use the same rules as {@link requireTaskCollaboration}.
+ */
+export async function requireTaskCancelAccess(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const { authContext, workspaceContext } = vars;
+
+  if (
+    isUserAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
+    const userContext = requireUserContext(authContext);
+    const workspace = requireWorkspaceContext(workspaceContext);
+    const task = await requireTaskReadForWorkspace(workspace, taskId, tx);
+    requireTaskNotParked(task);
+
+    if (task.ownerId === userContext.userId) {
+      return task;
+    }
+
+    if (workspace.organizationId !== null) {
+      return task;
+    }
+
+    throw notFound("Task not found");
+  }
+
+  return await requireTaskCollaboration(authContext, taskId, tx);
+}
+
 // -----------------------------------------------------------------------------
 // Workspace-scoped reads (task/job in the active workspace)
 // -----------------------------------------------------------------------------

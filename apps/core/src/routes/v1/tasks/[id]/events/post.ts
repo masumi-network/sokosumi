@@ -14,6 +14,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
+  requireTaskCancelAccess,
   requireTaskCollaboration,
   requireTaskCommentAccess,
 } from "@/helpers/access-control";
@@ -499,9 +500,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           authenticationUrl != null ||
           masumiPayment != null;
 
-        const task = hasNonCommentWrite
-          ? await requireTaskCollaboration(authContext, taskId, tx)
-          : await requireTaskCommentAccess(c.var, taskId, tx);
+        const isCancelOnlyWrite =
+          status === TaskStatus.CANCELED &&
+          credits == null &&
+          authenticationUrl == null &&
+          masumiPayment == null;
+
+        const task = isCancelOnlyWrite
+          ? await requireTaskCancelAccess(c.var, taskId, tx)
+          : hasNonCommentWrite
+            ? await requireTaskCollaboration(authContext, taskId, tx)
+            : await requireTaskCommentAccess(c.var, taskId, tx);
 
         const isAgent = isCoworkerAgentContext(authContext);
 

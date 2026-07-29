@@ -3,7 +3,6 @@ export type CreditsPrice = {
 };
 
 export interface CreditUsage {
-  hasUsageData: boolean;
   percentageUsed: number;
   remaining: number;
   total: number;

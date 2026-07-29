@@ -113,7 +113,7 @@ function SubmenuPanelView({
     <div
       ref={panelRef}
       tabIndex={isActive ? -1 : undefined}
-      className={cn(TRACK_PANEL_CLASS, "outline-hidden overflow-hidden")}
+      className={cn(TRACK_PANEL_CLASS, "outline-hidden overflow-x-clip")}
       aria-hidden={!isActive}
       {...(!isActive ? { inert: true } : {})}
     >
@@ -208,7 +208,9 @@ export function SidebarSubmenu({
 
   return (
     <SidebarSubmenuContext value={contextValue}>
-      <div className="relative w-full overflow-hidden">
+      {/* Clip horizontal slide panels only (overflow-x-clip keeps overflow-y
+          visible so tall nav reaches SidebarContent's overflow-y-auto). */}
+      <div className="relative w-full overflow-x-clip">
         <div
           className={cn("flex w-full", SLIDE_TRANSITION_CLASS)}
           style={{

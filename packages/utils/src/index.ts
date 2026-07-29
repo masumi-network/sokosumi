@@ -25,6 +25,10 @@ export type {
   SessionUser,
 } from "./better-auth-types.js";
 export {
+  CHAT_PRESENCE_AFK_WINDOW_MS,
+  CHAT_PRESENCE_ONLINE_WINDOW_MS,
+} from "./chat-presence-windows.js";
+export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,
   isChatUiProviderReasoningPartType,
@@ -117,6 +121,7 @@ export {
   OnChainTransactionStatus,
 } from "./masumi-protocol.js";
 export {
+  type MetadataRecord,
   serializeMetadataRecord,
   stringifyMetadataRecord,
 } from "./metadata-record.js";
@@ -221,3 +226,8 @@ export {
   type PostWebhookResult,
   postWebhook,
 } from "./webhook.js";
+export {
+  isEmptyOrValidWebsiteUrl,
+  isValidHttpUrl,
+  normalizeWebsiteUrl,
+} from "./website-url.js";

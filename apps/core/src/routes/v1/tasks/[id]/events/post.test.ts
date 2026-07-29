@@ -24,6 +24,7 @@ const {
   publishTaskEventDataMock,
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
+  requireTaskCancelAccessMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
@@ -47,12 +48,14 @@ const {
   publishTaskEventDataMock: vi.fn(),
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
+  requireTaskCancelAccessMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
   requireTaskCommentAccess: requireTaskCommentAccessMock,
+  requireTaskCancelAccess: requireTaskCancelAccessMock,
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -322,6 +325,7 @@ describe("POST /{id}/events", () => {
     });
     requireTaskCollaborationMock.mockResolvedValue(createTask());
     requireTaskCommentAccessMock.mockResolvedValue(createTask());
+    requireTaskCancelAccessMock.mockResolvedValue(createTask());
   });
 
   it("rejects coworkers creating OUT_OF_CREDITS events manually", async () => {
@@ -2775,7 +2779,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("lets a delegated coworker cancel a task without charging", async () => {
-    requireTaskCollaborationMock.mockResolvedValue(
+    requireTaskCancelAccessMock.mockResolvedValue(
       createTask({ status: TaskStatus.READY, assigneeId: COWORKER_ID }),
     );
 
@@ -2815,6 +2819,8 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(requireTaskCancelAccessMock).toHaveBeenCalled();
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2825,6 +2831,141 @@ describe("POST /{id}/events", () => {
         }),
       }),
     );
+  });
+
+  it("lets an org workspace member cancel another member's task", async () => {
+    requireTaskCancelAccessMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.RUNNING,
+        ownerId: "user_owner",
+        assigneeId: COWORKER_ID,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            userId: "user_member",
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(requireTaskCancelAccessMock).toHaveBeenCalled();
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.CANCELED,
+          userId: "user_member",
+          coworkerId: null,
+        }),
+      }),
+    );
+    expect(tx.task.updateMany).toHaveBeenCalled();
+  });
+
+  it("keeps cancel with credits on collaboration for org peers", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.RUNNING,
+        ownerId: "user_owner",
+        assigneeId: null,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        credits: 5,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps non-cancel status writes on collaboration for org peers", async () => {
+    requireTaskCollaborationMock.mockRejectedValue(
+      new HTTPException(404, { message: "Task not found" }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.READY,
+        comment: "please reopen",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
   });
 
   it("rejects credits from a user session canceling a task", async () => {
@@ -2860,6 +3001,8 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(422);
+    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();

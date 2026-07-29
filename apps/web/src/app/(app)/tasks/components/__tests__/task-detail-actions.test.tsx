@@ -714,6 +714,43 @@ describe("TaskDetailActions", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows cancel only for org collaborators in read-only mode", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.RUNNING,
+      isReadOnly: true,
+      canCancel: true,
+      organizations: undefined,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: labels.share }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeNull();
+  });
+
+  it("does not show reopen for org collaborators in read-only mode", () => {
+    renderActions({
+      status: TaskStatus.CANCELED,
+      isReadOnly: true,
+      canCancel: true,
+      organizations: undefined,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
+  });
+
   it("disables the actions trigger while a status update is pending", async () => {
     const user = userEvent.setup();
     const deferred = createDeferred<{ taskId: string }>();

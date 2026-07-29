@@ -149,7 +149,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "Changer d’espace de travail",
       "personalAccount": "Compte personnel",
-      "addOrganization": "Ajouter une organisation",
+      "createOrganization": "Créer une organisation",
       "organizationsHeading": "Organisations",
       "createOrJoinOrganization": "Créer ou rejoindre une organisation"
     },
@@ -1350,9 +1350,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "Chat"
-    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1362,7 +1359,7 @@
       "description": "Discutez avec vos collègues IA",
       "Chat": {
         "newChat": "Nouveau chat",
-        "sidebarNew": "Nouveau",
+        "conversationSwitcher": "Conversations",
         "noChats": "Aucun chat pour le moment",
         "noCoworkersAvailable": "Aucun collègue disponible. Veuillez réessayer plus tard.",
         "welcomeSendFailed": "Votre message n'a pas pu être envoyé. Veuillez réessayer.",
@@ -1381,6 +1378,8 @@
           "placeholder": "Message à {coworkerSlug}...",
           "coworkerSlugFallback": "le coworker",
           "suggestionsLabel": "Essayez de demander",
+          "startingChat": "Démarrage du chat avec {name}…",
+          "startingChatFallback": "Démarrage du chat…",
           "prompts": {
             "alex": {
               "1": "Créez-moi un tableau de bord pour mes résultats de recherche.",
@@ -1432,9 +1431,6 @@
         },
         "comingSoon": "Bientôt disponible",
         "agenticCoworkers": "Collègues agentiques",
-        "models": "Modèles",
-        "supportsImageAttachments": "Supports image attachments",
-        "supportsImageGeneration": "Peut créer des images",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",
@@ -1497,7 +1493,8 @@
         "errorTitle": "Erreur",
         "errorDescription": "Une erreur est survenue lors du traitement de votre message. Veuillez réessayer.",
         "tryAgain": "Réessayer",
-        "networkErrorAfterRetry": "Impossible de joindre le serveur après plusieurs tentatives. Veuillez vérifier votre connexion et réessayer."
+        "networkErrorAfterRetry": "Impossible de joindre le serveur après plusieurs tentatives. Veuillez vérifier votre connexion et réessayer.",
+        "sidebarNew": "Nouveau"
       }
     },
     "Tasks": {
@@ -1530,25 +1527,11 @@
         "approvePartialError": "{approved} fournisseurs approuvés sur {total}. Certaines approbations ont échoué — actualisez et réessayez."
       },
       "Actions": {
-        "add": "Ajouter",
-        "addTask": "Ajouter une tâche",
+        "add": "Nouvelle tâche",
+        "addTask": "Nouvelle tâche",
         "loading": "Chargement...",
         "loadMore": "Charger plus",
         "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "Ou utilisez le chat pour lancer une tâche",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
       },
       "Errors": {
         "updateStatus": "Échec de la mise à jour du statut de la tâche",
@@ -1948,6 +1931,17 @@
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
+      },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "getStartedTitle": "You're all set!",
+        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
+        "getStartedButton": "Get Started",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "elenaAvatarAlt": "Elena avatar"
       }
     },
     "Projects": {
@@ -2725,16 +2719,17 @@
       "description": "Engagez un agent pour terminer vos tâches les plus chronophages"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "Crédits mensuels",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "Détails indisponibles",
+        "planLabel": "Forfait",
+        "openSummary": "Ouvrir le récapitulatif du compte : {name}, {summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
-        "ChatLists": {
-          "title": "Chats Récents",
-          "noChats": "Pas encore de chats",
-          "untitledChat": "Chat Sans Titre",
-          "modelAlt": "Modèle",
-          "coworkerAlt": "Collaborateur"
-        },
         "MenuItems": {
-          "chat": "Chat",
+          "newTask": "Nouvelle tâche",
           "search": "Rechercher",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Fichiers et livrables",
@@ -2746,7 +2741,15 @@
           "history": "Historique",
           "admin": "Administration",
           "settings": "Paramètres",
-          "back": "Retour"
+          "back": "Retour",
+          "chat": "Chat"
+        },
+        "ChatLists": {
+          "title": "Chats Récents",
+          "noChats": "Pas encore de chats",
+          "untitledChat": "Chat Sans Titre",
+          "modelAlt": "Modèle",
+          "coworkerAlt": "Collaborateur"
         }
       }
     },
@@ -4510,6 +4513,132 @@
           "imageSaveFailed": "Échec de la mise à jour de l’image."
         }
       }
+    },
+    "Channels": {
+      "Actions": {
+        "sectionTitle": "Gérer le canal",
+        "leave": "Quitter le canal",
+        "archive": "Archiver le canal",
+        "cancel": "Annuler",
+        "leaveConfirmTitle": "Quitter {name} ?",
+        "leaveConfirmDescription": "Vous ne recevrez plus les messages de ce canal et il disparaîtra de votre liste. Les autres membres conservent leur accès et vous pourrez y être rajouté plus tard.",
+        "leaveConfirm": "Quitter le canal",
+        "leaveSuccess": "Vous avez quitté {name}.",
+        "archiveConfirmTitle": "Archiver {name} ?",
+        "archiveConfirmDescription": "Le canal disparaît pour toute l'organisation. Ses messages sont conservés. Vous pourrez le restaurer plus tard depuis Archivés dans la barre latérale.",
+        "archiveConfirm": "Archiver le canal",
+        "archiveSuccess": "{name} a été archivé.",
+        "restore": "Restaurer",
+        "restoreSuccess": "{name} a été restauré."
+      },
+      "Metadata": {
+        "title": "Channels",
+        "description": "Organization chat channels for humans and AI coworkers."
+      },
+      "title": "Channels",
+      "createChannel": "Create channel",
+      "editChannel": "Edit channel",
+      "send": "Send message",
+      "noTopic": "No topic set.",
+      "coworkerBadge": "AI coworker",
+      "humanCount": "{count, plural, one {# human} other {# humans}}",
+      "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "participantOverflow": "and {count} more",
+      "directMessages": "Direct Messages",
+      "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
+      "NoOrganization": {
+        "title": "Canaux bientôt disponibles",
+        "description": "Les canaux sont en phase de test pour les espaces organisation. Le support personnel arrive bientôt."
+      },
+      "Empty": {
+        "noChannels": "No channels yet.",
+        "noDirectMessages": "No direct messages yet.",
+        "onlyInOrganizations": "Bientôt",
+        "noMessagesTitle": "No messages yet",
+        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "noChannelTitle": "Create a channel",
+        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+      },
+      "Dialog": {
+        "createTitle": "Create channel",
+        "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
+        "editTitle": "Edit channel",
+        "editDescription": "Update the channel details and participant list.",
+        "name": "Name",
+        "nameRequired": "Le nom du canal est requis.",
+        "namePlaceholder": "Launch planning",
+        "topic": "Topic",
+        "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
+        "humans": "Humans",
+        "coworkers": "AI coworkers",
+        "cancel": "Cancel",
+        "create": "Create",
+        "save": "Save changes"
+      },
+      "MentionStatus": {
+        "pending": "Appel de {name}",
+        "sent": "{name} réfléchit",
+        "responded": "{name} a répondu",
+        "failed": "{name} a échoué",
+        "nameFallback": "Coworker"
+      },
+      "composerPlaceholderWithChannel": "Message #{channel}",
+      "directComposerPlaceholder": "Message {member}",
+      "Draft": {
+        "breadcrumb": "New direct message",
+        "to": "To:",
+        "searchPlaceholder": "Search people or AI coworkers",
+        "searchPlaceholderMore": "Ajouter d'autres personnes",
+        "noResults": "No matches",
+        "title": "New direct message",
+        "empty": "Choisissez à qui écrire.",
+        "ready": "Destinataire sélectionné",
+        "chooseRecipientError": "Choisissez un destinataire.",
+        "organizationRequiredForGroup": "Passez à une organisation pour écrire à un collègue.",
+        "removeRecipient": "Remove {name}",
+        "composerPlaceholder": "Write the first message",
+        "composerPlaceholderNoRecipients": "Ajoutez un destinataire pour commencer",
+        "oneToOneOnlyError": "Les messages directs sont en 1:1. Choisissez un membre ou un coworker.",
+        "searchPlaceholderReplace": "Remplacer le destinataire"
+      },
+      "Toolbar": {
+        "mention": "Mention coworker",
+        "attach": "Attach file",
+        "emoji": "Emoji",
+        "format": "Formatting",
+        "bold": "Bold",
+        "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
+        "uploadFailed": "File upload failed",
+        "removeAttachment": "Remove {name}",
+        "attachmentFallback": "file"
+      },
+      "Reactions": {
+        "add": "Add reaction",
+        "toggle": "React with {emoji}"
+      },
+      "Presence": {
+        "online": "Online",
+        "afk": "Away",
+        "offline": "Offline"
+      },
+      "Thread": {
+        "title": "Thread",
+        "open": "Open thread",
+        "close": "Close thread",
+        "loading": "Loading replies",
+        "empty": "No replies yet",
+        "replyPlaceholder": "Reply in thread",
+        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+      },
+      "loadOlder": "Charger les messages plus anciens",
+      "loadingOlder": "Chargement des messages plus anciens…",
+      "roomUnavailable": "Ce chat est indisponible ou vous n’y avez plus accès.",
+      "archivedChannels": "Archivés"
     }
   },
   "Share": {

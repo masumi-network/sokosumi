@@ -81,8 +81,13 @@ export function HistoryListItem({
     return <div className={rowClassName}>{content}</div>;
   }
 
+  const href = getHistoryItemHref(item);
+  if (!href) {
+    return <div className={rowClassName}>{content}</div>;
+  }
+
   return (
-    <Link href={getHistoryItemHref(item)} className={rowClassName}>
+    <Link href={href} className={rowClassName}>
       {content}
     </Link>
   );
@@ -168,7 +173,7 @@ export function isArchivedHistoryItem(item: HistoryItem): boolean {
   return item.archivedAt != null;
 }
 
-export function getHistoryItemHref(item: HistoryItem): string {
+export function getHistoryItemHref(item: HistoryItem): string | null {
   return getNotificationHref({
     kind: item.kind.toUpperCase() as NotificationKind,
     referenceId: item.id,

@@ -50,8 +50,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { id: taskId } = c.req.valid("param");
     // Assigned-agent-only collaboration: this endpoint is coworker-scoped and
-    // intentionally does NOT honor delegation. Delegated/user job creation goes
-    // through the user-context routes (agents/{id}/jobs, projects/{id}/jobs).
+    // intentionally does NOT honor X-Context-* delegation. Standalone user/orch
+    // job creation uses POST /agents/{id}/jobs (coworker keys rejected there).
     // See SOK-554: per-coworker delegation authz before broadening this.
     const task = await requireCoworkerTaskCollaboration(authContext, taskId);
 

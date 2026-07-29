@@ -125,6 +125,7 @@ interface TaskDetailActionsProps {
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel: string;
   isReadOnly?: boolean;
+  canCancel?: boolean;
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
   isOrgOwnerOrAdmin?: boolean;
@@ -145,6 +146,7 @@ export function TaskDetailActions({
   organizations,
   personalWorkspaceLabel,
   isReadOnly = false,
+  canCancel = false,
   forceReadOnly = false,
   isTaskOwner = false,
   isOrgOwnerOrAdmin = false,
@@ -190,11 +192,16 @@ export function TaskDetailActions({
   );
 
   const canMutateTask = !isReadOnly;
+  const availableStatusActions = getTaskStatusActions(status, labels, {
+    hasCoworker: Boolean(defaultAssigneeId),
+  });
   const statusActions = canMutateTask
-    ? getTaskStatusActions(status, labels, {
-        hasCoworker: Boolean(defaultAssigneeId),
-      })
-    : [];
+    ? availableStatusActions
+    : canCancel
+      ? availableStatusActions.filter(
+          (action) => action.target === TaskStatus.CANCELED,
+        )
+      : [];
 
   const canEdit = canMutateTask && isTaskEditableStatus(status);
   const canArchiveParked = canArchiveParkedTaskForViewer({

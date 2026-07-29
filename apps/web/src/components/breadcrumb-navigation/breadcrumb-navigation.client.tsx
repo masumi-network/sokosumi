@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { useBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 interface BreadcrumbSegment {
@@ -35,6 +36,9 @@ interface BreadcrumbNavigationClientProps {
   className?: string | undefined;
 }
 
+const CHAT_ROOM_BREADCRUMB_LABEL_KEY = "__chatChannelLabel";
+const CHAT_ROOM_BREADCRUMB_HREF_KEY = "__chatChannelHref";
+
 export default function BreadcrumbNavigationClient({
   breadcrumbMessages,
   organizations,
@@ -42,21 +46,24 @@ export default function BreadcrumbNavigationClient({
   className,
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
+  const override = useBreadcrumbOverride();
 
   const segments = resolveCurrentSegment(
-    generateSegments(
-      pathname,
-      segmentLabels,
-      organizations,
-      breadcrumbMessages,
-    ),
+    override?.pathname === pathname
+      ? override.segments
+      : generateSegments(
+          pathname,
+          segmentLabels,
+          organizations,
+          breadcrumbMessages,
+        ),
   );
 
   return (
     <Breadcrumb className={className}>
       <BreadcrumbList>
         {segments.map((segment, index) => (
-          <React.Fragment key={segment.href}>
+          <React.Fragment key={`${segment.href}-${segment.label}-${index}`}>
             <BreadcrumbItem>
               {segment.isCurrent ? (
                 <BreadcrumbPage>{segment.label}</BreadcrumbPage>
@@ -95,6 +102,18 @@ function generateSegments(
 ): BreadcrumbSegment[] {
   const pathSegments = pathname.split("/").filter(Boolean);
   if (!pathSegments.length) return [];
+
+  if (
+    pathSegments[0] === "chat" &&
+    pathSegments[1] === "rooms" &&
+    pathSegments[2]
+  ) {
+    return generateChatRoomSegments(
+      pathSegments[2],
+      segmentLabels,
+      breadcrumbMessages,
+    );
+  }
 
   return pathSegments
     .map((segment, index) => {
@@ -152,4 +171,37 @@ function generateSegments(
       };
     })
     .filter(Boolean) as BreadcrumbSegment[];
+}
+
+function generateChatRoomSegments(
+  roomId: string,
+  segmentLabels: Record<string, string>,
+  breadcrumbMessages?: Record<string, string>,
+): BreadcrumbSegment[] {
+  const chatLabel = breadcrumbMessages?.chat ?? "Chat";
+  const roomLabel = segmentLabels[CHAT_ROOM_BREADCRUMB_LABEL_KEY];
+  const roomHref =
+    segmentLabels[CHAT_ROOM_BREADCRUMB_HREF_KEY] ?? `/chat/rooms/${roomId}`;
+
+  if (!roomLabel) {
+    return [
+      {
+        label: chatLabel,
+        href: "/chat",
+        isCurrent: true,
+      },
+    ];
+  }
+
+  return [
+    {
+      label: chatLabel,
+      href: "/chat",
+    },
+    {
+      label: roomLabel,
+      href: roomHref,
+      isCurrent: true,
+    },
+  ];
 }

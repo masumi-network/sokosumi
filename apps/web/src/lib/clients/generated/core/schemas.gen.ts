@@ -4114,6 +4114,344 @@ export const AgentRatingRequestSchema = {
     ]
 } as const;
 
+export const ChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Room ID',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Active organization at create time for channels and directs. Null only for coworker 1:1 DMs created with no active organization.',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Launch Room'
+        },
+        slug: {
+            type: 'string',
+            example: 'launch-room'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ],
+            example: 'channel'
+        },
+        directKey: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Deterministic key for direct rooms; null for normal rooms.',
+            example: 'user_123:user_456'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Weekly launch planning'
+        },
+        createdByUserId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unreadCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Messages sent by others after the current user\'s read marker.',
+            example: 2
+        },
+        userMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomUserParticipant'
+            }
+        },
+        coworkerMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomCoworkerParticipant'
+            }
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'name',
+        'slug',
+        'kind',
+        'directKey',
+        'topic',
+        'createdByUserId',
+        'createdAt',
+        'updatedAt',
+        'unreadCount',
+        'userMembers',
+        'coworkerMembers'
+    ]
+} as const;
+
+export const ChatRoomUserParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatRoomPresence'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'image',
+        'presence'
+    ]
+} as const;
+
+export const ChatRoomPresenceSchema = {
+    type: 'string',
+    enum: [
+        'online',
+        'afk',
+        'offline'
+    ],
+    example: 'online'
+} as const;
+
+export const ChatRoomCoworkerParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Elena'
+        },
+        slug: {
+            type: 'string',
+            example: 'elena'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Research partner'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/coworker.png'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatRoomPresence'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'caption',
+        'image',
+        'presence'
+    ]
+} as const;
+
+export const ChatRoomKindSchema = {
+    type: 'string',
+    enum: [
+        'channel',
+        'direct'
+    ],
+    description: 'Filter rooms by kind. Omit to list every room.',
+    example: 'channel'
+} as const;
+
+export const ChatRoomListStatusSchema = {
+    type: 'string',
+    enum: [
+        'active',
+        'archived'
+    ],
+    default: 'active',
+    description: 'Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).',
+    example: 'active'
+} as const;
+
+export const ChatRoomSuccessResponseSchema = {
+    type: 'object',
+    properties: {
+        data: {
+            $ref: '#/components/schemas/ChatRoom'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                pagination: {
+                    $ref: '#/components/schemas/PaginationMetadata'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId'
+            ]
+        }
+    },
+    required: [
+        'data',
+        'meta'
+    ]
+} as const;
+
+export const CreateChatRoomRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'channel'
+                    ],
+                    description: 'Creates a named room for the invited members and coworkers (membership is explicit, not org-wide).'
+                },
+                name: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 80,
+                    example: 'Launch Room'
+                },
+                topic: {
+                    type: 'string',
+                    maxLength: 200,
+                    example: 'Launch planning with design and AI research partners'
+                },
+                memberUserIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    maxItems: 500,
+                    description: 'Organization member user IDs to add to the room.',
+                    example: [
+                        'user_123',
+                        'user_456'
+                    ]
+                },
+                coworkerIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    maxItems: 50,
+                    description: 'AI coworker IDs to add to the room.',
+                    example: [
+                        'cow_123'
+                    ]
+                }
+            },
+            required: [
+                'kind',
+                'name'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'direct'
+                    ],
+                    description: 'Creates or returns a 1:1 direct room (one organization member XOR one coworker) scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Group directs are not supported yet.'
+                },
+                memberUserIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    maxItems: 500,
+                    description: 'Organization member user IDs to add to the room.',
+                    example: [
+                        'user_123',
+                        'user_456'
+                    ]
+                },
+                coworkerIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    maxItems: 50,
+                    description: 'AI coworker IDs to add to the room.',
+                    example: [
+                        'cow_123'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        }
+    ]
+} as const;
+
 export const GetChatUiMessagesResponseDataSchema = {
     type: 'object',
     properties: {
@@ -4268,105 +4606,329 @@ export const ChatUiMessageSchema = {
     ]
 } as const;
 
-export const CreditCheckoutSessionSchema = {
+export const UpdateChatRoomRequestSchema = {
     type: 'object',
     properties: {
-        url: {
+        name: {
             type: 'string',
-            format: 'uri',
-            example: 'https://checkout.stripe.com/...'
-        }
-    },
-    required: [
-        'url'
-    ]
-} as const;
-
-export const CreateCreditCheckoutSessionSchema = {
-    type: 'object',
-    properties: {
-        organizationId: {
+            minLength: 1,
+            maxLength: 80,
+            example: 'Launch Room'
+        },
+        topic: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'org_123'
+            maxLength: 200,
+            example: 'Launch planning with design and AI research partners'
         },
-        credits: {
-            type: 'integer',
-            exclusiveMinimum: 0,
-            example: 1000
-        },
-        returnPath: {
-            type: 'string',
-            example: '/billing?tab=credits'
-        },
-        promotionCodeId: {
-            type: 'string',
-            example: 'promo_123'
-        }
-    },
-    required: [
-        'credits'
-    ]
-} as const;
-
-export const CheckoutSessionAnalyticsSchema = {
-    type: 'object',
-    properties: {
-        sessionId: {
-            type: 'string',
-            example: 'cs_test_123'
-        },
-        currency: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'eur'
-        },
-        value: {
-            type: [
-                'number',
-                'null'
-            ],
-            example: 12000
-        },
-        items: {
+        memberUserIds: {
             type: 'array',
             items: {
-                type: 'object',
-                properties: {
-                    itemId: {
-                        type: 'string',
-                        example: 'prod_123'
-                    },
-                    itemName: {
-                        type: 'string',
-                        example: 'Credits'
-                    },
-                    quantity: {
-                        type: [
-                            'number',
-                            'null'
-                        ],
-                        example: 1
-                    }
-                },
-                required: [
-                    'itemId',
-                    'itemName',
-                    'quantity'
-                ]
+                type: 'string',
+                minLength: 1
             },
-            example: []
+            maxItems: 500,
+            example: [
+                'user_123',
+                'user_456'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 50,
+            example: [
+                'cow_123'
+            ]
+        }
+    }
+} as const;
+
+export const ArchivedChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        archivedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         }
     },
     required: [
-        'sessionId',
-        'currency',
-        'value',
-        'items'
+        'id',
+        'archivedAt'
+    ]
+} as const;
+
+export const LeftChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        remainingUserMemberCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.',
+            example: 3
+        }
+    },
+    required: [
+        'id',
+        'remainingUserMemberCount'
+    ]
+} as const;
+
+export const ChatRoomMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        content: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sender: {
+            $ref: '#/components/schemas/ChatRoomMessageSender'
+        },
+        mentions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageMention'
+            }
+        },
+        reactions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageReaction'
+            }
+        },
+        threadReplyCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        threadLastReplyAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        metadata: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
+        }
+    },
+    required: [
+        'id',
+        'roomId',
+        'parentMessageId',
+        'content',
+        'createdAt',
+        'sender',
+        'mentions',
+        'reactions',
+        'threadReplyCount',
+        'threadLastReplyAt',
+        'metadata'
+    ]
+} as const;
+
+export const ChatRoomMessageSenderSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'user'
+                    ]
+                },
+                user: {
+                    $ref: '#/components/schemas/ChatRoomUserParticipant'
+                }
+            },
+            required: [
+                'type',
+                'user'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'coworker'
+                    ]
+                },
+                coworker: {
+                    $ref: '#/components/schemas/ChatRoomCoworkerParticipant'
+                }
+            },
+            required: [
+                'type',
+                'coworker'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'unknown'
+                    ]
+                }
+            },
+            required: [
+                'type'
+            ]
+        }
+    ]
+} as const;
+
+export const ChatRoomMessageMentionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        coworkerId: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/ChatRoomMentionStatus'
+        },
+        responseMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        }
+    },
+    required: [
+        'id',
+        'coworkerId',
+        'status',
+        'responseMessageId'
+    ]
+} as const;
+
+export const ChatRoomMentionStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'sent',
+        'responded',
+        'failed'
+    ]
+} as const;
+
+export const ChatRoomMessageReactionSchema = {
+    type: 'object',
+    properties: {
+        emoji: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 24,
+            example: '👍'
+        },
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 3
+        },
+        reactedByCurrentUser: {
+            type: 'boolean',
+            example: true
+        }
+    },
+    required: [
+        'emoji',
+        'count',
+        'reactedByCurrentUser'
+    ]
+} as const;
+
+export const CreateChatRoomMessageRequestSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: '@coworker:elena Can you summarize this launch risk?'
+        },
+        mentionedCoworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            example: [
+                'cow_123'
+            ]
+        },
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Root message ID when posting a threaded reply.',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        }
+    },
+    required: [
+        'content'
+    ]
+} as const;
+
+export const ReactToChatRoomMessageRequestSchema = {
+    type: 'object',
+    properties: {
+        emoji: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 24,
+            example: '👍'
+        }
+    },
+    required: [
+        'emoji'
     ]
 } as const;
 
@@ -4861,6 +5423,108 @@ export const CreateConversationMessageRequestSchema = {
     required: [
         'role',
         'content'
+    ]
+} as const;
+
+export const CreditCheckoutSessionSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://checkout.stripe.com/...'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
+export const CreateCreditCheckoutSessionSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        credits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 1000
+        },
+        returnPath: {
+            type: 'string',
+            example: '/billing?tab=credits'
+        },
+        promotionCodeId: {
+            type: 'string',
+            example: 'promo_123'
+        }
+    },
+    required: [
+        'credits'
+    ]
+} as const;
+
+export const CheckoutSessionAnalyticsSchema = {
+    type: 'object',
+    properties: {
+        sessionId: {
+            type: 'string',
+            example: 'cs_test_123'
+        },
+        currency: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'eur'
+        },
+        value: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 12000
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    itemId: {
+                        type: 'string',
+                        example: 'prod_123'
+                    },
+                    itemName: {
+                        type: 'string',
+                        example: 'Credits'
+                    },
+                    quantity: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        example: 1
+                    }
+                },
+                required: [
+                    'itemId',
+                    'itemName',
+                    'quantity'
+                ]
+            },
+            example: []
+        }
+    },
+    required: [
+        'sessionId',
+        'currency',
+        'value',
+        'items'
     ]
 } as const;
 
@@ -11378,8 +12042,10 @@ export const MasumiPaymentSchema = {
         },
         identifierFromPurchaser: {
             type: 'string',
-            minLength: 1,
-            example: '1234567890'
+            minLength: 14,
+            maxLength: 26,
+            pattern: '^[0-9a-f]+$/i',
+            example: 'aabbccddeeff00112233'
         },
         agentIdentifier: {
             type: 'string',
@@ -11436,6 +12102,7 @@ export const MasumiPaymentSchema = {
                     amount: {
                         type: 'string',
                         minLength: 1,
+                        maxLength: 25,
                         example: '470000000000'
                     },
                     unit: {
@@ -11450,6 +12117,7 @@ export const MasumiPaymentSchema = {
                 ]
             },
             minItems: 1,
+            maxItems: 7,
             example: []
         },
         PaymentSource: {

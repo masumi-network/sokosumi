@@ -59,19 +59,19 @@ export function canArchiveParkedTaskForViewer({
   return isTaskOwner || isOrgOwnerOrAdmin;
 }
 
-type CanCommentOnTaskForViewerParams = ReadOnlyForViewerParams;
+type OrgCollaboratorViewerParams = ReadOnlyForViewerParams;
 
 /**
- * Organization workspace collaborators may comment without owning the task.
- * Mutations stay gated by {@link isReadOnlyForViewer}.
+ * Owner or authenticated org-workspace collaborator, excluding force-read-only
+ * and parked (`GRANT_PENDING`) tasks. Shared by comment and cancel gates.
  */
-export function canCommentOnTaskForViewer({
+function canOrgCollaboratorActOnTaskForViewer({
   taskWorkspaceOrganizationId,
   taskOwnerId,
   sessionUserId,
   forceReadOnly,
   taskStatus,
-}: CanCommentOnTaskForViewerParams): boolean {
+}: OrgCollaboratorViewerParams): boolean {
   if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
     return false;
   }
@@ -85,4 +85,24 @@ export function canCommentOnTaskForViewer({
     sessionUserId !== null &&
     sessionUserId !== undefined
   );
+}
+
+/**
+ * Organization workspace collaborators may comment without owning the task.
+ * Mutations stay gated by {@link isReadOnlyForViewer}.
+ */
+export function canCommentOnTaskForViewer(
+  params: OrgCollaboratorViewerParams,
+): boolean {
+  return canOrgCollaboratorActOnTaskForViewer(params);
+}
+
+/**
+ * Organization workspace collaborators may cancel without owning the task.
+ * Other mutations stay gated by {@link isReadOnlyForViewer}.
+ */
+export function canCancelTaskForViewer(
+  params: OrgCollaboratorViewerParams,
+): boolean {
+  return canOrgCollaboratorActOnTaskForViewer(params);
 }

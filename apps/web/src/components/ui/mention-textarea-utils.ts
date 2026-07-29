@@ -18,6 +18,8 @@ export interface NormalizedMention<TData = unknown> {
 export interface TriggerPosition {
   top: number;
   left: number;
+  side: "top" | "bottom";
+  maxHeight: number;
 }
 
 export interface MentionDisplay {
@@ -376,23 +378,36 @@ export function getActiveTrigger(
 }
 
 export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
-  let top = rect.bottom;
+  // Measure against the visual viewport so an open virtual keyboard counts as
+  // unavailable space. `interactiveWidget: "resizes-content"` shrinks the
+  // layout viewport on Android, but iOS Safari resizes only the visual one, so
+  // `innerHeight` alone would place the suggestions behind the keyboard.
+  // offsetTop/offsetLeft put both edges back into the client coordinate space
+  // that `rect` uses.
+  const visual = window.visualViewport;
+  const viewportTop = visual ? visual.offsetTop : 0;
+  const viewportBottom = visual
+    ? visual.offsetTop + visual.height
+    : window.innerHeight;
+  const viewportWidth = visual ? visual.width : window.innerWidth;
+  const belowSpace = viewportBottom - rect.bottom - VIEWPORT_PADDING_PX;
+  const aboveSpace = rect.top - viewportTop - VIEWPORT_PADDING_PX;
+  const side =
+    belowSpace < Math.min(POPUP_HEIGHT_PX, 96) && aboveSpace > belowSpace
+      ? "top"
+      : "bottom";
+  const maxHeight = Math.min(
+    POPUP_HEIGHT_PX,
+    Math.max(80, side === "top" ? aboveSpace - 4 : belowSpace - 4),
+  );
+  const top = side === "top" ? rect.top - 4 : rect.bottom + 4;
   let left = rect.left;
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
-
-  if (top + POPUP_HEIGHT_PX > viewportHeight - VIEWPORT_PADDING_PX) {
-    top = rect.top - POPUP_HEIGHT_PX;
-    if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
-  }
-
-  if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
 
   if (left < VIEWPORT_PADDING_PX) left = VIEWPORT_PADDING_PX;
   const maxLeft = viewportWidth - POPUP_WIDTH_PX - VIEWPORT_PADDING_PX;
   if (left > maxLeft && maxLeft > 0) left = maxLeft;
 
-  return { top, left };
+  return { top, left, side, maxHeight };
 }
 
 export function getCaretRect(root: HTMLElement): DOMRect | null {

@@ -149,7 +149,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "切换工作区",
       "personalAccount": "个人账户",
-      "addOrganization": "添加组织",
+      "createOrganization": "创建组织",
       "organizationsHeading": "组织",
       "createOrJoinOrganization": "创建或加入组织"
     },
@@ -1350,9 +1350,6 @@
         }
       }
     },
-    "ChatRail": {
-      "chat": "聊天"
-    },
     "Chat": {
       "Metadata": {
         "title": "聊天",
@@ -1362,7 +1359,7 @@
       "description": "与您的 AI 协作伙伴聊天",
       "Chat": {
         "newChat": "新建聊天",
-        "sidebarNew": "新建",
+        "conversationSwitcher": "对话",
         "noChats": "暂无聊天",
         "noCoworkersAvailable": "暂无可用协作伙伴。请稍后重试。",
         "welcomeSendFailed": "无法发送您的消息。请重试。",
@@ -1381,6 +1378,8 @@
           "placeholder": "给 {coworkerSlug} 发消息...",
           "coworkerSlugFallback": "协作者",
           "suggestionsLabel": "试试问",
+          "startingChat": "正在与 {name} 开始聊天…",
+          "startingChatFallback": "正在开始聊天…",
           "prompts": {
             "alex": {
               "1": "为我的研究结果搭建一个仪表板。",
@@ -1432,9 +1431,6 @@
         },
         "comingSoon": "即将推出",
         "agenticCoworkers": "智能协作伙伴",
-        "models": "模型",
-        "supportsImageAttachments": "Supports image attachments",
-        "supportsImageGeneration": "可生成图片",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",
@@ -1497,7 +1493,8 @@
         "errorTitle": "错误",
         "errorDescription": "处理你的消息时发生错误。请重试。",
         "tryAgain": "重试",
-        "networkErrorAfterRetry": "多次尝试后仍无法连接服务器。请检查网络连接后重试。"
+        "networkErrorAfterRetry": "多次尝试后仍无法连接服务器。请检查网络连接后重试。",
+        "sidebarNew": "新建"
       }
     },
     "Tasks": {
@@ -1530,25 +1527,11 @@
         "approvePartialError": "已批准 {approved}/{total} 个供应商。部分批准失败，请刷新后重试。"
       },
       "Actions": {
-        "add": "添加",
-        "addTask": "添加任务",
+        "add": "新建任务",
+        "addTask": "新建任务",
         "loading": "加载中...",
         "loadMore": "加载更多",
         "showGuide": "Show guide"
-      },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "或使用聊天开始任务",
-        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "chatHint": "Use chat to shape the next task",
-        "elenaAvatarAlt": "Elena avatar"
       },
       "Errors": {
         "updateStatus": "更新任务状态失败",
@@ -1948,6 +1931,17 @@
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
+      },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "getStartedTitle": "You're all set!",
+        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
+        "getStartedButton": "Get Started",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "elenaAvatarAlt": "Elena avatar"
       }
     },
     "Projects": {
@@ -2725,16 +2719,17 @@
       "description": "雇用智能体来完成最耗时的任务"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "每月积分",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "详情不可用",
+        "planLabel": "套餐",
+        "openSummary": "打开账户摘要：{name}，{summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
-        "ChatLists": {
-          "title": "最近的对话",
-          "noChats": "还没有对话",
-          "untitledChat": "无标题对话",
-          "modelAlt": "模型",
-          "coworkerAlt": "协作者"
-        },
         "MenuItems": {
-          "chat": "聊天",
+          "newTask": "新建任务",
           "search": "搜索",
           "exploreAgents": "智能体",
           "filesAndOutputs": "文件与输出",
@@ -2746,7 +2741,15 @@
           "history": "历史记录",
           "admin": "管理",
           "settings": "设置",
-          "back": "返回"
+          "back": "返回",
+          "chat": "聊天"
+        },
+        "ChatLists": {
+          "title": "最近的对话",
+          "noChats": "还没有对话",
+          "untitledChat": "无标题对话",
+          "modelAlt": "模型",
+          "coworkerAlt": "协作者"
         }
       }
     },
@@ -4510,6 +4513,132 @@
           "imageSaveFailed": "更新图片失败。"
         }
       }
+    },
+    "Channels": {
+      "Actions": {
+        "sectionTitle": "管理频道",
+        "leave": "退出频道",
+        "archive": "归档频道",
+        "cancel": "取消",
+        "leaveConfirmTitle": "退出 {name}？",
+        "leaveConfirmDescription": "你将不再接收该频道的消息，它也会从你的列表中消失。其他成员的访问权限不变，之后仍可将你重新加入。",
+        "leaveConfirm": "退出频道",
+        "leaveSuccess": "你已退出 {name}。",
+        "archiveConfirmTitle": "归档 {name}？",
+        "archiveConfirmDescription": "该频道将对组织中所有人隐藏。消息会保留。之后可在侧边栏的“已归档”中恢复。",
+        "archiveConfirm": "归档频道",
+        "archiveSuccess": "{name} 已归档。",
+        "restore": "恢复",
+        "restoreSuccess": "已恢复 {name}。"
+      },
+      "Metadata": {
+        "title": "Channels",
+        "description": "Organization chat channels for humans and AI coworkers."
+      },
+      "title": "Channels",
+      "createChannel": "Create channel",
+      "editChannel": "Edit channel",
+      "send": "Send message",
+      "noTopic": "No topic set.",
+      "coworkerBadge": "AI coworker",
+      "humanCount": "{count, plural, one {# human} other {# humans}}",
+      "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "participantOverflow": "and {count} more",
+      "directMessages": "Direct Messages",
+      "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
+      "NoOrganization": {
+        "title": "频道即将推出",
+        "description": "频道目前正在组织工作区中测试。个人使用支持即将上线。"
+      },
+      "Empty": {
+        "noChannels": "No channels yet.",
+        "noDirectMessages": "No direct messages yet.",
+        "onlyInOrganizations": "即将推出",
+        "noMessagesTitle": "No messages yet",
+        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "messagesLoadFailedTitle": "Messages could not be loaded",
+        "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "noChannelTitle": "Create a channel",
+        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+      },
+      "Dialog": {
+        "createTitle": "Create channel",
+        "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
+        "editTitle": "Edit channel",
+        "editDescription": "Update the channel details and participant list.",
+        "name": "Name",
+        "nameRequired": "频道名称为必填项。",
+        "namePlaceholder": "Launch planning",
+        "topic": "Topic",
+        "topicPlaceholder": "What this channel is for",
+        "participants": "Members",
+        "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
+        "humans": "Humans",
+        "coworkers": "AI coworkers",
+        "cancel": "Cancel",
+        "create": "Create",
+        "save": "Save changes"
+      },
+      "MentionStatus": {
+        "pending": "正在呼叫 {name}",
+        "sent": "{name} 正在思考",
+        "responded": "{name} 已回复",
+        "failed": "{name} 失败",
+        "nameFallback": "同事"
+      },
+      "composerPlaceholderWithChannel": "Message #{channel}",
+      "directComposerPlaceholder": "Message {member}",
+      "Draft": {
+        "breadcrumb": "New direct message",
+        "to": "To:",
+        "searchPlaceholder": "Search people or AI coworkers",
+        "searchPlaceholderMore": "添加更多人",
+        "noResults": "No matches",
+        "title": "New direct message",
+        "empty": "选择要私信的对象。",
+        "ready": "已选择收件人",
+        "chooseRecipientError": "请选择收件人。",
+        "organizationRequiredForGroup": "请切换到组织工作区，才能向同事发送私信。",
+        "removeRecipient": "Remove {name}",
+        "composerPlaceholder": "Write the first message",
+        "composerPlaceholderNoRecipients": "添加收件人后开始",
+        "oneToOneOnlyError": "私信目前仅为一对一。请选择一位成员或一位同事。",
+        "searchPlaceholderReplace": "更换收件人"
+      },
+      "Toolbar": {
+        "mention": "Mention coworker",
+        "attach": "Attach file",
+        "emoji": "Emoji",
+        "format": "Formatting",
+        "bold": "Bold",
+        "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
+        "uploadFailed": "File upload failed",
+        "removeAttachment": "Remove {name}",
+        "attachmentFallback": "file"
+      },
+      "Reactions": {
+        "add": "Add reaction",
+        "toggle": "React with {emoji}"
+      },
+      "Presence": {
+        "online": "Online",
+        "afk": "Away",
+        "offline": "Offline"
+      },
+      "Thread": {
+        "title": "Thread",
+        "open": "Open thread",
+        "close": "Close thread",
+        "loading": "Loading replies",
+        "empty": "No replies yet",
+        "replyPlaceholder": "Reply in thread",
+        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+      },
+      "loadOlder": "加载更早的消息",
+      "loadingOlder": "正在加载更早的消息…",
+      "roomUnavailable": "此聊天不可用，或你已没有访问权限。",
+      "archivedChannels": "已归档"
     }
   },
   "Share": {

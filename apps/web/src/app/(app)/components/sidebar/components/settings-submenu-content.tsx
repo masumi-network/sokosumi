@@ -1,10 +1,8 @@
 "use client";
 
-import type { SessionUser } from "@sokosumi/utils";
-import { ChevronRight, Code2, LifeBuoy, LogOut, Scale } from "lucide-react";
+import { ChevronRight, Code2, LifeBuoy, Scale } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -20,13 +18,11 @@ import { getAccountNavItems } from "./account-menu-config";
 import { useSidebarSubmenu } from "./sidebar-submenu";
 
 interface SettingsSubmenuContentProps {
-  sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
 }
 
 export function SettingsSubmenuContent({
-  sessionUser,
   members,
   activeOrganizationId,
 }: SettingsSubmenuContentProps) {
@@ -36,8 +32,7 @@ export function SettingsSubmenuContent({
   );
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { goBack, openSubmenu } = useSidebarSubmenu();
-  const { showLogoutModal } = useGlobalModalsContext();
+  const { openSubmenu } = useSidebarSubmenu();
 
   const accountNavItems = getAccountNavItems({
     activeOrganizationId,
@@ -53,12 +48,6 @@ export function SettingsSubmenuContent({
   function handleNavigate(path: string) {
     closeMobileSheet();
     router.push(path);
-  }
-
-  function handleLogout() {
-    goBack();
-    closeMobileSheet();
-    showLogoutModal(sessionUser.email);
   }
 
   function getItemLabel(translationKey: string): string {
@@ -146,22 +135,6 @@ export function SettingsSubmenuContent({
                 {tUserAvatar("legal")}
               </span>
               <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              type="button"
-              onClick={handleLogout}
-              className={cn(
-                "flex min-h-auto w-full items-center gap-2 px-3",
-                "text-tertiary-foreground dark:text-muted-foreground",
-                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              )}
-            >
-              <LogOut className="size-4" aria-hidden />
-              <span className="flex-1 truncate text-left">
-                {tUserAvatar("logout")}
-              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

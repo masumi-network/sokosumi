@@ -7,7 +7,13 @@ import { getSession } from "@/lib/auth/auth.server";
 import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-proxy-headers";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
-const CORE_CHAT_PATH = "chat" as const;
+function coreRoomStreamMessagesUrl(roomId: string, search: URLSearchParams) {
+  const coreSearch = new URLSearchParams(search);
+  coreSearch.delete("roomId");
+  const query = coreSearch.toString();
+  const base = `${getCoreApiBaseUrl()}/chats/rooms/${encodeURIComponent(roomId)}/stream/messages`;
+  return query ? `${base}?${query}` : base;
+}
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -15,12 +21,13 @@ export async function GET(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const conversationId = new URL(req.url).searchParams.get("conversationId");
-  if (!conversationId?.trim()) {
+  const incoming = new URL(req.url);
+  const roomId = incoming.searchParams.get("roomId")?.trim() ?? "";
+  if (!roomId) {
     return NextResponse.json(
       {
         error: "Bad Request",
-        message: "Query parameter conversationId is required.",
+        message: "Query parameter roomId is required.",
       },
       { status: 400 },
     );
@@ -31,11 +38,7 @@ export async function GET(req: NextRequest) {
       new Headers(await headers()),
     );
 
-    const incoming = new URL(req.url);
-    const coreSearch = new URLSearchParams(incoming.search);
-    coreSearch.set("conversationId", conversationId);
-
-    const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}?${coreSearch.toString()}`;
+    const coreUrl = coreRoomStreamMessagesUrl(roomId, incoming.searchParams);
 
     const response = await fetch(coreUrl, {
       method: "GET",
@@ -73,12 +76,22 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    const roomId = typeof body.roomId === "string" ? body.roomId.trim() : "";
+    if (!roomId) {
+      return NextResponse.json(
+        { error: "Bad Request", message: "Body field roomId is required." },
+        { status: 400 },
+      );
+    }
+
     const requestHeaders = buildCoreChatProxyHeaders(
       new Headers(await headers()),
     );
     requestHeaders.set("Content-Type", "application/json");
 
-    const response = await fetch(`${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}`, {
+    const coreUrl = `${getCoreApiBaseUrl()}/chats/rooms/${encodeURIComponent(roomId)}/stream`;
+
+    const response = await fetch(coreUrl, {
       method: "POST",
       headers: requestHeaders,
       body: JSON.stringify(body),
