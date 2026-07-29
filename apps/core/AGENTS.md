@@ -113,6 +113,29 @@ Examples include workspace move operations for tasks and jobs. Do not add `updat
 
 When a flow does need `Serializable` isolation (e.g. credit consumption, idempotency checks), use `serializableTransaction()` from `@/lib/db/transaction` instead of calling `prisma.$transaction` with `isolationLevel` directly. Postgres aborts serializable transactions with a serialization failure (Prisma `P2034`) under concurrent writes; the helper maps that to a retryable 409 conflict (`kind: "concurrency_conflict"`) instead of an unhandled 500. Routes using it must declare `409: jsonErrorResponse("Conflict")` in their OpenAPI responses.
 
+#### Interactive Transactions (avoid on read-only GETs)
+
+**Default: do not wrap read-only GET handlers in interactive `prisma.$transaction(async (tx) => …)`.** Pass the default `prisma` client into helpers that accept a `tx` / client argument (access gate, then list/count/unread). Helpers already accept either shape.
+
+Interactive transactions hold a pool connection for the whole callback. Web pages that fire several Core GETs in parallel (e.g. chat room: room + messages + org members + coworkers) multiply that hold time → Prisma **P2028** (`Unable to start a transaction in the given time` / `maxWait`). Prior incidents: SOKOSUMI-Q9 (room GET), SOKOSUMI-Q7 (org members GET), SOKOSUMI-CORE-2J (workspace middleware).
+
+Keep interactive transactions when the path needs a shared snapshot across writes, multi-step mutations, or true read-your-writes isolation. Access check + display read on a GET almost never do.
+
+**Never `Promise.all` Prisma queries inside an interactive transaction** — Prisma does not support concurrent queries on the same interactive tx client (see #2559). Use sequential awaits inside the tx, or drop the interactive tx and parallelize on the default client / use batch `$transaction([...])`.
+
+```typescript
+// ❌ Read-only GET — holds a pool connection for the whole callback
+const { room, unreadCounts } = await prisma.$transaction(async (tx) => {
+  const room = await requireChatRoomUserAccess(id, userId, tx);
+  const unreadCounts = await getChatRoomUnreadCounts([room.id], userId, tx);
+  return { room, unreadCounts };
+});
+
+// ✅ Same reads on the default client — no interactive tx, no shared snapshot needed
+const room = await requireChatRoomUserAccess(id, userId, prisma);
+const unreadCounts = await getChatRoomUnreadCounts([room.id], userId, prisma);
+```
+
 ### Authentication Classes
 
 Use type-safe Hono classes that automatically apply authentication:
