@@ -3,13 +3,14 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
+  hasActiveTaskSchedule,
 } from "@sokosumi/utils";
 
 import { requireTaskArchiveAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { cascadeArchiveScheduleParentChildren, mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -27,7 +28,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel).",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule parent also archives occurrence clones linked via PARENT.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -71,6 +72,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (updateResult.count === 0) {
         throw conflict("Task was modified concurrently; retry archive");
+      }
+
+      if (hasActiveTaskSchedule(currentTask.metadata, currentTask.nextRunAt)) {
+        await cascadeArchiveScheduleParentChildren({
+          tx,
+          parentTaskId: id,
+          archivedAt,
+        });
       }
 
       return tx.task.findFirstOrThrow({

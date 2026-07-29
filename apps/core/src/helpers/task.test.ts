@@ -6,6 +6,7 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
+  cascadeArchiveScheduleParentChildren,
   cascadeCancelNonTerminalParentChildren,
   getTaskStatusUpdateDataForEvent,
   isTerminalTaskStatus,
@@ -808,6 +809,87 @@ describe("task cancel helpers", () => {
     expect(canceledChildren).toEqual([
       { taskId: "tsk_child_running", userId: "user_123" },
       { taskId: "tsk_child_ready", userId: "user_other" },
+    ]);
+  });
+});
+
+describe("cascadeArchiveScheduleParentChildren", () => {
+  const archivedAt = new Date("2026-03-25T12:00:00.000Z");
+
+  it("archives archivable PARENT children and skips RUNNING and already archived", async () => {
+    const taskLinkFindMany = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_completed",
+          status: TaskStatus.COMPLETED,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_canceled",
+          status: TaskStatus.CANCELED,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_running",
+          status: TaskStatus.RUNNING,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_archived",
+          status: TaskStatus.READY,
+          archivedAt: new Date("2026-03-25T11:00:00.000Z"),
+        },
+      },
+    ]);
+    const taskUpdateMany = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    const archivedChildIds = await cascadeArchiveScheduleParentChildren({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      archivedAt,
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "PARENT",
+        },
+      }),
+    );
+    expect(taskUpdateMany).toHaveBeenCalledTimes(3);
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_child_ready",
+        archivedAt: null,
+        status: TaskStatus.READY,
+      },
+      data: { archivedAt },
+    });
+    expect(archivedChildIds).toEqual([
+      "tsk_child_ready",
+      "tsk_child_completed",
+      "tsk_child_canceled",
     ]);
   });
 });

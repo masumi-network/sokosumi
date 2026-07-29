@@ -375,6 +375,179 @@ describe("DELETE /tasks/{id}", () => {
     );
   });
 
+  const scheduleMetadata = JSON.stringify({ version: 1, mode: "recurring" });
+
+  it("cascades archive to PARENT children when parent has active schedule", async () => {
+    const updateManyMock = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    const taskLinkFindManyMock = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_completed",
+          status: TaskStatus.COMPLETED,
+          archivedAt: null,
+        },
+      },
+    ]);
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+          findFirstOrThrow: findFirstOrThrowMock,
+        },
+        taskLink: {
+          findMany: taskLinkFindManyMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      metadata: scheduleMetadata,
+      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_123",
+          type: "PARENT",
+        },
+      }),
+    );
+    expect(updateManyMock).toHaveBeenCalledTimes(3);
+    expect(updateManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "tsk_child_ready",
+        archivedAt: null,
+        status: TaskStatus.READY,
+      },
+      data: expect.objectContaining({
+        archivedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it("does not cascade archive when parent has no active schedule", async () => {
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
+    const taskLinkFindManyMock = vi.fn();
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+          findFirstOrThrow: findFirstOrThrowMock,
+        },
+        taskLink: {
+          findMany: taskLinkFindManyMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      metadata: null,
+      nextRunAt: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkFindManyMock).not.toHaveBeenCalled();
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips RUNNING PARENT child and still archives schedule parent", async () => {
+    const updateManyMock = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    const taskLinkFindManyMock = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_running",
+          status: TaskStatus.RUNNING,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+    ]);
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+          findFirstOrThrow: findFirstOrThrowMock,
+        },
+        taskLink: {
+          findMany: taskLinkFindManyMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      metadata: scheduleMetadata,
+      nextRunAt: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateManyMock).toHaveBeenCalledTimes(2);
+    expect(updateManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "tsk_child_ready",
+        archivedAt: null,
+        status: TaskStatus.READY,
+      },
+      data: expect.objectContaining({
+        archivedAt: expect.any(Date),
+      }),
+    });
+  });
+
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
     const app = createApp("99999999-9999-7999-8999-999999999999", {
       actor: "coworker",

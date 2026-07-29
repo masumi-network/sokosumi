@@ -1,5 +1,5 @@
 import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { canArchiveTaskStatus, convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
@@ -358,6 +358,58 @@ export async function cascadeCancelNonTerminalParentChildren({
   }
 
   return canceledChildren;
+}
+
+interface CascadeArchiveScheduleParentChildrenParams {
+  tx: Prisma.TransactionClient;
+  parentTaskId: string;
+  archivedAt: Date;
+}
+
+export async function cascadeArchiveScheduleParentChildren({
+  tx,
+  parentTaskId,
+  archivedAt,
+}: CascadeArchiveScheduleParentChildrenParams): Promise<string[]> {
+  const parentLinks = await tx.taskLink.findMany({
+    where: {
+      fromTaskId: parentTaskId,
+      type: TaskLinkType.PARENT,
+    },
+    select: {
+      toTask: {
+        select: {
+          id: true,
+          status: true,
+          archivedAt: true,
+        },
+      },
+    },
+  });
+
+  const archivedChildIds: string[] = [];
+
+  for (const link of parentLinks) {
+    const child = link.toTask;
+    if (child.archivedAt != null) {
+      continue;
+    }
+    if (!canArchiveTaskStatus(child.status)) {
+      continue;
+    }
+
+    const childUpdate = await tx.task.updateMany({
+      where: { id: child.id, archivedAt: null, status: child.status },
+      data: { archivedAt },
+    });
+    if (childUpdate.count !== 1) {
+      throw conflict("Task was modified concurrently; retry archive");
+    }
+
+    archivedChildIds.push(child.id);
+  }
+
+  return archivedChildIds;
 }
 
 export function validateStatusTransition(
