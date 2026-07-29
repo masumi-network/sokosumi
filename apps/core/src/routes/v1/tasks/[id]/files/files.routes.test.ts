@@ -17,7 +17,6 @@ const {
   coworkerFindFirstMock,
   uploadTaskFileMock,
   deleteTaskFileIfOwnedMock,
-  transactionMock,
 } = vi.hoisted(() => ({
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
@@ -26,7 +25,6 @@ const {
   coworkerFindFirstMock: vi.fn(),
   uploadTaskFileMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
-  transactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -42,7 +40,6 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: {
       findFirst: coworkerFindFirstMock,
     },
-    $transaction: transactionMock,
   },
 }));
 
@@ -120,20 +117,6 @@ function createCoworkerApp(assigneeId = COWORKER_ID) {
 describe("task files routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionMock.mockImplementation(async (fn: (tx: unknown) => unknown) =>
-      fn({
-        task: {
-          findFirst: taskFindFirstMock,
-          findUnique: taskFindUniqueMock,
-        },
-        taskFile: {
-          findMany: taskFileFindManyMock,
-        },
-        coworker: {
-          findFirst: coworkerFindFirstMock,
-        },
-      }),
-    );
   });
 
   it("lists task files for the owner", async () => {
@@ -177,6 +160,50 @@ describe("task files routes", () => {
         },
       }),
     ]);
+  });
+
+  it("lists task files for the assigned coworker", async () => {
+    coworkerFindFirstMock.mockResolvedValueOnce({
+      id: COWORKER_ID,
+      slug: "ops",
+      baseURL: null,
+    });
+    // Coworker task read uses findFirst with assignee/vendor grant where.
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+    taskFileFindManyMock.mockResolvedValueOnce([
+      {
+        id: "tfile_1",
+        taskId: TASK_ID,
+        createdAt: new Date("2026-07-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+        name: "report.pdf",
+        fileUrl: FILE_URL,
+        mimeType: "application/pdf",
+        size: 123n,
+        uploadedByUserId: OWNER_ID,
+        uploadedByCoworkerId: null,
+        uploadedByUser: {
+          id: OWNER_ID,
+          name: "Ada",
+          image: null,
+        },
+        uploadedByCoworker: null,
+      },
+    ]);
+
+    const app = createCoworkerApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        id: "tfile_1",
+        name: "report.pdf",
+        fileUrl: FILE_URL,
+      }),
+    ]);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
   });
 
   it("uploads a task file for the owner", async () => {
@@ -327,12 +354,13 @@ describe("task files routes", () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
     uploadTaskFileMock.mockResolvedValueOnce(FILE_URL);
     const longName = `${"a".repeat(300)}.pdf`;
+    const clampedName = `${"a".repeat(251)}.pdf`;
     taskFileCreateMock.mockResolvedValueOnce({
       id: "tfile_long",
       taskId: TASK_ID,
       createdAt: new Date("2026-07-01T00:00:00.000Z"),
       updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-      name: "a".repeat(255),
+      name: clampedName,
       fileUrl: FILE_URL,
       mimeType: "application/pdf",
       size: 4n,
@@ -361,13 +389,13 @@ describe("task files routes", () => {
     expect(response.status).toBe(201);
     expect(uploadTaskFileMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        filename: "a".repeat(255),
+        filename: clampedName,
       }),
     );
     expect(taskFileCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          name: "a".repeat(255),
+          name: clampedName,
         }),
       }),
     );

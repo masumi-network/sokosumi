@@ -60,7 +60,8 @@ export function resolveTaskFileContentType(
 
 /**
  * Normalize a client-provided file name for DB storage: trim, fall back to
- * `"file"`, and clamp to {@link TASK_FILE_MAX_NAME_LENGTH}.
+ * `"file"`, and clamp to {@link TASK_FILE_MAX_NAME_LENGTH}. When truncating,
+ * keeps a trailing extension (e.g. `.pdf`) so icons/UX still recognize type.
  */
 export function clampTaskFileName(fileName: string): string {
   const trimmed = fileName.trim();
@@ -68,7 +69,21 @@ export function clampTaskFileName(fileName: string): string {
   if (base.length <= TASK_FILE_MAX_NAME_LENGTH) {
     return base;
   }
-  return base.slice(0, TASK_FILE_MAX_NAME_LENGTH);
+
+  const lastDot = base.lastIndexOf(".");
+  // No extension, leading-dot only, or trailing dot → hard slice.
+  if (lastDot <= 0 || lastDot === base.length - 1) {
+    return base.slice(0, TASK_FILE_MAX_NAME_LENGTH);
+  }
+
+  const extension = base.slice(lastDot); // includes "."
+  if (extension.length >= TASK_FILE_MAX_NAME_LENGTH) {
+    return base.slice(0, TASK_FILE_MAX_NAME_LENGTH);
+  }
+
+  const stem = base.slice(0, lastDot);
+  const maxStemLength = TASK_FILE_MAX_NAME_LENGTH - extension.length;
+  return `${stem.slice(0, maxStemLength)}${extension}`;
 }
 
 /**

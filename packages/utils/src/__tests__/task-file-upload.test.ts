@@ -41,6 +41,23 @@ describe("task file upload helpers", () => {
     );
   });
 
+  it("preserves the file extension when clamping long names", () => {
+    const longPdf = `${"a".repeat(300)}.pdf`;
+    expect(clampTaskFileName(longPdf)).toBe(
+      `${"a".repeat(TASK_FILE_MAX_NAME_LENGTH - ".pdf".length)}.pdf`,
+    );
+    expect(clampTaskFileName(longPdf)).toHaveLength(TASK_FILE_MAX_NAME_LENGTH);
+
+    const longDocx = `${"b".repeat(300)}.docx`;
+    expect(clampTaskFileName(longDocx).endsWith(".docx")).toBe(true);
+    expect(clampTaskFileName(longDocx)).toHaveLength(TASK_FILE_MAX_NAME_LENGTH);
+
+    // No usable extension → hard slice
+    expect(clampTaskFileName("a".repeat(300))).toBe(
+      "a".repeat(TASK_FILE_MAX_NAME_LENGTH),
+    );
+  });
+
   it("builds the task file prefix", () => {
     expect(buildTaskFilePrefix("tsk_123")).toBe("tasks/tsk_123/");
   });

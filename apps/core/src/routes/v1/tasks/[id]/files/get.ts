@@ -36,13 +36,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id: taskId } = c.req.valid("param");
 
-    const files = await prisma.$transaction(async (tx) => {
-      await requireTaskReadForRouteVars(c.var, taskId, tx);
-      return tx.taskFile.findMany({
-        where: { taskId },
-        include: taskFileApiInclude,
-        orderBy: { createdAt: "desc" },
-      });
+    // Read-only GET: no interactive transaction (pool hold / P2028 risk).
+    await requireTaskReadForRouteVars(c.var, taskId);
+    const files = await prisma.taskFile.findMany({
+      where: { taskId },
+      include: taskFileApiInclude,
+      orderBy: { createdAt: "desc" },
     });
 
     return ok(
