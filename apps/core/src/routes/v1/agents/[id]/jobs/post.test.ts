@@ -188,6 +188,26 @@ describe("POST /agents/{id}/jobs", () => {
     expect(createAgentJobForUserMock).not.toHaveBeenCalled();
   });
 
+  it("rejects bare coworker without context headers", async () => {
+    const bareCoworkerAuth: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
+    };
+
+    const app = createApp(bareCoworkerAuth);
+    const response = await app.request("http://localhost/agent_123/jobs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(JOB_PAYLOAD),
+    });
+
+    expect(response.status).toBe(403);
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+  });
+
   it("allows orchestrator with context headers", async () => {
     const orchestratorAuth: AuthenticationContext = {
       actor: "orchestrator",
