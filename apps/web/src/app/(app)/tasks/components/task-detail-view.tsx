@@ -1,5 +1,8 @@
-import type { SubscriptionPlanName } from "@sokosumi/utils";
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import {
+  hasActiveTaskSchedule,
+  resolveIpfsOrHttpUrl,
+  type SubscriptionPlanName,
+} from "@sokosumi/utils";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -483,6 +486,7 @@ async function TaskDetailActionsSlot({
       forceReadOnly={forceReadOnly}
       isTaskOwner={session?.user.id === task.ownerId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+      hasActiveSchedule={hasActiveTaskSchedule(task.metadata, task.nextRunAt)}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),

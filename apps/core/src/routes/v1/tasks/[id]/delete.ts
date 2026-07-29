@@ -27,7 +27,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval.",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel).",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -45,11 +45,11 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireOwnerUserContext(authContext);
+    requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const currentTask = await requireTaskArchiveAccess(userContext, id, tx);
+      const currentTask = await requireTaskArchiveAccess(c.var, id, tx);
 
       if (!canArchiveTaskStatus(currentTask.status)) {
         throw unprocessableEntity(

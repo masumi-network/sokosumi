@@ -1,6 +1,9 @@
 "use server";
 
-import { userTaskStatusTransitionRequiresComment } from "@sokosumi/utils";
+import {
+  hasActiveTaskSchedule,
+  userTaskStatusTransitionRequiresComment,
+} from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -19,7 +22,6 @@ import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
-  hasActiveSchedule,
   hasTaskScheduleChanged,
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
@@ -514,7 +516,7 @@ export const setTaskStatusFromDrag = withSession<
     const shouldClearSchedule =
       currentStatus === TaskStatus.QUEUED &&
       desiredStatus !== TaskStatus.QUEUED &&
-      hasActiveSchedule(task.metadata, task.nextRunAt);
+      hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
     if (shouldClearSchedule) {
       const clearedTask = await taskScheduleService.clearSchedule(taskId);

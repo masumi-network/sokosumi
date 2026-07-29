@@ -730,6 +730,67 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
+  it("shows archive for org member on a scheduled task they do not own", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.READY,
+      isReadOnly: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
+  it("hides archive for plain org member on grant-pending scheduled task", async () => {
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      isReadOnly: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+  });
+
+  it("shows cancel and archive for org member on a queued scheduled task they do not own", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.QUEUED,
+      isReadOnly: true,
+      canCancel: true,
+      isTaskOwner: false,
+      isOrgOwnerOrAdmin: false,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
   it("hides share and overflow actions in read-only workspace mode", () => {
     renderActions({
       isReadOnly: true,
