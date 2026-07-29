@@ -21,6 +21,7 @@ import { getEnv } from "@/config/env";
 import {
   CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
   CARDANO_V2_RAIL_READINESS_KEY,
+  CARDANO_V2_RAIL_READINESS_TTL_MS,
   type CardanoV2ReadySource,
   getAgentDescription,
   getCardanoV2ReadySources,
@@ -1392,8 +1393,16 @@ async function syncCardanoV2RailReadiness(
   const previousReadiness = await prisma.syncMetadata.findUnique({
     where: { key: CARDANO_V2_RAIL_READINESS_KEY },
   });
+  // A cache that had gone stale (TTL expired) fed [] to the availability and
+  // pricing paths, so entries synced during that window were projected from
+  // the fallback source rather than a purchase-ready one. Coming back with the
+  // SAME source set is therefore still a change that must trigger a replay.
+  const wasReadinessStale =
+    previousReadiness === null ||
+    Date.now() - previousReadiness.lastSyncedAt.getTime() >=
+      CARDANO_V2_RAIL_READINESS_TTL_MS;
   const readinessChanged =
-    previousReadiness?.cursorId !== serializedReadySources;
+    previousReadiness?.cursorId !== serializedReadySources || wasReadinessStale;
   await prisma.syncMetadata.upsert({
     where: { key: CARDANO_V2_RAIL_READINESS_KEY },
     create: {

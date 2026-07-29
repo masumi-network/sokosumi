@@ -253,7 +253,8 @@ function matchingResolvedPurchase(
     inputHash: job.inputHash,
     agentIdentifier:
       job.agentBlockchainIdentifier ?? agent?.blockchainIdentifier ?? null,
-    payByTime: String((job.payByTime as Date).getTime()),
+    payByTime:
+      job.payByTime === null ? null : String((job.payByTime as Date).getTime()),
     submitResultTime: String((job.submitResultTime as Date).getTime()),
     unlockTime: String((job.unlockTime as Date).getTime()),
     externalDisputeUnlockTime: String(
@@ -699,6 +700,31 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         ),
       }),
     );
+  });
+
+  it("refuses to backfill a legacy job with a missing deadline instead of throwing", async () => {
+    // The purchase selector deliberately admits legacy paid jobs with a null
+    // payByTime. Terms that cannot be verified must be refused, not crash.
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+      payByTime: null,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_legacy",
+          payByTime: "1700000000000",
+        }),
+      ),
+    );
+
+    await expect(
+      jobSyncService.syncUnfinishedJobs(createExecutionOptions()),
+    ).resolves.toBeDefined();
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
   });
 
   it("refuses to backfill when the job has no input hash to match on", async () => {

@@ -2299,15 +2299,33 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     });
   });
 
-  it("reports no change when the cached source set is unchanged", async () => {
+  it("reports no change when a FRESH cache holds the same source set", async () => {
     const agentSyncService = await getAgentSyncService();
     syncMetadataFindUniqueMock.mockResolvedValue({
       cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date(),
     });
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
 
     await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
       false,
+    );
+  });
+
+  it("reports a change when a STALE cache returns the same source set", async () => {
+    // While the cache was stale, readiness read as [] — so entries synced in
+    // that window were priced from the fallback source rather than a
+    // purchase-ready one. Recovering must replay them even though the source
+    // set is byte-identical.
+    const agentSyncService = await getAgentSyncService();
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date(Date.now() - 31 * 60 * 1000),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
+
+    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
+      true,
     );
   });
 

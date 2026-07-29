@@ -228,7 +228,7 @@ export function isCardanoV2SourceReady(
  * refreshed by the agents-sync cron, so a healthy deployment stays well
  * inside the window; an extended payment-node outage hides V2 agents.
  */
-const CARDANO_V2_RAIL_READINESS_TTL_MS = 30 * 60 * 1000;
+export const CARDANO_V2_RAIL_READINESS_TTL_MS = 30 * 60 * 1000;
 const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
 /**
@@ -364,7 +364,14 @@ export const buildAvailableAgentWhereClause = (
                     chain: "Cardano",
                     network: getEnv().NETWORK,
                     paymentSourceType: "Web3CardanoV2",
-                    address: source.smartContractAddress,
+                    // Case-insensitive to match isCardanoV2SourceReady, which
+                    // lowercases both sides: registry and payment-node
+                    // addresses are stored raw, so an exact match here could
+                    // hide a genuinely purchase-ready agent.
+                    address: {
+                      equals: source.smartContractAddress,
+                      mode: "insensitive" as const,
+                    },
                   },
                 },
               })),

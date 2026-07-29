@@ -556,6 +556,21 @@ async function finalizeJobSyncResult(
   }
 }
 
+/**
+ * Compares a purchase deadline (epoch-millisecond string) with the job's own.
+ * A null/absent deadline on either side is NOT a match: the backfill can only
+ * adopt a purchase whose terms it can actually verify.
+ */
+function matchesDeadline(
+  purchaseValue: string | null | undefined,
+  jobValue: Date | null | undefined,
+): boolean {
+  if (!purchaseValue || !jobValue) {
+    return false;
+  }
+  return purchaseValue === String(jobValue.getTime());
+}
+
 async function syncPurchaseState(
   initialJob: JobWithSokosumiStatus,
   options: JobSyncExecutionOptions,
@@ -622,11 +637,17 @@ async function syncPurchaseState(
         normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
           normalizeV2RegistryIdentifier(expectedAgentIdentifier) &&
         doesPaymentSourceTypeMatch &&
-        purchase.payByTime === String(job.payByTime.getTime()) &&
-        purchase.submitResultTime === String(job.submitResultTime.getTime()) &&
-        purchase.unlockTime === String(job.unlockTime.getTime()) &&
-        purchase.externalDisputeUnlockTime ===
-          String(job.externalDisputeUnlockTime.getTime());
+        // Deadlines are typed non-null for paid jobs but the column is
+        // nullable and the purchase selector deliberately admits legacy rows
+        // with a null payByTime. A missing deadline means the terms cannot be
+        // verified, so refuse the attach rather than throw on .getTime().
+        matchesDeadline(purchase.payByTime, job.payByTime) &&
+        matchesDeadline(purchase.submitResultTime, job.submitResultTime) &&
+        matchesDeadline(purchase.unlockTime, job.unlockTime) &&
+        matchesDeadline(
+          purchase.externalDisputeUnlockTime,
+          job.externalDisputeUnlockTime,
+        );
       if (!doesPurchaseMatchJob) {
         const mismatchError = new Error(
           `Resolved purchase does not match job terms; refusing purchase backfill for job ${job.id}`,

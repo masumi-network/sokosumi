@@ -174,7 +174,10 @@ describe("buildAvailableAgentWhereClause", () => {
               chain: "Cardano",
               network: undefined,
               paymentSourceType: "Web3CardanoV2",
-              address: "addr_test1_v2_contract",
+              address: {
+                equals: "addr_test1_v2_contract",
+                mode: "insensitive",
+              },
             },
           },
         },
