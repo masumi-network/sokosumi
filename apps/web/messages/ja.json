@@ -149,7 +149,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "ワークスペースを切り替える",
       "personalAccount": "個人アカウント",
-      "addOrganization": "組織を追加",
+      "createOrganization": "組織を作成",
       "organizationsHeading": "組織",
       "createOrJoinOrganization": "組織を作成または参加"
     },

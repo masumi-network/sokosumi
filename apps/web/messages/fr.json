@@ -149,7 +149,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "Changer d’espace de travail",
       "personalAccount": "Compte personnel",
-      "addOrganization": "Ajouter une organisation",
+      "createOrganization": "Créer une organisation",
       "organizationsHeading": "Organisations",
       "createOrJoinOrganization": "Créer ou rejoindre une organisation"
     },
