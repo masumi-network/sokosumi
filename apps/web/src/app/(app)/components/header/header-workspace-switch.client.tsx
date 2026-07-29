@@ -154,7 +154,7 @@ export default function HeaderWorkspaceSwitch({
     onSelectWorkspace(workspaceId);
   };
 
-  const handleAddOrganization = () => {
+  const handleCreateOrganization = () => {
     setIsDropdownOpen(false);
     showCreateOrganizationModal();
   };
@@ -211,12 +211,12 @@ export default function HeaderWorkspaceSwitch({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2 py-2"
-            onClick={handleAddOrganization}
+            onClick={handleCreateOrganization}
           >
             <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
               <Plus className="text-primary size-4" />
             </Avatar>
-            <span>{tOrganizationSwitcher("addOrganization")}</span>
+            <span>{tOrganizationSwitcher("createOrganization")}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
