@@ -44,7 +44,7 @@ interface SidebarAccountChipProps {
   buyCreditsPath: string;
 }
 
-export default function SidebarAccountChip({
+export function SidebarAccountChip({
   sessionUser,
   planName,
   totalCredits,
@@ -79,7 +79,9 @@ export default function SidebarAccountChip({
   const isCollapsed = !isMobile && state === "collapsed";
   const displayName = sessionUser.name.trim() || sessionUser.email;
   const presenceLabel = tPresence(presence);
-  const usage = creditUsage?.hasUsageData ? creditUsage : null;
+  // Null means no metered subscription period — `resolveCreditUsage` only
+  // returns a value when the period grants credits.
+  const usage = creditUsage;
 
   const displayTotal =
     totalCredits === null ? null : formatCreditsForDisplay(totalCredits);

@@ -1,16 +1,18 @@
 "use client";
 
+import { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "@sokosumi/utils";
 import { useEffect, useState } from "react";
+
 import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 /**
- * Same 5-minute idle window as Core session presence
- * (`apps/core/src/routes/v1/chats/rooms/helpers.ts`). This is a local
- * self-approx only (navigator.onLine / document.hidden / activity) — not
- * session presence, and not teammate parity. Core forces the viewing user's
- * own session to "online".
+ * Same online idle window as Core session presence
+ * (`apps/core/src/routes/v1/chats/rooms/helpers.ts`, via
+ * `CHAT_PRESENCE_ONLINE_WINDOW_MS`). This is a local self-approx only
+ * (navigator.onLine / document.hidden / activity) — not session presence,
+ * and not teammate parity. Core forces the viewing user's own session to
+ * "online".
  */
-const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 const TICK_INTERVAL_MS = 30 * 1000;
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -33,7 +35,9 @@ export function useSelfPresence(): ChatRoomPresence {
         return "afk";
       }
 
-      return Date.now() - lastActivityAt <= ONLINE_WINDOW_MS ? "online" : "afk";
+      return Date.now() - lastActivityAt <= CHAT_PRESENCE_ONLINE_WINDOW_MS
+        ? "online"
+        : "afk";
     }
 
     function sync() {

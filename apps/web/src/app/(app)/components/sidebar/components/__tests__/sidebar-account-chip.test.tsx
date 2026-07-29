@@ -29,7 +29,7 @@ vi.mock("@/components/ui/sidebar", () => ({
   useSidebar: () => ({ ...sidebarState, setOpenMobile: setOpenMobileMock }),
 }));
 
-import SidebarAccountChip from "@/app/components/sidebar/components/sidebar-account-chip.client";
+import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
 
 const sessionUser: SessionUser = {
   id: "user_1",
@@ -119,7 +119,6 @@ describe("SidebarAccountChip", () => {
   it("labels the metered allowance as monthly credits", () => {
     renderChip({
       creditUsage: {
-        hasUsageData: true,
         percentageUsed: 25,
         remaining: 750,
         total: 1_000,
@@ -149,7 +148,6 @@ describe("SidebarAccountChip", () => {
     const currentTimestampMs = 1_700_000_000_000;
     renderChip({
       creditUsage: {
-        hasUsageData: true,
         percentageUsed: 25,
         remaining: 750,
         total: 1_000,
@@ -168,7 +166,6 @@ describe("SidebarAccountChip", () => {
   it("skips the renewal line when the credits response carried no timestamp", () => {
     renderChip({
       creditUsage: {
-        hasUsageData: true,
         percentageUsed: 25,
         remaining: 750,
         total: 1_000,
@@ -248,7 +245,6 @@ describe("SidebarAccountChip", () => {
   it("shows extra credits when a metered period and a positive buffer exist", () => {
     renderChip({
       creditUsage: {
-        hasUsageData: true,
         percentageUsed: 25,
         remaining: 750,
         total: 1_000,

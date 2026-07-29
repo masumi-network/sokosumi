@@ -1,4 +1,8 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
+import {
+  CHAT_PRESENCE_AFK_WINDOW_MS,
+  CHAT_PRESENCE_ONLINE_WINDOW_MS,
+} from "@sokosumi/utils";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -27,9 +31,6 @@ export const chatRoomCoworkerSelect = {
 } as const satisfies Prisma.CoworkerSelect;
 
 type ChatRoomPresence = "online" | "afk" | "offline";
-
-const ONLINE_WINDOW_MS = 5 * 60 * 1000;
-const AFK_WINDOW_MS = 30 * 60 * 1000;
 
 export const chatRoomInclude = {
   userMembers: {
@@ -105,10 +106,10 @@ function resolveUserPresence(
   }
 
   const idleMs = Date.now() - activeSession.updatedAt.getTime();
-  if (idleMs <= ONLINE_WINDOW_MS) {
+  if (idleMs <= CHAT_PRESENCE_ONLINE_WINDOW_MS) {
     return "online";
   }
-  if (idleMs <= AFK_WINDOW_MS) {
+  if (idleMs <= CHAT_PRESENCE_AFK_WINDOW_MS) {
     return "afk";
   }
   return "offline";

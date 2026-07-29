@@ -24,7 +24,7 @@ import AnnouncementCards from "./components/announcement-cards";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav.client";
-import SidebarAccountChip from "./components/sidebar-account-chip.client";
+import { SidebarAccountChip } from "./components/sidebar-account-chip.client";
 import SidebarLogo from "./components/sidebar-logo.client";
 import SidebarNav from "./components/sidebar-nav.client";
 
@@ -46,7 +46,6 @@ function resolveCreditUsage(
   const used = Math.min(Math.max(subscriptionCredits.used, 0), total);
 
   return {
-    hasUsageData: true,
     percentageUsed: Math.min(Math.max((used / total) * 100, 0), 100),
     remaining: Math.max(subscriptionCredits.remaining, 0),
     total,
