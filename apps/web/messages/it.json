@@ -4517,9 +4517,11 @@
         "leaveConfirm": "Abbandona il canale",
         "leaveSuccess": "Hai abbandonato {name}.",
         "archiveConfirmTitle": "Archiviare {name}?",
-        "archiveConfirmDescription": "Il canale scompare per tutta l'organizzazione. I messaggi vengono conservati, ma da qui non è possibile ripristinarlo.",
+        "archiveConfirmDescription": "Il canale scompare per tutta l'organizzazione. I messaggi restano salvati. Puoi ripristinarlo in seguito da Archiviati nella barra laterale.",
         "archiveConfirm": "Archivia il canale",
-        "archiveSuccess": "{name} è stato archiviato."
+        "archiveSuccess": "{name} è stato archiviato.",
+        "restore": "Ripristina",
+        "restoreSuccess": "{name} è stato ripristinato."
       },
       "Metadata": {
         "title": "Channels",
@@ -4627,7 +4629,8 @@
       },
       "loadOlder": "Carica messaggi precedenti",
       "loadingOlder": "Caricamento messaggi precedenti…",
-      "roomUnavailable": "Questa chat non è disponibile oppure non hai più accesso."
+      "roomUnavailable": "Questa chat non è disponibile oppure non hai più accesso.",
+      "archivedChannels": "Archiviati"
     }
   },
   "Share": {

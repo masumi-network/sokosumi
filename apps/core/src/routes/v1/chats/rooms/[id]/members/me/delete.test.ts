@@ -124,7 +124,10 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
       remainingUserMemberCount: 1,
     });
 
-    expect(queryRawMock).toHaveBeenCalled();
+    const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
+    const sql = sqlParts.join(" ");
+    expect(sql).toContain("FOR UPDATE");
+    expect(sql).toContain("chat_room");
     expect(userMemberCountMock).toHaveBeenCalledWith({
       where: { roomId: ROOM_ID, userId: { not: SELF_ID } },
     });

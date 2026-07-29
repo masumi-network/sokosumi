@@ -21,6 +21,15 @@ export async function listOrganizationChatRoomsAction(): Promise<OrganizationCha
   }
 }
 
+export async function listOrganizationArchivedChatRoomsAction(): Promise<OrganizationChatListActionResult> {
+  try {
+    const rooms = await chatRoomService.listArchivedRooms();
+    return { ok: true, data: rooms };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export async function markOrganizationChatRoomReadAction(
   roomId: string,
 ): Promise<MarkOrganizationChatReadActionResult> {

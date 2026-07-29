@@ -68,9 +68,11 @@ describe("chatRoomService.listRooms", () => {
     expect(getChatRoomsMock).toHaveBeenCalledTimes(2);
     expect(getChatRoomsMock).toHaveBeenNthCalledWith(1, {
       limit: 100,
+      status: "active",
     });
     expect(getChatRoomsMock).toHaveBeenNthCalledWith(2, {
       limit: 100,
+      status: "active",
       cursor: "room-2",
     });
   });
@@ -93,6 +95,7 @@ describe("chatRoomService.listRooms", () => {
 
     expect(getChatRoomsMock).toHaveBeenCalledWith({
       limit: 100,
+      status: "active",
       kind: "direct",
     });
   });

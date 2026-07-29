@@ -95,6 +95,10 @@ export const chatRoomKindSchema = z
   .enum(["channel", "direct"])
   .openapi("ChatRoomKind");
 
+export const chatRoomListStatusSchema = z
+  .enum(["active", "archived"])
+  .openapi("ChatRoomListStatus");
+
 export const createChatRoomRequestSchema = z
   .discriminatedUnion("kind", [
     z.object({
@@ -245,11 +249,17 @@ export const leftChatRoomSchema = z
     }),
     remainingUserMemberCount: z.number().int().min(1).openapi({
       description:
-        "Human members left in the room after the caller leaves. Always at least one: the final member has to archive instead.",
+        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.",
       example: 3,
     }),
   })
   .openapi("LeftChatRoom");
+
+/**
+ * Restore clears archivedAt and returns the live room again. Full ChatRoom
+ * shape so the client can navigate without a second fetch.
+ */
+export const restoredChatRoomSchema = chatRoomSchema;
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;

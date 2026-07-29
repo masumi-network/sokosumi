@@ -4636,9 +4636,11 @@
         "leaveConfirm": "Leave channel",
         "leaveSuccess": "You left {name}.",
         "archiveConfirmTitle": "Archive {name}?",
-        "archiveConfirmDescription": "The channel disappears for everyone in the organization. Its messages are kept, but there is no way to restore it from here.",
+        "archiveConfirmDescription": "The channel disappears for everyone in the organization. Its messages are kept. Restore it later from Archived in the sidebar.",
         "archiveConfirm": "Archive channel",
-        "archiveSuccess": "{name} was archived."
+        "archiveSuccess": "{name} was archived.",
+        "restore": "Restore",
+        "restoreSuccess": "{name} was restored."
       },
       "Metadata": {
         "title": "Channels",
@@ -4746,7 +4748,8 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
-      "roomUnavailable": "This chat is unavailable or you no longer have access."
+      "roomUnavailable": "This chat is unavailable or you no longer have access.",
+      "archivedChannels": "Archived"
     }
   },
   "Share": {

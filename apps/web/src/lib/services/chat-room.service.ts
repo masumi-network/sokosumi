@@ -25,6 +25,7 @@ export interface ChatRoomMessagesPage {
 export const chatRoomService = (() => {
   const listRooms = cache(async function listRooms(
     kind?: ChatRoomKind,
+    status: "active" | "archived" = "active",
   ): Promise<ChatRoom[]> {
     const rooms: ChatRoom[] = [];
     let cursor: string | undefined;
@@ -32,6 +33,7 @@ export const chatRoomService = (() => {
     for (let page = 0; page < ROOM_LIST_MAX_PAGES; page += 1) {
       const response = await coreClient.getChatRooms({
         limit: ROOM_LIST_PAGE_LIMIT,
+        status,
         ...(kind ? { kind } : {}),
         ...(cursor ? { cursor } : {}),
       });
@@ -44,6 +46,12 @@ export const chatRoomService = (() => {
     }
 
     return rooms;
+  });
+
+  const listArchivedRooms = cache(async function listArchivedRooms(): Promise<
+    ChatRoom[]
+  > {
+    return listRooms("channel", "archived");
   });
 
   const getRoom = cache(async function getRoom(
@@ -78,6 +86,11 @@ export const chatRoomService = (() => {
 
   async function archiveRoom(id: string) {
     const response = await coreClient.archiveChatRoom(id);
+    return response.data;
+  }
+
+  async function restoreRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.restoreChatRoom(id);
     return response.data;
   }
 
@@ -146,11 +159,13 @@ export const chatRoomService = (() => {
     archiveRoom,
     createRoom,
     getRoom,
+    listArchivedRooms,
     listMessages,
     listRooms,
     listThreadMessages,
     leaveRoom,
     markRead,
+    restoreRoom,
     sendMessage,
     toggleReaction,
     updateRoom,

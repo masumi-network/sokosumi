@@ -4249,6 +4249,17 @@ export const ChatRoomKindSchema = {
     example: 'channel'
 } as const;
 
+export const ChatRoomListStatusSchema = {
+    type: 'string',
+    enum: [
+        'active',
+        'archived'
+    ],
+    default: 'active',
+    description: 'Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).',
+    example: 'active'
+} as const;
+
 export const ChatRoomSuccessResponseSchema = {
     type: 'object',
     properties: {
@@ -4608,7 +4619,7 @@ export const LeftChatRoomSchema = {
         remainingUserMemberCount: {
             type: 'integer',
             minimum: 1,
-            description: 'Human members left in the room after the caller leaves. Always at least one: the final member has to archive instead.',
+            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.',
             example: 3
         }
     },

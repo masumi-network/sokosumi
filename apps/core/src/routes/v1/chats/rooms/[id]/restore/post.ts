@@ -10,10 +10,12 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { archivedChatRoomSchema } from "@/schemas/chat-room.schema";
+import { restoredChatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
   canManageChatRoomLifecycle,
+  mapChatRoom,
+  requireArchivedChatRoomUserAccess,
   requireChatRoomUserAccess,
 } from "../../helpers";
 
@@ -30,15 +32,15 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/{id}/archive",
+    path: "/{id}/restore",
     description:
-      "Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. Only the room creator or an organization owner/admin may archive. Direct rooms cannot be archived.",
+      "Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members while keeping its existing slug. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(archivedChatRoomSchema, "Room archived"),
+      200: jsonSuccessResponse(restoredChatRoomSchema, "Room restored"),
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -53,21 +55,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const archived = await prisma.$transaction(async (tx) => {
-      // Filters on archivedAt: null, so archiving twice 404s rather than
-      // moving the timestamp — the room is already gone either way.
-      const existing = await requireChatRoomUserAccess(
+    const restored = await prisma.$transaction(async (tx) => {
+      // Active-room helpers filter archivedAt: null — this path needs the
+      // opposite. Membership is still required so only people who belonged
+      // when it was archived (and stayed) can bring it back.
+      const existing = await requireArchivedChatRoomUserAccess(
         id,
         userContext.userId,
         tx,
       );
 
-      // A direct room's identity IS its participant set: `directKey` is
-      // derived from it and creating a DM reopens one by that key alone.
-      // Archiving one would leave the key resolving to a hidden row, so the
-      // conversation could never be reopened. Same reasoning as patch.ts.
       if (existing.kind === "direct") {
-        throw badRequest("Direct rooms cannot be archived.");
+        throw badRequest("Direct rooms cannot be restored.");
       }
 
       if (!existing.organizationId) {
@@ -80,10 +79,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         FOR UPDATE
       `;
       if (lockedRooms.length === 0) {
-        throw badRequest("Room could not be archived.");
+        throw badRequest("Room could not be restored.");
       }
 
-      // Archiving hides the room for everyone — elevated authority only.
       const { role } = await resolveMemberOrganizationById({
         id: existing.organizationId,
         userId: userContext.userId,
@@ -97,29 +95,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         })
       ) {
         throw forbidden(
-          "Only the room creator or an organization owner or admin can archive this room.",
+          "Only the room creator or an organization owner or admin can restore this room.",
         );
       }
 
-      return tx.chatRoom.update({
-        where: { id: existing.id },
-        data: { archivedAt: new Date() },
-        select: { id: true, archivedAt: true },
+      // Concurrent restore may already have cleared archivedAt under the lock.
+      const cleared = await tx.chatRoom.updateMany({
+        where: { id: existing.id, archivedAt: { not: null } },
+        data: { archivedAt: null },
       });
+      if (cleared.count === 0) {
+        throw badRequest("Room is not archived.");
+      }
+
+      // Re-read via the active helper so the response matches a normal get.
+      const live = await requireChatRoomUserAccess(
+        existing.id,
+        userContext.userId,
+        tx,
+      );
+      return mapChatRoom(live, userContext.userId, 0);
     });
 
-    // `update` cannot clear the value we just set, but the column is nullable
-    // so narrow it rather than asserting.
-    if (!archived.archivedAt) {
-      throw badRequest("Room could not be archived.");
-    }
-
-    return ok(
-      c,
-      archivedChatRoomSchema.parse({
-        id: archived.id,
-        archivedAt: archived.archivedAt,
-      }),
-    );
+    return ok(c, restoredChatRoomSchema.parse(restored));
   });
 }
