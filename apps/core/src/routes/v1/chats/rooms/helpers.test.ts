@@ -1,3 +1,4 @@
+import { MemberRole } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,6 +6,7 @@ import {
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
   buildDirectRoomName,
+  canManageChatRoomLifecycle,
   resolveMentionedCoworkerIds,
 } from "./helpers";
 
@@ -73,5 +75,46 @@ describe("buildDirectRoomName", () => {
     expect(buildDirectRoomName(["Andreas", "Elena", "Hannah", "Alex"])).toBe(
       "Andreas, Elena, Hannah and 1 more",
     );
+  });
+});
+
+describe("canManageChatRoomLifecycle", () => {
+  const creatorId = "user_creator";
+  const otherId = "user_other";
+
+  it("allows the channel creator regardless of org role", () => {
+    expect(
+      canManageChatRoomLifecycle({
+        createdByUserId: creatorId,
+        userId: creatorId,
+        role: MemberRole.MEMBER,
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["owner", MemberRole.OWNER],
+    ["admin", MemberRole.ADMIN],
+  ] as const)(
+    "allows an organization %s who is not the creator",
+    (_label, role) => {
+      expect(
+        canManageChatRoomLifecycle({
+          createdByUserId: creatorId,
+          userId: otherId,
+          role,
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it("denies a plain member who did not create the room", () => {
+    expect(
+      canManageChatRoomLifecycle({
+        createdByUserId: creatorId,
+        userId: otherId,
+        role: MemberRole.MEMBER,
+      }),
+    ).toBe(false);
   });
 });

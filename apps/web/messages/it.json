@@ -4515,6 +4515,22 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "Gestisci il canale",
+        "leave": "Abbandona il canale",
+        "archive": "Archivia il canale",
+        "cancel": "Annulla",
+        "leaveConfirmTitle": "Abbandonare {name}?",
+        "leaveConfirmDescription": "Non riceverai più i messaggi di questo canale e scomparirà dal tuo elenco. Gli altri membri mantengono l'accesso e potrai essere aggiunto di nuovo in seguito.",
+        "leaveConfirm": "Abbandona il canale",
+        "leaveSuccess": "Hai abbandonato {name}.",
+        "archiveConfirmTitle": "Archiviare {name}?",
+        "archiveConfirmDescription": "Il canale scompare per tutta l'organizzazione. I messaggi restano salvati. Puoi ripristinarlo in seguito da Archiviati nella barra laterale.",
+        "archiveConfirm": "Archivia il canale",
+        "archiveSuccess": "{name} è stato archiviato.",
+        "restore": "Ripristina",
+        "restoreSuccess": "{name} è stato ripristinato."
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."
@@ -4621,7 +4637,8 @@
       },
       "loadOlder": "Carica messaggi precedenti",
       "loadingOlder": "Caricamento messaggi precedenti…",
-      "roomUnavailable": "Questa chat non è disponibile oppure non hai più accesso."
+      "roomUnavailable": "Questa chat non è disponibile oppure non hai più accesso.",
+      "archivedChannels": "Archiviati"
     }
   },
   "Share": {

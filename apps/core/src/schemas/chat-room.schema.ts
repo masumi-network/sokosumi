@@ -95,6 +95,10 @@ export const chatRoomKindSchema = z
   .enum(["channel", "direct"])
   .openapi("ChatRoomKind");
 
+export const chatRoomListStatusSchema = z
+  .enum(["active", "archived"])
+  .openapi("ChatRoomListStatus");
+
 export const createChatRoomRequestSchema = z
   .discriminatedUnion("kind", [
     z.object({
@@ -223,6 +227,39 @@ export const reactToChatRoomMessageRequestSchema = z
     emoji: z.string().trim().min(1).max(24).openapi({ example: "👍" }),
   })
   .openapi("ReactToChatRoomMessageRequest");
+
+/**
+ * Archiving and leaving both make the room unreachable for the caller, so
+ * echoing the whole room back would describe something they can no longer
+ * read. These report only what changed.
+ */
+export const archivedChatRoomSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    archivedAt: dateTimeSchema,
+  })
+  .openapi("ArchivedChatRoom");
+
+export const leftChatRoomSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    remainingUserMemberCount: z.number().int().min(1).openapi({
+      description:
+        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.",
+      example: 3,
+    }),
+  })
+  .openapi("LeftChatRoom");
+
+/**
+ * Restore clears archivedAt and returns the live room again. Full ChatRoom
+ * shape so the client can navigate without a second fetch.
+ */
+export const restoredChatRoomSchema = chatRoomSchema;
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;

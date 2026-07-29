@@ -4515,6 +4515,22 @@
       }
     },
     "Channels": {
+      "Actions": {
+        "sectionTitle": "管理频道",
+        "leave": "退出频道",
+        "archive": "归档频道",
+        "cancel": "取消",
+        "leaveConfirmTitle": "退出 {name}？",
+        "leaveConfirmDescription": "你将不再接收该频道的消息，它也会从你的列表中消失。其他成员的访问权限不变，之后仍可将你重新加入。",
+        "leaveConfirm": "退出频道",
+        "leaveSuccess": "你已退出 {name}。",
+        "archiveConfirmTitle": "归档 {name}？",
+        "archiveConfirmDescription": "该频道将对组织中所有人隐藏。消息会保留。之后可在侧边栏的“已归档”中恢复。",
+        "archiveConfirm": "归档频道",
+        "archiveSuccess": "{name} 已归档。",
+        "restore": "恢复",
+        "restoreSuccess": "已恢复 {name}。"
+      },
       "Metadata": {
         "title": "Channels",
         "description": "Organization chat channels for humans and AI coworkers."
@@ -4621,7 +4637,8 @@
       },
       "loadOlder": "加载更早的消息",
       "loadingOlder": "正在加载更早的消息…",
-      "roomUnavailable": "此聊天不可用，或你已没有访问权限。"
+      "roomUnavailable": "此聊天不可用，或你已没有访问权限。",
+      "archivedChannels": "已归档"
     }
   },
   "Share": {

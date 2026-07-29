@@ -1,12 +1,27 @@
 "use client";
 
-import { ChevronDown, Hash, MessageCircle, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  Hash,
+  MessageCircle,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import { toast } from "sonner";
+import { restoreRoomAction } from "@/app/chat/actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -24,12 +39,16 @@ import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
-import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
+import {
+  listOrganizationArchivedChatRoomsAction,
+  listOrganizationChatRoomsAction,
+} from "./organization-chat-list.actions";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
+  archivedRooms: ChatRoom[];
   currentUserId: string;
   hasOrganization: boolean;
 }
@@ -185,7 +204,7 @@ function SectionHeader({
   children: ReactNode;
   href?: string;
   isOpen: boolean;
-  label: string;
+  label?: string;
 }) {
   return (
     <div className="group-data-[collapsible=icon]:hidden flex h-8 items-center gap-1 px-2">
@@ -199,7 +218,7 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      {href ? (
+      {href && label ? (
         <SheetClose asChild>
           <Link
             aria-label={label}
@@ -228,14 +247,21 @@ function getActiveRoomIdFromPathname(pathname: string | null): string | null {
 
 export function OrganizationChatList({
   rooms,
+  archivedRooms,
   currentUserId,
   hasOrganization,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
+  const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
+  const router = useRouter();
   const [roomRows, setRoomRows] = useState(rooms);
+  const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
+  const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
+  const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
+  const [_isRestoring, startRestoreTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
 
   useEffect(() => {
@@ -243,12 +269,27 @@ export function OrganizationChatList({
   }, [rooms]);
 
   useEffect(() => {
+    setArchivedRows(archivedRooms);
+  }, [archivedRooms]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const refreshRooms = async () => {
-      const result = await listOrganizationChatRoomsAction();
-      if (!cancelled && result.ok) {
-        setRoomRows(result.data);
+      const [activeResult, archivedResult] = await Promise.all([
+        listOrganizationChatRoomsAction(),
+        hasOrganization
+          ? listOrganizationArchivedChatRoomsAction()
+          : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
+      ]);
+      if (cancelled) {
+        return;
+      }
+      if (activeResult.ok) {
+        setRoomRows(activeResult.data);
+      }
+      if (archivedResult.ok) {
+        setArchivedRows(archivedResult.data);
       }
     };
 
@@ -263,7 +304,7 @@ export function OrganizationChatList({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshRooms);
     };
-  }, []);
+  }, [hasOrganization]);
 
   useEffect(() => {
     const handleRoomRead = (event: Event) => {
@@ -300,12 +341,26 @@ export function OrganizationChatList({
           const without = current.filter((row) => row.id !== room.id);
           return [room, ...without];
         });
+        setArchivedRows((current) =>
+          current.filter((row) => row.id !== room.id),
+        );
         return;
       }
 
-      void listOrganizationChatRoomsAction().then((result) => {
-        if (!cancelled && result.ok) {
-          setRoomRows(result.data);
+      void Promise.all([
+        listOrganizationChatRoomsAction(),
+        hasOrganization
+          ? listOrganizationArchivedChatRoomsAction()
+          : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
+      ]).then(([activeResult, archivedResult]) => {
+        if (cancelled) {
+          return;
+        }
+        if (activeResult.ok) {
+          setRoomRows(activeResult.data);
+        }
+        if (archivedResult.ok) {
+          setArchivedRows(archivedResult.data);
         }
       });
     };
@@ -321,7 +376,30 @@ export function OrganizationChatList({
         handleRoomsChanged,
       );
     };
-  }, []);
+  }, [hasOrganization]);
+
+  function handleRestoreRoom(room: ChatRoom) {
+    if (restoringRoomId) {
+      return;
+    }
+    setRestoringRoomId(room.id);
+    startRestoreTransition(async () => {
+      const result = await restoreRoomAction(room.id);
+      setRestoringRoomId(null);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(tActions("restoreSuccess", { name: room.name }));
+      setArchivedRows((current) => current.filter((row) => row.id !== room.id));
+      setRoomRows((current) => {
+        const without = current.filter((row) => row.id !== result.data.id);
+        return [result.data, ...without];
+      });
+      router.push(`/chat/rooms/${result.data.id}`);
+      router.refresh();
+    });
+  }
 
   const { directMessages, namedChannels } = useMemo(() => {
     const directMessages: ChatRoom[] = [];
@@ -353,6 +431,12 @@ export function OrganizationChatList({
 
     return { directMessages, namedChannels };
   }, [roomRows]);
+
+  const sortedArchivedChannels = useMemo(() => {
+    return [...archivedRows].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+  }, [archivedRows]);
 
   return (
     <SidebarGroup className="w-full">
@@ -404,6 +488,55 @@ export function OrganizationChatList({
             </SidebarMenu>
           </CollapsibleContent>
         </Collapsible>
+
+        {hasOrganization && sortedArchivedChannels.length > 0 ? (
+          <Collapsible
+            open={archivedSectionOpen}
+            onOpenChange={setArchivedSectionOpen}
+          >
+            <SectionHeader isOpen={archivedSectionOpen}>
+              {t("archivedChannels")}
+            </SectionHeader>
+            <CollapsibleContent>
+              <SidebarMenu className="gap-0">
+                {sortedArchivedChannels.map((room) => {
+                  const isRestoring = restoringRoomId === room.id;
+                  return (
+                    <SidebarMenuItem key={room.id}>
+                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5">
+                        <Hash
+                          className="size-4 shrink-0 opacity-60"
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {room.name}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="group-data-[collapsible=icon]:hidden h-7 shrink-0 gap-1 px-2 text-xs"
+                          disabled={isRestoring || restoringRoomId !== null}
+                          onClick={() => handleRestoreRoom(room)}
+                          aria-label={`${tActions("restore")} ${room.name}`}
+                        >
+                          <RotateCcw
+                            className={cn(
+                              "size-3",
+                              isRestoring && "animate-spin",
+                            )}
+                            aria-hidden
+                          />
+                          {tActions("restore")}
+                        </Button>
+                      </div>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
