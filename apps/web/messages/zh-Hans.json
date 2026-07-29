@@ -149,7 +149,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "切换工作区",
       "personalAccount": "个人账户",
-      "addOrganization": "添加组织",
+      "createOrganization": "创建组织",
       "organizationsHeading": "组织",
       "createOrJoinOrganization": "创建或加入组织"
     },
