@@ -13,30 +13,41 @@ const {
   roomCountMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  messageGroupByMock,
+  queryRawUnsafeMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindManyMock: vi.fn(),
   roomCountMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  messageGroupByMock: vi.fn(),
+  queryRawUnsafeMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { $transaction: prismaTransactionMock },
+  default: {
+    chatRoom: {
+      findMany: roomFindManyMock,
+      count: roomCountMock,
+    },
+    organization: {
+      findUnique: organizationFindUniqueMock,
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
+    chatRoomMessage: {
+      groupBy: messageGroupByMock,
+    },
+    $queryRawUnsafe: queryRawUnsafeMock,
+    $transaction: prismaTransactionMock,
+  },
 }));
 
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
-
-const tx = {
-  chatRoom: {
-    findMany: roomFindManyMock,
-    count: roomCountMock,
-  },
-  organization: { findUnique: organizationFindUniqueMock },
-  member: { findUnique: memberFindUniqueMock },
-};
 
 function createApp(organizationId: string | null) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>({
@@ -58,18 +69,29 @@ function createApp(organizationId: string | null) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
+  messageGroupByMock.mockResolvedValue([]);
+  queryRawUnsafeMock.mockResolvedValue([]);
 });
 
 describe("GET /chats/rooms", () => {
+  it("lists rooms without opening an interactive transaction", async () => {
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(roomFindManyMock).toHaveBeenCalledOnce();
+    expect(roomCountMock).toHaveBeenCalledOnce();
+  });
+
   it("lists archived rooms the plain member created", async () => {
     const response = await createApp(ORG_ID).request("/?status=archived");
 
     expect(response.status).toBe(200);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(roomFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -100,6 +122,7 @@ describe("GET /chats/rooms", () => {
       const response = await createApp(ORG_ID).request("/?status=archived");
 
       expect(response.status).toBe(200);
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
       const where = roomFindManyMock.mock.calls[0]?.[0]?.where as Record<
         string,
         unknown
@@ -119,6 +142,7 @@ describe("GET /chats/rooms", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual([]);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(roomFindManyMock).not.toHaveBeenCalled();
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
   });

@@ -97,95 +97,88 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
     const organizationId = userContext.organizationId;
 
-    const { rooms, unreadCounts, lastMessageAts, count, hasMore } =
-      await prisma.$transaction(async (tx) => {
-        let organizationRole: string | null = null;
-        if (organizationId) {
-          const membership = await resolveMemberOrganizationById({
-            id: organizationId,
-            userId: userContext.userId,
-            tx,
-          });
-          organizationRole = membership.role;
-        }
-
-        // Strict org match: active org → only that org's channels/directs.
-        // No active org → personal coworker directs only. A kind=channel filter
-        // with no org cannot match anything — return an empty page instead of
-        // silently overriding the filter to directs. Archived rooms are always
-        // org channels, so personal workspace returns empty for status=archived.
-        if (
-          (!organizationId && kind === "channel") ||
-          (!organizationId && status === "archived")
-        ) {
-          return {
-            rooms: [],
-            unreadCounts: new Map<string, number>(),
-            lastMessageAts: new Map<string, Date>(),
-            count: 0,
-            hasMore: false,
-          };
-        }
-
-        // Archived list is for restore: same gate as archive/restore endpoints.
-        // Owners/admins see every archived room they still belong to; everyone
-        // else only rooms they created. Keep the filter in SQL so cursor pages
-        // and counts stay honest.
-        const canManageAnyArchived =
-          organizationRole === MemberRole.OWNER ||
-          organizationRole === MemberRole.ADMIN;
-        const archivedLifecycleWhere =
-          status === "archived" && !canManageAnyArchived
-            ? { createdByUserId: userContext.userId }
-            : {};
-
-        const where = {
-          archivedAt: status === "archived" ? { not: null } : null,
-          ...(kind ? { kind } : {}),
-          userMembers: {
-            some: { userId: userContext.userId },
-          },
-          ...archivedLifecycleWhere,
-          ...(organizationId
-            ? { organizationId }
-            : {
-                organizationId: null,
-                kind: "direct" as const,
-              }),
-        };
-
-        const [rows, count] = await Promise.all([
-          tx.chatRoom.findMany({
-            where,
-            take: takePlusOne,
-            skip,
-            cursor: cursor ? { id: cursor } : undefined,
-            include: chatRoomInclude,
-            // `id` breaks ties so the cursor walk is a total order; `updatedAt`
-            // alone is not unique and would drop or repeat rows across pages.
-            orderBy: [
-              { updatedAt: "desc" },
-              { createdAt: "desc" },
-              { id: "desc" },
-            ],
-          }),
-          tx.chatRoom.count({ where }),
-        ]);
-
-        const hasMore = rows.length === takePlusOne;
-        const rooms = rows.slice(0, take);
-        const roomIds = rooms.map((room) => room.id);
-        const [unreadCounts, lastMessageAts] = await Promise.all([
-          getChatRoomUnreadCounts(roomIds, userContext.userId, tx),
-          getChatRoomLastMessageAts(roomIds, tx),
-        ]);
-
-        // Keep DB cursor order (`updatedAt` desc). Stream/message writes bump
-        // room.updatedAt; do not re-sort by lastMessageAts after `take` — that
-        // breaks cursor paging when membership exceeds one page.
-        return { rooms, unreadCounts, lastMessageAts, count, hasMore };
+    // Avoid interactive transaction on this read-only path — chat index loads
+    // listRooms in parallel with members + coworkers; interactive txs hold a
+    // pool connection and also forbid Promise.all inside (#2559 / P2028).
+    // Membership gate + list/count/unread do not need a shared snapshot.
+    let organizationRole: string | null = null;
+    if (organizationId) {
+      const membership = await resolveMemberOrganizationById({
+        id: organizationId,
+        userId: userContext.userId,
+        tx: prisma,
       });
+      organizationRole = membership.role;
+    }
 
+    // Strict org match: active org → only that org's channels/directs.
+    // No active org → personal coworker directs only. A kind=channel filter
+    // with no org cannot match anything — return an empty page instead of
+    // silently overriding the filter to directs. Archived rooms are always
+    // org channels, so personal workspace returns empty for status=archived.
+    if (
+      (!organizationId && kind === "channel") ||
+      (!organizationId && status === "archived")
+    ) {
+      return ok(
+        c,
+        z.array(chatRoomSchema).parse([]),
+        createPaginationMeta([], 0, take, false, cursor),
+      );
+    }
+
+    // Archived list is for restore: same gate as archive/restore endpoints.
+    // Owners/admins see every archived room they still belong to; everyone
+    // else only rooms they created. Keep the filter in SQL so cursor pages
+    // and counts stay honest.
+    const canManageAnyArchived =
+      organizationRole === MemberRole.OWNER ||
+      organizationRole === MemberRole.ADMIN;
+    const archivedLifecycleWhere =
+      status === "archived" && !canManageAnyArchived
+        ? { createdByUserId: userContext.userId }
+        : {};
+
+    const where = {
+      archivedAt: status === "archived" ? { not: null } : null,
+      ...(kind ? { kind } : {}),
+      userMembers: {
+        some: { userId: userContext.userId },
+      },
+      ...archivedLifecycleWhere,
+      ...(organizationId
+        ? { organizationId }
+        : {
+            organizationId: null,
+            kind: "direct" as const,
+          }),
+    };
+
+    const [rows, count] = await Promise.all([
+      prisma.chatRoom.findMany({
+        where,
+        take: takePlusOne,
+        skip,
+        cursor: cursor ? { id: cursor } : undefined,
+        include: chatRoomInclude,
+        // `id` breaks ties so the cursor walk is a total order; `updatedAt`
+        // alone is not unique and would drop or repeat rows across pages.
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      }),
+      prisma.chatRoom.count({ where }),
+    ]);
+
+    const hasMore = rows.length === takePlusOne;
+    const rooms = rows.slice(0, take);
+    const roomIds = rooms.map((room) => room.id);
+    const [unreadCounts, lastMessageAts] = await Promise.all([
+      getChatRoomUnreadCounts(roomIds, userContext.userId, prisma),
+      getChatRoomLastMessageAts(roomIds, prisma),
+    ]);
+
+    // Keep DB cursor order (`updatedAt` desc). Stream/message writes bump
+    // room.updatedAt; do not re-sort by lastMessageAts after `take` — that
+    // breaks cursor paging when membership exceeds one page.
     const paginationMeta = createPaginationMeta(
       rooms,
       count,
