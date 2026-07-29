@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { NotificationKind, Prisma, TaskStatus } from "@sokosumi/database";
-import { isV2RegistryIdentifier } from "@sokosumi/masumi";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
@@ -30,6 +29,7 @@ import {
   errorResponseWithExtensionsSchema,
   unprocessableEntity,
 } from "@/helpers/error";
+import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
@@ -206,24 +206,6 @@ interface SettleTaskEventChargeParams {
     ReturnType<typeof createTaskEventRequestSchema>
   >["masumiPayment"];
   tx: Prisma.TransactionClient;
-}
-
-/**
- * V2 detection for a task masumiPayment. PaymentSource alone does NOT imply
- * V2: it predates the V2 gate on this public API and V1 callers may populate
- * it with their V1 source tuple. Every real V2 payload is caught by the
- * explicit fields or the V2 registry policy prefix of its agent identifier —
- * which must stay in lockstep with the payment node's configured V2 policies
- * (see V2_REGISTRY_POLICY_IDS in @sokosumi/masumi).
- */
-function isV2MasumiTaskPayment(
-  masumiPayment: NonNullable<SettleTaskEventChargeParams["masumiPayment"]>,
-): boolean {
-  return (
-    masumiPayment.paymentSourceType === "Web3CardanoV2" ||
-    masumiPayment.supportedPaymentSourceIndex !== undefined ||
-    isV2RegistryIdentifier(masumiPayment.agentIdentifier)
-  );
 }
 
 interface SettleTaskEventChargeResult {
@@ -733,8 +715,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           smartContractAddress: isV2MasumiTaskPayment(masumiPayment)
             ? masumiPayment.PaymentSource?.smartContractAddress
             : undefined,
-          supportedPaymentSourceIndex:
-            masumiPayment.supportedPaymentSourceIndex,
+          // A stray index on a genuine V1 payload (seller on a newer SDK) is
+          // informational only — forwarding it would contradict the rail.
+          supportedPaymentSourceIndex: isV2MasumiTaskPayment(masumiPayment)
+            ? masumiPayment.supportedPaymentSourceIndex
+            : undefined,
           metadata: JSON.stringify({
             taskId,
             taskEventId,

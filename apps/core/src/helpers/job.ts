@@ -19,6 +19,7 @@ import {
 } from "@sokosumi/database/types/job";
 import {
   createAgentClient,
+  isV2RegistryIdentifier,
   normalizeV2RegistryIdentifier,
 } from "@sokosumi/masumi";
 import type {
@@ -386,10 +387,10 @@ export async function createAgentJobForUser(
   // the listed price when no cap was given) was always going to refuse.
   // FREE-priced agents take the free flow, which never charges and consults
   // no cap, so the floor must not apply there.
-  if (
-    agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 &&
-    agentRecord.pricing.pricingType === PricingType.FIXED
-  ) {
+  const isV2Agent =
+    agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 ||
+    isV2RegistryIdentifier(agentRecord.blockchainIdentifier);
+  if (isV2Agent && agentRecord.pricing.pricingType === PricingType.FIXED) {
     const cheapestCents = cheapestEligibleV2SourceCents(
       agentRecord.blockchainIdentifier,
       agentRecord.paymentSources,
@@ -517,7 +518,10 @@ export async function createAgentJobForUser(
         );
       }
 
-      if (agent.paymentType === PaymentType.WEB3_CARDANO_V2) {
+      // Keyed on identifier as well as payment type: free and EVM-only V2
+      // agents report "None" yet still settle through a V2 contract, and the
+      // availability filter admits them on the same basis.
+      if (isV2Agent) {
         const selectedSource = agent.paymentSources.find(
           (source) =>
             response.supportedPaymentSourceIndex === source.sourceIndex,
@@ -626,7 +630,9 @@ export async function createAgentJobForUser(
         // actually created on rather than what the seller happened to echo.
         paidJobResult = {
           ...response,
-          paymentSourceType: undefined,
+          // Record the rail this job actually settles on. Writing undefined
+          // persisted NULL, which silently disabled the backfill's rail check.
+          paymentSourceType: "Web3CardanoV1" as const,
           supportedPaymentSourceIndex: undefined,
         };
       }

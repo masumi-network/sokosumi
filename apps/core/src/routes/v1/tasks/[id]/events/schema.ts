@@ -7,6 +7,10 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import {
+  hasContradictoryMasumiTaskPaymentRail,
+  isV2MasumiTaskPayment,
+} from "@/helpers/masumi-task-payment";
+import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
@@ -167,15 +171,27 @@ export function createTaskEventRequestSchema(
           });
         }
 
+        // A declared V1 rail on a V2-policy identifier is a contradiction the
+        // payment node rejects with a 400 — and the task charge commits before
+        // the purchase is created, with no compensation path, so it must fail
+        // here rather than after the credits move.
+        if (hasContradictoryMasumiTaskPaymentRail(data.masumiPayment)) {
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "paymentSourceType Web3CardanoV1 contradicts a V2 registry agentIdentifier",
+            path: ["masumiPayment", "paymentSourceType"],
+          });
+        }
+
         // These have no V1 equivalent at the payment node, and PaymentSource
         // is a pre-existing optional field V1 callers may already populate —
         // so they are asserted only for payloads that are actually V2.
         const paymentSource = data.masumiPayment.PaymentSource;
-        const isV2Payload =
-          data.masumiPayment.paymentSourceType === "Web3CardanoV2" ||
-          data.masumiPayment.supportedPaymentSourceIndex !== undefined ||
-          isV2RegistryIdentifier(data.masumiPayment.agentIdentifier);
-        if (paymentSource !== undefined && isV2Payload) {
+        if (
+          paymentSource !== undefined &&
+          isV2MasumiTaskPayment(data.masumiPayment)
+        ) {
           // Case-insensitive: hex casing must never decide validity (the V2
           // classifier and readiness checks normalize the same way).
           const identifierPolicyId = data.masumiPayment.agentIdentifier

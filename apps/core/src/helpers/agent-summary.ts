@@ -51,12 +51,25 @@ export async function buildAgentSummaries(
 ) {
   const agentsWithCredits = agents
     .map((agent) => {
-      const cost = getAgentCost(agent, creditCosts);
-      return {
-        ...agent,
-        credits: convertCentsToCredits(cost.cents),
-      };
+      // A registry replay rewrites pricing per agent (delete + recreate of the
+      // amount rows), so a concurrent read can momentarily see FIXED pricing
+      // with no amounts. That is one transient row, not a broken page: drop it
+      // from this listing instead of failing the whole request.
+      try {
+        const cost = getAgentCost(agent, creditCosts);
+        return {
+          ...agent,
+          credits: convertCentsToCredits(cost.cents),
+        };
+      } catch (error) {
+        console.warn(
+          `[agents] Skipping agent ${agent.id} with unreadable pricing:`,
+          error,
+        );
+        return null;
+      }
     })
+    .filter((agent) => agent !== null)
     .map((agent) => ({
       ...agent,
       name: getAgentName(agent),

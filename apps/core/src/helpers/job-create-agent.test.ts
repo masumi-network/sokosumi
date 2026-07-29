@@ -405,7 +405,14 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     expect(createPurchaseMock).toHaveBeenCalledWith(
       "agent-chain",
-      { ...paidV1JobResponse, identifierFromPurchaser: expect.any(String) },
+      {
+        ...paidV1JobResponse,
+        identifierFromPurchaser: expect.any(String),
+        // The V1 branch records the rail explicitly and drops any stray V2
+        // index the seller echoed.
+        paymentSourceType: "Web3CardanoV1",
+        supportedPaymentSourceIndex: undefined,
+      },
       { prompt: "hello" },
       expect.any(String),
       [{ unit: "lovelace", amount: "1000000" }],
@@ -456,7 +463,14 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     // pricing rows must arrive as a single summed entry.
     expect(createPurchaseMock).toHaveBeenCalledWith(
       "agent-chain",
-      { ...paidV1JobResponse, identifierFromPurchaser: expect.any(String) },
+      {
+        ...paidV1JobResponse,
+        identifierFromPurchaser: expect.any(String),
+        // The V1 branch records the rail explicitly and drops any stray V2
+        // index the seller echoed.
+        paymentSourceType: "Web3CardanoV1",
+        supportedPaymentSourceIndex: undefined,
+      },
       { prompt: "hello" },
       expect.any(String),
       [{ unit: "lovelace", amount: "1000000" }],
@@ -711,7 +725,14 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     expect(createPurchaseMock).toHaveBeenCalledWith(
       "agent-chain",
-      { ...paidV1JobResponse, identifierFromPurchaser: expect.any(String) },
+      {
+        ...paidV1JobResponse,
+        identifierFromPurchaser: expect.any(String),
+        // The V1 branch records the rail explicitly and drops any stray V2
+        // index the seller echoed.
+        paymentSourceType: "Web3CardanoV1",
+        supportedPaymentSourceIndex: undefined,
+      },
       { prompt: "hello" },
       expect.any(String),
       undefined,

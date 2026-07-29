@@ -123,6 +123,22 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("rejects a V1 rail declared on a V2 registry identifier", () => {
+    // The node infers V2 from the identifier and 400s the mismatch. Task
+    // charges commit before the purchase, so this must fail pre-charge.
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        agentIdentifier: `67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b${"ab".repeat(29)}000001`,
+        paymentSourceType: "Web3CardanoV1",
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts a valid channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
