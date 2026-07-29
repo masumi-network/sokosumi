@@ -184,6 +184,30 @@ describe("provisionHermesAction", () => {
     expect(getOrganizationBillingPlanMock).toHaveBeenCalledWith("org_ent");
   });
 
+  it("blocks provisioning when the only org plan is below the Standard floor", async () => {
+    getMyActiveSubscriptionMock.mockResolvedValue({
+      data: { subscription: null },
+    });
+    getMyOrganizationsMock.mockResolvedValue({
+      data: [{ id: "org_starter", name: "Starter Org" }],
+    });
+    getOrganizationBillingPlanMock.mockResolvedValue({
+      data: {
+        mode: "self_serve",
+        plan: "starter",
+      },
+    });
+
+    const result = await provisionHermesAction({});
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("SUBSCRIPTION_REQUIRED");
+    }
+    expect(provisionHermesInstanceMock).not.toHaveBeenCalled();
+    expect(getOrganizationBillingPlanMock).toHaveBeenCalledWith("org_starter");
+  });
+
   it("blocks provisioning when the enterprise contract is past its commercial term", async () => {
     getMyActiveSubscriptionMock.mockResolvedValue({
       data: { subscription: null },

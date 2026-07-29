@@ -122,7 +122,7 @@ export default function SettingsPanel({
   lastInboxRefreshAt,
   onDestroy,
   onRefreshInstance,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
 }: SettingsPanelProps) {
   const t = useTranslations("App.Hermes.Settings");

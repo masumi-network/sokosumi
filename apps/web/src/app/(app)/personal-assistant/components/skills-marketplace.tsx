@@ -107,7 +107,7 @@ export default function SkillsMarketplace({
   variant = "settings",
   active = true,
   hideHeader = false,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
   onVisibleInstalledCountChange,
 }: SkillsMarketplaceProps) {

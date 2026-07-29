@@ -51,7 +51,7 @@ export default function AutonomyPanel({
   autonomyLevel,
   onAutonomyChanged,
   onRefreshInstance,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
 }: AutonomyPanelProps) {
   const t = useTranslations("App.Hermes.Settings");
@@ -196,7 +196,7 @@ function SchedulesSection({
   schedules,
   loading,
   onScheduleUpdated,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
 }: {
   schedules: HermesSchedule[];
@@ -256,7 +256,7 @@ function SchedulesSection({
 function ScheduleRow({
   schedule,
   onChange,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
 }: {
   schedule: HermesSchedule;

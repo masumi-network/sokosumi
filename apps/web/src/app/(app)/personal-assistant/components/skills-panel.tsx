@@ -34,7 +34,7 @@ export default function SkillsPanel({
   open,
   onOpenChange,
   previewMode,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
 }: SkillsPanelProps) {
   const t = useTranslations("App.Hermes.SkillsPanel");

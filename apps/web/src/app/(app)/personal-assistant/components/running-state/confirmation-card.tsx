@@ -137,7 +137,7 @@ export function ConfirmationCard({
   organizations,
   activeOrganizationId,
   resolution,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
 }: {
   confirmation: HermesPendingConfirmation;

@@ -291,7 +291,7 @@ For a hard local-only reset, drop those rows directly.
 ```
 apps/web/src/app/(app)/personal-assistant/
 ├── README.md                            ← you are here
-├── layout.tsx                           ← beta whitelist gate + FullscreenEffect
+├── layout.tsx                           ← FullscreenEffect only
 ├── page.tsx                             ← session pass-through, renders HermesExperience
 └── components/
     ├── hermes-experience.tsx            ← state machine + polling

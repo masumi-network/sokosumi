@@ -140,7 +140,7 @@ export default function OnboardingScreen({
   integrations,
   previewMode,
   isStarting = false,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
   onContinue,
 }: OnboardingScreenProps) {

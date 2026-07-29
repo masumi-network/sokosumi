@@ -85,7 +85,7 @@ export default function RunningState({
   initialMessages,
   organizations = [],
   activeOrganizationId = null,
-  hasAssistantPlanCoverage = true,
+  hasAssistantPlanCoverage = false,
   onRequireSubscription,
   onDestroy,
   onRefresh,
