@@ -52,7 +52,7 @@ interface OnboardingScreenProps {
   isStarting?: boolean;
   /** Paid coverage — gates skill installs on the Skills step so a lapsed
    * subscription opens the wall instead of a raw Core 403 toast. */
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
   onContinue: (options: {
     skipResearch: boolean;
@@ -140,7 +140,7 @@ export default function OnboardingScreen({
   integrations,
   previewMode,
   isStarting = false,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
   onContinue,
 }: OnboardingScreenProps) {
@@ -534,7 +534,7 @@ export default function OnboardingScreen({
               <SkillsMarketplace
                 variant="onboarding"
                 active={step === 5}
-                hasActiveSubscription={hasActiveSubscription}
+                hasAssistantPlanCoverage={hasAssistantPlanCoverage}
                 onRequireSubscription={onRequireSubscription}
                 onVisibleInstalledCountChange={handleSkillsInstalledCountChange}
               />

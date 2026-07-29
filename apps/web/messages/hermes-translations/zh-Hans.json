@@ -183,7 +183,9 @@
   },
   "SubscriptionWall": {
     "title": "解锁你的个人助手",
-    "description": "订阅付费方案即可启用并开始使用。",
+    "description": "订阅 Standard 或更高方案即可启用并开始使用。",
+    "organizationBilling": "你当前在 {organization}。升级会更改整个组织的方案，并向组织计费。",
+    "organizationBillingUnnamed": "你当前在组织工作区。升级会更改整个组织的方案，并向组织计费。",
     "cta": "查看方案与定价",
     "dismiss": "稍后再说"
   },

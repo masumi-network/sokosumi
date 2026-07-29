@@ -184,7 +184,9 @@
   },
   "SubscriptionWall": {
     "title": "Desbloqueia o teu assistente pessoal",
-    "description": "Ativa-o com um plano pago para o pôr a trabalhar.",
+    "description": "Ativa-o com o plano Standard ou superior para o pôr a trabalhar.",
+    "organizationBilling": "Estás em {organization}. Fazer upgrade altera o plano de toda a organização e é faturado à organização.",
+    "organizationBillingUnnamed": "Estás num espaço de organização. Fazer upgrade altera o plano de toda a organização e é faturado à organização.",
     "cta": "Ver planos e preços",
     "dismiss": "Talvez mais tarde"
   },

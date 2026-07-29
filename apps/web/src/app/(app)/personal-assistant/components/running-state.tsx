@@ -66,7 +66,7 @@ export interface RunningStateProps {
   /** Active org from the session — pre-selected in the dropdown. */
   activeOrganizationId?: string | null;
   /** Paid coverage for chat / confirmations / settings mutations. */
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   /** Opens the subscription wall when an unpaid user tries to use PA. */
   onRequireSubscription?: () => void;
   onDestroy: () => Promise<void> | void;
@@ -85,7 +85,7 @@ export default function RunningState({
   initialMessages,
   organizations = [],
   activeOrganizationId = null,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
   onDestroy,
   onRefresh,
@@ -144,7 +144,7 @@ export default function RunningState({
     setMessages,
     mockReplies,
     previewMode,
-    hasActiveSubscription,
+    hasAssistantPlanCoverage,
     onRequireSubscription,
     onRefresh,
     t,
@@ -277,7 +277,7 @@ export default function RunningState({
                 pendingCards={pendingCards}
                 organizations={organizations}
                 activeOrganizationId={activeOrganizationId}
-                hasActiveSubscription={hasActiveSubscription}
+                hasAssistantPlanCoverage={hasAssistantPlanCoverage}
                 onRequireSubscription={onRequireSubscription}
                 onSelectSuggestion={(prompt) => {
                   setInput(prompt);
@@ -322,7 +322,7 @@ export default function RunningState({
             assistantName={instance?.assistantName ?? null}
             avatarSeed={instance?.avatarSeed ?? null}
             orbBaseSeed={orbBaseSeed}
-            hasActiveSubscription={hasActiveSubscription}
+            hasAssistantPlanCoverage={hasAssistantPlanCoverage}
             onRequireSubscription={onRequireSubscription}
             onDestroy={onDestroy}
             onRefreshInstance={onRefresh}
@@ -332,7 +332,7 @@ export default function RunningState({
             onOpenChange={setAutonomyOpen}
             previewMode={previewMode}
             autonomyLevel={instance?.autonomyLevel ?? "medium"}
-            hasActiveSubscription={hasActiveSubscription}
+            hasAssistantPlanCoverage={hasAssistantPlanCoverage}
             onRequireSubscription={onRequireSubscription}
             onRefreshInstance={onRefresh}
           />
@@ -340,7 +340,7 @@ export default function RunningState({
             open={skillsOpen}
             onOpenChange={setSkillsOpen}
             previewMode={previewMode}
-            hasActiveSubscription={hasActiveSubscription}
+            hasAssistantPlanCoverage={hasAssistantPlanCoverage}
             onRequireSubscription={onRequireSubscription}
           />
         </div>

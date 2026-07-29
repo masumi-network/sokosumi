@@ -31,7 +31,7 @@ interface ChatTimelineProps {
   pendingCards: HermesPendingConfirmation[];
   organizations: HermesOrganizationOption[];
   activeOrganizationId: string | null;
-  hasActiveSubscription: boolean;
+  hasAssistantPlanCoverage: boolean;
   onRequireSubscription?: () => void;
   onSelectSuggestion: (prompt: string) => void;
   onConfirmationResolved: (
@@ -56,7 +56,7 @@ export function ChatTimeline({
   pendingCards,
   organizations,
   activeOrganizationId,
-  hasActiveSubscription,
+  hasAssistantPlanCoverage,
   onRequireSubscription,
   onSelectSuggestion,
   onConfirmationResolved,
@@ -91,7 +91,7 @@ export function ChatTimeline({
               organizations={organizations}
               activeOrganizationId={activeOrganizationId}
               resolution={item.entry.resolution}
-              hasActiveSubscription={hasActiveSubscription}
+              hasAssistantPlanCoverage={hasAssistantPlanCoverage}
               onRequireSubscription={onRequireSubscription}
               onResolved={() => {}}
             />
@@ -121,7 +121,7 @@ export function ChatTimeline({
             organizations={organizations}
             activeOrganizationId={activeOrganizationId}
             resolution={null}
-            hasActiveSubscription={hasActiveSubscription}
+            hasAssistantPlanCoverage={hasAssistantPlanCoverage}
             onRequireSubscription={onRequireSubscription}
             onResolved={onConfirmationResolved}
           />

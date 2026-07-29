@@ -181,9 +181,9 @@ export const getHermesInstanceAction = withSession<
  * Returns the post-provision state — the caller should poll
  * `getHermesInstanceAction` until status === "running".
  *
- * Requires a paid plan, unless the signed-in user has the admin role. This
- * re-checks server-side (the UI already gates the activate button on the
- * same signal) so the action can't be triggered directly to bypass the
+ * Requires Standard or better, unless the signed-in user has the admin role.
+ * This re-checks server-side (the UI already gates the activate button on
+ * the same signal) so the action can't be triggered directly to bypass the
  * subscription wall.
  */
 export const provisionHermesAction = withSession<

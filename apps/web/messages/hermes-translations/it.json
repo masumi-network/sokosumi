@@ -184,7 +184,9 @@
   },
   "SubscriptionWall": {
     "title": "Sblocca il tuo assistente personale",
-    "description": "Attivalo con un piano a pagamento per metterlo al lavoro.",
+    "description": "Attivalo con il piano Standard o superiore per metterlo al lavoro.",
+    "organizationBilling": "Sei in {organization}. L'upgrade cambia il piano dell'intera organizzazione e viene fatturato all'organizzazione.",
+    "organizationBillingUnnamed": "Sei in uno spazio di organizzazione. L'upgrade cambia il piano dell'intera organizzazione e viene fatturato all'organizzazione.",
     "cta": "Vedi piani e prezzi",
     "dismiss": "Forse più tardi"
   },

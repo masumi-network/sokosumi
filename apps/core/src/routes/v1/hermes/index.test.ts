@@ -2295,6 +2295,35 @@ describe("Hermes route contracts", () => {
     );
   });
 
+  it("blocks provisioning when the only org plan is below the Standard floor", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([{ organizationId: "org_starter" }]);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "starter",
+      purchasedSeats: 1,
+      subscriptionId: "sub_starter",
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A Standard subscription or higher is required to use the personal assistant.",
+    );
+    expect(provisionInstance).not.toHaveBeenCalled();
+    expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledWith(
+      "org_starter",
+      expect.anything(),
+    );
+  });
+
   it("provisions when a member organization has an active enterprise contract", async () => {
     memberFindManyMock.mockResolvedValue([{ organizationId: "org_ent" }]);
     resolveActiveSubscriptionMock.mockResolvedValue(null);

@@ -58,7 +58,7 @@ interface SkillsMarketplaceProps {
   /** Suppress the internal title/subtitle when the host (e.g. SkillsPanel)
    * already renders its own header. Search stays. */
   hideHeader?: boolean;
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
   /**
    * User-managed installed skills (excludes image-baked preinstalled).
@@ -107,7 +107,7 @@ export default function SkillsMarketplace({
   variant = "settings",
   active = true,
   hideHeader = false,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
   onVisibleInstalledCountChange,
 }: SkillsMarketplaceProps) {
@@ -269,7 +269,7 @@ export default function SkillsMarketplace({
 
   const doInstall = useCallback(
     async (item: SkillCatalogItem) => {
-      if (!hasActiveSubscription) {
+      if (!hasAssistantPlanCoverage) {
         onRequireSubscription?.();
         return;
       }
@@ -290,7 +290,7 @@ export default function SkillsMarketplace({
         toast.success(t("addedToast", { name: item.name }));
       }
     },
-    [hasActiveSubscription, markInstalled, onRequireSubscription, t],
+    [hasAssistantPlanCoverage, markInstalled, onRequireSubscription, t],
   );
 
   const handleAdd = useCallback(
@@ -330,7 +330,7 @@ export default function SkillsMarketplace({
 
   const handleRemove = useCallback(
     async (skill: InstalledSkill) => {
-      if (!hasActiveSubscription) {
+      if (!hasAssistantPlanCoverage) {
         onRequireSubscription?.();
         return;
       }
@@ -349,7 +349,7 @@ export default function SkillsMarketplace({
       toast.success(t("removedToast", { name: skill.name }));
     },
     [
-      hasActiveSubscription,
+      hasAssistantPlanCoverage,
       notifyVisibleInstalledCount,
       onRequireSubscription,
       preinstalled,

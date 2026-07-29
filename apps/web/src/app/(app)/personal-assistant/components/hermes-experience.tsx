@@ -64,12 +64,12 @@ interface HermesExperienceProps {
   organizations?: HermesOrganizationOption[];
   /** Active org from the user's session; pre-selected in the dropdown. */
   activeOrganizationId?: string | null;
-  /** Whether the user (or a member org) has paid-plan coverage.
-   * Activating and using the assistant are gated on this — viewing
-   * history / the landing page is not. */
-  hasActiveSubscription?: boolean;
-  /** The 3 paid plans, shown as links on the subscription wall. Empty if
-   * the catalog couldn't be loaded — the wall still works without them. */
+  /** Whether the user (or a member org) has Standard+ assistant coverage
+   * (or admin bypass). Activating and using the assistant are gated on
+   * this — viewing history / the landing page is not. */
+  hasAssistantPlanCoverage?: boolean;
+  /** Standard and Pro plans shown as links on the subscription wall. Empty
+   * if the catalog couldn't be loaded — the wall still works without them. */
   subscriptionWallPlans?: SubscriptionWallPlan[];
 }
 
@@ -193,7 +193,7 @@ export default function HermesExperience({
   userImageUrl,
   organizations = [],
   activeOrganizationId = null,
-  hasActiveSubscription = false,
+  hasAssistantPlanCoverage = false,
   subscriptionWallPlans = [],
 }: HermesExperienceProps) {
   const params = useSearchParams();
@@ -565,7 +565,7 @@ export default function HermesExperience({
   }, [refetchHermes]);
 
   const handleActivate = useCallback(async () => {
-    if (!hasActiveSubscription) {
+    if (!hasAssistantPlanCoverage) {
       setSubscriptionWallOpen(true);
       return;
     }
@@ -595,7 +595,7 @@ export default function HermesExperience({
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.
     setUiState(nextUi);
-  }, [t, hasActiveSubscription, userId, applyInstanceSnapshot]);
+  }, [t, hasAssistantPlanCoverage, userId, applyInstanceSnapshot]);
 
   const handleRetry = useCallback(() => {
     if (previewMode) return;
@@ -648,7 +648,7 @@ export default function HermesExperience({
       autonomyLevel: HermesAutonomyLevel;
       personality: HermesPersonality;
     }) => {
-      if (!hasActiveSubscription) {
+      if (!hasAssistantPlanCoverage) {
         setSubscriptionWallOpen(true);
         return;
       }
@@ -691,7 +691,7 @@ export default function HermesExperience({
         setIsStartingOnboarding(false);
       }
     },
-    [previewMode, t, hasActiveSubscription],
+    [previewMode, t, hasAssistantPlanCoverage],
   );
 
   // Base seed for the generative orb avatar — the user id makes every user's
@@ -738,7 +738,7 @@ export default function HermesExperience({
           integrations={instance?.integrations ?? []}
           previewMode={previewMode}
           isStarting={isStartingOnboarding}
-          hasActiveSubscription={hasActiveSubscription}
+          hasAssistantPlanCoverage={hasAssistantPlanCoverage}
           onRequireSubscription={() => setSubscriptionWallOpen(true)}
           onContinue={(opts) => void handleStartOnboarding(opts)}
         />
@@ -787,7 +787,7 @@ export default function HermesExperience({
         initialMessages={initialMessages}
         organizations={effectiveOrganizations}
         activeOrganizationId={effectiveActiveOrgId}
-        hasActiveSubscription={hasActiveSubscription}
+        hasAssistantPlanCoverage={hasAssistantPlanCoverage}
         onRequireSubscription={() => setSubscriptionWallOpen(true)}
         onDestroy={handleDestroy}
         onRefresh={() => refetchHermes({ background: true })}

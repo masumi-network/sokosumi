@@ -2066,11 +2066,12 @@ app.openapi(getInstanceRoute, async (c) => {
 
 /**
  * True when the user has assistant-plan coverage: a subscription of Standard
- * or better on their personal reference or on any organization they belong to.
- * The web app's subscription wall gates on the session's active workspace;
- * this is the API-level floor beneath it — Better Auth API keys and OAuth
- * access tokens mint plain user auth contexts, so the Core route must enforce
- * the plan itself rather than trusting the web action's check.
+ * or better on their personal reference or on any organization they belong to
+ * (enterprise contracts only when consumable). Web's UX gate uses the same
+ * rule via `hasAssistantPlanCoverage`; this is the API-level floor beneath it
+ * — Better Auth API keys and OAuth access tokens mint plain user auth
+ * contexts, so the Core route must enforce the plan itself rather than
+ * trusting the web action's check.
  */
 async function userHasAssistantPlanCoverage(userId: string): Promise<boolean> {
   // Personal Stripe subscription (user as referenceId).
@@ -2126,7 +2127,7 @@ async function requireAssistantPlanCoverage(userContext: {
 
 app.openapi(provisionInstanceRoute, async (c) => {
   const userContext = requireUserAuthContext(c.var.authContext);
-  // Paid-plan gate, mirroring the web action's check (which alone is
+  // Standard+ gate, mirroring the web action's check (which alone is
   // bypassable by calling this route directly with an API key). Admins are
   // exempt so the team can operate test instances without billing.
   await requireAssistantPlanCoverage(userContext);

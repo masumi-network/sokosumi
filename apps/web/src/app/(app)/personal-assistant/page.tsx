@@ -70,7 +70,8 @@ export default async function HermesPage() {
       : Promise.resolve(false),
     session ? coreClient.getSubscriptionCatalog().catch(() => null) : null,
   ]);
-  const hasActiveSubscription = hasCoverage || hasAdminRole(session?.user.role);
+  // Admins skip the wall so the team can operate test instances without billing.
+  const canUseAssistant = hasCoverage || hasAdminRole(session?.user.role);
 
   // Only the plans that actually unlock the assistant — offering Starter
   // here would sell an upgrade that still hits the wall. Best-effort: the
@@ -98,7 +99,7 @@ export default async function HermesPage() {
         userImageUrl={userImageUrl}
         organizations={organizations}
         activeOrganizationId={activeOrganizationId}
-        hasActiveSubscription={hasActiveSubscription}
+        hasAssistantPlanCoverage={canUseAssistant}
         subscriptionWallPlans={subscriptionWallPlans}
       />
     </Suspense>

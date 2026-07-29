@@ -16,7 +16,7 @@ interface SkillsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   previewMode: boolean;
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
 }
 
@@ -34,7 +34,7 @@ export default function SkillsPanel({
   open,
   onOpenChange,
   previewMode,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
 }: SkillsPanelProps) {
   const t = useTranslations("App.Hermes.SkillsPanel");
@@ -58,7 +58,7 @@ export default function SkillsPanel({
             <SkillsMarketplace
               variant="settings"
               hideHeader
-              hasActiveSubscription={hasActiveSubscription}
+              hasAssistantPlanCoverage={hasAssistantPlanCoverage}
               onRequireSubscription={onRequireSubscription}
             />
           ) : null}

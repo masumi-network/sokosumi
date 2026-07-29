@@ -1,8 +1,8 @@
 "use client";
 
-import type {
-  PaidSubscriptionPlanName,
-  SelfServeSubscriptionPlanName,
+import {
+  type PaidSubscriptionPlanName,
+  PERSONAL_ASSISTANT_PLANS,
 } from "@sokosumi/utils";
 import { Check, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -36,8 +36,12 @@ import { cn } from "@/lib/utils";
  * Also matches `resolveLowCreditsBillingPath`'s free-plan branch. */
 const SUBSCRIPTION_BILLING_PATH = "/billing?tab=subscription";
 
+/** Plans the wall can offer — only tiers that clear the Standard floor. */
+export type SubscriptionWallPlanName =
+  (typeof PERSONAL_ASSISTANT_PLANS)[number];
+
 export interface SubscriptionWallPlan {
-  name: SelfServeSubscriptionPlanName;
+  name: SubscriptionWallPlanName;
   monthlyAmount: number;
   currency: string;
   credits: number;
@@ -46,8 +50,9 @@ export interface SubscriptionWallPlan {
 interface SubscriptionRequiredDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The paid plans to preview. Empty when the catalog couldn't be loaded —
-   * the wall still works with just the "Maybe later" / compare-plans path. */
+  /** Standard/Pro plans to preview. Empty when the catalog couldn't be
+   * loaded — the wall still works with just the "Maybe later" /
+   * compare-plans path. */
   plans: SubscriptionWallPlan[];
   /** Null on a personal account — clicking a plan goes straight to Stripe
    * Checkout. Set when billing is org-owned, since upgrading an org plan
@@ -77,9 +82,9 @@ export function SubscriptionRequiredDialog({
   const formatter = useFormatter();
   const router = useRouter();
   const [pendingPlan, setPendingPlan] =
-    useState<SelfServeSubscriptionPlanName | null>(null);
+    useState<SubscriptionWallPlanName | null>(null);
 
-  async function handlePlanClick(plan: SelfServeSubscriptionPlanName) {
+  async function handlePlanClick(plan: SubscriptionWallPlanName) {
     // Org-billed plans need a seat count — send those to the org's own
     // subscription page rather than guessing one here.
     if (activeOrganizationId) {

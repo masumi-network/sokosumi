@@ -12,7 +12,7 @@ interface UseChatSendOptions {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   mockReplies: string[];
   previewMode: boolean;
-  hasActiveSubscription: boolean;
+  hasAssistantPlanCoverage: boolean;
   onRequireSubscription?: () => void;
   onRefresh?: () => void | Promise<void>;
   t: (key: string, values?: Record<string, string | number>) => string;
@@ -26,7 +26,7 @@ export function useChatSend({
   setMessages,
   mockReplies,
   previewMode,
-  hasActiveSubscription,
+  hasAssistantPlanCoverage,
   onRequireSubscription,
   onRefresh,
   t,
@@ -72,7 +72,7 @@ export function useChatSend({
       const hasFiles = files.length > 0;
       if ((!trimmed && !hasFiles) || isReplying) return;
 
-      if (!previewMode && !hasActiveSubscription) {
+      if (!previewMode && !hasAssistantPlanCoverage) {
         onRequireSubscription?.();
         return;
       }
@@ -160,7 +160,7 @@ export function useChatSend({
     },
     [
       files,
-      hasActiveSubscription,
+      hasAssistantPlanCoverage,
       isReplying,
       messages,
       mockReplies,

@@ -74,7 +74,7 @@ interface SettingsPanelProps {
    * read from parent state. */
   onRefreshInstance?: () => void | Promise<void>;
   /** Paid coverage for settings mutations (rename, orb, connect…). */
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
 }
 
@@ -122,7 +122,7 @@ export default function SettingsPanel({
   lastInboxRefreshAt,
   onDestroy,
   onRefreshInstance,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
 }: SettingsPanelProps) {
   const t = useTranslations("App.Hermes.Settings");
@@ -149,7 +149,7 @@ export default function SettingsPanel({
       return;
     }
 
-    if (!hasActiveSubscription) {
+    if (!hasAssistantPlanCoverage) {
       onRequireSubscription?.();
       return;
     }
@@ -168,7 +168,7 @@ export default function SettingsPanel({
     nameDraft,
     assistantName,
     previewMode,
-    hasActiveSubscription,
+    hasAssistantPlanCoverage,
     onRequireSubscription,
     onRefreshInstance,
     t,
@@ -195,7 +195,7 @@ export default function SettingsPanel({
         return;
       }
 
-      if (!hasActiveSubscription) {
+      if (!hasAssistantPlanCoverage) {
         setOrbDraft(previous);
         onRequireSubscription?.();
         return;
@@ -217,7 +217,7 @@ export default function SettingsPanel({
       orbDraft,
       orbSaving,
       previewMode,
-      hasActiveSubscription,
+      hasAssistantPlanCoverage,
       onRequireSubscription,
       onRefreshInstance,
       t,
@@ -254,7 +254,7 @@ export default function SettingsPanel({
 
   const runConnect = useCallback(
     async (provider: HermesIntegrationProvider, mode: "read" | "write") => {
-      if (!previewMode && !hasActiveSubscription) {
+      if (!previewMode && !hasAssistantPlanCoverage) {
         onRequireSubscription?.();
         return;
       }
@@ -289,7 +289,7 @@ export default function SettingsPanel({
     },
     [
       previewMode,
-      hasActiveSubscription,
+      hasAssistantPlanCoverage,
       onRequireSubscription,
       composioOAuth,
       onRefreshInstance,
@@ -308,7 +308,7 @@ export default function SettingsPanel({
         return;
       }
 
-      if (!hasActiveSubscription) {
+      if (!hasAssistantPlanCoverage) {
         onRequireSubscription?.();
         return;
       }
@@ -326,7 +326,7 @@ export default function SettingsPanel({
     },
     [
       previewMode,
-      hasActiveSubscription,
+      hasAssistantPlanCoverage,
       onRequireSubscription,
       effectiveStatus,
       onRefreshInstance,

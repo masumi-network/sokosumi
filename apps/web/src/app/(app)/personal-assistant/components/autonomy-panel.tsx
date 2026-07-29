@@ -34,7 +34,7 @@ interface AutonomyPanelProps {
   onAutonomyChanged?: (next: HermesAutonomyLevel) => void;
   /** Re-pull the instance so the parent's autonomy badge stays fresh. */
   onRefreshInstance?: () => void | Promise<void>;
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
 }
 
@@ -51,7 +51,7 @@ export default function AutonomyPanel({
   autonomyLevel,
   onAutonomyChanged,
   onRefreshInstance,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
 }: AutonomyPanelProps) {
   const t = useTranslations("App.Hermes.Settings");
@@ -74,7 +74,7 @@ export default function AutonomyPanel({
 
       if (previewMode) return;
 
-      if (!hasActiveSubscription) {
+      if (!hasAssistantPlanCoverage) {
         setAutonomy(previous);
         onRequireSubscription?.();
         return;
@@ -111,7 +111,7 @@ export default function AutonomyPanel({
     [
       autonomy,
       previewMode,
-      hasActiveSubscription,
+      hasAssistantPlanCoverage,
       onRequireSubscription,
       onAutonomyChanged,
       onRefreshInstance,
@@ -176,7 +176,7 @@ export default function AutonomyPanel({
           <SchedulesSection
             schedules={schedules}
             loading={schedulesLoading}
-            hasActiveSubscription={hasActiveSubscription}
+            hasAssistantPlanCoverage={hasAssistantPlanCoverage}
             onRequireSubscription={onRequireSubscription}
             onScheduleUpdated={(updated) =>
               setSchedules((prev) =>
@@ -196,13 +196,13 @@ function SchedulesSection({
   schedules,
   loading,
   onScheduleUpdated,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
 }: {
   schedules: HermesSchedule[];
   loading: boolean;
   onScheduleUpdated: (next: HermesSchedule) => void;
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
 }) {
   const t = useTranslations("App.Hermes.Settings");
@@ -232,7 +232,7 @@ function SchedulesSection({
               key={s.id}
               schedule={s}
               onChange={onScheduleChange}
-              hasActiveSubscription={hasActiveSubscription}
+              hasAssistantPlanCoverage={hasAssistantPlanCoverage}
               onRequireSubscription={onRequireSubscription}
             />
           ))}
@@ -256,12 +256,12 @@ function SchedulesSection({
 function ScheduleRow({
   schedule,
   onChange,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
 }: {
   schedule: HermesSchedule;
   onChange: (next: HermesSchedule) => void;
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
 }) {
   const t = useTranslations("App.Hermes.Settings");
@@ -269,7 +269,7 @@ function ScheduleRow({
 
   const handleToggle = async () => {
     if (toggling) return;
-    if (!hasActiveSubscription) {
+    if (!hasAssistantPlanCoverage) {
       onRequireSubscription?.();
       return;
     }

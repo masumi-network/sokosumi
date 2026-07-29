@@ -137,7 +137,7 @@ export function ConfirmationCard({
   organizations,
   activeOrganizationId,
   resolution,
-  hasActiveSubscription = true,
+  hasAssistantPlanCoverage = true,
   onRequireSubscription,
 }: {
   confirmation: HermesPendingConfirmation;
@@ -150,7 +150,7 @@ export function ConfirmationCard({
   activeOrganizationId: string | null;
   /** Non-null means the user already resolved this card; render read-only. */
   resolution: ConfirmationResolution | null;
-  hasActiveSubscription?: boolean;
+  hasAssistantPlanCoverage?: boolean;
   onRequireSubscription?: () => void;
 }) {
   const t = useTranslations("App.Hermes.Running.confirmation");
@@ -208,7 +208,7 @@ export function ConfirmationCard({
 
   const handleApprove = async () => {
     if (busy || isResolved) return;
-    if (!hasActiveSubscription) {
+    if (!hasAssistantPlanCoverage) {
       onRequireSubscription?.();
       return;
     }
@@ -298,7 +298,7 @@ export function ConfirmationCard({
 
   const handleReject = async () => {
     if (busy || isResolved) return;
-    if (!hasActiveSubscription) {
+    if (!hasAssistantPlanCoverage) {
       onRequireSubscription?.();
       return;
     }
