@@ -364,14 +364,16 @@ export const buildAvailableAgentWhereClause = (
                     chain: "Cardano",
                     network: getEnv().NETWORK,
                     paymentSourceType: "Web3CardanoV2",
-                    // Case-insensitive to match isCardanoV2SourceReady, which
-                    // lowercases both sides: registry and payment-node
-                    // addresses are stored raw, so an exact match here could
-                    // hide a genuinely purchase-ready agent.
-                    address: {
-                      equals: source.smartContractAddress,
-                      mode: "insensitive" as const,
-                    },
+                    // Exact match on purpose. Prisma's `mode: "insensitive"`
+                    // compiles to ILIKE with the value as an unescaped
+                    // pattern, so `_` in a bech32 address (every testnet one
+                    // contains "addr_test1") becomes a wildcard — pattern
+                    // matching is the wrong tool for a purchase-readiness
+                    // gate. Cardano bech32 is lowercase by specification and
+                    // ingestion normalizes V2 identifiers, so exact equality
+                    // is correct; isCardanoV2SourceReady stays defensive for
+                    // the runtime path where the value is compared in JS.
+                    address: source.smartContractAddress,
                   },
                 },
               })),

@@ -720,11 +720,19 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       ),
     );
 
-    await expect(
-      jobSyncService.syncUnfinishedJobs(createExecutionOptions()),
-    ).resolves.toBeDefined();
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    // Assert the REFUSAL, not merely the absence of a write: the phase runner
+    // swallows thrown errors, so a TypeError from .getTime() on a null
+    // deadline would otherwise satisfy this test too.
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
   });
 
   it("refuses to backfill when the job has no input hash to match on", async () => {

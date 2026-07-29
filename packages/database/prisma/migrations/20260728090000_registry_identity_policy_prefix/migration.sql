@@ -77,10 +77,6 @@ WHERE job."agentId" = repair."agentId"
 
 -- Job notifications deep-link through metadata.agentId; retarget links that
 -- point at a soon-to-be-parked duplicate row so navigation keeps resolving.
--- The jsonb cast is guarded by a CASE rather than a WHERE conjunct:
--- PostgreSQL does not guarantee qual evaluation order, so an AND'ed
--- pg_input_is_valid can be evaluated AFTER the cast and one malformed legacy
--- row would abort the whole repair. Inside CASE the order is defined.
 UPDATE "notification" notification
 SET "metadata" = jsonb_set(
   notification."metadata"::jsonb,
@@ -89,15 +85,9 @@ SET "metadata" = jsonb_set(
 )::text
 FROM "_v2_agent_identity_repair" repair
 WHERE repair."agentId" <> repair."canonicalAgentId"
-  AND notification."id" IN (
-    SELECT candidate."id"
-    FROM "notification" candidate
-    WHERE CASE
-      WHEN candidate."metadata" IS NULL THEN FALSE
-      WHEN NOT pg_input_is_valid(candidate."metadata", 'jsonb') THEN FALSE
-      ELSE candidate."metadata"::jsonb ->> 'agentId' = repair."agentId"
-    END
-  );
+  AND notification."metadata" IS NOT NULL
+  AND pg_input_is_valid(notification."metadata", 'jsonb')
+  AND notification."metadata"::jsonb ->> 'agentId' = repair."agentId";
 
 -- Keep the most recently updated rating per user and stable identity, avoiding
 -- the UserAgentRating(userId, agentId) unique constraint while consolidating.

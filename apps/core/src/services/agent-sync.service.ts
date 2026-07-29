@@ -645,7 +645,15 @@ async function consolidateDuplicateAgentRelations(
  *
  * The inner CASE (rather than a WHERE on pg_input_is_valid) keeps the jsonb
  * cast from ever being evaluated on malformed rows: PostgreSQL does not
- * guarantee WHERE-clause evaluation order.
+ * guarantee evaluation order WITHIN one relation's filter list, and every
+ * qual here is single-relation.
+ *
+ * Migration 20260728090000 does the same rewrite with plain conjuncts, and
+ * that is correct there for the opposite reason: its cast sits in a
+ * two-relation qual joining to the repair table, which the planner can never
+ * push below the notification scan. Converting it to this subquery form would
+ * turn the join into a cross product — one jsonb parse per (notification,
+ * repair) pair — so the two files differ on purpose.
  */
 async function retargetDuplicateAgentNotifications(
   duplicateAgentId: string,
