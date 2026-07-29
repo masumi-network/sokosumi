@@ -1,5 +1,4 @@
 const V2_VERSION_HEX_LENGTH = 6;
-const V2_VERSION_PATTERN = /^[0-9a-f]{6}$/i;
 const POLICY_ID_HEX_LENGTH = 56;
 const V2_STABLE_ASSET_NAME_HEX_LENGTH = 58;
 const V2_AGENT_IDENTIFIER_HEX_LENGTH =
@@ -82,10 +81,9 @@ export function parseVersionedAgentIdentifier(
     return undefined;
   }
 
+  // No separate hex test on the suffix: the whole-string HEX_PATTERN check
+  // above already guarantees it is 6 hex characters.
   const versionHex = normalizedIdentifier.slice(-V2_VERSION_HEX_LENGTH);
-  if (!V2_VERSION_PATTERN.test(versionHex)) {
-    return undefined;
-  }
 
   return {
     registryIdentity: normalizedIdentifier.slice(0, -V2_VERSION_HEX_LENGTH),

@@ -1,4 +1,4 @@
-import { AgentStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
+import { AgentStatus, JobType } from "@sokosumi/database";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -205,7 +205,7 @@ describe("POST /jobs/{id}/inputs", () => {
     );
   });
 
-  it("returns 422 without contacting the agent when it is not online", async () => {
+  it("still provides input when the agent is no longer online", async () => {
     jobEventFindFirstMock.mockResolvedValue(
       createAwaitingInputJobEvent(AgentStatus.OFFLINE),
     );
@@ -213,10 +213,9 @@ describe("POST /jobs/{id}/inputs", () => {
     const app = createApp();
     const response = await postInputs(app);
 
-    expect(response.status).toBe(422);
-    expect(await response.text()).toContain("Agent is no longer available");
-    expect(provideJobInputMock).not.toHaveBeenCalled();
-    expect(jobInputCreateMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(provideJobInputMock).toHaveBeenCalled();
+    expect(jobInputCreateMock).toHaveBeenCalled();
   });
 
   it("accepts input for an in-flight paid job whose agent went offline", async () => {
@@ -231,36 +230,6 @@ describe("POST /jobs/{id}/inputs", () => {
 
     expect(response.status).toBe(201);
     expect(provideJobInputMock).toHaveBeenCalled();
-  });
-
-  it("rejects input for an offline agent once the job is refunded", async () => {
-    jobEventFindFirstMock.mockResolvedValue(
-      createAwaitingInputJobEvent(AgentStatus.OFFLINE, {
-        ...IN_FLIGHT_PAID_JOB,
-        refundedTransactionId: "txn_refund",
-      }),
-    );
-
-    const app = createApp();
-    const response = await postInputs(app);
-
-    expect(response.status).toBe(422);
-    expect(provideJobInputMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects input for an offline agent once the purchase is disputed", async () => {
-    jobEventFindFirstMock.mockResolvedValue(
-      createAwaitingInputJobEvent(AgentStatus.OFFLINE, {
-        ...IN_FLIGHT_PAID_JOB,
-        purchase: { onChainStatus: OnChainJobStatus.DISPUTED },
-      }),
-    );
-
-    const app = createApp();
-    const response = await postInputs(app);
-
-    expect(response.status).toBe(422);
-    expect(provideJobInputMock).not.toHaveBeenCalled();
   });
 
   it("provides input to an online agent and persists the job input", async () => {

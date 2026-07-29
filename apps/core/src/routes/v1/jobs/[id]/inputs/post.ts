@@ -1,10 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  AgentJobStatus,
-  AgentStatus,
-  JobType,
-  OnChainJobStatus,
-} from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
@@ -23,19 +18,6 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { jobInputSchema } from "@/schemas/job.schema";
-
-/**
- * On-chain states that end a job for input purposes, matching the exclusions
- * in buildJobsNeedingAgentStatusSyncWhere.
- */
-const AGENT_INPUT_BLOCKED_ON_CHAIN_STATUSES: OnChainJobStatus[] = [
-  OnChainJobStatus.DISPUTED,
-  OnChainJobStatus.REFUND_REQUESTED,
-  OnChainJobStatus.REFUND_AUTHORIZED,
-  OnChainJobStatus.REFUND_WITHDRAWN,
-  OnChainJobStatus.DISPUTED_WITHDRAWN,
-  OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-];
 
 const params = z.object({
   id: z.string().openapi({
@@ -130,9 +112,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: {
           job: {
             include: {
-              // Needed by the in-flight bypass below; without it the purchase
-              // check would silently evaluate undefined and never block.
-              purchase: { select: { onChainStatus: true } },
               agent: {
                 select: {
                   id: true,
@@ -168,33 +147,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity("Agent did not provide an input schema");
     }
 
-    // Job endpoints are pinned to the agent revision the job started with, so
-    // an offline/deregistered agent would otherwise keep receiving user input.
-    // The exception mirrors buildJobsNeedingAgentStatusSyncWhere: a paid job
-    // still inside its on-chain window keeps accepting input even when the
-    // stable Agent row advanced to a newer, offline revision — otherwise sync
-    // would ask the user for input the platform then refuses to accept.
-    // Mirrors buildJobsNeedingAgentStatusSyncWhere, INCLUDING its exclusions:
-    // a refunded job, or one whose purchase already reached a refund/dispute
-    // state, is finished as far as the user is concerned and must not keep
-    // feeding input to an agent that is no longer online.
-    const isInFlightPaidJob =
-      jobEvent.job.jobType === JobType.PAID &&
-      jobEvent.job.externalDisputeUnlockTime !== null &&
-      jobEvent.job.externalDisputeUnlockTime.getTime() > Date.now() &&
-      jobEvent.job.refundedTransactionId === null &&
-      !(
-        jobEvent.job.purchase?.onChainStatus != null &&
-        AGENT_INPUT_BLOCKED_ON_CHAIN_STATUSES.includes(
-          jobEvent.job.purchase.onChainStatus,
-        )
-      );
-    if (
-      jobEvent.job.agent.status !== AgentStatus.ONLINE &&
-      !isInFlightPaidJob
-    ) {
-      throw unprocessableEntity("Agent is no longer available");
-    }
+    // No agent-status gate here on purpose. main has none, and adding one
+    // regressed the flag-off path: a FREE job whose agent went offline
+    // mid-run could no longer receive the input it had just been asked for,
+    // and free jobs have no refund path, so it was stuck permanently. Jobs
+    // are pinned to their own endpoint snapshot (toMasumiAgentForJob), so a
+    // newer, offline agent revision cannot redirect an in-flight job.
 
     const provideInputResult = await createAgentClient().provideJobInput(
       toMasumiAgentForJob(jobEvent.job),

@@ -590,19 +590,23 @@ export async function createAgentJobForUser(
           paymentSourceType: "Web3CardanoV2",
         };
       } else {
+        // A V1 agent whose seller upgraded its SDK may now echo V2-shaped
+        // fields. main ignored them and hired successfully, so rejecting here
+        // would break those agents mid-rollout — and only AFTER start_job has
+        // orphaned a seller-side job. Record the mismatch and continue on the
+        // V1 rail, which is what the stored agent says this purchase is.
         if (
-          response.paymentSourceType !== undefined &&
-          response.paymentSourceType !== "Web3CardanoV1"
+          (response.paymentSourceType !== undefined &&
+            response.paymentSourceType !== "Web3CardanoV1") ||
+          response.supportedPaymentSourceIndex !== undefined
         ) {
-          throw unprocessableEntity(
-            "Legacy agent job returned an invalid payment source type",
-            { reportToSentry: true },
-          );
-        }
-        if (response.supportedPaymentSourceIndex !== undefined) {
-          throw unprocessableEntity(
-            "Legacy agent job returned a V2 payment source index",
-            { reportToSentry: true },
+          console.warn(
+            "[createAgentJobForUser] legacy agent returned V2 payment fields; ignoring",
+            {
+              agentId: agent.id,
+              paymentSourceType: response.paymentSourceType,
+              supportedPaymentSourceIndex: response.supportedPaymentSourceIndex,
+            },
           );
         }
         // Price-drift guard: pass the exact amounts the credits charge was
@@ -618,7 +622,13 @@ export async function createAgentJobForUser(
           fixedPricingAmounts.length <= MAX_PAYMENT_NODE_PURCHASE_AMOUNTS
             ? fixedPricingAmounts
             : null;
-        paidJobResult = response;
+        // Strip the ignored V2 fields so the job row records the rail it was
+        // actually created on rather than what the seller happened to echo.
+        paidJobResult = {
+          ...response,
+          paymentSourceType: undefined,
+          supportedPaymentSourceIndex: undefined,
+        };
       }
 
       await resolveJobName();

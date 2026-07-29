@@ -121,6 +121,7 @@ describe("buildAvailableAgentWhereClause", () => {
       {
         NOT: {
           OR: [
+            { paymentType: PaymentType.WEB3_CARDANO_V2 },
             {
               blockchainIdentifier: {
                 startsWith:
@@ -156,6 +157,7 @@ describe("buildAvailableAgentWhereClause", () => {
         {
           NOT: {
             OR: [
+              { paymentType: PaymentType.WEB3_CARDANO_V2 },
               {
                 blockchainIdentifier: {
                   startsWith:

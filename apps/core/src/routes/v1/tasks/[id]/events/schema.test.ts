@@ -30,18 +30,20 @@ const validMasumiPayment = {
 const V2_POLICY_ID = "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b";
 
 describe("createTaskEventRequestSchema", () => {
-  it("rejects a payment-source index on a V1 masumiPayment", () => {
-    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
-    const result = schema.safeParse({
-      status: "COMPLETED",
+  it("tolerates a payment-source index on a V1 masumiPayment", () => {
+    // Sellers upgrading their SDK emit V2-shaped fields on V1 responses;
+    // rejecting here would break those agents mid-rollout, so the payload is
+    // accepted and the field ignored downstream (mirrors the job flow).
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
       masumiPayment: {
         ...validMasumiPayment,
         paymentSourceType: "Web3CardanoV1",
-        supportedPaymentSourceIndex: 2,
+        supportedPaymentSourceIndex: 0,
       },
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("rejects a malformed identifier under the V2 registry policy", () => {
@@ -69,6 +71,8 @@ describe("createTaskEventRequestSchema", () => {
       status: "COMPLETED",
       masumiPayment: {
         ...validMasumiPayment,
+        // PaymentSource rules are asserted for V2 payloads only.
+        paymentSourceType: "Web3CardanoV2",
         PaymentSource: {
           network: "Preprod",
           smartContractAddress:
@@ -87,6 +91,7 @@ describe("createTaskEventRequestSchema", () => {
       status: "COMPLETED",
       masumiPayment: {
         ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV2",
         PaymentSource: {
           network: "Preprod",
           smartContractAddress:
@@ -97,6 +102,25 @@ describe("createTaskEventRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("leaves a V1 payload's PaymentSource unvalidated", () => {
+    // PaymentSource predates the V2 rules on this public API; V1 callers may
+    // populate it with their own tuple and must not be rejected for it.
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress: "addr_test1_v1_escrow_contract",
+          policyId: "ff".repeat(28),
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("accepts a valid channel", () => {

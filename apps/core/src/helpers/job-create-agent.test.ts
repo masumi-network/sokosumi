@@ -412,21 +412,25 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     );
   });
 
-  it("rejects a V2 payment type returned by a legacy agent", async () => {
+  it("hires a legacy agent that returns V2-shaped payment fields", async () => {
+    // A V1 seller upgrading its SDK may echo V2 fields. main ignored them;
+    // rejecting would break those agents mid-rollout, and only after
+    // start_job already created a job on the seller side.
     agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
     createAgentClientMock.mockReturnValue({
       startPaidAgentJob: sellerResponding({
         ...paidV1JobResponse,
         paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 0,
       }),
     });
 
-    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
-      "Legacy agent job returned an invalid payment source type",
-    );
+    await createAgentJobForUser(createInput());
 
-    expect(txJobCreateMock).not.toHaveBeenCalled();
-    expect(createPurchaseMock).not.toHaveBeenCalled();
+    expect(txJobCreateMock).toHaveBeenCalled();
+    const createCall = txJobCreateMock.mock.calls[0]?.[0];
+    // The stored rail stays V1 — the agent record is the source of truth.
+    expect(createCall.data.supportedPaymentSourceIndex).toBeUndefined();
   });
 
   it("aggregates duplicate-unit V1 pricing rows into one purchase amount", async () => {

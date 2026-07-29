@@ -715,7 +715,9 @@ async function resolveCuratedTwinDefaults(
         // curation twins would pin every future registration of that agent to
         // hidden forever — and since parking bumps updatedAt they would
         // usually also win the risk/category inheritance below.
-        status: { not: AgentStatus.INVALID },
+        // The parked prefix alone identifies bookkeeping rows. Filtering on
+        // INVALID as well would discard genuinely invalid twins that may
+        // still carry the admin curation this lookup exists to preserve.
         NOT: {
           blockchainIdentifier: { startsWith: PARKED_IDENTIFIER_PREFIX },
         },

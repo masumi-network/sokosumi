@@ -307,11 +307,17 @@ export const buildAvailableAgentWhereClause = (
     ],
   };
 
-  // "Belongs to a V2 registry policy", expressed as a Prisma predicate.
-  const v2PolicyIdentifierFilter = {
-    OR: listV2RegistryPolicyIds().map((policyId) => ({
-      blockchainIdentifier: { startsWith: policyId },
-    })),
+  // "Is a V2 agent" — by declared payment type OR by membership of the V2
+  // registry policy. The union matters in both directions: free and EVM-only
+  // V2 entries report paymentType "None", while an entry can declare
+  // Web3CardanoV2 under some other policy id. Either alone is fail-open.
+  const v2AgentFilter = {
+    OR: [
+      { paymentType: PaymentType.WEB3_CARDANO_V2 },
+      ...listV2RegistryPolicyIds().map((policyId) => ({
+        blockchainIdentifier: { startsWith: policyId },
+      })),
+    ],
   };
 
   return {
@@ -348,7 +354,7 @@ export const buildAvailableAgentWhereClause = (
       isCardanoV2Enabled
         ? {
             OR: [
-              { NOT: v2PolicyIdentifierFilter },
+              { NOT: v2AgentFilter },
               ...cardanoV2ReadySources.map((source) => ({
                 blockchainIdentifier: {
                   startsWith: source.policyId,
@@ -364,7 +370,7 @@ export const buildAvailableAgentWhereClause = (
               })),
             ],
           }
-        : { NOT: v2PolicyIdentifierFilter },
+        : { NOT: v2AgentFilter },
     ],
     pricing: pricingFilter,
   };

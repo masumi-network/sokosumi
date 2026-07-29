@@ -64,13 +64,16 @@ describe("startPaidJobResponseSchema", () => {
     }
   });
 
-  it("rejects a payment-source index on a V1 response", () => {
+  it("keeps a payment-source index on a V1 response for the caller to ignore", () => {
+    // Sellers upgrading their SDK emit V2 fields on V1 responses. Failing
+    // the parse would break those agents mid-rollout — and only after
+    // start_job already ran — so the caller decides what to do with it.
     const result = startPaidJobResponseSchema.safeParse({
       ...paidJobResponse,
       paymentSourceType: "Web3CardanoV1",
       supportedPaymentSourceIndex: 3,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });

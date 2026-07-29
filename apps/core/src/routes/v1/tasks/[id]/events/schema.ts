@@ -154,20 +154,6 @@ export function createTaskEventRequestSchema(
           });
         }
 
-        // Fail fast pre-charge on payloads the payment node would reject
-        // post-charge (the async purchase has no compensation path).
-        if (
-          data.masumiPayment.paymentSourceType === "Web3CardanoV1" &&
-          data.masumiPayment.supportedPaymentSourceIndex !== undefined
-        ) {
-          ctx.addIssue({
-            code: "custom",
-            message:
-              "supportedPaymentSourceIndex is only valid for Web3CardanoV2 payments",
-            path: ["masumiPayment", "supportedPaymentSourceIndex"],
-          });
-        }
-
         if (
           isV2RegistryIdentifier(data.masumiPayment.agentIdentifier) &&
           parseVersionedAgentIdentifier(data.masumiPayment.agentIdentifier) ===
@@ -181,8 +167,15 @@ export function createTaskEventRequestSchema(
           });
         }
 
+        // These have no V1 equivalent at the payment node, and PaymentSource
+        // is a pre-existing optional field V1 callers may already populate —
+        // so they are asserted only for payloads that are actually V2.
         const paymentSource = data.masumiPayment.PaymentSource;
-        if (paymentSource !== undefined) {
+        const isV2Payload =
+          data.masumiPayment.paymentSourceType === "Web3CardanoV2" ||
+          data.masumiPayment.supportedPaymentSourceIndex !== undefined ||
+          isV2RegistryIdentifier(data.masumiPayment.agentIdentifier);
+        if (paymentSource !== undefined && isV2Payload) {
           // Case-insensitive: hex casing must never decide validity (the V2
           // classifier and readiness checks normalize the same way).
           const identifierPolicyId = data.masumiPayment.agentIdentifier

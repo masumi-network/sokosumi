@@ -665,7 +665,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
 
     const where = agentFindManyMock.mock.calls[0]?.[0]?.where;
-    expect(where.status).toEqual({ not: "INVALID" });
+    // The parked prefix alone identifies bookkeeping rows; filtering on
+    // INVALID as well would discard genuinely invalid but curated twins.
+    expect(where.status).toBeUndefined();
     expect(where.NOT).toEqual({
       blockchainIdentifier: { startsWith: "legacy-v2:" },
     });
