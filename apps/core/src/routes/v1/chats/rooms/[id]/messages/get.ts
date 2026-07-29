@@ -83,32 +83,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
 
-    const { messages, count } = await prisma.$transaction(async (tx) => {
-      await requireChatRoomUserMembership(id, userContext.userId, tx);
-      const where = {
-        roomId: id,
-        parentMessageId: queryParams.parentMessageId ?? null,
-      };
+    // Avoid interactive transaction on this read-only path — room page loads
+    // messages in parallel with room + members (SOKOSUMI-Q9). Membership gate
+    // + page query do not need a shared snapshot. Concurrent findMany/count on
+    // the default client is fine; Promise.all inside interactive txs is not
+    // (#2559).
+    await requireChatRoomUserMembership(id, userContext.userId, prisma);
+    const where = {
+      roomId: id,
+      parentMessageId: queryParams.parentMessageId ?? null,
+    };
 
-      const [messages, count] = await Promise.all([
-        tx.chatRoomMessage.findMany({
-          where,
-          take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
-          // Newest-first, so an uncursored request (what a room does when it
-          // opens) returns the most recent page rather than the first page ever
-          // written. Paging with `nextCursor` then walks backwards through
-          // history. The page is reversed below so callers still receive it in
-          // reading order.
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          include: chatRoomMessageInclude,
-        }),
-        tx.chatRoomMessage.count({ where }),
-      ]);
-
-      return { messages, count };
-    });
+    const [messages, count] = await Promise.all([
+      prisma.chatRoomMessage.findMany({
+        where,
+        take: takePlusOne,
+        skip,
+        cursor: cursor ? { id: cursor } : undefined,
+        // Newest-first, so an uncursored request (what a room does when it
+        // opens) returns the most recent page rather than the first page ever
+        // written. Paging with `nextCursor` then walks backwards through
+        // history. The page is reversed below so callers still receive it in
+        // reading order.
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        include: chatRoomMessageInclude,
+      }),
+      prisma.chatRoomMessage.count({ where }),
+    ]);
 
     const hasMore = messages.length === takePlusOne;
     const pageMessages = messages.slice(0, take);

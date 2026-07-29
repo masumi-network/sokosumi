@@ -8,20 +8,24 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountGetChatRoom from "./get";
+import mountGetChatRoomMessages from "./get";
 
 const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  queryRawUnsafeMock,
+  messageFindManyMock,
+  messageCountMock,
   prismaTransactionMock,
+  listStaleSentChatRoomMentionIdsMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  queryRawUnsafeMock: vi.fn(),
+  messageFindManyMock: vi.fn(),
+  messageCountMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  listStaleSentChatRoomMentionIdsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -35,12 +39,26 @@ vi.mock("@/lib/db/prisma", () => ({
     member: {
       findUnique: memberFindUniqueMock,
     },
-    $queryRawUnsafe: queryRawUnsafeMock,
+    chatRoomMessage: {
+      findMany: messageFindManyMock,
+      count: messageCountMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
 
+vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
+  listStaleSentChatRoomMentionIds: (...args: unknown[]) =>
+    listStaleSentChatRoomMentionIdsMock(...args),
+  dispatchChatRoomMention: vi.fn(),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: vi.fn(),
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
+const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
 
@@ -52,14 +70,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_get_chat_room");
+    c.set("requestId", "req_get_chat_room_messages");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountGetChatRoom(app as unknown as OpenAPIHonoWithAuth);
+  mountGetChatRoomMessages(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -70,70 +88,74 @@ const userAuthContext: AuthVariables["authContext"] = {
   role: "user",
 };
 
-function room() {
+function message() {
   return {
-    id: ROOM_ID,
-    organizationId: ORG_ID,
-    name: "Launch Room",
-    slug: "launch-room",
-    kind: "channel",
-    directKey: null,
-    topic: null,
-    createdByUserId: USER_ID,
+    id: MESSAGE_ID,
+    roomId: ROOM_ID,
+    parentMessageId: null,
+    content: "Hello room",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    archivedAt: null,
-    userMembers: [
-      {
-        user: {
-          id: USER_ID,
-          name: "Ada",
-          email: "ada@example.com",
-          image: null,
-          sessions: [],
-        },
-      },
-    ],
-    coworkerMembers: [],
+    metadata: null,
+    senderUser: {
+      id: USER_ID,
+      name: "Ada",
+      email: "ada@example.com",
+      image: null,
+      sessions: [],
+    },
+    senderCoworker: null,
+    mentionsAsSource: [],
+    reactions: [],
+    replies: [],
+    _count: { replies: 0 },
   };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  roomFindFirstMock.mockResolvedValue(room());
+  roomFindFirstMock.mockResolvedValue({
+    id: ROOM_ID,
+    organizationId: ORG_ID,
+  });
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+  messageFindManyMock.mockResolvedValue([message()]);
+  messageCountMock.mockResolvedValue(1);
+  listStaleSentChatRoomMentionIdsMock.mockResolvedValue([]);
 });
 
-describe("GET /chats/rooms/{id}", () => {
-  it("returns the room without opening an interactive transaction", async () => {
-    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+describe("GET /chats/rooms/{id}/messages", () => {
+  it("returns messages without opening an interactive transaction", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
 
     expect(response.status).toBe(200);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(roomFindFirstMock).toHaveBeenCalledOnce();
-    expect(organizationFindUniqueMock).toHaveBeenCalledOnce();
-    expect(memberFindUniqueMock).toHaveBeenCalledOnce();
-    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    expect(messageFindManyMock).toHaveBeenCalledOnce();
+    expect(messageCountMock).toHaveBeenCalledOnce();
 
     const body = await response.json();
-    expect(body.data).toMatchObject({
-      id: ROOM_ID,
-      name: "Launch Room",
-      unreadCount: 2,
-    });
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        id: MESSAGE_ID,
+        roomId: ROOM_ID,
+        content: "Hello room",
+      }),
+    ]);
   });
 
   it("returns 404 when the room is missing", async () => {
     roomFindFirstMock.mockResolvedValue(null);
 
-    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
 
     expect(response.status).toBe(404);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
-    expect(memberFindUniqueMock).not.toHaveBeenCalled();
-    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
+    expect(messageFindManyMock).not.toHaveBeenCalled();
+    expect(messageCountMock).not.toHaveBeenCalled();
   });
 });
