@@ -1,25 +1,10 @@
-import type { SessionUser } from "@sokosumi/utils";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const sessionUser: SessionUser = {
-  id: "user-1",
-  email: "user@example.com",
-  name: "User",
-  image: null,
-  emailVerified: true,
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
-  termsAccepted: true,
-  marketingOptIn: false,
-  onboardingCompleted: true,
-};
 
 const goBackMock = vi.fn();
 const openSubmenuMock = vi.fn();
 const pushMock = vi.fn();
 const setOpenMobileMock = vi.fn();
-const showLogoutModalMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -29,12 +14,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-}));
-
-vi.mock("@/components/modals/global-modals-context", () => ({
-  useGlobalModalsContext: () => ({
-    showLogoutModal: showLogoutModalMock,
-  }),
 }));
 
 vi.mock("@/components/ui/sidebar", () => ({
@@ -99,13 +78,7 @@ describe("SettingsSubmenuContent", () => {
   });
 
   it("navigates without closing the submenu", () => {
-    render(
-      <SettingsSubmenuContent
-        sessionUser={sessionUser}
-        members={[]}
-        activeOrganizationId={null}
-      />,
-    );
+    render(<SettingsSubmenuContent members={[]} activeOrganizationId={null} />);
 
     fireEvent.click(screen.getByRole("button", { name: "account" }));
 
@@ -114,30 +87,16 @@ describe("SettingsSubmenuContent", () => {
     expect(setOpenMobileMock).toHaveBeenCalledWith(false);
   });
 
-  it("closes the submenu when logging out", () => {
-    render(
-      <SettingsSubmenuContent
-        sessionUser={sessionUser}
-        members={[]}
-        activeOrganizationId={null}
-      />,
-    );
+  it("keeps logging out to the account chip", () => {
+    render(<SettingsSubmenuContent members={[]} activeOrganizationId={null} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "logout" }));
-
-    expect(goBackMock).toHaveBeenCalled();
-    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
-    expect(showLogoutModalMock).toHaveBeenCalledWith("user@example.com");
+    expect(
+      screen.queryByRole("button", { name: "logout" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the developer submenu instead of navigating", () => {
-    render(
-      <SettingsSubmenuContent
-        sessionUser={sessionUser}
-        members={[]}
-        activeOrganizationId={null}
-      />,
-    );
+    render(<SettingsSubmenuContent members={[]} activeOrganizationId={null} />);
 
     fireEvent.click(screen.getByRole("button", { name: "developer" }));
 

@@ -2719,6 +2719,14 @@
       "description": "Hire yourself an agent to finish the most time consuming tasks"
     },
     "Sidebar": {
+      "Account": {
+        "monthlyCredits": "Créditos mensais",
+        "planAndCredits": "{plan} · {credits}",
+        "detailsUnavailable": "Detalhes indisponíveis",
+        "planLabel": "Plano",
+        "openSummary": "Abrir o resumo da conta: {name}, {summary}",
+        "collapsedSummary": "{name} · {summary}"
+      },
       "Content": {
         "MenuItems": {
           "newTask": "Nova tarefa",
