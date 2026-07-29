@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useFormatter } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { TaskFiles } from "@/app/tasks/components/task-files";
 import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
@@ -171,6 +172,11 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             </div>
 
             <div className="space-y-6">
+              <TaskFiles
+                title={tTaskDetail("files")}
+                files={task.files ?? []}
+              />
+
               {task.jobs.length > 0 ? (
                 <div>
                   <h2 className="text-muted-foreground mb-4 text-xs font-medium tracking-[0.24em] uppercase">

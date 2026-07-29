@@ -84,6 +84,30 @@ export const publicSharedTaskSchema = z
     }),
     jobs: z.array(publicSharedTaskJobSchema).openapi({ example: [] }),
     events: z.array(publicSharedTaskMilestoneSchema).openapi({ example: [] }),
+    files: z
+      .array(
+        z
+          .object({
+            id: z.string().openapi({ example: "tfile_123" }),
+            name: z.string().openapi({ example: "report.pdf" }),
+            fileUrl: z.string().url().openapi({
+              example: "https://blob.vercel.app/tasks/tsk_123/report.pdf",
+            }),
+            mimeType: z
+              .string()
+              .nullable()
+              .openapi({ example: "application/pdf" }),
+            size: z
+              .number()
+              .int()
+              .nonnegative()
+              .nullable()
+              .openapi({ example: 2048000 }),
+            createdAt: dateTimeSchema,
+          })
+          .openapi("PublicSharedTaskFile"),
+      )
+      .openapi({ example: [] }),
   })
   .openapi("PublicSharedTask");
 

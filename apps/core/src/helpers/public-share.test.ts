@@ -293,6 +293,7 @@ describe("getPublicSharedResourceByToken", () => {
             },
           },
         ],
+        files: [],
         events: [
           {
             id: "evt_123",
@@ -474,6 +475,7 @@ describe("getPublicSharedResourceByToken", () => {
             shareToken: null,
           },
         ],
+        files: [],
         events: [
           {
             id: "evt_123",
@@ -597,6 +599,7 @@ describe("getPublicSharedResourceByToken", () => {
           image: null,
         },
         jobs: [],
+        files: [],
         events: [
           {
             id: "evt_settled_credit_only",
@@ -664,6 +667,7 @@ describe("getPublicSharedResourceByToken", () => {
         status: "READY",
         assignee: null,
         jobs: [],
+        files: [],
         events: [],
       },
     });

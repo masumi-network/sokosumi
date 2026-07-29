@@ -1781,7 +1781,8 @@
           "title": "Esperando la aprobación del acceso del proveedor",
           "description": "Esta tarea está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor.",
           "descriptionWithCoworker": "{coworkerName} creó esta tarea. Está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor."
-        }
+        },
+        "files": "Files"
       },
       "NewTask": {
         "title": "Nuevo Task",

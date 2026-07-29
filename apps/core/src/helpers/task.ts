@@ -24,6 +24,63 @@ import {
 import { mapTaskLinksForTask } from "./task-link";
 import { mapWorkspaceSummary } from "./workspace";
 
+type TaskFileForMapping = TaskWithIncludes["files"][number];
+
+export function mapTaskFile(file: TaskFileForMapping) {
+  let uploader: {
+    type: "user" | "coworker";
+    id: string;
+    user?: { id: string; name: string; image: string | null };
+    coworker?: {
+      id: string;
+      name: string;
+      image: string | null;
+      slug: string;
+    };
+  } | null = null;
+
+  if (file.uploadedByUserId != null) {
+    const user = userSummaryFromLoadedRelation(
+      `TaskFile ${file.id} uploader`,
+      file.uploadedByUserId,
+      file.uploadedByUser ?? null,
+    );
+    uploader = {
+      type: "user",
+      id: file.uploadedByUserId,
+      user,
+    };
+  } else if (file.uploadedByCoworkerId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `TaskFile ${file.id} uploader`,
+      file.uploadedByCoworkerId,
+      file.uploadedByCoworker ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `TaskFile ${file.id}: coworker uploader summary missing for API mapping`,
+      );
+    }
+    uploader = {
+      type: "coworker",
+      id: file.uploadedByCoworkerId,
+      coworker,
+    };
+  }
+
+  return {
+    id: file.id,
+    taskId: file.taskId,
+    createdAt: file.createdAt,
+    updatedAt: file.updatedAt,
+    name: file.name,
+    fileUrl: file.fileUrl,
+    mimeType: file.mimeType ?? null,
+    size: file.size != null ? Number(file.size) : null,
+    uploader,
+  };
+}
+
 type TaskEventWithOptionalTransaction = Omit<
   TaskWithIncludes["events"][number],
   "transaction"
@@ -483,6 +540,7 @@ export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
     ...mapTaskBase(task),
     share: task.share,
     links,
+    files: task.files.map(mapTaskFile),
   };
 }
 

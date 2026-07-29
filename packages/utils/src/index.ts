@@ -194,6 +194,13 @@ export {
   type TaskEditableStatus,
 } from "./task-editable.js";
 export {
+  buildTaskFilePathname,
+  buildTaskFilePrefix,
+  isOwnedTaskFileUrl,
+  sanitizeTaskFileFilename,
+  TASK_FILE_MAX_SIZE_BYTES,
+} from "./task-file-upload.js";
+export {
   canUserTransitionTaskStatus,
   type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,
