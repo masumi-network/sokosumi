@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import { MemberRole, type Prisma } from "@sokosumi/database";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -426,6 +426,24 @@ export async function buildUniqueRoomSlug(
   throw badRequest("Could not create a unique room slug");
 }
 
+/**
+ * Archive and restore hide or resurface a room for everyone, so only the
+ * creator or an organization owner/admin may do either. Plain members leave
+ * instead (or ask someone elevated to archive).
+ */
+export function canManageChatRoomLifecycle(options: {
+  createdByUserId: string;
+  userId: string;
+  /** Organization membership role from Prisma (`string`); compare to `MemberRole`. */
+  role: string;
+}): boolean {
+  return (
+    options.createdByUserId === options.userId ||
+    options.role === MemberRole.OWNER ||
+    options.role === MemberRole.ADMIN
+  );
+}
+
 export async function requireChatRoomUserAccess(
   roomId: string,
   userId: string,
@@ -435,6 +453,35 @@ export async function requireChatRoomUserAccess(
     where: {
       id: roomId,
       archivedAt: null,
+      userMembers: {
+        some: { userId },
+      },
+    },
+    include: chatRoomInclude,
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
+
+  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+
+  return room;
+}
+
+/**
+ * Membership-scoped lookup for soft-archived rooms. Active-room helpers filter
+ * `archivedAt: null`, so restore / archived list cannot reuse them.
+ */
+export async function requireArchivedChatRoomUserAccess(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomWithMembers> {
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      archivedAt: { not: null },
       userMembers: {
         some: { userId },
       },

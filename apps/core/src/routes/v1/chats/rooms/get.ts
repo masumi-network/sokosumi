@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { MemberRole } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import {
@@ -17,7 +18,11 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomKindSchema, chatRoomSchema } from "@/schemas/chat-room.schema";
+import {
+  chatRoomKindSchema,
+  chatRoomListStatusSchema,
+  chatRoomSchema,
+} from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import {
@@ -40,6 +45,12 @@ const querySchema = cursorPaginationQuerySchema.extend({
     description: "Filter rooms by kind. Omit to list every room.",
     example: "channel",
   }),
+  status: chatRoomListStatusSchema.default("active").openapi({
+    param: { name: "status", in: "query" },
+    description:
+      "Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).",
+    example: "active",
+  }),
   limit: z.coerce
     .number()
     .int()
@@ -58,7 +69,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null).",
+      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms the caller may restore (creator or organization owner/admin).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -81,26 +92,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { kind } = queryParams;
+    const { kind, status } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
     const organizationId = userContext.organizationId;
 
     const { rooms, unreadCounts, lastMessageAts, count, hasMore } =
       await prisma.$transaction(async (tx) => {
+        let organizationRole: string | null = null;
         if (organizationId) {
-          await resolveMemberOrganizationById({
+          const membership = await resolveMemberOrganizationById({
             id: organizationId,
             userId: userContext.userId,
             tx,
           });
+          organizationRole = membership.role;
         }
 
         // Strict org match: active org → only that org's channels/directs.
         // No active org → personal coworker directs only. A kind=channel filter
         // with no org cannot match anything — return an empty page instead of
-        // silently overriding the filter to directs.
-        if (!organizationId && kind === "channel") {
+        // silently overriding the filter to directs. Archived rooms are always
+        // org channels, so personal workspace returns empty for status=archived.
+        if (
+          (!organizationId && kind === "channel") ||
+          (!organizationId && status === "archived")
+        ) {
           return {
             rooms: [],
             unreadCounts: new Map<string, number>(),
@@ -110,12 +127,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           };
         }
 
+        // Archived list is for restore: same gate as archive/restore endpoints.
+        // Owners/admins see every archived room they still belong to; everyone
+        // else only rooms they created. Keep the filter in SQL so cursor pages
+        // and counts stay honest.
+        const canManageAnyArchived =
+          organizationRole === MemberRole.OWNER ||
+          organizationRole === MemberRole.ADMIN;
+        const archivedLifecycleWhere =
+          status === "archived" && !canManageAnyArchived
+            ? { createdByUserId: userContext.userId }
+            : {};
+
         const where = {
-          archivedAt: null,
+          archivedAt: status === "archived" ? { not: null } : null,
           ...(kind ? { kind } : {}),
           userMembers: {
             some: { userId: userContext.userId },
           },
+          ...archivedLifecycleWhere,
           ...(organizationId
             ? { organizationId }
             : {

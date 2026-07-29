@@ -81,6 +81,7 @@ import {
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
@@ -211,9 +212,11 @@ import {
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postChatsRooms as corePostChatsRooms,
+  postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
+  postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
   postChatsConversations as corePostConversations,
   postChatsConversationsByIdMessages as corePostConversationsByIdMessages,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
@@ -693,6 +696,42 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to update chat room",
+    );
+  }
+
+  async function archiveChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdArchive({
+          client,
+          path: { id },
+        }),
+      "Failed to archive chat room",
+    );
+  }
+
+  async function restoreChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdRestore({
+          client,
+          path: { id },
+        }),
+      "Failed to restore chat room",
+    );
+  }
+
+  async function leaveChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMembersMe({
+          client,
+          path: { id },
+        }),
+      "Failed to leave chat room",
     );
   }
 
@@ -3552,6 +3591,9 @@ export function createCoreClient(getClient: GetClient) {
     previewEnterpriseContractPeriods,
     acknowledgeNotice,
     addChatRoomMessage,
+    archiveChatRoom,
+    restoreChatRoom,
+    leaveChatRoom,
     addConversationMessage,
     archiveConversation,
     assignOrganizationSeat,
