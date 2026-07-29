@@ -107,6 +107,56 @@ describe("organizationWithRoleSchema", () => {
     expect(result.logo).toBeNull();
   });
 
+  it.each([
+    "https://localhost",
+    "http://localhost:3000",
+    "https://127.0.0.1",
+    "https://192.168.1.1",
+    "https://sokosumi",
+    "not-a-url",
+    "ftp://example.com",
+    "example.com",
+  ])(
+    "maps invalid metadata.url %s to null instead of failing validation",
+    (invalidUrl) => {
+      const result = organizationWithRoleSchema.parse({
+        id: "org_123",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        name: "My Organization",
+        slug: "my-org",
+        logo: null,
+        metadata: {
+          url: invalidUrl,
+        },
+        role: "member",
+      });
+
+      expect(result.metadata).toEqual({
+        url: null,
+      });
+    },
+  );
+
+  it("keeps other metadata fields when metadata.url is invalid", () => {
+    const result = organizationWithRoleSchema.parse({
+      id: "org_123",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      name: "My Organization",
+      slug: "my-org",
+      logo: null,
+      metadata: {
+        url: "https://localhost",
+        designMdUrl: "https://example.com/design.md",
+      },
+      role: "member",
+    });
+
+    expect(result.metadata).toEqual({
+      url: null,
+      designMdUrl: "https://example.com/design.md",
+    });
+  });
+
   it("normalizes IPFS logo values before validation", () => {
     const result = organizationWithRoleSchema.parse({
       id: "org_123",
