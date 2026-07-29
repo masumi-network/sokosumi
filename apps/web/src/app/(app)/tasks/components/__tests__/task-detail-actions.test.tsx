@@ -612,10 +612,15 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
-    expect(screen.getByRole("link", { name: labels.edit })).toBeInTheDocument();
+    const edit = screen.getByRole("link", { name: labels.edit });
+    const cancel = screen.getByRole("menuitem", { name: labels.cancel });
+    expect(edit).toBeInTheDocument();
+    expect(cancel).toBeInTheDocument();
+
+    // Edit above Cancel in the overflow menu
     expect(
-      screen.getByRole("menuitem", { name: labels.cancel }),
-    ).toBeInTheDocument();
+      edit.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("sets task status to canceled when cancel is chosen for a queued task", async () => {
