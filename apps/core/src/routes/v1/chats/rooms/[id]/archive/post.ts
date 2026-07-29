@@ -72,14 +72,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Organization rooms require an organization.");
       }
 
+      // Serialize concurrent roster edits so the last-human privilege check
+      // matches leave's FOR UPDATE + re-count pattern. Without the lock, a
+      // stale include snapshot can authorize (or deny) archive incorrectly.
+      const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "chat_room"
+        WHERE "id" = ${existing.id}::uuid
+        FOR UPDATE
+      `;
+      if (lockedRooms.length === 0) {
+        throw badRequest("Room could not be archived.");
+      }
+
       // Archiving hides the room for everyone, so elevated authority is the
       // default. The last human member is also allowed: leave refuses to empty
       // the roster and points here, so without this escape hatch a plain
       // member who outlasted the creator would be stuck with no exit.
-      const isLastHumanMember =
-        existing.userMembers.filter(
-          (member) => member.user.id !== userContext.userId,
-        ).length === 0;
+      const remainingOtherHumanCount = await tx.chatRoomUserMember.count({
+        where: {
+          roomId: existing.id,
+          userId: { not: userContext.userId },
+        },
+      });
+      const isLastHumanMember = remainingOtherHumanCount === 0;
 
       const { role } = await resolveMemberOrganizationById({
         id: existing.organizationId,

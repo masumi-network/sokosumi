@@ -11,12 +11,16 @@ import mountArchiveChatRoom from "./post";
 const {
   roomFindFirstMock,
   roomUpdateMock,
+  userMemberCountMock,
+  queryRawMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomUpdateMock: vi.fn(),
+  userMemberCountMock: vi.fn(),
+  queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -32,8 +36,10 @@ const OTHER_ID = "user_other";
 
 const tx = {
   chatRoom: { findFirst: roomFindFirstMock, update: roomUpdateMock },
+  chatRoomUserMember: { count: userMemberCountMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
+  $queryRaw: queryRawMock,
 };
 
 function member(id: string) {
@@ -107,6 +113,9 @@ beforeEach(() => {
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
+  queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  // Default: other humans remain, so last-human escape hatch stays off.
+  userMemberCountMock.mockResolvedValue(1);
 });
 
 describe("POST /chats/rooms/{id}/archive", () => {
@@ -124,6 +133,11 @@ describe("POST /chats/rooms/{id}/archive", () => {
     expect(body.data.id).toBe(ROOM_ID);
     expect(body.data.archivedAt).toBe("2026-02-02T10:00:00.000Z");
 
+    const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
+    expect(sqlParts.join(" ")).toContain("FOR UPDATE");
+    expect(userMemberCountMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, userId: { not: CREATOR_ID } },
+    });
     expect(roomUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: ROOM_ID },
@@ -167,6 +181,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
       room({ createdByUserId: OTHER_ID, memberIds: [CREATOR_ID] }),
     );
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
+    userMemberCountMock.mockResolvedValue(0);
     roomUpdateMock.mockResolvedValue({
       id: ROOM_ID,
       archivedAt: new Date("2026-02-02T10:00:00.000Z"),
@@ -180,6 +195,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
     roomFindFirstMock.mockResolvedValue(room({ kind: "direct" }));
 
     expect((await archive()).status).toBe(400);
+    expect(queryRawMock).not.toHaveBeenCalled();
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -187,6 +203,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
     roomFindFirstMock.mockResolvedValue(room({ organizationId: null }));
 
     expect((await archive()).status).toBe(400);
+    expect(queryRawMock).not.toHaveBeenCalled();
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 

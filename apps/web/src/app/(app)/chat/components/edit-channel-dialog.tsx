@@ -306,7 +306,7 @@ export function EditChannelDialog({
   }
 
   async function handleConfirmExit() {
-    if (!pendingKind) return;
+    if (!pendingKind || isExiting) return;
     setIsExiting(true);
     const result =
       pendingKind === "archive"
@@ -333,107 +333,120 @@ export function EditChannelDialog({
     router.refresh();
   }
 
+  function handleRequestExit(kind: "archive" | "leave") {
+    // Close settings before opening confirm so the two modals are not stacked
+    // (nested focus traps). Confirm stays mounted as a true Dialog sibling.
+    setOpen(false);
+    setPendingKind(kind);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 rounded-full"
-          aria-label={t("editChannel")}
-          title={t("editChannel")}
-        >
-          <Settings2 className="size-4" aria-hidden />
-        </Button>
-      </DialogTrigger>
-      {/* The fixed-height participant list makes this dialog ~755px tall, which
-          overflows a shorter phone — on a 667px iPhone SE the title and close
-          button were cut off above the viewport and Cancel below it, with
-          nothing to scroll. Cap it to the viewport and scroll the body. */}
-      {/* The fixed-height participant list makes this dialog ~755px tall, which
-          overflows a shorter phone — on a 667px iPhone SE the title and close
-          button sat above the viewport and Cancel below it, with nothing to
-          scroll. Cap the dialog to the viewport and scroll the form body rather
-          than the padded dialog box, whose children do not reflow around their
-          own scrollbar. */}
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto shadow-none sm:max-w-2xl">
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
-            <DialogDescription>{t("Dialog.editDescription")}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
-              <Input
-                id="edit-channel-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-channel-topic">{t("Dialog.topic")}</Label>
-              <Textarea
-                id="edit-channel-topic"
-                value={topic}
-                onChange={(event) => setTopic(event.target.value)}
-                rows={3}
-              />
-            </div>
-            <ParticipantCheckboxes
-              members={members}
-              coworkers={coworkers}
-              memberIds={memberIds}
-              coworkerIds={coworkerIds}
-              onMemberIdsChange={setMemberIds}
-              onCoworkerIdsChange={setCoworkerIds}
-            />
-          </div>
-          {canArchive || canLeave ? (
-            <div className="space-y-3 border-t pt-4">
-              <p className="text-sm font-medium">{tActions("sectionTitle")}</p>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                {canLeave ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="justify-center gap-2"
-                    onClick={() => setPendingKind("leave")}
-                  >
-                    <LogOut className="size-4" aria-hidden />
-                    {tActions("leave")}
-                  </Button>
-                ) : null}
-                {canArchive ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
-                    onClick={() => setPendingKind("archive")}
-                  >
-                    <ArchiveIcon className="size-4" aria-hidden />
-                    {tActions("archive")}
-                  </Button>
-                ) : null}
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full"
+            aria-label={t("editChannel")}
+            title={t("editChannel")}
+          >
+            <Settings2 className="size-4" aria-hidden />
+          </Button>
+        </DialogTrigger>
+        {/* The fixed-height participant list makes this dialog ~755px tall, which
+            overflows a shorter phone — on a 667px iPhone SE the title and close
+            button were cut off above the viewport and Cancel below it, with
+            nothing to scroll. Cap it to the viewport and scroll the body. */}
+        {/* The fixed-height participant list makes this dialog ~755px tall, which
+            overflows a shorter phone — on a 667px iPhone SE the title and close
+            button sat above the viewport and Cancel below it, with nothing to
+            scroll. Cap the dialog to the viewport and scroll the form body rather
+            than the padded dialog box, whose children do not reflow around their
+            own scrollbar. */}
+        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto shadow-none sm:max-w-2xl">
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
+              <DialogDescription>
+                {t("Dialog.editDescription")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
+                <Input
+                  id="edit-channel-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-channel-topic">{t("Dialog.topic")}</Label>
+                <Textarea
+                  id="edit-channel-topic"
+                  value={topic}
+                  onChange={(event) => setTopic(event.target.value)}
+                  rows={3}
+                />
+              </div>
+              <ParticipantCheckboxes
+                members={members}
+                coworkers={coworkers}
+                memberIds={memberIds}
+                coworkerIds={coworkerIds}
+                onMemberIdsChange={setMemberIds}
+                onCoworkerIdsChange={setCoworkerIds}
+              />
             </div>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-            >
-              {t("Dialog.cancel")}
-            </Button>
-            <Button type="submit" variant="primary" disabled={isPending}>
-              {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-              {t("Dialog.save")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+            {canArchive || canLeave ? (
+              <div className="space-y-3 border-t pt-4">
+                <p className="text-sm font-medium">
+                  {tActions("sectionTitle")}
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {canLeave ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="justify-center gap-2"
+                      onClick={() => handleRequestExit("leave")}
+                    >
+                      <LogOut className="size-4" aria-hidden />
+                      {tActions("leave")}
+                    </Button>
+                  ) : null}
+                  {canArchive ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
+                      onClick={() => handleRequestExit("archive")}
+                    >
+                      <ArchiveIcon className="size-4" aria-hidden />
+                      {tActions("archive")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOpen(false)}
+              >
+                {t("Dialog.cancel")}
+              </Button>
+              <Button type="submit" variant="primary" disabled={isPending}>
+                {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                {t("Dialog.save")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={pendingKind !== null}
@@ -477,6 +490,6 @@ export function EditChannelDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Dialog>
+    </>
   );
 }
