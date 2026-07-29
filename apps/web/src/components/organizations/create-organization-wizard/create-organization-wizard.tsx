@@ -1,7 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { buildOrganizationMetadataWithUrl } from "@sokosumi/utils";
+import {
+  buildOrganizationMetadataWithUrl,
+  normalizeWebsiteUrl,
+} from "@sokosumi/utils";
 import {
   ArrowLeft,
   ArrowRight,
@@ -92,23 +95,6 @@ const TOTAL_STEPS = 4;
  */
 const SUCCESS_STEP = 3;
 const COPIED_RESET_MS = 2000;
-
-function normalizeWebsiteUrl(rawUrl: string): string | null {
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return null;
-  const withProtocol = /^https?:\/\//i.test(trimmed)
-    ? trimmed
-    : `https://${trimmed}`;
-  try {
-    const parsed = new URL(withProtocol);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return null;
-    }
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
 
 function getDomainLabel(url: string): string {
   try {

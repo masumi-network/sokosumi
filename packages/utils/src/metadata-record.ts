@@ -1,3 +1,5 @@
+import { normalizeWebsiteUrl } from "./website-url.js";
+
 export type MetadataRecord = Record<string, unknown>;
 
 const DESIGN_MD_EXTRACTION_ID_KEY = "designMdExtractionId";
@@ -131,16 +133,25 @@ export function buildMetadataWithUrl(
   metadata: MetadataRecord | null | undefined,
   rawUrl: string | null | undefined,
 ): MetadataRecord | null {
-  const normalizedUrl = rawUrl?.trim() ?? "";
   const metadataRecord = normalizeMetadataRecord(metadata);
+  const trimmed = rawUrl?.trim() ?? "";
 
-  if (normalizedUrl.length === 0) {
+  if (trimmed.length === 0) {
+    const { url: _url, ...metadataWithoutUrl } = metadataRecord;
+    return stringifyMetadataRecord(metadataWithoutUrl);
+  }
+
+  // Only store values that pass the shared website-URL check (aligned with
+  // z.httpUrl). Callers that need a validation error must check first with
+  // isEmptyOrValidWebsiteUrl / normalizeWebsiteUrl.
+  const websiteUrl = normalizeWebsiteUrl(trimmed);
+  if (!websiteUrl) {
     const { url: _url, ...metadataWithoutUrl } = metadataRecord;
     return stringifyMetadataRecord(metadataWithoutUrl);
   }
 
   return {
     ...metadataRecord,
-    url: normalizedUrl,
+    url: websiteUrl,
   };
 }
