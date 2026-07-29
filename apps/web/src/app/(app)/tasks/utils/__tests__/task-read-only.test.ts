@@ -142,52 +142,36 @@ describe("canArchiveParkedTaskForViewer", () => {
 });
 
 describe("canArchiveScheduledTaskForViewer", () => {
-  it("allows org owner/admin to archive a scheduled task they do not own", () => {
+  it("allows any org collaborator to archive a scheduled task they do not own", () => {
     expect(
       canArchiveScheduledTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
         isTaskOwner: false,
-        isOrgOwnerOrAdmin: true,
         taskWorkspaceOrganizationId: "org_1",
         hasActiveSchedule: true,
       }),
     ).toBe(true);
   });
 
-  it("blocks plain members from archiving scheduled tasks they do not own", () => {
+  it("blocks when the task has no active schedule", () => {
     expect(
       canArchiveScheduledTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
         isTaskOwner: false,
-        isOrgOwnerOrAdmin: false,
-        taskWorkspaceOrganizationId: "org_1",
-        hasActiveSchedule: true,
-      }),
-    ).toBe(false);
-  });
-
-  it("blocks org owner/admin when the task has no active schedule", () => {
-    expect(
-      canArchiveScheduledTaskForViewer({
-        forceReadOnly: false,
-        taskStatus: TaskStatus.READY,
-        isTaskOwner: false,
-        isOrgOwnerOrAdmin: true,
         taskWorkspaceOrganizationId: "org_1",
         hasActiveSchedule: false,
       }),
     ).toBe(false);
   });
 
-  it("blocks org owner/admin for personal-workspace scheduled tasks", () => {
+  it("blocks personal-workspace scheduled tasks for non-owners", () => {
     expect(
       canArchiveScheduledTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
         isTaskOwner: false,
-        isOrgOwnerOrAdmin: true,
         taskWorkspaceOrganizationId: null,
         hasActiveSchedule: true,
       }),
@@ -200,7 +184,6 @@ describe("canArchiveScheduledTaskForViewer", () => {
         forceReadOnly: true,
         taskStatus: TaskStatus.READY,
         isTaskOwner: false,
-        isOrgOwnerOrAdmin: true,
         taskWorkspaceOrganizationId: "org_1",
         hasActiveSchedule: true,
       }),
@@ -213,7 +196,6 @@ describe("canArchiveScheduledTaskForViewer", () => {
         forceReadOnly: false,
         taskStatus: TaskStatus.RUNNING,
         isTaskOwner: false,
-        isOrgOwnerOrAdmin: true,
         taskWorkspaceOrganizationId: "org_1",
         hasActiveSchedule: true,
       }),

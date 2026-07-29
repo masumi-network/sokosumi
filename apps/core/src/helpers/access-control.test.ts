@@ -239,7 +239,7 @@ describe("requireTaskArchiveAccess", () => {
     ).rejects.toThrow("Task not found");
   });
 
-  it("allows org owner/admin to archive scheduled tasks they do not own", async () => {
+  it("allows any org member to archive scheduled tasks they do not own", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
@@ -267,12 +267,16 @@ describe("requireTaskArchiveAccess", () => {
       expect.objectContaining({
         id: "org_123",
         userId: "user_123",
-        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+      }),
+    );
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        allowedRoles: expect.anything(),
       }),
     );
   });
 
-  it("rejects plain org members for scheduled tasks they do not own", async () => {
+  it("rejects non-members for scheduled tasks they do not own", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
@@ -294,7 +298,7 @@ describe("requireTaskArchiveAccess", () => {
     ).rejects.toThrow();
   });
 
-  it("rejects org owner/admin for non-scheduled tasks they do not own", async () => {
+  it("rejects org members for non-scheduled tasks they do not own", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)
@@ -314,7 +318,7 @@ describe("requireTaskArchiveAccess", () => {
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
-  it("rejects org owner/admin for scheduled tasks in a personal workspace", async () => {
+  it("rejects org members for scheduled tasks in a personal workspace", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
       .mockResolvedValueOnce(null)

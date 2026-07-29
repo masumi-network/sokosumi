@@ -103,8 +103,8 @@ export async function requireMutableTaskOwnership(
 }
 
 /**
- * Soft-archive access: task owner always, or org OWNER/ADMIN when the task is
- * parked (`GRANT_PENDING`) or has an active schedule in that organization workspace.
+ * Soft-archive access: task owner always; org OWNER/ADMIN for parked
+ * (`GRANT_PENDING`); any org member for tasks with an active schedule.
  */
 export async function requireTaskArchiveAccess(
   userContext: UserContext,
@@ -141,15 +141,25 @@ export async function requireTaskArchiveAccess(
   const isParked = task.status === TaskStatus.GRANT_PENDING;
   const isScheduled = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
-  if (!isParked && !isScheduled) {
+  if (isParked) {
+    await resolveMemberOrganizationById({
+      id: organizationId,
+      userId: userContext.userId,
+      tx,
+      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+    });
+    return task;
+  }
+
+  if (!isScheduled) {
     throw notFound("Task not found");
   }
 
+  // Any org member may archive scheduled tasks (same membership gate as cancel).
   await resolveMemberOrganizationById({
     id: organizationId,
     userId: userContext.userId,
     tx,
-    allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
   });
 
   return task;

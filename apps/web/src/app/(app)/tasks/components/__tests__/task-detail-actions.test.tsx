@@ -701,13 +701,13 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
-  it("shows archive for org admin on a scheduled task they do not own", async () => {
+  it("shows archive for org member on a scheduled task they do not own", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.READY,
       isReadOnly: true,
       isTaskOwner: false,
-      isOrgOwnerOrAdmin: true,
+      isOrgOwnerOrAdmin: false,
       hasActiveSchedule: true,
       currentOrganizationId: "org-current",
       organizations: undefined,

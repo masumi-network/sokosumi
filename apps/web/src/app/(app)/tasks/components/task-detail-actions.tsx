@@ -219,7 +219,6 @@ export function TaskDetailActions({
     forceReadOnly,
     taskStatus: status,
     isTaskOwner,
-    isOrgOwnerOrAdmin,
     taskWorkspaceOrganizationId: currentOrganizationId ?? null,
     hasActiveSchedule,
   });

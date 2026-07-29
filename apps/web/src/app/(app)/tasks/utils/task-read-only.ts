@@ -61,18 +61,21 @@ export function canArchiveParkedTaskForViewer({
   return isTaskOwner || isOrgOwnerOrAdmin;
 }
 
+/**
+ * Any org-workspace collaborator may archive a scheduled task they do not own
+ * (mirrors Core scheduled-archive membership gate). Parked archive stays on
+ * {@link canArchiveParkedTaskForViewer}.
+ */
 export function canArchiveScheduledTaskForViewer({
   forceReadOnly,
   taskStatus,
   isTaskOwner,
-  isOrgOwnerOrAdmin,
   taskWorkspaceOrganizationId,
   hasActiveSchedule,
 }: {
   forceReadOnly: boolean;
   taskStatus: string;
   isTaskOwner: boolean;
-  isOrgOwnerOrAdmin: boolean;
   taskWorkspaceOrganizationId: string | null;
   hasActiveSchedule: boolean;
 }): boolean {
@@ -80,7 +83,7 @@ export function canArchiveScheduledTaskForViewer({
     return false;
   }
 
-  if (!isOrgOwnerOrAdmin || taskWorkspaceOrganizationId === null) {
+  if (taskWorkspaceOrganizationId === null) {
     return false;
   }
 
