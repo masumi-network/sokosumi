@@ -79,12 +79,12 @@ describe("buildUserMetadataWithUrl", () => {
       ),
       {
         designMdUrl: "https://blob.example/design.md",
-        url: "https://acme.com",
+        url: "https://acme.com/",
       },
     );
   });
 
-  it("removes empty url and returns null for empty metadata", () => {
+  it("removes empty or invalid url and returns null for empty metadata", () => {
     assert.deepEqual(
       buildUserMetadataWithUrl(
         { designMdUrl: "https://blob.example/design.md", url: "x" },
@@ -95,6 +95,7 @@ describe("buildUserMetadataWithUrl", () => {
       },
     );
     assert.equal(buildUserMetadataWithUrl({ url: "x" }, ""), null);
+    assert.equal(buildUserMetadataWithUrl({ url: "x" }, "acme"), null);
   });
 });
 

@@ -10,35 +10,13 @@ const organizationLogoSchema = z.preprocess(
 );
 
 /**
- * Maps legacy / invalid stored website URLs to null so response validation does
- * not 500 the whole organization payload (e.g. localhost, IPs, missing TLD).
- * Mirrors {@link sanitizeOrganizationLogoForApi}.
+ * Response schema for organization website URL. Invalid values must not be
+ * written (enforced on Better Auth create/update). A data migration clears
+ * legacy junk so this stays strict instead of masking bad rows on read.
  */
-function sanitizeOrganizationMetadataUrlForApi(
-  url: unknown,
-): string | null | undefined {
-  if (url === undefined) {
-    return undefined;
-  }
-  if (url === null) {
-    return null;
-  }
-  if (typeof url !== "string") {
-    return null;
-  }
-
-  const result = z.httpUrl().safeParse(url);
-  return result.success ? result.data : null;
-}
-
-const organizationMetadataUrlSchema = z.preprocess(
-  sanitizeOrganizationMetadataUrlForApi,
-  z.httpUrl().nullable().optional(),
-);
-
 const organizationMetadataSchema = z
   .object({
-    url: organizationMetadataUrlSchema,
+    url: z.httpUrl().nullable().optional(),
   })
   .catchall(z.unknown())
   .transform((metadata) => {
