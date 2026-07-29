@@ -27,6 +27,100 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe("startPaidAgentJob failure classification", () => {
+  const inputData = { prompt: "hello" };
+
+  function jsonResponse(status: number, body: unknown) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => body,
+    };
+  }
+
+  it("classifies a non-2xx as unreachable — the seller never started", async () => {
+    ssrfSafeFetchMock.mockResolvedValue(jsonResponse(503, {}));
+
+    const result = await createAgentClient().startPaidAgentJob(
+      createAgent(),
+      "nonce",
+      inputData,
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("unreachable");
+    }
+  });
+
+  it("classifies an off-contract 2xx body as invalid-response — the job is stranded", async () => {
+    // The exact shape a non-compliant seller returned on preprod: a 200 with
+    // identifier_from_seller and none of agentIdentifier, sellerVKey,
+    // identifierFromPurchaser, unlockTime or externalDisputeUnlockTime.
+    ssrfSafeFetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        job_id: "e76339ba-5fe3-49aa-912b-3543eb6f25cc",
+        identifier_from_seller: "e76339ba-5fe3-49aa-912b-3543eb6f25cc",
+        blockchainIdentifier: "1182",
+        payByTime: "1785388352000",
+        submitResultTime: "1785431552000",
+        input_hash: "7b267b58",
+        status: "awaiting_payment",
+      }),
+    );
+
+    const result = await createAgentClient().startPaidAgentJob(
+      createAgent(),
+      "nonce",
+      inputData,
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("invalid-response");
+      expect(result.error.message).toContain(
+        "Failed to parse start job response",
+      );
+    }
+  });
+
+  it("classifies a 2xx with an unreadable body as invalid-response", async () => {
+    ssrfSafeFetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token < in JSON");
+      },
+    });
+
+    const result = await createAgentClient().startPaidAgentJob(
+      createAgent(),
+      "nonce",
+      inputData,
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("classifies a transport error as unreachable", async () => {
+    ssrfSafeFetchMock.mockRejectedValue(new Error("connection refused"));
+
+    const result = await createAgentClient().startPaidAgentJob(
+      createAgent(),
+      "nonce",
+      inputData,
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("unreachable");
+    }
+  });
+});
+
 describe("createAgentClient URL validation", () => {
   it("rejects API base URLs with query strings", async () => {
     const client = createAgentClient();
@@ -38,7 +132,10 @@ describe("createAgentClient URL validation", () => {
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toContain(
+      // A URL rejected before any request leaves: the seller never saw it, so
+      // nothing is stranded.
+      expect(result.error.kind).toBe("unreachable");
+      expect(result.error.message).toContain(
         "Agent API base URL must not have a query string",
       );
     }
@@ -54,7 +151,10 @@ describe("createAgentClient URL validation", () => {
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toContain("Agent API base URL must not have a hash");
+      expect(result.error.kind).toBe("unreachable");
+      expect(result.error.message).toContain(
+        "Agent API base URL must not have a hash",
+      );
     }
   });
 
@@ -68,7 +168,8 @@ describe("createAgentClient URL validation", () => {
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toContain(
+      expect(result.error.kind).toBe("unreachable");
+      expect(result.error.message).toContain(
         "Agent API base URL must be HTTP or HTTPS",
       );
     }

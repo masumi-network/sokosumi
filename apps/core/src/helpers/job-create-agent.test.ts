@@ -19,6 +19,7 @@ const {
   getCreditCostsOrThrowMock,
   projectFindFirstMock,
   prismaTransactionMock,
+  sentryCaptureExceptionMock,
   txJobCreateMock,
 } = vi.hoisted(() => ({
   agentFindFirstMock: vi.fn(),
@@ -32,6 +33,7 @@ const {
   getCreditCostsOrThrowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  sentryCaptureExceptionMock: vi.fn(),
   txJobCreateMock: vi.fn(),
 }));
 
@@ -66,6 +68,10 @@ vi.mock("@/helpers/agent", async (importOriginal) => ({
 vi.mock("@sokosumi/masumi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/masumi")>()),
   createAgentClient: createAgentClientMock,
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: sentryCaptureExceptionMock,
 }));
 
 vi.mock("@/clients/openrouter.client", () => ({
@@ -580,6 +586,52 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("reports a stranded seller job when start_job answers 2xx with an off-contract body", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      // The seller accepted the job and is working on it, but omitted the
+      // fields the MIP-003 contract requires — exactly the shape observed on
+      // preprod, where the seller returned identifier_from_seller and no
+      // agentIdentifier/sellerVKey/unlockTime.
+      startPaidAgentJob: vi.fn().mockResolvedValue(
+        err({
+          kind: "invalid-response",
+          message: "Failed to parse start job response: {...}",
+        }),
+      ),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid agent job start failed: Failed to parse start job response",
+    );
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining("Seller-side job orphaned"),
+    });
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when the seller never accepted the job", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      // Non-2xx or transport error: nothing was started, so nothing is
+      // stranded and an ordinary failed hire must not page.
+      startPaidAgentJob: vi
+        .fn()
+        .mockResolvedValue(
+          err({ kind: "unreachable", message: "Failed to start agent job" }),
+        ),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid agent job start failed: Failed to start agent job",
+    );
+
+    expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
+    expect(txJobCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects maxCredits below the cheapest eligible V2 source before contacting the seller", async () => {

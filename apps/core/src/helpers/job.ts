@@ -18,6 +18,7 @@ import {
   jobSummaryInclude,
 } from "@sokosumi/database/types/job";
 import {
+  type AgentJobStartFailure,
   createAgentClient,
   isV2RegistryIdentifier,
   normalizeV2RegistryIdentifier,
@@ -300,6 +301,26 @@ function reportOrphanedSellerJob(
   }
 }
 
+/**
+ * A `start_job` call that never produced a usable response. Only the
+ * `invalid-response` half strands anything: the seller answered 2xx, so it has
+ * accepted the job and begun work, but the body did not match the MIP-003
+ * contract and the hire cannot proceed. An `unreachable` seller never started,
+ * so it is an ordinary failed hire and stays out of Sentry.
+ */
+function reportStrandedStartJobFailure(
+  failure: AgentJobStartFailure,
+  context: Record<string, unknown>,
+): void {
+  if (failure.kind !== "invalid-response") {
+    return;
+  }
+  reportOrphanedSellerJob(
+    "seller accepted start_job but returned a response that does not match the MIP-003 contract",
+    { ...context, failure: failure.message },
+  );
+}
+
 function cheapestEligibleV2SourceCents(
   agentIdentifier: string,
   sources: readonly {
@@ -490,8 +511,12 @@ export async function createAgentJobForUser(
       );
 
       if (startFreeJobResult.isErr()) {
+        reportStrandedStartJobFailure(startFreeJobResult.error, {
+          agentId: agent.id,
+          pricingType: PricingType.FREE,
+        });
         throw unprocessableEntity(
-          `Free agent job start failed: ${startFreeJobResult.error}`,
+          `Free agent job start failed: ${startFreeJobResult.error.message}`,
         );
       }
 
@@ -509,8 +534,12 @@ export async function createAgentJobForUser(
       );
 
       if (startPaidJobResult.isErr()) {
+        reportStrandedStartJobFailure(startPaidJobResult.error, {
+          agentId: agent.id,
+          pricingType: PricingType.FIXED,
+        });
         throw unprocessableEntity(
-          `Paid agent job start failed: ${startPaidJobResult.error}`,
+          `Paid agent job start failed: ${startPaidJobResult.error.message}`,
         );
       }
 
