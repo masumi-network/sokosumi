@@ -70,7 +70,7 @@ function ownedTask(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createUserApp() {
+function createUserApp(userId = OWNER_ID) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -79,13 +79,13 @@ function createUserApp() {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
-      userId: OWNER_ID,
+      userId,
       organizationId: null,
       role: "user",
     });
     c.set("workspaceContext", {
       workspaceId: WORKSPACE_ID,
-      userId: OWNER_ID,
+      userId,
       organizationId: null,
     });
     return await next();
@@ -450,6 +450,67 @@ describe("task files routes", () => {
     });
 
     expect(response.status).toBe(400);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects .svg even when Content-Type is an allowlisted image MIME", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["<svg onload=alert(1)></svg>"], "icon.svg", {
+        type: "image/png",
+      }),
+    );
+
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects upload when the task is parked", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(
+      ownedTask({ status: TaskStatus.GRANT_PENDING }),
+    );
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["hello"], "report.pdf", { type: "application/pdf" }),
+    );
+
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(403);
+    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects upload from a non-owner user", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(null);
+
+    const form = new FormData();
+    form.append(
+      "file",
+      new File(["hello"], "report.pdf", { type: "application/pdf" }),
+    );
+
+    const app = createUserApp("user_other");
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(404);
     expect(uploadTaskFileMock).not.toHaveBeenCalled();
   });
 

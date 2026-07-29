@@ -25,6 +25,9 @@ describe("task file upload helpers", () => {
     );
     expect(resolveTaskFileContentType("icon.svg", "image/svg+xml")).toBeNull();
     expect(resolveTaskFileContentType("icon.svg", "")).toBeNull();
+    // Declared allowlisted MIME must not bypass the .svg extension block
+    expect(resolveTaskFileContentType("icon.svg", "image/png")).toBeNull();
+    expect(resolveTaskFileContentType("ICON.SVG", "image/jpeg")).toBeNull();
     expect(
       resolveTaskFileContentType("malware.exe", "application/x-msdownload"),
     ).toBeNull();

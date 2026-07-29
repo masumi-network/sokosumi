@@ -16,6 +16,9 @@ export const TASK_FILE_MAX_NAME_LENGTH = 255;
  */
 const TASK_FILE_DISALLOWED_CONTENT_TYPES = new Set(["image/svg+xml"]);
 
+/** Extensions that map to disallowed task-file content types (defense in depth). */
+const TASK_FILE_DISALLOWED_EXTENSIONS = new Set(["svg"]);
+
 export function buildTaskFilePrefix(taskId: string): string {
   return `${TASK_FILES_DIR}/${taskId}/`;
 }
@@ -24,14 +27,27 @@ export function sanitizeTaskFileFilename(fileName: string): string {
   return sanitizeUserUploadFilename(fileName);
 }
 
+function hasDisallowedTaskFileExtension(filename: string): boolean {
+  const base = filename.trim().split(/[/\\]/).pop() ?? "";
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0 || dot === base.length - 1) {
+    return false;
+  }
+  return TASK_FILE_DISALLOWED_EXTENSIONS.has(base.slice(dot + 1).toLowerCase());
+}
+
 /**
  * Resolve task-file MIME like user uploads, then reject types unsafe on public
- * share surfaces (currently SVG).
+ * share surfaces (currently SVG). Rejects by resolved MIME and by `.svg`
+ * extension so a spoofed allowlisted Content-Type cannot bypass the block.
  */
 export function resolveTaskFileContentType(
   filename: string,
   declaredContentType: string,
 ): string | null {
+  if (hasDisallowedTaskFileExtension(filename)) {
+    return null;
+  }
   const resolved = resolveUserUploadContentType(filename, declaredContentType);
   if (resolved == null) {
     return null;
