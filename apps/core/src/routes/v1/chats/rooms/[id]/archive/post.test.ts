@@ -10,14 +10,14 @@ import mountArchiveChatRoom from "./post";
 
 const {
   roomFindFirstMock,
-  roomUpdateMock,
+  roomUpdateManyMock,
   queryRawMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
-  roomUpdateMock: vi.fn(),
+  roomUpdateManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -33,7 +33,7 @@ const CREATOR_ID = "user_creator";
 const OTHER_ID = "user_other";
 
 const tx = {
-  chatRoom: { findFirst: roomFindFirstMock, update: roomUpdateMock },
+  chatRoom: { findFirst: roomFindFirstMock, updateMany: roomUpdateManyMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   $queryRaw: queryRawMock,
@@ -109,28 +109,25 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  roomUpdateManyMock.mockResolvedValue({ count: 1 });
 });
 
 describe("POST /chats/rooms/{id}/archive", () => {
   it("archives a room for its creator and returns the timestamp", async () => {
     roomFindFirstMock.mockResolvedValue(room());
-    roomUpdateMock.mockResolvedValue({
-      id: ROOM_ID,
-      archivedAt: new Date("2026-02-02T10:00:00.000Z"),
-    });
 
     const response = await archive();
 
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.id).toBe(ROOM_ID);
-    expect(body.data.archivedAt).toBe("2026-02-02T10:00:00.000Z");
+    expect(typeof body.data.archivedAt).toBe("string");
 
     const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
     expect(sqlParts.join(" ")).toContain("FOR UPDATE");
-    expect(roomUpdateMock).toHaveBeenCalledWith(
+    expect(roomUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: ROOM_ID },
+        where: { id: ROOM_ID, archivedAt: null },
         data: { archivedAt: expect.any(Date) },
       }),
     );
@@ -144,10 +141,6 @@ describe("POST /chats/rooms/{id}/archive", () => {
     async (_label, role) => {
       roomFindFirstMock.mockResolvedValue(room({ createdByUserId: OTHER_ID }));
       memberFindUniqueMock.mockResolvedValue({ role });
-      roomUpdateMock.mockResolvedValue({
-        id: ROOM_ID,
-        archivedAt: new Date("2026-02-02T10:00:00.000Z"),
-      });
 
       expect((await archive()).status).toBe(200);
     },
@@ -163,7 +156,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
     expect((await archive()).status).toBe(403);
-    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects the last human member when they are not creator or elevated", async () => {
@@ -173,7 +166,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
     expect((await archive()).status).toBe(403);
-    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("refuses to archive a direct room", async () => {
@@ -181,7 +174,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
 
     expect((await archive()).status).toBe(400);
     expect(queryRawMock).not.toHaveBeenCalled();
-    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("refuses to archive a room that has no organization", async () => {
@@ -189,13 +182,20 @@ describe("POST /chats/rooms/{id}/archive", () => {
 
     expect((await archive()).status).toBe(400);
     expect(queryRawMock).not.toHaveBeenCalled();
-    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("404s when the room is not visible to the caller", async () => {
     roomFindFirstMock.mockResolvedValue(null);
 
     expect((await archive()).status).toBe(404);
-    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("404s when a concurrent archive already set archivedAt under the lock", async () => {
+    roomFindFirstMock.mockResolvedValue(room());
+    roomUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    expect((await archive()).status).toBe(404);
   });
 });

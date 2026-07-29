@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { badRequest, forbidden } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -54,8 +54,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const archived = await prisma.$transaction(async (tx) => {
-      // Filters on archivedAt: null, so archiving twice 404s rather than
-      // moving the timestamp — the room is already gone either way.
+      // Access helper filters archivedAt: null. Concurrent archive still needs
+      // a conditional write under the lock (parity with restore).
       const existing = await requireChatRoomUserAccess(
         id,
         userContext.userId,
@@ -101,18 +101,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      return tx.chatRoom.update({
-        where: { id: existing.id },
-        data: { archivedAt: new Date() },
-        select: { id: true, archivedAt: true },
+      const archivedAt = new Date();
+      const updated = await tx.chatRoom.updateMany({
+        where: { id: existing.id, archivedAt: null },
+        data: { archivedAt },
       });
-    });
+      // Another txn may have archived under the lock after our access check.
+      if (updated.count === 0) {
+        throw notFound("Room not found");
+      }
 
-    // `update` cannot clear the value we just set, but the column is nullable
-    // so narrow it rather than asserting.
-    if (!archived.archivedAt) {
-      throw badRequest("Room could not be archived.");
-    }
+      return { id: existing.id, archivedAt };
+    });
 
     return ok(
       c,
