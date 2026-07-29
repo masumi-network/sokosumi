@@ -89,6 +89,10 @@ export default async function Sidebar({
     planLabelPromise,
   ]);
 
+  const currentMemberRole =
+    members.find((member) => member.organizationId === activeOrganizationId)
+      ?.role ?? null;
+
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-16 border-b p-0">
@@ -116,6 +120,7 @@ export default async function Sidebar({
               rooms={chatRooms}
               archivedRooms={archivedChatRooms}
               currentUserId={session.user.id}
+              currentMemberRole={currentMemberRole}
               hasOrganization={Boolean(activeOrganizationId)}
             />
           </SidebarNav>

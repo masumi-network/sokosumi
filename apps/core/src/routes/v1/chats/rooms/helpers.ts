@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import { MemberRole, type Prisma } from "@sokosumi/database";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -424,6 +424,24 @@ export async function buildUniqueRoomSlug(
   }
 
   throw badRequest("Could not create a unique room slug");
+}
+
+/**
+ * Archive and restore hide or resurface a room for everyone, so only the
+ * creator or an organization owner/admin may do either. Plain members leave
+ * instead (or ask someone elevated to archive).
+ */
+export function canManageChatRoomLifecycle(options: {
+  createdByUserId: string;
+  userId: string;
+  /** Organization membership role from Prisma (`string`); compare to `MemberRole`. */
+  role: string;
+}): boolean {
+  return (
+    options.createdByUserId === options.userId ||
+    options.role === MemberRole.OWNER ||
+    options.role === MemberRole.ADMIN
+  );
 }
 
 export async function requireChatRoomUserAccess(

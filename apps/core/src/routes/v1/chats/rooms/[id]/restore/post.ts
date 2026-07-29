@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { badRequest } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -12,6 +13,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { restoredChatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
+  canManageChatRoomLifecycle,
   mapChatRoom,
   requireArchivedChatRoomUserAccess,
   requireChatRoomUserAccess,
@@ -32,7 +34,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/restore",
     description:
-      "Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members and frees its slug for normal use again. Any remaining human member may restore. Direct rooms cannot be restored because they cannot be archived.",
+      "Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members and frees its slug for normal use again. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -41,6 +43,7 @@ const route = withGlobalHeaderParameters(
       200: jsonSuccessResponse(restoredChatRoomSchema, "Room restored"),
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
@@ -77,6 +80,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       `;
       if (lockedRooms.length === 0) {
         throw badRequest("Room could not be restored.");
+      }
+
+      const { role } = await resolveMemberOrganizationById({
+        id: existing.organizationId,
+        userId: userContext.userId,
+        tx,
+      });
+      if (
+        !canManageChatRoomLifecycle({
+          createdByUserId: existing.createdByUserId,
+          userId: userContext.userId,
+          role,
+        })
+      ) {
+        throw forbidden(
+          "Only the room creator or an organization owner or admin can restore this room.",
+        );
       }
 
       // Concurrent restore may already have cleared archivedAt under the lock.

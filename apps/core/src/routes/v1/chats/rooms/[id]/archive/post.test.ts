@@ -11,7 +11,6 @@ import mountArchiveChatRoom from "./post";
 const {
   roomFindFirstMock,
   roomUpdateMock,
-  userMemberCountMock,
   queryRawMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
@@ -19,7 +18,6 @@ const {
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomUpdateMock: vi.fn(),
-  userMemberCountMock: vi.fn(),
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -36,7 +34,6 @@ const OTHER_ID = "user_other";
 
 const tx = {
   chatRoom: { findFirst: roomFindFirstMock, update: roomUpdateMock },
-  chatRoomUserMember: { count: userMemberCountMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   $queryRaw: queryRawMock,
@@ -95,8 +92,6 @@ function room(
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     archivedAt: null,
-    // Default: caller (CREATOR_ID via archive()) plus another member so the
-    // "last human" escape hatch does not fire unless a test opts into it.
     userMembers: (overrides.memberIds ?? [CREATOR_ID, OTHER_ID]).map(member),
     coworkerMembers: [],
   };
@@ -114,8 +109,6 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
-  // Default: other humans remain, so last-human escape hatch stays off.
-  userMemberCountMock.mockResolvedValue(1);
 });
 
 describe("POST /chats/rooms/{id}/archive", () => {
@@ -135,9 +128,6 @@ describe("POST /chats/rooms/{id}/archive", () => {
 
     const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
     expect(sqlParts.join(" ")).toContain("FOR UPDATE");
-    expect(userMemberCountMock).toHaveBeenCalledWith({
-      where: { roomId: ROOM_ID, userId: { not: CREATOR_ID } },
-    });
     expect(roomUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: ROOM_ID },
@@ -163,7 +153,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
     },
   );
 
-  it("rejects a plain member who is not the creator when others remain", async () => {
+  it("rejects a plain member who is not the creator", async () => {
     roomFindFirstMock.mockResolvedValue(
       room({
         createdByUserId: OTHER_ID,
@@ -176,19 +166,14 @@ describe("POST /chats/rooms/{id}/archive", () => {
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("lets the last human member archive even without elevated role", async () => {
+  it("rejects the last human member when they are not creator or elevated", async () => {
     roomFindFirstMock.mockResolvedValue(
       room({ createdByUserId: OTHER_ID, memberIds: [CREATOR_ID] }),
     );
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
-    userMemberCountMock.mockResolvedValue(0);
-    roomUpdateMock.mockResolvedValue({
-      id: ROOM_ID,
-      archivedAt: new Date("2026-02-02T10:00:00.000Z"),
-    });
 
-    expect((await archive()).status).toBe(200);
-    expect(roomUpdateMock).toHaveBeenCalled();
+    expect((await archive()).status).toBe(403);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
   it("refuses to archive a direct room", async () => {

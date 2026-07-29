@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { MemberRole } from "@sokosumi/database";
 
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -13,7 +12,10 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { archivedChatRoomSchema } from "@/schemas/chat-room.schema";
 
-import { requireChatRoomUserAccess } from "../../helpers";
+import {
+  canManageChatRoomLifecycle,
+  requireChatRoomUserAccess,
+} from "../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -30,7 +32,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/archive",
     description:
-      "Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. The room creator, an organization owner or admin, or the last remaining human member may archive. Direct rooms cannot be archived.",
+      "Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. Only the room creator or an organization owner/admin may archive. Direct rooms cannot be archived.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -72,9 +74,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Organization rooms require an organization.");
       }
 
-      // Serialize concurrent roster edits so the last-human privilege check
-      // matches leave's FOR UPDATE + re-count pattern. Without the lock, a
-      // stale include snapshot can authorize (or deny) archive incorrectly.
       const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "chat_room"
         WHERE "id" = ${existing.id}::uuid
@@ -84,32 +83,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Room could not be archived.");
       }
 
-      // Archiving hides the room for everyone, so elevated authority is the
-      // default. The last human member is also allowed: leave refuses to empty
-      // the roster and points here, so without this escape hatch a plain
-      // member who outlasted the creator would be stuck with no exit.
-      const remainingOtherHumanCount = await tx.chatRoomUserMember.count({
-        where: {
-          roomId: existing.id,
-          userId: { not: userContext.userId },
-        },
-      });
-      const isLastHumanMember = remainingOtherHumanCount === 0;
-
+      // Archiving hides the room for everyone — elevated authority only.
       const { role } = await resolveMemberOrganizationById({
         id: existing.organizationId,
         userId: userContext.userId,
         tx,
       });
-      const canManageRoom =
-        existing.createdByUserId === userContext.userId ||
-        role === MemberRole.OWNER ||
-        role === MemberRole.ADMIN ||
-        isLastHumanMember;
-
-      if (!canManageRoom) {
+      if (
+        !canManageChatRoomLifecycle({
+          createdByUserId: existing.createdByUserId,
+          userId: userContext.userId,
+          role,
+        })
+      ) {
         throw forbidden(
-          "Only the room creator, an organization owner or admin, or the last remaining member can archive this room.",
+          "Only the room creator or an organization owner or admin can archive this room.",
         );
       }
 

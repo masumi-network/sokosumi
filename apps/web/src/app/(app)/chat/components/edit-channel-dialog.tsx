@@ -254,11 +254,11 @@ export function EditChannelDialog({
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
-  /** Creator, organization owner/admin, or last human member — archiving
-   * hides the room for everyone; last member is the leave escape hatch. */
+  /** Creator or organization owner/admin — archiving hides the room for
+   * everyone. */
   canArchive: boolean;
-  /** Any member can leave, except the last one: nobody would be left to
-   * archive the room afterwards. */
+  /** Any member can leave, except the last one: an empty roster could not be
+   * archived by a remaining elevated member. */
   canLeave: boolean;
 }) {
   const t = useTranslations("App.Channels");

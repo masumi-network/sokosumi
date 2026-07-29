@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -72,6 +73,7 @@ function archivedRoom(
   overrides: {
     kind?: string;
     organizationId?: string | null;
+    createdByUserId?: string;
     memberIds?: string[];
   } = {},
 ) {
@@ -86,7 +88,7 @@ function archivedRoom(
     kind: overrides.kind ?? "channel",
     directKey: null,
     topic: null,
-    createdByUserId: OTHER_ID,
+    createdByUserId: overrides.createdByUserId ?? SELF_ID,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     archivedAt: new Date("2026-02-01T00:00:00.000Z"),
@@ -109,7 +111,7 @@ beforeEach(() => {
 });
 
 describe("POST /chats/rooms/{id}/restore", () => {
-  it("clears archivedAt and returns the live room", async () => {
+  it("clears archivedAt and returns the live room for the creator", async () => {
     const archived = archivedRoom();
     const live = { ...archived, archivedAt: null };
     roomFindFirstMock
@@ -132,13 +134,30 @@ describe("POST /chats/rooms/{id}/restore", () => {
     });
   });
 
-  it("lets a plain member restore when they still belong", async () => {
-    const archived = archivedRoom({ memberIds: [SELF_ID] });
-    roomFindFirstMock
-      .mockResolvedValueOnce(archived)
-      .mockResolvedValueOnce({ ...archived, archivedAt: null });
+  it.each([
+    ["admin", MemberRole.ADMIN],
+    ["owner", MemberRole.OWNER],
+  ])(
+    "lets an organization %s restore a room they did not create",
+    async (_label, role) => {
+      const archived = archivedRoom({ createdByUserId: OTHER_ID });
+      roomFindFirstMock
+        .mockResolvedValueOnce(archived)
+        .mockResolvedValueOnce({ ...archived, archivedAt: null });
+      memberFindUniqueMock.mockResolvedValue({ role });
 
-    expect((await restore()).status).toBe(200);
+      expect((await restore()).status).toBe(200);
+    },
+  );
+
+  it("rejects a plain member who is not the creator", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      archivedRoom({ createdByUserId: OTHER_ID, memberIds: [SELF_ID] }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+
+    expect((await restore()).status).toBe(403);
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("refuses to restore a direct room", async () => {
