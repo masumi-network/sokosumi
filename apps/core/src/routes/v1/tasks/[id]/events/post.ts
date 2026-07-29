@@ -33,6 +33,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
+  type CascadedCancelChild,
   cascadeCancelNonTerminalParentChildren,
   getTaskStatusUpdateDataForEvent,
   mapTaskEvent,
@@ -453,155 +454,162 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const { event, userId, masumiPayment, pausedForInsufficientBalance } =
-      await serializableTransaction(async (tx) => {
-        const { status, credits, authenticationUrl, channel, masumiPayment } =
-          body;
-        let comment = body.comment;
+    const {
+      event,
+      userId,
+      masumiPayment,
+      pausedForInsufficientBalance,
+      cascadedChildTaskIds,
+    } = await serializableTransaction(async (tx) => {
+      const { status, credits, authenticationUrl, channel, masumiPayment } =
+        body;
+      let comment = body.comment;
 
-        const hasNonCommentWrite =
-          status !== undefined ||
-          credits != null ||
-          authenticationUrl != null ||
-          masumiPayment != null;
+      const hasNonCommentWrite =
+        status !== undefined ||
+        credits != null ||
+        authenticationUrl != null ||
+        masumiPayment != null;
 
-        const isCancelOnlyWrite =
-          status === TaskStatus.CANCELED &&
-          credits == null &&
-          authenticationUrl == null &&
-          masumiPayment == null;
+      const isCancelOnlyWrite =
+        status === TaskStatus.CANCELED &&
+        credits == null &&
+        authenticationUrl == null &&
+        masumiPayment == null;
 
-        const task = isCancelOnlyWrite
-          ? await requireTaskCancelAccess(c.var, taskId, tx)
-          : hasNonCommentWrite
-            ? await requireTaskCollaboration(authContext, taskId, tx)
-            : await requireTaskCommentAccess(c.var, taskId, tx);
+      const task = isCancelOnlyWrite
+        ? await requireTaskCancelAccess(c.var, taskId, tx)
+        : hasNonCommentWrite
+          ? await requireTaskCollaboration(authContext, taskId, tx)
+          : await requireTaskCommentAccess(c.var, taskId, tx);
 
-        const isAgent = isCoworkerAgentContext(authContext);
+      const isAgent = isCoworkerAgentContext(authContext);
 
-        if (!isAgent && credits != null) {
-          throw unprocessableEntity(
-            "Only the assigned coworker can set credits on task events",
-          );
-        }
+      if (!isAgent && credits != null) {
+        throw unprocessableEntity(
+          "Only the assigned coworker can set credits on task events",
+        );
+      }
 
-        if (!isAgent && masumiPayment != null) {
-          throw unprocessableEntity(
-            "Only the assigned coworker can set masumiPayment on task events",
-          );
-        }
+      if (!isAgent && masumiPayment != null) {
+        throw unprocessableEntity(
+          "Only the assigned coworker can set masumiPayment on task events",
+        );
+      }
 
-        if (
-          status === undefined &&
-          comment === undefined &&
-          credits == null &&
-          masumiPayment == null
-        ) {
-          throw unprocessableEntity(
-            "At least one of status, comment, credits, or masumiPayment is required",
-          );
-        }
+      if (
+        status === undefined &&
+        comment === undefined &&
+        credits == null &&
+        masumiPayment == null
+      ) {
+        throw unprocessableEntity(
+          "At least one of status, comment, credits, or masumiPayment is required",
+        );
+      }
 
-        if (status !== undefined) {
-          validateStatusTransition(authContext, task.status, status);
-          validateTaskAssigneeAssignment({
-            status,
-            assigneeId: task.assigneeId,
-          });
-
-          if (
-            !isAgent &&
-            userTaskStatusTransitionRequiresComment(task.status, status)
-          ) {
-            const trimmedComment = comment?.trim();
-            if (!trimmedComment) {
-              throw unprocessableEntity(
-                "A comment is required when reopening a canceled or completed task to ready",
-              );
-            }
-            comment = trimmedComment;
-          }
-        }
-
-        let cents: bigint | undefined;
-        let transactionId: string | null = null;
-        let eventStatus: TaskStatus | null = status ?? null;
-        let chargedMasumiPayment = false;
-        let pausedForInsufficientBalance = false;
-
-        if (
-          isAgent &&
-          (masumiPayment != null || (credits != null && credits > 0))
-        ) {
-          const settled = await settleTaskEventCharge({
-            task,
-            credits,
-            masumiPayment,
-            tx,
-          });
-          cents = settled.cents;
-          transactionId = settled.transactionId;
-          chargedMasumiPayment = settled.chargedMasumiPayment;
-          if (settled.eventStatus != null) {
-            eventStatus = settled.eventStatus;
-            pausedForInsufficientBalance =
-              settled.eventStatus === TaskStatus.OUT_OF_CREDITS;
-          }
-        }
-
-        const actorData =
-          status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
-            ? await getStatusEventActorData(authContext)
-            : credits != null || masumiPayment != null
-              ? getCoworkerActorData(authContext)
-              : await getCommentEventActorData(authContext);
-
-        const createdEvent = await tx.taskEvent.create({
-          data: {
-            taskId,
-            status: eventStatus,
-            comment,
-            authenticationUrl,
-            channel,
-            cents,
-            transactionId,
-            ...actorData,
-          },
+      if (status !== undefined) {
+        validateStatusTransition(authContext, task.status, status);
+        validateTaskAssigneeAssignment({
+          status,
+          assigneeId: task.assigneeId,
         });
 
-        // Update task when the caller requested a status change, or when a
-        // failed charge replaced the outcome with OUT_OF_CREDITS (incl.
-        // credit-only bodies that had no status).
-        if (eventStatus != null) {
-          const updateResult = await tx.task.updateMany({
-            where: { id: taskId, status: task.status },
-            data: getTaskStatusUpdateDataForEvent(eventStatus),
-          });
-          if (updateResult.count !== 1) {
-            throw conflict("Task status was changed by another request");
+        if (
+          !isAgent &&
+          userTaskStatusTransitionRequiresComment(task.status, status)
+        ) {
+          const trimmedComment = comment?.trim();
+          if (!trimmedComment) {
+            throw unprocessableEntity(
+              "A comment is required when reopening a canceled or completed task to ready",
+            );
           }
+          comment = trimmedComment;
+        }
+      }
 
-          if (eventStatus === TaskStatus.CANCELED) {
-            await cascadeCancelNonTerminalParentChildren({
-              tx,
-              parentTaskId: taskId,
-              actorData,
-            });
-          }
+      let cents: bigint | undefined;
+      let transactionId: string | null = null;
+      let eventStatus: TaskStatus | null = status ?? null;
+      let chargedMasumiPayment = false;
+      let pausedForInsufficientBalance = false;
+      let cascadedChildren: CascadedCancelChild[] = [];
+
+      if (
+        isAgent &&
+        (masumiPayment != null || (credits != null && credits > 0))
+      ) {
+        const settled = await settleTaskEventCharge({
+          task,
+          credits,
+          masumiPayment,
+          tx,
+        });
+        cents = settled.cents;
+        transactionId = settled.transactionId;
+        chargedMasumiPayment = settled.chargedMasumiPayment;
+        if (settled.eventStatus != null) {
+          eventStatus = settled.eventStatus;
+          pausedForInsufficientBalance =
+            settled.eventStatus === TaskStatus.OUT_OF_CREDITS;
+        }
+      }
+
+      const actorData =
+        status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
+          ? await getStatusEventActorData(authContext)
+          : credits != null || masumiPayment != null
+            ? getCoworkerActorData(authContext)
+            : await getCommentEventActorData(authContext);
+
+      const createdEvent = await tx.taskEvent.create({
+        data: {
+          taskId,
+          status: eventStatus,
+          comment,
+          authenticationUrl,
+          channel,
+          cents,
+          transactionId,
+          ...actorData,
+        },
+      });
+
+      // Update task when the caller requested a status change, or when a
+      // failed charge replaced the outcome with OUT_OF_CREDITS (incl.
+      // credit-only bodies that had no status).
+      if (eventStatus != null) {
+        const updateResult = await tx.task.updateMany({
+          where: { id: taskId, status: task.status },
+          data: getTaskStatusUpdateDataForEvent(eventStatus),
+        });
+        if (updateResult.count !== 1) {
+          throw conflict("Task status was changed by another request");
         }
 
-        const payment =
-          chargedMasumiPayment && masumiPayment !== undefined
-            ? masumiPayment
-            : null;
+        if (eventStatus === TaskStatus.CANCELED) {
+          cascadedChildren = await cascadeCancelNonTerminalParentChildren({
+            tx,
+            parentTaskId: taskId,
+            actorData,
+          });
+        }
+      }
 
-        return {
-          event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
-          userId: task.ownerId,
-          masumiPayment: payment,
-          pausedForInsufficientBalance,
-        };
-      }, "Task changed by a concurrent request. Please retry.");
+      const payment =
+        chargedMasumiPayment && masumiPayment !== undefined
+          ? masumiPayment
+          : null;
+
+      return {
+        event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
+        userId: task.ownerId,
+        masumiPayment: payment,
+        pausedForInsufficientBalance,
+        cascadedChildTaskIds: cascadedChildren,
+      };
+    }, "Task changed by a concurrent request. Please retry.");
 
     if (event.status) {
       const taskEventId = event.id;
@@ -761,19 +769,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    try {
-      await publishTaskEventData({
-        userId,
-        taskId,
-        eventType: "task_event",
-      });
-    } catch (error) {
-      Sentry.captureException(error, {
-        tags: {
-          error_type: "publish_task_event",
+    const taskIdsToPublish = [
+      { userId, taskId },
+      ...cascadedChildTaskIds.map((child) => ({
+        userId: child.userId,
+        taskId: child.taskId,
+      })),
+    ];
+
+    await Promise.all(
+      taskIdsToPublish.map(
+        async ({ userId: publishUserId, taskId: publishTaskId }) => {
+          try {
+            await publishTaskEventData({
+              userId: publishUserId,
+              taskId: publishTaskId,
+              eventType: "task_event",
+            });
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                error_type: "publish_task_event",
+              },
+              extra: {
+                taskId: publishTaskId,
+                userId: publishUserId,
+              },
+            });
+          }
         },
-      });
-    }
+      ),
+    );
 
     const parsedEvent = taskEventSchema.parse(event);
 

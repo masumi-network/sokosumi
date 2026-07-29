@@ -300,11 +300,16 @@ interface CascadeCancelParentChildrenParams {
   actorData: TaskEventActorData;
 }
 
+export interface CascadedCancelChild {
+  taskId: string;
+  userId: string;
+}
+
 export async function cascadeCancelNonTerminalParentChildren({
   tx,
   parentTaskId,
   actorData,
-}: CascadeCancelParentChildrenParams): Promise<void> {
+}: CascadeCancelParentChildrenParams): Promise<CascadedCancelChild[]> {
   const parentLinks = await tx.taskLink.findMany({
     where: {
       fromTaskId: parentTaskId,
@@ -315,10 +320,13 @@ export async function cascadeCancelNonTerminalParentChildren({
         select: {
           id: true,
           status: true,
+          ownerId: true,
         },
       },
     },
   });
+
+  const canceledChildren: CascadedCancelChild[] = [];
 
   for (const link of parentLinks) {
     const child = link.toTask;
@@ -342,7 +350,14 @@ export async function cascadeCancelNonTerminalParentChildren({
     if (childUpdate.count !== 1) {
       throw conflict("Task status was changed by another request");
     }
+
+    canceledChildren.push({
+      taskId: child.id,
+      userId: child.ownerId,
+    });
   }
+
+  return canceledChildren;
 }
 
 export function validateStatusTransition(

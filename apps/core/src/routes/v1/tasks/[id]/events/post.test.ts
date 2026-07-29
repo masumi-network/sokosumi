@@ -2855,7 +2855,11 @@ describe("POST /{id}/events", () => {
       taskLink: {
         findMany: vi.fn().mockResolvedValue([
           {
-            toTask: { id: "tsk_child", status: TaskStatus.RUNNING },
+            toTask: {
+              id: "tsk_child",
+              status: TaskStatus.RUNNING,
+              ownerId: USER_ID,
+            },
           },
         ]),
       },
@@ -2891,5 +2895,16 @@ describe("POST /{id}/events", () => {
         },
       }),
     );
+    expect(publishTaskEventDataMock).toHaveBeenCalledTimes(2);
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      taskId: TASK_ID,
+      eventType: "task_event",
+    });
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      taskId: "tsk_child",
+      eventType: "task_event",
+    });
   });
 });

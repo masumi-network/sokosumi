@@ -749,17 +749,29 @@ describe("task cancel helpers", () => {
       .mockResolvedValueOnce({ count: 1 });
     const taskLinkFindMany = vi.fn().mockResolvedValue([
       {
-        toTask: { id: "tsk_child_running", status: TaskStatus.RUNNING },
+        toTask: {
+          id: "tsk_child_running",
+          status: TaskStatus.RUNNING,
+          ownerId: "user_123",
+        },
       },
       {
-        toTask: { id: "tsk_child_done", status: TaskStatus.COMPLETED },
+        toTask: {
+          id: "tsk_child_done",
+          status: TaskStatus.COMPLETED,
+          ownerId: "user_123",
+        },
       },
       {
-        toTask: { id: "tsk_child_ready", status: TaskStatus.READY },
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          ownerId: "user_other",
+        },
       },
     ]);
 
-    await cascadeCancelNonTerminalParentChildren({
+    const canceledChildren = await cascadeCancelNonTerminalParentChildren({
       tx: {
         taskLink: { findMany: taskLinkFindMany },
         taskEvent: { create: taskEventCreate },
@@ -793,6 +805,10 @@ describe("task cancel helpers", () => {
         },
       }),
     );
+    expect(canceledChildren).toEqual([
+      { taskId: "tsk_child_running", userId: "user_123" },
+      { taskId: "tsk_child_ready", userId: "user_other" },
+    ]);
   });
 });
 

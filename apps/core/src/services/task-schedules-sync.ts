@@ -228,124 +228,61 @@ async function cloneRecurringOccurrence(
   return clone.id;
 }
 
+/**
+ * Thrown inside the processDueTask transaction when clones were created but
+ * the template is no longer QUEUED (e.g. canceled mid-sync). Prisma rolls
+ * back the transaction so READY clones are not committed.
+ */
+class TemplateClaimLostError extends Error {
+  constructor() {
+    super("Task schedule template is no longer QUEUED");
+    this.name = "TemplateClaimLostError";
+  }
+}
+
+function assertTemplateClaimHeld(
+  claimed: boolean,
+  clonesCreated: number,
+): void {
+  if (!claimed && clonesCreated > 0) {
+    throw new TemplateClaimLostError();
+  }
+}
+
 async function processDueTask(
   templateId: string,
   options: TaskScheduleSyncExecutionOptions,
 ): Promise<ProcessDueTaskResult> {
-  return prisma.$transaction(async (tx) => {
-    const template = await tx.task.findFirst({
-      where: {
-        id: templateId,
-        status: TaskStatus.QUEUED,
-        archivedAt: null,
-        pendingVendorGrantId: null,
-        nextRunAt: { lte: new Date() },
-      },
-      select: {
-        id: true,
-        ownerId: true,
-        organizationId: true,
-        workspaceId: true,
-        projectId: true,
-        assigneeId: true,
-        name: true,
-        description: true,
-        metadata: true,
-        nextRunAt: true,
-      },
-    });
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const template = await tx.task.findFirst({
+        where: {
+          id: templateId,
+          status: TaskStatus.QUEUED,
+          archivedAt: null,
+          pendingVendorGrantId: null,
+          nextRunAt: { lte: new Date() },
+        },
+        select: {
+          id: true,
+          ownerId: true,
+          organizationId: true,
+          workspaceId: true,
+          projectId: true,
+          assigneeId: true,
+          name: true,
+          description: true,
+          metadata: true,
+          nextRunAt: true,
+        },
+      });
 
-    if (!template || !template.nextRunAt) {
-      return { outcome: "skipped", publishEvents: [] };
-    }
-
-    const scheduleMetadata = parseTaskScheduleMetadata(template.metadata);
-    if (!scheduleMetadata) {
-      const cleared = await clearTemplateSchedule(tx, template.id);
-      return {
-        outcome: "skipped",
-        publishEvents: cleared
-          ? [{ userId: template.ownerId, taskId: template.id }]
-          : [],
-      };
-    }
-
-    if (scheduleMetadata.mode === "once") {
-      const promoted = await promoteOneTimeTask(
-        tx,
-        template.id,
-        template.ownerId,
-      );
-      if (!promoted) {
+      if (!template || !template.nextRunAt) {
         return { outcome: "skipped", publishEvents: [] };
       }
-      return {
-        outcome: "promoted",
-        publishEvents: [{ userId: template.ownerId, taskId: template.id }],
-      };
-    }
 
-    const now = new Date();
-    let metadata = scheduleMetadata;
-    let nextRunAt = template.nextRunAt;
-    let clonesCreated = 0;
-    const clonedTaskIds: string[] = [];
-
-    while (nextRunAt && nextRunAt <= now) {
-      if (
-        !options.shouldContinue() ||
-        options.abortSignal.aborted ||
-        Date.now() >= options.deadlineMs
-      ) {
-        break;
-      }
-
-      if (isDueRunPastScheduleEnd(metadata, nextRunAt)) {
-        break;
-      }
-
-      if (!(await isTemplateStillQueued(tx, template.id))) {
-        break;
-      }
-
-      const cloneId = await cloneRecurringOccurrence(tx, template);
-      clonedTaskIds.push(cloneId);
-      clonesCreated += 1;
-
-      metadata = getUpdatedRecurringMetadata(metadata, nextRunAt);
-      const computedNextRun = computeScheduleNextRun(metadata, nextRunAt);
-
-      if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
-        const cleared = await clearTemplateSchedule(tx, template.id);
-        return {
-          outcome: clonesCreated > 0 ? "cloned" : "skipped",
-          publishEvents: buildRecurringPublishEvents(
-            template.ownerId,
-            template.id,
-            clonedTaskIds,
-            cleared,
-          ),
-        };
-      }
-
-      if (!computedNextRun) {
-        const cleared = await clearTemplateSchedule(tx, template.id);
-        return {
-          outcome: clonesCreated > 0 ? "cloned" : "skipped",
-          publishEvents: buildRecurringPublishEvents(
-            template.ownerId,
-            template.id,
-            clonedTaskIds,
-            cleared,
-          ),
-        };
-      }
-
-      nextRunAt = computedNextRun;
-    }
-
-    if (clonesCreated === 0) {
-      if (isDueRunPastScheduleEnd(metadata, template.nextRunAt)) {
+      const scheduleMetadata = parseTaskScheduleMetadata(template.metadata);
+      if (!scheduleMetadata) {
         const cleared = await clearTemplateSchedule(tx, template.id);
         return {
           outcome: "skipped",
@@ -354,19 +291,107 @@ async function processDueTask(
             : [],
         };
       }
-      return { outcome: "skipped", publishEvents: [] };
-    }
 
-    const updateResult = await tx.task.updateMany({
-      where: { id: template.id, status: TaskStatus.QUEUED },
-      data: {
-        metadata: JSON.stringify(metadata),
-        nextRunAt,
-      },
-    });
-    if (updateResult.count !== 1) {
+      if (scheduleMetadata.mode === "once") {
+        const promoted = await promoteOneTimeTask(
+          tx,
+          template.id,
+          template.ownerId,
+        );
+        if (!promoted) {
+          return { outcome: "skipped", publishEvents: [] };
+        }
+        return {
+          outcome: "promoted",
+          publishEvents: [{ userId: template.ownerId, taskId: template.id }],
+        };
+      }
+
+      const now = new Date();
+      let metadata = scheduleMetadata;
+      let nextRunAt = template.nextRunAt;
+      let clonesCreated = 0;
+      const clonedTaskIds: string[] = [];
+
+      while (nextRunAt && nextRunAt <= now) {
+        if (
+          !options.shouldContinue() ||
+          options.abortSignal.aborted ||
+          Date.now() >= options.deadlineMs
+        ) {
+          break;
+        }
+
+        if (isDueRunPastScheduleEnd(metadata, nextRunAt)) {
+          break;
+        }
+
+        if (!(await isTemplateStillQueued(tx, template.id))) {
+          break;
+        }
+
+        const cloneId = await cloneRecurringOccurrence(tx, template);
+        clonedTaskIds.push(cloneId);
+        clonesCreated += 1;
+
+        metadata = getUpdatedRecurringMetadata(metadata, nextRunAt);
+        const computedNextRun = computeScheduleNextRun(metadata, nextRunAt);
+
+        if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
+          const cleared = await clearTemplateSchedule(tx, template.id);
+          assertTemplateClaimHeld(cleared, clonesCreated);
+          return {
+            outcome: "cloned",
+            publishEvents: buildRecurringPublishEvents(
+              template.ownerId,
+              template.id,
+              clonedTaskIds,
+              true,
+            ),
+          };
+        }
+
+        if (!computedNextRun) {
+          const cleared = await clearTemplateSchedule(tx, template.id);
+          assertTemplateClaimHeld(cleared, clonesCreated);
+          return {
+            outcome: "cloned",
+            publishEvents: buildRecurringPublishEvents(
+              template.ownerId,
+              template.id,
+              clonedTaskIds,
+              true,
+            ),
+          };
+        }
+
+        nextRunAt = computedNextRun;
+      }
+
+      if (clonesCreated === 0) {
+        if (isDueRunPastScheduleEnd(metadata, template.nextRunAt)) {
+          const cleared = await clearTemplateSchedule(tx, template.id);
+          return {
+            outcome: "skipped",
+            publishEvents: cleared
+              ? [{ userId: template.ownerId, taskId: template.id }]
+              : [],
+          };
+        }
+        return { outcome: "skipped", publishEvents: [] };
+      }
+
+      const updateResult = await tx.task.updateMany({
+        where: { id: template.id, status: TaskStatus.QUEUED },
+        data: {
+          metadata: JSON.stringify(metadata),
+          nextRunAt,
+        },
+      });
+      assertTemplateClaimHeld(updateResult.count === 1, clonesCreated);
+
       return {
-        outcome: clonesCreated > 0 ? "cloned" : "skipped",
+        outcome: "cloned",
         publishEvents: buildRecurringPublishEvents(
           template.ownerId,
           template.id,
@@ -374,18 +399,13 @@ async function processDueTask(
           false,
         ),
       };
+    });
+  } catch (error) {
+    if (error instanceof TemplateClaimLostError) {
+      return { outcome: "skipped", publishEvents: [] };
     }
-
-    return {
-      outcome: "cloned",
-      publishEvents: buildRecurringPublishEvents(
-        template.ownerId,
-        template.id,
-        clonedTaskIds,
-        false,
-      ),
-    };
-  });
+    throw error;
+  }
 }
 
 function buildRecurringPublishEvents(
