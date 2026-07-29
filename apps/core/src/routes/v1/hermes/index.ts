@@ -2073,6 +2073,25 @@ app.openapi(getInstanceRoute, async (c) => {
  * contexts, so the Core route must enforce the plan itself rather than
  * trusting the web action's check.
  */
+/**
+ * True when a resolved org billing plan unlocks the personal assistant.
+ * Enterprise only when consumable; self-serve only at Standard+.
+ */
+function orgBillingPlanUnlocksAssistant(
+  billingPlan: Awaited<ReturnType<typeof resolveOrganizationBillingPlan>>,
+): boolean {
+  // Match the canonical coverage checks (organization-subscription-auth,
+  // seat service): an "active" contract past its commercial term is not
+  // consumable and must not grant assistant access.
+  if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable) {
+    return true;
+  }
+  return (
+    billingPlan.mode === "self_serve" &&
+    planUnlocksPersonalAssistant(billingPlan.plan)
+  );
+}
+
 async function userHasAssistantPlanCoverage(userId: string): Promise<boolean> {
   // Personal Stripe subscription (user as referenceId).
   const personal =
@@ -2085,31 +2104,39 @@ async function userHasAssistantPlanCoverage(userId: string): Promise<boolean> {
   // Org memberships via the canonical billing-plan resolver (enterprise
   // contract first, then self-serve Stripe). Enterprise orgs often have no
   // subscription row at all — the old Stripe-only loop missed them.
-  // Resolve orgs in parallel: this runs on every gated chat/provision call
-  // and sequential awaits scaled with membership count (SOK-661). Matches
-  // web's `hasAssistantPlanCoverage` fan-out.
+  // Fan out in parallel (SOK-661) and settle as soon as any org grants —
+  // remaining lookups keep running but we no longer wait for the slowest
+  // deny. Per-org failures soft-fail as "no coverage" (matches web).
   const memberships = await prisma.member.findMany({
     where: { userId },
     select: { organizationId: true },
   });
   if (memberships.length === 0) return false;
 
-  const billingPlans = await Promise.all(
-    memberships.map(({ organizationId }) =>
-      resolveOrganizationBillingPlan(organizationId, prisma),
-    ),
-  );
+  return await new Promise<boolean>((resolve) => {
+    let pending = memberships.length;
+    let settled = false;
 
-  return billingPlans.some((billingPlan) => {
-    // Match the canonical coverage checks (organization-subscription-auth,
-    // seat service): an "active" contract past its commercial term is not
-    // consumable and must not grant assistant access.
-    if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable)
-      return true;
-    return (
-      billingPlan.mode === "self_serve" &&
-      planUnlocksPersonalAssistant(billingPlan.plan)
-    );
+    for (const { organizationId } of memberships) {
+      void resolveOrganizationBillingPlan(organizationId, prisma)
+        .then((billingPlan) => {
+          if (settled) return;
+          if (orgBillingPlanUnlocksAssistant(billingPlan)) {
+            settled = true;
+            resolve(true);
+          }
+        })
+        .catch(() => {
+          // Soft-fail: one bad org resolve must not 5xx the gate or block
+          // coverage from a healthy sibling org.
+        })
+        .finally(() => {
+          pending -= 1;
+          if (!settled && pending === 0) {
+            resolve(false);
+          }
+        });
+    }
   });
 }
 

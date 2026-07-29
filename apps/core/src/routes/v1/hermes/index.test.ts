@@ -2361,6 +2361,110 @@ describe("Hermes route contracts", () => {
     expect(maxInFlight).toBeGreaterThanOrEqual(2);
   });
 
+  it("settles coverage as soon as any org grants without waiting on a slow sibling", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([
+      { organizationId: "org_fast" },
+      { organizationId: "org_slow" },
+    ]);
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    let releaseSlow: (() => void) | undefined;
+    const slowHang = new Promise<void>((resolve) => {
+      releaseSlow = resolve;
+    });
+
+    resolveOrganizationBillingPlanMock.mockImplementation(
+      async (organizationId: string) => {
+        if (organizationId === "org_slow") {
+          await slowHang;
+          return {
+            mode: "self_serve" as const,
+            plan: "starter",
+            purchasedSeats: 1,
+            subscriptionId: "sub_slow",
+            cancelAtPeriodEnd: false,
+            periodEnd: null,
+          };
+        }
+        return {
+          mode: "self_serve" as const,
+          plan: "standard",
+          purchasedSeats: 1,
+          subscriptionId: "sub_fast",
+          cancelAtPeriodEnd: false,
+          periodEnd: null,
+        };
+      },
+    );
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+    // Unblock the hanging sibling so the test process can exit cleanly.
+    releaseSlow?.();
+  });
+
+  it("soft-fails a broken org billing resolve and still grants via a healthy sibling", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([
+      { organizationId: "org_broken" },
+      { organizationId: "org_ok" },
+    ]);
+    vi.mocked(getInstance).mockResolvedValue(instanceWithPendingConfirmation());
+
+    resolveOrganizationBillingPlanMock.mockImplementation(
+      async (organizationId: string) => {
+        if (organizationId === "org_broken") {
+          throw new Error("billing resolve failed");
+        }
+        return {
+          mode: "self_serve" as const,
+          plan: "pro",
+          purchasedSeats: 2,
+          subscriptionId: "sub_ok",
+          cancelAtPeriodEnd: false,
+          periodEnd: null,
+        };
+      },
+    );
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionInstance).toHaveBeenCalled();
+  });
+
+  it("returns 403 when every org billing resolve fails instead of 5xx", async () => {
+    resolveActiveSubscriptionMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([
+      { organizationId: "org_a" },
+      { organizationId: "org_b" },
+    ]);
+    resolveOrganizationBillingPlanMock.mockRejectedValue(
+      new Error("billing resolve failed"),
+    );
+
+    const response = await createApp().request("/me/instance", {
+      method: "POST",
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "A Standard subscription or higher is required to use the personal assistant.",
+    );
+    expect(provisionInstance).not.toHaveBeenCalled();
+  });
+
   it("provisions when a member organization has an active enterprise contract", async () => {
     memberFindManyMock.mockResolvedValue([{ organizationId: "org_ent" }]);
     resolveActiveSubscriptionMock.mockResolvedValue(null);
