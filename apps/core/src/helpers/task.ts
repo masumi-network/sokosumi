@@ -294,7 +294,7 @@ interface TaskEventActorData {
   orchestratorId: string | null;
 }
 
-interface CascadeCancelParentChildrenParams {
+interface CascadeCancelScheduleRunsParams {
   tx: Prisma.TransactionClient;
   parentTaskId: string;
   actorData: TaskEventActorData;
@@ -310,11 +310,11 @@ export interface CascadedCancelChild {
  * {@link TaskLinkType.SCHEDULE} (from = template, to = run). Manual PARENT
  * hierarchy is not cascaded.
  */
-export async function cascadeCancelNonTerminalParentChildren({
+export async function cascadeCancelNonTerminalScheduleRuns({
   tx,
   parentTaskId,
   actorData,
-}: CascadeCancelParentChildrenParams): Promise<CascadedCancelChild[]> {
+}: CascadeCancelScheduleRunsParams): Promise<CascadedCancelChild[]> {
   const scheduleLinks = await tx.taskLink.findMany({
     where: {
       fromTaskId: parentTaskId,
@@ -373,8 +373,9 @@ interface CascadeArchiveScheduleParentChildrenParams {
 
 /**
  * Soft-archive schedule runs linked from a template via
- * {@link TaskLinkType.SCHEDULE}. Skips already-archived and non-archivable
- * runs (e.g. RUNNING). Manual PARENT hierarchy is not cascaded.
+ * {@link TaskLinkType.SCHEDULE}. Blocks when any non-archived run is not
+ * archivable (e.g. RUNNING) so the series is never half-hidden. Manual PARENT
+ * hierarchy is not cascaded.
  */
 export async function cascadeArchiveScheduleParentChildren({
   tx,
@@ -397,17 +398,22 @@ export async function cascadeArchiveScheduleParentChildren({
     },
   });
 
+  const activeRuns = scheduleLinks
+    .map((link) => link.toTask)
+    .filter((child) => child.archivedAt == null);
+
+  const blockingRun = activeRuns.find(
+    (child) => !canArchiveTaskStatus(child.status),
+  );
+  if (blockingRun) {
+    throw unprocessableEntity(
+      `Cannot archive schedule template while a schedule run is still in progress (status: ${blockingRun.status}). Wait for in-progress runs to finish, or cancel them first.`,
+    );
+  }
+
   const archivedChildIds: string[] = [];
 
-  for (const link of scheduleLinks) {
-    const child = link.toTask;
-    if (child.archivedAt != null) {
-      continue;
-    }
-    if (!canArchiveTaskStatus(child.status)) {
-      continue;
-    }
-
+  for (const child of activeRuns) {
     const childUpdate = await tx.task.updateMany({
       where: { id: child.id, archivedAt: null, status: child.status },
       data: { archivedAt },

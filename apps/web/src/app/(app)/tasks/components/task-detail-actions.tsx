@@ -235,22 +235,20 @@ export function TaskDetailActions({
     canMutateTask &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
+  // Manual parent only — schedule_series is system-managed and not removable.
   const parentLinks = useMemo(
-    () =>
-      taskLinks.filter(
-        (link) =>
-          link.relation === TaskLinkRelation.CHILD ||
-          link.relation === TaskLinkRelation.SCHEDULE_SERIES,
-      ),
+    () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
     [taskLinks],
   );
+  // System schedule edges (template→run and run→series) cannot be removed by users.
   const removableTaskLinks = useMemo(
     () =>
       taskLinks.filter(
         (link) =>
           link.peerTask.archivedAt === null &&
           link.relation !== TaskLinkRelation.CHILD &&
-          link.relation !== TaskLinkRelation.SCHEDULE_SERIES,
+          link.relation !== TaskLinkRelation.SCHEDULE_SERIES &&
+          link.relation !== TaskLinkRelation.SCHEDULE_RUN,
       ),
     [taskLinks],
   );
@@ -374,7 +372,11 @@ export function TaskDetailActions({
         router.push("/tasks");
       } catch (error) {
         console.error("Failed to archive task", error);
-        toast.error(labels.archiveError);
+        toast.error(
+          error instanceof Error && error.message
+            ? error.message
+            : labels.archiveError,
+        );
       }
     });
   };

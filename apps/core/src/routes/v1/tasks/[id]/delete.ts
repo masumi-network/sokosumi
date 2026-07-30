@@ -27,7 +27,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule template also archives its schedule runs (TaskLinkType.SCHEDULE).",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule template also archives its schedule runs (TaskLinkType.SCHEDULE). Fails with 422 if any non-archived schedule run is still in progress (e.g. RUNNING).",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,

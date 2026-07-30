@@ -7,7 +7,7 @@ import type { TaskWithIncludes } from "@/types/task";
 
 import {
   cascadeArchiveScheduleParentChildren,
-  cascadeCancelNonTerminalParentChildren,
+  cascadeCancelNonTerminalScheduleRuns,
   getTaskStatusUpdateDataForEvent,
   isTerminalTaskStatus,
   mapTask,
@@ -772,7 +772,7 @@ describe("task cancel helpers", () => {
       },
     ]);
 
-    const canceledChildren = await cascadeCancelNonTerminalParentChildren({
+    const canceledChildren = await cascadeCancelNonTerminalScheduleRuns({
       tx: {
         taskLink: { findMany: taskLinkFindMany },
         taskEvent: { create: taskEventCreate },
@@ -811,12 +811,44 @@ describe("task cancel helpers", () => {
       { taskId: "tsk_child_ready", userId: "user_other" },
     ]);
   });
+
+  it("does not cascade cancel to manual PARENT children", async () => {
+    const taskEventCreate = vi.fn();
+    const taskUpdateMany = vi.fn();
+    const taskLinkFindMany = vi.fn().mockResolvedValue([]);
+
+    const canceledChildren = await cascadeCancelNonTerminalScheduleRuns({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        taskEvent: { create: taskEventCreate },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      actorData: {
+        userId: "user_123",
+        coworkerId: null,
+        orchestratorId: null,
+      },
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(taskEventCreate).not.toHaveBeenCalled();
+    expect(taskUpdateMany).not.toHaveBeenCalled();
+    expect(canceledChildren).toEqual([]);
+  });
 });
 
 describe("cascadeArchiveScheduleParentChildren", () => {
   const archivedAt = new Date("2026-03-25T12:00:00.000Z");
 
-  it("archives archivable SCHEDULE runs and skips RUNNING and already archived", async () => {
+  it("archives archivable SCHEDULE runs and skips already archived", async () => {
     const taskLinkFindMany = vi.fn().mockResolvedValue([
       {
         toTask: {
@@ -836,13 +868,6 @@ describe("cascadeArchiveScheduleParentChildren", () => {
         toTask: {
           id: "tsk_child_canceled",
           status: TaskStatus.CANCELED,
-          archivedAt: null,
-        },
-      },
-      {
-        toTask: {
-          id: "tsk_child_running",
-          status: TaskStatus.RUNNING,
           archivedAt: null,
         },
       },
@@ -891,6 +916,66 @@ describe("cascadeArchiveScheduleParentChildren", () => {
       "tsk_child_completed",
       "tsk_child_canceled",
     ]);
+  });
+
+  it("blocks archive when a SCHEDULE run is mid-flight", async () => {
+    const taskLinkFindMany = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_running",
+          status: TaskStatus.RUNNING,
+          archivedAt: null,
+        },
+      },
+    ]);
+    const taskUpdateMany = vi.fn();
+
+    await expect(
+      cascadeArchiveScheduleParentChildren({
+        tx: {
+          taskLink: { findMany: taskLinkFindMany },
+          task: { updateMany: taskUpdateMany },
+        } as never,
+        parentTaskId: "tsk_template",
+        archivedAt,
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: expect.stringContaining("RUNNING"),
+    });
+    expect(taskUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not cascade archive to manual PARENT children", async () => {
+    const taskLinkFindMany = vi.fn().mockResolvedValue([]);
+    const taskUpdateMany = vi.fn();
+
+    const archivedChildIds = await cascadeArchiveScheduleParentChildren({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      archivedAt,
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(taskUpdateMany).not.toHaveBeenCalled();
+    expect(archivedChildIds).toEqual([]);
   });
 });
 

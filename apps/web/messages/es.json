@@ -1679,7 +1679,7 @@
           "edit": "Editar",
           "archive": "Archivar",
           "confirmArchive": "¿Archivar esta tarea?",
-          "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista; no se elimina permanentemente de la base de datos.",
+          "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista, incluidas las ejecuciones programadas vinculadas. Las ejecuciones en curso deben terminar o cancelarse primero. No se elimina permanentemente de la base de datos.",
           "archiveError": "No se pudo archivar la tarea",
           "markAsReady": "Marcar como listo",
           "reopenToReady": "Reabrir como Lista",

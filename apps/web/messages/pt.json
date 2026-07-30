@@ -1679,7 +1679,7 @@
           "edit": "Editar",
           "archive": "Arquivar",
           "confirmArchive": "Arquivar esta tarefa?",
-          "confirmArchiveDescription": "A tarefa deixa de aparecer na sua lista e não é eliminada permanentemente da base de dados.",
+          "confirmArchiveDescription": "A tarefa deixa de aparecer na sua lista, incluindo execuções agendadas ligadas. As execuções em curso devem terminar ou ser canceladas primeiro. Não é eliminada permanentemente da base de dados.",
           "archiveError": "Falha ao arquivar a tarefa",
           "markAsReady": "Marcar como pronta",
           "reopenToReady": "Reabrir como Pronta",

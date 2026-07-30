@@ -34,7 +34,7 @@ import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-inst
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   type CascadedCancelChild,
-  cascadeCancelNonTerminalParentChildren,
+  cascadeCancelNonTerminalScheduleRuns,
   getTaskStatusUpdateDataForEvent,
   mapTaskEvent,
   taskEventApiInclude,
@@ -589,7 +589,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         if (eventStatus === TaskStatus.CANCELED) {
-          cascadedChildren = await cascadeCancelNonTerminalParentChildren({
+          cascadedChildren = await cascadeCancelNonTerminalScheduleRuns({
             tx,
             parentTaskId: taskId,
             actorData,

@@ -1,22 +1,37 @@
 -- Backfill schedule-created PARENT edges to SCHEDULE.
--- Heuristic: template was ever QUEUED, still has schedule fields, or is QUEUED.
+-- Parent: is/was a schedule template (QUEUED, schedule fields, or ever QUEUED).
+-- Child: schedule-clone fingerprint — born READY with no DRAFT history
+-- (cloneRecurringOccurrence creates READY runs; user tasks typically pass DRAFT).
 UPDATE "task_link" AS tl
 SET "type" = 'SCHEDULE'
-FROM "task" AS t
-WHERE tl."fromTaskId" = t."id"
+FROM "task" AS parent
+INNER JOIN "task" AS child ON child."id" = tl."toTaskId"
+WHERE tl."fromTaskId" = parent."id"
   AND tl."type" = 'PARENT'
   AND (
-    t."status" = 'QUEUED'
-    OR t."nextRunAt" IS NOT NULL
+    parent."status" = 'QUEUED'
+    OR parent."nextRunAt" IS NOT NULL
     OR (
-      t."metadata" IS NOT NULL
-      AND t."metadata"::jsonb ->> 'version' = '1'
-      AND t."metadata"::jsonb ->> 'mode' IN ('once', 'recurring')
+      parent."metadata" IS NOT NULL
+      AND parent."metadata"::jsonb ->> 'version' = '1'
+      AND parent."metadata"::jsonb ->> 'mode' IN ('once', 'recurring')
     )
     OR EXISTS (
       SELECT 1
       FROM "taskEvent" AS te
-      WHERE te."taskId" = t."id"
+      WHERE te."taskId" = parent."id"
         AND te."status" = 'QUEUED'
     )
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM "taskEvent" AS te
+    WHERE te."taskId" = child."id"
+      AND te."status" = 'READY'
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM "taskEvent" AS te
+    WHERE te."taskId" = child."id"
+      AND te."status" = 'DRAFT'
   );

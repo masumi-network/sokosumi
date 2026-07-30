@@ -1679,7 +1679,7 @@
           "edit": "Bearbeiten",
           "archive": "Archivieren",
           "confirmArchive": "Diesen Task archivieren?",
-          "confirmArchiveDescription": "Der Task wird in deiner Liste ausgeblendet und nicht dauerhaft aus der Datenbank gelöscht.",
+          "confirmArchiveDescription": "Der Task wird in deiner Liste ausgeblendet, inklusive verknüpfter geplanter Läufe. Laufende Läufe müssen zuerst enden oder abgebrochen werden. Er wird nicht dauerhaft aus der Datenbank gelöscht.",
           "archiveError": "Task konnte nicht archiviert werden",
           "markAsReady": "Als bereit markieren",
           "reopenToReady": "Als Bereit wiedereröffnen",

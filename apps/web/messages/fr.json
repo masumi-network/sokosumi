@@ -1679,7 +1679,7 @@
           "edit": "Modifier",
           "archive": "Archiver",
           "confirmArchive": "Archiver cette tâche ?",
-          "confirmArchiveDescription": "La tâche sera masquée dans votre liste et n’est pas supprimée définitivement de la base de données.",
+          "confirmArchiveDescription": "La tâche sera masquée dans votre liste, y compris les exécutions planifiées liées. Les exécutions en cours doivent d’abord se terminer ou être annulées. Elle n’est pas supprimée définitivement de la base de données.",
           "archiveError": "Échec de l’archivage de la tâche",
           "markAsReady": "Marquer comme prêt",
           "reopenToReady": "Rouvrir en Prêt",

@@ -1679,7 +1679,7 @@
           "edit": "Editar",
           "archive": "Arquivar",
           "confirmArchive": "Arquivar esta tarefa?",
-          "confirmArchiveDescription": "A tarefa some da sua lista e não é excluída permanentemente do banco de dados.",
+          "confirmArchiveDescription": "A tarefa some da sua lista, incluindo execuções agendadas vinculadas. Execuções em andamento precisam terminar ou ser canceladas primeiro. Não é excluída permanentemente do banco de dados.",
           "archiveError": "Falha ao arquivar tarefa",
           "markAsReady": "Marcar como pronta",
           "reopenToReady": "Reabrir como Pronta",

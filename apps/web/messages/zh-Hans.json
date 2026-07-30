@@ -1679,7 +1679,7 @@
           "edit": "编辑",
           "archive": "归档",
           "confirmArchive": "归档此任务？",
-          "confirmArchiveDescription": "任务将从列表中隐藏，不会从数据库中永久删除。",
+          "confirmArchiveDescription": "任务将从列表中隐藏，包括关联的计划运行。进行中的运行须先完成或取消。不会从数据库中永久删除。",
           "archiveError": "归档任务失败",
           "markAsReady": "标记为就绪",
           "reopenToReady": "重新打开为就绪",
