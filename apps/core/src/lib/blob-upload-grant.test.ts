@@ -2,24 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createBlobUploadGrant } from "./blob-upload-grant";
 
-const {
-  issueSignedTokenMock,
-  presignUrlMock,
-  generateClientTokenFromReadWriteTokenMock,
-} = vi.hoisted(() => ({
+const { issueSignedTokenMock, presignUrlMock } = vi.hoisted(() => ({
   issueSignedTokenMock: vi.fn(),
   presignUrlMock: vi.fn(),
-  generateClientTokenFromReadWriteTokenMock: vi.fn(),
 }));
 
 vi.mock("@vercel/blob", () => ({
   issueSignedToken: issueSignedTokenMock,
   presignUrl: presignUrlMock,
-}));
-
-vi.mock("@vercel/blob/client", () => ({
-  generateClientTokenFromReadWriteToken:
-    generateClientTokenFromReadWriteTokenMock,
 }));
 
 describe("createBlobUploadGrant", () => {
@@ -73,7 +63,6 @@ describe("createBlobUploadGrant", () => {
         validUntil: expect.any(Number),
       },
     );
-    expect(generateClientTokenFromReadWriteTokenMock).not.toHaveBeenCalled();
 
     expect(result).toEqual({
       uploadUrl: "https://blob.example/upload?sig=1",
@@ -123,41 +112,5 @@ describe("createBlobUploadGrant", () => {
         },
       }),
     );
-  });
-
-  it("includes a legacy client token when requested", async () => {
-    issueSignedTokenMock.mockResolvedValue({
-      delegationToken: "delegation",
-      clientSigningToken: "signing",
-      validUntil: Date.now() + 60_000,
-    });
-    presignUrlMock.mockResolvedValue({
-      presignedUrl: "https://blob.example/upload?sig=1",
-    });
-    generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
-      "client-token-123",
-    );
-
-    const result = await createBlobUploadGrant({
-      pathname: "tasks/tsk_1/out.pdf",
-      contentType: "application/pdf",
-      maximumSizeInBytes: 100,
-      maxSizeBytes: 50_000_000,
-      access: "public",
-      addRandomSuffix: true,
-      token: "rw-token",
-      allowedContentTypes: ["application/pdf", "text/plain"],
-      includeClientToken: true,
-    });
-
-    expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith({
-      token: "rw-token",
-      pathname: "tasks/tsk_1/out.pdf",
-      allowedContentTypes: ["application/pdf", "text/plain"],
-      maximumSizeInBytes: 100,
-      validUntil: expect.any(Number),
-      addRandomSuffix: true,
-    });
-    expect(result.clientToken).toBe("client-token-123");
   });
 });

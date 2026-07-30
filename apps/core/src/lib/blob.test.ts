@@ -17,7 +17,6 @@ const {
   delMock,
   issueSignedTokenMock,
   presignUrlMock,
-  generateClientTokenFromReadWriteTokenMock,
   getEnvMock,
   captureExceptionMock,
 } = vi.hoisted(() => ({
@@ -26,7 +25,6 @@ const {
   delMock: vi.fn(),
   issueSignedTokenMock: vi.fn(),
   presignUrlMock: vi.fn(),
-  generateClientTokenFromReadWriteTokenMock: vi.fn(),
   getEnvMock: vi.fn(() => ({})),
   captureExceptionMock: vi.fn(),
 }));
@@ -43,11 +41,6 @@ vi.mock("@vercel/blob", () => ({
   presignUrl: presignUrlMock,
 }));
 
-vi.mock("@vercel/blob/client", () => ({
-  generateClientTokenFromReadWriteToken:
-    generateClientTokenFromReadWriteTokenMock,
-}));
-
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
 }));
@@ -57,7 +50,7 @@ describe("createUserFileUploadSession", () => {
     vi.resetAllMocks();
   });
 
-  it("creates a scoped direct upload session for the user upload path", async () => {
+  it("creates a scoped direct upload session for the user file path", async () => {
     issueSignedTokenMock.mockResolvedValue({
       delegationToken: "delegation",
       clientSigningToken: "signing",
@@ -66,9 +59,6 @@ describe("createUserFileUploadSession", () => {
     presignUrlMock.mockResolvedValue({
       presignedUrl: "https://blob.example/upload?sig=1",
     });
-    generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
-      "client-token-123",
-    );
 
     const result = await createUserFileUploadSession(
       "user_123",
@@ -90,17 +80,8 @@ describe("createUserFileUploadSession", () => {
         maximumSizeInBytes: 2_048_000,
       }),
     );
-    expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith({
-      token: "token_123",
-      pathname: "users/user_123/my_file1.pdf",
-      allowedContentTypes: ["application/pdf"],
-      maximumSizeInBytes: 2_048_000,
-      validUntil: expect.any(Number),
-      addRandomSuffix: true,
-    });
     expect(result).toEqual({
       uploadUrl: "https://blob.example/upload?sig=1",
-      clientToken: "client-token-123",
       access: "public",
       method: "PUT",
       headers: { "Content-Type": "application/pdf" },
@@ -120,9 +101,6 @@ describe("createUserFileUploadSession", () => {
     presignUrlMock.mockResolvedValue({
       presignedUrl: "https://blob.example/upload?sig=2",
     });
-    generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
-      "client-token-456",
-    );
 
     await createUserFileUploadSession(
       "user_123",

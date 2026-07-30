@@ -41,7 +41,7 @@ function createApp(authContext: AuthenticationContext = ADMIN_AUTH_CONTEXT) {
   }>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
   userByIdApp.get("/", (c) => c.json({ id: c.req.param("id") }));
-  userByIdApp.get("/uploads", (c) => c.json({ id: c.req.param("id") }));
+  userByIdApp.get("/files", (c) => c.json({ id: c.req.param("id") }));
 
   app.route("/:id", userByIdApp);
 
@@ -57,7 +57,7 @@ describe("usersPathUserContextMiddleware", () => {
     userFindUniqueMock.mockResolvedValue(null);
     const app = createApp();
 
-    const response = await app.request("http://localhost/missing_user/uploads");
+    const response = await app.request("http://localhost/missing_user/files");
 
     expect(response.status).toBe(404);
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -75,7 +75,7 @@ describe("usersPathUserContextMiddleware", () => {
       role: "user",
     });
 
-    const response = await app.request("http://localhost/me/uploads");
+    const response = await app.request("http://localhost/me/files");
 
     expect(response.status).toBe(200);
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -92,7 +92,7 @@ describe("usersPathUserContextMiddleware", () => {
       context: { userId: "user_123", organizationId: null },
     });
 
-    const response = await app.request("http://localhost/user_123/uploads");
+    const response = await app.request("http://localhost/user_123/files");
 
     expect(response.status).toBe(403);
     expect(userFindUniqueMock).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ describe("usersPathUserContextMiddleware", () => {
       context: { userId: "user_123", organizationId: null },
     });
 
-    const response = await app.request("http://localhost/user_123/uploads");
+    const response = await app.request("http://localhost/user_123/files");
 
     expect(response.status).toBe(200);
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -123,7 +123,7 @@ describe("usersPathUserContextMiddleware", () => {
       context: { userId: "user_123", organizationId: null },
     });
 
-    const response = await app.request("http://localhost/me/uploads");
+    const response = await app.request("http://localhost/me/files");
 
     expect(response.status).toBe(200);
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -138,7 +138,7 @@ describe("usersPathUserContextMiddleware", () => {
       orchestratorId: "orch_123",
     });
 
-    const response = await app.request("http://localhost/me/uploads");
+    const response = await app.request("http://localhost/me/files");
 
     expect(response.status).toBe(403);
     expect(userFindUniqueMock).not.toHaveBeenCalled();

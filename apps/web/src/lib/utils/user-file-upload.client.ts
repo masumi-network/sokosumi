@@ -1,14 +1,11 @@
 import type { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { resolveUserUploadContentType } from "@sokosumi/utils";
-import { put } from "@vercel/blob/client";
 import {
   CoreApiRequestError,
   coreClient,
 } from "@/lib/clients/core.browser.client";
 import type { BlobFile } from "@/lib/clients/generated/core";
 import { formatBytes } from "@/lib/utils/format-bytes";
-
-const MULTIPART_UPLOAD_MIN_SIZE_BYTES = 5 * 1024 * 1024;
 
 export type UserFileUploadErrorCode =
   | "invalid"
@@ -50,10 +47,6 @@ function extractMaxSizeFromMessage(message: string): number | null {
 
   const maxSize = matches.map(Number).find((value) => value > 1024);
   return maxSize ?? null;
-}
-
-function isBlobAbortMessage(message: string): boolean {
-  return message.toLowerCase().includes("request was aborted");
 }
 
 function toUserFileUploadError(error: unknown): UserFileUploadError {
@@ -108,22 +101,7 @@ function toUserFileUploadError(error: unknown): UserFileUploadError {
     return new UserFileUploadError("unknown", "Failed to upload file.");
   }
 
-  if (error.name === "BlobFileTooLargeError") {
-    return new UserFileUploadError("too_large", "File is too large.");
-  }
-
-  if (error.name === "BlobContentTypeNotAllowedError") {
-    return new UserFileUploadError(
-      "unsupported_type",
-      "File type is not accepted.",
-    );
-  }
-
-  if (
-    error.name === "AbortError" ||
-    error.name === "BlobRequestAbortedError" ||
-    isBlobAbortMessage(error.message)
-  ) {
+  if (error.name === "AbortError") {
     return new UserFileUploadError("aborted", "Upload canceled.");
   }
 
@@ -174,6 +152,22 @@ function toBlobFileFromPut(
   };
 }
 
+function parsePutResponseBody(raw: string): BlobPutResponseBody {
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as BlobPutResponseBody;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * PUT raw bytes to a Blob presigned URL (same wire as task-file mint).
+ * Uses XHR so `onUploadProgress` works without the Blob SDK.
+ */
 async function uploadViaPresignedUrl(
   file: File,
   contentType: string,
@@ -184,79 +178,97 @@ async function uploadViaPresignedUrl(
   },
   options: UploadUserFileDirectOptions,
 ): Promise<BlobFile> {
-  const headers = new Headers();
-  headers.set("Content-Type", session.headers?.["Content-Type"] ?? contentType);
+  const headerContentType = session.headers?.["Content-Type"] ?? contentType;
 
-  const response = await fetch(session.uploadUrl, {
-    method: "PUT",
-    headers,
-    body: file,
-    signal: options.abortSignal,
-  });
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", session.uploadUrl);
+    xhr.setRequestHeader("Content-Type", headerContentType);
+    xhr.responseType = "text";
 
-  if (!response.ok) {
-    throw new UserFileUploadError(
-      "unknown",
-      `Blob upload failed with status ${response.status}.`,
-    );
-  }
+    xhr.upload.onprogress = (event) => {
+      if (!options.onUploadProgress || !event.lengthComputable) {
+        return;
+      }
 
-  options.onUploadProgress?.({
-    loaded: file.size,
-    total: file.size,
-    percentage: 100,
-  });
+      const total = event.total > 0 ? event.total : file.size;
+      const loaded = event.loaded;
+      options.onUploadProgress({
+        loaded,
+        total,
+        percentage: total > 0 ? Math.round((loaded / total) * 100) : 0,
+      });
+    };
 
-  let body: BlobPutResponseBody = {};
-  const responseType = response.headers.get("content-type") ?? "";
-  if (responseType.includes("application/json")) {
-    try {
-      body = (await response.json()) as BlobPutResponseBody;
-    } catch {
-      body = {};
+    const abort = () => {
+      xhr.abort();
+    };
+
+    if (options.abortSignal) {
+      if (options.abortSignal.aborted) {
+        reject(new UserFileUploadError("aborted", "Upload canceled."));
+        return;
+      }
+      options.abortSignal.addEventListener("abort", abort, { once: true });
     }
-  }
 
-  const url = body.url;
-  if (!url) {
-    throw new UserFileUploadError(
-      "unknown",
-      "Blob upload succeeded but returned no public URL.",
-    );
-  }
+    xhr.onload = () => {
+      options.abortSignal?.removeEventListener("abort", abort);
 
-  return toBlobFileFromPut(file, {
-    url,
-    pathname: body.pathname ?? session.pathname,
-    downloadUrl: body.downloadUrl ?? url,
-    etag: body.etag ?? response.headers.get("etag") ?? "",
-  });
-}
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(
+          new UserFileUploadError(
+            "unknown",
+            `Blob upload failed with status ${xhr.status}.`,
+          ),
+        );
+        return;
+      }
 
-async function uploadViaClientToken(
-  file: File,
-  contentType: string,
-  session: {
-    pathname: string;
-    access: "public";
-    clientToken: string;
-  },
-  options: UploadUserFileDirectOptions,
-): Promise<BlobFile> {
-  const blob = await put(session.pathname, file, {
-    access: session.access,
-    token: session.clientToken,
-    contentType,
-    multipart: file.size > MULTIPART_UPLOAD_MIN_SIZE_BYTES,
-    abortSignal: options.abortSignal,
-    onUploadProgress: options.onUploadProgress,
-  });
+      const body = parsePutResponseBody(xhr.responseText);
+      const url = body.url;
+      if (!url) {
+        reject(
+          new UserFileUploadError(
+            "unknown",
+            "Blob upload succeeded but returned no public URL.",
+          ),
+        );
+        return;
+      }
 
-  return toBlobFileFromPut(file, {
-    url: blob.url,
-    pathname: blob.pathname,
-    downloadUrl: blob.downloadUrl,
-    etag: blob.etag,
+      options.onUploadProgress?.({
+        loaded: file.size,
+        total: file.size,
+        percentage: 100,
+      });
+
+      resolve(
+        toBlobFileFromPut(file, {
+          url,
+          pathname: body.pathname ?? session.pathname,
+          downloadUrl: body.downloadUrl ?? url,
+          etag: body.etag ?? xhr.getResponseHeader("etag") ?? "",
+        }),
+      );
+    };
+
+    xhr.onerror = () => {
+      options.abortSignal?.removeEventListener("abort", abort);
+      reject(
+        new UserFileUploadError(
+          "network",
+          "Network error while uploading file. Please try again.",
+        ),
+      );
+    };
+
+    xhr.onabort = () => {
+      options.abortSignal?.removeEventListener("abort", abort);
+      reject(new UserFileUploadError("aborted", "Upload canceled."));
+    };
+
+    xhr.send(file);
   });
 }
 
@@ -299,51 +311,22 @@ export async function uploadUserFileDirect(
       await coreClient.createMyFileUploadSession(sessionBody);
     const session = uploadSession.data;
 
-    // Prefer REST presigned PUT (agent-compatible wire). Fall back to legacy
-    // client-token `put` when progress callbacks need the Blob SDK.
-    const needsSdkProgress = Boolean(options.onUploadProgress);
-    if (session.uploadUrl && !needsSdkProgress) {
-      return await uploadViaPresignedUrl(
-        file,
-        contentType,
-        {
-          uploadUrl: session.uploadUrl,
-          pathname: session.pathname,
-          headers: session.headers,
-        },
-        options,
+    if (!session.uploadUrl) {
+      throw new UserFileUploadError(
+        "unknown",
+        "Upload session missing uploadUrl.",
       );
     }
 
-    if (session.clientToken) {
-      return await uploadViaClientToken(
-        file,
-        contentType,
-        {
-          pathname: session.pathname,
-          access: session.access,
-          clientToken: session.clientToken,
-        },
-        options,
-      );
-    }
-
-    if (session.uploadUrl) {
-      return await uploadViaPresignedUrl(
-        file,
-        contentType,
-        {
-          uploadUrl: session.uploadUrl,
-          pathname: session.pathname,
-          headers: session.headers,
-        },
-        options,
-      );
-    }
-
-    throw new UserFileUploadError(
-      "unknown",
-      "Upload session missing uploadUrl and clientToken.",
+    return await uploadViaPresignedUrl(
+      file,
+      contentType,
+      {
+        uploadUrl: session.uploadUrl,
+        pathname: session.pathname,
+        headers: session.headers,
+      },
+      options,
     );
   } catch (error) {
     throw toUserFileUploadError(error);

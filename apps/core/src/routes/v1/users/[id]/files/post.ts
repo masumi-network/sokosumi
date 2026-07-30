@@ -109,18 +109,18 @@ const requestSchema = createUserFileUploadRequestSchema
 
 const route = createRoute({
   method: "post",
-  path: "/uploads",
+  path: "/files",
   description: [
-    "Create a direct upload session: path `me` for the session user, or a user id when the caller may access that user's data.",
+    "Mint a direct upload session for a user file: path `me` for the session user,",
+    "or a user id when the caller may access that user's data.",
     "Bytes go client → Vercel Blob (not through this API).",
     "",
-    "Agent / REST (preferred):",
+    "Agent / REST:",
     "1. POST this endpoint with `filename`, `contentType`, and `size`.",
-    "2. PUT the raw file bytes to `data.uploadUrl` with header `Content-Type` from `data.headers` (or the resolved content type).",
-    "3. Use the final public Blob URL from the PUT response (or product field that stores it). No `@vercel/blob` SDK required.",
-    "",
-    "Legacy dual-run (web SDK):",
-    "Use `data.clientToken` with `@vercel/blob/client` `put(pathname, file, { access, token: clientToken, contentType, multipart })`.",
+    "2. PUT the raw file bytes to `data.uploadUrl` with header `Content-Type` from `data.headers`",
+    "   (or the resolved content type).",
+    "3. Use the final public Blob URL from the PUT response (or product field that stores it).",
+    "   No `@vercel/blob` SDK required.",
     "",
     "Reference: https://vercel.com/docs/vercel-blob/vercel-signed-urls",
   ].join("\n"),
@@ -144,7 +144,6 @@ const route = createRoute({
         data: {
           uploadUrl:
             "https://store.public.blob.vercel-storage.com/users/user_123/document.pdf?vercel-blob-delegation=…",
-          clientToken: "vercel_blob_client_token",
           access: "public",
           method: "PUT",
           headers: { "Content-Type": "application/pdf" },

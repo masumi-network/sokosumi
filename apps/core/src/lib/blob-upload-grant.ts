@@ -1,5 +1,4 @@
 import { issueSignedToken, presignUrl } from "@vercel/blob";
-import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 const DEFAULT_TOKEN_VALID_MS = 15 * 60 * 1000;
 const DEFAULT_URL_VALID_MS = 10 * 60 * 1000;
@@ -20,8 +19,6 @@ export interface CreateBlobUploadGrantInput {
   allowedContentTypes?: readonly string[];
   tokenValidMs?: number;
   urlValidMs?: number;
-  /** Dual-run: also mint legacy client token for `@vercel/blob/client` `put`. */
-  includeClientToken?: boolean;
   /**
    * Blob `onUploadCompleted` callback (presigned PUT path).
    * Requires a public Core URL and `BLOB_WEBHOOK_PUBLIC_KEY` on the completion route.
@@ -43,12 +40,11 @@ export interface BlobUploadGrant {
   expiresAt: string;
   maxSizeBytes: number;
   addRandomSuffix: boolean;
-  clientToken?: string;
 }
 
 /**
- * Mint a short-lived direct-upload grant: presigned PUT URL (+ optional legacy
- * client token). Callers own auth, path construction, and MIME/size policy.
+ * Mint a short-lived direct-upload grant: presigned PUT URL.
+ * Callers own auth, path construction, and MIME/size policy.
  */
 export async function createBlobUploadGrant(
   input: CreateBlobUploadGrantInput,
@@ -87,7 +83,7 @@ export async function createBlobUploadGrant(
       : {}),
   });
 
-  const grant: BlobUploadGrant = {
+  return {
     uploadUrl: presignedUrl,
     pathname: input.pathname,
     access: input.access,
@@ -99,17 +95,4 @@ export async function createBlobUploadGrant(
     maxSizeBytes: input.maxSizeBytes,
     addRandomSuffix: input.addRandomSuffix,
   };
-
-  if (input.includeClientToken) {
-    grant.clientToken = await generateClientTokenFromReadWriteToken({
-      token: input.token,
-      pathname: input.pathname,
-      allowedContentTypes,
-      maximumSizeInBytes: input.maximumSizeInBytes,
-      validUntil: tokenValidUntil,
-      addRandomSuffix: input.addRandomSuffix,
-    });
-  }
-
-  return grant;
 }

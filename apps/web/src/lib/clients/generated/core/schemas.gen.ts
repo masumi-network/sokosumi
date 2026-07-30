@@ -8596,27 +8596,6 @@ export const BlobFileMetadataSchema = {
 } as const;
 
 export const UserFileUploadSessionSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/BlobUploadGrant'
-        },
-        {
-            type: 'object',
-            properties: {
-                clientToken: {
-                    type: 'string',
-                    example: 'vercel_blob_client_token',
-                    description: 'Scoped Blob client token for `@vercel/blob/client` `put` (legacy dual-run). Prefer `uploadUrl` for agents and new clients.'
-                }
-            },
-            required: [
-                'clientToken'
-            ]
-        }
-    ]
-} as const;
-
-export const BlobUploadGrantSchema = {
     type: 'object',
     properties: {
         uploadUrl: {
@@ -8675,11 +8654,6 @@ export const BlobUploadGrantSchema = {
             type: 'boolean',
             example: true,
             description: 'Whether Blob appends a random suffix to the final pathname'
-        },
-        clientToken: {
-            type: 'string',
-            example: 'vercel_blob_client_token',
-            description: 'Legacy scoped client token for `@vercel/blob/client` `put`. Prefer `uploadUrl` for agents.'
         }
     },
     required: [
@@ -12403,11 +12377,6 @@ export const TaskFileUploadSessionSchema = {
             type: 'boolean',
             example: true,
             description: 'Whether Blob appends a random suffix to the final pathname'
-        },
-        clientToken: {
-            type: 'string',
-            example: 'vercel_blob_client_token',
-            description: 'Legacy scoped client token for `@vercel/blob/client` `put`. Prefer `uploadUrl` for agents.'
         }
     },
     required: [

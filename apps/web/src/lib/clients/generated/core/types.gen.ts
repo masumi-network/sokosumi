@@ -2513,14 +2513,7 @@ export type BlobFileMetadata = {
     etag: string;
 };
 
-export type UserFileUploadSession = BlobUploadGrant & {
-    /**
-     * Scoped Blob client token for `@vercel/blob/client` `put` (legacy dual-run). Prefer `uploadUrl` for agents and new clients.
-     */
-    clientToken: string;
-};
-
-export type BlobUploadGrant = {
+export type UserFileUploadSession = {
     /**
      * Presigned Blob PUT URL (time-scoped, path-scoped)
      */
@@ -2555,10 +2548,6 @@ export type BlobUploadGrant = {
      * Whether Blob appends a random suffix to the final pathname
      */
     addRandomSuffix: boolean;
-    /**
-     * Legacy scoped client token for `@vercel/blob/client` `put`. Prefer `uploadUrl` for agents.
-     */
-    clientToken?: string;
 };
 
 export type CreateUserFileUploadRequest = {
@@ -3612,10 +3601,6 @@ export type TaskFileUploadSession = {
      * Whether Blob appends a random suffix to the final pathname
      */
     addRandomSuffix: boolean;
-    /**
-     * Legacy scoped client token for `@vercel/blob/client` `put`. Prefer `uploadUrl` for agents.
-     */
-    clientToken?: string;
 };
 
 export type CreateTaskFileUploadSessionRequest = {
@@ -17016,7 +17001,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponses = {
 
 export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponse = PostUsersByIdNoticesByNoticeIdAcknowledgeResponses[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeResponses];
 
-export type GetUsersByIdUploadsData = {
+export type GetUsersByIdFilesData = {
     body?: never;
     path: {
         /**
@@ -17025,10 +17010,10 @@ export type GetUsersByIdUploadsData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/uploads';
+    url: '/users/{id}/files';
 };
 
-export type GetUsersByIdUploadsErrors = {
+export type GetUsersByIdFilesErrors = {
     /**
      * Unauthorized
      */
@@ -17101,11 +17086,11 @@ export type GetUsersByIdUploadsErrors = {
     };
 };
 
-export type GetUsersByIdUploadsError = GetUsersByIdUploadsErrors[keyof GetUsersByIdUploadsErrors];
+export type GetUsersByIdFilesError = GetUsersByIdFilesErrors[keyof GetUsersByIdFilesErrors];
 
-export type GetUsersByIdUploadsResponses = {
+export type GetUsersByIdFilesResponses = {
     /**
-     * Retrieve user uploads
+     * Retrieve user files
      */
     200: {
         data: Array<BlobFile>;
@@ -17117,9 +17102,9 @@ export type GetUsersByIdUploadsResponses = {
     };
 };
 
-export type GetUsersByIdUploadsResponse = GetUsersByIdUploadsResponses[keyof GetUsersByIdUploadsResponses];
+export type GetUsersByIdFilesResponse = GetUsersByIdFilesResponses[keyof GetUsersByIdFilesResponses];
 
-export type PostUsersByIdUploadsData = {
+export type PostUsersByIdFilesData = {
     body: CreateUserFileUploadRequest & {
         /**
          * File size in bytes
@@ -17133,10 +17118,10 @@ export type PostUsersByIdUploadsData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/uploads';
+    url: '/users/{id}/files';
 };
 
-export type PostUsersByIdUploadsErrors = {
+export type PostUsersByIdFilesErrors = {
     /**
      * Bad Request
      */
@@ -17237,9 +17222,9 @@ export type PostUsersByIdUploadsErrors = {
     };
 };
 
-export type PostUsersByIdUploadsError = PostUsersByIdUploadsErrors[keyof PostUsersByIdUploadsErrors];
+export type PostUsersByIdFilesError = PostUsersByIdFilesErrors[keyof PostUsersByIdFilesErrors];
 
-export type PostUsersByIdUploadsResponses = {
+export type PostUsersByIdFilesResponses = {
     /**
      * User file upload session created successfully
      */
@@ -17253,7 +17238,7 @@ export type PostUsersByIdUploadsResponses = {
     };
 };
 
-export type PostUsersByIdUploadsResponse = PostUsersByIdUploadsResponses[keyof PostUsersByIdUploadsResponses];
+export type PostUsersByIdFilesResponse = PostUsersByIdFilesResponses[keyof PostUsersByIdFilesResponses];
 
 export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
@@ -28676,6 +28661,20 @@ export type PostWebhooksTasksFilesUploadedErrors = {
      * Bad Request
      */
     400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
         error: string;
         message: string;
         kind?: string;

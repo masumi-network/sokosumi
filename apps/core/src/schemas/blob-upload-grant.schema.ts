@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 /**
  * Shared fields for REST direct-upload grants (user + task mint responses).
- * Clients PUT raw bytes to `uploadUrl`; agents need no Blob SDK.
+ * Clients PUT raw bytes to `uploadUrl`; no Blob SDK required.
  */
 export const blobUploadGrantSchema = z
   .object({
@@ -43,11 +43,6 @@ export const blobUploadGrantSchema = z
     addRandomSuffix: z.boolean().openapi({
       example: true,
       description: "Whether Blob appends a random suffix to the final pathname",
-    }),
-    clientToken: z.string().optional().openapi({
-      example: "vercel_blob_client_token",
-      description:
-        "Legacy scoped client token for `@vercel/blob/client` `put`. Prefer `uploadUrl` for agents.",
     }),
   })
   .openapi("BlobUploadGrant");

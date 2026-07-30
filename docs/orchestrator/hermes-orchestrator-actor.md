@@ -37,7 +37,7 @@ Notable examples:
 
 | Surface | Scope |
 | --- | --- |
-| `/v1/users/{id\|me}/*` | Path must be `me` or the context user id (session admin may still target others). Includes preferences, uploads, Stripe customer provision, vendor grants, OAuth consent revoke, etc. |
+| `/v1/users/{id\|me}/*` | Path must be `me` or the context user id (session admin may still target others). Includes preferences, files, Stripe customer provision, vendor grants, OAuth consent revoke, etc. |
 | `/v1/organizations/*` | Context user must be an org member (owner/admin where the route requires it). Includes seats, vendor grants, design-md, Stripe customer provision, billing reads. |
 | Marketplace chat / conversations | Ownership scoped to context user id (coworker assignee rules still apply to coworker keys only). |
 | Notifications, history, tasks/jobs/projects/workspaces | Effective user / workspace context as for a normal user session. |

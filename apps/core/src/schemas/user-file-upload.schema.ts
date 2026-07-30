@@ -37,16 +37,10 @@ export const createUserFileUploadRequestSchema = z
   })
   .openapi("CreateUserFileUploadRequest");
 
-/** Dual-run: grant fields + required legacy clientToken for existing web clients. */
-export const userFileUploadSessionSchema = blobUploadGrantSchema
-  .extend({
-    clientToken: z.string().openapi({
-      example: "vercel_blob_client_token",
-      description:
-        "Scoped Blob client token for `@vercel/blob/client` `put` (legacy dual-run). Prefer `uploadUrl` for agents and new clients.",
-    }),
-  })
-  .openapi("UserFileUploadSession");
+/** Same grant shape as task-file mint (`TaskFileUploadSession`). */
+export const userFileUploadSessionSchema = blobUploadGrantSchema.openapi(
+  "UserFileUploadSession",
+);
 
 export type CreateUserFileUploadRequest = z.infer<
   typeof createUserFileUploadRequestSchema

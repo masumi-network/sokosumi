@@ -62,7 +62,7 @@ import type {
   PostProjectsData,
   PostTasksByIdLinksData,
   PostTasksData,
-  PostUsersByIdUploadsData,
+  PostUsersByIdFilesData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutTaskScheduleRequest,
@@ -248,9 +248,9 @@ import {
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
-  postUsersByIdUploads as corePostUsersByIdUploads,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
   postUsersByIdVendorGrantsByGrantIdDeny as corePostUsersByIdVendorGrantsByGrantIdDeny,
@@ -3277,12 +3277,12 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createMyFileUploadSession(
-    body: NonNullable<PostUsersByIdUploadsData["body"]>,
+    body: NonNullable<PostUsersByIdFilesData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostUsersByIdUploads({
+        corePostUsersByIdFiles({
           client,
           path: { id: CURRENT_USER_PATH_ID },
           body,

@@ -51,6 +51,7 @@ function toBlobFile(data: {
   };
 }
 
+/** User-file direct upload grant (presigned PUT). Same shape as task-file mint. */
 export async function createUserFileUploadSession(
   userId: string,
   file: {
@@ -71,31 +72,15 @@ export async function createUserFileUploadSession(
     access: USER_UPLOAD_ACCESS,
     addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,
     token,
-    includeClientToken: true,
   };
   if (file.allowedContentTypes && file.allowedContentTypes.length > 0) {
     grantInput.allowedContentTypes = file.allowedContentTypes;
   }
 
-  const grant = await createBlobUploadGrant(grantInput);
-  if (!grant.clientToken) {
-    throw new Error("User upload session requires a dual-run clientToken");
-  }
-
-  return {
-    uploadUrl: grant.uploadUrl,
-    pathname: grant.pathname,
-    access: grant.access,
-    method: grant.method,
-    headers: grant.headers,
-    expiresAt: grant.expiresAt,
-    maxSizeBytes: grant.maxSizeBytes,
-    addRandomSuffix: grant.addRandomSuffix,
-    clientToken: grant.clientToken,
-  };
+  return createBlobUploadGrant(grantInput);
 }
 
-/** Task-file direct upload grant (presigned PUT). No legacy clientToken. */
+/** Task-file direct upload grant (presigned PUT). Same shape as user-file mint. */
 export async function createTaskFileUploadSession(
   taskId: string,
   file: {
@@ -131,7 +116,6 @@ export async function createTaskFileUploadSession(
     access: "public",
     addRandomSuffix: true,
     token,
-    includeClientToken: false,
     onUploadCompleted: {
       callbackUrl: options.callbackUrl,
       tokenPayload,
