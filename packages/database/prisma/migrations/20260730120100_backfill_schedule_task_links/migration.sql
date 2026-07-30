@@ -1,13 +1,15 @@
 -- Backfill schedule-created PARENT edges to SCHEDULE.
 -- Parent: is/was a schedule template (QUEUED, schedule fields, or ever QUEUED).
--- Child: schedule-clone fingerprint — born READY with no DRAFT history
--- (cloneRecurringOccurrence creates READY runs; user tasks typically pass DRAFT).
+-- Child: schedule-clone fingerprint —
+--   * same name as template (cloneRecurringOccurrence copies name)
+--   * born READY with no DRAFT history (user tasks typically pass DRAFT)
 UPDATE "task_link" AS tl
 SET "type" = 'SCHEDULE'
 FROM "task" AS parent
 INNER JOIN "task" AS child ON child."id" = tl."toTaskId"
 WHERE tl."fromTaskId" = parent."id"
   AND tl."type" = 'PARENT'
+  AND child."name" = parent."name"
   AND (
     parent."status" = 'QUEUED'
     OR parent."nextRunAt" IS NOT NULL
