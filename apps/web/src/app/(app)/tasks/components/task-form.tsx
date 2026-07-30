@@ -548,6 +548,15 @@ export function TaskForm({
     async (files: File[]) => {
       if (files.length === 0) return;
 
+      if (!taskId) {
+        toast.error(
+          labels.uploadFileError ??
+            "Save the task as a draft before attaching files.",
+        );
+        setPendingUploadFiles([]);
+        return;
+      }
+
       const uploadToast = createTaskAttachmentUploadToast({
         files,
         labels: {
@@ -561,7 +570,7 @@ export function TaskForm({
       setUploadingAttachmentsCount((count) => count + 1);
       try {
         for (const [index, file] of files.entries()) {
-          const uploadedUrl = await uploadTaskAttachment(file, {
+          const uploadedUrl = await uploadTaskAttachment(taskId, file, {
             abortSignal: controller.signal,
             onUploadProgress: (progress) => {
               uploadToast.updateFileProgress(index, progress);
@@ -598,7 +607,12 @@ export function TaskForm({
         setUploadingAttachmentsCount((count) => count - 1);
       }
     },
-    [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
+    [
+      labels.uploadFileError,
+      labels.uploadingFile,
+      labels.uploadingFiles,
+      taskId,
+    ],
   );
 
   const handleRemoveAttachment = useCallback(
@@ -905,8 +919,15 @@ export function TaskForm({
                           mode === "create" ? TaskStatus.READY : undefined;
                         void handleSave(shortcutStatus);
                       }}
-                      onAttachClick={() =>
-                        attachmentTriggerRef.current?.click()
+                      onAttachClick={
+                        taskId
+                          ? () => attachmentTriggerRef.current?.click()
+                          : () => {
+                              toast.error(
+                                labels.uploadFileError ??
+                                  "Save the task as a draft before attaching files.",
+                              );
+                            }
                       }
                       attachLabel={labels.uploadFile}
                       isAttachmentUploading={isUploadingAttachments}

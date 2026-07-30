@@ -298,7 +298,7 @@ export function TaskActivitySection({
     setUploadingAttachmentsCount((count) => count + 1);
     try {
       for (const [index, file] of files.entries()) {
-        const uploadedUrl = await uploadTaskAttachment(file, {
+        const uploadedUrl = await uploadTaskAttachment(taskId, file, {
           abortSignal: controller.signal,
           onUploadProgress: (progress) => {
             uploadToast.updateFileProgress(index, progress);
@@ -320,6 +320,7 @@ export function TaskActivitySection({
         );
       }
       uploadToast.dismiss();
+      router.refresh();
     } catch (error) {
       uploadToast.dismiss();
       toast.error(

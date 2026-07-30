@@ -29,6 +29,7 @@ import tasksRouter from "./tasks/index.js";
 import toolsRouter from "./tools/index.js";
 import usersRouter from "./users/index.js";
 import vendorsRouter from "./vendors/index.js";
+import webhooksRouter from "./webhooks/index.js";
 import workspacesRouter from "./workspaces/index.js";
 
 const app = new OpenAPIHono();
@@ -137,6 +138,7 @@ app.route("/tasks", tasksRouter);
 app.route("/tools", toolsRouter);
 app.route("/products", productsRouter);
 app.route("/vendors", vendorsRouter);
+app.route("/webhooks", webhooksRouter);
 app.route("/workspaces", workspacesRouter);
 
 export default app;

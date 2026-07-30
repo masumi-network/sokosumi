@@ -2517,25 +2517,39 @@ export type BlobFileMetadata = {
 
 export type UserFileUploadSession = {
     /**
-     * Scoped Blob client token for direct uploads
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
      */
-    clientToken: string;
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
     /**
      * Blob access level for the upload
      */
     access: 'public';
     /**
-     * Server-generated upload pathname
+     * HTTP method for the client upload request
      */
-    pathname: string;
+    method: 'PUT';
     /**
-     * Whether Blob should append a random suffix
+     * Headers the client must send on the PUT
      */
-    addRandomSuffix: boolean;
+    headers: {
+        'Content-Type': string;
+    };
     /**
-     * Maximum supported file size for direct uploads
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
      */
     maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
+     */
+    addRandomSuffix: boolean;
 };
 
 export type CreateUserFileUploadRequest = {
@@ -3564,6 +3578,58 @@ export type MasumiTaskPaymentSource = {
 };
 
 export type TaskFiles = Array<TaskFile>;
+
+export type TaskFileUploadSession = {
+    /**
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
+     */
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * HTTP method for the client upload request
+     */
+    method: 'PUT';
+    /**
+     * Headers the client must send on the PUT
+     */
+    headers: {
+        'Content-Type': string;
+    };
+    /**
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
+     */
+    maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
+     */
+    addRandomSuffix: boolean;
+};
+
+export type CreateTaskFileUploadSessionRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Declared MIME type. May be inferred from the filename when generic.
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+};
 
 export type SiteIconResult = {
     url: string | null;
@@ -16943,7 +17009,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponses = {
 
 export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponse = PostUsersByIdNoticesByNoticeIdAcknowledgeResponses[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeResponses];
 
-export type GetUsersByIdUploadsData = {
+export type GetUsersByIdFilesData = {
     body?: never;
     path: {
         /**
@@ -16952,10 +17018,10 @@ export type GetUsersByIdUploadsData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/uploads';
+    url: '/users/{id}/files';
 };
 
-export type GetUsersByIdUploadsErrors = {
+export type GetUsersByIdFilesErrors = {
     /**
      * Unauthorized
      */
@@ -17028,11 +17094,11 @@ export type GetUsersByIdUploadsErrors = {
     };
 };
 
-export type GetUsersByIdUploadsError = GetUsersByIdUploadsErrors[keyof GetUsersByIdUploadsErrors];
+export type GetUsersByIdFilesError = GetUsersByIdFilesErrors[keyof GetUsersByIdFilesErrors];
 
-export type GetUsersByIdUploadsResponses = {
+export type GetUsersByIdFilesResponses = {
     /**
-     * Retrieve user uploads
+     * Retrieve user files
      */
     200: {
         data: Array<BlobFile>;
@@ -17044,9 +17110,9 @@ export type GetUsersByIdUploadsResponses = {
     };
 };
 
-export type GetUsersByIdUploadsResponse = GetUsersByIdUploadsResponses[keyof GetUsersByIdUploadsResponses];
+export type GetUsersByIdFilesResponse = GetUsersByIdFilesResponses[keyof GetUsersByIdFilesResponses];
 
-export type PostUsersByIdUploadsData = {
+export type PostUsersByIdFilesData = {
     body: CreateUserFileUploadRequest & {
         /**
          * File size in bytes
@@ -17060,10 +17126,10 @@ export type PostUsersByIdUploadsData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/uploads';
+    url: '/users/{id}/files';
 };
 
-export type PostUsersByIdUploadsErrors = {
+export type PostUsersByIdFilesErrors = {
     /**
      * Bad Request
      */
@@ -17164,9 +17230,9 @@ export type PostUsersByIdUploadsErrors = {
     };
 };
 
-export type PostUsersByIdUploadsError = PostUsersByIdUploadsErrors[keyof PostUsersByIdUploadsErrors];
+export type PostUsersByIdFilesError = PostUsersByIdFilesErrors[keyof PostUsersByIdFilesErrors];
 
-export type PostUsersByIdUploadsResponses = {
+export type PostUsersByIdFilesResponses = {
     /**
      * User file upload session created successfully
      */
@@ -17180,7 +17246,7 @@ export type PostUsersByIdUploadsResponses = {
     };
 };
 
-export type PostUsersByIdUploadsResponse = PostUsersByIdUploadsResponses[keyof PostUsersByIdUploadsResponses];
+export type PostUsersByIdFilesResponse = PostUsersByIdFilesResponses[keyof PostUsersByIdFilesResponses];
 
 export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
@@ -25109,6 +25175,20 @@ export type DeleteTasksByIdLinksByLinkIdData = {
 
 export type DeleteTasksByIdLinksByLinkIdErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -26296,12 +26376,7 @@ export type GetTasksByIdFilesResponses = {
 export type GetTasksByIdFilesResponse = GetTasksByIdFilesResponses[keyof GetTasksByIdFilesResponses];
 
 export type PostTasksByIdFilesData = {
-    body: {
-        /**
-         * Task file (max 52428800 bytes; user-upload MIME allowlist except image/svg+xml)
-         */
-        file?: Blob | File;
-    };
+    body: CreateTaskFileUploadSessionRequest;
     path: {
         id: string;
     };
@@ -26400,10 +26475,10 @@ export type PostTasksByIdFilesError = PostTasksByIdFilesErrors[keyof PostTasksBy
 
 export type PostTasksByIdFilesResponses = {
     /**
-     * Task file uploaded
+     * Task file upload session created
      */
     201: {
-        data: TaskFile;
+        data: TaskFileUploadSession;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28595,6 +28670,73 @@ export type UnassignCoworkerDeveloperResponses = {
 };
 
 export type UnassignCoworkerDeveloperResponse = UnassignCoworkerDeveloperResponses[keyof UnassignCoworkerDeveloperResponses];
+
+export type PostWebhooksTasksFilesUploadedData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/webhooks/tasks/files/uploaded';
+};
+
+export type PostWebhooksTasksFilesUploadedErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostWebhooksTasksFilesUploadedError = PostWebhooksTasksFilesUploadedErrors[keyof PostWebhooksTasksFilesUploadedErrors];
+
+export type PostWebhooksTasksFilesUploadedResponses = {
+    /**
+     * Upload completion handled
+     */
+    200: {
+        type: string;
+        response?: string;
+        [key: string]: unknown;
+    };
+};
+
+export type PostWebhooksTasksFilesUploadedResponse = PostWebhooksTasksFilesUploadedResponses[keyof PostWebhooksTasksFilesUploadedResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;

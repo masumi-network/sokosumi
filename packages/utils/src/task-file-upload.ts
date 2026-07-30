@@ -3,8 +3,14 @@ import { sanitizeUserUploadFilename } from "./user-upload-path.js";
 
 const TASK_FILES_DIR = "tasks";
 
-/** Max file size in bytes (50 MB) for task file uploads (server-enforced). */
-export const TASK_FILE_MAX_SIZE_BYTES = 50 * 1024 * 1024;
+/**
+ * Shared max for user + task direct uploads (100 MB).
+ * Sized for reliable single-request PUT (no multipart).
+ */
+export const FILE_UPLOAD_MAX_SIZE_BYTES = 100 * 1024 * 1024;
+
+/** Max file size in bytes for task file uploads (server-enforced). */
+export const TASK_FILE_MAX_SIZE_BYTES = FILE_UPLOAD_MAX_SIZE_BYTES;
 
 /** Max stored display name length for task file uploads (server-enforced). */
 export const TASK_FILE_MAX_NAME_LENGTH = 255;

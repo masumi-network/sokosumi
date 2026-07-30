@@ -24,6 +24,18 @@ export function isPrismaRecordNotFoundError(error: unknown): boolean {
 }
 
 /**
+ * Returns true if the error is a Prisma foreign-key constraint failure (P2003).
+ */
+export function isPrismaForeignKeyViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2003"
+  );
+}
+
+/**
  * Returns true when Postgres aborted a transaction due to concurrent writes.
  * Prisma surfaces this as P2034; the pg driver adapter can also raise
  * `DriverAdapterError: TransactionWriteConflict` without a Prisma code.
