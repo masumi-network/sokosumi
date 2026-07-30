@@ -10,17 +10,19 @@ import {
   isOwnedTaskFileUrl,
 } from "@sokosumi/utils";
 import { del, list, put } from "@vercel/blob";
-import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import {
+  type BlobUploadGrant,
+  createBlobUploadGrant,
+} from "@/lib/blob-upload-grant";
 import type { BlobFile } from "@/schemas/blob-file.schema";
 import type { UserFileUploadSession } from "@/schemas/user-file-upload.schema";
 
 type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
 const USER_UPLOAD_ACCESS = "public" as const;
 const USER_UPLOAD_ADD_RANDOM_SUFFIX = true as const;
-const USER_UPLOAD_SESSION_TTL_MS = 15 * 60 * 1000;
 const IMAGE_DATA_URI_REGEX =
   /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/i;
 
@@ -61,26 +63,78 @@ export async function createUserFileUploadSession(
   token: string,
 ): Promise<UserFileUploadSession> {
   const pathname = buildUserUploadPathname(userId, file.filename);
-  const allowedContentTypes =
-    file.allowedContentTypes && file.allowedContentTypes.length > 0
-      ? [...file.allowedContentTypes]
-      : [file.contentType];
-  const clientToken = await generateClientTokenFromReadWriteToken({
-    token,
+  const grantInput: Parameters<typeof createBlobUploadGrant>[0] = {
     pathname,
-    allowedContentTypes,
+    contentType: file.contentType,
     maximumSizeInBytes: file.size,
-    validUntil: Date.now() + USER_UPLOAD_SESSION_TTL_MS,
+    maxSizeBytes: file.maxSizeBytes,
+    access: USER_UPLOAD_ACCESS,
     addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,
-  });
+    token,
+    includeClientToken: true,
+  };
+  if (file.allowedContentTypes && file.allowedContentTypes.length > 0) {
+    grantInput.allowedContentTypes = file.allowedContentTypes;
+  }
+
+  const grant = await createBlobUploadGrant(grantInput);
+  if (!grant.clientToken) {
+    throw new Error("User upload session requires a dual-run clientToken");
+  }
 
   return {
-    clientToken,
-    access: USER_UPLOAD_ACCESS,
-    pathname,
-    addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,
-    maxSizeBytes: file.maxSizeBytes,
+    uploadUrl: grant.uploadUrl,
+    pathname: grant.pathname,
+    access: grant.access,
+    method: grant.method,
+    headers: grant.headers,
+    expiresAt: grant.expiresAt,
+    maxSizeBytes: grant.maxSizeBytes,
+    addRandomSuffix: grant.addRandomSuffix,
+    clientToken: grant.clientToken,
   };
+}
+
+/** Task-file direct upload grant (presigned PUT). No legacy clientToken. */
+export async function createTaskFileUploadSession(
+  taskId: string,
+  file: {
+    filename: string;
+    contentType: string;
+    size: number;
+    maxSizeBytes: number;
+  },
+  token: string,
+  options: {
+    uploadedByUserId: string | null;
+    uploadedByCoworkerId: string | null;
+    callbackUrl: string;
+  },
+): Promise<BlobUploadGrant> {
+  const pathname = buildTaskFilePathname(taskId, file.filename);
+  const tokenPayload = JSON.stringify({
+    taskId,
+    name: file.filename,
+    mimeType: file.contentType,
+    size: file.size,
+    uploadedByUserId: options.uploadedByUserId,
+    uploadedByCoworkerId: options.uploadedByCoworkerId,
+  });
+
+  return createBlobUploadGrant({
+    pathname,
+    contentType: file.contentType,
+    maximumSizeInBytes: file.size,
+    maxSizeBytes: file.maxSizeBytes,
+    access: "public",
+    addRandomSuffix: true,
+    token,
+    includeClientToken: false,
+    onUploadCompleted: {
+      callbackUrl: options.callbackUrl,
+      tokenPayload,
+    },
+  });
 }
 
 export async function listUserUploads(

@@ -146,6 +146,120 @@ export function getUserFileUploadErrorMessage(
   return typedError.message || fallbackMessage;
 }
 
+interface BlobPutResponseBody {
+  url?: string;
+  pathname?: string;
+  downloadUrl?: string;
+  etag?: string;
+}
+
+function toBlobFileFromPut(
+  file: File,
+  blob: {
+    url: string;
+    pathname: string;
+    downloadUrl: string;
+    etag: string;
+  },
+): BlobFile {
+  return {
+    publicUrl: blob.url,
+    metadata: {
+      pathname: blob.pathname,
+      downloadUrl: blob.downloadUrl,
+      size: file.size,
+      uploadedAt: new Date(),
+      etag: blob.etag,
+    },
+  };
+}
+
+async function uploadViaPresignedUrl(
+  file: File,
+  contentType: string,
+  session: {
+    uploadUrl: string;
+    pathname: string;
+    headers?: { "Content-Type"?: string };
+  },
+  options: UploadUserFileDirectOptions,
+): Promise<BlobFile> {
+  const headers = new Headers();
+  headers.set("Content-Type", session.headers?.["Content-Type"] ?? contentType);
+
+  const response = await fetch(session.uploadUrl, {
+    method: "PUT",
+    headers,
+    body: file,
+    signal: options.abortSignal,
+  });
+
+  if (!response.ok) {
+    throw new UserFileUploadError(
+      "unknown",
+      `Blob upload failed with status ${response.status}.`,
+    );
+  }
+
+  options.onUploadProgress?.({
+    loaded: file.size,
+    total: file.size,
+    percentage: 100,
+  });
+
+  let body: BlobPutResponseBody = {};
+  const responseType = response.headers.get("content-type") ?? "";
+  if (responseType.includes("application/json")) {
+    try {
+      body = (await response.json()) as BlobPutResponseBody;
+    } catch {
+      body = {};
+    }
+  }
+
+  const url = body.url;
+  if (!url) {
+    throw new UserFileUploadError(
+      "unknown",
+      "Blob upload succeeded but returned no public URL.",
+    );
+  }
+
+  return toBlobFileFromPut(file, {
+    url,
+    pathname: body.pathname ?? session.pathname,
+    downloadUrl: body.downloadUrl ?? url,
+    etag: body.etag ?? response.headers.get("etag") ?? "",
+  });
+}
+
+async function uploadViaClientToken(
+  file: File,
+  contentType: string,
+  session: {
+    pathname: string;
+    access: "public";
+    clientToken: string;
+  },
+  options: UploadUserFileDirectOptions,
+): Promise<BlobFile> {
+  const blob = await put(session.pathname, file, {
+    access: session.access,
+    token: session.clientToken,
+    contentType,
+    multipart: file.size > MULTIPART_UPLOAD_MIN_SIZE_BYTES,
+    abortSignal: options.abortSignal,
+    onUploadProgress: options.onUploadProgress,
+  });
+
+  return toBlobFileFromPut(file, {
+    url: blob.url,
+    pathname: blob.pathname,
+    downloadUrl: blob.downloadUrl,
+    etag: blob.etag,
+  });
+}
+
 export async function uploadUserFileDirect(
   file: File,
   options: UploadUserFileDirectOptions = {},
@@ -183,25 +297,54 @@ export async function uploadUserFileDirect(
 
     const uploadSession =
       await coreClient.createMyFileUploadSession(sessionBody);
-    const blob = await put(uploadSession.data.pathname, file, {
-      access: uploadSession.data.access,
-      token: uploadSession.data.clientToken,
-      contentType,
-      multipart: file.size > MULTIPART_UPLOAD_MIN_SIZE_BYTES,
-      abortSignal: options.abortSignal,
-      onUploadProgress: options.onUploadProgress,
-    });
+    const session = uploadSession.data;
 
-    return {
-      publicUrl: blob.url,
-      metadata: {
-        pathname: blob.pathname,
-        downloadUrl: blob.downloadUrl,
-        size: file.size,
-        uploadedAt: new Date(),
-        etag: blob.etag,
-      },
-    };
+    // Prefer REST presigned PUT (agent-compatible wire). Fall back to legacy
+    // client-token `put` when progress callbacks need the Blob SDK.
+    const needsSdkProgress = Boolean(options.onUploadProgress);
+    if (session.uploadUrl && !needsSdkProgress) {
+      return await uploadViaPresignedUrl(
+        file,
+        contentType,
+        {
+          uploadUrl: session.uploadUrl,
+          pathname: session.pathname,
+          headers: session.headers,
+        },
+        options,
+      );
+    }
+
+    if (session.clientToken) {
+      return await uploadViaClientToken(
+        file,
+        contentType,
+        {
+          pathname: session.pathname,
+          access: session.access,
+          clientToken: session.clientToken,
+        },
+        options,
+      );
+    }
+
+    if (session.uploadUrl) {
+      return await uploadViaPresignedUrl(
+        file,
+        contentType,
+        {
+          uploadUrl: session.uploadUrl,
+          pathname: session.pathname,
+          headers: session.headers,
+        },
+        options,
+      );
+    }
+
+    throw new UserFileUploadError(
+      "unknown",
+      "Upload session missing uploadUrl and clientToken.",
+    );
   } catch (error) {
     throw toUserFileUploadError(error);
   }

@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import { TASK_FILE_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -12,20 +13,33 @@ import mountPostTaskFile from "./post";
 const {
   taskFindFirstMock,
   taskFindUniqueMock,
-  taskFileCreateMock,
   taskFileFindManyMock,
   coworkerFindFirstMock,
-  uploadTaskFileMock,
-  deleteTaskFileIfOwnedMock,
+  createTaskFileUploadSessionMock,
+  getEnvMock,
 } = vi.hoisted(() => ({
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
-  taskFileCreateMock: vi.fn(),
   taskFileFindManyMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
-  uploadTaskFileMock: vi.fn(),
-  deleteTaskFileIfOwnedMock: vi.fn(),
+  createTaskFileUploadSessionMock: vi.fn(),
+  getEnvMock: vi.fn(),
 }));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => {
+      const base = actual.getEnv();
+      return {
+        ...base,
+        ...getEnvMock(),
+      };
+    },
+    getBetterAuthPublicBaseUrl: () => "https://core.example.com",
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -34,7 +48,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: taskFindUniqueMock,
     },
     taskFile: {
-      create: taskFileCreateMock,
       findMany: taskFileFindManyMock,
     },
     coworker: {
@@ -44,8 +57,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/lib/blob", () => ({
-  uploadTaskFile: uploadTaskFileMock,
-  deleteTaskFileIfOwned: deleteTaskFileIfOwnedMock,
+  createTaskFileUploadSession: (...args: unknown[]) =>
+    createTaskFileUploadSessionMock(...args),
 }));
 
 const TASK_ID = "tsk_123";
@@ -54,6 +67,17 @@ const COWORKER_ID = "cow_123";
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const FILE_URL =
   "https://abc.public.blob.vercel-storage.com/tasks/tsk_123/report-xyz.pdf";
+
+const UPLOAD_SESSION = {
+  uploadUrl: "https://blob.example/upload?sig=1",
+  pathname: "tasks/tsk_123/report.pdf",
+  access: "public" as const,
+  method: "PUT" as const,
+  headers: { "Content-Type": "application/pdf" },
+  expiresAt: "2026-07-30T12:15:00.000Z",
+  maxSizeBytes: TASK_FILE_MAX_SIZE_BYTES,
+  addRandomSuffix: true,
+};
 
 function ownedTask(overrides: Record<string, unknown> = {}) {
   return {
@@ -65,6 +89,11 @@ function ownedTask(overrides: Record<string, unknown> = {}) {
     workspaceId: WORKSPACE_ID,
     ...overrides,
   };
+}
+
+function mountFiles(app: OpenAPIHonoWithAuth) {
+  mountGetTaskFiles(app);
+  mountPostTaskFile(app);
 }
 
 function createUserApp(userId = OWNER_ID) {
@@ -88,8 +117,7 @@ function createUserApp(userId = OWNER_ID) {
     return await next();
   });
 
-  mountGetTaskFiles(app as unknown as OpenAPIHonoWithAuth);
-  mountPostTaskFile(app as unknown as OpenAPIHonoWithAuth);
+  mountFiles(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -109,14 +137,19 @@ function createCoworkerApp(assigneeId = COWORKER_ID) {
     return await next();
   });
 
-  mountGetTaskFiles(app as unknown as OpenAPIHonoWithAuth);
-  mountPostTaskFile(app as unknown as OpenAPIHonoWithAuth);
+  mountFiles(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
 describe("task files routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getEnvMock.mockReturnValue({
+      BLOB_READ_WRITE_TOKEN: "blob-token",
+      BLOB_WEBHOOK_PUBLIC_KEY:
+        "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
+    } as ReturnType<typeof getEnvMock>);
+    createTaskFileUploadSessionMock.mockResolvedValue(UPLOAD_SESSION);
   });
 
   it("lists task files for the owner", async () => {
@@ -153,165 +186,86 @@ describe("task files routes", () => {
         name: "report.pdf",
         fileUrl: FILE_URL,
         size: 123,
-        uploader: {
-          type: "user",
-          id: OWNER_ID,
-          user: { id: OWNER_ID, name: "Ada", image: null },
-        },
       }),
     ]);
   });
 
-  it("lists task files for the assigned coworker", async () => {
-    coworkerFindFirstMock.mockResolvedValueOnce({
-      id: COWORKER_ID,
-      slug: "ops",
-      baseURL: null,
-    });
-    // Coworker task read uses findFirst with assignee/vendor grant where.
+  it("mints an upload session for the owner with completion callback", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-    taskFileFindManyMock.mockResolvedValueOnce([
-      {
-        id: "tfile_1",
-        taskId: TASK_ID,
-        createdAt: new Date("2026-07-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-        name: "report.pdf",
-        fileUrl: FILE_URL,
-        mimeType: "application/pdf",
-        size: 123n,
-        uploadedByUserId: OWNER_ID,
-        uploadedByCoworkerId: null,
-        uploadedByUser: {
-          id: OWNER_ID,
-          name: "Ada",
-          image: null,
-        },
-        uploadedByCoworker: null,
-      },
-    ]);
-
-    const app = createCoworkerApp();
-    const response = await app.request(`http://localhost/${TASK_ID}/files`);
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data).toEqual([
-      expect.objectContaining({
-        id: "tfile_1",
-        name: "report.pdf",
-        fileUrl: FILE_URL,
-      }),
-    ]);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
-  });
-
-  it("uploads a task file for the owner", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-    uploadTaskFileMock.mockResolvedValueOnce(FILE_URL);
-    taskFileCreateMock.mockResolvedValueOnce({
-      id: "tfile_1",
-      taskId: TASK_ID,
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-      name: "report.pdf",
-      fileUrl: FILE_URL,
-      mimeType: "application/pdf",
-      size: 11n,
-      uploadedByUserId: OWNER_ID,
-      uploadedByCoworkerId: null,
-      uploadedByUser: {
-        id: OWNER_ID,
-        name: "Ada",
-        image: null,
-      },
-      uploadedByCoworker: null,
-    });
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["hello world"], "report.pdf", { type: "application/pdf" }),
-    );
 
     const app = createUserApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "report.pdf",
+        contentType: "application/pdf",
+        size: 11,
+      }),
     });
 
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.data).toMatchObject({
-      id: "tfile_1",
-      fileUrl: FILE_URL,
-      mimeType: "application/pdf",
-      uploader: { type: "user", id: OWNER_ID },
+      uploadUrl: UPLOAD_SESSION.uploadUrl,
+      method: "PUT",
+      pathname: UPLOAD_SESSION.pathname,
     });
-    expect(uploadTaskFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        taskId: TASK_ID,
-        contentType: "application/pdf",
+    expect(createTaskFileUploadSessionMock).toHaveBeenCalledWith(
+      TASK_ID,
+      {
         filename: "report.pdf",
-      }),
+        contentType: "application/pdf",
+        size: 11,
+        maxSizeBytes: TASK_FILE_MAX_SIZE_BYTES,
+      },
+      "blob-token",
+      {
+        uploadedByUserId: OWNER_ID,
+        uploadedByCoworkerId: null,
+        callbackUrl:
+          "https://core.example.com/v1/webhooks/tasks/files/uploaded",
+      },
     );
   });
 
-  it("allows assigned coworker to upload", async () => {
+  it("mints for assigned coworker with coworker uploader id", async () => {
     coworkerFindFirstMock.mockResolvedValueOnce({
       id: COWORKER_ID,
       slug: "ops",
       baseURL: null,
     });
     taskFindUniqueMock.mockResolvedValueOnce(ownedTask());
-    uploadTaskFileMock.mockResolvedValueOnce(FILE_URL);
-    taskFileCreateMock.mockResolvedValueOnce({
-      id: "tfile_2",
-      taskId: TASK_ID,
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-      name: "notes.txt",
-      fileUrl: FILE_URL,
-      mimeType: "text/plain",
-      size: 5n,
-      uploadedByUserId: null,
-      uploadedByCoworkerId: COWORKER_ID,
-      uploadedByUser: null,
-      uploadedByCoworker: {
-        id: COWORKER_ID,
-        name: "Ops",
-        image: null,
-        slug: "ops",
-      },
-    });
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["notes"], "notes.txt", { type: "text/plain" }),
-    );
 
     const app = createCoworkerApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "notes.txt",
+        contentType: "text/plain",
+        size: 5,
+      }),
     });
 
     expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.data.uploader).toEqual({
-      type: "coworker",
-      id: COWORKER_ID,
-      coworker: {
-        id: COWORKER_ID,
-        name: "Ops",
-        image: null,
-        slug: "ops",
+    expect(createTaskFileUploadSessionMock).toHaveBeenCalledWith(
+      TASK_ID,
+      expect.objectContaining({
+        filename: "notes.txt",
+        contentType: "text/plain",
+      }),
+      "blob-token",
+      {
+        uploadedByUserId: null,
+        uploadedByCoworkerId: COWORKER_ID,
+        callbackUrl:
+          "https://core.example.com/v1/webhooks/tasks/files/uploaded",
       },
-    });
+    );
   });
 
-  it("rejects unassigned coworker upload", async () => {
+  it("rejects unassigned coworker mint", async () => {
     coworkerFindFirstMock.mockResolvedValueOnce({
       id: "cow_other",
       slug: "other",
@@ -319,294 +273,158 @@ describe("task files routes", () => {
     });
     taskFindUniqueMock.mockResolvedValueOnce(ownedTask());
 
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["notes"], "notes.txt", { type: "text/plain" }),
-    );
-
     const app = createCoworkerApp("cow_other");
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "notes.txt",
+        contentType: "text/plain",
+        size: 5,
+      }),
     });
 
     expect(response.status).toBe(403);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+    expect(createTaskFileUploadSessionMock).not.toHaveBeenCalled();
   });
 
-  it("rejects empty file", async () => {
+  it("returns 503 when blob token is missing", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-
-    const form = new FormData();
-    form.append("file", new File([], "empty.pdf", { type: "application/pdf" }));
+    getEnvMock.mockReturnValue({
+      BLOB_READ_WRITE_TOKEN: "",
+      BLOB_WEBHOOK_PUBLIC_KEY: "key",
+    } as ReturnType<typeof getEnvMock>);
 
     const app = createUserApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
-    });
-
-    expect(response.status).toBe(400);
-  });
-
-  it("clamps long display names before upload and insert", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-    uploadTaskFileMock.mockResolvedValueOnce(FILE_URL);
-    const longName = `${"a".repeat(300)}.pdf`;
-    const clampedName = `${"a".repeat(251)}.pdf`;
-    taskFileCreateMock.mockResolvedValueOnce({
-      id: "tfile_long",
-      taskId: TASK_ID,
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-      name: clampedName,
-      fileUrl: FILE_URL,
-      mimeType: "application/pdf",
-      size: 4n,
-      uploadedByUserId: OWNER_ID,
-      uploadedByCoworkerId: null,
-      uploadedByUser: {
-        id: OWNER_ID,
-        name: "Ada",
-        image: null,
-      },
-      uploadedByCoworker: null,
-    });
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["%PDF"], longName, { type: "application/pdf" }),
-    );
-
-    const app = createUserApp();
-    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
-      method: "POST",
-      body: form,
-    });
-
-    expect(response.status).toBe(201);
-    expect(uploadTaskFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filename: clampedName,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "report.pdf",
+        contentType: "application/pdf",
+        size: 11,
       }),
-    );
-    expect(taskFileCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          name: clampedName,
-        }),
-      }),
-    );
-  });
-
-  it("returns 503 when blob upload fails", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-    uploadTaskFileMock.mockResolvedValueOnce(null);
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["hello"], "report.pdf", { type: "application/pdf" }),
-    );
-
-    const app = createUserApp();
-    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
-      method: "POST",
-      body: form,
     });
 
     expect(response.status).toBe(503);
+    expect(createTaskFileUploadSessionMock).not.toHaveBeenCalled();
   });
 
-  it("rolls back the blob when DB create fails after upload", async () => {
+  it("returns 503 when webhook public key is missing", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-    uploadTaskFileMock.mockResolvedValueOnce(FILE_URL);
-    taskFileCreateMock.mockRejectedValueOnce(new Error("db write failed"));
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["hello"], "report.pdf", { type: "application/pdf" }),
-    );
+    getEnvMock.mockReturnValue({
+      BLOB_READ_WRITE_TOKEN: "blob-token",
+      BLOB_WEBHOOK_PUBLIC_KEY: undefined,
+    } as ReturnType<typeof getEnvMock>);
 
     const app = createUserApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
-    });
-
-    expect(response.status).toBe(500);
-    expect(deleteTaskFileIfOwnedMock).toHaveBeenCalledWith(FILE_URL, TASK_ID);
-  });
-
-  it("rejects unsupported content types", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["MZ"], "malware.exe", { type: "application/x-msdownload" }),
-    );
-
-    const app = createUserApp();
-    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
-      method: "POST",
-      body: form,
-    });
-
-    expect(response.status).toBe(400);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects SVG uploads (public-share XSS surface)", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["<svg onload=alert(1)></svg>"], "icon.svg", {
-        type: "image/svg+xml",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "report.pdf",
+        contentType: "application/pdf",
+        size: 11,
       }),
-    );
-
-    const app = createUserApp();
-    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
-      method: "POST",
-      body: form,
     });
 
-    expect(response.status).toBe(400);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(503);
+    expect(createTaskFileUploadSessionMock).not.toHaveBeenCalled();
   });
 
-  it("rejects .svg even when Content-Type is an allowlisted image MIME", async () => {
+  it("rejects unsupported content types on mint", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
 
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["<svg onload=alert(1)></svg>"], "icon.svg", {
-        type: "image/png",
+    const app = createUserApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "malware.exe",
+        contentType: "application/x-msdownload",
+        size: 11,
       }),
-    );
+    });
+
+    expect(response.status).toBe(400);
+    expect(createTaskFileUploadSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects SVG on mint", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(ownedTask());
 
     const app = createUserApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "icon.svg",
+        contentType: "image/svg+xml",
+        size: 11,
+      }),
     });
 
     expect(response.status).toBe(400);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
   });
 
-  it("rejects upload when the task is parked", async () => {
+  it("rejects mint when the task is parked", async () => {
     taskFindFirstMock.mockResolvedValueOnce(
       ownedTask({ status: TaskStatus.GRANT_PENDING }),
     );
 
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["hello"], "report.pdf", { type: "application/pdf" }),
-    );
-
     const app = createUserApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "report.pdf",
+        contentType: "application/pdf",
+        size: 11,
+      }),
     });
 
     expect(response.status).toBe(403);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
   });
 
-  it("rejects upload from a non-owner user", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(null);
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["hello"], "report.pdf", { type: "application/pdf" }),
-    );
-
-    const app = createUserApp("user_other");
-    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
-      method: "POST",
-      body: form,
-    });
-
-    expect(response.status).toBe(404);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects files over the 50 MB limit", async () => {
+  it("rejects mint over the 50 MB limit", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
-
-    const oversized = new File(
-      [new Uint8Array(50 * 1024 * 1024 + 1)],
-      "big.pdf",
-      { type: "application/pdf" },
-    );
-
-    const form = new FormData();
-    form.append("file", oversized);
 
     const app = createUserApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "big.pdf",
+        contentType: "application/pdf",
+        size: TASK_FILE_MAX_SIZE_BYTES + 1,
+      }),
     });
 
     expect(response.status).toBe(413);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
   });
 
-  it("rejects coworker-with-context that is not the assignee", async () => {
-    coworkerFindFirstMock.mockResolvedValueOnce({
-      id: "cow_other",
-      slug: "other",
-      baseURL: null,
-    });
+  it("clamps long display names on mint", async () => {
     taskFindFirstMock.mockResolvedValueOnce(ownedTask());
+    const longName = `${"a".repeat(300)}.pdf`;
+    const clampedName = `${"a".repeat(251)}.pdf`;
 
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
-    app.use("*", async (c, next) => {
-      c.set("isAuthenticated", true);
-      c.set("authContext", {
-        actor: "coworker",
-        coworkerId: "cow_other",
-        vendorId: "11111111-1111-7111-8111-111111111111",
-        context: {
-          userId: OWNER_ID,
-          organizationId: null,
-        },
-      });
-      c.set("workspaceContext", {
-        workspaceId: WORKSPACE_ID,
-        userId: OWNER_ID,
-        organizationId: null,
-      });
-      return await next();
-    });
-    mountPostTaskFile(app as unknown as OpenAPIHonoWithAuth);
-
-    const form = new FormData();
-    form.append(
-      "file",
-      new File(["notes"], "notes.txt", { type: "text/plain" }),
-    );
-
+    const app = createUserApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: longName,
+        contentType: "application/pdf",
+        size: 4,
+      }),
     });
 
-    expect(response.status).toBe(403);
-    expect(uploadTaskFileMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(createTaskFileUploadSessionMock).toHaveBeenCalledWith(
+      TASK_ID,
+      expect.objectContaining({ filename: clampedName }),
+      "blob-token",
+      expect.any(Object),
+    );
   });
 });

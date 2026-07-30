@@ -4,8 +4,8 @@ import {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
-import { bodyLimit } from "hono/body-limit";
 
+import { getEnv } from "@/config/env";
 import { requireTaskFileUploadAccess } from "@/helpers/access-control";
 import {
   badRequest,
@@ -14,9 +14,11 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { mapTaskFile } from "@/helpers/task";
-import { deleteTaskFileIfOwned, uploadTaskFile } from "@/lib/blob";
-import prisma from "@/lib/db/prisma";
+import { createTaskFileUploadSession } from "@/lib/blob";
+import {
+  resolveBlobUploadCallbackUrl,
+  TASK_FILE_UPLOAD_COMPLETED_PATH,
+} from "@/lib/blob-callback-url";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
@@ -24,10 +26,10 @@ import {
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
-import { taskFileSchema } from "@/schemas/task-file.schema";
-import { taskFileApiInclude } from "@/types/task";
-
-const TASK_FILE_MAX_BODY_BYTES = TASK_FILE_MAX_SIZE_BYTES + 256 * 1024;
+import {
+  createTaskFileUploadSessionRequestSchema,
+  taskFileUploadSessionSchema,
+} from "@/schemas/task-file-upload.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -36,33 +38,40 @@ const paramsSchema = z.object({
   }),
 });
 
-const multipartBodySchema = z.object({
-  file: z.any().openapi({
-    type: "string",
-    format: "binary",
-    description: `Task file (max ${TASK_FILE_MAX_SIZE_BYTES} bytes; user-upload MIME allowlist except image/svg+xml)`,
-  }),
-});
-
 const route = createRoute({
   method: "post",
   path: "/{id}/files",
-  description:
-    "Upload a file for a task. Allowed for the task owner or the assigned coworker. Stores the file in public Vercel Blob storage and returns a public fileUrl. MIME allowlist matches user uploads except image/svg+xml.",
+  description: [
+    "Mint a direct upload session for a task file (owner or assigned coworker).",
+    "Bytes go client → Vercel Blob (not through this API).",
+    "When the Blob PUT completes, Core auto-creates the TaskFile row via",
+    "`POST /v1/webhooks/tasks/files/uploaded` (Blob `onUploadCompleted` webhook).",
+    "",
+    "Agent / REST:",
+    "1. POST this endpoint with `filename`, `contentType`, and `size`.",
+    "2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.",
+    "3. Done — no register call. Poll GET /v1/tasks/{id}/files if you need the TaskFile row.",
+    "",
+    `Max size: ${TASK_FILE_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads except image/svg+xml.`,
+    "Requires public Core URL for the completion callback (production / tunnel).",
+  ].join("\n"),
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
     body: {
       required: true,
       content: {
-        "multipart/form-data": {
-          schema: multipartBodySchema,
+        "application/json": {
+          schema: createTaskFileUploadSessionRequestSchema,
         },
       },
     },
   },
   responses: {
-    201: jsonSuccessResponse(taskFileSchema, "Task file uploaded"),
+    201: jsonSuccessResponse(
+      taskFileUploadSessionSchema,
+      "Task file upload session created",
+    ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -72,57 +81,35 @@ const route = createRoute({
   },
 });
 
-function isFileLike(value: unknown): value is File {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as File).arrayBuffer === "function" &&
-    typeof (value as File).size === "number" &&
-    typeof (value as File).type === "string" &&
-    typeof (value as File).name === "string"
-  );
-}
-
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.use(
-    "/:id/files",
-    bodyLimit({
-      maxSize: TASK_FILE_MAX_BODY_BYTES,
-      onError: () => {
-        throw payloadTooLarge(
-          `Request body is too large. Maximum file size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
-        );
-      },
-    }),
-  );
-
   app.openapi(route, async (c) => {
     const { id: taskId } = c.req.valid("param");
     const { authContext } = c.var;
 
     await requireTaskFileUploadAccess(authContext, taskId);
 
-    const body = await c.req.parseBody({ all: true });
-    const fileField = body.file;
-    const file = Array.isArray(fileField) ? fileField[0] : fileField;
-
-    if (!isFileLike(file)) {
-      throw badRequest("file is required");
+    const env = getEnv();
+    const token = env.BLOB_READ_WRITE_TOKEN;
+    if (!token) {
+      throw serviceUnavailable("Blob storage is not configured");
+    }
+    if (!env.BLOB_WEBHOOK_PUBLIC_KEY) {
+      throw serviceUnavailable(
+        "Blob upload completion is not configured (BLOB_WEBHOOK_PUBLIC_KEY)",
+      );
     }
 
-    if (file.size <= 0) {
-      throw badRequest("file must not be empty");
-    }
+    const body = c.req.valid("json");
 
-    if (file.size > TASK_FILE_MAX_SIZE_BYTES) {
+    if (body.size > TASK_FILE_MAX_SIZE_BYTES) {
       throw payloadTooLarge(
         `File is too large. Maximum size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
       );
     }
 
     const resolvedContentType = resolveTaskFileContentType(
-      file.name,
-      file.type,
+      body.filename,
+      body.contentType,
     );
     if (!resolvedContentType) {
       throw badRequest(
@@ -130,27 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    if (bytes.length > TASK_FILE_MAX_SIZE_BYTES) {
-      throw payloadTooLarge(
-        `File is too large. Maximum size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
-      );
-    }
-
-    const displayName = clampTaskFileName(file.name || "file");
-
-    const publicUrl = await uploadTaskFile({
-      taskId,
-      bytes,
-      contentType: resolvedContentType,
-      filename: displayName,
-    });
-
-    if (!publicUrl) {
-      throw serviceUnavailable(
-        "Blob storage is not configured or upload failed",
-      );
-    }
+    const displayName = clampTaskFileName(body.filename || "file");
 
     const uploadedByUserId =
       isUserAuthContext(authContext) || isOrchestratorAuthContext(authContext)
@@ -160,24 +127,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ? authContext.coworkerId
       : null;
 
-    try {
-      const createdFile = await prisma.taskFile.create({
-        data: {
-          taskId,
-          name: displayName,
-          fileUrl: publicUrl,
-          mimeType: resolvedContentType,
-          size: BigInt(bytes.length),
-          uploadedByUserId,
-          uploadedByCoworkerId,
-        },
-        include: taskFileApiInclude,
-      });
+    const callbackUrl = resolveBlobUploadCallbackUrl(
+      TASK_FILE_UPLOAD_COMPLETED_PATH,
+    );
 
-      return created(c, taskFileSchema.parse(mapTaskFile(createdFile)));
-    } catch (error) {
-      await deleteTaskFileIfOwned(publicUrl, taskId);
-      throw error;
-    }
+    const session = await createTaskFileUploadSession(
+      taskId,
+      {
+        filename: displayName,
+        contentType: resolvedContentType,
+        size: body.size,
+        maxSizeBytes: TASK_FILE_MAX_SIZE_BYTES,
+      },
+      token,
+      {
+        uploadedByUserId,
+        uploadedByCoworkerId,
+        callbackUrl,
+      },
+    );
+
+    return created(c, taskFileUploadSessionSchema.parse(session));
   });
 }

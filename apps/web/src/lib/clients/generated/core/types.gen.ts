@@ -2513,27 +2513,52 @@ export type BlobFileMetadata = {
     etag: string;
 };
 
-export type UserFileUploadSession = {
+export type UserFileUploadSession = BlobUploadGrant & {
     /**
-     * Scoped Blob client token for direct uploads
+     * Scoped Blob client token for `@vercel/blob/client` `put` (legacy dual-run). Prefer `uploadUrl` for agents and new clients.
      */
     clientToken: string;
+};
+
+export type BlobUploadGrant = {
+    /**
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
+     */
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
     /**
      * Blob access level for the upload
      */
     access: 'public';
     /**
-     * Server-generated upload pathname
+     * HTTP method for the client upload request
      */
-    pathname: string;
+    method: 'PUT';
     /**
-     * Whether Blob should append a random suffix
+     * Headers the client must send on the PUT
+     */
+    headers: {
+        'Content-Type': string;
+    };
+    /**
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
+     */
+    maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
      */
     addRandomSuffix: boolean;
     /**
-     * Maximum supported file size for direct uploads
+     * Legacy scoped client token for `@vercel/blob/client` `put`. Prefer `uploadUrl` for agents.
      */
-    maxSizeBytes: number;
+    clientToken?: string;
 };
 
 export type CreateUserFileUploadRequest = {
@@ -3552,6 +3577,62 @@ export type MasumiTaskPaymentSource = {
 
 export type TaskFiles = Array<TaskFile>;
 
+export type TaskFileUploadSession = {
+    /**
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
+     */
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * HTTP method for the client upload request
+     */
+    method: 'PUT';
+    /**
+     * Headers the client must send on the PUT
+     */
+    headers: {
+        'Content-Type': string;
+    };
+    /**
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
+     */
+    maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
+     */
+    addRandomSuffix: boolean;
+    /**
+     * Legacy scoped client token for `@vercel/blob/client` `put`. Prefer `uploadUrl` for agents.
+     */
+    clientToken?: string;
+};
+
+export type CreateTaskFileUploadSessionRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Declared MIME type. May be inferred from the filename when generic.
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+};
+
 export type SiteIconResult = {
     url: string | null;
 };
@@ -3638,6 +3719,11 @@ export type CoworkerAssignment = {
 export type AssignCoworkerRequest = {
     userId?: string;
     email?: string;
+};
+
+export type TaskFileUploadedWebhookBody = {
+    type: string;
+    [key: string]: unknown;
 };
 
 export type EffectiveDesignMd = {
@@ -26283,12 +26369,7 @@ export type GetTasksByIdFilesResponses = {
 export type GetTasksByIdFilesResponse = GetTasksByIdFilesResponses[keyof GetTasksByIdFilesResponses];
 
 export type PostTasksByIdFilesData = {
-    body: {
-        /**
-         * Task file (max 52428800 bytes; same MIME allowlist as user uploads)
-         */
-        file?: Blob | File;
-    };
+    body: CreateTaskFileUploadSessionRequest;
     path: {
         id: string;
     };
@@ -26387,10 +26468,10 @@ export type PostTasksByIdFilesError = PostTasksByIdFilesErrors[keyof PostTasksBy
 
 export type PostTasksByIdFilesResponses = {
     /**
-     * Task file uploaded
+     * Task file upload session created
      */
     201: {
-        data: TaskFile;
+        data: TaskFileUploadSession;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28582,6 +28663,59 @@ export type UnassignCoworkerDeveloperResponses = {
 };
 
 export type UnassignCoworkerDeveloperResponse = UnassignCoworkerDeveloperResponses[keyof UnassignCoworkerDeveloperResponses];
+
+export type PostWebhooksTasksFilesUploadedData = {
+    body: TaskFileUploadedWebhookBody;
+    path?: never;
+    query?: never;
+    url: '/webhooks/tasks/files/uploaded';
+};
+
+export type PostWebhooksTasksFilesUploadedErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostWebhooksTasksFilesUploadedError = PostWebhooksTasksFilesUploadedErrors[keyof PostWebhooksTasksFilesUploadedErrors];
+
+export type PostWebhooksTasksFilesUploadedResponses = {
+    /**
+     * Upload completion handled
+     */
+    200: {
+        type: string;
+        response?: string;
+        [key: string]: unknown;
+    };
+};
+
+export type PostWebhooksTasksFilesUploadedResponse = PostWebhooksTasksFilesUploadedResponses[keyof PostWebhooksTasksFilesUploadedResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;

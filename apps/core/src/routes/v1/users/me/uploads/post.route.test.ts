@@ -154,11 +154,15 @@ beforeEach(() => {
   });
   userFindUniqueMock.mockResolvedValue({ id: "user_123" });
   createUserFileUploadSessionMock.mockResolvedValue({
+    uploadUrl: "https://blob.example/upload?sig=1",
     clientToken: "client-token-123",
     access: "public",
+    method: "PUT",
+    headers: { "Content-Type": "application/pdf" },
     pathname: "users/user_123/report.pdf",
     addRandomSuffix: true,
     maxSizeBytes: LIMITS.USER_UPLOAD_MAX_SIZE_BYTES,
+    expiresAt: "2026-07-30T12:15:00.000Z",
   });
 });
 
@@ -283,11 +287,15 @@ describe("POST /uploads route", () => {
   it("creates a session with custom size and content-type constraints", async () => {
     const app = createApp();
     createUserFileUploadSessionMock.mockResolvedValue({
+      uploadUrl: "https://blob.example/upload?sig=logo",
       clientToken: "client-token-123",
       access: "public",
+      method: "PUT",
+      headers: { "Content-Type": "image/png" },
       pathname: "users/user_123/logo.png",
       addRandomSuffix: true,
       maxSizeBytes: 2_097_152,
+      expiresAt: "2026-07-30T12:15:00.000Z",
     });
 
     const response = await app.request("http://localhost/me/uploads", {

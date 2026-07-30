@@ -15,6 +15,8 @@ const {
   listMock,
   putMock,
   delMock,
+  issueSignedTokenMock,
+  presignUrlMock,
   generateClientTokenFromReadWriteTokenMock,
   getEnvMock,
   captureExceptionMock,
@@ -22,6 +24,8 @@ const {
   listMock: vi.fn(),
   putMock: vi.fn(),
   delMock: vi.fn(),
+  issueSignedTokenMock: vi.fn(),
+  presignUrlMock: vi.fn(),
   generateClientTokenFromReadWriteTokenMock: vi.fn(),
   getEnvMock: vi.fn(() => ({})),
   captureExceptionMock: vi.fn(),
@@ -35,6 +39,8 @@ vi.mock("@vercel/blob", () => ({
   put: putMock,
   list: listMock,
   del: delMock,
+  issueSignedToken: issueSignedTokenMock,
+  presignUrl: presignUrlMock,
 }));
 
 vi.mock("@vercel/blob/client", () => ({
@@ -52,6 +58,14 @@ describe("createUserFileUploadSession", () => {
   });
 
   it("creates a scoped direct upload session for the user upload path", async () => {
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=1",
+    });
     generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
       "client-token-123",
     );
@@ -67,6 +81,15 @@ describe("createUserFileUploadSession", () => {
       "token_123",
     );
 
+    expect(issueSignedTokenMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: "token_123",
+        pathname: "users/user_123/my_file1.pdf",
+        operations: ["put"],
+        allowedContentTypes: ["application/pdf"],
+        maximumSizeInBytes: 2_048_000,
+      }),
+    );
     expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith({
       token: "token_123",
       pathname: "users/user_123/my_file1.pdf",
@@ -76,15 +99,27 @@ describe("createUserFileUploadSession", () => {
       addRandomSuffix: true,
     });
     expect(result).toEqual({
+      uploadUrl: "https://blob.example/upload?sig=1",
       clientToken: "client-token-123",
       access: "public",
+      method: "PUT",
+      headers: { "Content-Type": "application/pdf" },
       pathname: "users/user_123/my_file1.pdf",
       addRandomSuffix: true,
       maxSizeBytes: 262_144_000,
+      expiresAt: expect.any(String),
     });
   });
 
   it("uses explicit allowedContentTypes when provided", async () => {
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=2",
+    });
     generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
       "client-token-456",
     );
@@ -101,7 +136,7 @@ describe("createUserFileUploadSession", () => {
       "token_123",
     );
 
-    expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith(
+    expect(issueSignedTokenMock).toHaveBeenCalledWith(
       expect.objectContaining({
         allowedContentTypes: ["image/png", "image/jpeg"],
         maximumSizeInBytes: 500,

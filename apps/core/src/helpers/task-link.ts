@@ -33,6 +33,9 @@ function mapTaskLinkRelation(
       return outgoing ? "parent" : "child";
     case TaskLinkType.DUPLICATE:
       return "duplicate";
+    default:
+      // e.g. SCHEDULE or future Prisma values not yet exposed as API relations
+      throw new Error(`Unsupported task link type: ${String(type)}`);
   }
 }
 

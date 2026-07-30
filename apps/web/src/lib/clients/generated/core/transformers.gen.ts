@@ -1078,7 +1078,18 @@ export const getUsersByIdUploadsResponseTransformer = async (data: any): Promise
     return data;
 };
 
+const blobUploadGrantSchemaResponseTransformer = (data: any) => {
+    data.expiresAt = new Date(data.expiresAt);
+    return data;
+};
+
+const userFileUploadSessionSchemaResponseTransformer = (data: any) => {
+    data = blobUploadGrantSchemaResponseTransformer(data);
+    return data;
+};
+
 export const postUsersByIdUploadsResponseTransformer = async (data: any): Promise<PostUsersByIdUploadsResponse> => {
+    data.data = userFileUploadSessionSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -1851,8 +1862,13 @@ export const getTasksByIdFilesResponseTransformer = async (data: any): Promise<G
     return data;
 };
 
+const taskFileUploadSessionSchemaResponseTransformer = (data: any) => {
+    data.expiresAt = new Date(data.expiresAt);
+    return data;
+};
+
 export const postTasksByIdFilesResponseTransformer = async (data: any): Promise<PostTasksByIdFilesResponse> => {
-    data.data = taskFileSchemaResponseTransformer(data.data);
+    data.data = taskFileUploadSessionSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

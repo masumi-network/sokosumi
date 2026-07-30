@@ -32,34 +32,48 @@ import {
 describe("user-file-upload.client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it("creates an upload session and uploads the file to Blob", async () => {
+  it("creates an upload session and PUTs via presigned uploadUrl", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
 
     createMyFileUploadSessionMock.mockResolvedValue({
       data: {
+        uploadUrl: "https://blob.example/upload?sig=1",
         clientToken: "upload-token",
         access: "public",
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
         pathname: "users/user_123/report.pdf",
         addRandomSuffix: true,
         maxSizeBytes: 1073741824,
+        expiresAt: "2026-07-30T12:15:00.000Z",
       },
     });
-    putMock.mockResolvedValue({
-      url: "https://blob.example/users/user_123/report.pdf",
-      pathname: "users/user_123/report.pdf",
-      downloadUrl: "https://blob.example/download/report.pdf",
-      etag: '"etag-123"',
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: "https://blob.example/users/user_123/report-abc.pdf",
+          pathname: "users/user_123/report-abc.pdf",
+          downloadUrl: "https://blob.example/download/report-abc.pdf",
+          etag: '"etag-123"',
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(uploadUserFileDirect(file)).resolves.toEqual({
-      publicUrl: "https://blob.example/users/user_123/report.pdf",
+      publicUrl: "https://blob.example/users/user_123/report-abc.pdf",
       metadata: {
-        pathname: "users/user_123/report.pdf",
-        downloadUrl: "https://blob.example/download/report.pdf",
+        pathname: "users/user_123/report-abc.pdf",
+        downloadUrl: "https://blob.example/download/report-abc.pdf",
         size: 5,
         uploadedAt: expect.any(Date),
         etag: '"etag-123"',
@@ -71,28 +85,33 @@ describe("user-file-upload.client", () => {
       contentType: "application/pdf",
       size: 5,
     });
-    expect(putMock).toHaveBeenCalledWith(
-      "users/user_123/report.pdf",
-      file,
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://blob.example/upload?sig=1",
       expect.objectContaining({
-        access: "public",
-        token: "upload-token",
-        contentType: "application/pdf",
-        multipart: false,
+        method: "PUT",
+        body: file,
       }),
     );
+    expect(putMock).not.toHaveBeenCalled();
   });
 
-  it("infers content type from the file name when the browser leaves file.type empty", async () => {
-    const file = new File(["hello"], "report.pdf", { type: "" });
+  it("uses client-token put when onUploadProgress is provided", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const onUploadProgress = vi.fn();
 
     createMyFileUploadSessionMock.mockResolvedValue({
       data: {
+        uploadUrl: "https://blob.example/upload?sig=1",
         clientToken: "upload-token",
         access: "public",
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
         pathname: "users/user_123/report.pdf",
         addRandomSuffix: true,
         maxSizeBytes: 1073741824,
+        expiresAt: "2026-07-30T12:15:00.000Z",
       },
     });
     putMock.mockResolvedValue({
@@ -102,6 +121,54 @@ describe("user-file-upload.client", () => {
       etag: '"etag-123"',
     });
 
+    await uploadUserFileDirect(file, { onUploadProgress });
+
+    expect(putMock).toHaveBeenCalledWith(
+      "users/user_123/report.pdf",
+      file,
+      expect.objectContaining({
+        access: "public",
+        token: "upload-token",
+        contentType: "application/pdf",
+        onUploadProgress,
+      }),
+    );
+  });
+
+  it("infers content type from the file name when the browser leaves file.type empty", async () => {
+    const file = new File(["hello"], "report.pdf", { type: "" });
+
+    createMyFileUploadSessionMock.mockResolvedValue({
+      data: {
+        uploadUrl: "https://blob.example/upload?sig=1",
+        clientToken: "upload-token",
+        access: "public",
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
+        pathname: "users/user_123/report.pdf",
+        addRandomSuffix: true,
+        maxSizeBytes: 1073741824,
+        expiresAt: "2026-07-30T12:15:00.000Z",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            url: "https://blob.example/users/user_123/report.pdf",
+            pathname: "users/user_123/report.pdf",
+            downloadUrl: "https://blob.example/download/report.pdf",
+            etag: '"etag-123"',
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      ),
+    );
+
     await uploadUserFileDirect(file);
 
     expect(createMyFileUploadSessionMock).toHaveBeenCalledWith({
@@ -109,13 +176,6 @@ describe("user-file-upload.client", () => {
       contentType: "application/pdf",
       size: 5,
     });
-    expect(putMock).toHaveBeenCalledWith(
-      "users/user_123/report.pdf",
-      file,
-      expect.objectContaining({
-        contentType: "application/pdf",
-      }),
-    );
   });
 
   it("includes custom upload constraints in the session request", async () => {
