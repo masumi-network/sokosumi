@@ -97,7 +97,9 @@ export async function TaskDetailView({
   );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
-  const parentTask = linkedTasks.find((link) => link.relation === "child");
+  const parentTask = linkedTasks.find(
+    (link) => link.relation === "child" || link.relation === "schedule_series",
+  );
 
   const t = await translationsPromise;
 
@@ -186,6 +188,8 @@ export async function TaskDetailView({
               parent: t("actions.relations.subtask"),
               child: t("actions.relations.parent"),
               duplicate: t("actions.relations.duplicate"),
+              schedule_run: t("actions.relations.scheduleRun"),
+              schedule_series: t("actions.relations.scheduleSeries"),
             }}
           />
 

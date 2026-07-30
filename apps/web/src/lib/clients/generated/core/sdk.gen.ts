@@ -2198,7 +2198,7 @@ export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false
 });
 
 /**
- * Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval.
+ * Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule template also archives its schedule runs (TaskLinkType.SCHEDULE).
  */
 export const deleteTasksById = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdData, ThrowOnError>): RequestResult<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdResponseTransformer,
@@ -2326,7 +2326,7 @@ export const getTasksByIdFiles = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Upload a file for a task. Allowed for the task owner or the assigned coworker. Stores the file in public Vercel Blob storage and returns a public fileUrl.
+ * Upload a file for a task. Allowed for the task owner or the assigned coworker. Stores the file in public Vercel Blob storage and returns a public fileUrl. MIME allowlist matches user uploads except image/svg+xml.
  */
 export const postTasksByIdFiles = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdFilesData, ThrowOnError>): RequestResult<PostTasksByIdFilesResponses, PostTasksByIdFilesErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdFilesResponses, PostTasksByIdFilesErrors, ThrowOnError>({
     ...formDataBodySerializer,

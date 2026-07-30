@@ -1679,7 +1679,7 @@
           "edit": "編集",
           "archive": "アーカイブ",
           "confirmArchive": "このタスクをアーカイブしますか？",
-          "confirmArchiveDescription": "一覧から非表示になります。データベースから完全には削除されません。",
+          "confirmArchiveDescription": "一覧から非表示になります（リンクされたスケジュール実行も含む）。進行中の実行は先に完了またはキャンセルが必要です。データベースから完全には削除されません。",
           "archiveError": "タスクをアーカイブできませんでした",
           "markAsReady": "準備完了にする",
           "reopenToReady": "準備完了に再開",
@@ -1727,7 +1727,9 @@
             "parent": "親タスク",
             "subtask": "サブタスク",
             "duplicate": "重複",
-            "addSubtask": "サブタスクを追加"
+            "addSubtask": "サブタスクを追加",
+            "scheduleRun": "予定実行",
+            "scheduleSeries": "スケジュール"
           },
           "personalWorkspace": "個人"
         },

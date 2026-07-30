@@ -1,5 +1,5 @@
 import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { canArchiveTaskStatus, convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
@@ -294,7 +294,7 @@ interface TaskEventActorData {
   orchestratorId: string | null;
 }
 
-interface CascadeCancelParentChildrenParams {
+interface CascadeCancelScheduleRunsParams {
   tx: Prisma.TransactionClient;
   parentTaskId: string;
   actorData: TaskEventActorData;
@@ -305,15 +305,20 @@ export interface CascadedCancelChild {
   userId: string;
 }
 
-export async function cascadeCancelNonTerminalParentChildren({
+/**
+ * Cascade-cancel non-terminal schedule runs linked from a template via
+ * {@link TaskLinkType.SCHEDULE} (from = template, to = run). Manual PARENT
+ * hierarchy is not cascaded.
+ */
+export async function cascadeCancelNonTerminalScheduleRuns({
   tx,
   parentTaskId,
   actorData,
-}: CascadeCancelParentChildrenParams): Promise<CascadedCancelChild[]> {
-  const parentLinks = await tx.taskLink.findMany({
+}: CascadeCancelScheduleRunsParams): Promise<CascadedCancelChild[]> {
+  const scheduleLinks = await tx.taskLink.findMany({
     where: {
       fromTaskId: parentTaskId,
-      type: TaskLinkType.PARENT,
+      type: TaskLinkType.SCHEDULE,
     },
     select: {
       toTask: {
@@ -328,7 +333,7 @@ export async function cascadeCancelNonTerminalParentChildren({
 
   const canceledChildren: CascadedCancelChild[] = [];
 
-  for (const link of parentLinks) {
+  for (const link of scheduleLinks) {
     const child = link.toTask;
     if (isTerminalTaskStatus(child.status)) {
       continue;
@@ -358,6 +363,69 @@ export async function cascadeCancelNonTerminalParentChildren({
   }
 
   return canceledChildren;
+}
+
+interface CascadeArchiveScheduleParentChildrenParams {
+  tx: Prisma.TransactionClient;
+  parentTaskId: string;
+  archivedAt: Date;
+}
+
+/**
+ * Soft-archive schedule runs linked from a template via
+ * {@link TaskLinkType.SCHEDULE}. Blocks when any non-archived run is not
+ * archivable (e.g. RUNNING) so the series is never half-hidden. Manual PARENT
+ * hierarchy is not cascaded.
+ */
+export async function cascadeArchiveScheduleParentChildren({
+  tx,
+  parentTaskId,
+  archivedAt,
+}: CascadeArchiveScheduleParentChildrenParams): Promise<string[]> {
+  const scheduleLinks = await tx.taskLink.findMany({
+    where: {
+      fromTaskId: parentTaskId,
+      type: TaskLinkType.SCHEDULE,
+    },
+    select: {
+      toTask: {
+        select: {
+          id: true,
+          status: true,
+          archivedAt: true,
+        },
+      },
+    },
+  });
+
+  const activeRuns = scheduleLinks
+    .map((link) => link.toTask)
+    .filter((child) => child.archivedAt == null);
+
+  const blockingRun = activeRuns.find(
+    (child) => !canArchiveTaskStatus(child.status),
+  );
+  if (blockingRun) {
+    throw unprocessableEntity(
+      `Cannot archive schedule template while a schedule run is still in progress (status: ${blockingRun.status}). Wait for in-progress runs to finish, or cancel them first.`,
+    );
+  }
+
+  const archivedChildIds: string[] = [];
+
+  for (const child of activeRuns) {
+    const childUpdate = await tx.task.updateMany({
+      where: { id: child.id, archivedAt: null, status: child.status },
+      data: { archivedAt },
+    });
+    if (childUpdate.count !== 1) {
+      throw conflict("Task was modified concurrently; retry archive");
+    }
+
+    archivedChildIds.push(child.id);
+  }
+
+  return archivedChildIds;
 }
 
 export function validateStatusTransition(

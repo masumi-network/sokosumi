@@ -31,6 +31,14 @@ function getFallbackRelationLabel(relation: TaskLinkRelation): string {
       return "Parent task";
     case "duplicate":
       return "Duplicate";
+    case "schedule_run":
+      return "Scheduled run";
+    case "schedule_series":
+      return "Schedule";
+    default: {
+      const _exhaustive: never = relation;
+      return _exhaustive;
+    }
   }
 }
 

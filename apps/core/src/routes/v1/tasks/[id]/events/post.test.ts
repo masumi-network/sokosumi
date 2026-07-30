@@ -2820,7 +2820,7 @@ describe("POST /{id}/events", () => {
     expect(tx.taskLink?.findMany).toHaveBeenCalled();
   });
 
-  it("cascades cancel to non-terminal PARENT children", async () => {
+  it("cascades cancel to non-terminal SCHEDULE runs", async () => {
     requireTaskCancelAccessMock.mockResolvedValue(
       createTask({ status: TaskStatus.QUEUED }),
     );
