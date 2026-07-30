@@ -112,6 +112,8 @@ export async function createTaskFileUploadSession(
   },
 ): Promise<BlobUploadGrant> {
   const pathname = buildTaskFilePathname(taskId, file.filename);
+  // `size` in tokenPayload is the grant cap echo only; TaskFile.size comes from
+  // Blob head on onUploadCompleted.
   const tokenPayload = JSON.stringify({
     taskId,
     name: file.filename,
