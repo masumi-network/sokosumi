@@ -15,6 +15,7 @@ import {
   type TaskLink,
   TaskLinkRelation,
   TaskStatus,
+  type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
@@ -77,7 +78,7 @@ interface CreateTaskCommentParameters extends AuthenticatedRequest {
 interface CreateTaskLinkParameters extends AuthenticatedRequest {
   taskId: string;
   relatedTaskId: string;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
 }
@@ -95,7 +96,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
 }
@@ -244,7 +245,7 @@ async function createTaskFromDescription(input: {
 async function collectParentLinksToReplace(input: {
   taskId: string;
   nextParentTaskId: string;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   replaceExistingParent?: boolean;
 }): Promise<TaskLink[]> {
   const shouldReplaceParent =

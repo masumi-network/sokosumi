@@ -16,7 +16,7 @@ import {
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type {
   GetTasksResponse,
-  TaskLinkRelation,
+  UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 
 import {
@@ -29,7 +29,7 @@ const TASK_PICKER_PAGE_SIZE = 20;
 export interface TaskLinkActionOption {
   id: string;
   label: string;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   icon: LucideIcon;
 }
 

@@ -104,16 +104,18 @@ function getCloneTaskData(
 }
 
 /**
- * Claim guard for schedule sync writes: status must still be QUEUED and
- * `nextRunAt` must still equal the value read at transaction start. A concurrent
- * schedule PUT / clear / cancel that changes `nextRunAt` (or leaves QUEUED)
- * must not be overwritten — otherwise sync can wipe a fresh schedule to DRAFT
- * or re-arm an obsolete cadence after cloning from superseded metadata.
+ * Claim guard for schedule sync writes: template must still be an unarchived
+ * QUEUED schedule whose `nextRunAt` equals the value read at transaction start.
+ * Concurrent schedule PUT / clear / cancel / archive must not be overwritten —
+ * otherwise sync can wipe a fresh schedule to DRAFT, re-arm an obsolete cadence
+ * after cloning from superseded metadata, or mint runs after series archive
+ * (archive only sets `archivedAt` and leaves status/nextRunAt unchanged).
  */
 function queuedTemplateClaimWhere(templateId: string, claimedNextRunAt: Date) {
   return {
     id: templateId,
     status: TaskStatus.QUEUED,
+    archivedAt: null,
     nextRunAt: claimedNextRunAt,
   };
 }
@@ -239,7 +241,7 @@ async function cloneRecurringOccurrence(
     data: {
       fromTaskId: template.id,
       toTaskId: clone.id,
-      type: TaskLinkType.PARENT,
+      type: TaskLinkType.SCHEDULE,
     },
   });
 
