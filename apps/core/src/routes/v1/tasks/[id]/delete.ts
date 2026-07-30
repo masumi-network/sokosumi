@@ -3,7 +3,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
-  hasActiveTaskSchedule,
 } from "@sokosumi/utils";
 
 import { requireTaskArchiveAccess } from "@/helpers/access-control";
@@ -28,7 +27,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule parent also archives occurrence clones linked via PARENT.",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule template also archives its schedule runs (TaskLinkType.SCHEDULE).",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -74,13 +73,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Task was modified concurrently; retry archive");
       }
 
-      if (hasActiveTaskSchedule(currentTask.metadata, currentTask.nextRunAt)) {
-        await cascadeArchiveScheduleParentChildren({
-          tx,
-          parentTaskId: id,
-          archivedAt,
-        });
-      }
+      await cascadeArchiveScheduleParentChildren({
+        tx,
+        parentTaskId: id,
+        archivedAt,
+      });
 
       return tx.task.findFirstOrThrow({
         where: { id },

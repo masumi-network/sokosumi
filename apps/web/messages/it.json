@@ -1727,7 +1727,9 @@
             "parent": "Attività principale",
             "subtask": "Sotto-attività",
             "duplicate": "Duplicata",
-            "addSubtask": "Aggiungi sotto-attività"
+            "addSubtask": "Aggiungi sotto-attività",
+            "scheduleRun": "Esecuzione pianificata",
+            "scheduleSeries": "Pianificazione"
           },
           "personalWorkspace": "Personale"
         },

@@ -1727,7 +1727,9 @@
             "parent": "父任务",
             "subtask": "子任务",
             "duplicate": "重复项",
-            "addSubtask": "子任务"
+            "addSubtask": "子任务",
+            "scheduleRun": "计划运行",
+            "scheduleSeries": "计划"
           },
           "personalWorkspace": "个人"
         },

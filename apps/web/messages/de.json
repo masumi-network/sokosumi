@@ -1727,7 +1727,9 @@
             "parent": "Übergeordnete Aufgabe",
             "subtask": "Unteraufgabe",
             "duplicate": "Duplikat",
-            "addSubtask": "Unteraufgabe hinzufügen"
+            "addSubtask": "Unteraufgabe hinzufügen",
+            "scheduleRun": "Geplanter Lauf",
+            "scheduleSeries": "Zeitplan"
           },
           "personalWorkspace": "Persönlich"
         },

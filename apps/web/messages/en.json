@@ -1739,7 +1739,9 @@
             "parent": "Parent task",
             "subtask": "Sub-task",
             "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task"
+            "addSubtask": "Add sub-task",
+            "scheduleRun": "Scheduled run",
+            "scheduleSeries": "Schedule"
           },
           "personalWorkspace": "Personal"
         },

@@ -215,17 +215,29 @@ describe("DELETE /tasks/{id}", () => {
     vi.clearAllMocks();
   });
 
+  function emptyScheduleLinksTx(taskMocks: {
+    updateMany: ReturnType<typeof vi.fn>;
+    findFirstOrThrow: ReturnType<typeof vi.fn>;
+  }) {
+    return {
+      task: taskMocks,
+      taskLink: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+  }
+
   it("uses the task workspace for link visibility in the archive response", async () => {
     const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
     const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
 
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        task: {
+      return await callback(
+        emptyScheduleLinksTx({
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
-        },
-      });
+        }),
+      );
     });
 
     requireTaskArchiveAccessMock.mockResolvedValue({
@@ -310,12 +322,12 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        task: {
+      return await callback(
+        emptyScheduleLinksTx({
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
-        },
-      });
+        }),
+      );
     });
 
     requireTaskArchiveAccessMock.mockResolvedValue({
@@ -375,9 +387,7 @@ describe("DELETE /tasks/{id}", () => {
     );
   });
 
-  const scheduleMetadata = JSON.stringify({ version: 1, mode: "recurring" });
-
-  it("cascades archive to PARENT children when parent has active schedule", async () => {
+  it("cascades archive to SCHEDULE runs linked from the template", async () => {
     const updateManyMock = vi
       .fn()
       .mockResolvedValueOnce({ count: 1 })
@@ -418,8 +428,8 @@ describe("DELETE /tasks/{id}", () => {
       ownerId: "user_123",
       status: TaskStatus.READY,
       workspaceId: "22222222-2222-7222-8222-222222222222",
-      metadata: scheduleMetadata,
-      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
+      metadata: null,
+      nextRunAt: null,
     });
 
     const app = createApp();
@@ -432,7 +442,7 @@ describe("DELETE /tasks/{id}", () => {
       expect.objectContaining({
         where: {
           fromTaskId: "tsk_123",
-          type: "PARENT",
+          type: "SCHEDULE",
         },
       }),
     );
@@ -449,9 +459,9 @@ describe("DELETE /tasks/{id}", () => {
     });
   });
 
-  it("does not cascade archive when parent has no active schedule", async () => {
+  it("does not archive children when template has no SCHEDULE links", async () => {
     const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
-    const taskLinkFindManyMock = vi.fn();
+    const taskLinkFindManyMock = vi.fn().mockResolvedValue([]);
     const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
 
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -481,11 +491,18 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(taskLinkFindManyMock).not.toHaveBeenCalled();
+    expect(taskLinkFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_123",
+          type: "SCHEDULE",
+        },
+      }),
+    );
     expect(updateManyMock).toHaveBeenCalledTimes(1);
   });
 
-  it("skips RUNNING PARENT child and still archives schedule parent", async () => {
+  it("skips RUNNING schedule run and still archives schedule template", async () => {
     const updateManyMock = vi
       .fn()
       .mockResolvedValueOnce({ count: 1 })
@@ -525,8 +542,6 @@ describe("DELETE /tasks/{id}", () => {
       ownerId: "user_123",
       status: TaskStatus.READY,
       workspaceId: "22222222-2222-7222-8222-222222222222",
-      metadata: scheduleMetadata,
-      nextRunAt: null,
     });
 
     const app = createApp();

@@ -5,6 +5,7 @@ import {
   type TaskLinkRelationResponse,
   type TaskLinkResponse,
   taskLinkSchema,
+  type UserWritableTaskLinkRelationResponse,
 } from "@/schemas/task-link.schema";
 import type { TaskLinkPeerTaskRow, TaskLinkRow } from "@/types/task-link";
 
@@ -33,6 +34,13 @@ function mapTaskLinkRelation(
       return outgoing ? "parent" : "child";
     case TaskLinkType.DUPLICATE:
       return "duplicate";
+    case TaskLinkType.SCHEDULE:
+      // from = template, to = run
+      return outgoing ? "schedule_run" : "schedule_series";
+    default: {
+      const _exhaustive: never = type;
+      return _exhaustive;
+    }
   }
 }
 
@@ -61,7 +69,7 @@ export function assertTaskLinkAllowed(
 export function mapTaskLinkRelationToWriteData(
   taskId: string,
   peerTaskId: string,
-  relation: TaskLinkRelationResponse,
+  relation: UserWritableTaskLinkRelationResponse,
 ): TaskLinkWriteData {
   switch (relation) {
     case "related":
@@ -100,13 +108,17 @@ export function mapTaskLinkRelationToWriteData(
         toTaskId: peerTaskId,
         type: TaskLinkType.DUPLICATE,
       };
+    default: {
+      const _exhaustive: never = relation;
+      return _exhaustive;
+    }
   }
 }
 
 export function mapTaskLinkRelationToTypeForExistingDirection(
   taskId: string,
   link: TaskLinkRow,
-  relation: TaskLinkRelationResponse,
+  relation: UserWritableTaskLinkRelationResponse,
 ): TaskLinkType {
   const peerTaskId =
     link.fromTaskId === taskId ? link.toTaskId : link.fromTaskId;

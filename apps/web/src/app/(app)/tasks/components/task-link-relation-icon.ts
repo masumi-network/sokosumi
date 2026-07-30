@@ -24,5 +24,12 @@ export function getTaskLinkRelationIcon(
       return SquareArrowRightEnter;
     case "duplicate":
       return SquaresExclude;
+    case "schedule_run":
+    case "schedule_series":
+      return SquareArrowRightEnter;
+    default: {
+      const _exhaustive: never = relation;
+      return _exhaustive;
+    }
   }
 }

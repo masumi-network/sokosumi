@@ -1727,7 +1727,9 @@
             "parent": "tarefa principal",
             "subtask": "subtarefa",
             "duplicate": "duplicada",
-            "addSubtask": "subtarefa"
+            "addSubtask": "subtarefa",
+            "scheduleRun": "Execução agendada",
+            "scheduleSeries": "Agenda"
           },
           "personalWorkspace": "Pessoal"
         },

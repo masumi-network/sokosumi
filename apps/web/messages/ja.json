@@ -1727,7 +1727,9 @@
             "parent": "親タスク",
             "subtask": "サブタスク",
             "duplicate": "重複",
-            "addSubtask": "サブタスクを追加"
+            "addSubtask": "サブタスクを追加",
+            "scheduleRun": "予定実行",
+            "scheduleSeries": "スケジュール"
           },
           "personalWorkspace": "個人"
         },

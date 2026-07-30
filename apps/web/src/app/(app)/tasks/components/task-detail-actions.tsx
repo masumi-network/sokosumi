@@ -236,7 +236,12 @@ export function TaskDetailActions({
     !isFinalized &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
   const parentLinks = useMemo(
-    () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
+    () =>
+      taskLinks.filter(
+        (link) =>
+          link.relation === TaskLinkRelation.CHILD ||
+          link.relation === TaskLinkRelation.SCHEDULE_SERIES,
+      ),
     [taskLinks],
   );
   const removableTaskLinks = useMemo(
@@ -244,7 +249,8 @@ export function TaskDetailActions({
       taskLinks.filter(
         (link) =>
           link.peerTask.archivedAt === null &&
-          link.relation !== TaskLinkRelation.CHILD,
+          link.relation !== TaskLinkRelation.CHILD &&
+          link.relation !== TaskLinkRelation.SCHEDULE_SERIES,
       ),
     [taskLinks],
   );

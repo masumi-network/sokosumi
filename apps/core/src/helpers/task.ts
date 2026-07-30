@@ -305,15 +305,20 @@ export interface CascadedCancelChild {
   userId: string;
 }
 
+/**
+ * Cascade-cancel non-terminal schedule runs linked from a template via
+ * {@link TaskLinkType.SCHEDULE} (from = template, to = run). Manual PARENT
+ * hierarchy is not cascaded.
+ */
 export async function cascadeCancelNonTerminalParentChildren({
   tx,
   parentTaskId,
   actorData,
 }: CascadeCancelParentChildrenParams): Promise<CascadedCancelChild[]> {
-  const parentLinks = await tx.taskLink.findMany({
+  const scheduleLinks = await tx.taskLink.findMany({
     where: {
       fromTaskId: parentTaskId,
-      type: TaskLinkType.PARENT,
+      type: TaskLinkType.SCHEDULE,
     },
     select: {
       toTask: {
@@ -328,7 +333,7 @@ export async function cascadeCancelNonTerminalParentChildren({
 
   const canceledChildren: CascadedCancelChild[] = [];
 
-  for (const link of parentLinks) {
+  for (const link of scheduleLinks) {
     const child = link.toTask;
     if (isTerminalTaskStatus(child.status)) {
       continue;
@@ -366,15 +371,20 @@ interface CascadeArchiveScheduleParentChildrenParams {
   archivedAt: Date;
 }
 
+/**
+ * Soft-archive schedule runs linked from a template via
+ * {@link TaskLinkType.SCHEDULE}. Skips already-archived and non-archivable
+ * runs (e.g. RUNNING). Manual PARENT hierarchy is not cascaded.
+ */
 export async function cascadeArchiveScheduleParentChildren({
   tx,
   parentTaskId,
   archivedAt,
 }: CascadeArchiveScheduleParentChildrenParams): Promise<string[]> {
-  const parentLinks = await tx.taskLink.findMany({
+  const scheduleLinks = await tx.taskLink.findMany({
     where: {
       fromTaskId: parentTaskId,
-      type: TaskLinkType.PARENT,
+      type: TaskLinkType.SCHEDULE,
     },
     select: {
       toTask: {
@@ -389,7 +399,7 @@ export async function cascadeArchiveScheduleParentChildren({
 
   const archivedChildIds: string[] = [];
 
-  for (const link of parentLinks) {
+  for (const link of scheduleLinks) {
     const child = link.toTask;
     if (child.archivedAt != null) {
       continue;

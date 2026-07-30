@@ -1727,7 +1727,9 @@
             "parent": "tâche parente",
             "subtask": "sous-tâche",
             "duplicate": "dupliquée",
-            "addSubtask": "sous-tâche"
+            "addSubtask": "sous-tâche",
+            "scheduleRun": "Exécution planifiée",
+            "scheduleSeries": "Planning"
           },
           "personalWorkspace": "Personnel"
         },

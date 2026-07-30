@@ -16,6 +16,8 @@ const relationLabels = {
   parent: "Sub-task",
   child: "Parent task",
   duplicate: "Duplicate",
+  schedule_run: "Scheduled run",
+  schedule_series: "Schedule",
 };
 
 describe("TaskRelatedTasks", () => {

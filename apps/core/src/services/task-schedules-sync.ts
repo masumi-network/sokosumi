@@ -239,7 +239,7 @@ async function cloneRecurringOccurrence(
     data: {
       fromTaskId: template.id,
       toTaskId: clone.id,
-      type: TaskLinkType.PARENT,
+      type: TaskLinkType.SCHEDULE,
     },
   });
 

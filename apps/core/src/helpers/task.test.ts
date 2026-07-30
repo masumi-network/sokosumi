@@ -742,7 +742,7 @@ describe("task cancel helpers", () => {
     });
   });
 
-  it("cascades cancel to non-terminal PARENT children", async () => {
+  it("cascades cancel to non-terminal SCHEDULE runs", async () => {
     const taskEventCreate = vi.fn().mockResolvedValue({ id: "evt_child" });
     const taskUpdateMany = vi
       .fn()
@@ -790,7 +790,7 @@ describe("task cancel helpers", () => {
       expect.objectContaining({
         where: {
           fromTaskId: "tsk_template",
-          type: "PARENT",
+          type: "SCHEDULE",
         },
       }),
     );
@@ -816,7 +816,7 @@ describe("task cancel helpers", () => {
 describe("cascadeArchiveScheduleParentChildren", () => {
   const archivedAt = new Date("2026-03-25T12:00:00.000Z");
 
-  it("archives archivable PARENT children and skips RUNNING and already archived", async () => {
+  it("archives archivable SCHEDULE runs and skips RUNNING and already archived", async () => {
     const taskLinkFindMany = vi.fn().mockResolvedValue([
       {
         toTask: {
@@ -873,7 +873,7 @@ describe("cascadeArchiveScheduleParentChildren", () => {
       expect.objectContaining({
         where: {
           fromTaskId: "tsk_template",
-          type: "PARENT",
+          type: "SCHEDULE",
         },
       }),
     );
