@@ -1,4 +1,7 @@
-import { DEFAULT_WEBHOOK_TIMEOUT_MS } from "@sokosumi/utils";
+import {
+  DEFAULT_WEBHOOK_TIMEOUT_MS,
+  FILE_UPLOAD_MAX_SIZE_BYTES,
+} from "@sokosumi/utils";
 
 /**
  * Application constants for the Core API
@@ -67,8 +70,8 @@ export const LIMITS = {
   /** Maximum messages returned in one GET /v1/chat page (matches current UI expectation). */
   CHAT_UI_MESSAGES_MAX_LIMIT: 200,
 
-  /** Maximum upload size for direct user file uploads (1GB) */
-  USER_UPLOAD_MAX_SIZE_BYTES: 1024 * 1024 * 1024,
+  /** Maximum upload size for direct user file uploads (100 MB) */
+  USER_UPLOAD_MAX_SIZE_BYTES: FILE_UPLOAD_MAX_SIZE_BYTES,
 
   /** Maximum size of a DESIGN.md document accepted for storage (1MB) */
   DESIGN_MD_MAX_SIZE_BYTES: 1024 * 1024,

@@ -37,7 +37,7 @@ export const blobUploadGrantSchema = z
       description: "When the presigned upload URL expires (ISO-8601)",
     }),
     maxSizeBytes: z.number().int().positive().openapi({
-      example: 52_428_800,
+      example: 104_857_600,
       description: "Maximum supported file size for this upload policy",
     }),
     addRandomSuffix: z.boolean().openapi({

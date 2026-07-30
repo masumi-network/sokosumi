@@ -881,6 +881,7 @@ describe("TaskActivitySection", () => {
 
     uploadTaskAttachmentMock.mockImplementation(
       (
+        _taskId: string,
         _file: File,
         options?: {
           onUploadProgress?: (progress: {
@@ -941,6 +942,7 @@ describe("TaskActivitySection", () => {
 
     uploadTaskAttachmentMock.mockImplementation(
       async (
+        _taskId: string,
         _file: File,
         options?: {
           onUploadProgress?: (progress: {
@@ -984,6 +986,7 @@ describe("TaskActivitySection", () => {
 
     uploadTaskAttachmentMock.mockImplementation(
       (
+        _taskId: string,
         _file: File,
         options?: {
           abortSignal?: AbortSignal;

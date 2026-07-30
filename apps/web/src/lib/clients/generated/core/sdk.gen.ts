@@ -2339,7 +2339,7 @@ export const getTasksByIdFiles = <ThrowOnError extends boolean = false>(options:
  * 2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.
  * 3. Done — no register call. Poll GET /v1/tasks/{id}/files if you need the TaskFile row.
  *
- * Max size: 52428800 bytes. MIME allowlist matches user uploads except image/svg+xml.
+ * Max size: 104857600 bytes. MIME allowlist matches user uploads except image/svg+xml.
  * Requires public Core URL for the completion callback (production / tunnel).
  */
 export const postTasksByIdFiles = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdFilesData, ThrowOnError>): RequestResult<PostTasksByIdFilesResponses, PostTasksByIdFilesErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdFilesResponses, PostTasksByIdFilesErrors, ThrowOnError>({

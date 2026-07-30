@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  registerTaskFileFromUploadCompleted,
-  TaskFileUploadClientError,
-} from "./task-file-upload-completed";
+import { registerTaskFileFromUploadCompleted } from "./task-file-upload-completed";
 
 const { taskFileCreateMock, headMock, delMock } = vi.hoisted(() => ({
   taskFileCreateMock: vi.fn(),
@@ -114,21 +111,24 @@ describe("registerTaskFileFromUploadCompleted", () => {
     expect(delMock).toHaveBeenCalledWith(FILE_URL, { token: BLOB_TOKEN });
   });
 
-  it("rejects foreign blob URLs", async () => {
+  it("soft-acks and deletes orphan when blob URL is not under task prefix", async () => {
+    const foreignUrl =
+      "https://abc.public.blob.vercel-storage.com/tasks/tsk_other/x.pdf";
+
     await expect(
       registerTaskFileFromUploadCompleted({
-        blob: completedBlob(
-          "https://abc.public.blob.vercel-storage.com/tasks/tsk_other/x.pdf",
-        ),
+        blob: completedBlob(foreignUrl),
         tokenPayload: tokenPayload(),
         blobToken: BLOB_TOKEN,
       }),
-    ).rejects.toBeInstanceOf(TaskFileUploadClientError);
+    ).resolves.toBeUndefined();
+
     expect(taskFileCreateMock).not.toHaveBeenCalled();
     expect(headMock).not.toHaveBeenCalled();
+    expect(delMock).toHaveBeenCalledWith(foreignUrl, { token: BLOB_TOKEN });
   });
 
-  it("rejects when actual size exceeds declared mint size", async () => {
+  it("soft-acks and deletes orphan when actual size exceeds declared mint size", async () => {
     headMock.mockResolvedValueOnce({
       size: 12,
       contentType: "application/pdf",
@@ -140,7 +140,22 @@ describe("registerTaskFileFromUploadCompleted", () => {
         tokenPayload: tokenPayload({ size: 11 }),
         blobToken: BLOB_TOKEN,
       }),
-    ).rejects.toThrow(/exceeds the declared mint size/);
+    ).resolves.toBeUndefined();
+
     expect(taskFileCreateMock).not.toHaveBeenCalled();
+    expect(delMock).toHaveBeenCalledWith(FILE_URL, { token: BLOB_TOKEN });
+  });
+
+  it("soft-acks and deletes orphan when tokenPayload is missing", async () => {
+    await expect(
+      registerTaskFileFromUploadCompleted({
+        blob: completedBlob(),
+        tokenPayload: null,
+        blobToken: BLOB_TOKEN,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(taskFileCreateMock).not.toHaveBeenCalled();
+    expect(delMock).toHaveBeenCalledWith(FILE_URL, { token: BLOB_TOKEN });
   });
 });

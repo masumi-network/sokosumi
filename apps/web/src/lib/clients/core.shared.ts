@@ -60,6 +60,7 @@ import type {
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
+  PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
   PostUsersByIdFilesData,
@@ -164,6 +165,7 @@ import {
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
+  getTasksByIdFiles as coreGetTasksByIdFiles,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getToolsSiteIcon as coreGetToolsSiteIcon,
@@ -247,6 +249,7 @@ import {
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
+  postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
@@ -3292,6 +3295,36 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function createTaskFileUploadSession(
+    taskId: string,
+    body: NonNullable<PostTasksByIdFilesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdFiles({
+          client,
+          path: { id: taskId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create task file upload session",
+    );
+  }
+
+  async function listTaskFiles(taskId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdFiles({
+          client,
+          path: { id: taskId },
+          cache: "no-store",
+        }),
+      "Failed to list task files",
+    );
+  }
+
   async function moveTaskToWorkspace(
     id: string,
     body: { organizationId: string | null },
@@ -3602,8 +3635,10 @@ export function createCoreClient(getClient: GetClient) {
     createAgentJob,
     createMyFileUploadSession,
     createTask,
+    createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
+    listTaskFiles,
     deleteJobShare,
     deleteProjectsById,
     deleteProjectsByIdJobsByJobId,

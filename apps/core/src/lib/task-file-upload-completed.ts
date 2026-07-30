@@ -40,7 +40,8 @@ export class TaskFileUploadClientError extends Error {
  * Create a `TaskFile` row after Blob confirms a successful client upload.
  * Size comes from Blob `head` (actual bytes), not the mint-time declaration.
  * Idempotent via unique `(taskId, fileUrl)` — concurrent webhook retries are safe.
- * If the task (FK) is gone, best-effort deletes the orphan blob and soft-acks.
+ * Client-fault and gone-task cases best-effort delete the orphan blob and soft-ack
+ * (return) so Blob stops retrying.
  */
 export async function registerTaskFileFromUploadCompleted(params: {
   blob: PutBlobResult;
@@ -48,9 +49,8 @@ export async function registerTaskFileFromUploadCompleted(params: {
   blobToken: string;
 }): Promise<void> {
   if (!params.tokenPayload) {
-    throw new TaskFileUploadClientError(
-      "Missing tokenPayload on task file upload completion",
-    );
+    await deleteOrphanBlob(params.blob.url, params.blobToken);
+    return;
   }
 
   let payload: TaskFileUploadCompletedTokenPayload;
@@ -58,22 +58,19 @@ export async function registerTaskFileFromUploadCompleted(params: {
     payload = taskFileUploadCompletedTokenPayloadSchema.parse(
       JSON.parse(params.tokenPayload),
     );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Invalid tokenPayload";
-    throw new TaskFileUploadClientError(message);
+  } catch {
+    await deleteOrphanBlob(params.blob.url, params.blobToken);
+    return;
   }
 
   if (!isOwnedTaskFileUrl(params.blob.url, payload.taskId)) {
-    throw new TaskFileUploadClientError(
-      "Completed blob URL is not under the expected task file prefix",
-    );
+    await deleteOrphanBlob(params.blob.url, params.blobToken);
+    return;
   }
 
   if (payload.size > TASK_FILE_MAX_SIZE_BYTES) {
-    throw new TaskFileUploadClientError(
-      `File is too large. Maximum size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
-    );
+    await deleteOrphanBlob(params.blob.url, params.blobToken);
+    return;
   }
 
   const resolvedContentType = resolveTaskFileContentType(
@@ -81,26 +78,20 @@ export async function registerTaskFileFromUploadCompleted(params: {
     payload.mimeType,
   );
   if (!resolvedContentType) {
-    throw new TaskFileUploadClientError(
-      "Unsupported content type for task file",
-    );
+    await deleteOrphanBlob(params.blob.url, params.blobToken);
+    return;
   }
 
   const blobMetadata = await head(params.blob.url, {
     token: params.blobToken,
   });
 
-  if (blobMetadata.size > TASK_FILE_MAX_SIZE_BYTES) {
-    throw new TaskFileUploadClientError(
-      `File is too large. Maximum size is ${TASK_FILE_MAX_SIZE_BYTES} bytes.`,
-    );
-  }
-
-  // Grant was capped at the declared size; actual bytes must not exceed it.
-  if (blobMetadata.size > payload.size) {
-    throw new TaskFileUploadClientError(
-      "Uploaded blob exceeds the declared mint size",
-    );
+  if (
+    blobMetadata.size > TASK_FILE_MAX_SIZE_BYTES ||
+    blobMetadata.size > payload.size
+  ) {
+    await deleteOrphanBlob(params.blob.url, params.blobToken);
+    return;
   }
 
   const displayName = clampTaskFileName(payload.name || "file");

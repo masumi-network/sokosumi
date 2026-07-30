@@ -168,7 +168,7 @@ function parsePutResponseBody(raw: string): BlobPutResponseBody {
  * PUT raw bytes to a Blob presigned URL (same wire as task-file mint).
  * Uses XHR so `onUploadProgress` works without the Blob SDK.
  */
-async function uploadViaPresignedUrl(
+export async function uploadViaPresignedUrl(
   file: File,
   contentType: string,
   session: {

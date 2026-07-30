@@ -32,7 +32,7 @@ describe("createBlobUploadGrant", () => {
       pathname: "users/user_123/report.pdf",
       contentType: "application/pdf",
       maximumSizeInBytes: 2_048_000,
-      maxSizeBytes: 52_428_800,
+      maxSizeBytes: 104_857_600,
       access: "public",
       addRandomSuffix: true,
       token: "rw-token",
@@ -71,7 +71,7 @@ describe("createBlobUploadGrant", () => {
       method: "PUT",
       headers: { "Content-Type": "application/pdf" },
       expiresAt: expect.any(String),
-      maxSizeBytes: 52_428_800,
+      maxSizeBytes: 104_857_600,
       addRandomSuffix: true,
     });
     const expiresAtMs = Date.parse(result.expiresAt);

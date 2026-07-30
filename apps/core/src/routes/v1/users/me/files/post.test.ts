@@ -33,7 +33,7 @@ describe("users/me files routes OpenAPI contract", () => {
     expect(requestSchemaJson).toContain('"size"');
     expect(requestSchemaJson).toContain('"maxSizeBytes"');
     expect(requestSchemaJson).toContain('"allowedContentTypes"');
-    expect(requestBodyJson).toContain("1073741824");
+    expect(requestBodyJson).toContain("104857600");
     expect(responseSchemaJson).toContain('"uploadUrl"');
     expect(responseSchemaJson).not.toContain('"clientToken"');
   });

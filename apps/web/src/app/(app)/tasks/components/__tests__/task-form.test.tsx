@@ -932,6 +932,7 @@ describe("TaskForm", () => {
 
     uploadTaskAttachmentMock.mockImplementation(
       (
+        _taskId: string,
         _file: File,
         options?: {
           onUploadProgress?: (progress: {
@@ -961,11 +962,16 @@ describe("TaskForm", () => {
     const { container } = render(
       <TaskForm
         variant="modal"
-        mode="create"
+        mode="edit"
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
+        taskId="task-1"
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Task",
+          description: "Body",
+        }}
         onSuccess={vi.fn()}
       />,
     );
@@ -1019,6 +1025,7 @@ describe("TaskForm", () => {
     uploadTaskAttachmentMock
       .mockImplementationOnce(
         async (
+          _taskId: string,
           _file: File,
           options?: {
             onUploadProgress?: (progress: {
@@ -1039,6 +1046,7 @@ describe("TaskForm", () => {
       )
       .mockImplementationOnce(
         (
+          _taskId: string,
           _file: File,
           options?: {
             onUploadProgress?: (progress: {
@@ -1068,11 +1076,16 @@ describe("TaskForm", () => {
     const { container } = render(
       <TaskForm
         variant="modal"
-        mode="create"
+        mode="edit"
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
+        taskId="task-1"
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Task",
+          description: "Body",
+        }}
         onSuccess={vi.fn()}
       />,
     );
@@ -1108,6 +1121,7 @@ describe("TaskForm", () => {
 
     uploadTaskAttachmentMock.mockImplementation(
       async (
+        _taskId: string,
         _file: File,
         options?: {
           onUploadProgress?: (progress: {
@@ -1129,11 +1143,16 @@ describe("TaskForm", () => {
     const { container } = render(
       <TaskForm
         variant="modal"
-        mode="create"
+        mode="edit"
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
+        taskId="task-1"
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Task",
+          description: "Body",
+        }}
         onSuccess={vi.fn()}
       />,
     );
@@ -1159,6 +1178,7 @@ describe("TaskForm", () => {
 
     uploadTaskAttachmentMock.mockImplementation(
       (
+        _taskId: string,
         _file: File,
         options?: {
           abortSignal?: AbortSignal;
@@ -1190,11 +1210,16 @@ describe("TaskForm", () => {
     const { container, unmount } = render(
       <TaskForm
         variant="modal"
-        mode="create"
+        mode="edit"
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
+        taskId="task-1"
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Task",
+          description: "Body",
+        }}
         onSuccess={vi.fn()}
       />,
     );

@@ -8647,7 +8647,7 @@ export const UserFileUploadSessionSchema = {
         maxSizeBytes: {
             type: 'integer',
             exclusiveMinimum: 0,
-            example: 52428800,
+            example: 104857600,
             description: 'Maximum supported file size for this upload policy'
         },
         addRandomSuffix: {
@@ -12370,7 +12370,7 @@ export const TaskFileUploadSessionSchema = {
         maxSizeBytes: {
             type: 'integer',
             exclusiveMinimum: 0,
-            example: 52428800,
+            example: 104857600,
             description: 'Maximum supported file size for this upload policy'
         },
         addRandomSuffix: {
