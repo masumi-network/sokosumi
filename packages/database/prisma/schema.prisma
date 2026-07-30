@@ -1497,6 +1497,8 @@ enum TaskLinkType {
   BLOCKS
   PARENT
   DUPLICATE
+  /// Schedule series edge: fromTask = template, toTask = run (system-created).
+  SCHEDULE
 }
 
 /// At most one row per unordered task pair (any direction or `TaskLinkType`).

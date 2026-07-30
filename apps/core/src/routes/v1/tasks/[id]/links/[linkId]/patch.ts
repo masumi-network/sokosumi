@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskLinkType } from "@sokosumi/database";
 
 import { requireMutableTaskOwnership } from "@/helpers/access-control";
-import { notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -32,7 +33,8 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "patch",
   path: "/{id}/links/{linkId}",
-  description: "Update a link between this task and another task",
+  description:
+    "Update a link between this task and another task. Schedule series links (TaskLinkType.SCHEDULE) are system-managed and cannot be patched.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -68,6 +70,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!link || (link.fromTaskId !== id && link.toTaskId !== id)) {
         throw notFound("Task link not found");
+      }
+
+      if (link.type === TaskLinkType.SCHEDULE) {
+        throw badRequest(
+          "Schedule links are system-managed and cannot be updated",
+        );
       }
 
       await requireMutableTaskOwnership(userContext, id, tx);

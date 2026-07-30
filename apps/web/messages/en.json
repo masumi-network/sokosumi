@@ -1691,7 +1691,7 @@
           "edit": "Edit",
           "archive": "Archive",
           "confirmArchive": "Archive this task?",
-          "confirmArchiveDescription": "This hides the task from your list. It is not permanently removed from the database.",
+          "confirmArchiveDescription": "This hides the task from your list, including any scheduled runs linked to it. In-progress runs must finish or be canceled first. It is not permanently removed from the database.",
           "archiveError": "Failed to archive task",
           "markAsReady": "Mark as Ready",
           "reopenToReady": "Reopen to Ready",
@@ -1739,7 +1739,9 @@
             "parent": "Parent task",
             "subtask": "Sub-task",
             "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task"
+            "addSubtask": "Add sub-task",
+            "scheduleRun": "Scheduled run",
+            "scheduleSeries": "Schedule"
           },
           "personalWorkspace": "Personal"
         },

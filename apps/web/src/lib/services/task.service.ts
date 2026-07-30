@@ -7,8 +7,8 @@ import type {
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
-  TaskLinkRelation,
   TaskWorkspace,
+  UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { AgentJobStatus } from "@/lib/types/core-dto";
@@ -55,7 +55,7 @@ interface CreateTaskEventInput {
 
 interface CreateTaskLinkInput {
   toTaskId: string;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   note?: string | null;
 }
 

@@ -9,7 +9,7 @@ import { requireTaskArchiveAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { cascadeArchiveScheduleParentChildren, mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -27,7 +27,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel).",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule template also archives its schedule runs (TaskLinkType.SCHEDULE). Fails with 422 if any non-archived schedule run is still in progress (e.g. RUNNING).",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -72,6 +72,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (updateResult.count === 0) {
         throw conflict("Task was modified concurrently; retry archive");
       }
+
+      await cascadeArchiveScheduleParentChildren({
+        tx,
+        parentTaskId: id,
+        archivedAt,
+      });
 
       return tx.task.findFirstOrThrow({
         where: { id },

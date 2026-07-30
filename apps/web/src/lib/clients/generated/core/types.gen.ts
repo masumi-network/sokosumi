@@ -800,7 +800,9 @@ export const TaskLinkRelation = {
     BLOCKED_BY: 'blocked_by',
     PARENT: 'parent',
     CHILD: 'child',
-    DUPLICATE: 'duplicate'
+    DUPLICATE: 'duplicate',
+    SCHEDULE_RUN: 'schedule_run',
+    SCHEDULE_SERIES: 'schedule_series'
 } as const;
 
 export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRelation];
@@ -3483,6 +3485,17 @@ export type TaskListItem = {
     jobsCount: number;
     commentsCount: number;
 };
+
+export const UserWritableTaskLinkRelation = {
+    RELATED: 'related',
+    BLOCKS: 'blocks',
+    BLOCKED_BY: 'blocked_by',
+    PARENT: 'parent',
+    CHILD: 'child',
+    DUPLICATE: 'duplicate'
+} as const;
+
+export type UserWritableTaskLinkRelation = typeof UserWritableTaskLinkRelation[keyof typeof UserWritableTaskLinkRelation];
 
 export type TaskLinkDeleted = {
     deleted: true;
@@ -25054,7 +25067,7 @@ export type GetTasksByIdLinksResponse = GetTasksByIdLinksResponses[keyof GetTask
 export type PostTasksByIdLinksData = {
     body?: {
         toTaskId: string;
-        relation: TaskLinkRelation;
+        relation: UserWritableTaskLinkRelation;
         note?: string | null;
     };
     path: {
@@ -25167,6 +25180,20 @@ export type DeleteTasksByIdLinksByLinkIdData = {
 
 export type DeleteTasksByIdLinksByLinkIdErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -25230,7 +25257,7 @@ export type DeleteTasksByIdLinksByLinkIdResponse = DeleteTasksByIdLinksByLinkIdR
 
 export type PatchTasksByIdLinksByLinkIdData = {
     body?: {
-        relation?: TaskLinkRelation & unknown;
+        relation?: UserWritableTaskLinkRelation & unknown;
         note?: string | null;
     };
     path: {

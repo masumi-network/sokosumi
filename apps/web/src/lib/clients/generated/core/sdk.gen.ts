@@ -2179,7 +2179,7 @@ export const postTasksByIdLinks = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Delete a task link that involves this task
+ * Delete a task link that involves this task. Schedule series links (TaskLinkType.SCHEDULE) are system-managed and cannot be deleted.
  */
 export const deleteTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdLinksByLinkIdData, ThrowOnError>): RequestResult<DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdLinksByLinkIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdLinksByLinkIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdLinksByLinkIdResponseTransformer,
@@ -2188,7 +2188,7 @@ export const deleteTasksByIdLinksByLinkId = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Update a link between this task and another task
+ * Update a link between this task and another task. Schedule series links (TaskLinkType.SCHEDULE) are system-managed and cannot be patched.
  */
 export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false>(options: Options<PatchTasksByIdLinksByLinkIdData, ThrowOnError>): RequestResult<PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdLinksByLinkIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdLinksByLinkIdErrors, ThrowOnError>({
     responseTransformer: patchTasksByIdLinksByLinkIdResponseTransformer,
@@ -2201,7 +2201,7 @@ export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false
 });
 
 /**
- * Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel).
+ * Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule template also archives its schedule runs (TaskLinkType.SCHEDULE). Fails with 422 if any non-archived schedule run is still in progress (e.g. RUNNING).
  */
 export const deleteTasksById = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdData, ThrowOnError>): RequestResult<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdResponseTransformer,

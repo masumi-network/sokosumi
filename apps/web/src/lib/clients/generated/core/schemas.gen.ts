@@ -2944,7 +2944,9 @@ export const TaskLinkRelationSchema = {
         'blocked_by',
         'parent',
         'child',
-        'duplicate'
+        'duplicate',
+        'schedule_run',
+        'schedule_series'
     ],
     example: 'blocked_by'
 } as const;
@@ -12057,6 +12059,19 @@ export const TaskListItemSchema = {
         'jobsCount',
         'commentsCount'
     ]
+} as const;
+
+export const UserWritableTaskLinkRelationSchema = {
+    type: 'string',
+    enum: [
+        'related',
+        'blocks',
+        'blocked_by',
+        'parent',
+        'child',
+        'duplicate'
+    ],
+    example: 'blocked_by'
 } as const;
 
 export const TaskLinkDeletedSchema = {
