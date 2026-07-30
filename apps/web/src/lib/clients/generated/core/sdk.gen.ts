@@ -2337,7 +2337,7 @@ export const getTasksByIdFiles = <ThrowOnError extends boolean = false>(options:
  * Agent / REST:
  * 1. POST this endpoint with `filename`, `contentType`, and `size`.
  * 2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.
- * 3. Done — no register call. Poll GET /v1/tasks/{id}/files if you need the TaskFile row.
+ * 3. Done — no register call. TaskFile appears via webhook; refresh the task if you need the row.
  *
  * Max size: 104857600 bytes. MIME allowlist matches user uploads except image/svg+xml.
  * Requires public Core URL for the completion callback (production / tunnel).
@@ -2511,14 +2511,7 @@ export const unassignCoworkerDeveloper = <ThrowOnError extends boolean = false>(
 /**
  * Vercel Blob `onUploadCompleted` callback for task file client uploads. Not for agents — Blob calls this after a successful PUT to a task-file presigned URL. Verifies `x-vercel-signature` with `BLOB_WEBHOOK_PUBLIC_KEY`, then creates the TaskFile row (task id and metadata come from the mint-time tokenPayload; size from Blob head).
  */
-export const postWebhooksTasksFilesUploaded = <ThrowOnError extends boolean = false>(options: Options<PostWebhooksTasksFilesUploadedData, ThrowOnError>): RequestResult<PostWebhooksTasksFilesUploadedResponses, PostWebhooksTasksFilesUploadedErrors, ThrowOnError> => (options.client ?? client).post<PostWebhooksTasksFilesUploadedResponses, PostWebhooksTasksFilesUploadedErrors, ThrowOnError>({
-    url: '/webhooks/tasks/files/uploaded',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const postWebhooksTasksFilesUploaded = <ThrowOnError extends boolean = false>(options?: Options<PostWebhooksTasksFilesUploadedData, ThrowOnError>): RequestResult<PostWebhooksTasksFilesUploadedResponses, PostWebhooksTasksFilesUploadedErrors, ThrowOnError> => (options?.client ?? client).post<PostWebhooksTasksFilesUploadedResponses, PostWebhooksTasksFilesUploadedErrors, ThrowOnError>({ url: '/webhooks/tasks/files/uploaded', ...options });
 
 /**
  * Resolve the DESIGN.md in effect for the caller's current workspace. The active workspace is taken from the session (the active organization, or the personal workspace when none): when the caller is a member of the active organization, that organization's DESIGN.md is used; otherwise the personal workspace's DESIGN.md (or null) is returned.

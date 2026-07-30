@@ -12789,19 +12789,6 @@ export const AssignCoworkerRequestSchema = {
     }
 } as const;
 
-export const TaskFileUploadedWebhookBodySchema = {
-    type: 'object',
-    properties: {
-        type: {
-            type: 'string'
-        }
-    },
-    required: [
-        'type'
-    ],
-    additionalProperties: {}
-} as const;
-
 export const EffectiveDesignMdSchema = {
     type: 'object',
     properties: {

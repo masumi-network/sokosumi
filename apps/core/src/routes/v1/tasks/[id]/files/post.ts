@@ -50,7 +50,7 @@ const route = createRoute({
     "Agent / REST:",
     "1. POST this endpoint with `filename`, `contentType`, and `size`.",
     "2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.",
-    "3. Done — no register call. Poll GET /v1/tasks/{id}/files if you need the TaskFile row.",
+    "3. Done — no register call. TaskFile appears via webhook; refresh the task if you need the row.",
     "",
     `Max size: ${TASK_FILE_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads except image/svg+xml.`,
     "Requires public Core URL for the completion callback (production / tunnel).",

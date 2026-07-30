@@ -3719,11 +3719,6 @@ export type AssignCoworkerRequest = {
     email?: string;
 };
 
-export type TaskFileUploadedWebhookBody = {
-    type: string;
-    [key: string]: unknown;
-};
-
 export type EffectiveDesignMd = {
     /**
      * The effective DESIGN.md, or null when none
@@ -28677,7 +28672,7 @@ export type UnassignCoworkerDeveloperResponses = {
 export type UnassignCoworkerDeveloperResponse = UnassignCoworkerDeveloperResponses[keyof UnassignCoworkerDeveloperResponses];
 
 export type PostWebhooksTasksFilesUploadedData = {
-    body: TaskFileUploadedWebhookBody;
+    body?: never;
     path?: never;
     query?: never;
     url: '/webhooks/tasks/files/uploaded';

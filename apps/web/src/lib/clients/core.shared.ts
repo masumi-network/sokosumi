@@ -165,7 +165,6 @@ import {
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
-  getTasksByIdFiles as coreGetTasksByIdFiles,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getToolsSiteIcon as coreGetToolsSiteIcon,
@@ -3312,19 +3311,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function listTaskFiles(taskId: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetTasksByIdFiles({
-          client,
-          path: { id: taskId },
-          cache: "no-store",
-        }),
-      "Failed to list task files",
-    );
-  }
-
   async function moveTaskToWorkspace(
     id: string,
     body: { organizationId: string | null },
@@ -3638,7 +3624,6 @@ export function createCoreClient(getClient: GetClient) {
     createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
-    listTaskFiles,
     deleteJobShare,
     deleteProjectsById,
     deleteProjectsByIdJobsByJobId,
