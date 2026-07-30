@@ -46,5 +46,3 @@ export const blobUploadGrantSchema = z
     }),
   })
   .openapi("BlobUploadGrant");
-
-export type BlobUploadGrantDto = z.infer<typeof blobUploadGrantSchema>;

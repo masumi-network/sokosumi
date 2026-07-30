@@ -13,7 +13,7 @@ import {
 } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
-export const taskFileUploadCompletedTokenPayloadSchema = z.object({
+const taskFileUploadCompletedTokenPayloadSchema = z.object({
   taskId: z.string().min(1),
   name: z.string().min(1).max(512),
   mimeType: z.string().min(1).max(255),
@@ -23,11 +23,14 @@ export const taskFileUploadCompletedTokenPayloadSchema = z.object({
   uploadedByCoworkerId: z.string().min(1).nullable(),
 });
 
-export type TaskFileUploadCompletedTokenPayload = z.infer<
+type TaskFileUploadCompletedTokenPayload = z.infer<
   typeof taskFileUploadCompletedTokenPayloadSchema
 >;
 
-/** Validation / client-fault failures — map to HTTP 400 (do not retry). */
+/**
+ * Client-fault failures for the Blob webhook handler (e.g. wrong callback type).
+ * Map to HTTP 400 so Blob does not retry.
+ */
 export class TaskFileUploadClientError extends Error {
   readonly name = "TaskFileUploadClientError";
 

@@ -8,7 +8,6 @@ import {
   uploadCoworkerImage,
   uploadGeneratedChatImage,
   uploadProfileImage,
-  uploadTaskFile,
 } from "./blob";
 
 const {
@@ -430,52 +429,6 @@ describe("deleteCoworkerImageIfOwned", () => {
       deleteCoworkerImageIfOwned(url, "cow-1"),
     ).resolves.toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalled();
-  });
-});
-
-describe("uploadTaskFile", () => {
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("uploads under the task prefix with a random suffix", async () => {
-    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
-    putMock.mockResolvedValue({
-      url: "https://blob.example/tasks/tsk_123/report-xyz.pdf",
-    });
-
-    const url = await uploadTaskFile({
-      taskId: "tsk_123",
-      bytes: Buffer.from("%PDF"),
-      contentType: "application/pdf",
-      filename: " my report.pdf ",
-    });
-
-    expect(url).toBe("https://blob.example/tasks/tsk_123/report-xyz.pdf");
-    expect(putMock).toHaveBeenCalledWith(
-      "tasks/tsk_123/my_report.pdf",
-      Buffer.from("%PDF"),
-      expect.objectContaining({
-        access: "public",
-        contentType: "application/pdf",
-        token: "rw_token",
-        addRandomSuffix: true,
-      }),
-    );
-  });
-
-  it("returns null when blob storage is not configured", async () => {
-    getEnvMock.mockReturnValue({});
-
-    await expect(
-      uploadTaskFile({
-        taskId: "tsk_123",
-        bytes: Buffer.from("%PDF"),
-        contentType: "application/pdf",
-        filename: "report.pdf",
-      }),
-    ).resolves.toBeNull();
-    expect(putMock).not.toHaveBeenCalled();
   });
 });
 

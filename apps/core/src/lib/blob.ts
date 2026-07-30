@@ -317,10 +317,6 @@ export async function uploadGeneratedChatImage(params: {
 }
 
 /**
- * Upload a coworker image to Vercel Blob (public, random suffix).
- * Returns the public URL, or null when blob storage is not configured / put fails.
- */
-/**
  * Persist raw image bytes (a favicon/logo scraped from a site) as a public
  * organization-logo blob, so we own the asset instead of hot-linking an
  * external favicon URL that can rot or track viewers. Returns the public
@@ -365,6 +361,10 @@ export async function uploadOrganizationLogoBytes(params: {
   }
 }
 
+/**
+ * Upload a coworker image to Vercel Blob (public, random suffix).
+ * Returns the public URL, or null when blob storage is not configured / put fails.
+ */
 export async function uploadCoworkerImage(params: {
   coworkerId: string;
   bytes: ArrayBuffer | Buffer | Blob;
@@ -436,43 +436,9 @@ export async function deleteCoworkerImageIfOwned(
   }
 }
 
-export async function uploadTaskFile(params: {
-  taskId: string;
-  bytes: ArrayBuffer | Buffer | Blob;
-  contentType: string;
-  filename: string;
-}): Promise<string | null> {
-  const env = getEnv();
-  if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping task file upload",
-    );
-    return null;
-  }
-
-  const pathname = buildTaskFilePathname(params.taskId, params.filename);
-
-  try {
-    const blob = await put(pathname, params.bytes, {
-      access: "public",
-      contentType: params.contentType,
-      token: env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: true,
-    });
-    return blob.url;
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        function: "uploadTaskFile",
-      },
-    });
-    return null;
-  }
-}
-
 /**
  * Best-effort delete of a task file blob when the URL is under
- * `tasks/{taskId}/`. Used to roll back orphaned uploads after DB failures.
+ * `tasks/{taskId}/`. Used by user-deletion cleanup.
  */
 export async function deleteTaskFileIfOwned(
   url: string | null | undefined,

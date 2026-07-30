@@ -42,7 +42,4 @@ export const userFileUploadSessionSchema = blobUploadGrantSchema.openapi(
   "UserFileUploadSession",
 );
 
-export type CreateUserFileUploadRequest = z.infer<
-  typeof createUserFileUploadRequestSchema
->;
 export type UserFileUploadSession = z.infer<typeof userFileUploadSessionSchema>;

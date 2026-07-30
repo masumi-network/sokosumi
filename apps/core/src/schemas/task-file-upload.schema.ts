@@ -23,7 +23,3 @@ export const createTaskFileUploadSessionRequestSchema = z
 export const taskFileUploadSessionSchema = blobUploadGrantSchema.openapi(
   "TaskFileUploadSession",
 );
-
-export type CreateTaskFileUploadSessionRequest = z.infer<
-  typeof createTaskFileUploadSessionRequestSchema
->;
