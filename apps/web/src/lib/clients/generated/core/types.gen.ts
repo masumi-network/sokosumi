@@ -540,6 +540,10 @@ export type Task = {
     workspace: WorkspaceSummary;
     share: TaskShare | null;
     links: Array<TaskLink>;
+    /**
+     * Files uploaded to this task (newest first).
+     */
+    files: Array<TaskFile>;
 };
 
 export type UserSummary = {
@@ -822,7 +826,9 @@ export const TaskLinkRelation = {
     BLOCKED_BY: 'blocked_by',
     PARENT: 'parent',
     CHILD: 'child',
-    DUPLICATE: 'duplicate'
+    DUPLICATE: 'duplicate',
+    SCHEDULE_RUN: 'schedule_run',
+    SCHEDULE_SERIES: 'schedule_series'
 } as const;
 
 export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRelation];
@@ -832,6 +838,35 @@ export type TaskLinkPeerTask = {
     name: string;
     status: TaskStatus & unknown;
     archivedAt: Date | null;
+};
+
+export type TaskFile = {
+    id: string;
+    taskId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    fileUrl: string;
+    mimeType: string | null;
+    size: number | null;
+    uploader: TaskFileUploader;
+};
+
+/**
+ * Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).
+ */
+export type TaskFileUploader = TaskFileUploaderUser | TaskFileUploaderCoworker | null;
+
+export type TaskFileUploaderUser = {
+    type: 'user';
+    id: string;
+    user: UserSummary;
+};
+
+export type TaskFileUploaderCoworker = {
+    type: 'coworker';
+    id: string;
+    coworker: CoworkerSummary;
 };
 
 export type VendorList = Array<Vendor>;
@@ -3228,6 +3263,7 @@ export type PublicSharedTask = {
     } | null;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
+    files: Array<PublicSharedTaskFile>;
 };
 
 export type PublicSharedTaskAssignee = {
@@ -3259,6 +3295,15 @@ export type PublicSharedTaskMilestone = {
     transactionId: string | null;
     actorName: string | null;
     actorImage: string | null;
+};
+
+export type PublicSharedTaskFile = {
+    id: string;
+    name: string;
+    fileUrl: string;
+    mimeType: string | null;
+    size: number | null;
+    createdAt: Date;
 };
 
 export type Coworker = {
@@ -3453,6 +3498,17 @@ export type TaskListItem = {
     commentsCount: number;
 };
 
+export const UserWritableTaskLinkRelation = {
+    RELATED: 'related',
+    BLOCKS: 'blocks',
+    BLOCKED_BY: 'blocked_by',
+    PARENT: 'parent',
+    CHILD: 'child',
+    DUPLICATE: 'duplicate'
+} as const;
+
+export type UserWritableTaskLinkRelation = typeof UserWritableTaskLinkRelation[keyof typeof UserWritableTaskLinkRelation];
+
 export type TaskLinkDeleted = {
     deleted: true;
 };
@@ -3534,6 +3590,8 @@ export type MasumiTaskPaymentSource = {
     smartContractAddress: string;
     policyId: string;
 };
+
+export type TaskFiles = Array<TaskFile>;
 
 export type SiteIconResult = {
     url: string | null;
@@ -24966,7 +25024,7 @@ export type GetTasksByIdLinksResponse = GetTasksByIdLinksResponses[keyof GetTask
 export type PostTasksByIdLinksData = {
     body?: {
         toTaskId: string;
-        relation: TaskLinkRelation;
+        relation: UserWritableTaskLinkRelation;
         note?: string | null;
     };
     path: {
@@ -25142,7 +25200,7 @@ export type DeleteTasksByIdLinksByLinkIdResponse = DeleteTasksByIdLinksByLinkIdR
 
 export type PatchTasksByIdLinksByLinkIdData = {
     body?: {
-        relation?: TaskLinkRelation & unknown;
+        relation?: UserWritableTaskLinkRelation & unknown;
         note?: string | null;
     };
     path: {
@@ -26192,6 +26250,197 @@ export type PostTasksByIdEventsResponses = {
 };
 
 export type PostTasksByIdEventsResponse = PostTasksByIdEventsResponses[keyof PostTasksByIdEventsResponses];
+
+export type GetTasksByIdFilesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/files';
+};
+
+export type GetTasksByIdFilesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdFilesError = GetTasksByIdFilesErrors[keyof GetTasksByIdFilesErrors];
+
+export type GetTasksByIdFilesResponses = {
+    /**
+     * Task files
+     */
+    200: {
+        data: TaskFiles;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdFilesResponse = GetTasksByIdFilesResponses[keyof GetTasksByIdFilesResponses];
+
+export type PostTasksByIdFilesData = {
+    body: {
+        /**
+         * Task file (max 52428800 bytes; user-upload MIME allowlist except image/svg+xml)
+         */
+        file?: Blob | File;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/files';
+};
+
+export type PostTasksByIdFilesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdFilesError = PostTasksByIdFilesErrors[keyof PostTasksByIdFilesErrors];
+
+export type PostTasksByIdFilesResponses = {
+    /**
+     * Task file uploaded
+     */
+    201: {
+        data: TaskFile;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdFilesResponse = PostTasksByIdFilesResponses[keyof PostTasksByIdFilesResponses];
 
 export type GetTasksByIdJobsData = {
     body?: never;

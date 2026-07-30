@@ -1679,7 +1679,7 @@
           "edit": "Editar",
           "archive": "Arquivar",
           "confirmArchive": "Arquivar esta tarefa?",
-          "confirmArchiveDescription": "A tarefa some da sua lista e não é excluída permanentemente do banco de dados.",
+          "confirmArchiveDescription": "A tarefa some da sua lista, incluindo execuções agendadas vinculadas. Execuções em andamento precisam terminar ou ser canceladas primeiro. Não é excluída permanentemente do banco de dados.",
           "archiveError": "Falha ao arquivar tarefa",
           "markAsReady": "Marcar como pronta",
           "reopenToReady": "Reabrir como Pronta",
@@ -1727,7 +1727,9 @@
             "parent": "tarefa principal",
             "subtask": "subtarefa",
             "duplicate": "duplicada",
-            "addSubtask": "subtarefa"
+            "addSubtask": "subtarefa",
+            "scheduleRun": "Execução agendada",
+            "scheduleSeries": "Agenda"
           },
           "personalWorkspace": "Pessoal"
         },
@@ -1781,7 +1783,8 @@
           "title": "Aguardando aprovação de acesso do fornecedor",
           "description": "Esta tarefa está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor.",
           "descriptionWithCoworker": "{coworkerName} criou esta tarefa. Ela está bloqueada até um proprietário ou administrador do workspace aprovar o acesso do fornecedor."
-        }
+        },
+        "files": "Arquivos"
       },
       "NewTask": {
         "title": "Nova tarefa",

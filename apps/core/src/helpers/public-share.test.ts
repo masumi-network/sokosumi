@@ -293,6 +293,16 @@ describe("getPublicSharedResourceByToken", () => {
             },
           },
         ],
+        files: [
+          {
+            id: "tfile_123",
+            name: "brief.pdf",
+            fileUrl: "https://blob.example.com/tasks/tsk_123/brief.pdf",
+            mimeType: "application/pdf",
+            size: 4096n,
+            createdAt: new Date("2026-03-30T10:03:00.000Z"),
+          },
+        ],
         events: [
           {
             id: "evt_123",
@@ -474,6 +484,16 @@ describe("getPublicSharedResourceByToken", () => {
             shareToken: null,
           },
         ],
+        files: [
+          {
+            id: "tfile_123",
+            name: "brief.pdf",
+            fileUrl: "https://blob.example.com/tasks/tsk_123/brief.pdf",
+            mimeType: "application/pdf",
+            size: 4096,
+            createdAt: new Date("2026-03-30T10:03:00.000Z"),
+          },
+        ],
         events: [
           {
             id: "evt_123",
@@ -597,6 +617,7 @@ describe("getPublicSharedResourceByToken", () => {
           image: null,
         },
         jobs: [],
+        files: [],
         events: [
           {
             id: "evt_settled_credit_only",
@@ -664,6 +685,7 @@ describe("getPublicSharedResourceByToken", () => {
         status: "READY",
         assignee: null,
         jobs: [],
+        files: [],
         events: [],
       },
     });

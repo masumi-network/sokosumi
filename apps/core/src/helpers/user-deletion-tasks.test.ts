@@ -5,20 +5,30 @@ import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 const {
   coworkerAssignmentFindManyMock,
   taskFindManyMock,
+  taskFileFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
   transactionMock,
+  deleteTaskFileIfOwnedMock,
 } = vi.hoisted(() => ({
   coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
+  taskFileFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
   transactionMock: vi.fn(),
+  deleteTaskFileIfOwnedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/blob", () => ({
+  deleteTaskFileIfOwned: deleteTaskFileIfOwnedMock,
 }));
 
 describe("prepareTasksForUserDeletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    taskFileFindManyMock.mockResolvedValue([]);
+    deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
       callback({
         coworkerAssignment: {
@@ -28,6 +38,9 @@ describe("prepareTasksForUserDeletion", () => {
           findMany: taskFindManyMock,
           update: taskUpdateMock,
           deleteMany: taskDeleteManyMock,
+        },
+        taskFile: {
+          findMany: taskFileFindManyMock,
         },
       }),
     );
@@ -99,5 +112,31 @@ describe("prepareTasksForUserDeletion", () => {
         creatorOrchestratorId: null,
       },
     });
+  });
+
+  it("best-effort deletes blob files for owned tasks after cascade", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskFileFindManyMock.mockResolvedValue([
+      {
+        fileUrl:
+          "https://abc.public.blob.vercel-storage.com/tasks/tsk_owned/a.pdf",
+        taskId: "tsk_owned",
+      },
+    ]);
+    taskDeleteManyMock.mockResolvedValue({ count: 1 });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(taskFileFindManyMock).toHaveBeenCalledWith({
+      where: { task: { ownerId: "user_delete" } },
+      select: { fileUrl: true, taskId: true },
+    });
+    expect(deleteTaskFileIfOwnedMock).toHaveBeenCalledWith(
+      "https://abc.public.blob.vercel-storage.com/tasks/tsk_owned/a.pdf",
+      "tsk_owned",
+    );
   });
 });

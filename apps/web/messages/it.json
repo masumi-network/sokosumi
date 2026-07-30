@@ -1679,7 +1679,7 @@
           "edit": "Modifica",
           "archive": "Archivia",
           "confirmArchive": "Archiviare questo task?",
-          "confirmArchiveDescription": "Il task viene nascosto dall’elenco e non viene eliminato definitivamente dal database.",
+          "confirmArchiveDescription": "Il task viene nascosto dall’elenco, incluse le esecuzioni pianificate collegate. Le esecuzioni in corso devono prima terminare o essere annullate. Non viene eliminato definitivamente dal database.",
           "archiveError": "Impossibile archiviare il task",
           "markAsReady": "Segna come pronto",
           "reopenToReady": "Riapri come Pronta",
@@ -1727,7 +1727,9 @@
             "parent": "Attività principale",
             "subtask": "Sotto-attività",
             "duplicate": "Duplicata",
-            "addSubtask": "Aggiungi sotto-attività"
+            "addSubtask": "Aggiungi sotto-attività",
+            "scheduleRun": "Esecuzione pianificata",
+            "scheduleSeries": "Pianificazione"
           },
           "personalWorkspace": "Personale"
         },
@@ -1781,7 +1783,8 @@
           "title": "In attesa dell'approvazione dell'accesso vendor",
           "description": "Questa attività è bloccata finché un proprietario o admin del workspace non approva l'accesso vendor.",
           "descriptionWithCoworker": "{coworkerName} ha creato questa attività. È bloccata finché un proprietario o admin del workspace non approva l'accesso vendor."
-        }
+        },
+        "files": "File"
       },
       "NewTask": {
         "title": "Nuovo task",

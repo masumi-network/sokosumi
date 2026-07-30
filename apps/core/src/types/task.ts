@@ -39,9 +39,26 @@ const taskOwnerAssigneeCreatorInclude = {
   creatorOrchestrator: taskEventApiInclude.orchestrator,
 } as const;
 
+export const taskFileApiInclude = {
+  uploadedByUser: { select: { id: true, name: true, image: true } },
+  uploadedByCoworker: {
+    select: { id: true, name: true, image: true, slug: true },
+  },
+} as const;
+
+const taskFilesInclude = {
+  files: {
+    include: taskFileApiInclude,
+    orderBy: {
+      createdAt: "desc" as const,
+    },
+  },
+} as const;
+
 const taskBaseInclude = {
   ...workspaceRelationInclude,
   ...taskOwnerAssigneeCreatorInclude,
+  ...taskFilesInclude,
   events: {
     include: taskEventApiInclude,
     orderBy: {

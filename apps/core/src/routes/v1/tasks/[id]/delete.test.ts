@@ -205,6 +205,7 @@ const archivedTask = {
   },
   share: null,
   links: [],
+  files: [],
   linksFrom: [],
   linksTo: [],
 };
@@ -214,17 +215,29 @@ describe("DELETE /tasks/{id}", () => {
     vi.clearAllMocks();
   });
 
+  function emptyScheduleLinksTx(taskMocks: {
+    updateMany: ReturnType<typeof vi.fn>;
+    findFirstOrThrow: ReturnType<typeof vi.fn>;
+  }) {
+    return {
+      task: taskMocks,
+      taskLink: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+  }
+
   it("uses the task workspace for link visibility in the archive response", async () => {
     const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
     const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
 
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        task: {
+      return await callback(
+        emptyScheduleLinksTx({
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
-        },
-      });
+        }),
+      );
     });
 
     requireTaskArchiveAccessMock.mockResolvedValue({
@@ -309,12 +322,12 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        task: {
+      return await callback(
+        emptyScheduleLinksTx({
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
-        },
-      });
+        }),
+      );
     });
 
     requireTaskArchiveAccessMock.mockResolvedValue({
@@ -372,6 +385,169 @@ describe("DELETE /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("cascades archive to SCHEDULE runs linked from the template", async () => {
+    const updateManyMock = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    const taskLinkFindManyMock = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_completed",
+          status: TaskStatus.COMPLETED,
+          archivedAt: null,
+        },
+      },
+    ]);
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+          findFirstOrThrow: findFirstOrThrowMock,
+        },
+        taskLink: {
+          findMany: taskLinkFindManyMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      metadata: null,
+      nextRunAt: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_123",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(updateManyMock).toHaveBeenCalledTimes(3);
+    expect(updateManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "tsk_child_ready",
+        archivedAt: null,
+        status: TaskStatus.READY,
+      },
+      data: expect.objectContaining({
+        archivedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it("does not archive children when template has no SCHEDULE links", async () => {
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
+    const taskLinkFindManyMock = vi.fn().mockResolvedValue([]);
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+          findFirstOrThrow: findFirstOrThrowMock,
+        },
+        taskLink: {
+          findMany: taskLinkFindManyMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      metadata: null,
+      nextRunAt: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_123",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 422 when a SCHEDULE run is mid-flight", async () => {
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
+    const taskLinkFindManyMock = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_running",
+          status: TaskStatus.RUNNING,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+    ]);
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: updateManyMock,
+        },
+        taskLink: {
+          findMany: taskLinkFindManyMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(422);
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
+    const body = await response.json();
+    expect(body.message).toContain("RUNNING");
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {

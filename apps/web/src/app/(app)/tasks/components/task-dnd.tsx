@@ -7,6 +7,7 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
+import { hasActiveTaskSchedule } from "@sokosumi/utils";
 import { type CSSProperties, type ReactNode, useRef } from "react";
 import type {
   KanbanColumnId,
@@ -14,7 +15,6 @@ import type {
 } from "@/app/tasks/types/task-board";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { hasActiveSchedule } from "@/lib/utils/task-schedule";
 
 /** Columns whose tasks can be dragged. */
 const DND_DRAG_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo", "done"]);
@@ -84,7 +84,7 @@ export function isTaskDnDDraggable(
     return true;
   }
 
-  return !hasActiveSchedule(
+  return !hasActiveTaskSchedule(
     task.metadata,
     task.nextRunAt ? new Date(task.nextRunAt) : null,
   );

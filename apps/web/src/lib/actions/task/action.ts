@@ -1,6 +1,9 @@
 "use server";
 
-import { userTaskStatusTransitionRequiresComment } from "@sokosumi/utils";
+import {
+  hasActiveTaskSchedule,
+  userTaskStatusTransitionRequiresComment,
+} from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -12,6 +15,7 @@ import {
   type TaskLink,
   TaskLinkRelation,
   TaskStatus,
+  type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
@@ -19,7 +23,6 @@ import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
-  hasActiveSchedule,
   hasTaskScheduleChanged,
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
@@ -75,7 +78,7 @@ interface CreateTaskCommentParameters extends AuthenticatedRequest {
 interface CreateTaskLinkParameters extends AuthenticatedRequest {
   taskId: string;
   relatedTaskId: string;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
 }
@@ -93,7 +96,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
 }
@@ -242,7 +245,7 @@ async function createTaskFromDescription(input: {
 async function collectParentLinksToReplace(input: {
   taskId: string;
   nextParentTaskId: string;
-  relation: TaskLinkRelation;
+  relation: UserWritableTaskLinkRelation;
   replaceExistingParent?: boolean;
 }): Promise<TaskLink[]> {
   const shouldReplaceParent =
@@ -381,8 +384,11 @@ export const createTask = withSession<
       revalidatePath("/projects");
       return { taskId: task.id, name: task.name };
     } catch (error) {
-      console.error("Failed to create task", error);
-      throw new Error("Failed to create task");
+      rethrowTaskActionError(
+        error,
+        "Failed to create task",
+        "Failed to create task",
+      );
     }
   },
 );
@@ -511,7 +517,7 @@ export const setTaskStatusFromDrag = withSession<
     const shouldClearSchedule =
       currentStatus === TaskStatus.QUEUED &&
       desiredStatus !== TaskStatus.QUEUED &&
-      hasActiveSchedule(task.metadata, task.nextRunAt);
+      hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
     if (shouldClearSchedule) {
       const clearedTask = await taskScheduleService.clearSchedule(taskId);
@@ -645,9 +651,11 @@ export const createTaskLink = withSession<
       linkId: link.id,
     };
   } catch (error) {
-    console.error("Failed to create task link", error);
-    const { message } = toCoreApiActionError(error);
-    throw new Error(message ?? "Failed to create task link");
+    rethrowTaskActionError(
+      error,
+      "Failed to create task link",
+      "Failed to create task link",
+    );
   }
 });
 
@@ -676,9 +684,11 @@ export const deleteTaskLink = withSession<
       relatedTaskId: link?.peerTask.id,
     };
   } catch (error) {
-    console.error("Failed to delete task link", error);
-    const { message } = toCoreApiActionError(error);
-    throw new Error(message ?? "Failed to delete task link");
+    rethrowTaskActionError(
+      error,
+      "Failed to delete task link",
+      "Failed to delete task link",
+    );
   }
 });
 
@@ -746,9 +756,11 @@ export const createTaskAndLink = withSession<
       if (createdTask) {
         await archiveCreatedTaskAfterFailure(createdTask.id);
       }
-      console.error("Failed to create and link task", error);
-      const { message } = toCoreApiActionError(error);
-      throw new Error(message ?? "Failed to create and link task");
+      rethrowTaskActionError(
+        error,
+        "Failed to create and link task",
+        "Failed to create and link task",
+      );
     }
   },
 );

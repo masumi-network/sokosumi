@@ -2023,6 +2023,14 @@ export const TaskSchema = {
                 $ref: '#/components/schemas/TaskLink'
             },
             example: []
+        },
+        files: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskFile'
+            },
+            example: [],
+            description: 'Files uploaded to this task (newest first).'
         }
     },
     required: [
@@ -2055,7 +2063,8 @@ export const TaskSchema = {
         'jobs',
         'workspace',
         'share',
-        'links'
+        'links',
+        'files'
     ]
 } as const;
 
@@ -2996,7 +3005,9 @@ export const TaskLinkRelationSchema = {
         'blocked_by',
         'parent',
         'child',
-        'duplicate'
+        'duplicate',
+        'schedule_run',
+        'schedule_series'
     ],
     example: 'blocked_by'
 } as const;
@@ -3043,6 +3054,131 @@ export const TaskLinkPeerTaskSchema = {
         status: 'READY',
         archivedAt: null
     }
+} as const;
+
+export const TaskFileSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tfile_123'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        name: {
+            type: 'string',
+            example: 'report.pdf'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://blob.vercel.app/tasks/tsk_123/report.pdf'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'application/pdf'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            example: 2048000
+        },
+        uploader: {
+            $ref: '#/components/schemas/TaskFileUploader'
+        }
+    },
+    required: [
+        'id',
+        'taskId',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'fileUrl',
+        'mimeType',
+        'size',
+        'uploader'
+    ]
+} as const;
+
+export const TaskFileUploaderSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/TaskFileUploaderUser'
+        },
+        {
+            $ref: '#/components/schemas/TaskFileUploaderCoworker'
+        },
+        {
+            type: 'null'
+        }
+    ],
+    description: 'Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).'
+} as const;
+
+export const TaskFileUploaderUserSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'user'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'user'
+    ]
+} as const;
+
+export const TaskFileUploaderCoworkerSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'coworker'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'coworker'
+    ]
 } as const;
 
 export const VendorListSchema = {
@@ -10973,6 +11109,13 @@ export const PublicSharedTaskSchema = {
                 $ref: '#/components/schemas/PublicSharedTaskMilestone'
             },
             example: []
+        },
+        files: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PublicSharedTaskFile'
+            },
+            example: []
         }
     },
     required: [
@@ -10982,7 +11125,8 @@ export const PublicSharedTaskSchema = {
         'name',
         'status',
         'jobs',
-        'events'
+        'events',
+        'files'
     ]
 } as const;
 
@@ -11159,6 +11303,53 @@ export const PublicSharedTaskMilestoneSchema = {
         'transactionId',
         'actorName',
         'actorImage'
+    ]
+} as const;
+
+export const PublicSharedTaskFileSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tfile_123'
+        },
+        name: {
+            type: 'string',
+            example: 'report.pdf'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://blob.vercel.app/tasks/tsk_123/report.pdf'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'application/pdf'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            example: 2048000
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'fileUrl',
+        'mimeType',
+        'size',
+        'createdAt'
     ]
 } as const;
 
@@ -11900,6 +12091,19 @@ export const TaskListItemSchema = {
     ]
 } as const;
 
+export const UserWritableTaskLinkRelationSchema = {
+    type: 'string',
+    enum: [
+        'related',
+        'blocks',
+        'blocked_by',
+        'parent',
+        'child',
+        'duplicate'
+    ],
+    example: 'blocked_by'
+} as const;
+
 export const TaskLinkDeletedSchema = {
     type: 'object',
     properties: {
@@ -12166,6 +12370,13 @@ export const MasumiTaskPaymentSourceSchema = {
         'smartContractAddress',
         'policyId'
     ]
+} as const;
+
+export const TaskFilesSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/TaskFile'
+    }
 } as const;
 
 export const SiteIconResultSchema = {

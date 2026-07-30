@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskLinkType } from "@sokosumi/database";
 
 import { requireMutableTaskOwnership } from "@/helpers/access-control";
-import { notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -28,13 +29,15 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "delete",
   path: "/{id}/links/{linkId}",
-  description: "Delete a task link that involves this task",
+  description:
+    "Delete a task link that involves this task. Schedule series links (TaskLinkType.SCHEDULE) are system-managed and cannot be deleted.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
   },
   responses: {
     200: jsonSuccessResponse(deletedSchema, "Task link deleted"),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -54,6 +57,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!link || (link.fromTaskId !== id && link.toTaskId !== id)) {
         throw notFound("Task link not found");
+      }
+
+      if (link.type === TaskLinkType.SCHEDULE) {
+        throw badRequest(
+          "Schedule links are system-managed and cannot be deleted",
+        );
       }
 
       await requireMutableTaskOwnership(userContext, id, tx);

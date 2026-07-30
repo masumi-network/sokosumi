@@ -141,6 +141,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       credits: 0,
       events: [],
       jobs: [],
+      files: [],
       share: {
         id: "share-1",
         taskId: "task-1",

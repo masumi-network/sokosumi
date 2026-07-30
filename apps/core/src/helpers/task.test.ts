@@ -1,14 +1,19 @@
 import { Channel, GrantResumeStatus, TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
+  cascadeArchiveScheduleParentChildren,
+  cascadeCancelNonTerminalScheduleRuns,
+  getTaskStatusUpdateDataForEvent,
+  isTerminalTaskStatus,
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
+  mapTaskFile,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -450,6 +455,7 @@ describe("validateStatusTransition", () => {
       [TaskStatus.READY, TaskStatus.QUEUED],
       [TaskStatus.QUEUED, TaskStatus.DRAFT],
       [TaskStatus.QUEUED, TaskStatus.READY],
+      [TaskStatus.QUEUED, TaskStatus.CANCELED],
     ])("accepts %s → %s", (from, to) => {
       expect(() =>
         validateStatusTransition(userContext, from, to),
@@ -713,6 +719,263 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow("Invalid status transition from QUEUED to RUNNING");
     });
+  });
+});
+
+describe("task cancel helpers", () => {
+  it("identifies terminal task statuses", () => {
+    expect(isTerminalTaskStatus(TaskStatus.COMPLETED)).toBe(true);
+    expect(isTerminalTaskStatus(TaskStatus.FAILED)).toBe(true);
+    expect(isTerminalTaskStatus(TaskStatus.CANCELED)).toBe(true);
+    expect(isTerminalTaskStatus(TaskStatus.RUNNING)).toBe(false);
+    expect(isTerminalTaskStatus(TaskStatus.QUEUED)).toBe(false);
+  });
+
+  it("clears schedule fields when canceling", () => {
+    expect(getTaskStatusUpdateDataForEvent(TaskStatus.CANCELED)).toEqual({
+      status: TaskStatus.CANCELED,
+      metadata: null,
+      nextRunAt: null,
+    });
+    expect(getTaskStatusUpdateDataForEvent(TaskStatus.READY)).toEqual({
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("cascades cancel to non-terminal SCHEDULE runs", async () => {
+    const taskEventCreate = vi.fn().mockResolvedValue({ id: "evt_child" });
+    const taskUpdateMany = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    const taskLinkFindMany = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_running",
+          status: TaskStatus.RUNNING,
+          ownerId: "user_123",
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_done",
+          status: TaskStatus.COMPLETED,
+          ownerId: "user_123",
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          ownerId: "user_other",
+        },
+      },
+    ]);
+
+    const canceledChildren = await cascadeCancelNonTerminalScheduleRuns({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        taskEvent: { create: taskEventCreate },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      actorData: {
+        userId: "user_123",
+        coworkerId: null,
+        orchestratorId: null,
+      },
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(taskEventCreate).toHaveBeenCalledTimes(2);
+    expect(taskUpdateMany).toHaveBeenCalledTimes(2);
+    expect(taskUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "tsk_child_running", status: TaskStatus.RUNNING },
+        data: {
+          status: TaskStatus.CANCELED,
+          metadata: null,
+          nextRunAt: null,
+        },
+      }),
+    );
+    expect(canceledChildren).toEqual([
+      { taskId: "tsk_child_running", userId: "user_123" },
+      { taskId: "tsk_child_ready", userId: "user_other" },
+    ]);
+  });
+
+  it("does not cascade cancel to manual PARENT children", async () => {
+    const taskEventCreate = vi.fn();
+    const taskUpdateMany = vi.fn();
+    const taskLinkFindMany = vi.fn().mockResolvedValue([]);
+
+    const canceledChildren = await cascadeCancelNonTerminalScheduleRuns({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        taskEvent: { create: taskEventCreate },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      actorData: {
+        userId: "user_123",
+        coworkerId: null,
+        orchestratorId: null,
+      },
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(taskEventCreate).not.toHaveBeenCalled();
+    expect(taskUpdateMany).not.toHaveBeenCalled();
+    expect(canceledChildren).toEqual([]);
+  });
+});
+
+describe("cascadeArchiveScheduleParentChildren", () => {
+  const archivedAt = new Date("2026-03-25T12:00:00.000Z");
+
+  it("archives archivable SCHEDULE runs and skips already archived", async () => {
+    const taskLinkFindMany = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_completed",
+          status: TaskStatus.COMPLETED,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_canceled",
+          status: TaskStatus.CANCELED,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_archived",
+          status: TaskStatus.READY,
+          archivedAt: new Date("2026-03-25T11:00:00.000Z"),
+        },
+      },
+    ]);
+    const taskUpdateMany = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    const archivedChildIds = await cascadeArchiveScheduleParentChildren({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      archivedAt,
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(taskUpdateMany).toHaveBeenCalledTimes(3);
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_child_ready",
+        archivedAt: null,
+        status: TaskStatus.READY,
+      },
+      data: { archivedAt },
+    });
+    expect(archivedChildIds).toEqual([
+      "tsk_child_ready",
+      "tsk_child_completed",
+      "tsk_child_canceled",
+    ]);
+  });
+
+  it("blocks archive when a SCHEDULE run is mid-flight", async () => {
+    const taskLinkFindMany = vi.fn().mockResolvedValue([
+      {
+        toTask: {
+          id: "tsk_child_ready",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+      {
+        toTask: {
+          id: "tsk_child_running",
+          status: TaskStatus.RUNNING,
+          archivedAt: null,
+        },
+      },
+    ]);
+    const taskUpdateMany = vi.fn();
+
+    await expect(
+      cascadeArchiveScheduleParentChildren({
+        tx: {
+          taskLink: { findMany: taskLinkFindMany },
+          task: { updateMany: taskUpdateMany },
+        } as never,
+        parentTaskId: "tsk_template",
+        archivedAt,
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: expect.stringContaining("RUNNING"),
+    });
+    expect(taskUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not cascade archive to manual PARENT children", async () => {
+    const taskLinkFindMany = vi.fn().mockResolvedValue([]);
+    const taskUpdateMany = vi.fn();
+
+    const archivedChildIds = await cascadeArchiveScheduleParentChildren({
+      tx: {
+        taskLink: { findMany: taskLinkFindMany },
+        task: { updateMany: taskUpdateMany },
+      } as never,
+      parentTaskId: "tsk_template",
+      archivedAt,
+    });
+
+    expect(taskLinkFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          fromTaskId: "tsk_template",
+          type: "SCHEDULE",
+        },
+      }),
+    );
+    expect(taskUpdateMany).not.toHaveBeenCalled();
+    expect(archivedChildIds).toEqual([]);
   });
 });
 
@@ -1038,6 +1301,7 @@ describe("mapTask", () => {
       status: TaskStatus.READY,
       share,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       events: [],
@@ -1078,6 +1342,7 @@ describe("mapTask", () => {
       pendingVendorGrantId: grantId,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       events: [],
@@ -1137,6 +1402,7 @@ describe("mapTask", () => {
       status: TaskStatus.READY,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       events: [],
@@ -1194,6 +1460,7 @@ describe("mapTask", () => {
       share: null,
       linksFrom: [],
       linksTo: [],
+      files: [],
       events: [],
       workspace: {
         id: "11111111-1111-7111-8111-111111111111",
@@ -1265,6 +1532,7 @@ describe("mapTask", () => {
       status: TaskStatus.COMPLETED,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1361,6 +1629,7 @@ describe("mapTask", () => {
       status: TaskStatus.COMPLETED,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1435,6 +1704,7 @@ describe("mapTask", () => {
       status: TaskStatus.OUT_OF_CREDITS,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1511,6 +1781,7 @@ describe("mapTask", () => {
       status: TaskStatus.OUT_OF_CREDITS,
       share: null,
       jobs: [],
+      files: [],
       linksFrom: [],
       linksTo: [],
       workspace: {
@@ -1545,5 +1816,74 @@ describe("mapTask", () => {
 
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(5);
+  });
+});
+
+describe("mapTaskFile", () => {
+  it("maps user and coworker uploaders and coerces size to number", () => {
+    const createdAt = new Date("2026-01-02T00:00:00.000Z");
+    const updatedAt = new Date("2026-01-02T00:00:00.000Z");
+
+    const userUploaded = mapTaskFile({
+      id: "tfile_user",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "report.pdf",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/report.pdf",
+      mimeType: "application/pdf",
+      size: 2048n,
+      uploadedByUserId: "user_123",
+      uploadedByUser: defaultTaskUser,
+      uploadedByCoworkerId: null,
+      uploadedByCoworker: null,
+    } as unknown as Parameters<typeof mapTaskFile>[0]);
+
+    expect(userUploaded).toEqual({
+      id: "tfile_user",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "report.pdf",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/report.pdf",
+      mimeType: "application/pdf",
+      size: 2048,
+      uploader: {
+        type: "user",
+        id: "user_123",
+        user: defaultTaskUser,
+      },
+    });
+
+    const coworkerUploaded = mapTaskFile({
+      id: "tfile_cow",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "notes.txt",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/notes.txt",
+      mimeType: "text/plain",
+      size: null,
+      uploadedByUserId: null,
+      uploadedByUser: null,
+      uploadedByCoworkerId: "cow_123",
+      uploadedByCoworker: defaultTaskCoworker,
+    } as unknown as Parameters<typeof mapTaskFile>[0]);
+
+    expect(coworkerUploaded).toEqual({
+      id: "tfile_cow",
+      taskId: "tsk_123",
+      createdAt,
+      updatedAt,
+      name: "notes.txt",
+      fileUrl: "https://blob.example.com/tasks/tsk_123/notes.txt",
+      mimeType: "text/plain",
+      size: null,
+      uploader: {
+        type: "coworker",
+        id: "cow_123",
+        coworker: defaultTaskCoworker,
+      },
+    });
   });
 });

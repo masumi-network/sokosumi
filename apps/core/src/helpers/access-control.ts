@@ -6,6 +6,7 @@ import {
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import { hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
@@ -23,10 +24,10 @@ import {
   requireWorkspaceContext,
   type WorkspaceContext,
 } from "@/middleware/workspace";
-
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
+
 import {
   getWorkspaceGrant,
   requestWorkspaceGrantCommitted,
@@ -103,14 +104,19 @@ export async function requireMutableTaskOwnership(
 }
 
 /**
- * Soft-archive access: task owner always, or org OWNER/ADMIN when the task is
- * parked (`GRANT_PENDING`) in that organization workspace.
+ * Soft-archive access: task owner always; org OWNER/ADMIN for parked
+ * (`GRANT_PENDING`); for active schedules, any org-workspace member for a
+ * task in that workspace (same active-workspace gate as
+ * {@link requireTaskCancelAccess}). Coworker actors are out (route uses
+ * owner user context).
  */
 export async function requireTaskArchiveAccess(
-  userContext: UserContext,
+  vars: EnvVariables["Variables"],
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
+  const userContext = requireUserContext(vars.authContext);
+
   const owned = await tx.task.findFirst({
     where: {
       id: taskId,
@@ -123,29 +129,52 @@ export async function requireTaskArchiveAccess(
     return owned;
   }
 
-  const parked = await tx.task.findFirst({
+  const task = await tx.task.findFirst({
     where: {
       id: taskId,
       archivedAt: null,
-      status: TaskStatus.GRANT_PENDING,
     },
     include: {
       workspace: { select: { organizationId: true } },
     },
   });
 
-  if (!parked?.workspace.organizationId) {
+  const organizationId = task?.workspace.organizationId;
+  if (!task || !organizationId) {
     throw notFound("Task not found");
   }
 
-  await resolveMemberOrganizationById({
-    id: parked.workspace.organizationId,
-    userId: userContext.userId,
-    tx,
-    allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
-  });
+  const isParked = task.status === TaskStatus.GRANT_PENDING;
+  const isScheduled = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
-  return parked;
+  if (isParked) {
+    await resolveMemberOrganizationById({
+      id: organizationId,
+      userId: userContext.userId,
+      tx,
+      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+    });
+    return task;
+  }
+
+  if (!isScheduled) {
+    throw notFound("Task not found");
+  }
+
+  // Match cancel: task must be in the active workspace; personal-workspace
+  // non-owners are denied.
+  const workspace = requireWorkspaceContext(vars.workspaceContext);
+  const workspaceTask = await requireTaskReadForWorkspace(
+    workspace,
+    taskId,
+    tx,
+  );
+
+  if (workspace.organizationId !== null) {
+    return workspaceTask;
+  }
+
+  throw notFound("Task not found");
 }
 
 // -----------------------------------------------------------------------------
@@ -448,6 +477,19 @@ export async function requireTaskCollaboration(
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+}
+
+/**
+ * Upload access for task files: task owner (user/orchestrator-as-user) or the
+ * assigned coworker (including coworker-with-context when they are the assignee).
+ * Same rules as {@link requireTaskCollaboration}.
+ */
+export async function requireTaskFileUploadAccess(
+  authContext: AuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  return await requireTaskCollaboration(authContext, taskId, tx);
 }
 
 export async function requireTaskCommentAccess(

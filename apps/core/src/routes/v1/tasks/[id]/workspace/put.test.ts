@@ -183,6 +183,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     },
     share: null,
     links: [],
+    files: [],
     ...restOverrides,
   };
 }

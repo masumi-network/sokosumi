@@ -31,7 +31,10 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import {
+  canArchiveParkedTaskForViewer,
+  canArchiveScheduledTaskForViewer,
+} from "@/app/tasks/utils/task-read-only";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,6 +132,7 @@ interface TaskDetailActionsProps {
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
   isOrgOwnerOrAdmin?: boolean;
+  hasActiveSchedule?: boolean;
 }
 
 export function TaskDetailActions({
@@ -150,6 +154,7 @@ export function TaskDetailActions({
   forceReadOnly = false,
   isTaskOwner = false,
   isOrgOwnerOrAdmin = false,
+  hasActiveSchedule = false,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -210,8 +215,16 @@ export function TaskDetailActions({
     isTaskOwner,
     isOrgOwnerOrAdmin,
   });
+  const canArchiveScheduled = canArchiveScheduledTaskForViewer({
+    forceReadOnly,
+    taskStatus: status,
+    isTaskOwner,
+    taskWorkspaceOrganizationId: currentOrganizationId ?? null,
+    hasActiveSchedule,
+  });
   const canArchiveTask =
     canArchiveParked ||
+    canArchiveScheduled ||
     (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
   const isFinalized =
     status === TaskStatus.COMPLETED ||
@@ -222,16 +235,20 @@ export function TaskDetailActions({
     canMutateTask &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
+  // Manual parent only — schedule_series is system-managed and not removable.
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
     [taskLinks],
   );
+  // System schedule edges (template→run and run→series) cannot be removed by users.
   const removableTaskLinks = useMemo(
     () =>
       taskLinks.filter(
         (link) =>
           link.peerTask.archivedAt === null &&
-          link.relation !== TaskLinkRelation.CHILD,
+          link.relation !== TaskLinkRelation.CHILD &&
+          link.relation !== TaskLinkRelation.SCHEDULE_SERIES &&
+          link.relation !== TaskLinkRelation.SCHEDULE_RUN,
       ),
     [taskLinks],
   );
@@ -355,7 +372,11 @@ export function TaskDetailActions({
         router.push("/tasks");
       } catch (error) {
         console.error("Failed to archive task", error);
-        toast.error(labels.archiveError);
+        toast.error(
+          error instanceof Error && error.message
+            ? error.message
+            : labels.archiveError,
+        );
       }
     });
   };
@@ -486,6 +507,20 @@ export function TaskDetailActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            {canEdit ? (
+              <DropdownMenuItem asChild disabled={actionsDisabled}>
+                <Link
+                  href={`/tasks/${taskId}/edit`}
+                  className={
+                    actionsDisabled ? "pointer-events-none opacity-70" : ""
+                  }
+                >
+                  <Pencil className="size-4" aria-hidden />
+                  {labels.edit}
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+
             {statusActions.map((action) => {
               const StatusIcon = action.requiresComment
                 ? RotateCcw
@@ -508,23 +543,9 @@ export function TaskDetailActions({
               );
             })}
 
-            {statusActions.length > 0 &&
-            (canEdit || canManageRelations || canMove) ? (
+            {(canEdit || statusActions.length > 0) &&
+            (canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
-            ) : null}
-
-            {canEdit ? (
-              <DropdownMenuItem asChild disabled={actionsDisabled}>
-                <Link
-                  href={`/tasks/${taskId}/edit`}
-                  className={
-                    actionsDisabled ? "pointer-events-none opacity-70" : ""
-                  }
-                >
-                  <Pencil className="size-4" aria-hidden />
-                  {labels.edit}
-                </Link>
-              </DropdownMenuItem>
             ) : null}
 
             {canManageRelations ? (
@@ -991,6 +1012,7 @@ function getTaskStatusActions(
   }
 
   if (
+    status === TaskStatus.QUEUED ||
     status === TaskStatus.INPUT_REQUIRED ||
     status === TaskStatus.APPROVAL_REQUIRED ||
     status === TaskStatus.AUTHENTICATION_REQUIRED ||

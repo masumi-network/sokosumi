@@ -111,6 +111,7 @@ function buildMapTaskResponse(task: {
     },
     share: null,
     links: [],
+    files: [],
   };
 }
 

@@ -1,5 +1,5 @@
-import { TaskStatus } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { canArchiveTaskStatus, convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
@@ -14,7 +14,7 @@ import {
   taskEventApiInclude,
 } from "@/types/task";
 
-import { unprocessableEntity } from "./error";
+import { conflict, unprocessableEntity } from "./error";
 import {
   coworkerSummaryFromLoadedRelation,
   orchestratorSummaryFromLoadedRelation,
@@ -23,6 +23,63 @@ import {
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
 import { mapWorkspaceSummary } from "./workspace";
+
+type TaskFileForMapping = TaskWithIncludes["files"][number];
+
+export function mapTaskFile(file: TaskFileForMapping) {
+  let uploader: {
+    type: "user" | "coworker";
+    id: string;
+    user?: { id: string; name: string; image: string | null };
+    coworker?: {
+      id: string;
+      name: string;
+      image: string | null;
+      slug: string;
+    };
+  } | null = null;
+
+  if (file.uploadedByUserId != null) {
+    const user = userSummaryFromLoadedRelation(
+      `TaskFile ${file.id} uploader`,
+      file.uploadedByUserId,
+      file.uploadedByUser ?? null,
+    );
+    uploader = {
+      type: "user",
+      id: file.uploadedByUserId,
+      user,
+    };
+  } else if (file.uploadedByCoworkerId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `TaskFile ${file.id} uploader`,
+      file.uploadedByCoworkerId,
+      file.uploadedByCoworker ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `TaskFile ${file.id}: coworker uploader summary missing for API mapping`,
+      );
+    }
+    uploader = {
+      type: "coworker",
+      id: file.uploadedByCoworkerId,
+      coworker,
+    };
+  }
+
+  return {
+    id: file.id,
+    taskId: file.taskId,
+    createdAt: file.createdAt,
+    updatedAt: file.updatedAt,
+    name: file.name,
+    fileUrl: file.fileUrl,
+    mimeType: file.mimeType ?? null,
+    size: file.size != null ? Number(file.size) : null,
+    uploader,
+  };
+}
 
 type TaskEventWithOptionalTransaction = Omit<
   TaskWithIncludes["events"][number],
@@ -176,7 +233,11 @@ function getAllowedTransitions(
       TaskStatus.CANCELED,
       TaskStatus.QUEUED,
     ],
-    [TaskStatus.QUEUED]: [TaskStatus.DRAFT, TaskStatus.READY],
+    [TaskStatus.QUEUED]: [
+      TaskStatus.DRAFT,
+      TaskStatus.READY,
+      TaskStatus.CANCELED,
+    ],
     [TaskStatus.READY]: [
       TaskStatus.DRAFT,
       TaskStatus.CANCELED,
@@ -199,6 +260,172 @@ function getAllowedTransitions(
     // Users may reopen CANCELED → READY with a required comment (SOK-631).
     [TaskStatus.CANCELED]: [TaskStatus.READY],
   };
+}
+
+export const TERMINAL_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+  TaskStatus.CANCELED,
+]);
+
+export function isTerminalTaskStatus(status: TaskStatus): boolean {
+  return TERMINAL_TASK_STATUSES.has(status);
+}
+
+export function getTaskStatusUpdateDataForEvent(status: TaskStatus): {
+  status: TaskStatus;
+  metadata?: null;
+  nextRunAt?: null;
+} {
+  if (status === TaskStatus.CANCELED) {
+    return {
+      status,
+      metadata: null,
+      nextRunAt: null,
+    };
+  }
+
+  return { status };
+}
+
+interface TaskEventActorData {
+  userId: string | null;
+  coworkerId: string | null;
+  orchestratorId: string | null;
+}
+
+interface CascadeCancelScheduleRunsParams {
+  tx: Prisma.TransactionClient;
+  parentTaskId: string;
+  actorData: TaskEventActorData;
+}
+
+export interface CascadedCancelChild {
+  taskId: string;
+  userId: string;
+}
+
+/**
+ * Cascade-cancel non-terminal schedule runs linked from a template via
+ * {@link TaskLinkType.SCHEDULE} (from = template, to = run). Manual PARENT
+ * hierarchy is not cascaded.
+ */
+export async function cascadeCancelNonTerminalScheduleRuns({
+  tx,
+  parentTaskId,
+  actorData,
+}: CascadeCancelScheduleRunsParams): Promise<CascadedCancelChild[]> {
+  const scheduleLinks = await tx.taskLink.findMany({
+    where: {
+      fromTaskId: parentTaskId,
+      type: TaskLinkType.SCHEDULE,
+    },
+    select: {
+      toTask: {
+        select: {
+          id: true,
+          status: true,
+          ownerId: true,
+        },
+      },
+    },
+  });
+
+  const canceledChildren: CascadedCancelChild[] = [];
+
+  for (const link of scheduleLinks) {
+    const child = link.toTask;
+    if (isTerminalTaskStatus(child.status)) {
+      continue;
+    }
+
+    await tx.taskEvent.create({
+      data: {
+        taskId: child.id,
+        status: TaskStatus.CANCELED,
+        channel: Channel.SOKOSUMI,
+        ...actorData,
+      },
+    });
+
+    const childUpdate = await tx.task.updateMany({
+      where: { id: child.id, status: child.status },
+      data: getTaskStatusUpdateDataForEvent(TaskStatus.CANCELED),
+    });
+    if (childUpdate.count !== 1) {
+      throw conflict("Task status was changed by another request");
+    }
+
+    canceledChildren.push({
+      taskId: child.id,
+      userId: child.ownerId,
+    });
+  }
+
+  return canceledChildren;
+}
+
+interface CascadeArchiveScheduleParentChildrenParams {
+  tx: Prisma.TransactionClient;
+  parentTaskId: string;
+  archivedAt: Date;
+}
+
+/**
+ * Soft-archive schedule runs linked from a template via
+ * {@link TaskLinkType.SCHEDULE}. Blocks when any non-archived run is not
+ * archivable (e.g. RUNNING) so the series is never half-hidden. Manual PARENT
+ * hierarchy is not cascaded.
+ */
+export async function cascadeArchiveScheduleParentChildren({
+  tx,
+  parentTaskId,
+  archivedAt,
+}: CascadeArchiveScheduleParentChildrenParams): Promise<string[]> {
+  const scheduleLinks = await tx.taskLink.findMany({
+    where: {
+      fromTaskId: parentTaskId,
+      type: TaskLinkType.SCHEDULE,
+    },
+    select: {
+      toTask: {
+        select: {
+          id: true,
+          status: true,
+          archivedAt: true,
+        },
+      },
+    },
+  });
+
+  const activeRuns = scheduleLinks
+    .map((link) => link.toTask)
+    .filter((child) => child.archivedAt == null);
+
+  const blockingRun = activeRuns.find(
+    (child) => !canArchiveTaskStatus(child.status),
+  );
+  if (blockingRun) {
+    throw unprocessableEntity(
+      `Cannot archive schedule template while a schedule run is still in progress (status: ${blockingRun.status}). Wait for in-progress runs to finish, or cancel them first.`,
+    );
+  }
+
+  const archivedChildIds: string[] = [];
+
+  for (const child of activeRuns) {
+    const childUpdate = await tx.task.updateMany({
+      where: { id: child.id, archivedAt: null, status: child.status },
+      data: { archivedAt },
+    });
+    if (childUpdate.count !== 1) {
+      throw conflict("Task was modified concurrently; retry archive");
+    }
+
+    archivedChildIds.push(child.id);
+  }
+
+  return archivedChildIds;
 }
 
 export function validateStatusTransition(
@@ -478,11 +705,13 @@ function mapTaskBase(task: TaskWithIncludes) {
 
 export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
   const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
+  const files = "files" in task && Array.isArray(task.files) ? task.files : [];
 
   return {
     ...mapTaskBase(task),
     share: task.share,
     links,
+    files: files.map(mapTaskFile),
   };
 }
 

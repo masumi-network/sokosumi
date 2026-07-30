@@ -1,5 +1,8 @@
-import type { SubscriptionPlanName } from "@sokosumi/utils";
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import {
+  hasActiveTaskSchedule,
+  resolveIpfsOrHttpUrl,
+  type SubscriptionPlanName,
+} from "@sokosumi/utils";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -9,6 +12,7 @@ import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
+import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
@@ -93,7 +97,9 @@ export async function TaskDetailView({
   );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
-  const parentTask = linkedTasks.find((link) => link.relation === "child");
+  const parentTask = linkedTasks.find(
+    (link) => link.relation === "child" || link.relation === "schedule_series",
+  );
 
   const t = await translationsPromise;
 
@@ -182,8 +188,12 @@ export async function TaskDetailView({
               parent: t("actions.relations.subtask"),
               child: t("actions.relations.parent"),
               duplicate: t("actions.relations.duplicate"),
+              schedule_run: t("actions.relations.scheduleRun"),
+              schedule_series: t("actions.relations.scheduleSeries"),
             }}
           />
+
+          <TaskFiles title={t("files")} files={task.files ?? []} />
 
           {task.jobs.length > 0 && (
             <>
@@ -480,6 +490,7 @@ async function TaskDetailActionsSlot({
       forceReadOnly={forceReadOnly}
       isTaskOwner={session?.user.id === task.ownerId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+      hasActiveSchedule={hasActiveTaskSchedule(task.metadata, task.nextRunAt)}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),

@@ -1679,7 +1679,7 @@
           "edit": "Modifier",
           "archive": "Archiver",
           "confirmArchive": "Archiver cette tâche ?",
-          "confirmArchiveDescription": "La tâche sera masquée dans votre liste et n’est pas supprimée définitivement de la base de données.",
+          "confirmArchiveDescription": "La tâche sera masquée dans votre liste, y compris les exécutions planifiées liées. Les exécutions en cours doivent d’abord se terminer ou être annulées. Elle n’est pas supprimée définitivement de la base de données.",
           "archiveError": "Échec de l’archivage de la tâche",
           "markAsReady": "Marquer comme prêt",
           "reopenToReady": "Rouvrir en Prêt",
@@ -1727,7 +1727,9 @@
             "parent": "tâche parente",
             "subtask": "sous-tâche",
             "duplicate": "dupliquée",
-            "addSubtask": "sous-tâche"
+            "addSubtask": "sous-tâche",
+            "scheduleRun": "Exécution planifiée",
+            "scheduleSeries": "Planning"
           },
           "personalWorkspace": "Personnel"
         },
@@ -1781,7 +1783,8 @@
           "title": "En attente de l'approbation d'accès fournisseur",
           "description": "Cette tâche est bloquée jusqu'à ce qu'un propriétaire ou administrateur de l'espace de travail approuve l'accès fournisseur.",
           "descriptionWithCoworker": "{coworkerName} a créé cette tâche. Elle est bloquée jusqu'à ce qu'un propriétaire ou administrateur de l'espace de travail approuve l'accès fournisseur."
-        }
+        },
+        "files": "Fichiers"
       },
       "NewTask": {
         "title": "Nouvelle tâche",

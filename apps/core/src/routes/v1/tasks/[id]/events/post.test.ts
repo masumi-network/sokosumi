@@ -173,6 +173,9 @@ interface TransactionMock {
   task: {
     updateMany: ReturnType<typeof vi.fn>;
   };
+  taskLink?: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 }
 
 function createTask(
@@ -257,6 +260,12 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
 }
 
 function mockTransaction(tx: TransactionMock) {
+  if (!tx.taskLink) {
+    tx.taskLink = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+  }
+
   const innerCreate = tx.taskEvent.create;
   const findUnique = (tx.taskEvent.findUnique ??= vi.fn());
   tx.taskEvent.findFirst ??= vi.fn().mockResolvedValue(null);
@@ -3047,5 +3056,147 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("clears schedule fields when canceling a queued task", async () => {
+    requireTaskCancelAccessMock.mockResolvedValue(
+      createTask({ status: TaskStatus.QUEUED }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      taskLink: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: TASK_ID, status: TaskStatus.QUEUED },
+        data: {
+          status: TaskStatus.CANCELED,
+          metadata: null,
+          nextRunAt: null,
+        },
+      }),
+    );
+    expect(tx.taskLink?.findMany).toHaveBeenCalled();
+  });
+
+  it("cascades cancel to non-terminal SCHEDULE runs", async () => {
+    requireTaskCancelAccessMock.mockResolvedValue(
+      createTask({ status: TaskStatus.QUEUED }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi
+          .fn()
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              id: "evt_parent",
+              status: TaskStatus.CANCELED,
+              userId: USER_ID,
+              coworkerId: null,
+            }),
+          )
+          .mockResolvedValueOnce(
+            createTaskEvent({
+              id: "evt_child",
+              status: TaskStatus.CANCELED,
+              userId: USER_ID,
+              coworkerId: null,
+            }),
+          ),
+      },
+      task: {
+        updateMany: vi
+          .fn()
+          .mockResolvedValueOnce({ count: 1 })
+          .mockResolvedValueOnce({ count: 1 }),
+      },
+      taskLink: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            toTask: {
+              id: "tsk_child",
+              status: TaskStatus.RUNNING,
+              ownerId: USER_ID,
+            },
+          },
+        ]),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
+    expect(tx.task.updateMany).toHaveBeenCalledTimes(2);
+    expect(tx.task.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: "tsk_child", status: TaskStatus.RUNNING },
+        data: {
+          status: TaskStatus.CANCELED,
+          metadata: null,
+          nextRunAt: null,
+        },
+      }),
+    );
+    expect(publishTaskEventDataMock).toHaveBeenCalledTimes(2);
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      taskId: TASK_ID,
+      eventType: "task_event",
+    });
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      taskId: "tsk_child",
+      eventType: "task_event",
+    });
   });
 });

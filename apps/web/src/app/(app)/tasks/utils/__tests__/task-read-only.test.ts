@@ -3,6 +3,7 @@ import { TaskStatus } from "@/lib/clients/generated/core";
 
 import {
   canArchiveParkedTaskForViewer,
+  canArchiveScheduledTaskForViewer,
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
@@ -137,6 +138,99 @@ describe("canArchiveParkedTaskForViewer", () => {
         isOrgOwnerOrAdmin: true,
       }),
     ).toBe(false);
+  });
+});
+
+describe("canArchiveScheduledTaskForViewer", () => {
+  it("allows any org collaborator to archive a scheduled task they do not own", () => {
+    expect(
+      canArchiveScheduledTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+        isTaskOwner: false,
+        taskWorkspaceOrganizationId: "org_1",
+        hasActiveSchedule: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks when the task has no active schedule", () => {
+    expect(
+      canArchiveScheduledTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+        isTaskOwner: false,
+        taskWorkspaceOrganizationId: "org_1",
+        hasActiveSchedule: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks personal-workspace scheduled tasks for non-owners", () => {
+    expect(
+      canArchiveScheduledTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+        isTaskOwner: false,
+        taskWorkspaceOrganizationId: null,
+        hasActiveSchedule: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("never unlocks archive under forceReadOnly", () => {
+    expect(
+      canArchiveScheduledTaskForViewer({
+        forceReadOnly: true,
+        taskStatus: TaskStatus.READY,
+        isTaskOwner: false,
+        taskWorkspaceOrganizationId: "org_1",
+        hasActiveSchedule: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks non-archivable statuses even when scheduled", () => {
+    expect(
+      canArchiveScheduledTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.RUNNING,
+        isTaskOwner: false,
+        taskWorkspaceOrganizationId: "org_1",
+        hasActiveSchedule: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks grant-pending scheduled tasks for plain org members", () => {
+    expect(
+      canArchiveScheduledTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+        isTaskOwner: false,
+        taskWorkspaceOrganizationId: "org_1",
+        hasActiveSchedule: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps parked archive on owner/admin for grant-pending scheduled tasks", () => {
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+        isTaskOwner: true,
+        isOrgOwnerOrAdmin: false,
+      }),
+    ).toBe(true);
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+        isTaskOwner: false,
+        isOrgOwnerOrAdmin: true,
+      }),
+    ).toBe(true);
   });
 });
 
