@@ -103,12 +103,28 @@ function getCloneTaskData(
   };
 }
 
+/**
+ * Claim guard for schedule sync writes: status must still be QUEUED and
+ * `nextRunAt` must still equal the value read at transaction start. A concurrent
+ * schedule PUT / clear / cancel that changes `nextRunAt` (or leaves QUEUED)
+ * must not be overwritten — otherwise sync can wipe a fresh schedule to DRAFT
+ * or re-arm an obsolete cadence after cloning from superseded metadata.
+ */
+function queuedTemplateClaimWhere(templateId: string, claimedNextRunAt: Date) {
+  return {
+    id: templateId,
+    status: TaskStatus.QUEUED,
+    nextRunAt: claimedNextRunAt,
+  };
+}
+
 async function clearTemplateSchedule(
   tx: Prisma.TransactionClient,
   templateId: string,
+  claimedNextRunAt: Date,
 ): Promise<boolean> {
   const updateResult = await tx.task.updateMany({
-    where: { id: templateId, status: TaskStatus.QUEUED },
+    where: queuedTemplateClaimWhere(templateId, claimedNextRunAt),
     data: {
       status: TaskStatus.DRAFT,
       metadata: null,
@@ -123,9 +139,10 @@ async function promoteOneTimeTask(
   tx: Prisma.TransactionClient,
   templateId: string,
   userId: string,
+  claimedNextRunAt: Date,
 ): Promise<boolean> {
   const updateResult = await tx.task.updateMany({
-    where: { id: templateId, status: TaskStatus.QUEUED },
+    where: queuedTemplateClaimWhere(templateId, claimedNextRunAt),
     data: {
       status: TaskStatus.READY,
       metadata: null,
@@ -148,12 +165,13 @@ async function promoteOneTimeTask(
   return true;
 }
 
-async function isTemplateStillQueued(
+async function isTemplateClaimStillHeld(
   tx: Prisma.TransactionClient,
   templateId: string,
+  claimedNextRunAt: Date,
 ): Promise<boolean> {
   const template = await tx.task.findFirst({
-    where: { id: templateId, status: TaskStatus.QUEUED },
+    where: queuedTemplateClaimWhere(templateId, claimedNextRunAt),
     select: { id: true },
   });
 
@@ -281,9 +299,15 @@ async function processDueTask(
         return { outcome: "skipped", publishEvents: [] };
       }
 
+      const claimedNextRunAt = template.nextRunAt;
+
       const scheduleMetadata = parseTaskScheduleMetadata(template.metadata);
       if (!scheduleMetadata) {
-        const cleared = await clearTemplateSchedule(tx, template.id);
+        const cleared = await clearTemplateSchedule(
+          tx,
+          template.id,
+          claimedNextRunAt,
+        );
         return {
           outcome: "skipped",
           publishEvents: cleared
@@ -297,6 +321,7 @@ async function processDueTask(
           tx,
           template.id,
           template.ownerId,
+          claimedNextRunAt,
         );
         if (!promoted) {
           return { outcome: "skipped", publishEvents: [] };
@@ -309,7 +334,7 @@ async function processDueTask(
 
       const now = new Date();
       let metadata = scheduleMetadata;
-      let nextRunAt = template.nextRunAt;
+      let nextRunAt = claimedNextRunAt;
       let clonesCreated = 0;
       const clonedTaskIds: string[] = [];
 
@@ -326,7 +351,9 @@ async function processDueTask(
           break;
         }
 
-        if (!(await isTemplateStillQueued(tx, template.id))) {
+        if (
+          !(await isTemplateClaimStillHeld(tx, template.id, claimedNextRunAt))
+        ) {
           break;
         }
 
@@ -338,7 +365,11 @@ async function processDueTask(
         const computedNextRun = computeScheduleNextRun(metadata, nextRunAt);
 
         if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
-          const cleared = await clearTemplateSchedule(tx, template.id);
+          const cleared = await clearTemplateSchedule(
+            tx,
+            template.id,
+            claimedNextRunAt,
+          );
           assertTemplateClaimHeld(cleared, clonesCreated);
           return {
             outcome: "cloned",
@@ -352,7 +383,11 @@ async function processDueTask(
         }
 
         if (!computedNextRun) {
-          const cleared = await clearTemplateSchedule(tx, template.id);
+          const cleared = await clearTemplateSchedule(
+            tx,
+            template.id,
+            claimedNextRunAt,
+          );
           assertTemplateClaimHeld(cleared, clonesCreated);
           return {
             outcome: "cloned",
@@ -369,8 +404,12 @@ async function processDueTask(
       }
 
       if (clonesCreated === 0) {
-        if (isDueRunPastScheduleEnd(metadata, template.nextRunAt)) {
-          const cleared = await clearTemplateSchedule(tx, template.id);
+        if (isDueRunPastScheduleEnd(metadata, claimedNextRunAt)) {
+          const cleared = await clearTemplateSchedule(
+            tx,
+            template.id,
+            claimedNextRunAt,
+          );
           return {
             outcome: "skipped",
             publishEvents: cleared
@@ -382,7 +421,7 @@ async function processDueTask(
       }
 
       const updateResult = await tx.task.updateMany({
-        where: { id: template.id, status: TaskStatus.QUEUED },
+        where: queuedTemplateClaimWhere(template.id, claimedNextRunAt),
         data: {
           metadata: JSON.stringify(metadata),
           nextRunAt,
