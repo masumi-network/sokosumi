@@ -22,6 +22,10 @@ import {
  * Public Blob webhook — no session/Bearer auth.
  * Verified via Ed25519 `x-vercel-signature` + `BLOB_WEBHOOK_PUBLIC_KEY`.
  * Task id comes from mint-time `tokenPayload`, not the URL.
+ *
+ * Body schema is intentionally not OpenAPI-validated: Vercel Blob's
+ * `onUploadCompleted` callback may omit `Content-Type: application/json`,
+ * and `@hono/zod-openapi` then skips JSON parse → false 422s.
  */
 const route = createRoute({
   method: "post",
@@ -34,21 +38,6 @@ const route = createRoute({
   ].join(" "),
   tags: ["Webhooks"],
   security: [],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: z
-            .object({
-              type: z.string(),
-            })
-            .passthrough()
-            .openapi("TaskFileUploadedWebhookBody"),
-        },
-      },
-    },
-  },
   responses: {
     200: {
       description: "Upload completion handled",
@@ -73,6 +62,26 @@ const app = new OpenAPIHono({
   defaultHook: defaultValidationHook,
 });
 
+function parseUploadCompletedBody(raw: string): HandleUploadPresignedBody {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw badRequest("Invalid JSON body");
+  }
+
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("type" in parsed) ||
+    typeof (parsed as { type: unknown }).type !== "string"
+  ) {
+    throw badRequest("Invalid upload completion body");
+  }
+
+  return parsed as HandleUploadPresignedBody;
+}
+
 app.openapi(route, async (c) => {
   const env = getEnv();
   const webhookPublicKey = env.BLOB_WEBHOOK_PUBLIC_KEY;
@@ -87,7 +96,7 @@ app.openapi(route, async (c) => {
     throw serviceUnavailable("Blob storage is not configured");
   }
 
-  const body = (await c.req.json()) as HandleUploadPresignedBody;
+  const body = parseUploadCompletedBody(await c.req.text());
 
   try {
     const result = await handleUploadPresigned({
