@@ -572,9 +572,18 @@ export async function createAgentJobForUser(
       // agents report "None" yet still settle through a V2 contract, and the
       // availability filter admits them on the same basis.
       if (isV2Agent) {
+        // A seller that omits the index is only unambiguous when the agent
+        // registered exactly ONE payment source for this rail and network:
+        // there is nothing else it could have meant. With several sources the
+        // seller alone knows which one it will settle through, so the echo
+        // stays mandatory — guessing would bill from the wrong price.
+        const selectedSourceIndex =
+          response.supportedPaymentSourceIndex ??
+          (agent.paymentSources.length === 1
+            ? agent.paymentSources[0]?.sourceIndex
+            : undefined);
         const selectedSource = agent.paymentSources.find(
-          (source) =>
-            response.supportedPaymentSourceIndex === source.sourceIndex,
+          (source) => selectedSourceIndex === source.sourceIndex,
         );
         if (!selectedSource) {
           throw unprocessableEntity(
@@ -678,6 +687,12 @@ export async function createAgentJobForUser(
         paidJobResult = {
           ...response,
           paymentSourceType: "Web3CardanoV2",
+          // Forward the RESOLVED index, not the seller's echo. The node feeds
+          // this straight back into the signed blockchainIdentifier payload,
+          // where an omitted index and an explicit one hash differently — so
+          // sending undefined for a source the seller signed with an index
+          // would fail signature verification at POST /purchase.
+          supportedPaymentSourceIndex: selectedSource.sourceIndex,
         };
       } else {
         // A V1 agent whose seller upgraded its SDK may now echo V2-shaped

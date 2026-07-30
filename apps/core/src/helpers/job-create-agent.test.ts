@@ -710,6 +710,55 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 
+  it("defaults to the only source when a V2 seller omits the index", async () => {
+    // Observed on preprod: a compliant seller that returns every required
+    // field but no supportedPaymentSourceIndex. With exactly one registered
+    // source there is nothing else it could have meant.
+    const singleSourceAgent = createPaidV2AgentRecord();
+    singleSourceAgent.paymentSources = [
+      {
+        sourceIndex: 0,
+        address: "addr_test1_v2_contract",
+        pricingType: PricingType.FIXED,
+        amounts: [{ unit: "lovelace", amount: BigInt(1_000_000) }],
+      },
+    ];
+    agentFindFirstMock.mockResolvedValue(singleSourceAgent);
+    const { supportedPaymentSourceIndex: _omitted, ...withoutIndex } =
+      paidV2JobResponse;
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(withoutIndex),
+    });
+
+    await createAgentJobForUser(createInput());
+
+    expect(txJobCreateMock).toHaveBeenCalled();
+    // The node rebuilds the signed payload from this value, so the resolved
+    // index must be forwarded rather than the seller's (absent) echo.
+    expect(createPurchaseMock.mock.calls[0]?.[1]).toMatchObject({
+      supportedPaymentSourceIndex: 0,
+      paymentSourceType: "Web3CardanoV2",
+    });
+  });
+
+  it("still requires the index when a V2 agent has several sources", async () => {
+    // Two registered sources: only the seller knows which it will settle
+    // through, and guessing would bill from the wrong price.
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    const { supportedPaymentSourceIndex: _omitted, ...withoutIndex } =
+      paidV2JobResponse;
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(withoutIndex),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid V2 agent job returned an unexpected payment source",
+    );
+
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a stored V2 source that the payment node cannot purchase through", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     getCardanoV2ReadySourcesMock.mockResolvedValue([
