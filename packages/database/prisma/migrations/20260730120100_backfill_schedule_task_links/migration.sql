@@ -3,11 +3,14 @@
 -- Child: schedule-clone fingerprint —
 --   * same name as template (cloneRecurringOccurrence copies name)
 --   * born READY with no DRAFT history (user tasks typically pass DRAFT)
+-- Note: child join lives in WHERE — PG forbids referencing UPDATE target "tl"
+-- in FROM JOIN ON (error 42P01).
 UPDATE "task_link" AS tl
 SET "type" = 'SCHEDULE'
-FROM "task" AS parent
-INNER JOIN "task" AS child ON child."id" = tl."toTaskId"
+FROM "task" AS parent,
+  "task" AS child
 WHERE tl."fromTaskId" = parent."id"
+  AND tl."toTaskId" = child."id"
   AND tl."type" = 'PARENT'
   AND child."name" = parent."name"
   AND (
