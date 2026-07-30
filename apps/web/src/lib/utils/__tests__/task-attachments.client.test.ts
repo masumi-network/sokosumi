@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 
 const createTaskFileUploadSessionMock = vi.fn();
-const listTaskFilesMock = vi.fn();
 const uploadViaPresignedUrlMock = vi.fn();
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -17,7 +16,6 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     createTaskFileUploadSession: (...args: unknown[]) =>
       createTaskFileUploadSessionMock(...args),
-    listTaskFiles: (...args: unknown[]) => listTaskFilesMock(...args),
   },
 }));
 
@@ -37,7 +35,7 @@ describe("task-attachments.client", () => {
     vi.clearAllMocks();
   });
 
-  it("mints a task-file grant, PUTs bytes, and waits for the TaskFile row", async () => {
+  it("mints a task-file grant, PUTs bytes, and returns the public URL", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
@@ -62,11 +60,6 @@ describe("task-attachments.client", () => {
         etag: '"etag"',
       },
     });
-    listTaskFilesMock
-      .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({
-        data: [{ id: "tfile_1", fileUrl: publicUrl, name: "report.pdf" }],
-      });
 
     await expect(
       uploadTaskAttachment("tsk_123", file, {
@@ -93,7 +86,6 @@ describe("task-attachments.client", () => {
         onUploadProgress,
       },
     );
-    expect(listTaskFilesMock).toHaveBeenCalledTimes(2);
   });
 
   it("requires a task id so a TaskFile row can be created", async () => {

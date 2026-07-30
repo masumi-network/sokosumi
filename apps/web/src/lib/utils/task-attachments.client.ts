@@ -18,55 +18,6 @@ export type UploadTaskAttachmentOptions = Pick<
   "abortSignal" | "onUploadProgress"
 >;
 
-const TASK_FILE_POLL_INTERVAL_MS = 500;
-const TASK_FILE_POLL_MAX_ATTEMPTS = 60;
-
-function sleep(ms: number, abortSignal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (abortSignal?.aborted) {
-      reject(new UserFileUploadError("aborted", "Upload canceled."));
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      abortSignal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-
-    function onAbort() {
-      clearTimeout(timeoutId);
-      reject(new UserFileUploadError("aborted", "Upload canceled."));
-    }
-
-    abortSignal?.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
-async function waitForTaskFileRow(
-  taskId: string,
-  fileUrl: string,
-  abortSignal?: AbortSignal,
-): Promise<void> {
-  for (let attempt = 0; attempt < TASK_FILE_POLL_MAX_ATTEMPTS; attempt++) {
-    if (abortSignal?.aborted) {
-      throw new UserFileUploadError("aborted", "Upload canceled.");
-    }
-
-    const response = await coreClient.listTaskFiles(taskId);
-    const files = response.data ?? [];
-    if (files.some((file) => file.fileUrl === fileUrl)) {
-      return;
-    }
-
-    await sleep(TASK_FILE_POLL_INTERVAL_MS, abortSignal);
-  }
-
-  throw new UserFileUploadError(
-    "unknown",
-    "Upload finished but the task file was not registered in time. Please refresh and try again.",
-  );
-}
-
 function toTaskAttachmentUploadError(error: unknown): UserFileUploadError {
   if (error instanceof UserFileUploadError) {
     return error;
@@ -122,8 +73,8 @@ function toTaskAttachmentUploadError(error: unknown): UserFileUploadError {
 }
 
 /**
- * Mint a task-file grant, PUT bytes to Blob, then wait for the TaskFile row
- * (created by Core's onUploadCompleted webhook).
+ * Mint a task-file grant and PUT bytes to Blob.
+ * TaskFile row is created by Core's onUploadCompleted webhook; callers refresh.
  */
 export async function uploadTaskAttachment(
   taskId: string,
@@ -182,7 +133,6 @@ export async function uploadTaskAttachment(
       options,
     );
 
-    await waitForTaskFileRow(taskId, uploaded.publicUrl, options.abortSignal);
     return uploaded.publicUrl;
   } catch (error) {
     throw toTaskAttachmentUploadError(error);
