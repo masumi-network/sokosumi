@@ -126,6 +126,7 @@ describe("taskSchedulesSyncService", () => {
         where: {
           id: "template-1",
           status: "QUEUED",
+          archivedAt: null,
           nextRunAt: new Date("2026-06-08T09:00:00.000Z"),
         },
         data: expect.objectContaining({
@@ -394,6 +395,7 @@ describe("taskSchedulesSyncService", () => {
         where: {
           id: "template-1",
           status: "QUEUED",
+          archivedAt: null,
           nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
         },
       }),
@@ -466,6 +468,81 @@ describe("taskSchedulesSyncService", () => {
         where: {
           id: "template-1",
           status: "QUEUED",
+          archivedAt: null,
+          nextRunAt: claimedNextRunAt,
+        },
+      }),
+    );
+  });
+
+  it("rolls back recurring clones when template is archived concurrently", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    const claimedNextRunAt = new Date("2026-06-10T09:00:00.000Z");
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-1" }])
+      .mockResolvedValueOnce([]);
+
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: {
+          create: mockTaskLinkCreate,
+        },
+        taskEvent: {
+          create: mockTaskEventCreate,
+        },
+      }),
+    );
+
+    // Open claim still sees unarchived QUEUED template (archive only sets archivedAt)
+    mockFindFirst.mockResolvedValue({
+      id: "template-1",
+      ownerId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "recurring",
+        scheduledAt: "2026-06-01T09:00:00.000Z",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      }),
+      nextRunAt: claimedNextRunAt,
+    });
+
+    mockTaskCreate.mockResolvedValue({ id: "clone-after-archive" });
+    // Concurrent archive: status/nextRunAt unchanged, archivedAt set → CAS misses
+    mockTaskUpdateMany.mockResolvedValue({ count: 0 });
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result.cloned).toBe(0);
+    expect(mockTaskCreate).toHaveBeenCalledTimes(1);
+    expect(publishTaskEventDataMock).not.toHaveBeenCalled();
+    expect(mockTaskUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "template-1",
+          status: "QUEUED",
+          archivedAt: null,
           nextRunAt: claimedNextRunAt,
         },
       }),
