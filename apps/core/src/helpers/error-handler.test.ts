@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { EnterpriseContractActivationError } from "@sokosumi/database/helpers";
+import { APIError } from "better-auth/api";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -205,5 +206,79 @@ describe("errorHandler", () => {
       }),
     );
     expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("maps Better Auth invalid API key APIError to 401 without Sentry", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw APIError.from("UNAUTHORIZED", {
+        code: "INVALID_API_KEY",
+        message: "Invalid API key.",
+      });
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(401);
+    expect(body.error).toBe("Unauthorized");
+    expect(body.message).toBe("Invalid API key.");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(captureExternalServiceErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("maps Better Auth short-key FORBIDDEN APIError to 403 without Sentry", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw APIError.from("FORBIDDEN", {
+        code: "INVALID_API_KEY",
+        message: "Invalid API key.",
+      });
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe("Forbidden");
+    expect(body.message).toBe("Invalid API key.");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(captureExternalServiceErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("reports Better Auth 5xx APIError through captureExternalServiceError", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw APIError.from("INTERNAL_SERVER_ERROR", {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Auth backend failed",
+      });
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe("InternalServerError");
+    expect(body.message).toBe("Auth backend failed");
+    expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        label: "better_auth_api_error",
+        sentry: expect.objectContaining({
+          level: "error",
+          tags: { error_type: "better_auth_api_error" },
+        }),
+      }),
+    );
   });
 });
