@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import agentsRouter from "./agents/index.js";
+import chatRoomsRouter from "./chats/rooms/index.js";
 import hermesRouter from "./hermes/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
@@ -88,5 +89,19 @@ describe("OpenAPI X-Context-* header documentation", () => {
     const doc = agentsRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(doc, "/{id}/jobs", "get");
     expect(hasCoworkerContextHeaders(refs)).toBe(true);
+  });
+
+  it("documents orchestrator-only context headers on agent job create (coworker rejected)", () => {
+    const doc = agentsRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(doc, "/{id}/jobs", "post");
+    expect(hasOrchestratorContextHeaders(refs)).toBe(true);
+    expect(hasCoworkerContextHeaders(refs)).toBe(false);
+  });
+
+  it("omits context headers on chat rooms list (session-only)", () => {
+    const doc = chatRoomsRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(doc, "/", "get");
+    expect(hasAnyContextHeader(refs)).toBe(false);
+    expect(refs).toContain("#/components/parameters/OrganizationSlug");
   });
 });
