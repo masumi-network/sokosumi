@@ -14,7 +14,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import { createTaskAttachmentUploadToast } from "../task-attachment-upload-toast";
+import { createFileUploadProgressToast } from "@/lib/utils/file-upload-progress-toast";
 
 interface ToastElementProps {
   items: Array<{
@@ -35,7 +35,7 @@ function getLatestToastElement(): ReactElement<ToastElementProps> {
   return renderToast?.("toast-id") as ReactElement<ToastElementProps>;
 }
 
-describe("task-attachment-upload-toast", () => {
+describe("file-upload-progress-toast", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -47,7 +47,7 @@ describe("task-attachment-upload-toast", () => {
     const secondFile = new File(["efgh"], "second.pdf", {
       type: "application/pdf",
     });
-    const uploadToast = createTaskAttachmentUploadToast({
+    const uploadToast = createFileUploadProgressToast({
       files: [firstFile, secondFile],
       labels: {
         uploadingFile: "Uploading {fileName}",
@@ -109,7 +109,7 @@ describe("task-attachment-upload-toast", () => {
   });
 
   it("keeps the toast shell from blocking parent scrolling", () => {
-    const uploadToast = createTaskAttachmentUploadToast({
+    const uploadToast = createFileUploadProgressToast({
       files: [new File(["abcd"], "first.pdf", { type: "application/pdf" })],
       labels: {
         uploadingFile: "Uploading {fileName}",

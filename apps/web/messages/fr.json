@@ -4608,6 +4608,8 @@
         "format": "Formatting",
         "bold": "Bold",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploadingFile": "Téléversement de {fileName}",
+        "uploadingFiles": "Téléversement de {count} fichiers",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
