@@ -8,11 +8,18 @@ import {
   buildDirectRoomName,
   canManageChatRoomLifecycle,
   resolveMentionedCoworkerIds,
+  resolveMentionedUserIds,
 } from "./helpers";
 
 const roomCoworkers = [
   { id: "coworker_elena", name: "Elena Research", slug: "elena" },
   { id: "coworker_hannah", name: "Hannah Ops", slug: "hannah" },
+];
+
+const roomUsers = [
+  { id: "user_alice", name: "Alice Smith" },
+  { id: "user_bob", name: "Bob Jones" },
+  { id: "user_self", name: "Self User" },
 ];
 
 describe("resolveMentionedCoworkerIds", () => {
@@ -33,6 +40,40 @@ describe("resolveMentionedCoworkerIds", () => {
         roomCoworkers,
       }),
     ).toEqual(["coworker_hannah", "coworker_elena"]);
+  });
+});
+
+describe("resolveMentionedUserIds", () => {
+  it("resolves selected user IDs only when they belong to the room", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "Can someone check this?",
+        explicitUserIds: ["user_alice", "user_outside"],
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual(["user_alice"]);
+  });
+
+  it("excludes the author even when explicitly selected or tokenized", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "@user_self:self-user please look",
+        explicitUserIds: ["user_self", "user_bob"],
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual(["user_bob"]);
+  });
+
+  it("resolves @userId:slug tokens and name aliases from room users", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "@user_alice:alice-smith please sync with @bob-jones",
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual(["user_alice", "user_bob"]);
   });
 });
 
