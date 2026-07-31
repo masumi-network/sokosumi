@@ -10,14 +10,12 @@ import { mockCoworkerOption } from "@/test-fixtures/coworker";
 const {
   markdownEditorPropsSpy,
   uploadTaskAttachmentMock,
-  uploadUserFileDirectMock,
   toastCustomMock,
   toastDismissMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
   markdownEditorPropsSpy: vi.fn(),
   uploadTaskAttachmentMock: vi.fn(),
-  uploadUserFileDirectMock: vi.fn(),
   toastCustomMock: vi.fn(),
   toastDismissMock: vi.fn(),
   toastErrorMock: vi.fn(),
@@ -54,8 +52,6 @@ vi.mock("@/lib/utils/task-attachments.client", () => ({
 }));
 
 vi.mock("@/lib/utils/user-file-upload.client", () => ({
-  uploadUserFileDirect: (...args: unknown[]) =>
-    uploadUserFileDirectMock(...args),
   getUserFileUploadErrorMessage: (error: unknown, fallback: string) =>
     error instanceof Error ? error.message : fallback,
 }));
@@ -1251,15 +1247,19 @@ describe("TaskForm", () => {
     });
   });
 
-  it("uploads create-mode attachments via user files when no taskId", async () => {
+  it("creates a draft then uploads create-mode attachments via task files", async () => {
     const user = userEvent.setup();
     const file = new File(["notes"], "DESIGN.md", {
       type: "text/markdown",
     });
-
-    uploadUserFileDirectMock.mockResolvedValue({
-      publicUrl: "https://blob.example/users/u1/DESIGN.md",
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({
+      taskId: "draft-task-1",
+      name: "Briefly explain",
     });
+    uploadTaskAttachmentMock.mockResolvedValue(
+      "https://blob.example/tasks/draft-task-1/DESIGN.md",
+    );
 
     const { container } = render(
       <TaskForm
@@ -1273,20 +1273,26 @@ describe("TaskForm", () => {
       />,
     );
 
+    await user.type(screen.getByTestId("markdown-editor"), "Write the brief");
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
-      expect(uploadUserFileDirectMock).toHaveBeenCalledTimes(1);
-      expect(uploadTaskAttachmentMock).not.toHaveBeenCalled();
+      expect(createTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: "Write the brief",
+          assigneeId: "coworker-2",
+          status: TaskStatus.DRAFT,
+        }),
+      );
+      expect(uploadTaskAttachmentMock).toHaveBeenCalledWith(
+        "draft-task-1",
+        file,
+        expect.objectContaining({
+          abortSignal: expect.any(AbortSignal),
+        }),
+      );
       expect(toastDismissMock).toHaveBeenCalled();
     });
-
-    expect(uploadUserFileDirectMock).toHaveBeenCalledWith(
-      file,
-      expect.objectContaining({
-        abortSignal: expect.any(AbortSignal),
-      }),
-    );
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 

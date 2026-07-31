@@ -60,10 +60,7 @@ import {
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
+import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 import { TaskCreatedCelebration } from "./task-created-celebration";
@@ -282,6 +279,12 @@ export function TaskForm({
   } | null>(null);
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
+  // Create mode starts without a task. First attachment silently creates a
+  // draft so uploads stay task-scoped (`uploadTaskAttachment` only).
+  const [resolvedTaskId, setResolvedTaskId] = useState(taskId);
+  const [resolvedTaskName, setResolvedTaskName] = useState(
+    initialValues?.name ?? "",
+  );
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
@@ -423,7 +426,12 @@ export function TaskForm({
       try {
         const trimmedDescription = description.trim();
         const desiredStatus = overrideStatus ?? status;
-        if (mode === "create" && ["DRAFT", "READY"].includes(desiredStatus)) {
+        // First save in create mode (no silent draft yet) creates the task.
+        if (
+          mode === "create" &&
+          !resolvedTaskId &&
+          ["DRAFT", "READY"].includes(desiredStatus)
+        ) {
           const createTaskHandler = onCreateTask ?? createTask;
           const result = await createTaskHandler({
             description: trimmedDescription,
@@ -435,6 +443,8 @@ export function TaskForm({
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
             schedule: scheduleSelection,
           });
+          setResolvedTaskId(result.taskId);
+          setResolvedTaskName(result.name?.trim() || resolvedTaskName);
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
@@ -472,28 +482,60 @@ export function TaskForm({
           return;
         }
 
-        if (!taskId) {
+        const saveTaskId = resolvedTaskId ?? taskId;
+        if (!saveTaskId) {
           throw new Error("Task ID is required");
         }
 
-        const trimmedName = name.trim();
+        const trimmedName = name.trim() || resolvedTaskName;
         await updateTask({
-          taskId,
+          taskId: saveTaskId,
           name: trimmedName,
           description: trimmedDescription,
           assigneeId,
           ...(shouldShowProjectSelect ? { projectId } : {}),
-          currentStatus: originalStatus,
+          // Silent draft from attach always lands as DRAFT in the DB.
+          currentStatus: mode === "create" ? TaskStatus.DRAFT : originalStatus,
           desiredStatus,
           schedule: scheduleSelection,
-          hadSchedule,
-          originalSchedule: originalScheduleSelection.current,
+          hadSchedule: mode === "create" ? false : hadSchedule,
+          originalSchedule:
+            mode === "create"
+              ? { mode: "none", timezone: getDefaultTimezone() }
+              : originalScheduleSelection.current,
         });
-        if (onSuccess) {
-          onSuccess(taskId);
+        if (isModal && mode === "create") {
+          const createdStatus =
+            scheduleSelection.mode !== "none" &&
+            desiredStatus !== TaskStatus.DRAFT
+              ? "QUEUED"
+              : desiredStatus === TaskStatus.DRAFT
+                ? "DRAFT"
+                : "READY";
+          router.prefetch(`/tasks/${saveTaskId}`);
+          setCreatedTask({
+            id: saveTaskId,
+            name: trimmedName || "Untitled task",
+            status: createdStatus,
+            statusLabel:
+              createdStatus === "QUEUED"
+                ? (labels.statusQueued ?? "Queued")
+                : createdStatus === "DRAFT"
+                  ? labels.statusDraft
+                  : labels.statusReady,
+            scheduleLabel:
+              createdStatus === "QUEUED"
+                ? (scheduleLabel ?? undefined)
+                : undefined,
+          });
+          onCreated?.(saveTaskId);
           return;
         }
-        router.push(`/tasks/${taskId}`);
+        if (onSuccess) {
+          onSuccess(saveTaskId);
+          return;
+        }
+        router.push(`/tasks/${saveTaskId}`);
       } catch (error) {
         console.error("Failed to save task", error);
         toast.error("Failed to save task");
@@ -517,6 +559,8 @@ export function TaskForm({
       router,
       status,
       taskId,
+      resolvedTaskId,
+      resolvedTaskName,
       onSuccess,
       onCreated,
       onCreateTask,
@@ -547,9 +591,56 @@ export function TaskForm({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [canUseSubmitShortcut, handleSave, mode]);
 
+  const ensureDraftTaskId = useCallback(async (): Promise<string> => {
+    if (resolvedTaskId) return resolvedTaskId;
+
+    const trimmedDescription = description.trim();
+    if (!trimmedDescription) {
+      throw new Error("Add a task description before attaching files.");
+    }
+
+    const createTaskHandler = onCreateTask ?? createTask;
+    const result = await createTaskHandler({
+      description: trimmedDescription,
+      assigneeId,
+      skipDesignMdAttachment: isDesignMdAttachmentSkipped(
+        designMdStateRef.current,
+      ),
+      ...(shouldShowProjectSelect ? { projectId } : {}),
+      status: TaskStatus.DRAFT,
+      schedule: scheduleSelection,
+    });
+    setResolvedTaskId(result.taskId);
+    setResolvedTaskName(result.name?.trim() || resolvedTaskName);
+    return result.taskId;
+  }, [
+    assigneeId,
+    description,
+    onCreateTask,
+    projectId,
+    resolvedTaskId,
+    resolvedTaskName,
+    scheduleSelection,
+    shouldShowProjectSelect,
+  ]);
+
   const handleAttachFiles = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
+
+      let uploadTaskId: string;
+      try {
+        uploadTaskId = await ensureDraftTaskId();
+      } catch (error) {
+        toast.error(
+          getUserFileUploadErrorMessage(
+            error,
+            labels.uploadFileError ?? "Failed to upload file",
+          ),
+        );
+        setPendingUploadFiles([]);
+        return;
+      }
 
       const uploadToast = createTaskAttachmentUploadToast({
         files,
@@ -564,24 +655,12 @@ export function TaskForm({
       setUploadingAttachmentsCount((count) => count + 1);
       try {
         for (const [index, file] of files.entries()) {
-          // Existing tasks use task-scoped Blob uploads. New-task create has no
-          // taskId yet, so fall back to user-file uploads (pre-#3469 behavior)
-          // so description links still work before save.
-          const uploadedUrl = taskId
-            ? await uploadTaskAttachment(taskId, file, {
-                abortSignal: controller.signal,
-                onUploadProgress: (progress) => {
-                  uploadToast.updateFileProgress(index, progress);
-                },
-              })
-            : (
-                await uploadUserFileDirect(file, {
-                  abortSignal: controller.signal,
-                  onUploadProgress: (progress) => {
-                    uploadToast.updateFileProgress(index, progress);
-                  },
-                })
-              ).publicUrl;
+          const uploadedUrl = await uploadTaskAttachment(uploadTaskId, file, {
+            abortSignal: controller.signal,
+            onUploadProgress: (progress) => {
+              uploadToast.updateFileProgress(index, progress);
+            },
+          });
           uploadToast.markFileComplete(index);
           const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
           if (markdownEditorRef.current) {
@@ -614,10 +693,10 @@ export function TaskForm({
       }
     },
     [
+      ensureDraftTaskId,
       labels.uploadFileError,
       labels.uploadingFile,
       labels.uploadingFiles,
-      taskId,
     ],
   );
 
