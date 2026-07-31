@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
@@ -42,15 +42,17 @@ export function createResumePendingCoworkerShell({
   roomId,
   coworker,
   createdAt = new Date(),
+  parentMessageId = null,
 }: {
   roomId: string;
   coworker: ChatRoomCoworkerParticipant;
   createdAt?: Date;
+  parentMessageId?: string | null;
 }): ChatRoomMessage {
   return {
     id: RESUME_PENDING_STREAM_MESSAGE_ID,
     roomId,
-    parentMessageId: null,
+    parentMessageId,
     content: "",
     createdAt,
     sender: { type: "coworker", coworker },
@@ -68,6 +70,7 @@ function uiMessageToTransientRoomMessage({
   currentUser,
   coworker,
   createdAt,
+  parentMessageId,
 }: {
   message: UIMessage;
   roomId: string;
@@ -75,6 +78,7 @@ function uiMessageToTransientRoomMessage({
   coworker: ChatRoomCoworkerParticipant | null;
   /** Monotonic clock — must preserve useChat array order across equal ms. */
   createdAt: Date;
+  parentMessageId: string | null;
 }): ChatRoomMessage {
   const content = extractMessageContent(message);
 
@@ -82,7 +86,7 @@ function uiMessageToTransientRoomMessage({
     return {
       id: `stream:${message.id}`,
       roomId,
-      parentMessageId: null,
+      parentMessageId,
       content,
       createdAt,
       sender: currentUser
@@ -99,7 +103,7 @@ function uiMessageToTransientRoomMessage({
   return {
     id: `stream:${message.id}`,
     roomId,
-    parentMessageId: null,
+    parentMessageId,
     content,
     createdAt,
     sender: coworker ? { type: "coworker", coworker } : { type: "unknown" },
@@ -123,7 +127,13 @@ export interface UseCoworkerDirectRoomStreamParams {
 export interface UseCoworkerDirectRoomStreamResult {
   streamOverlayMessages: ChatRoomMessage[];
   isStreaming: boolean;
-  sendStreamMessage: (text: string) => void;
+  /**
+   * Stream a top-level turn, or a thread reply when `parentMessageId` is set.
+   */
+  sendStreamMessage: (
+    text: string,
+    options?: { parentMessageId?: string },
+  ) => void;
   /** Consume a one-shot draft pending message for this room (Strict Mode safe). */
   consumePendingStreamMessage: (text: string) => void;
 }
@@ -142,6 +152,9 @@ export function useCoworkerDirectRoomStream({
   organizationSlugRef.current = organizationSlug;
   const onStreamSettledRef = useRef(onStreamSettled);
   onStreamSettledRef.current = onStreamSettled;
+  const [streamParentMessageId, setStreamParentMessageId] = useState<
+    string | null
+  >(null);
 
   const transport = useMemo(
     () =>
@@ -199,6 +212,7 @@ export function useCoworkerDirectRoomStream({
       if (failedRoomId) {
         autoStreamStartedRoomIds.delete(failedRoomId);
       }
+      setStreamParentMessageId(null);
       toast.error(error.message || "Failed to stream coworker reply.");
     },
     async onFinish() {
@@ -213,6 +227,7 @@ export function useCoworkerDirectRoomStream({
       if (settled && roomIdRef.current === settledRoomId) {
         clearPendingRoomMessage(settledRoomId);
         setMessages([]);
+        setStreamParentMessageId(null);
       }
     },
   });
@@ -223,6 +238,7 @@ export function useCoworkerDirectRoomStream({
   useEffect(() => {
     if (!roomId) {
       setMessages([]);
+      setStreamParentMessageId(null);
       return;
     }
     void resumeStream();
@@ -262,6 +278,7 @@ export function useCoworkerDirectRoomStream({
             roomId,
             coworker,
             createdAt: new Date(baseMs),
+            parentMessageId: streamParentMessageId,
           }),
         ];
       }
@@ -281,17 +298,31 @@ export function useCoworkerDirectRoomStream({
           currentUser,
           coworker,
           createdAt: new Date(baseMs + index),
+          parentMessageId: streamParentMessageId,
         }),
       );
-  }, [enabled, roomId, messages, currentUser, coworker, status]);
+  }, [
+    enabled,
+    roomId,
+    messages,
+    currentUser,
+    coworker,
+    status,
+    streamParentMessageId,
+  ]);
 
   const sendStreamMessage = useCallback(
-    (text: string) => {
+    (text: string, options?: { parentMessageId?: string }) => {
       const trimmed = text.trim();
       if (!enabled || !roomId || !trimmed) {
         return;
       }
-      void sendMessage({ text: trimmed });
+      const parentMessageId = options?.parentMessageId?.trim() || null;
+      setStreamParentMessageId(parentMessageId);
+      void sendMessage(
+        { text: trimmed },
+        parentMessageId ? { body: { parentMessageId } } : undefined,
+      );
     },
     [enabled, roomId, sendMessage],
   );

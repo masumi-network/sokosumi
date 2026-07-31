@@ -81,19 +81,25 @@ describe("coworker DM cutover gating (rooms-client wiring)", () => {
     expect(shouldUseCoworkerRoomStream(humanDirect)).toBe(false);
   });
 
-  it("hides thread button on coworker-only directs (SOK-656 Option A)", () => {
+  it("shows thread button on coworker-only directs (SOK-656 Option B)", () => {
     expect(
       shouldShowChatRoomThreadButton({
         room: coworkerOnlyDirect,
         isStreamOverlay: false,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("hides thread button on stream overlays even for channels", () => {
     expect(
       shouldShowChatRoomThreadButton({
         room: humanChannel,
+        isStreamOverlay: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowChatRoomThreadButton({
+        room: coworkerOnlyDirect,
         isStreamOverlay: true,
       }),
     ).toBe(false);

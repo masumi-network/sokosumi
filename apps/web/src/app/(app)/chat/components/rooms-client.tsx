@@ -169,6 +169,8 @@ export function RoomsClient({
   );
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
+  const threadParentMessageRef = useRef<ChatRoomMessage | null>(null);
+  threadParentMessageRef.current = threadParentMessage;
   const [threadMessages, setThreadMessages] = useState<ChatRoomMessage[]>([]);
   const [threadOlderNextCursor, setThreadOlderNextCursor] = useState<
     string | null
@@ -230,17 +232,35 @@ export function RoomsClient({
 
   const refreshRoomMessagesAfterStream = useCallback(
     async (roomId: string): Promise<boolean> => {
-      const result = await listRoomMessagesAction(roomId);
-      if (!result.ok) {
-        toast.error(result.message);
+      const threadParentId = threadParentMessageRef.current?.id ?? null;
+      const [roomResult, threadResult] = await Promise.all([
+        listRoomMessagesAction(roomId),
+        threadParentId
+          ? listThreadMessagesAction(roomId, threadParentId)
+          : Promise.resolve(null),
+      ]);
+      if (!roomResult.ok) {
+        toast.error(roomResult.message);
         return false;
       }
       if (!isStillSelectedRoom(roomId)) {
         return false;
       }
       setMessagesState((current) =>
-        mergeRoomMessages(current, result.data.messages),
+        mergeRoomMessages(current, roomResult.data.messages),
       );
+      if (threadResult?.ok) {
+        setThreadMessages((current) =>
+          mergeRoomMessages(current, threadResult.data.messages),
+        );
+        setThreadParentMessage((current) =>
+          current
+            ? (roomResult.data.messages.find(
+                (message) => message.id === current.id,
+              ) ?? current)
+            : current,
+        );
+      }
       return true;
     },
     [],
@@ -259,9 +279,36 @@ export function RoomsClient({
     onStreamSettled: refreshRoomMessagesAfterStream,
   });
 
+  const topLevelStreamOverlayMessages = useMemo(
+    () =>
+      streamOverlayMessages.filter(
+        (message) => message.parentMessageId == null,
+      ),
+    [streamOverlayMessages],
+  );
+
   const displayMessages = useMemo(() => {
-    return mergeMessagesWithStreamOverlay(messagesState, streamOverlayMessages);
-  }, [messagesState, streamOverlayMessages]);
+    return mergeMessagesWithStreamOverlay(
+      messagesState,
+      topLevelStreamOverlayMessages,
+    );
+  }, [messagesState, topLevelStreamOverlayMessages]);
+
+  const threadStreamOverlayMessages = useMemo(() => {
+    if (!threadParentMessage) {
+      return [];
+    }
+    return streamOverlayMessages.filter(
+      (message) => message.parentMessageId === threadParentMessage.id,
+    );
+  }, [streamOverlayMessages, threadParentMessage]);
+
+  const displayThreadMessages = useMemo(() => {
+    return mergeMessagesWithStreamOverlay(
+      threadMessages,
+      threadStreamOverlayMessages,
+    );
+  }, [threadMessages, threadStreamOverlayMessages]);
 
   // Draft coworker DM stashes text then navigates — auto-stream once room opens.
   // Keep sessionStorage until stream actually starts so Strict Mode remount
@@ -387,7 +434,8 @@ export function RoomsClient({
   // Scroll on room switch or when the newest message changes — not when
   // an older page is prepended (length grows, last id stays the same).
   const latestMessageId = displayMessages.at(-1)?.id ?? null;
-  const latestStreamContent = streamOverlayMessages.at(-1)?.content ?? "";
+  const latestStreamContent =
+    topLevelStreamOverlayMessages.at(-1)?.content ?? "";
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [latestMessageId, latestStreamContent, selectedRoomId]);
@@ -802,12 +850,18 @@ export function RoomsClient({
   function handleSendThreadReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedRoom || !threadParentMessage) return;
-    // Coworker 1:1 thread AI replies: SOK-656. Hide UI for now; fail closed if opened.
-    if (shouldUseCoworkerRoomStream(selectedRoom)) return;
     const roomId = selectedRoom.id;
     const parentMessageId = threadParentMessage.id;
     const content = threadComposerValue.trim();
     if (!content) return;
+
+    if (shouldUseCoworkerRoomStream(selectedRoom)) {
+      setThreadComposerValue("");
+      setThreadComposerAttachments([]);
+      setThreadMentionedCoworkerIds([]);
+      sendStreamMessage(content, { parentMessageId });
+      return;
+    }
 
     const mentionIds = threadMentionedCoworkerIds;
     startSendingThreadReplyTransition(async () => {
@@ -1010,7 +1064,7 @@ export function RoomsClient({
         {selectedRoom && threadParentMessage ? (
           <ThreadPanel
             parentMessage={threadParentMessage}
-            replies={threadMessages}
+            replies={displayThreadMessages}
             isLoading={isThreadLoading}
             olderNextCursor={threadOlderNextCursor}
             isLoadingOlder={isLoadingOlderThread}
@@ -1024,7 +1078,10 @@ export function RoomsClient({
             replyAttachments={threadComposerAttachments}
             onReplyAttachmentsChange={setThreadComposerAttachments}
             onSubmitReply={handleSendThreadReply}
-            isSendingReply={isSendingThreadReply}
+            isSendingReply={
+              isSendingThreadReply ||
+              (isCoworkerStreaming && threadStreamOverlayMessages.length > 0)
+            }
             onClose={() => {
               setThreadParentMessage(null);
               setThreadMessages([]);

@@ -31,6 +31,11 @@ import {
   persistAssistantToChatRoom,
   persistUserMessageToChatRoom,
 } from "@/helpers/persist-assistant-to-chat-room";
+import {
+  buildRoomStreamThreadModelMessages,
+  ensureThreadProviderConversation,
+  THREAD_PROVIDER_CONVERSATION_ID_KEY,
+} from "@/helpers/room-stream-thread";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -46,10 +51,13 @@ import { throwCoworkerRemoteConversationHttpError } from "@/routes/v1/chats/stre
 import { mapChatRequestToUiMessages } from "@/routes/v1/chats/stream/map-chat-request-to-ui-messages.js";
 import {
   AI_SDK_CHAT_MESSAGES_REQUIREMENT,
-  aiSdkChatRequestSchema,
+  roomStreamRequestSchema,
 } from "@/schemas/chat-request.schema.js";
 
-import { requireChatRoomUserWriteAccess } from "../../helpers";
+import {
+  requireChatRoomUserWriteAccess,
+  resolveThreadParentMessageId,
+} from "../../helpers";
 import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-conversation";
 
 /**
@@ -90,14 +98,14 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/stream",
     description:
-      "Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Requires a direct room with exactly one user member (the caller) and one coworker member.",
+      "Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Optional parentMessageId scopes the turn as a thread reply under that top-level message. Requires a direct room with exactly one user member (the caller) and one coworker member.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
       body: {
         content: {
           "application/json": {
-            schema: aiSdkChatRequestSchema,
+            schema: roomStreamRequestSchema,
           },
         },
       },
@@ -127,7 +135,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id: roomId } = c.req.valid("param");
-    const { messages, model } = c.req.valid("json");
+    const {
+      messages,
+      model,
+      parentMessageId: requestedParentMessageId,
+    } = c.req.valid("json");
 
     if (!Array.isArray(messages) || messages.length === 0) {
       throw unprocessableEntity(AI_SDK_CHAT_MESSAGES_REQUIREMENT);
@@ -150,6 +162,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "Room stream requires a 1:1 direct with exactly one AI coworker member. Use message POST for channels and human-only rooms.",
       );
     }
+
+    const parentMessageId = await prisma.$transaction(async (tx) =>
+      resolveThreadParentMessageId(tx, room.id, requestedParentMessageId),
+    );
 
     const roomCoworker = room.coworkerMembers[0]!.coworker;
     const coworker = await requireCoworkerChatCapability(roomCoworker.id);
@@ -234,17 +250,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           senderUserId: userContext.userId,
           contentText: lastUserMessageText,
           clientMessageId,
+          parentMessageId,
         });
       }
 
       // Room owns org scope (null = personal). Do not inherit active session org.
       const roomOrganizationId = room.organizationId;
 
-      let providerConversationId = room.providerConversationId?.trim() || null;
-      if (!providerConversationId) {
+      let providerConversationId: string | null = null;
+      if (parentMessageId) {
         try {
-          const ensured = await ensureCoworkerProviderConversationForRoom({
+          const ensured = await ensureThreadProviderConversation({
             roomId: room.id,
+            parentMessageId,
             userId: userContext.userId,
             organizationId: roomOrganizationId,
             coworkerSlug: coworker.slug,
@@ -253,6 +271,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           providerConversationId = ensured.providerConversationId;
         } catch (error) {
           throwCoworkerRemoteConversationHttpError(error);
+        }
+      } else {
+        providerConversationId = room.providerConversationId?.trim() || null;
+        if (!providerConversationId) {
+          try {
+            const ensured = await ensureCoworkerProviderConversationForRoom({
+              roomId: room.id,
+              userId: userContext.userId,
+              organizationId: roomOrganizationId,
+              coworkerSlug: coworker.slug,
+              responsesApiBaseUrl: coworker.baseURL.trim(),
+            });
+            providerConversationId = ensured.providerConversationId;
+          } catch (error) {
+            throwCoworkerRemoteConversationHttpError(error);
+          }
         }
       }
 
@@ -280,9 +314,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let uiStreamResumptionRegistered = false;
       let uiStreamResumptionRegistration: Promise<void> | undefined;
 
-      const modelMessages = await convertToModelMessages(
-        uiMessages.map(({ id: _id, ...rest }) => rest),
-      );
+      let modelMessages;
+      let originalUiMessages = uiMessages;
+      if (parentMessageId) {
+        const sender = await prisma.user.findUnique({
+          where: { id: userContext.userId },
+          select: { name: true },
+        });
+        const threadBuilt = await buildRoomStreamThreadModelMessages({
+          roomId: room.id,
+          parentMessageId,
+          roomName: room.name,
+          senderName: sender?.name?.trim() || "A teammate",
+          lastUserMessageText,
+        });
+        modelMessages = threadBuilt.modelMessages;
+        originalUiMessages = threadBuilt.uiMessages;
+      } else {
+        modelMessages = await convertToModelMessages(
+          uiMessages.map(({ id: _id, ...rest }) => rest),
+        );
+      }
 
       const responsesApiResponseIdRef: { current: string | null } = {
         current: null,
@@ -295,6 +347,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const onInvalidProviderConversationId = async () => {
+        if (parentMessageId) {
+          // Thread conversations live on parent metadata — clear so next turn
+          // recreates. Do not touch room.providerConversationId.
+          try {
+            const parent = await prisma.chatRoomMessage.findFirst({
+              where: { id: parentMessageId, roomId: room.id },
+              select: { metadata: true },
+            });
+            if (
+              parent?.metadata &&
+              typeof parent.metadata === "object" &&
+              !Array.isArray(parent.metadata)
+            ) {
+              const next = {
+                ...(parent.metadata as Record<string, unknown>),
+              };
+              delete next[THREAD_PROVIDER_CONVERSATION_ID_KEY];
+              await prisma.chatRoomMessage.update({
+                where: { id: parentMessageId },
+                data: { metadata: next },
+              });
+            }
+          } catch (error) {
+            console.error(
+              "Failed to clear thread providerConversationId after invalid remote conversation (POST /rooms/{id}/stream):",
+              error,
+            );
+          }
+          return;
+        }
         try {
           await prisma.chatRoom.update({
             where: { id: room.id },
@@ -381,6 +463,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             responsesApiResponseId: responsesApiResponseIdRef.current,
             reasoning: finishEvent.reasoning,
             thoughtTiming,
+            parentMessageId,
           };
           // Retries: silent persist loss made streamed replies vanish after refetch.
           let lastError: unknown;
@@ -403,12 +486,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       return result.toUIMessageStreamResponse({
-        originalMessages: uiMessages,
+        originalMessages: originalUiMessages,
         generateMessageId: generateId,
         headers: {
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
           "x-sokosumi-room-id": room.id,
+          ...(parentMessageId
+            ? { "x-sokosumi-parent-message-id": parentMessageId }
+            : {}),
         },
         onError: (error: unknown) => {
           console.error(

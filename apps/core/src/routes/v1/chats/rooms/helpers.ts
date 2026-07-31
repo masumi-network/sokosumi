@@ -505,6 +505,7 @@ export async function requireArchivedChatRoomUserAccess(
 // transaction — hundreds of unused rows per message on a large room.
 const chatRoomWriteSelect = {
   id: true,
+  name: true,
   organizationId: true,
   slug: true,
   kind: true,
@@ -556,6 +557,34 @@ export async function requireChatRoomUserWriteAccess(
   await assertRoomOrganizationAccess(room.organizationId, userId, tx);
 
   return room;
+}
+
+/**
+ * Resolve a thread parent for write paths. Nested reply ids collapse to the
+ * top-level root so all siblings share one parentMessageId.
+ */
+export async function resolveThreadParentMessageId(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  requestedParentMessageId: string | undefined,
+): Promise<string | null> {
+  if (!requestedParentMessageId) {
+    return null;
+  }
+  const parentMessage = await tx.chatRoomMessage.findFirst({
+    where: {
+      id: requestedParentMessageId,
+      roomId,
+    },
+    select: {
+      id: true,
+      parentMessageId: true,
+    },
+  });
+  if (!parentMessage) {
+    throw badRequest("Thread message not found");
+  }
+  return parentMessage.parentMessageId ?? parentMessage.id;
 }
 
 export async function requireChatRoomUserMembership(
