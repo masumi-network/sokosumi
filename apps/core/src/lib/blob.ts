@@ -2,8 +2,10 @@ import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
 import {
+  buildCoworkerChatRoomFilePathname,
   buildCoworkerImagePathname,
   buildTaskFilePathname,
+  buildUserChatRoomFilePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
   isOwnedCoworkerImageUrl,
@@ -120,6 +122,44 @@ export async function createTaskFileUploadSession(
       callbackUrl: options.callbackUrl,
       tokenPayload,
     },
+  });
+}
+
+/**
+ * Room chat-file direct upload grant (presigned PUT). Same shape as user-file
+ * mint. No onUploadCompleted webhook — callers put the public URL into message
+ * markdown. No ChatFile row.
+ */
+export async function createChatRoomFileUploadSession(
+  owner:
+    | { kind: "user"; userId: string }
+    | { kind: "coworker"; coworkerId: string },
+  roomId: string,
+  file: {
+    filename: string;
+    contentType: string;
+    size: number;
+    maxSizeBytes: number;
+  },
+  token: string,
+): Promise<BlobUploadGrant> {
+  const pathname =
+    owner.kind === "user"
+      ? buildUserChatRoomFilePathname(owner.userId, roomId, file.filename)
+      : buildCoworkerChatRoomFilePathname(
+          owner.coworkerId,
+          roomId,
+          file.filename,
+        );
+
+  return createBlobUploadGrant({
+    pathname,
+    contentType: file.contentType,
+    maximumSizeInBytes: file.size,
+    maxSizeBytes: file.maxSizeBytes,
+    access: "public",
+    addRandomSuffix: true,
+    token,
   });
 }
 
