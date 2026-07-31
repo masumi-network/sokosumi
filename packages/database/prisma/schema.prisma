@@ -1728,10 +1728,21 @@ model ChatRoomMessage {
   metadata  Json?
   createdAt DateTime @default(now())
 
+  /// AI SDK / client message id for user stream-turn idempotency.
+  /// Also mirrored in metadata.client_message_id for transcript consumers.
+  clientMessageId String?
+  /// OpenAI Responses API response id for assistant stream-turn idempotency.
+  /// Also mirrored in metadata.responses_api_response_id for transcript consumers.
+  responsesApiResponseId String?
+
   mentionsAsSource   ChatRoomMention[]  @relation("ChatRoomMentionSource")
   mentionResponseFor ChatRoomMention?   @relation("ChatRoomMentionResponse")
   reactions          ChatRoomReaction[]
 
+  // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
+  // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
+  @@unique([roomId, clientMessageId])
+  @@unique([roomId, responsesApiResponseId])
   @@index([roomId, createdAt])
   @@index([roomId, parentMessageId, createdAt])
   @@index([parentMessageId, createdAt])
