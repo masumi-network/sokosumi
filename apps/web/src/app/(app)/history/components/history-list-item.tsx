@@ -1,16 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import {
   HistoryMetaTime,
   HistoryOwnerAvatar,
 } from "@/app/history/components/history-meta";
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
-import {
-  getHistoryRowSubtitle,
-  type HistoryBucketLookups,
-} from "@/app/history/utils/history-row-subtitle";
+import { getHistoryRowSubtitle } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { NotificationKind, TaskStatus } from "@/lib/clients/generated/core";
@@ -30,30 +26,23 @@ export interface HistoryListItemLabels {
   kind: {
     task: string;
     job: string;
-    conversation: string;
-  };
-  conversationStatus: {
-    active: string;
-    archived: string;
   };
   taskStatus: Record<TaskStatus, string>;
 }
 
 interface HistoryListItemProps {
   item: HistoryItem;
-  bucketLookups: HistoryBucketLookups;
   labels: HistoryListItemLabels;
   activeOrganizationId: string | null;
 }
 
 export function HistoryListItem({
   item,
-  bucketLookups,
   labels,
   activeOrganizationId,
 }: HistoryListItemProps) {
   const { formatTimeAgo } = useLocalizedDateTime();
-  const description = getHistoryRowSubtitle(item, bucketLookups, labels);
+  const description = getHistoryRowSubtitle(item, labels);
   const credits = formatHistoryCredits(item.credits, labels);
   const showOwner = activeOrganizationId !== null;
   const rowClassName = cn(
@@ -72,7 +61,6 @@ export function HistoryListItem({
       formatTimeAgo={formatTimeAgo}
       item={item}
       labels={labels}
-      bucketLookups={bucketLookups}
       activeOrganizationId={activeOrganizationId}
     />
   );
@@ -99,7 +87,6 @@ function HistoryListItemContent({
   formatTimeAgo,
   item,
   labels,
-  bucketLookups,
   activeOrganizationId,
 }: {
   credits: string;
@@ -107,17 +94,12 @@ function HistoryListItemContent({
   formatTimeAgo: (date: string | Date) => string;
   item: HistoryItem;
   labels: HistoryListItemLabels;
-  bucketLookups: HistoryBucketLookups;
   activeOrganizationId: string | null;
 }) {
   const showOwner = activeOrganizationId !== null;
   return (
     <>
-      <HistoryTypeColumn
-        item={item}
-        labels={labels}
-        bucketLookups={bucketLookups}
-      />
+      <HistoryTypeColumn item={item} labels={labels} />
 
       <div className="min-w-0">
         <span className="text-foreground line-clamp-1 text-sm font-medium">
@@ -177,23 +159,16 @@ export function getHistoryItemHref(item: HistoryItem): string | null {
   return getNotificationHref({
     kind: item.kind.toUpperCase() as NotificationKind,
     referenceId: item.id,
-    metadata:
-      item.kind === "job"
-        ? { agentId: item.agentId }
-        : item.kind === "conversation"
-          ? { bucketSlug: item.bucketSlug }
-          : null,
+    metadata: item.kind === "job" ? { agentId: item.agentId } : null,
   });
 }
 
 function HistoryTypeColumn({
   item,
   labels,
-  bucketLookups,
 }: {
   item: HistoryItem;
   labels: HistoryListItemLabels;
-  bucketLookups: HistoryBucketLookups;
 }) {
   return (
     <div className="flex w-9 shrink-0 items-center gap-1.5 sm:w-30">
@@ -201,11 +176,7 @@ function HistoryTypeColumn({
         className="text-muted-foreground flex size-9 items-center justify-center rounded-full"
         aria-hidden
       >
-        <HistoryTypeIcon
-          item={item}
-          labels={labels}
-          bucketLookups={bucketLookups}
-        />
+        <HistoryTypeIcon item={item} />
       </span>
       <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase hidden sm:block">
         {labels.kind[item.kind]}
@@ -228,16 +199,7 @@ function HistoryStatus({
     );
   }
 
-  if (item.kind === "job") {
-    return <JobStatusBadge status={item.status as SokosumiJobStatus} />;
-  }
-
-  return (
-    <ConversationStatusBadge
-      status={item.status}
-      label={labels.conversationStatus[item.status]}
-    />
-  );
+  return <JobStatusBadge status={item.status as SokosumiJobStatus} />;
 }
 
 function formatHistoryCredits(
