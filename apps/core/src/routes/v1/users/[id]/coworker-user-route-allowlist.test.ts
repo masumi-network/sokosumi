@@ -11,15 +11,24 @@ import {
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetUserCredits from "./credits/get.js";
+import mountGetUserOrganizationCredits from "./organizations/[organizationId]/credits/get.js";
+import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPreferences from "./preferences/get.js";
 
-const { userFindUniqueMock, buildCreditsPayloadMock, memberFindManyMock } =
-  vi.hoisted(() => ({
-    userFindUniqueMock: vi.fn(),
-    buildCreditsPayloadMock: vi.fn(),
-    memberFindManyMock: vi.fn(),
-  }));
+const {
+  userFindUniqueMock,
+  buildCreditsPayloadMock,
+  memberFindManyMock,
+  resolveMemberOrganizationByIdMock,
+  getMemberByUserIdAndOrganizationIdMock,
+} = vi.hoisted(() => ({
+  userFindUniqueMock: vi.fn(),
+  buildCreditsPayloadMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
+  resolveMemberOrganizationByIdMock: vi.fn(),
+  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -40,6 +49,41 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/subscription", () => ({
   buildCreditsPayload: buildCreditsPayloadMock,
 }));
+
+vi.mock("@/helpers/organization", () => ({
+  resolveMemberOrganizationById: (...args: unknown[]) =>
+    resolveMemberOrganizationByIdMock(...args),
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  memberRepository: {
+    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
+      getMemberByUserIdAndOrganizationIdMock(...args),
+  },
+}));
+
+const CREDITS_PAYLOAD = {
+  subscription: null,
+  extra: {
+    credits: { total: 10, remaining: 10, used: 0 },
+    buckets: [],
+    enterprise: null,
+  },
+  credits: {
+    subscription: null,
+    buffer: 10,
+    total: 10,
+  },
+};
+
+const MEMBER_RECORD = {
+  id: "member_1",
+  userId: "user_123",
+  organizationId: "org_1",
+  role: "member",
+  seatAssignedAt: null,
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+};
 
 function createCoworkerUserApp(options: {
   withContext: boolean;
@@ -79,6 +123,12 @@ function createCoworkerUserApp(options: {
   mountGetUserOrganizations(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
+  mountGetUserOrganizationCredits(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
+  mountGetUserOrganizationMember(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
   mountGetUserPreferences(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
@@ -90,20 +140,12 @@ describe("coworker user route allowlist", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
-    buildCreditsPayloadMock.mockResolvedValue({
-      subscription: null,
-      extra: {
-        credits: { total: 10, remaining: 10, used: 0 },
-        buckets: [],
-        enterprise: null,
-      },
-      credits: {
-        subscription: null,
-        buffer: 10,
-        total: 10,
-      },
-    });
+    buildCreditsPayloadMock.mockResolvedValue(CREDITS_PAYLOAD);
     memberFindManyMock.mockResolvedValue([]);
+    resolveMemberOrganizationByIdMock.mockResolvedValue({
+      organization: { id: "org_1" },
+    });
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(MEMBER_RECORD);
   });
 
   it("returns 403 for bare coworker on credits", async () => {
@@ -123,6 +165,29 @@ describe("coworker user route allowlist", () => {
     const app = createCoworkerUserApp({ withContext: true });
     const response = await app.request("http://localhost/me/organizations");
     expect(response.status).toBe(200);
+  });
+
+  it("allows coworker with context headers on organization credits", async () => {
+    const app = createCoworkerUserApp({ withContext: true });
+    const response = await app.request(
+      "http://localhost/me/organizations/org_1/credits",
+    );
+    expect(response.status).toBe(200);
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalled();
+    expect(buildCreditsPayloadMock).toHaveBeenCalled();
+  });
+
+  it("allows coworker with context headers on organization member", async () => {
+    const app = createCoworkerUserApp({ withContext: true });
+    const response = await app.request(
+      "http://localhost/me/organizations/org_1/member",
+    );
+    expect(response.status).toBe(200);
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_1",
+      expect.anything(),
+    );
   });
 
   it("rejects coworker with context headers on preferences", async () => {

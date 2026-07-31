@@ -13,6 +13,18 @@ describe("userRouteSubpathAfterId", () => {
     ).toBe("/organizations/org_1/member");
   });
 
+  it("matches the id as a full path segment, not a substring", () => {
+    expect(userRouteSubpathAfterId("/v1/users/me/credits", "me")).toBe(
+      "/credits",
+    );
+    expect(userRouteSubpathAfterId("/v1/users/users/credits", "users")).toBe(
+      "/credits",
+    );
+    expect(
+      userRouteSubpathAfterId("/v1/users/me/organizations/me/member", "me"),
+    ).toBe("/organizations/me/member");
+  });
+
   it("returns root for the bare user path", () => {
     expect(userRouteSubpathAfterId("/me", "me")).toBe("/");
     expect(userRouteSubpathAfterId("/me/", "me")).toBe("/");

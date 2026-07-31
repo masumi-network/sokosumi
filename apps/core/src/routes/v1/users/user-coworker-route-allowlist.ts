@@ -11,8 +11,10 @@ type UserRouteEnv = {
 };
 
 /**
- * Subpaths under `/users/{id}` that coworkers may call with context headers.
- * Everything else under the user tree stays session/orchestrator-only.
+ * GET subpaths under `/users/{id}` that coworkers may call with context
+ * headers. Everything else under the user tree stays session/orchestrator-only.
+ * Patterns are path-only today because only GET handlers exist on these shapes;
+ * do not mount mutating routes on the same paths without updating this gate.
  */
 const COWORKER_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/credits$/,
@@ -21,28 +23,49 @@ const COWORKER_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/organizations\/[^/]+\/member$/,
 ];
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Path after the `/users/{id}` segment (e.g. `/credits`,
  * `/organizations/org_1/member`). Returns `/` when the request is the user
  * root (`GET /users/{id}`).
+ *
+ * Prefers the segment after `/users/` (API mount) so ids that collide with
+ * path prefixes (e.g. `users`) or later segments (e.g. org id `me`) still
+ * resolve correctly. Falls back to the first matching segment for test apps
+ * mounted without the `/users` prefix.
  */
 export function userRouteSubpathAfterId(
   requestPath: string,
   pathUserId: string,
 ): string {
   const normalized = requestPath.replace(/\/+$/, "") || "/";
-  const marker = `/${pathUserId}`;
-  const markerIndex = normalized.indexOf(marker);
+  const escapedId = escapeRegExp(pathUserId);
+  const usersMounted = new RegExp(`(?:^|/)users/${escapedId}(?=/|$)`);
+  const usersMatch = usersMounted.exec(normalized);
 
-  if (markerIndex === -1) {
+  if (usersMatch) {
+    const after = normalized.slice(usersMatch.index + usersMatch[0].length);
+    if (after.length === 0) {
+      return "/";
+    }
+    return after.startsWith("/") ? after : `/${after}`;
+  }
+
+  const segments = normalized.split("/").filter(Boolean);
+  const idIndex = segments.findIndex((segment) => segment === pathUserId);
+
+  if (idIndex === -1) {
     return normalized.startsWith("/") ? normalized : `/${normalized}`;
   }
 
-  const after = normalized.slice(markerIndex + marker.length);
-  if (after.length === 0) {
+  const afterSegments = segments.slice(idIndex + 1);
+  if (afterSegments.length === 0) {
     return "/";
   }
-  return after.startsWith("/") ? after : `/${after}`;
+  return `/${afterSegments.join("/")}`;
 }
 
 export function isCoworkerAllowedUserSubpath(subpath: string): boolean {

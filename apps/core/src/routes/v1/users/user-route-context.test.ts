@@ -84,6 +84,8 @@ describe("usersPathUserContextMiddleware", () => {
     });
   });
 
+  // Path-resolution only — coworkerUserRouteAllowlistMiddleware is not mounted
+  // here, so /files succeeding does not mean coworkers can call that route.
   it("allows coworker context for matching user id", async () => {
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     const app = createApp({
