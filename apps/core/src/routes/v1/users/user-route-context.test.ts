@@ -84,12 +84,48 @@ describe("usersPathUserContextMiddleware", () => {
     });
   });
 
-  it("returns 403 when coworker context targets a concrete user id", async () => {
+  it("allows coworker context for matching user id", async () => {
+    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: "01960001-0001-7001-8001-000000000001",
       context: { userId: "user_123", organizationId: null },
+    });
+
+    const response = await app.request("http://localhost/user_123/files");
+
+    expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
+  });
+
+  it("allows coworker with context headers for me", async () => {
+    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: null },
+    });
+
+    const response = await app.request("http://localhost/me/files");
+
+    expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
+  });
+
+  it("returns 403 when coworker context targets a different user id", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_other", organizationId: null },
     });
 
     const response = await app.request("http://localhost/user_123/files");

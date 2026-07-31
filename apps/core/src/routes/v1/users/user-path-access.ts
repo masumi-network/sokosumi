@@ -4,6 +4,7 @@ import { forbidden } from "@/helpers/error";
 import {
   type AuthenticationContext,
   hasAdminRole,
+  isCoworkerAuthContext,
   isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserContext,
@@ -16,7 +17,7 @@ export const USERS_PATH_ME = "me" as const;
 
 /**
  * Session-only user context (admin or self). Prefer {@link UserContext} for
- * callers that also accept orchestrator context headers.
+ * callers that also accept orchestrator/coworker context headers.
  */
 export type SessionUserContext = {
   source: "session";
@@ -26,7 +27,7 @@ export type SessionUserContext = {
 export const usersRoutePathUserIdSchema = z.string().openapi({
   param: { name: "id", in: "path" },
   description:
-    "Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.",
+    "Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a user id when the caller may access that user's data.",
   example: "me",
 });
 
@@ -34,8 +35,9 @@ export const usersRoutePathUserIdSchema = z.string().openapi({
  * Resolves the first `/{id}` segment on user routes: `me` → effective user id;
  * otherwise enforces {@link requireAccessToTargetUserData}.
  *
- * Orchestrator with `X-Context-User-Id` may access that user's tree (path `me`
- * or matching concrete id). Coworker actors remain rejected.
+ * Orchestrator or coworker with `X-Context-User-Id` may resolve that user's tree
+ * (path `me` or matching concrete id). Coworker access to non-allowlisted
+ * subpaths is still rejected by `coworkerUserRouteAllowlistMiddleware`.
  */
 export function resolveUsersPathUserId(
   authContext: AuthenticationContext,
@@ -58,7 +60,7 @@ export function resolveUsersPathUserId(
 
 /**
  * Effective user for path `me` and self-id access: session user, or
- * orchestrator with context headers. Rejects coworker actors.
+ * orchestrator/coworker with context headers.
  */
 function requireEffectiveUserPathContext(
   authContext: AuthenticationContext,
@@ -67,7 +69,10 @@ function requireEffectiveUserPathContext(
     return { source: "session", ...authContext };
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (
+    isOrchestratorAuthContext(authContext) ||
+    isCoworkerAuthContext(authContext)
+  ) {
     return requireUserContext(authContext);
   }
 
@@ -77,9 +82,9 @@ function requireEffectiveUserPathContext(
 /**
  * Ensures the caller may access or mutate data for `resolvedUserId`:
  * - session user matches `resolvedUserId`, or session user has admin role
- * - orchestrator with context whose `userId` matches `resolvedUserId`
+ * - orchestrator or coworker with context whose `userId` matches `resolvedUserId`
  *
- * Coworker actors are rejected — user path data is not available to coworker keys.
+ * Coworker callers still need an allowlisted subpath (credits / organizations).
  */
 export function requireAccessToTargetUserData(
   authContext: AuthenticationContext,
@@ -95,7 +100,10 @@ export function requireAccessToTargetUserData(
     throw forbidden("You are not allowed to access this user's data");
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (
+    isOrchestratorAuthContext(authContext) ||
+    isCoworkerAuthContext(authContext)
+  ) {
     const userContext = requireUserContext(authContext);
     if (userContext.userId !== resolvedUserId) {
       throw forbidden("You are not allowed to access this user's data");
