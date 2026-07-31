@@ -101,6 +101,8 @@ export async function persistAssistantToChatRoom(params: {
   reasoning?: unknown;
   thoughtTiming?: { startedAtMs: number; endedAtMs: number };
   uiParts?: PersistedChatUiPart[];
+  /** Thread root id when this turn is a thread reply. */
+  parentMessageId?: string | null;
 }): Promise<{ id: string }> {
   const {
     roomId,
@@ -110,6 +112,7 @@ export async function persistAssistantToChatRoom(params: {
     reasoning,
     thoughtTiming,
     uiParts,
+    parentMessageId,
   } = params;
   const reasoningSteps = reasoningPartsToMetadata(reasoning);
   const hasUiParts = uiParts != null && uiParts.length > 0;
@@ -150,6 +153,7 @@ export async function persistAssistantToChatRoom(params: {
           content: contentText,
           metadata,
           responsesApiResponseId: responseId,
+          parentMessageId: parentMessageId ?? null,
         },
         select: { id: true },
       });
@@ -198,9 +202,17 @@ export async function persistUserMessageToChatRoom(params: {
    * we do not insert duplicate user rows after a failed/aborted stream.
    */
   clientMessageId?: string | null;
+  /** Thread root id when this turn is a thread reply. */
+  parentMessageId?: string | null;
 }): Promise<{ id: string }> {
-  const { roomId, senderUserId, contentText, metadata, clientMessageId } =
-    params;
+  const {
+    roomId,
+    senderUserId,
+    contentText,
+    metadata,
+    clientMessageId,
+    parentMessageId,
+  } = params;
 
   const trimmedClientId =
     typeof clientMessageId === "string" ? clientMessageId.trim() : "";
@@ -230,6 +242,7 @@ export async function persistUserMessageToChatRoom(params: {
           content: contentText,
           metadata: metadataToStore,
           clientMessageId: clientId,
+          parentMessageId: parentMessageId ?? null,
         },
         select: { id: true },
       });

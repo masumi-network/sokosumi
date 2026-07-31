@@ -1369,176 +1369,6 @@ export type ReactToChatRoomMessageRequest = {
     emoji: string;
 };
 
-export type ConversationList = Array<Conversation>;
-
-export type Conversation = {
-    /**
-     * Internal database ID
-     */
-    id: string;
-    /**
-     * User ID who owns this conversation
-     */
-    userId: string;
-    /**
-     * Conversation title
-     */
-    title: string | null;
-    /**
-     * Additional metadata (coworker info, etc.)
-     */
-    metadata: {
-        [key: string]: unknown;
-    } | null;
-    /**
-     * When the conversation was created
-     */
-    createdAt: Date;
-    /**
-     * When the conversation was last updated
-     */
-    updatedAt: Date;
-};
-
-export type CreateConversationRequest = {
-    /**
-     * Conversation ID (optional - if not provided, a new conversation will be created)
-     */
-    openaiId?: string;
-    /**
-     * Conversation title
-     */
-    title?: string;
-    /**
-     * Additional metadata
-     */
-    metadata?: {
-        [key: string]: unknown;
-    };
-};
-
-export type ConversationWarmupState = {
-    /**
-     * Internal conversation ID
-     */
-    conversationId: string;
-    /**
-     * Coworker container warmup state
-     */
-    state: 'pending' | 'ready' | 'failed';
-    /**
-     * ISO timestamp when warmup reached a terminal state (ready or failed)
-     */
-    completedAt: Date | null;
-    /**
-     * Number of warmup attempts made so far
-     */
-    attempts?: number | null;
-    /**
-     * Where the warmup state was resolved from
-     */
-    source: 'redis' | 'metadata' | 'none';
-};
-
-export type UpdateConversationRequest = {
-    /**
-     * Conversation title
-     */
-    title?: string;
-    /**
-     * Additional metadata
-     */
-    metadata?: {
-        [key: string]: unknown;
-    };
-};
-
-export type ArchiveConversationRequest = {
-    /**
-     * Whether to archive the conversation
-     */
-    archived: boolean;
-};
-
-export type ConversationMessage = {
-    /**
-     * Conversation message ID
-     */
-    id: string;
-    /**
-     * Message role
-     */
-    role: 'user' | 'assistant' | 'system';
-    /**
-     * Message content — string for plain text, or array of typed parts
-     */
-    content: string | Array<{
-        type: 'file';
-        url: string;
-        mediaType: string;
-        filename?: string;
-    } | {
-        type: 'text';
-        text: string;
-    } | {
-        type: 'input_text';
-        text: string;
-    } | {
-        type: 'output_text';
-        text: string;
-    } | {
-        type: string;
-        text: string;
-    }>;
-    /**
-     * Unix timestamp in seconds
-     */
-    createdAt: number;
-    /**
-     * Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning
-     */
-    thoughtTiming?: {
-        startedAtMs: number | null;
-        endedAtMs: number | null;
-    };
-    /**
-     * UI message metadata, including whether a user turn requested image generation.
-     */
-    metadata?: {
-        thoughtStartedAtMs?: number;
-        thoughtEndedAtMs?: number;
-        imageGeneration?: boolean;
-    };
-};
-
-export type CreateConversationMessageRequest = {
-    /**
-     * Message role
-     */
-    role: 'user' | 'assistant' | 'system';
-    /**
-     * Message content — string for plain text, or array of typed parts
-     */
-    content: string | Array<{
-        type: 'file';
-        url: string;
-        mediaType: string;
-        filename?: string;
-    } | {
-        type: 'text';
-        text: string;
-    } | {
-        type: 'input_text';
-        text: string;
-    } | {
-        type: 'output_text';
-        text: string;
-    } | {
-        type: string;
-        text: string;
-    }>;
-};
-
 export type CreditCheckoutSession = {
     url: string;
 };
@@ -2197,9 +2027,7 @@ export type HistoryItem = ({
     kind: 'task';
 } & HistoryTaskItem) | ({
     kind: 'job';
-} & HistoryJobItem) | ({
-    kind: 'conversation';
-} & HistoryConversationItem);
+} & HistoryJobItem);
 
 export type HistoryTaskItem = {
     /**
@@ -2227,7 +2055,7 @@ export type HistoryTaskItem = {
      */
     credits: number | null;
     /**
-     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
      */
     owner: HistoryOwner | null;
     kind: 'task';
@@ -2283,7 +2111,7 @@ export type HistoryJobItem = {
      */
     credits: number | null;
     /**
-     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
      */
     owner: HistoryOwner | null;
     kind: 'job';
@@ -2304,43 +2132,6 @@ export type HistoryJobItem = {
      * Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.
      */
     agentIcon: string | null;
-};
-
-export type HistoryConversationItem = {
-    /**
-     * Source entity ID for this history row
-     */
-    id: string;
-    /**
-     * Display title for the history row
-     */
-    title: string;
-    /**
-     * Short subtitle or description for the history row
-     */
-    description: string | null;
-    /**
-     * Source entity updatedAt timestamp used for feed ordering
-     */
-    updatedAt: Date;
-    /**
-     * Source entity archivedAt timestamp. Null means the row is navigable.
-     */
-    archivedAt: Date | null;
-    /**
-     * Conversations do not currently have credits
-     */
-    credits: null;
-    /**
-     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
-     */
-    owner: HistoryOwner | null;
-    kind: 'conversation';
-    status: 'active' | 'archived';
-    /**
-     * Chat bucket slug for deep-linking to the conversation
-     */
-    bucketSlug: string | null;
 };
 
 /**
@@ -3167,7 +2958,6 @@ export type NotificationItem = {
 export const NotificationKind = {
     JOB: 'JOB',
     TASK: 'TASK',
-    CONVERSATION: 'CONVERSATION',
     BILLING: 'BILLING',
     SYSTEM: 'SYSTEM'
 } as const;
@@ -9238,6 +9028,9 @@ export type PostChatsRoomsByIdStreamData = {
         previousResponseId?: string;
         model?: string | null;
         imageGeneration?: boolean;
+    } & {
+        parentMessageId?: string;
+        roomId?: string;
     };
     headers?: {
         /**
@@ -10303,815 +10096,6 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
-
-export type GetChatsConversationsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/conversations';
-};
-
-export type GetChatsConversationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsConversationsError = GetChatsConversationsErrors[keyof GetChatsConversationsErrors];
-
-export type GetChatsConversationsResponses = {
-    /**
-     * List of user's conversations
-     */
-    200: {
-        data: ConversationList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsConversationsResponse = GetChatsConversationsResponses[keyof GetChatsConversationsResponses];
-
-export type PostChatsConversationsData = {
-    body?: CreateConversationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/conversations';
-};
-
-export type PostChatsConversationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostChatsConversationsError = PostChatsConversationsErrors[keyof PostChatsConversationsErrors];
-
-export type PostChatsConversationsResponses = {
-    /**
-     * Conversation created successfully
-     */
-    201: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostChatsConversationsResponse = PostChatsConversationsResponses[keyof PostChatsConversationsResponses];
-
-export type GetChatsConversationsByIdData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/chats/conversations/{id}';
-};
-
-export type GetChatsConversationsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsConversationsByIdError = GetChatsConversationsByIdErrors[keyof GetChatsConversationsByIdErrors];
-
-export type GetChatsConversationsByIdResponses = {
-    /**
-     * Conversation retrieved successfully
-     */
-    200: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsConversationsByIdResponse = GetChatsConversationsByIdResponses[keyof GetChatsConversationsByIdResponses];
-
-export type PatchChatsConversationsByIdData = {
-    body?: UpdateConversationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/chats/conversations/{id}';
-};
-
-export type PatchChatsConversationsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchChatsConversationsByIdError = PatchChatsConversationsByIdErrors[keyof PatchChatsConversationsByIdErrors];
-
-export type PatchChatsConversationsByIdResponses = {
-    /**
-     * Conversation updated successfully
-     */
-    200: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchChatsConversationsByIdResponse = PatchChatsConversationsByIdResponses[keyof PatchChatsConversationsByIdResponses];
-
-export type GetChatsConversationsByIdWarmupData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/chats/conversations/{id}/warmup';
-};
-
-export type GetChatsConversationsByIdWarmupErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsConversationsByIdWarmupError = GetChatsConversationsByIdWarmupErrors[keyof GetChatsConversationsByIdWarmupErrors];
-
-export type GetChatsConversationsByIdWarmupResponses = {
-    /**
-     * Warmup state retrieved successfully
-     */
-    200: {
-        data: ConversationWarmupState;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsConversationsByIdWarmupResponse = GetChatsConversationsByIdWarmupResponses[keyof GetChatsConversationsByIdWarmupResponses];
-
-export type PatchChatsConversationsByIdArchiveData = {
-    body?: ArchiveConversationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/chats/conversations/{id}/archive';
-};
-
-export type PatchChatsConversationsByIdArchiveErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchChatsConversationsByIdArchiveError = PatchChatsConversationsByIdArchiveErrors[keyof PatchChatsConversationsByIdArchiveErrors];
-
-export type PatchChatsConversationsByIdArchiveResponses = {
-    /**
-     * Conversation archived successfully
-     */
-    200: {
-        data: Conversation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchChatsConversationsByIdArchiveResponse = PatchChatsConversationsByIdArchiveResponses[keyof PatchChatsConversationsByIdArchiveResponses];
-
-export type GetChatsConversationsByIdMessagesData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: {
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 100)
-         */
-        limit?: number;
-    };
-    url: '/chats/conversations/{id}/messages';
-};
-
-export type GetChatsConversationsByIdMessagesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsConversationsByIdMessagesError = GetChatsConversationsByIdMessagesErrors[keyof GetChatsConversationsByIdMessagesErrors];
-
-export type GetChatsConversationsByIdMessagesResponses = {
-    /**
-     * Conversation messages retrieved successfully
-     */
-    200: {
-        data: Array<ConversationMessage>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsConversationsByIdMessagesResponse = GetChatsConversationsByIdMessagesResponses[keyof GetChatsConversationsByIdMessagesResponses];
-
-export type PostChatsConversationsByIdMessagesData = {
-    body?: CreateConversationMessageRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Internal database ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/chats/conversations/{id}/messages';
-};
-
-export type PostChatsConversationsByIdMessagesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostChatsConversationsByIdMessagesError = PostChatsConversationsByIdMessagesErrors[keyof PostChatsConversationsByIdMessagesErrors];
-
-export type PostChatsConversationsByIdMessagesResponses = {
-    /**
-     * Conversation message created successfully
-     */
-    201: {
-        data: ConversationMessage;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostChatsConversationsByIdMessagesResponse = PostChatsConversationsByIdMessagesResponses[keyof PostChatsConversationsByIdMessagesResponses];
 
 export type CreateCreditCheckoutSessionData = {
     body?: CreateCreditCheckoutSession;
@@ -14858,17 +13842,17 @@ export type GetHistoryData = {
          */
         q?: string;
         /**
-         * Workspace visibility scope for task and job rows. Conversations are always scoped to the effective user (session or context headers).
+         * Workspace visibility scope for task and job rows.
          */
         scope?: 'workspace' | 'owned';
         /**
-         * Comma-separated status filters. Use `active` or `archived` for conversations. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, only non-archived conversations match (not tasks or jobs).
+         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task and job rows match.
          */
         status?: Array<string>;
         /**
-         * Comma-separated history kinds to include: task, job, conversation
+         * Comma-separated history kinds to include: task, job
          */
-        types?: Array<'task' | 'job' | 'conversation'>;
+        types?: Array<'task' | 'job'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -15050,17 +14034,17 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -15211,7 +14195,7 @@ export type GetUsersByIdDesignMdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -15300,7 +14284,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -15417,7 +14401,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -15504,9 +14488,23 @@ export type GetUsersByIdMembersResponse = GetUsersByIdMembersResponses[keyof Get
 
 export type GetUsersByIdOrganizationsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -15599,17 +14597,17 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
         /**
@@ -15764,7 +14762,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
         /**
@@ -15857,7 +14855,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -15964,7 +14962,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16062,7 +15060,7 @@ export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16165,7 +15163,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
         /**
@@ -16279,7 +15277,7 @@ export type GetUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16373,7 +15371,7 @@ export type PostUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16467,7 +15465,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16558,7 +15556,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
         /**
@@ -16669,7 +15667,7 @@ export type GetUsersByIdFilesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16777,7 +15775,7 @@ export type PostUsersByIdFilesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16908,7 +15906,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -16997,7 +15995,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -17091,7 +16089,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -17180,7 +16178,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
         /**
@@ -17273,7 +16271,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
         grantId: string;
@@ -17363,7 +16361,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
         grantId: string;
@@ -17467,7 +16465,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -17570,7 +16568,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -17673,7 +16671,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -17776,7 +16774,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -17863,9 +16861,23 @@ export type GetUsersByIdSubscriptionResponse = GetUsersByIdSubscriptionResponses
 
 export type GetUsersByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator with X-Context-User-Id), or a user id when the caller may access that user's data.
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
          */
         id: string;
     };
@@ -22506,7 +21518,7 @@ export type GetNotificationsData = {
     path?: never;
     query?: {
         /**
-         * Comma-separated notification kinds to filter (e.g. JOB,TASK,CONVERSATION)
+         * Comma-separated notification kinds to filter (e.g. JOB,TASK,BILLING)
          */
         kind?: Array<NotificationKind>;
         /**

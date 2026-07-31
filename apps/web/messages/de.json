@@ -1302,11 +1302,9 @@
         "projectLabel": "Projekt",
         "typeOptions": {
           "task": "Aufgabe",
-          "job": "Job",
-          "conversation": "Chat"
+          "job": "Job"
         },
         "statusOptions": {
-          "active": "Aktiv",
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
@@ -1341,12 +1339,7 @@
         "updated": "Aktualisiert",
         "kind": {
           "task": "Aufgabe",
-          "job": "Job",
-          "conversation": "Chat"
-        },
-        "conversationStatus": {
-          "active": "Aktiv",
-          "archived": "Archiviert"
+          "job": "Job"
         }
       }
     },

@@ -167,7 +167,7 @@ export function shouldUseCoworkerRoomStream(room: {
 
 /**
  * Thread chrome on room messages.
- * Stream overlays never show threads. Coworker 1:1 hides until SOK-656.
+ * Stream overlays never show threads (ephemeral stream ids).
  */
 export function shouldShowChatRoomThreadButton(options: {
   room: {
@@ -178,7 +178,6 @@ export function shouldShowChatRoomThreadButton(options: {
   isStreamOverlay: boolean;
 }): boolean {
   if (options.isStreamOverlay) return false;
-  if (isCoworkerOnlyDirectRoom(options.room)) return false;
   return true;
 }
 

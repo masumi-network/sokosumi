@@ -1,8 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import type { Prisma } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
-import { badRequest, notFound } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -25,6 +24,7 @@ import {
   mapChatRoomMessage,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
+  resolveThreadParentMessageId,
 } from "../../helpers";
 
 const paramsSchema = z.object({
@@ -64,30 +64,6 @@ const route = withGlobalHeaderParameters(
     },
   }),
 );
-
-async function resolveThreadParentMessageId(
-  tx: Prisma.TransactionClient,
-  roomId: string,
-  requestedParentMessageId: string | undefined,
-): Promise<string | null> {
-  if (!requestedParentMessageId) {
-    return null;
-  }
-  const parentMessage = await tx.chatRoomMessage.findFirst({
-    where: {
-      id: requestedParentMessageId,
-      roomId,
-    },
-    select: {
-      id: true,
-      parentMessageId: true,
-    },
-  });
-  if (!parentMessage) {
-    throw badRequest("Thread message not found");
-  }
-  return parentMessage.parentMessageId ?? parentMessage.id;
-}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

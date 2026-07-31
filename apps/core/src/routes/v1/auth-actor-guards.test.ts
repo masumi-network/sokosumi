@@ -9,7 +9,6 @@ import {
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetAgentJobs from "./agents/[id]/jobs/get";
-import mountGetConversations from "./chats/conversations/get";
 import mountGetJobs from "./jobs/get";
 import mountGetUserCredits from "./users/[id]/credits/get";
 
@@ -71,13 +70,6 @@ describe("route actor guards", () => {
   it("returns 403 for coworker auth on users/me routes", async () => {
     const app = createCoworkerUserRouteContextApp(mountGetUserCredits);
     const response = await app.request("http://localhost/me/credits");
-
-    expect(response.status).toBe(403);
-  });
-
-  it("returns 403 for coworker auth on conversation routes", async () => {
-    const app = createCoworkerContextApp(mountGetConversations);
-    const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(403);
   });

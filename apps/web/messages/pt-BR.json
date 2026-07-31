@@ -1302,11 +1302,9 @@
         "projectLabel": "Projeto",
         "typeOptions": {
           "task": "Tarefa",
-          "job": "Job",
-          "conversation": "Chat"
+          "job": "Job"
         },
         "statusOptions": {
-          "active": "Ativo",
           "archived": "Arquivado",
           "DRAFT": "Rascunho",
           "QUEUED": "Na fila",
@@ -1341,12 +1339,7 @@
         "updated": "Atualizado",
         "kind": {
           "task": "Tarefa",
-          "job": "Job",
-          "conversation": "Chat"
-        },
-        "conversationStatus": {
-          "active": "Ativo",
-          "archived": "Arquivado"
+          "job": "Job"
         }
       }
     },

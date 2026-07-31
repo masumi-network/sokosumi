@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  isCoworkerAllowedUserSubpath,
+  userRouteSubpathAfterId,
+} from "./user-coworker-route-allowlist";
+
+describe("userRouteSubpathAfterId", () => {
+  it("strips the user id segment from nested paths", () => {
+    expect(userRouteSubpathAfterId("/me/credits", "me")).toBe("/credits");
+    expect(
+      userRouteSubpathAfterId("/usr_1/organizations/org_1/member", "usr_1"),
+    ).toBe("/organizations/org_1/member");
+  });
+
+  it("matches the id as a full path segment, not a substring", () => {
+    expect(userRouteSubpathAfterId("/v1/users/me/credits", "me")).toBe(
+      "/credits",
+    );
+    expect(userRouteSubpathAfterId("/v1/users/users/credits", "users")).toBe(
+      "/credits",
+    );
+    expect(
+      userRouteSubpathAfterId("/v1/users/me/organizations/me/member", "me"),
+    ).toBe("/organizations/me/member");
+  });
+
+  it("returns root for the bare user path", () => {
+    expect(userRouteSubpathAfterId("/me", "me")).toBe("/");
+    expect(userRouteSubpathAfterId("/me/", "me")).toBe("/");
+  });
+});
+
+describe("isCoworkerAllowedUserSubpath", () => {
+  it("allows profile, credits, and organization list/credits reads", () => {
+    expect(isCoworkerAllowedUserSubpath("/")).toBe(true);
+    expect(isCoworkerAllowedUserSubpath("/credits")).toBe(true);
+    expect(isCoworkerAllowedUserSubpath("/organizations")).toBe(true);
+    expect(isCoworkerAllowedUserSubpath("/organizations/org_1/credits")).toBe(
+      true,
+    );
+  });
+
+  it("rejects other user subpaths", () => {
+    expect(isCoworkerAllowedUserSubpath("/preferences")).toBe(false);
+    expect(isCoworkerAllowedUserSubpath("/billing-details")).toBe(false);
+    expect(isCoworkerAllowedUserSubpath("/organizations/org_1")).toBe(false);
+    expect(isCoworkerAllowedUserSubpath("/organizations/org_1/member")).toBe(
+      false,
+    );
+    expect(isCoworkerAllowedUserSubpath("/files")).toBe(false);
+  });
+});

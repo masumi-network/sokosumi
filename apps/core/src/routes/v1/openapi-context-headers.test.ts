@@ -65,9 +65,49 @@ describe("OpenAPI X-Context-* header documentation", () => {
     expect(hasOrchestratorContextHeaders(refs)).toBe(false);
   });
 
-  it("documents orchestrator-only context headers on user credits (coworker rejected)", () => {
+  it("documents coworker context headers on user credits", () => {
     const doc = usersRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(doc, "/{id}/credits", "get");
+    expect(hasCoworkerContextHeaders(refs)).toBe(true);
+    expect(hasOrchestratorContextHeaders(refs)).toBe(false);
+  });
+
+  it("documents coworker context headers on user profile", () => {
+    const doc = usersRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(doc, "/{id}", "get");
+    expect(hasCoworkerContextHeaders(refs)).toBe(true);
+  });
+
+  it("documents coworker context headers on user organizations list", () => {
+    const doc = usersRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(doc, "/{id}/organizations", "get");
+    expect(hasCoworkerContextHeaders(refs)).toBe(true);
+  });
+
+  it("documents coworker context headers on user organization credits", () => {
+    const doc = usersRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(
+      doc,
+      "/{id}/organizations/{organizationId}/credits",
+      "get",
+    );
+    expect(hasCoworkerContextHeaders(refs)).toBe(true);
+  });
+
+  it("omits coworker context headers on user organization member", () => {
+    const doc = usersRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(
+      doc,
+      "/{id}/organizations/{organizationId}/member",
+      "get",
+    );
+    expect(hasCoworkerContextHeaders(refs)).toBe(false);
+    expect(hasOrchestratorContextHeaders(refs)).toBe(false);
+  });
+
+  it("documents orchestrator-only context headers on user billing details", () => {
+    const doc = usersRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(doc, "/{id}/billing-details", "get");
     expect(hasOrchestratorContextHeaders(refs)).toBe(true);
     expect(hasCoworkerContextHeaders(refs)).toBe(false);
   });
