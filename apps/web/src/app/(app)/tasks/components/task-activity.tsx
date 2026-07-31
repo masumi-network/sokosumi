@@ -5,13 +5,7 @@ import {
   extractHttpLinks,
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
-import {
-  AlertTriangle,
-  ArrowUp,
-  Command,
-  CornerDownLeft,
-  Loader2,
-} from "lucide-react";
+import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -106,17 +100,6 @@ interface TaskActivityProps {
 
 function getEventTimestamp(event: TaskEvent): number {
   return new Date(event.createdAt).getTime();
-}
-
-function isInsecureHttpUrl(value: string | null | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-  try {
-    return new URL(value).protocol === "http:";
-  } catch {
-    return false;
-  }
 }
 
 function isNewOptimisticEventId(id: string): boolean {
@@ -524,12 +507,6 @@ export function TaskActivitySection({
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
               Boolean(event.authenticationUrl);
-            const hasInsecureAuthenticationUrl =
-              shouldShowAuthenticateButton &&
-              isInsecureHttpUrl(event.authenticationUrl);
-            const insecureAuthenticationWarningId = hasInsecureAuthenticationUrl
-              ? `insecure-authentication-warning-${event.id}`
-              : undefined;
             const isOutOfCreditsEvent =
               index === 0 && event.status === TaskStatus.OUT_OF_CREDITS;
             // Only link to billing when we know the viewer's plan. Unknown
@@ -686,32 +663,16 @@ export function TaskActivitySection({
                       </div>
                     ) : null}
                     {shouldShowAuthenticateButton ? (
-                      <div className="flex flex-col gap-2">
-                        {hasInsecureAuthenticationUrl ? (
-                          <div
-                            id={insecureAuthenticationWarningId}
-                            role="alert"
-                            className="border-semantic-warning-tertiary bg-semantic-warning-quinary text-semantic-warning flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
+                      <div className="flex items-center justify-end gap-2">
+                        <Button asChild size="sm" variant="default">
+                          <a
+                            href={event.authenticationUrl ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
-                            <AlertTriangle
-                              className="mt-0.5 size-4 shrink-0"
-                              aria-hidden
-                            />
-                            <span>{t("insecureAuthenticationWarning")}</span>
-                          </div>
-                        ) : null}
-                        <div className="flex items-center justify-end gap-2">
-                          <Button asChild size="sm" variant="default">
-                            <a
-                              href={event.authenticationUrl ?? undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-describedby={insecureAuthenticationWarningId}
-                            >
-                              {t("authenticate")}
-                            </a>
-                          </Button>
-                        </div>
+                            {t("authenticate")}
+                          </a>
+                        </Button>
                       </div>
                     ) : null}
                     {shouldShowBillingButton ? (

@@ -25039,10 +25039,6 @@ export type PostTasksByIdEventsData = {
         comment?: string;
         authenticationUrl?: string;
         /**
-         * Explicitly allow an http:// authentication URL. Set only when Sokosumi and the coworker service communicate through a trusted secured network. Clients must warn users before opening it.
-         */
-        allowInsecureAuthenticationUrl?: boolean;
-        /**
          * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
          */
         credits?: number | null;
