@@ -12,6 +12,8 @@ const redirectMock = vi.fn((url: string) => {
   throw new Error(`REDIRECT:${url}`);
 });
 
+let lastRoomsClientProps: Record<string, unknown> | null = null;
+
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => redirectMock(url),
 }));
@@ -52,7 +54,10 @@ vi.mock("@/app/chat/load-room-messages", () => ({
 }));
 
 vi.mock("@/app/chat/components/rooms-client", () => ({
-  RoomsClient: () => <div data-testid="rooms-client" />,
+  RoomsClient: (props: Record<string, unknown>) => {
+    lastRoomsClientProps = props;
+    return <div data-testid="rooms-client" />;
+  },
 }));
 
 import ChatRoomPage from "../page";
@@ -90,6 +95,7 @@ function room(
 describe("ChatRoomPage org deep-link guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lastRoomsClientProps = null;
     getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
     loadOrganizationMembersMock.mockResolvedValue({
       members: [],
@@ -162,6 +168,7 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
+    expect(lastRoomsClientProps?.membersLoadFailed).toBe(false);
   });
 
   it("still renders when organization members fail to load", async () => {
@@ -183,5 +190,23 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith(ORG_A);
+    expect(lastRoomsClientProps?.membersLoadFailed).toBe(true);
+    expect(lastRoomsClientProps?.organizationMembers).toEqual([]);
+  });
+
+  it("treats personal workspace as membersLoadFailed false", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: null, kind: "direct" }),
+    );
+
+    const element = await ChatRoomPage({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    });
+
+    expect(element).toBeTruthy();
+    expect(loadOrganizationMembersMock).not.toHaveBeenCalled();
+    expect(lastRoomsClientProps?.membersLoadFailed).toBe(false);
+    expect(lastRoomsClientProps?.organizationMembers).toEqual([]);
   });
 });
