@@ -1,3 +1,4 @@
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import type { PersistedChatUiPart } from "./message-content";
 
@@ -53,9 +54,43 @@ function buildAssistantMessageMetadata(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+async function findAssistantByResponsesApiResponseId(
+  roomId: string,
+  responsesApiResponseId: string,
+): Promise<{ id: string } | null> {
+  return prisma.chatRoomMessage.findUnique({
+    where: {
+      roomId_responsesApiResponseId: {
+        roomId,
+        responsesApiResponseId,
+      },
+    },
+    select: { id: true },
+  });
+}
+
+async function findUserByClientMessageId(
+  roomId: string,
+  clientMessageId: string,
+): Promise<{ id: string } | null> {
+  return prisma.chatRoomMessage.findUnique({
+    where: {
+      roomId_clientMessageId: {
+        roomId,
+        clientMessageId,
+      },
+    },
+    select: { id: true },
+  });
+}
+
 /**
  * Persists an assistant turn to `chat_room_message`.
  * Callers must not pass empty content (no text, reasoning, or ui parts) — throws if empty.
+ *
+ * When `responsesApiResponseId` is set, DB unique `(roomId, responsesApiResponseId)`
+ * guarantees at most one assistant row under concurrent writers (Redis lock is
+ * happy-path only). Soft lookup + P2002 recovery return the existing id.
  */
 export async function persistAssistantToChatRoom(params: {
   roomId: string;
@@ -88,16 +123,10 @@ export async function persistAssistantToChatRoom(params: {
       : null;
 
   if (responseId) {
-    const existing = await prisma.chatRoomMessage.findFirst({
-      where: {
-        roomId,
-        metadata: {
-          path: ["responses_api_response_id"],
-          equals: responseId,
-        },
-      },
-      select: { id: true },
-    });
+    const existing = await findAssistantByResponsesApiResponseId(
+      roomId,
+      responseId,
+    );
     if (existing) {
       return { id: existing.id };
     }
@@ -110,27 +139,50 @@ export async function persistAssistantToChatRoom(params: {
     responseId,
   );
 
-  const created = await prisma.$transaction(async (tx) => {
-    const message = await tx.chatRoomMessage.create({
-      data: {
-        roomId,
-        senderCoworkerId,
-        senderUserId: null,
-        content: contentText,
-        metadata,
-      },
-      select: { id: true },
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const message = await tx.chatRoomMessage.create({
+        data: {
+          roomId,
+          senderCoworkerId,
+          senderUserId: null,
+          content: contentText,
+          metadata,
+          responsesApiResponseId: responseId,
+        },
+        select: { id: true },
+      });
+      // Sidebar / room list order by activity — keep in sync with stream writes.
+      await tx.chatRoom.update({
+        where: { id: roomId },
+        data: { updatedAt: new Date() },
+      });
+      return message;
     });
-    // Sidebar / room list order by activity — keep in sync with stream writes.
-    await tx.chatRoom.update({
-      where: { id: roomId },
-      data: { updatedAt: new Date() },
-    });
-    return message;
-  });
-  return { id: created.id };
+    return { id: created.id };
+  } catch (error) {
+    if (!responseId || !isPrismaUniqueViolation(error)) {
+      throw error;
+    }
+    // Interactive tx aborted after failed create — re-read on root client.
+    const raced = await findAssistantByResponsesApiResponseId(
+      roomId,
+      responseId,
+    );
+    if (raced) {
+      return { id: raced.id };
+    }
+    throw error;
+  }
 }
 
+/**
+ * Persists a user turn to `chat_room_message`.
+ *
+ * When `clientMessageId` is set, DB unique `(roomId, clientMessageId)` guarantees
+ * at most one user row under concurrent writers (Redis lock is happy-path only).
+ * Soft lookup + P2002 recovery return the existing id.
+ */
 export async function persistUserMessageToChatRoom(params: {
   roomId: string;
   senderUserId: string;
@@ -147,18 +199,10 @@ export async function persistUserMessageToChatRoom(params: {
 
   const trimmedClientId =
     typeof clientMessageId === "string" ? clientMessageId.trim() : "";
-  if (trimmedClientId.length > 0) {
-    const existing = await prisma.chatRoomMessage.findFirst({
-      where: {
-        roomId,
-        senderUserId,
-        metadata: {
-          path: ["client_message_id"],
-          equals: trimmedClientId,
-        },
-      },
-      select: { id: true },
-    });
+  const clientId = trimmedClientId.length > 0 ? trimmedClientId : null;
+
+  if (clientId) {
+    const existing = await findUserByClientMessageId(roomId, clientId);
     if (existing) {
       return { id: existing.id };
     }
@@ -166,30 +210,41 @@ export async function persistUserMessageToChatRoom(params: {
 
   const mergedMetadata: Record<string, unknown> = {
     ...(metadata ?? {}),
-    ...(trimmedClientId.length > 0
-      ? { client_message_id: trimmedClientId }
-      : {}),
+    ...(clientId ? { client_message_id: clientId } : {}),
   };
   const metadataToStore =
     Object.keys(mergedMetadata).length > 0 ? mergedMetadata : undefined;
 
-  const created = await prisma.$transaction(async (tx) => {
-    const message = await tx.chatRoomMessage.create({
-      data: {
-        roomId,
-        senderUserId,
-        senderCoworkerId: null,
-        content: contentText,
-        metadata: metadataToStore,
-      },
-      select: { id: true },
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const message = await tx.chatRoomMessage.create({
+        data: {
+          roomId,
+          senderUserId,
+          senderCoworkerId: null,
+          content: contentText,
+          metadata: metadataToStore,
+          clientMessageId: clientId,
+        },
+        select: { id: true },
+      });
+      await tx.chatRoom.update({
+        where: { id: roomId },
+        data: { updatedAt: new Date() },
+      });
+      return message;
     });
-    await tx.chatRoom.update({
-      where: { id: roomId },
-      data: { updatedAt: new Date() },
-    });
-    return message;
-  });
 
-  return { id: created.id };
+    return { id: created.id };
+  } catch (error) {
+    if (!clientId || !isPrismaUniqueViolation(error)) {
+      throw error;
+    }
+    // Interactive tx aborted after failed create — re-read on root client.
+    const raced = await findUserByClientMessageId(roomId, clientId);
+    if (raced) {
+      return { id: raced.id };
+    }
+    throw error;
+  }
 }
