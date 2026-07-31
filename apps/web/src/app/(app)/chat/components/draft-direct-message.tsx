@@ -25,6 +25,7 @@ import type {
   Coworker,
   Member,
 } from "@/lib/clients/generated/core";
+import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
 import {
@@ -35,6 +36,10 @@ import {
   filterDraftTargets,
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
+import {
+  buildRoomComposerMessageContent,
+  isRoomComposerEmpty,
+} from "./room-helpers";
 
 export function DraftDirectMessage({
   members,
@@ -124,7 +129,11 @@ export function DraftDirectMessage({
 
   function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const content = composerValue.trim();
+    const content = buildRoomComposerMessageContent(
+      composerValue,
+      composerAttachments,
+      formatTaskAttachmentMarkdown,
+    );
     if (!content) {
       return;
     }
@@ -314,7 +323,8 @@ export function DraftDirectMessage({
         onSubmit={handleSend}
         isSending={isSending}
         sendDisabled={
-          composerValue.trim().length === 0 || selectedTargets.length === 0
+          isRoomComposerEmpty(composerValue, composerAttachments) ||
+          selectedTargets.length === 0
         }
         showMentionShortcut={selectedTargets.length > 1}
       />

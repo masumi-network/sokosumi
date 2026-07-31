@@ -615,6 +615,33 @@ export async function requireChatRoomUserMembership(
   return room;
 }
 
+/**
+ * Coworker membership for active (non-archived) rooms. Mirrors the inline gate
+ * on coworker message POST. Returns 404 when missing or archived.
+ */
+export async function requireChatRoomCoworkerAccess(
+  roomId: string,
+  coworkerId: string,
+  tx: Prisma.TransactionClient,
+): Promise<{ id: string }> {
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      archivedAt: null,
+      coworkerMembers: {
+        some: { coworkerId },
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
+
+  return room;
+}
+
 export async function validateOrganizationUserIds(
   organizationId: string,
   userIds: readonly string[],

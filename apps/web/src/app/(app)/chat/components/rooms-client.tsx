@@ -46,6 +46,7 @@ import type {
   Organization,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { DraftChannel } from "./draft-channel";
 import { DraftDirectMessage } from "./draft-direct-message";
@@ -53,9 +54,11 @@ import { EditChannelDialog } from "./edit-channel-dialog";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
 import {
   appendMessage,
+  buildRoomComposerMessageContent,
   getRoomDisplayName,
   getRoomParticipantPreviews,
   hasPendingCoworkerMention,
+  isRoomComposerEmpty,
   messageDayKey,
   presenceLabel,
   shouldShowChatRoomThreadButton,
@@ -866,7 +869,11 @@ export function RoomsClient({
     event.preventDefault();
     if (!selectedRoom) return;
     const roomId = selectedRoom.id;
-    const content = composerValue.trim();
+    const content = buildRoomComposerMessageContent(
+      composerValue,
+      composerAttachments,
+      formatTaskAttachmentMarkdown,
+    );
     if (!content) return;
 
     if (shouldUseCoworkerRoomStream(selectedRoom)) {
@@ -899,7 +906,11 @@ export function RoomsClient({
     if (!selectedRoom || !threadParentMessage) return;
     const roomId = selectedRoom.id;
     const parentMessageId = threadParentMessage.id;
-    const content = threadComposerValue.trim();
+    const content = buildRoomComposerMessageContent(
+      threadComposerValue,
+      threadComposerAttachments,
+      formatTaskAttachmentMarkdown,
+    );
     if (!content) return;
 
     if (shouldUseCoworkerRoomStream(selectedRoom)) {
@@ -1065,6 +1076,7 @@ export function RoomsClient({
               </ScrollArea>
 
               <RoomComposer
+                roomId={selectedRoom.id}
                 value={composerValue}
                 onValueChange={setComposerValue}
                 mentions={mentionRecords}
@@ -1082,7 +1094,10 @@ export function RoomsClient({
                 onAttachmentsChange={setComposerAttachments}
                 onSubmit={handleSend}
                 isSending={isSending || isCoworkerStreaming}
-                sendDisabled={composerValue.trim().length === 0}
+                sendDisabled={isRoomComposerEmpty(
+                  composerValue,
+                  composerAttachments,
+                )}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}
@@ -1141,6 +1156,7 @@ export function RoomsClient({
             onToggleReaction={handleToggleReaction}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
             allowAttachments={!isCoworkerStreamRoom}
+            roomId={selectedRoom.id}
           />
         ) : null}
       </main>

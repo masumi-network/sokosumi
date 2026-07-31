@@ -1,6 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostArchiveChatRoom from "./[id]/archive/post.js";
+import mountPostChatRoomFile from "./[id]/files/post.js";
 import mountGetChatRoom from "./[id]/get.js";
 import mountDeleteChatRoomSelfMembership from "./[id]/members/me/delete.js";
 import mountPostChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/post.js";
@@ -28,5 +29,6 @@ mountPostChatRoomRead(app);
 mountGetChatRoomMessages(app);
 mountPostChatRoomMessage(app);
 mountPostChatRoomMessageReaction(app);
+mountPostChatRoomFile(app);
 
 export default app;

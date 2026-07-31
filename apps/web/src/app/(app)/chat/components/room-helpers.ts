@@ -32,6 +32,40 @@ export function appendComposerBlock(value: string, block: string): string {
   return `${trimmedRight}\n${block}`;
 }
 
+/**
+ * Build POST message content from composer text + attachment chips.
+ * Chips stay out of the textarea; markdown links are appended on send.
+ */
+export function buildRoomComposerMessageContent(
+  value: string,
+  attachments: readonly { fileName: string; url: string }[],
+  formatAttachmentMarkdown: (fileName: string, url: string) => string,
+): string {
+  const text = value.trimEnd();
+  if (attachments.length === 0) {
+    return text.trim();
+  }
+
+  const attachmentMarkdown = attachments
+    .map((attachment) =>
+      formatAttachmentMarkdown(attachment.fileName, attachment.url),
+    )
+    .join("");
+
+  if (!text.trim()) {
+    return attachmentMarkdown.trimEnd();
+  }
+
+  return appendComposerBlock(text, attachmentMarkdown).trimEnd();
+}
+
+export function isRoomComposerEmpty(
+  value: string,
+  attachments: readonly unknown[],
+): boolean {
+  return value.trim().length === 0 && attachments.length === 0;
+}
+
 export function hasPendingCoworkerMention(
   messages: ChatRoomMessage[],
 ): boolean {
