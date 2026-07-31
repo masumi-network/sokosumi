@@ -24,7 +24,7 @@
     "generate:core:snapshot": "pnpm --filter @sokosumi/core run write-openapi-snapshot-for-web && openapi-ts -f openapi-ts.core.config.ts -i openapi-core.snapshot.json"
   },
   "dependencies": {
-    "@ai-sdk/react": "4.0.45",
+    "@ai-sdk/react": "4.0.47",
     "@better-auth/api-key": "1.6.25",
     "@better-auth/i18n": "1.6.25",
     "@better-auth/oauth-provider": "1.6.25",
@@ -54,7 +54,7 @@
     "@vercel/related-projects": "1.1.0",
     "@vercel/speed-insights": "2.0.0",
     "ably": "2.26.0",
-    "ai": "7.0.42",
+    "ai": "7.0.44",
     "babel-plugin-react-compiler": "1.0.0",
     "better-auth": "1.6.25",
     "class-variance-authority": "0.7.1",
@@ -69,7 +69,7 @@
     "gravatar-url": "4.0.2",
     "happy-dom": "20.11.1",
     "humanize-duration": "3.34.0",
-    "lucide-react": "1.27.0",
+    "lucide-react": "1.28.0",
     "marked": "18.0.7",
     "mdast2docx": "1.6.1",
     "motion": "12.43.0",
@@ -119,17 +119,17 @@
     "@testing-library/user-event": "14.6.1",
     "@types/humanize-duration": "3.27.4",
     "@types/node": "24.13.3",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
     "@types/react-file-icon": "1.0.5",
     "@types/sanitize-html": "2.16.1",
     "@typescript/native": "npm:typescript@7.0.2",
-    "@vitejs/plugin-react": "6.0.4",
+    "@vitejs/plugin-react": "6.0.5",
     "postcss": "8.5.25",
     "puppeteer": "25.1.0",
     "tailwindcss": "4.3.3",
     "typescript": "npm:@typescript/typescript6@6.0.2",
-    "vite": "8.1.5",
+    "vite": "8.2.0",
     "vitest": "4.1.10"
   }
 }
