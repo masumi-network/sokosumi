@@ -288,6 +288,7 @@ export function TaskDetailActions({
     back: tNewTask("back"),
     uploadFile: tNewTask("uploadFile"),
     uploadFileError: tNewTask("uploadFileError"),
+    attachNeedsDescription: tNewTask("attachNeedsDescription"),
     uploadingFile: getTaskAttachmentUploadLabelTemplate(
       tNewTask,
       "uploadingFile",

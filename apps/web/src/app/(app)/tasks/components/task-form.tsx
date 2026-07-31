@@ -38,7 +38,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
-import { createTask, updateTask } from "@/lib/actions/task/action";
+import { createTask, deleteTask, updateTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -115,6 +115,7 @@ export interface TaskFormLabels {
   back: string;
   uploadFile: string;
   uploadFileError?: string;
+  attachNeedsDescription?: string;
   uploadingFile: string;
   uploadingFiles: string;
   removeAttachment?: string;
@@ -285,6 +286,10 @@ export function TaskForm({
   const [resolvedTaskName, setResolvedTaskName] = useState(
     initialValues?.name ?? "",
   );
+  // True from silent-draft ensure start until user commits Create/Save or cancel
+  // archives the orphan.
+  const silentDraftSessionRef = useRef(false);
+  const ensureDraftPromiseRef = useRef<Promise<string> | null>(null);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
@@ -426,6 +431,70 @@ export function TaskForm({
       try {
         const trimmedDescription = description.trim();
         const desiredStatus = overrideStatus ?? status;
+        // If a silent draft is already created or in flight, always update that
+        // task — never create a second one (race with attach).
+        const draftInFlight = ensureDraftPromiseRef.current;
+        if (
+          mode === "create" &&
+          ["DRAFT", "READY"].includes(desiredStatus) &&
+          (resolvedTaskId || draftInFlight)
+        ) {
+          const saveTaskId = resolvedTaskId ?? (await draftInFlight!);
+          if (!saveTaskId) {
+            throw new Error("Task ID is required");
+          }
+          const trimmedName = name.trim() || resolvedTaskName;
+          await updateTask({
+            taskId: saveTaskId,
+            name: trimmedName,
+            description: trimmedDescription,
+            assigneeId,
+            ...(shouldShowProjectSelect ? { projectId } : {}),
+            currentStatus: TaskStatus.DRAFT,
+            desiredStatus,
+            schedule: scheduleSelection,
+            hadSchedule: false,
+            originalSchedule: {
+              mode: "none",
+              timezone: getDefaultTimezone(),
+            },
+          });
+          silentDraftSessionRef.current = false;
+          if (isModal) {
+            const createdStatus =
+              scheduleSelection.mode !== "none" &&
+              desiredStatus !== TaskStatus.DRAFT
+                ? "QUEUED"
+                : desiredStatus === TaskStatus.DRAFT
+                  ? "DRAFT"
+                  : "READY";
+            router.prefetch(`/tasks/${saveTaskId}`);
+            setCreatedTask({
+              id: saveTaskId,
+              name: trimmedName || "Untitled task",
+              status: createdStatus,
+              statusLabel:
+                createdStatus === "QUEUED"
+                  ? (labels.statusQueued ?? "Queued")
+                  : createdStatus === "DRAFT"
+                    ? labels.statusDraft
+                    : labels.statusReady,
+              scheduleLabel:
+                createdStatus === "QUEUED"
+                  ? (scheduleLabel ?? undefined)
+                  : undefined,
+            });
+            onCreated?.(saveTaskId);
+            return;
+          }
+          if (onSuccess) {
+            onSuccess(saveTaskId);
+            return;
+          }
+          router.push(`/tasks/${saveTaskId}`);
+          return;
+        }
+
         // First save in create mode (no silent draft yet) creates the task.
         if (
           mode === "create" &&
@@ -445,6 +514,7 @@ export function TaskForm({
           });
           setResolvedTaskId(result.taskId);
           setResolvedTaskName(result.name?.trim() || resolvedTaskName);
+          silentDraftSessionRef.current = false;
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
@@ -494,43 +564,13 @@ export function TaskForm({
           description: trimmedDescription,
           assigneeId,
           ...(shouldShowProjectSelect ? { projectId } : {}),
-          // Silent draft from attach always lands as DRAFT in the DB.
-          currentStatus: mode === "create" ? TaskStatus.DRAFT : originalStatus,
+          currentStatus: originalStatus,
           desiredStatus,
           schedule: scheduleSelection,
-          hadSchedule: mode === "create" ? false : hadSchedule,
-          originalSchedule:
-            mode === "create"
-              ? { mode: "none", timezone: getDefaultTimezone() }
-              : originalScheduleSelection.current,
+          hadSchedule,
+          originalSchedule: originalScheduleSelection.current,
         });
-        if (isModal && mode === "create") {
-          const createdStatus =
-            scheduleSelection.mode !== "none" &&
-            desiredStatus !== TaskStatus.DRAFT
-              ? "QUEUED"
-              : desiredStatus === TaskStatus.DRAFT
-                ? "DRAFT"
-                : "READY";
-          router.prefetch(`/tasks/${saveTaskId}`);
-          setCreatedTask({
-            id: saveTaskId,
-            name: trimmedName || "Untitled task",
-            status: createdStatus,
-            statusLabel:
-              createdStatus === "QUEUED"
-                ? (labels.statusQueued ?? "Queued")
-                : createdStatus === "DRAFT"
-                  ? labels.statusDraft
-                  : labels.statusReady,
-            scheduleLabel:
-              createdStatus === "QUEUED"
-                ? (scheduleLabel ?? undefined)
-                : undefined,
-          });
-          onCreated?.(saveTaskId);
-          return;
-        }
+        silentDraftSessionRef.current = false;
         if (onSuccess) {
           onSuccess(saveTaskId);
           return;
@@ -593,29 +633,49 @@ export function TaskForm({
 
   const ensureDraftTaskId = useCallback(async (): Promise<string> => {
     if (resolvedTaskId) return resolvedTaskId;
+    if (ensureDraftPromiseRef.current) return ensureDraftPromiseRef.current;
 
     const trimmedDescription = description.trim();
     if (!trimmedDescription) {
-      throw new Error("Add a task description before attaching files.");
+      throw new Error(
+        labels.attachNeedsDescription ??
+          "Add a task description before attaching files.",
+      );
     }
 
-    const createTaskHandler = onCreateTask ?? createTask;
-    const result = await createTaskHandler({
-      description: trimmedDescription,
-      assigneeId,
-      skipDesignMdAttachment: isDesignMdAttachmentSkipped(
-        designMdStateRef.current,
-      ),
-      ...(shouldShowProjectSelect ? { projectId } : {}),
-      status: TaskStatus.DRAFT,
-      schedule: scheduleSelection,
-    });
-    setResolvedTaskId(result.taskId);
-    setResolvedTaskName(result.name?.trim() || resolvedTaskName);
-    return result.taskId;
+    const createPromise = (async () => {
+      const createTaskHandler = onCreateTask ?? createTask;
+      const result = await createTaskHandler({
+        description: trimmedDescription,
+        assigneeId,
+        skipDesignMdAttachment: isDesignMdAttachmentSkipped(
+          designMdStateRef.current,
+        ),
+        ...(shouldShowProjectSelect ? { projectId } : {}),
+        status: TaskStatus.DRAFT,
+        schedule: scheduleSelection,
+      });
+      setResolvedTaskId(result.taskId);
+      setResolvedTaskName(result.name?.trim() || resolvedTaskName);
+      return result.taskId;
+    })();
+
+    silentDraftSessionRef.current = true;
+    ensureDraftPromiseRef.current = createPromise;
+    try {
+      return await createPromise;
+    } catch (error) {
+      silentDraftSessionRef.current = false;
+      throw error;
+    } finally {
+      if (ensureDraftPromiseRef.current === createPromise) {
+        ensureDraftPromiseRef.current = null;
+      }
+    }
   }, [
     assigneeId,
     description,
+    labels.attachNeedsDescription,
     onCreateTask,
     projectId,
     resolvedTaskId,
@@ -628,17 +688,24 @@ export function TaskForm({
     async (files: File[]) => {
       if (files.length === 0) return;
 
+      // Bump before ensureDraft so Create/Save stays disabled during draft mint.
+      setUploadingAttachmentsCount((count) => count + 1);
+      const controller = new AbortController();
+      activeUploadControllersRef.current.add(controller);
+
       let uploadTaskId: string;
       try {
         uploadTaskId = await ensureDraftTaskId();
       } catch (error) {
+        activeUploadControllersRef.current.delete(controller);
+        setUploadingAttachmentsCount((count) => count - 1);
+        setPendingUploadFiles([]);
         toast.error(
           getUserFileUploadErrorMessage(
             error,
             labels.uploadFileError ?? "Failed to upload file",
           ),
         );
-        setPendingUploadFiles([]);
         return;
       }
 
@@ -650,9 +717,6 @@ export function TaskForm({
         },
       });
 
-      const controller = new AbortController();
-      activeUploadControllersRef.current.add(controller);
-      setUploadingAttachmentsCount((count) => count + 1);
       try {
         for (const [index, file] of files.entries()) {
           const uploadedUrl = await uploadTaskAttachment(uploadTaskId, file, {
@@ -732,6 +796,31 @@ export function TaskForm({
 
   const handleCancel = () => {
     abortActiveUploads();
+
+    const shouldAbandonSilentDraft =
+      mode === "create" &&
+      createdTask === null &&
+      silentDraftSessionRef.current;
+    const orphanDraftId = shouldAbandonSilentDraft
+      ? (resolvedTaskId ?? null)
+      : null;
+    const orphanDraftInFlight = shouldAbandonSilentDraft
+      ? ensureDraftPromiseRef.current
+      : null;
+    silentDraftSessionRef.current = false;
+
+    if (orphanDraftId) {
+      void deleteTask({ taskId: orphanDraftId }).catch((error) => {
+        console.error("Failed to archive abandoned draft task", error);
+      });
+    } else if (orphanDraftInFlight) {
+      void orphanDraftInFlight
+        .then((taskId) => deleteTask({ taskId }))
+        .catch((error) => {
+          console.error("Failed to archive abandoned draft task", error);
+        });
+    }
+
     if (onCancel) {
       onCancel();
       return;

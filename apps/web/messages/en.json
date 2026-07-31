@@ -1855,7 +1855,8 @@
         "taskCreatedHint": "Everything's set up and ready to go.",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
-        "close": "Close"
+        "close": "Close",
+        "attachNeedsDescription": "Add a task description before attaching files."
       },
       "EditTask": {
         "title": "Edit Task",

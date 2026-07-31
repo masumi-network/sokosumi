@@ -1844,7 +1844,8 @@
         "taskCreatedHint": "一切已就绪，可以开始了。",
         "goToTask": "前往任务",
         "createAnother": "创建另一个任务",
-        "close": "关闭"
+        "close": "关闭",
+        "attachNeedsDescription": "请先添加任务描述再附加文件。"
       },
       "EditTask": {
         "title": "编辑任务",

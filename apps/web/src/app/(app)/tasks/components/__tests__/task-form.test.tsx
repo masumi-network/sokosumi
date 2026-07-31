@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
-import { createTask, updateTask } from "@/lib/actions/task/action";
+import { createTask, deleteTask, updateTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
@@ -38,6 +38,7 @@ vi.mock("@/hooks/use-os-detection", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   createTask: vi.fn(),
   updateTask: vi.fn(),
+  deleteTask: vi.fn(),
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
@@ -1294,6 +1295,102 @@ describe("TaskForm", () => {
       expect(toastDismissMock).toHaveBeenCalled();
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("updates the silent draft on Create instead of creating a second task", async () => {
+    const user = userEvent.setup();
+    const file = new File(["notes"], "brief.md", {
+      type: "text/markdown",
+    });
+    const createTaskMock = vi.mocked(createTask);
+    const updateTaskMock = vi.mocked(updateTask);
+    createTaskMock.mockResolvedValue({
+      taskId: "draft-task-1",
+      name: "Write the brief",
+    });
+    updateTaskMock.mockResolvedValue({ taskId: "draft-task-1" });
+    uploadTaskAttachmentMock.mockResolvedValue(
+      "https://blob.example/tasks/draft-task-1/brief.md",
+    );
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write the brief");
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(createTaskMock).toHaveBeenCalledTimes(1);
+      expect(uploadTaskAttachmentMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    await waitFor(() => {
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "draft-task-1",
+          currentStatus: TaskStatus.DRAFT,
+          desiredStatus: TaskStatus.READY,
+        }),
+      );
+    });
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("archives the silent draft when canceling after attach", async () => {
+    const user = userEvent.setup();
+    const file = new File(["notes"], "brief.md", {
+      type: "text/markdown",
+    });
+    const createTaskMock = vi.mocked(createTask);
+    const deleteTaskMock = vi.mocked(deleteTask);
+    const onCancel = vi.fn();
+    createTaskMock.mockResolvedValue({
+      taskId: "draft-task-1",
+      name: "Write the brief",
+    });
+    deleteTaskMock.mockResolvedValue({ taskId: "draft-task-1" });
+    uploadTaskAttachmentMock.mockResolvedValue(
+      "https://blob.example/tasks/draft-task-1/brief.md",
+    );
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onCancel={onCancel}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write the brief");
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(createTaskMock).toHaveBeenCalledTimes(1);
+      expect(toastDismissMock).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(deleteTaskMock).toHaveBeenCalledWith({ taskId: "draft-task-1" });
+      expect(onCancel).toHaveBeenCalled();
+    });
   });
 
   it("uses a custom create handler when provided", async () => {

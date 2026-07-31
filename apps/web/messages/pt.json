@@ -1844,7 +1844,8 @@
         "taskCreatedHint": "Está tudo configurado e pronto.",
         "goToTask": "Ir para a tarefa",
         "createAnother": "Criar outra tarefa",
-        "close": "Fechar"
+        "close": "Fechar",
+        "attachNeedsDescription": "Adicione uma descrição da tarefa antes de anexar ficheiros."
       },
       "EditTask": {
         "title": "Editar tarefa",

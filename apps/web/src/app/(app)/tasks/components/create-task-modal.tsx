@@ -302,6 +302,7 @@ export function CreateTaskModal({
           back: t("back"),
           uploadFile: t("uploadFile"),
           uploadFileError: t("uploadFileError"),
+          attachNeedsDescription: t("attachNeedsDescription"),
           uploadingFile: getTaskAttachmentUploadLabelTemplate(
             t,
             "uploadingFile",
