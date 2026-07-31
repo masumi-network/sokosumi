@@ -11,7 +11,7 @@ import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { jobSchema } from "@/schemas/job.schema";
@@ -28,7 +28,7 @@ export const putJobWorkspaceRequestSchema = z.object({
   organizationId: z.string().min(1).nullable().openapi({ example: "org_123" }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "put",
     path: "/{id}/workspace",

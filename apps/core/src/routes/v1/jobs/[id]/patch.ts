@@ -8,7 +8,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { jobSchema, patchJobRequestSchema } from "@/schemas/job.schema.js";
 import { serializeJobDetails } from "@/types/job";
@@ -20,7 +20,7 @@ const paramsSchema = z.object({
   }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "patch",
     path: "/{id}",
