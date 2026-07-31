@@ -356,4 +356,26 @@ describe("GET /agents", () => {
     expect(agentFindManyMock).not.toHaveBeenCalled();
     expect(agentCountMock).not.toHaveBeenCalled();
   });
+
+  it("advances pagination from the consumed raw row when its summary is skipped", async () => {
+    agentFindManyMock.mockResolvedValue([
+      { id: "agent_unreadable" },
+      { id: "agent_next_page" },
+    ]);
+    agentCountMock.mockResolvedValue(2);
+    getAgentCostMock.mockImplementation(() => {
+      throw new Error("transient pricing rewrite");
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?limit=1");
+    const body = (await response.json()) as {
+      data: unknown[];
+      meta: { pagination: { nextCursor: string | null } };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([]);
+    expect(body.meta.pagination.nextCursor).toBe("agent_unreadable");
+  });
 });

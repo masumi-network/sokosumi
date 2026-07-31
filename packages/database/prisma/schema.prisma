@@ -1690,13 +1690,20 @@ model TaskPaymentClaim {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  blockchainIdentifier String                 @unique
+  network                  String
+  blockchainIdentifier    String
+  purchasePayload          Json
   status               TaskPaymentClaimStatus @default(PENDING)
   externalPurchaseId   String?
   failureReason        String?
+  attemptCount         Int                    @default(0)
+  lastAttemptAt        DateTime?
+  nextAttemptAt        DateTime               @default(now())
+  processingStartedAt  DateTime?
+  processingToken      String?
 
-  taskEventId String    @unique
-  taskEvent   TaskEvent @relation(fields: [taskEventId], references: [id], onDelete: Cascade)
+  taskEventId String?    @unique
+  taskEvent   TaskEvent? @relation(fields: [taskEventId], references: [id], onDelete: SetNull)
 
   transactionId String      @unique
   transaction   Transaction @relation("TransactionTaskPaymentClaim", fields: [transactionId], references: [id], onDelete: Restrict)
@@ -1704,7 +1711,8 @@ model TaskPaymentClaim {
   refundTransactionId String?      @unique
   refundTransaction   Transaction? @relation("RefundedTransactionTaskPaymentClaim", fields: [refundTransactionId], references: [id], onDelete: Restrict)
 
-  @@index([status])
+  @@unique([network, blockchainIdentifier])
+  @@index([network, status, nextAttemptAt])
   @@map("task_payment_claim")
 }
 

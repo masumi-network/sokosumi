@@ -2097,10 +2097,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
           { blockchainIdentifier: createV2AgentIdentifier(1) },
         ],
       },
-      data: {
-        status: AgentStatus.INVALID,
-        isShown: false,
-      },
+      data: { status: AgentStatus.INVALID },
     });
     expect(agentCreateMock).toHaveBeenCalledTimes(1);
     expect(agentCreateMock.mock.calls[0]?.[0].data.blockchainIdentifier).toBe(
@@ -2184,7 +2181,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
           { blockchainIdentifier: createV2AgentIdentifier(1) },
         ],
       },
-      data: { status: AgentStatus.INVALID, isShown: false },
+      data: { status: AgentStatus.INVALID },
     });
     consoleErrorSpy.mockRestore();
   });

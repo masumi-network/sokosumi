@@ -659,7 +659,11 @@ export function buildPaymentSourceRows(
       chain: source.chain,
       network: source.network,
       paymentSourceType: source.paymentSourceType,
-      address: source.address,
+      address:
+        source.chain === "Cardano" &&
+        source.paymentSourceType === "Web3CardanoV2"
+          ? source.address.toLowerCase()
+          : source.address,
       payTo: source.payTo,
       scheme: source.scheme,
       resource: source.resource,

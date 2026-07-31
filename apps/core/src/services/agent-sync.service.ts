@@ -83,8 +83,9 @@ async function quarantineInvalidRegistryEntry(
     },
   });
 
-  // Hide a previously synced revision of the same agent. A new invalid entry
-  // needs no placeholder row; advancing the cursor is the quarantine record.
+  // Invalidate only this revision or an older canonical row. Preserve
+  // administrator visibility choice: a later corrected registry entry can
+  // restore status, but must never silently re-enable a hidden agent.
   await prisma.agent.updateMany({
     where: {
       OR: [
@@ -99,10 +100,7 @@ async function quarantineInvalidRegistryEntry(
         { blockchainIdentifier: normalizedEntry.agentIdentifier },
       ],
     },
-    data: {
-      status: AgentStatus.INVALID,
-      isShown: false,
-    },
+    data: { status: AgentStatus.INVALID },
   });
 }
 

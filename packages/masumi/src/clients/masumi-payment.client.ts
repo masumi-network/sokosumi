@@ -15,7 +15,7 @@ import {
   postPurchaseResolveBlockchainIdentifier,
 } from "./openapi/generated/payment/index.js";
 
-interface PaymentClientRequestOptions {
+export interface PaymentClientRequestOptions {
   signal?: AbortSignal;
 }
 
@@ -33,7 +33,11 @@ function extractNodeErrorMessage(error: unknown): string {
   ) {
     return error.error.message;
   }
-  return JSON.stringify(error) ?? String(error);
+  try {
+    return JSON.stringify(error) ?? String(error);
+  } catch {
+    return String(error);
+  }
 }
 
 export interface CardanoV2ReadySource {
@@ -46,7 +50,7 @@ type ResolvedPurchase =
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
-interface MasumiTaskPurchaseInput {
+export interface MasumiTaskPurchaseInput {
   blockchainIdentifier: string;
   agentIdentifier: string;
   sellerVkey: string;
@@ -61,6 +65,39 @@ interface MasumiTaskPurchaseInput {
   paymentSourceType?: "Web3CardanoV1" | "Web3CardanoV2";
   smartContractAddress?: string;
   supportedPaymentSourceIndex?: number;
+}
+
+export interface TaskPurchaseFailure {
+  kind: "permanent" | "ambiguous";
+  message: string;
+  status?: number;
+}
+
+export interface TaskPurchaseResolutionFailure {
+  kind: "not_found" | "mismatch" | "ambiguous";
+  message: string;
+  status?: number;
+}
+
+function doesPurchaseMatchRequest(
+  purchase: ResolvedPurchase,
+  request: PurchaseRequest,
+): boolean {
+  return (
+    purchase.blockchainIdentifier === request.blockchainIdentifier &&
+    purchase.agentIdentifier === request.agentIdentifier &&
+    purchase.inputHash === request.inputHash &&
+    purchase.payByTime === request.payByTime &&
+    purchase.submitResultTime === request.submitResultTime &&
+    purchase.unlockTime === request.unlockTime &&
+    purchase.externalDisputeUnlockTime === request.externalDisputeUnlockTime &&
+    purchase.metadata === (request.metadata ?? null) &&
+    (request.paymentSourceType === undefined ||
+      purchase.PaymentSource.paymentSourceType === request.paymentSourceType) &&
+    (request.smartContractAddress === undefined ||
+      purchase.PaymentSource.smartContractAddress.toLowerCase() ===
+        request.smartContractAddress.toLowerCase())
+  );
 }
 
 export function createPaymentClient(
@@ -104,6 +141,7 @@ export function createPaymentClient(
 
   const recoverDuplicatePurchase = async (
     request: PurchaseRequest,
+    options: PaymentClientRequestOptions = {},
   ): Promise<Result<CreatedPurchase, string>> => {
     // The node's duplicate check is NOT wallet-scope filtered, so the 409's
     // embedded purchase may belong to another API key's scope. Only accept a
@@ -117,26 +155,11 @@ export function createPaymentClient(
           blockchainIdentifier: request.blockchainIdentifier,
           network,
         },
+        signal: options.signal,
       });
       if (response.data && !response.error) {
         const purchase = response.data.data;
-        const matchesRequest =
-          purchase.blockchainIdentifier === request.blockchainIdentifier &&
-          purchase.agentIdentifier === request.agentIdentifier &&
-          purchase.inputHash === request.inputHash &&
-          purchase.payByTime === request.payByTime &&
-          purchase.submitResultTime === request.submitResultTime &&
-          purchase.unlockTime === request.unlockTime &&
-          purchase.externalDisputeUnlockTime ===
-            request.externalDisputeUnlockTime &&
-          purchase.metadata === (request.metadata ?? null) &&
-          (request.paymentSourceType === undefined ||
-            purchase.PaymentSource.paymentSourceType ===
-              request.paymentSourceType) &&
-          (request.smartContractAddress === undefined ||
-            purchase.PaymentSource.smartContractAddress ===
-              request.smartContractAddress);
-        if (!matchesRequest) {
+        if (!doesPurchaseMatchRequest(purchase, request)) {
           return err("Duplicate purchase does not match request");
         }
         return ok(purchase);
@@ -149,6 +172,70 @@ export function createPaymentClient(
     }
 
     return err("Failed to resolve duplicate purchase");
+  };
+
+  const buildTaskPurchaseRequest = (
+    input: MasumiTaskPurchaseInput,
+  ): PurchaseRequest => ({
+    blockchainIdentifier: input.blockchainIdentifier,
+    agentIdentifier: input.agentIdentifier,
+    sellerVkey: input.sellerVkey,
+    submitResultTime: input.submitResultTime,
+    payByTime: input.payByTime,
+    unlockTime: input.unlockTime,
+    externalDisputeUnlockTime: input.externalDisputeUnlockTime,
+    inputHash: input.inputHash,
+    Amounts: input.Amounts,
+    identifierFromPurchaser: input.identifierFromPurchaser,
+    network,
+    paymentSourceType: input.paymentSourceType,
+    smartContractAddress: input.smartContractAddress,
+    supportedPaymentSourceIndex: input.supportedPaymentSourceIndex,
+    ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
+  });
+
+  const resolveTaskPurchase = async (
+    request: PurchaseRequest,
+    options: PaymentClientRequestOptions = {},
+  ): Promise<Result<CreatedPurchase, TaskPurchaseResolutionFailure>> => {
+    try {
+      const response = await postPurchaseResolveBlockchainIdentifier({
+        client: client(),
+        body: {
+          blockchainIdentifier: request.blockchainIdentifier,
+          network,
+        },
+        signal: options.signal,
+      });
+      if (response.data && !response.error) {
+        const purchase = response.data.data;
+        if (!doesPurchaseMatchRequest(purchase, request)) {
+          return err({
+            kind: "mismatch",
+            message: "Resolved purchase does not match durable task payment",
+          });
+        }
+        return ok(purchase);
+      }
+      const status = response.response?.status;
+      if (status === 404) {
+        return err({
+          kind: "not_found",
+          message: "Task purchase not found",
+          status,
+        });
+      }
+      return err({
+        kind: "ambiguous",
+        message: `Failed to resolve task purchase (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
+        status,
+      });
+    } catch (error) {
+      return err({
+        kind: "ambiguous",
+        message: String(error) || "Failed to resolve task purchase",
+      });
+    }
   };
 
   return {
@@ -296,7 +383,8 @@ export function createPaymentClient(
 
     async createPurchaseFromMasumiTaskPayment(
       input: MasumiTaskPurchaseInput,
-    ): Promise<Result<PostPurchaseResponses["200"]["data"], string>> {
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<CreatedPurchase, TaskPurchaseFailure>> {
       const logLabel = "[masumi-payment] createPurchaseFromMasumiTaskPayment";
       console.info(`${logLabel} request`, {
         network,
@@ -308,35 +396,30 @@ export function createPaymentClient(
       });
 
       try {
-        const body: PurchaseRequest = {
-          blockchainIdentifier: input.blockchainIdentifier,
-          agentIdentifier: input.agentIdentifier,
-          sellerVkey: input.sellerVkey,
-          submitResultTime: input.submitResultTime,
-          payByTime: input.payByTime,
-          unlockTime: input.unlockTime,
-          externalDisputeUnlockTime: input.externalDisputeUnlockTime,
-          inputHash: input.inputHash,
-          Amounts: input.Amounts,
-          identifierFromPurchaser: input.identifierFromPurchaser,
-          network,
-          paymentSourceType: input.paymentSourceType,
-          smartContractAddress: input.smartContractAddress,
-          supportedPaymentSourceIndex: input.supportedPaymentSourceIndex,
-          ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
-        };
+        const body = buildTaskPurchaseRequest(input);
         const response = await postPurchase({
           client: client(),
           body,
+          signal: options.signal,
         });
 
         if (response.error || !response.data) {
+          const status = response.response?.status;
           if (response.response?.status === 409) {
             console.info(`${logLabel} purchase already exists`, {
               network,
               blockchainIdentifier: input.blockchainIdentifier,
             });
-            return recoverDuplicatePurchase(body);
+            const resolved = await resolveTaskPurchase(body, options);
+            if (resolved.isOk()) {
+              return ok(resolved.value);
+            }
+            return err({
+              kind:
+                resolved.error.kind === "ambiguous" ? "ambiguous" : "permanent",
+              message: resolved.error.message,
+              status,
+            });
           }
           console.error(`${logLabel} payment API error`, {
             network,
@@ -345,9 +428,18 @@ export function createPaymentClient(
           });
           // The event is already charged when this error surfaces. Carry the
           // node's status and reason into compensation and alerting.
-          return err(
-            `Failed to create purchase request (status ${response.response?.status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
-          );
+          return err({
+            kind:
+              status !== undefined &&
+              status >= 400 &&
+              status < 500 &&
+              status !== 408 &&
+              status !== 429
+                ? "permanent"
+                : "ambiguous",
+            message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
+            status,
+          });
         }
 
         const data = response.data.data;
@@ -364,8 +456,18 @@ export function createPaymentClient(
           blockchainIdentifier: input.blockchainIdentifier,
           error,
         });
-        return err(String(error) || "Failed to create purchase request");
+        return err({
+          kind: "ambiguous",
+          message: String(error) || "Failed to create purchase request",
+        });
       }
+    },
+
+    async resolveMasumiTaskPaymentPurchase(
+      input: MasumiTaskPurchaseInput,
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<CreatedPurchase, TaskPurchaseResolutionFailure>> {
+      return resolveTaskPurchase(buildTaskPurchaseRequest(input), options);
     },
   };
 }

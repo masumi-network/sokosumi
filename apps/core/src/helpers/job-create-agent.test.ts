@@ -485,8 +485,8 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
   it("enforces maxAcceptedCents against the selected V2 source", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
-    // Cheap source (index 0) stays under the cap so the cheapest-source
-    // pre-check passes; the seller-selected source (index 2) exceeds it.
+    // Every purchase-ready source is checked before start_job. Source 2
+    // exceeds the cap, so seller work must never start.
     calculateCentsFromMasumiAmountStringsMock.mockImplementation(
       (amounts: { unit: string; amount: string }[]) =>
         amounts.some((entry) => entry.amount === "2000000")
@@ -502,7 +502,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Credit cost exceeds maximum accepted credits",
     );
 
-    expect(startPaidAgentJobMock).toHaveBeenCalled();
+    expect(startPaidAgentJobMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
@@ -718,11 +718,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     );
 
     await expect(promise).rejects.toThrow(
-      "Selected payment source exceeds the agent's listed price",
+      "The agent's purchase-ready payment sources exceed its listed price",
     );
     await expect(promise).rejects.toMatchObject({ status: 422 });
 
-    expect(startPaidAgentJobMock).toHaveBeenCalled();
+    expect(startPaidAgentJobMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
@@ -832,18 +832,15 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     });
 
     await expect(createAgentJobForUser(createInput())).rejects.toThrow(
-      "Paid V2 agent selected a payment source with too many assets",
+      "Paid V2 agent has a purchase-ready source with too many assets",
     );
 
+    expect(createAgentClientMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 
-  // The pre-flight floor check cannot catch an un-priceable source:
-  // cheapestEligibleV2SourceCents skips it, and the availability filter only
-  // validates the agent-level price projected from ONE preferred source. So
-  // the failure lands after start_job and must be recorded, not swallowed.
-  it("records an orphaned seller job when the selected source has no credit cost", async () => {
+  it("rejects an unbillable ready source before starting seller work", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -856,27 +853,22 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     });
 
     await expect(createAgentJobForUser(createInput())).rejects.toThrow(
-      "Credit cost not found for unit some-token",
+      "Paid V2 agent has a purchase-ready source with unbillable units",
     );
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Seller-side job orphaned after start_job: selected payment source has no credit cost for its units",
-      ),
-      expect.objectContaining({ agentId: "agent_1", sourceIndex: 2 }),
-    );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(createAgentClientMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
   });
 
-  it("records an orphaned seller job when the selected source exceeds the buyer cap", async () => {
+  it("rejects a ready source above the buyer cap before starting seller work", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
-    // Cheapest source is within the cap, so pre-flight passes; the seller then
-    // selects the pricier source (index 2).
+    // Source 2 exceeds the cap. Preflight rejects before seller work starts.
     calculateCentsFromMasumiAmountStringsMock.mockImplementation(
       (amounts: { unit: string; amount: string }[]) =>
         amounts.some((entry) => entry.amount === "2000000")
@@ -893,12 +885,8 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       ),
     ).rejects.toThrow("Credit cost exceeds maximum accepted credits");
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Seller-side job orphaned after start_job: selected payment source exceeds the buyer's accepted maximum",
-      ),
-      expect.objectContaining({ costCents: "200", maxCents: "150" }),
-    );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(createAgentClientMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
   });

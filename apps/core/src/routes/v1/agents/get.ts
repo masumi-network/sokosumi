@@ -173,13 +173,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return {
         agents: agentsWithMetrics,
+        paginationRows: agents.slice(0, take),
         count,
         hasMore: agents.length === takePlusOne,
       };
     });
 
     const paginationMeta = createPaginationMeta(
-      result.agents,
+      result.paginationRows,
       result.count,
       take,
       result.hasMore,

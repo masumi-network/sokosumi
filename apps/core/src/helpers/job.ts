@@ -321,38 +321,68 @@ function reportStrandedStartJobFailure(
   );
 }
 
-function cheapestEligibleV2SourceCents(
+interface PreparedV2Source {
+  amounts: { unit: string; amount: string }[];
+  cents: bigint;
+}
+
+function prepareEligibleV2Sources(
   agentIdentifier: string,
   sources: readonly {
+    sourceIndex: number;
     pricingType: PricingType;
     address: string;
     amounts: { unit: string; amount: bigint }[];
   }[],
   creditCosts: CreditCost[],
   readySources: readonly CardanoV2ReadySource[],
-): bigint | null {
-  let cheapest: bigint | null = null;
+  acceptedCeilingCents: bigint,
+  hasExplicitCeiling: boolean,
+): Map<number, PreparedV2Source> {
+  const prepared = new Map<number, PreparedV2Source>();
   for (const source of sources) {
     if (
-      source.pricingType !== PricingType.FIXED ||
-      source.amounts.length === 0 ||
       !isCardanoV2SourceReady(agentIdentifier, source.address, readySources)
     ) {
       continue;
     }
-    try {
-      const cents = calculateCentsFromMasumiAmountStrings(
-        aggregateAmountsByUnit(source.amounts),
-        creditCosts,
+    if (
+      source.pricingType !== PricingType.FIXED ||
+      source.amounts.length === 0
+    ) {
+      throw unprocessableEntity(
+        "Paid V2 agent has a purchase-ready source without fixed pricing",
+        { reportToSentry: true },
       );
-      if (cheapest === null || cents < cheapest) {
-        cheapest = cents;
-      }
-    } catch {
-      // Un-priced source — selecting it fails later anyway.
     }
+    const amounts = aggregateAmountsByUnit(source.amounts);
+    if (amounts.length > MAX_PAYMENT_NODE_PURCHASE_AMOUNTS) {
+      throw unprocessableEntity(
+        "Paid V2 agent has a purchase-ready source with too many assets",
+        { reportToSentry: true },
+      );
+    }
+    let cents: bigint;
+    try {
+      cents = calculateCentsFromMasumiAmountStrings(amounts, creditCosts);
+    } catch {
+      throw unprocessableEntity(
+        "Paid V2 agent has a purchase-ready source with unbillable units",
+        { reportToSentry: true },
+      );
+    }
+    if (cents > acceptedCeilingCents) {
+      if (hasExplicitCeiling) {
+        throw badRequest("Credit cost exceeds maximum accepted credits");
+      }
+      throw unprocessableEntity(
+        "The agent's purchase-ready payment sources exceed its listed price",
+        { reportToSentry: true },
+      );
+    }
+    prepared.set(source.sourceIndex, { amounts, cents });
   }
-  return cheapest;
+  return prepared;
 }
 
 /**
@@ -422,33 +452,20 @@ export async function createAgentJobForUser(
   ) {
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
-  // For PAID V2 agents the authoritative cost follows the seller-selected
-  // payment source (checked again after start_job), but no valid selection
-  // can cost less than the cheapest purchase-ready source — rejecting here
-  // avoids orphaning a seller-side job the post-response cap (maxCredits, or
-  // the listed price when no cap was given) was always going to refuse.
-  // FREE-priced agents take the free flow, which never charges and consults
-  // no cap, so the floor must not apply there.
   const isV2Agent =
     agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 ||
     isV2RegistryIdentifier(agentRecord.blockchainIdentifier);
+  let preparedV2Sources = new Map<number, PreparedV2Source>();
   if (isV2Agent && agentRecord.pricing.pricingType === PricingType.FIXED) {
-    const cheapestCents = cheapestEligibleV2SourceCents(
+    preparedV2Sources = prepareEligibleV2Sources(
       agentRecord.blockchainIdentifier,
       agentRecord.paymentSources,
       creditCosts,
       cardanoV2ReadySources,
+      maxCents ?? cost.cents,
+      maxCents !== null,
     );
-    const acceptedCeilingCents = maxCents ?? cost.cents;
-    if (cheapestCents !== null && cheapestCents > acceptedCeilingCents) {
-      throw badRequest(
-        maxCents !== null
-          ? "Credit cost exceeds maximum accepted credits"
-          : "The agent's purchase-ready payment sources exceed its listed price",
-      );
-    }
   }
-  const displayedCostCents = cost.cents;
 
   const agent = agentRecord;
 
@@ -619,79 +636,20 @@ export async function createAgentJobForUser(
             { reportToSentry: true },
           );
         }
-        // Registry-data defects, not per-request conditions: they recur on
-        // every hire of this agent and each attempt strands the seller-side
-        // job start_job already accepted, so they must page rather than fail
-        // quietly.
-        if (
-          selectedSource.pricingType !== PricingType.FIXED ||
-          selectedSource.amounts.length === 0
-        ) {
-          throw unprocessableEntity(
-            "Paid V2 agent job selected a source without fixed pricing",
-            { reportToSentry: true },
-          );
-        }
-        const selectedSourceAmounts = aggregateAmountsByUnit(
-          selectedSource.amounts,
+        const preparedSource = preparedV2Sources.get(
+          selectedSource.sourceIndex,
         );
-        if (selectedSourceAmounts.length > MAX_PAYMENT_NODE_PURCHASE_AMOUNTS) {
+        if (!preparedSource) {
           throw unprocessableEntity(
-            "Paid V2 agent selected a payment source with too many assets",
+            "Paid V2 agent job selected an ineligible payment source",
             { reportToSentry: true },
           );
         }
         // V2 purchases must always carry the exact source amounts: omitting
         // them lets the node use current on-chain pricing while Sokosumi bills
         // from its registry snapshot.
-        purchaseAmounts = selectedSourceAmounts;
-        // A unit with no CreditCost row throws here — AFTER start_job. The
-        // pre-flight floor check cannot catch it: cheapestEligibleV2SourceCents
-        // silently skips un-priceable sources, and both the availability filter
-        // and the displayed cost validate only the agent-level pricing, which
-        // is projected from a single preferred source.
-        try {
-          cost = {
-            cents: calculateCentsFromMasumiAmountStrings(
-              selectedSourceAmounts,
-              creditCosts,
-            ),
-          };
-        } catch (error) {
-          reportOrphanedSellerJob(
-            "selected payment source has no credit cost for its units",
-            {
-              agentId: agent.id,
-              sourceIndex: selectedSource.sourceIndex,
-              units: selectedSourceAmounts.map((entry) => entry.unit),
-            },
-          );
-          throw error;
-        }
-        if (maxCents !== null && cost.cents > maxCents) {
-          // Legitimate outcome rather than a defect — the buyer's cap simply
-          // refuses the source the seller chose — but it still strands a
-          // started job, so it is recorded without paging.
-          reportOrphanedSellerJob(
-            "selected payment source exceeds the buyer's accepted maximum",
-            {
-              agentId: agent.id,
-              sourceIndex: selectedSource.sourceIndex,
-              costCents: cost.cents.toString(),
-              maxCents: maxCents.toString(),
-            },
-            { page: false },
-          );
-          throw badRequest("Credit cost exceeds maximum accepted credits");
-        }
-        // Without an explicit maxCredits consent, the seller-selected source
-        // must not charge more than the listed agent price.
-        if (maxCents === null && cost.cents > displayedCostCents) {
-          throw unprocessableEntity(
-            "Selected payment source exceeds the agent's listed price",
-            { reportToSentry: true },
-          );
-        }
+        purchaseAmounts = preparedSource.amounts;
+        cost = { cents: preparedSource.cents };
         paidJobResult = {
           ...response,
           paymentSourceType: "Web3CardanoV2",

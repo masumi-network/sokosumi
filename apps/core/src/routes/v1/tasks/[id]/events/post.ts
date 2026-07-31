@@ -10,7 +10,6 @@ import {
 
 import { waitUntil } from "@vercel/functions";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
@@ -63,8 +62,7 @@ import {
 import { taskEventSchema } from "@/schemas/task.schema";
 import {
   createTaskPaymentClaim,
-  markTaskPaymentClaimPurchased,
-  refundFailedTaskPaymentClaim,
+  processTaskPaymentClaim,
 } from "@/services/task-payment-claim.service";
 
 import { createTaskEventRequestSchema } from "./schema";
@@ -447,48 +445,6 @@ async function dispatchTaskNotification(
   }
 }
 
-async function compensateFailedTaskPurchase(params: {
-  taskId: string;
-  taskEventId: string;
-  claimId: string;
-  blockchainIdentifier: string;
-  error: string;
-}): Promise<void> {
-  let compensated = false;
-  try {
-    compensated = await refundFailedTaskPaymentClaim(
-      params.claimId,
-      params.error,
-    );
-  } catch (compensationError) {
-    console.error("[tasks] masumi task payment: credit compensation failed", {
-      ...params,
-      compensationError,
-    });
-    Sentry.captureException(compensationError, {
-      tags: { error_type: "task_purchase_compensation_failed" },
-      extra: params,
-    });
-  }
-
-  Sentry.captureMessage(`Task purchase creation failed: ${params.error}`, {
-    level: "error",
-    tags: {
-      error_type: "task_purchase_creation_failed",
-      compensated: String(compensated),
-    },
-    contexts: {
-      task_purchase_creation: {
-        taskId: params.taskId,
-        taskEventId: params.taskEventId,
-        blockchainIdentifier: params.blockchainIdentifier,
-        error: params.error,
-        compensated,
-      },
-    },
-  });
-}
-
 export default function mount(app: OpenAPIHonoWithAuth) {
   const taskEventRequestBodySchema = createTaskEventRequestSchema({
     serverNetwork: getEnv().NETWORK,
@@ -660,7 +616,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw new Error("Charged Masumi task payment has no transaction");
         }
         taskPaymentClaimId = await createTaskPaymentClaim({
+          network: getEnv().NETWORK,
           blockchainIdentifier: masumiPayment.blockchainIdentifier,
+          purchasePayload: {
+            blockchainIdentifier: masumiPayment.blockchainIdentifier,
+            agentIdentifier: masumiPayment.agentIdentifier,
+            sellerVkey: masumiPayment.sellerVkey,
+            submitResultTime: masumiPayment.submitResultTime,
+            payByTime: masumiPayment.payByTime,
+            unlockTime: masumiPayment.unlockTime,
+            externalDisputeUnlockTime: masumiPayment.externalDisputeUnlockTime,
+            inputHash: masumiPayment.inputHash,
+            Amounts: masumiPayment.Amounts,
+            identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
+            paymentSourceType: masumiPayment.paymentSourceType,
+            smartContractAddress: isV2MasumiTaskPayment(masumiPayment)
+              ? masumiPayment.PaymentSource?.smartContractAddress
+              : undefined,
+            supportedPaymentSourceIndex: isV2MasumiTaskPayment(masumiPayment)
+              ? masumiPayment.supportedPaymentSourceIndex
+              : undefined,
+            metadata: JSON.stringify({
+              taskId,
+              taskEventId: createdEvent.id,
+            }),
+          },
           taskEventId: createdEvent.id,
           transactionId,
           tx,
@@ -796,123 +776,65 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       const masumiPurchasePromise = (async () => {
-        let createPurchaseResult;
         try {
-          createPurchaseResult =
-            await paymentClient().createPurchaseFromMasumiTaskPayment({
+          const result = await processTaskPaymentClaim(taskPaymentClaimId);
+          if (result.status === "purchased") {
+            console.info("[tasks] masumi task payment: purchase created", {
+              taskId,
+              taskEventId,
+              purchaseId: result.purchaseId,
               blockchainIdentifier: masumiPayment.blockchainIdentifier,
-              agentIdentifier: masumiPayment.agentIdentifier,
-              sellerVkey: masumiPayment.sellerVkey,
-              submitResultTime: masumiPayment.submitResultTime,
-              payByTime: masumiPayment.payByTime,
-              unlockTime: masumiPayment.unlockTime,
-              externalDisputeUnlockTime:
-                masumiPayment.externalDisputeUnlockTime,
-              inputHash: masumiPayment.inputHash,
-              Amounts: masumiPayment.Amounts,
-              identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
-              paymentSourceType: masumiPayment.paymentSourceType,
-              // A V1 payload's PaymentSource echo is informational — forwarding
-              // its address to the node caused post-charge rejections for
-              // addresses the node does not operate. Only V2 payloads (whose
-              // tuple was checked against readiness pre-charge) forward it.
-              smartContractAddress: isV2MasumiTaskPayment(masumiPayment)
-                ? masumiPayment.PaymentSource?.smartContractAddress
-                : undefined,
-              // A stray index on a genuine V1 payload (seller on a newer SDK) is
-              // informational only — forwarding it would contradict the rail.
-              supportedPaymentSourceIndex: isV2MasumiTaskPayment(masumiPayment)
-                ? masumiPayment.supportedPaymentSourceIndex
-                : undefined,
-              metadata: JSON.stringify({
-                taskId,
-                taskEventId,
-              }),
             });
+            Sentry.addBreadcrumb({
+              category: "task_masumi_purchase",
+              message: "Task purchase created",
+              level: "info",
+              data: { taskId, purchaseId: result.purchaseId },
+            });
+            return;
+          }
+          if (result.status === "refunded") {
+            Sentry.captureMessage(
+              `Task purchase permanently rejected: ${result.reason}`,
+              {
+                level: "error",
+                tags: {
+                  error_type: "task_purchase_permanent_failure",
+                  compensated: String(result.compensated),
+                },
+                extra: {
+                  taskId,
+                  taskEventId,
+                  claimId: taskPaymentClaimId,
+                  blockchainIdentifier: masumiPayment.blockchainIdentifier,
+                },
+              },
+            );
+            return;
+          }
+          if (result.status === "retry_scheduled") {
+            console.warn("[tasks] masumi task payment: retry scheduled", {
+              taskId,
+              taskEventId,
+              claimId: taskPaymentClaimId,
+              reason: result.reason,
+            });
+          }
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          console.error("[tasks] masumi task payment: unexpected error", {
+          // Durable PENDING claim remains recoverable by cron. Never refund an
+          // ambiguous branch: remote purchase may already exist.
+          console.error("[tasks] masumi task payment: processor failed", {
             taskId,
             taskEventId,
+            claimId: taskPaymentClaimId,
             blockchainIdentifier: masumiPayment.blockchainIdentifier,
             error,
           });
-          await compensateFailedTaskPurchase({
-            taskId,
-            taskEventId,
-            claimId: taskPaymentClaimId,
-            blockchainIdentifier: masumiPayment.blockchainIdentifier,
-            error: message,
-          });
-          return;
-        }
-
-        if (createPurchaseResult.isErr()) {
-          console.error(
-            "[tasks] masumi task payment: purchase creation failed",
-            {
-              taskId,
-              taskEventId,
-              blockchainIdentifier: masumiPayment.blockchainIdentifier,
-              error: createPurchaseResult.error,
-            },
-          );
-          await compensateFailedTaskPurchase({
-            taskId,
-            taskEventId,
-            claimId: taskPaymentClaimId,
-            blockchainIdentifier: masumiPayment.blockchainIdentifier,
-            error: createPurchaseResult.error,
-          });
-          return;
-        }
-
-        console.info("[tasks] masumi task payment: purchase created", {
-          taskId,
-          taskEventId,
-          purchaseId: createPurchaseResult.value.id,
-          blockchainIdentifier: createPurchaseResult.value.blockchainIdentifier,
-        });
-
-        try {
-          await markTaskPaymentClaimPurchased(
-            taskPaymentClaimId,
-            createPurchaseResult.value.id,
-          );
-        } catch (error) {
-          // Purchase already exists externally. Never compensate this branch:
-          // refunding here would give credits back while escrow remains live.
-          console.error(
-            "[tasks] masumi task payment: failed to finalize durable claim",
-            {
-              taskId,
-              taskEventId,
-              claimId: taskPaymentClaimId,
-              purchaseId: createPurchaseResult.value.id,
-              error,
-            },
-          );
           Sentry.captureException(error, {
-            tags: { error_type: "task_purchase_claim_finalize_failed" },
-            extra: {
-              taskId,
-              taskEventId,
-              claimId: taskPaymentClaimId,
-              purchaseId: createPurchaseResult.value.id,
-            },
+            tags: { error_type: "task_purchase_processor_failed" },
+            extra: { taskId, taskEventId, claimId: taskPaymentClaimId },
           });
         }
-
-        Sentry.addBreadcrumb({
-          category: "task_masumi_purchase",
-          message: "Task purchase created",
-          level: "info",
-          data: {
-            taskId,
-            purchaseId: createPurchaseResult.value.id,
-          },
-        });
       })();
 
       waitUntil(masumiPurchasePromise);

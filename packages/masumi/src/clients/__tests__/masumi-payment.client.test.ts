@@ -879,4 +879,141 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
       1,
     );
   });
+
+  it("classifies node 400 as a permanent task purchase failure", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Invalid inputHash" } },
+      response: { status: 400 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "permanent",
+      status: 400,
+    });
+  });
+
+  it("classifies node 500 as ambiguous", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Internal error" } },
+      response: { status: 500 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "ambiguous",
+      status: 500,
+    });
+  });
+
+  it("classifies a mismatched duplicate as permanent", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({
+          blockchainIdentifier: "chain1",
+          agentIdentifier: "different-agent",
+          inputHash: "abc",
+          metadata: null,
+        }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "permanent",
+      status: 409,
+    });
+  });
+
+  it("forwards abort signals through task purchase creation", async () => {
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+    const signal = AbortSignal.timeout(1000);
+
+    await client.createPurchaseFromMasumiTaskPayment(
+      {
+        blockchainIdentifier: "chain1",
+        agentIdentifier: "agent1",
+        sellerVkey: "vkey1",
+        submitResultTime: "1775681853000",
+        payByTime: "1775737949000",
+        unlockTime: "1775763149000",
+        externalDisputeUnlockTime: "1775784749000",
+        inputHash: "abc",
+        Amounts: [{ amount: "1000000", unit: "" }],
+        identifierFromPurchaser: "aabbccddeeff00112233",
+      },
+      { signal },
+    );
+
+    expect(postPurchaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal }),
+    );
+  });
 });

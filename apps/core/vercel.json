@@ -45,6 +45,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/task-payment-claims",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/task-schedules",
       "schedule": "* * * * *"
     }

@@ -19,10 +19,31 @@ import {
   taskEventDeprecatedOriginField,
 } from "@/schemas/task.schema";
 
+const HEX_PATTERN = /^[0-9a-f]+$/i;
+const MAX_SIGNED_INT64 = 9_223_372_036_854_775_807n;
+
+const masumiTimestampSchema = z
+  .string()
+  .regex(/^\d{1,19}$/, "must be a positive millisecond timestamp")
+  .refine(
+    (value) => /^\d{1,19}$/.test(value) && BigInt(value) <= MAX_SIGNED_INT64,
+    "must fit in a signed 64-bit integer",
+  );
+
 const masumiPaymentAmountSchema = z.object({
   // The node caps amount strings at 25 characters — mirror it pre-charge.
-  amount: z.string().min(1).max(25).openapi({ example: "470000000000" }),
-  unit: z.string().min(1).openapi({
+  amount: z
+    .string()
+    .min(1)
+    .max(25)
+    .regex(/^\d+$/, "amount must be an unsigned integer")
+    .refine(
+      (value) => /^\d+$/.test(value) && BigInt(value) > 0n,
+      "amount must be positive",
+    )
+    .openapi({ example: "470000000000" }),
+  // Payment node represents ADA/lovelace with an empty unit.
+  unit: z.string().max(150).openapi({
     example: "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde",
   }),
 });
@@ -30,11 +51,11 @@ const masumiPaymentAmountSchema = z.object({
 const masumiPaymentSourceSchema = z
   .object({
     network: z.enum(["Preprod", "Mainnet"]).openapi({ example: "Preprod" }),
-    smartContractAddress: z.string().min(1).openapi({
+    smartContractAddress: z.string().min(1).max(250).toLowerCase().openapi({
       example:
         "addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm",
     }),
-    policyId: z.string().min(1).openapi({
+    policyId: z.string().length(56).regex(HEX_PATTERN).toLowerCase().openapi({
       example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
     }),
   })
@@ -42,9 +63,19 @@ const masumiPaymentSourceSchema = z
 
 const masumiPaymentPayloadSchema = z
   .object({
-    blockchainIdentifier: z.string().min(1).openapi({
-      example: "0b00e04c0860a60c61066056281180462d0b12",
-    }),
+    blockchainIdentifier: z
+      .string()
+      .min(2)
+      .max(8000)
+      .regex(HEX_PATTERN, "blockchainIdentifier must be hex")
+      .refine(
+        (value) => value.length % 2 === 0,
+        "blockchainIdentifier must be even-length hex",
+      )
+      .toLowerCase()
+      .openapi({
+        example: "0b00e04c0860a60c61066056281180462d0b12",
+      }),
     // Mirrors the payment node's request limits (min 14 / max 26, hex with an
     // even number of digits — it must decode to whole bytes) so a payload the
     // node deterministically rejects fails BEFORE the charge.
@@ -52,7 +83,7 @@ const masumiPaymentPayloadSchema = z
       .string()
       .min(14)
       .max(26)
-      .regex(/^[0-9a-f]+$/i, "identifierFromPurchaser must be hex")
+      .regex(HEX_PATTERN, "identifierFromPurchaser must be hex")
       .refine(
         (value) => value.length % 2 === 0,
         "identifierFromPurchaser must be even-length hex",
@@ -60,23 +91,40 @@ const masumiPaymentPayloadSchema = z
       .openapi({
         example: "aabbccddeeff00112233",
       }),
-    agentIdentifier: z.string().min(1).openapi({
-      example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
-    }),
-    sellerVkey: z.string().min(1).openapi({
-      example: "0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd",
-    }),
-    submitResultTime: z.string().min(1).openapi({ example: "1775681853000" }),
-    payByTime: z.string().min(1).openapi({ example: "1775737949000" }),
-    unlockTime: z.string().min(1).openapi({ example: "1775763149000" }),
-    externalDisputeUnlockTime: z
+    agentIdentifier: z
       .string()
       .min(1)
-      .openapi({ example: "1775784749000" }),
-    inputHash: z.string().min(1).openapi({
-      example:
-        "3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1",
+      .max(250)
+      .regex(HEX_PATTERN, "agentIdentifier must be hex")
+      .toLowerCase()
+      .openapi({
+        example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+      }),
+    sellerVkey: z
+      .string()
+      .length(56)
+      .regex(HEX_PATTERN, "sellerVkey must be 56 hex characters")
+      .toLowerCase()
+      .openapi({
+        example: "0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd",
+      }),
+    submitResultTime: masumiTimestampSchema.openapi({
+      example: "1775681853000",
     }),
+    payByTime: masumiTimestampSchema.openapi({ example: "1775737949000" }),
+    unlockTime: masumiTimestampSchema.openapi({ example: "1775763149000" }),
+    externalDisputeUnlockTime: masumiTimestampSchema.openapi({
+      example: "1775784749000",
+    }),
+    inputHash: z
+      .string()
+      .length(64)
+      .regex(HEX_PATTERN, "inputHash must be a SHA-256 hex digest")
+      .toLowerCase()
+      .openapi({
+        example:
+          "3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1",
+      }),
     paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
     supportedPaymentSourceIndex: z.number().int().min(0).max(24).optional(),
     // The node caps Amounts at 7 entries — fail before the charge, not after.

@@ -46,6 +46,35 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it.each([
+    ["inputHash", "not-a-sha256-hash"],
+    ["sellerVkey", "not-a-vkey"],
+    ["submitResultTime", "tomorrow"],
+    ["blockchainIdentifier", "not-hex"],
+  ])("rejects node-invalid %s before charging", (field, value) => {
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        [field]: value,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts the payment node's empty unit spelling for lovelace", () => {
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        Amounts: [{ amount: "1000000", unit: "" }],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects a malformed identifier under the V2 registry policy", () => {
     const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
     const result = schema.safeParse({
@@ -305,7 +334,7 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects non-https auth url", () => {
+  it("rejects authentication required with non-https auth url", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.AUTHENTICATION_REQUIRED,
       authenticationUrl: "http://example.com/oauth/authorize",
