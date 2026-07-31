@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
@@ -27,16 +28,12 @@ import {
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
 import type { ChatRoomCoworkerParticipant } from "@/lib/clients/generated/core";
+import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
   formatTaskAttachmentMarkdown,
   removeTaskAttachmentLinks,
-  sanitizeTaskAttachmentLabel,
 } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import { appendComposerBlock } from "./room-helpers";
 
@@ -100,6 +97,7 @@ export function RoomComposer({
   allowAttachments?: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const tToolbar = useTranslations("App.Channels.Toolbar");
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -119,23 +117,29 @@ export function RoomComposer({
       }
 
       setIsUploadingFiles(true);
-      const toastId = toast.loading(
-        t("Toolbar.uploading", { count: selectedFiles.length }),
-      );
 
       try {
-        const uploadedAttachments: RoomComposerAttachment[] = [];
-        for (const file of selectedFiles) {
-          const uploaded = await uploadUserFileDirect(file);
-          uploadedAttachments.push({
-            url: uploaded.publicUrl,
-            fileName: sanitizeTaskAttachmentLabel(
-              file.name,
-              t("Toolbar.attachmentFallback"),
+        const uploaded = await uploadComposeAttachments(selectedFiles, {
+          labels: {
+            uploadingFile: getTaskAttachmentUploadLabelTemplate(
+              tToolbar,
+              "uploadingFile",
             ),
-            mediaType: file.type || null,
-          });
-        }
+            uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+              tToolbar,
+              "uploadingFiles",
+            ),
+            uploadError: tToolbar("uploadFailed"),
+          },
+          fallbackFileName: tToolbar("attachmentFallback"),
+        });
+        const uploadedAttachments: RoomComposerAttachment[] = uploaded.map(
+          (result) => ({
+            url: result.publicUrl,
+            fileName: result.fileName,
+            mediaType: result.mediaType,
+          }),
+        );
 
         const attachmentMarkdown = uploadedAttachments
           .map((attachment) =>
@@ -147,14 +151,10 @@ export function RoomComposer({
           appendComposerBlock(current, attachmentMarkdown),
         );
         toast.success(
-          t("Toolbar.uploaded", { count: uploadedAttachments.length }),
-          { id: toastId },
+          tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
-      } catch (error) {
-        toast.error(
-          getUserFileUploadErrorMessage(error, t("Toolbar.uploadFailed")),
-          { id: toastId },
-        );
+      } catch {
+        // Error toast is handled by uploadComposeAttachments.
       } finally {
         setIsUploadingFiles(false);
         if (fileInputRef.current) {
@@ -162,7 +162,7 @@ export function RoomComposer({
         }
       }
     },
-    [onAttachmentsChange, onValueChange, t],
+    [onAttachmentsChange, onValueChange, tToolbar],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {

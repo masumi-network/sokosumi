@@ -44,6 +44,7 @@ import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
+import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import { getScheduleIcon } from "@/lib/utils/schedule-icon";
 import {
   createDesignMdDismissedState,
@@ -53,18 +54,12 @@ import {
   isDesignMdAttachmentSkipped,
   markDesignMdDismissed,
   removeTaskAttachmentLinks,
-  sanitizeTaskAttachmentLabel,
   seedTaskDescriptionWithDesignMd,
   syncDesignMdDismissedState,
   type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
-import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
@@ -550,50 +545,38 @@ export function TaskForm({
     async (files: File[]) => {
       if (files.length === 0) return;
 
-      const uploadToast = createTaskAttachmentUploadToast({
-        files,
-        labels: {
-          uploadingFile: labels.uploadingFile,
-          uploadingFiles: labels.uploadingFiles,
-        },
-      });
-
       const controller = new AbortController();
       activeUploadControllersRef.current.add(controller);
       setUploadingAttachmentsCount((count) => count + 1);
       try {
-        for (const [index, file] of files.entries()) {
-          const uploaded = await uploadUserFileDirect(file, {
-            abortSignal: controller.signal,
-            onUploadProgress: (progress) => {
-              uploadToast.updateFileProgress(index, progress);
-            },
-          });
-          uploadToast.markFileComplete(index);
-          const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
+        const uploaded = await uploadComposeAttachments(files, {
+          abortSignal: controller.signal,
+          labels: {
+            uploadingFile: labels.uploadingFile,
+            uploadingFiles: labels.uploadingFiles,
+            uploadError: labels.uploadFileError ?? "Failed to upload file",
+          },
+        });
+        for (const result of uploaded) {
           if (markdownEditorRef.current) {
-            markdownEditorRef.current.insertLink(safeName, uploaded.publicUrl);
+            markdownEditorRef.current.insertLink(
+              result.fileName,
+              result.publicUrl,
+            );
             markdownEditorRef.current.insertText("\n");
             continue;
           }
           const markdownLink = formatTaskAttachmentMarkdown(
-            safeName,
-            uploaded.publicUrl,
+            result.fileName,
+            result.publicUrl,
           );
           setDescription(
             (prev) =>
               `${prev}${prev.endsWith("\n") ? "" : "\n"}${markdownLink}`,
           );
         }
-        uploadToast.dismiss();
-      } catch (error) {
-        uploadToast.dismiss();
-        toast.error(
-          getUserFileUploadErrorMessage(
-            error,
-            labels.uploadFileError ?? "Failed to upload file",
-          ),
-        );
+      } catch {
+        // Error toast is handled by uploadComposeAttachments.
       } finally {
         activeUploadControllersRef.current.delete(controller);
         setPendingUploadFiles([]);
