@@ -1013,7 +1013,7 @@ export const getUsersRegistered = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Get credit balance for the authenticated organization context (session active org, or optional `X-Organization-Slug` when no active org): path `me` for the session user, or a user id when the session user matches that id or a session admin requests any user. For a specific organization by id without relying on session context, use `GET /{id}/organizations/{organizationId}/credits`.
+ * Get credit balance for the authenticated organization context (session active org, or optional `X-Organization-Slug` when no active org): path `me` for the session user, or a user id when the session user matches that id, a session admin requests any user, or orchestrator/coworker with matching `X-Context-User-Id`. For a specific organization by id without relying on session context, use `GET /{id}/organizations/{organizationId}/credits`.
  */
 export const getUsersByIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdCreditsData, ThrowOnError>): RequestResult<GetUsersByIdCreditsResponses, GetUsersByIdCreditsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdCreditsResponses, GetUsersByIdCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdCreditsResponseTransformer,
@@ -1053,7 +1053,7 @@ export const getUsersByIdMembers = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data.
+ * Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user, or orchestrator/coworker with matching `X-Context-User-Id`.
  */
 export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsResponseTransformer,
@@ -1062,7 +1062,7 @@ export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id.
+ * Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user, or orchestrator/coworker with matching `X-Context-User-Id`.
  */
 export const getUsersByIdOrganizationsByOrganizationIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsByOrganizationIdCreditsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer,
@@ -1291,7 +1291,7 @@ export const getUsersByIdSubscription = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Get a user: use path `me` for the authenticated session user, or a user id when the session user matches that id or a session admin requests any user.
+ * Get a user: path `me` for the session user, or a user id when the session user matches that id, a session admin requests any user, or orchestrator/coworker with matching `X-Context-User-Id`.
  */
 export const getUsersById = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdData, ThrowOnError>): RequestResult<GetUsersByIdResponses, GetUsersByIdErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdResponses, GetUsersByIdErrors, ThrowOnError>({
     responseTransformer: getUsersByIdResponseTransformer,
