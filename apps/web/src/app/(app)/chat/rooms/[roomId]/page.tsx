@@ -96,6 +96,7 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
         isCreateChannelRequested={false}
         isNewDirectMessage={false}
         messageLoadFailed={messagePage.failed}
+        membersLoadFailed={false}
         messages={messagePage.messages}
         messagesNextCursor={messagePage.nextCursor}
       />
@@ -132,6 +133,7 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
       isCreateChannelRequested={false}
       isNewDirectMessage={false}
       messageLoadFailed={messagePage.failed}
+      membersLoadFailed={membersPage.failed}
       messages={messagePage.messages}
       messagesNextCursor={messagePage.nextCursor}
     />
