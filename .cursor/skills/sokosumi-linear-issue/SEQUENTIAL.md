@@ -1,10 +1,10 @@
-# Phase — Sequential (orchestrator)
+# Sequential (orchestrator)
 
-Load **only** when Spec **Coders:** ≥ 2 (rubric ≥ 2). Do **not** give this file to `sapphire-coder`.
+Load **only** when Spec **Coders:** ≥ 2 (rubric ≥ 2). Do **not** give this file to implementer subagents.
 
 ## Light Spec-compliance check
 
-After each sequential block returns `ok: true` and `pushed: true`, **before** the next Coder Task. Orchestrator only — **not** Phase 4.
+After each sequential block returns `ok: true` and `pushed: true`, **before** the next implement Task. Orchestrator only - **not** Review.
 
 **Inputs:** session Spec Coder block (Deliverables + Do not) +:
 
@@ -39,4 +39,4 @@ blocker: <text if ok false>
 | `mismatch: medium` | Non-Contract nit (naming, comment) → note in session, `ok: true`, continue |
 | Unclear high vs medium | `mismatch: high` (do not guess toward pass) |
 
-After last sequential `ok`: open **one** draft PR (`PHASE-CODER.md` title/body), **CI green**, Phase 4.
+After last sequential `ok`: open **one** draft PR (`VERIFY.md` title/body), **CI green**, Review.

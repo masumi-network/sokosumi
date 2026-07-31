@@ -1,4 +1,4 @@
-# Subagent Rubric
+# Rubric
 
 Tech Lead uses this before architecture sections or **Coder breakdown**.
 
@@ -28,15 +28,15 @@ Skip for: copy-only, CSS/layout-only polish, single-file bug fix with no API/sch
 
 | Score | Output |
 |-------|--------|
-| 0–1 | **Single coder.** No breakdown. |
-| 2+ | **Coder breakdown** — **sequential** on one branch (foundations first). Orchestrator runs Tasks **one at a time** in Execution order; opens one PR after the last coder. |
+| 0-1 | **Single implementer.** No breakdown. |
+| 2+ | **Coder breakdown** - **sequential** on one branch (foundations first). Orchestrator runs Tasks **one at a time** in Execution order; opens one PR after the last block. |
 
-Do **not** use parallel coder branches.
+Do **not** use parallel implementer branches.
 
 ## Coder block format
 
 ```markdown
-### Coder A — Short scope
+### Coder A - Short scope
 
 **Scope:** One line.
 
@@ -53,7 +53,7 @@ Context ≤5 bullets. Deliverables = paths only.
 
 ## Boundaries
 
-- Do not split when a single coder can own the whole Spec under score 0–1.
+- Do not split when a single implementer can own the whole Spec under score 0-1.
 - Keep tightly coupled files in one coder block.
-- Keep generated files with the coder that owns generation.
+- Keep generated files with the block that owns generation.
 - Prefer schema → contract → service → UI → cleanup.

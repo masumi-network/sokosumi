@@ -1,6 +1,6 @@
-# Phase — Coder
+# Verify
 
-Load in **Phase 3** (and standalone Coder). Do **not** load during Investigator / Tech Lead. Do **not** load `PHASE-SEQUENTIAL.md` (orchestrator only).
+Load during **Implement** (and CI fix). Do not load during Investigate / Spec. Do not load `SEQUENTIAL.md` (orchestrator only).
 
 ## Allowlisted verification
 
@@ -20,7 +20,7 @@ Reject `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`, `npx`, `node
 | `packages/<name>` | `pnpm --filter <name> check` | `pnpm --filter <name> test` | `pnpm --filter <name> build` |
 | Repo-wide | `pnpm check` | `pnpm test` | `pnpm build` |
 
-**Verify set:** package roots from Spec **Deliverables** paths ∪ workspaces the coder actually edited. Map path → `apps/web` | `apps/core` | `packages/<name>`. Deduplicate. Monorepo-tooling-only edits → Repo-wide scripts.
+**Verify set:** package roots from Spec **Deliverables** paths ∪ workspaces actually edited. Map path → `apps/web` | `apps/core` | `packages/<name>`. Deduplicate. Monorepo-tooling-only edits → Repo-wide scripts.
 
 **Must pass (exit 0):** check + test for every workspace in the verify set.
 
@@ -38,7 +38,7 @@ No completion claim without fresh evidence this turn:
 
 Prior runs, “should pass”, or partial checks do not count.
 
-### Verify / CI fail — root cause first
+### Verify / CI fail - root cause first
 
 Inside the fix budget (local: one re-verify; CI: ≤3 fix+push per `SKILL.md`):
 
@@ -51,7 +51,7 @@ No shotgun patches across unrelated files. No fix without a `root:` line in `sum
 
 ## TDD (required vs skip)
 
-**Owner of these globs — do not restate elsewhere.** Decide from Spec **Deliverables** paths only.
+**Owner of these globs - do not restate elsewhere.** Decide from Spec **Deliverables** paths only.
 
 **TDD required** when ≥1 Deliverable matches:
 
@@ -64,7 +64,7 @@ No shotgun patches across unrelated files. No fix without a `root:` line in `sum
 When **TDD required**:
 
 1. Spec Verification **must** list the allowlisted test command that proves the Contract.
-2. Coder **must** add or update a failing test first, see it fail, then minimal code to pass, then full verify set.
+2. Implementer **must** add or update a failing test first, see it fail, then minimal code to pass, then full verify set.
 3. Missing required test before implement → Spec gap; do not claim `ok: true`.
 
 When **TDD skip**: do not invent tests for copy/CSS/docs/i18n-only work.
@@ -76,16 +76,12 @@ Prompt always includes branch name (orchestrator sets per `SKILL.md`).
 - **Sole / missing local:** `git fetch origin main` then `git checkout -b <branch> origin/main`
 - **Sequential:** `git fetch origin`; if `origin/<branch>` exists → checkout + `git pull --ff-only`; else create from `origin/main`
 
-## Modes (`sapphire-coder`)
+## Modes (`poteto-agent`)
 
-**Sole (`mode: sole`):** Implement → allowlisted verify (evidence before `ok`) → open **one draft PR** → push → return. Do **not** watch CI, run Reviewer, or call Linear.
+**Sole:** Implement → allowlisted verify (evidence before `ok`) → open **one draft PR** → push → return. Do **not** watch CI, run Review, or call Linear.
 
 **PR:** draft unless user asked ready-for-review. **Title** = primary commit subject verbatim (Conventional Commit). **Body:** Linear issue link + Spec summary ≤8 lines.
 
-**Sequential (`mode: sequential`):** Owned block only → verify → commit → **push** → `prUrl` empty, `pushed: true`. Do **not** open a PR. Orchestrator runs light Spec check via `PHASE-SEQUENTIAL.md` between blocks.
+**Sequential:** Owned block only → verify → commit → **push** → `prUrl` empty, `pushed: true`. Do **not** open a PR. Orchestrator runs light Spec check via `SEQUENTIAL.md` between blocks.
 
 **Return keys:** `ok`, `prUrl`, `branch`, `verification`, `pushed`, `summary` (one line), `blocker`. `pushed: true` = remote push done. On verify/CI fail: `summary` must start with `root:`.
-
-## Standalone Coder
-
-Verify → draft PR → **CI green** (`SKILL.md`) → hand off to Reviewer (`PHASE-REVIEWER.md`) unless user asked Coder-only. Linear only per `LINEAR.md`.

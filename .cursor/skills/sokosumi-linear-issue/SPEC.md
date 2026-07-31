@@ -13,7 +13,7 @@ Session Spec only (PR body gets ≤8-line summary). Delete unused optional secti
 
 **Problem:** One or two sentences.
 
-**Goal:** One or two sentences — user-facing outcome.
+**Goal:** One or two sentences - user-facing outcome.
 
 **Confirmed decisions:**
 - …
@@ -29,11 +29,11 @@ flowchart TB
 
 ## Current state
 
-(Include when SUBAGENT-RUBRIC says so. Bullets only.)
+(Include when RUBRIC says so. Bullets only.)
 
 ## Target architecture
 
-(Include when SUBAGENT-RUBRIC says so. Bullets only — no mermaid.)
+(Include when RUBRIC says so. Bullets only - no mermaid.)
 
 ## Contract / behavior
 
@@ -52,9 +52,9 @@ flowchart TB
 
 ## Coder breakdown
 
-(Only when rubric score ≥ 2 — sequential on one branch.)
+(Only when rubric score ≥ 2 - sequential on one branch.)
 
-### Coder A — Scope name
+### Coder A - Scope name
 
 **Scope:** One line.
 
@@ -72,9 +72,9 @@ flowchart LR
 
 ## Verification
 
-Allowlisted scripts from `PHASE-CODER.md`. **Required:** check + test for the **verify set**. List **build** only when Coder/Reviewer must run it. If TDD required per `PHASE-CODER.md` → list the allowlisted test command that proves the Contract (do not paste TDD globs here). **UI routes:** ≥1 path-only route **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**` — else omit Routes.
+Allowlisted scripts from `VERIFY.md`. **Required:** check + test for the **verify set**. List **build** only when Implement/Review must run it. If TDD required per `VERIFY.md` → list the allowlisted test command that proves the Contract (do not paste TDD globs here). **UI routes:** ≥1 path-only route **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**` - else omit Routes.
 
-- Scope: `apps/web` — web:check, web:test
+- Scope: `apps/web` - web:check, web:test
 - Routes (UI): `/example-path`
 
 ## Out of scope
