@@ -49,6 +49,7 @@ import {
 } from "@/lib/constants/channel-icons";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
+import { createFileUploadProgressToast } from "@/lib/utils/file-upload-progress-toast";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 import {
   extractTaskAttachmentUrls,
@@ -62,7 +63,6 @@ import { getFileNameFromUrl } from "@/lib/utils/url";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
@@ -282,7 +282,7 @@ export function TaskActivitySection({
   const handleAttachFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
-    const uploadToast = createTaskAttachmentUploadToast({
+    const uploadToast = createFileUploadProgressToast({
       files,
       labels: {
         uploadingFile: getTaskAttachmentUploadLabelTemplate(t, "uploadingFile"),

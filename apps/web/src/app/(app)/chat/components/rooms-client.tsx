@@ -76,6 +76,8 @@ interface RoomsClientProps {
   isCreateChannelRequested: boolean;
   isNewDirectMessage: boolean;
   messageLoadFailed: boolean;
+  /** Org roster soft-fail; false for personal workspace (no org roster). */
+  membersLoadFailed: boolean;
   messages: ChatRoomMessage[];
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
@@ -152,6 +154,7 @@ export function RoomsClient({
   isCreateChannelRequested,
   isNewDirectMessage,
   messageLoadFailed,
+  membersLoadFailed,
   messages,
   messagesNextCursor,
 }: RoomsClientProps) {
@@ -941,6 +944,7 @@ export function RoomsClient({
               members={organizationMembers}
               coworkers={coworkers}
               currentUserId={currentUserId}
+              membersLoadFailed={membersLoadFailed}
             />
           ) : isNewDirectMessage ? (
             <DraftDirectMessage
@@ -948,6 +952,7 @@ export function RoomsClient({
               coworkers={coworkers}
               currentUserId={currentUserId}
               canCreateRoomDirect={activeOrganization != null}
+              membersLoadFailed={membersLoadFailed}
             />
           ) : selectedRoom ? (
             <>
@@ -971,6 +976,7 @@ export function RoomsClient({
                       coworkers={coworkers}
                       canArchive={canArchiveSelectedRoom}
                       canLeave={canLeaveSelectedRoom}
+                      membersLoadFailed={membersLoadFailed}
                     />
                   )}
                 </div>

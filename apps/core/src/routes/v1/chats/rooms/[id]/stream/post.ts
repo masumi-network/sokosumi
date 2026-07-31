@@ -18,6 +18,7 @@ import {
 import {
   clearPendingResponseMirror,
   getPendingResponseMirror,
+  renewPendingResponseMirror,
   setPendingResponseMirror,
 } from "@/helpers/coworker-pending-response-mirror";
 import { pollCoworkerResponseStatus } from "@/helpers/coworker-response-poll";
@@ -227,14 +228,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const streamLockOwnerToken =
       streamLock.status === "acquired" ? streamLock.ownerToken : null;
 
-    const stopHeartbeat = streamLockOwnerToken
-      ? startStreamLockHeartbeat(room.id, streamLockOwnerToken)
-      : null;
-
     const pendingResponseScope = {
       roomId: room.id,
       parentMessageId,
     };
+
+    const stopHeartbeat = streamLockOwnerToken
+      ? startStreamLockHeartbeat(room.id, streamLockOwnerToken, {
+          onRenew: () => renewPendingResponseMirror(pendingResponseScope),
+        })
+      : null;
 
     let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null =
       async () => {

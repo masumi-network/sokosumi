@@ -1,8 +1,10 @@
 "use client";
 
 import { Bot } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import type {
   ChatRoomPresence,
   Coworker,
@@ -19,6 +21,38 @@ export function AiCoworkerIcon({ className }: { className?: string }) {
       className={cn("text-muted-foreground size-3.5 shrink-0", className)}
       aria-label={t("coworkerBadge")}
     />
+  );
+}
+
+/** Parity with rooms-client messageLoadFailed empty-state; reload re-fetches RSC props. */
+export function MembersRosterLoadFailed({ className }: { className?: string }) {
+  const t = useTranslations("App.Channels");
+  const router = useRouter();
+
+  return (
+    <div
+      className={cn(
+        "border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center",
+        className,
+      )}
+      role="status"
+    >
+      <p className="font-medium">{t("Empty.membersLoadFailedTitle")}</p>
+      <p className="text-muted-foreground mt-1 text-sm">
+        {t("Empty.membersLoadFailedDescription")}
+      </p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-4"
+        onClick={() => {
+          router.refresh();
+        }}
+      >
+        {t("Empty.membersLoadFailedRetry")}
+      </Button>
+    </div>
   );
 }
 

@@ -134,12 +134,26 @@ export async function releaseStreamLock(
   }
 }
 
+export interface StartStreamLockHeartbeatOptions {
+  /**
+   * Optional side effect on each heartbeat tick (e.g. renew pending-response
+   * mirror TTL). Failures inside the callback are the caller's concern.
+   */
+  onRenew?: () => void | Promise<void>;
+}
+
 export function startStreamLockHeartbeat(
   internalConversationId: string,
   ownerToken: string,
+  options?: StartStreamLockHeartbeatOptions,
 ): () => void {
   const timer = setInterval(() => {
-    void renewStreamLock(internalConversationId, ownerToken);
+    void (async () => {
+      const renewed = await renewStreamLock(internalConversationId, ownerToken);
+      if (renewed && options?.onRenew) {
+        await options.onRenew();
+      }
+    })();
   }, COWORKER_STREAM_LOCK_HEARTBEAT_MS);
 
   return () => {

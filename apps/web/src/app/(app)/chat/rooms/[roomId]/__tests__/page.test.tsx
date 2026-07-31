@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -87,6 +88,13 @@ function room(
   };
 }
 
+function roomsClientProps(element: ReactElement) {
+  return element.props as {
+    membersLoadFailed?: boolean;
+    organizationMembers?: unknown[];
+  };
+}
+
 describe("ChatRoomPage org deep-link guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -156,12 +164,13 @@ describe("ChatRoomPage org deep-link guard", () => {
     });
     getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
 
-    const element = await ChatRoomPage({
+    const element = (await ChatRoomPage({
       params: Promise.resolve({ roomId: ROOM_ID }),
-    });
+    })) as ReactElement;
 
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
+    expect(roomsClientProps(element).membersLoadFailed).toBe(false);
   });
 
   it("still renders when organization members fail to load", async () => {
@@ -176,12 +185,30 @@ describe("ChatRoomPage org deep-link guard", () => {
       failed: true,
     });
 
-    const element = await ChatRoomPage({
+    const element = (await ChatRoomPage({
       params: Promise.resolve({ roomId: ROOM_ID }),
-    });
+    })) as ReactElement;
 
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith(ORG_A);
+    expect(roomsClientProps(element).membersLoadFailed).toBe(true);
+    expect(roomsClientProps(element).organizationMembers).toEqual([]);
+  });
+
+  it("treats personal workspace as membersLoadFailed false", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: null, kind: "direct" }),
+    );
+
+    const element = (await ChatRoomPage({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(element).toBeTruthy();
+    expect(loadOrganizationMembersMock).not.toHaveBeenCalled();
+    expect(roomsClientProps(element).membersLoadFailed).toBe(false);
+    expect(roomsClientProps(element).organizationMembers).toEqual([]);
   });
 });

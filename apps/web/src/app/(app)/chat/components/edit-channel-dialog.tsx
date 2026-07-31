@@ -53,7 +53,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
-import { AiCoworkerIcon } from "./room-draft-shared";
+import { AiCoworkerIcon, MembersRosterLoadFailed } from "./room-draft-shared";
 import { toggleId } from "./room-helpers";
 
 function ParticipantCheckboxes({
@@ -63,6 +63,7 @@ function ParticipantCheckboxes({
   coworkerIds,
   onMemberIdsChange,
   onCoworkerIdsChange,
+  membersLoadFailed,
 }: {
   members: Member[];
   coworkers: Coworker[];
@@ -70,6 +71,7 @@ function ParticipantCheckboxes({
   coworkerIds: string[];
   onMemberIdsChange: (ids: string[]) => void;
   onCoworkerIdsChange: (ids: string[]) => void;
+  membersLoadFailed: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const [participantQuery, setParticipantQuery] = useState("");
@@ -125,7 +127,11 @@ function ParticipantCheckboxes({
 
       <ScrollArea className="h-[300px]">
         <div className="p-2">
-          {filteredMembers.length > 0 ? (
+          {membersLoadFailed ? (
+            <div className="pb-2">
+              <MembersRosterLoadFailed className="px-3 py-6" />
+            </div>
+          ) : filteredMembers.length > 0 ? (
             <div className="pb-2">
               <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[11px] font-medium">
                 {t("Dialog.humans")}
@@ -233,7 +239,9 @@ function ParticipantCheckboxes({
             </div>
           ) : null}
 
-          {filteredMembers.length === 0 && filteredCoworkers.length === 0 ? (
+          {!membersLoadFailed &&
+          filteredMembers.length === 0 &&
+          filteredCoworkers.length === 0 ? (
             <div className="text-muted-foreground px-4 py-12 text-center text-sm">
               {t("Draft.noResults")}
             </div>
@@ -250,6 +258,7 @@ export function EditChannelDialog({
   coworkers,
   canArchive,
   canLeave,
+  membersLoadFailed = false,
 }: {
   channel: ChatRoom;
   members: Member[];
@@ -260,6 +269,7 @@ export function EditChannelDialog({
   /** Any member can leave, except the last one: an empty roster could not be
    * archived by a remaining elevated member. */
   canLeave: boolean;
+  membersLoadFailed?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
@@ -394,6 +404,7 @@ export function EditChannelDialog({
                 coworkerIds={coworkerIds}
                 onMemberIdsChange={setMemberIds}
                 onCoworkerIdsChange={setCoworkerIds}
+                membersLoadFailed={membersLoadFailed}
               />
             </div>
             {canArchive || canLeave ? (

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
-interface TaskAttachmentUploadToastItem {
+interface FileUploadProgressToastItem {
   id: string;
   name: string;
   total: number;
@@ -13,40 +13,37 @@ interface TaskAttachmentUploadToastItem {
   percentage: number;
 }
 
-export interface TaskAttachmentUploadToastLabels {
+export interface FileUploadProgressToastLabels {
   uploadingFile: string;
   uploadingFiles: string;
 }
 
-export interface TaskAttachmentUploadProgress {
+export interface FileUploadProgress {
   loaded: number;
   total: number;
   percentage: number;
 }
 
-export interface TaskAttachmentUploadToastController {
-  updateFileProgress: (
-    fileIndex: number,
-    progress: TaskAttachmentUploadProgress,
-  ) => void;
+export interface FileUploadProgressToastController {
+  updateFileProgress: (fileIndex: number, progress: FileUploadProgress) => void;
   markFileComplete: (fileIndex: number) => void;
   dismiss: () => void;
 }
 
-interface TaskAttachmentUploadToastContentProps {
+interface FileUploadProgressToastContentProps {
   title: string;
-  items: TaskAttachmentUploadToastItem[];
+  items: FileUploadProgressToastItem[];
   totalLoaded: number;
   totalBytes: number;
   totalPercentage: number;
 }
 
-interface CreateTaskAttachmentUploadToastOptions {
+interface CreateFileUploadProgressToastOptions {
   files: File[];
-  labels: TaskAttachmentUploadToastLabels;
+  labels: FileUploadProgressToastLabels;
 }
 
-const TASK_ATTACHMENT_UPLOAD_TOAST_CLASS_NAMES = {
+const FILE_UPLOAD_PROGRESS_TOAST_CLASS_NAMES = {
   toast: "!pointer-events-none !touch-auto",
   content: "pointer-events-none",
   title: "pointer-events-none",
@@ -73,25 +70,19 @@ function clampLoadedBytes(loaded: number, total: number): number {
   return Math.max(0, Math.min(loaded, total));
 }
 
-function getAggregateTotalBytes(
-  items: TaskAttachmentUploadToastItem[],
-): number {
+function getAggregateTotalBytes(items: FileUploadProgressToastItem[]): number {
   return items.reduce((sum, item) => sum + item.total, 0);
 }
 
-function getAggregateLoadedBytes(
-  items: TaskAttachmentUploadToastItem[],
-): number {
+function getAggregateLoadedBytes(items: FileUploadProgressToastItem[]): number {
   return items.reduce((sum, item) => sum + item.loaded, 0);
 }
 
 function updateToastItem(
-  items: TaskAttachmentUploadToastItem[],
+  items: FileUploadProgressToastItem[],
   itemIndex: number,
-  updater: (
-    item: TaskAttachmentUploadToastItem,
-  ) => TaskAttachmentUploadToastItem,
-): TaskAttachmentUploadToastItem[] | null {
+  updater: (item: FileUploadProgressToastItem) => FileUploadProgressToastItem,
+): FileUploadProgressToastItem[] | null {
   const item = items[itemIndex];
   if (!item) {
     return null;
@@ -103,18 +94,18 @@ function updateToastItem(
 }
 
 function createToastId(): string {
-  return `task-attachment-upload-${Date.now()}-${Math.round(
+  return `file-upload-progress-${Date.now()}-${Math.round(
     Math.random() * 1_000_000,
   )}`;
 }
 
-function TaskAttachmentUploadToastContent({
+function FileUploadProgressToastContent({
   title,
   items,
   totalLoaded,
   totalBytes,
   totalPercentage,
-}: TaskAttachmentUploadToastContentProps) {
+}: FileUploadProgressToastContentProps) {
   return (
     <div className="pointer-events-none flex min-w-80 max-w-sm flex-col gap-3 rounded-lg border border-border bg-card-background p-4 text-foreground shadow-lg">
       <div className="space-y-1">
@@ -150,13 +141,13 @@ function TaskAttachmentUploadToastContent({
   );
 }
 
-export function createTaskAttachmentUploadToast({
+export function createFileUploadProgressToast({
   files,
   labels,
-}: CreateTaskAttachmentUploadToastOptions): TaskAttachmentUploadToastController {
+}: CreateFileUploadProgressToastOptions): FileUploadProgressToastController {
   const toastId = createToastId();
   // Keep items immutable so React Compiler sees each per-file update.
-  let items: TaskAttachmentUploadToastItem[] = files.map((file, index) => ({
+  let items: FileUploadProgressToastItem[] = files.map((file, index) => ({
     id: `${index}-${file.name}-${file.size}`,
     name: file.name,
     total: file.size,
@@ -181,7 +172,7 @@ export function createTaskAttachmentUploadToast({
 
     toast.custom(
       () => (
-        <TaskAttachmentUploadToastContent
+        <FileUploadProgressToastContent
           title={title}
           items={items}
           totalLoaded={totalLoaded}
@@ -193,7 +184,7 @@ export function createTaskAttachmentUploadToast({
         id: toastId,
         duration: Infinity,
         dismissible: false,
-        classNames: TASK_ATTACHMENT_UPLOAD_TOAST_CLASS_NAMES,
+        classNames: FILE_UPLOAD_PROGRESS_TOAST_CLASS_NAMES,
       },
     );
   }

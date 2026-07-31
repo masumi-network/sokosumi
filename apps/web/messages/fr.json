@@ -4556,6 +4556,9 @@
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "membersLoadFailedTitle": "Impossible de charger les membres",
+        "membersLoadFailedDescription": "Les membres de l'organisation sont temporairement indisponibles. Réessayez dans un instant.",
+        "membersLoadFailedRetry": "Réessayer",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4610,6 +4613,8 @@
         "format": "Formatting",
         "bold": "Bold",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploadingFile": "Téléversement de {fileName}",
+        "uploadingFiles": "Téléversement de {count} fichiers",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
