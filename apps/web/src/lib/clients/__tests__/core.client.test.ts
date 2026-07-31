@@ -10,7 +10,7 @@ const { redirectMock } = vi.hoisted(() => ({
   }),
 }));
 
-const getConversationsMock = vi.fn();
+const getChatRoomsMock = vi.fn();
 const getAgentsByIdInputSchemaMock = vi.fn();
 const getShareByTokenMock = vi.fn();
 const getHistoryMock = vi.fn();
@@ -52,7 +52,7 @@ vi.mock("@/lib/clients/generated/core", () => ({
   deleteJobsByIdShare: deleteJobsByIdShareMock,
   deleteTasksByIdShare: deleteTasksByIdShareMock,
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
-  getChatsConversations: getConversationsMock,
+  getChatsRooms: getChatRoomsMock,
   getHistory: getHistoryMock,
   getTasks: getTasksMock,
   getShareByToken: getShareByTokenMock,
@@ -83,7 +83,7 @@ describe("core.client", () => {
   });
 
   it("executes generated operations through the generated client", async () => {
-    getConversationsMock.mockResolvedValue({
+    getChatRoomsMock.mockResolvedValue({
       data: {
         data: [],
         meta: {
@@ -95,13 +95,13 @@ describe("core.client", () => {
     });
 
     const { coreClient } = await import("../core.client");
-    const response = await coreClient.getConversations();
+    const response = await coreClient.getChatRooms();
 
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "http://localhost:8787/v1",
       headers: { cookie: "session=abc" },
     });
-    expect(getConversationsMock).toHaveBeenCalledWith({
+    expect(getChatRoomsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
     });
