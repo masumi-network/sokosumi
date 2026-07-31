@@ -313,7 +313,7 @@ docs(readme): update setup instructions
 
 ### Linear issue implementation
 
-Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, and Review `/goal`. Legacy names Team Sapphire / `team-sapphire` / `sapphire-*` agents redirect here (removed). Bugs/refactors without a Linear Requirement use other poteto playbooks.
+Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, and Review `/goal`. Bugs/refactors without a Linear Requirement use other poteto playbooks.
 
 ### Issue tracker
 

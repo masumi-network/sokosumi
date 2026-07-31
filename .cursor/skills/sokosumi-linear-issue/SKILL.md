@@ -2,18 +2,17 @@
 name: sokosumi-linear-issue
 description: >-
   Sokosumi Linear issue ship under /poteto-mode - ## Requirement through green
-  draft PR (investigate, Spec, Feature implement, CI, review). Use for SOK-XXX,
-  Linear issues with ## Requirement, or when user says team-sapphire / Sapphire
-  (legacy names; this skill replaces them). Not for bugs/refactors with no
-  Linear Requirement - use other poteto playbooks.
+  draft PR (investigate, Spec, Feature implement, CI, review). Use for SOK-XXX
+  or Linear issues with ## Requirement. Not for bugs/refactors with no Linear
+  Requirement - use other poteto playbooks.
 disable-model-invocation: true
 ---
 
 # Sokosumi Linear issue
 
-You are the **orchestrator** for one Linear issue. Run under **/poteto-mode**. This skill is the matched playbook for Sokosumi `SOK` work with `## Requirement`. It replaces Team Sapphire.
+You are the **orchestrator** for one Linear issue. Run under **/poteto-mode**. This skill is the matched playbook for Sokosumi `SOK` work with `## Requirement`.
 
-Copy the **Playbook steps** below into your todolist verbatim (after reading poteto-mode Principles). Do not invent a parallel Sapphire pipeline.
+Copy the **Playbook steps** below into your todolist verbatim (after reading poteto-mode Principles).
 
 ```mermaid
 flowchart LR
@@ -31,7 +30,7 @@ flowchart LR
 - **Branch:** Linear `gitBranchName`, else `{issue-id-lower}-{short-kebab}` (≤6 segments).
 - **Draft PR** unless user asked ready-for-review. Title = primary commit subject (Conventional Commit). Body: issue link + Spec summary ≤8 lines.
 - **CI green:** `gh pr checks` - all `pass`/`success`; wait on `pending`; fail on `fail`/`failure`/`cancelled`/`timed_out`. Skip a check only if Spec Out of scope names it exactly. On fail: `root:` then fix per `VERIFY.md` (≤3 fix+push).
-- **Subagents:** `poteto-agent` for code delegates. `cavecrew-investigator` only for symbol locate. Never Linear MCP from subagents. Do not spawn `sapphire-*` agents (removed).
+- **Subagents:** `poteto-agent` for code delegates. `cavecrew-investigator` only for symbol locate. Never Linear MCP from subagents.
 - **UI Routes in Spec** → project skill `verify-sokosumi` after allowlisted verify; Reviewer also uses `VISUAL-CAPTURE.md`.
 
 ## Who runs what

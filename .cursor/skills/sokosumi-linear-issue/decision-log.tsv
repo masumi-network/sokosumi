@@ -2,5 +2,6 @@ ts	phase	decision	why	evidence	result
 2026-07-31T08:55:00Z	frame	full migration to one poteto skill, not hybrid overlay	hybrid Feature-inside-Sapphire fights itself; Outcome-Oriented Execution wants one owner	chat prior recommendation	committed to full migrate
 2026-07-31T08:56:00Z	design	project skill sokosumi-linear-issue absorbs Sapphire gates	plugin poteto playbooks cannot carry Sokosumi Linear/CI rules; project skill is discoverable	.cursor/skills/sokosumi-linear-issue/SKILL.md	architect skipped: shape settled
 2026-07-31T08:58:00Z	author	playbook steps = Feature how/architect/checkpoint/delegate + Sapphire Spec/verify/CI/review	steal ship safety without dual pipeline	SKILL.md Playbook steps	written
-2026-07-31T08:59:00Z	migrate	AGENTS.md points Linear ship at new skill; legacy Sapphire names in description only	Migrate callers then delete	AGENTS.md Agent skills	wired
+2026-07-31T08:59:00Z	migrate	AGENTS.md points Linear ship at new skill	Migrate callers then delete	AGENTS.md Agent skills	wired
 2026-07-31T09:00:00Z	delete	removed team-sapphire skill and sapphire-* agents	Subtract before add; no throwaway hybrid left	rm .cursor/skills/team-sapphire .cursor/agents/sapphire-*	deleted
+2026-07-31T09:03:00Z	cleanup	dropped Sapphire aliases from skill description and docs	full migration means no legacy name matching	SKILL.md AGENTS.md	removed
