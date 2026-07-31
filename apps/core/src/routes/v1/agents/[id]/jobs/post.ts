@@ -5,7 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -19,7 +19,7 @@ const params = z.object({
   }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/jobs",

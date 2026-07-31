@@ -7,7 +7,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 
 const paramsSchema = z.object({
@@ -19,7 +19,7 @@ const paramsSchema = z.object({
 
 const deleteJobShareResponseSchema = z.object({});
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "delete",
     path: "/{id}/share",
