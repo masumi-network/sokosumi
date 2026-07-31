@@ -6,7 +6,6 @@ import type {
   CreateAdminVendorData,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
-  CreateConversationMessageRequest,
   CreateEnterpriseContractRequest,
   DeleteHermesMeInstanceIntegrationsByProviderData,
   DeleteJobsByIdShareError,
@@ -115,10 +114,6 @@ import {
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
-  getChatsConversations as coreGetConversations,
-  getChatsConversationsById as coreGetConversationsById,
-  getChatsConversationsByIdMessages as coreGetConversationsByIdMessages,
-  getChatsConversationsByIdWarmup as coreGetConversationsByIdWarmup,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
@@ -197,8 +192,6 @@ import {
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
   patchChatsRoomsById as corePatchChatsRoomsById,
-  patchChatsConversationsById as corePatchConversationsById,
-  patchChatsConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchCoworkersById as corePatchCoworkersById,
   patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -218,8 +211,6 @@ import {
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
-  postChatsConversations as corePostConversations,
-  postChatsConversationsByIdMessages as corePostConversationsByIdMessages,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -522,125 +513,6 @@ export function toCoreApiActionError(error: unknown): ActionError {
 }
 
 export function createCoreClient(getClient: GetClient) {
-  async function getConversations() {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetConversations({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch conversations",
-    );
-  }
-
-  async function createConversation(body: {
-    openaiId?: string;
-    title?: string;
-    metadata?: Record<string, unknown>;
-  }) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostConversations({
-          client,
-          body,
-        }),
-      "Failed to create conversation",
-    );
-  }
-
-  async function getConversation(id: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetConversationsById({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to fetch conversation",
-    );
-  }
-
-  async function updateConversation(
-    id: string,
-    body: {
-      metadata?: Record<string, unknown>;
-      title?: string;
-    },
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchConversationsById({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to update conversation",
-    );
-  }
-
-  async function archiveConversation(id: string, archived: boolean = true) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchConversationsByIdArchive({
-          client,
-          path: { id },
-          body: { archived },
-        }),
-      "Failed to archive conversation",
-    );
-  }
-
-  async function getConversationMessages(
-    id: string,
-    query?: { cursor?: string; limit?: number },
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetConversationsByIdMessages({
-          client,
-          path: { id },
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch conversation messages",
-    );
-  }
-
-  async function getConversationWarmup(id: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetConversationsByIdWarmup({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to fetch conversation warmup state",
-    );
-  }
-
-  async function addConversationMessage(
-    id: string,
-    body: CreateConversationMessageRequest,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostConversationsByIdMessages({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to add conversation message",
-    );
-  }
-
   async function getChatRooms(query?: GetChatsRoomsData["query"]) {
     return executeOperation(
       getClient,
@@ -3613,11 +3485,8 @@ export function createCoreClient(getClient: GetClient) {
     archiveChatRoom,
     restoreChatRoom,
     leaveChatRoom,
-    addConversationMessage,
-    archiveConversation,
     assignOrganizationSeat,
     createChatRoom,
-    createConversation,
     createAgentJob,
     createMyFileUploadSession,
     createTask,
@@ -3637,10 +3506,6 @@ export function createCoreClient(getClient: GetClient) {
     getChatRooms,
     markChatRoomRead,
     toggleChatRoomMessageReaction,
-    getConversation,
-    getConversationMessages,
-    getConversationWarmup,
-    getConversations,
     getHermesInstance,
     getHermesMessages,
     getHermesOnboardingProgress,
@@ -3801,7 +3666,6 @@ export function createCoreClient(getClient: GetClient) {
     putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,
-    updateConversation,
     updateHermesInstance,
     updateOrganizationSubscriptionSeats,
   };
