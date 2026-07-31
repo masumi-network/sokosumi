@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "AgentEntryType" AS ENUM ('STANDARD', 'OPEN_API', 'X402');
+CREATE TYPE "AgentEntryType" AS ENUM ('STANDARD', 'OPEN_API', 'X402', 'UNKNOWN');
 
 -- AlterEnum
 ALTER TYPE "PaymentType" ADD VALUE 'WEB3_CARDANO_V2' BEFORE 'NONE';
@@ -23,6 +23,8 @@ CREATE TABLE "AgentPaymentSource" (
     "paymentSourceType" TEXT,
     "address" TEXT NOT NULL,
     "payTo" TEXT,
+    "scheme" TEXT,
+    "resource" TEXT,
     "pricingType" "PricingType" NOT NULL,
 
     CONSTRAINT "AgentPaymentSource_pkey" PRIMARY KEY ("id")
@@ -55,4 +57,3 @@ ALTER TABLE "AgentPaymentSource" ADD CONSTRAINT "AgentPaymentSource_agentId_fkey
 
 -- AddForeignKey
 ALTER TABLE "AgentPaymentSourceAmount" ADD CONSTRAINT "AgentPaymentSourceAmount_paymentSourceId_fkey" FOREIGN KEY ("paymentSourceId") REFERENCES "AgentPaymentSource"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
