@@ -18,6 +18,72 @@ import {
   normalizeMasumiPaymentUnit,
 } from "@/helpers/agent";
 
+const POSTGRES_BIGINT_MAX = 9_223_372_036_854_775_807n;
+const POSTGRES_INT_MAX = 2_147_483_647;
+const MAX_PAYMENT_SOURCE_INDEX = 24;
+const MAX_PAYMENT_SOURCES = MAX_PAYMENT_SOURCE_INDEX + 1;
+const MAX_PAYMENT_SOURCE_AMOUNTS = 7;
+const MAX_LEGACY_PRICING_AMOUNTS = 100;
+const MAX_REGISTRY_TAGS = 100;
+const MAX_REGISTRY_EXAMPLE_OUTPUTS = 100;
+const POSTGRES_BIGINT_MAX_STRING = POSTGRES_BIGINT_MAX.toString();
+
+function normalizeUnsignedInteger(value: unknown): string | null {
+  if (typeof value !== "string" || !/^\d+$/.test(value)) {
+    return null;
+  }
+  return value.replace(/^0+/, "") || "0";
+}
+
+function exceedsDatabaseBigInt(value: unknown): boolean {
+  const normalized = normalizeUnsignedInteger(value);
+  if (normalized === null) {
+    return false;
+  }
+  return (
+    normalized.length > POSTGRES_BIGINT_MAX_STRING.length ||
+    (normalized.length === POSTGRES_BIGINT_MAX_STRING.length &&
+      normalized > POSTGRES_BIGINT_MAX_STRING)
+  );
+}
+
+function parsePositiveDatabaseBigInt(value: unknown): bigint | null {
+  const normalized = normalizeUnsignedInteger(value);
+  if (normalized === null || exceedsDatabaseBigInt(normalized)) {
+    return null;
+  }
+  const parsed = BigInt(normalized);
+  return parsed > 0n ? parsed : null;
+}
+
+interface ParsedDatabaseAmount {
+  amount: bigint;
+  unit: string;
+}
+
+function isParsedDatabaseAmount(value: {
+  amount: bigint | null;
+  unit: string;
+}): value is ParsedDatabaseAmount {
+  return value.amount !== null;
+}
+
+function isDatabaseInt(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= POSTGRES_INT_MAX
+  );
+}
+
+function isValidRegistryDate(value: unknown): boolean {
+  return (
+    (typeof value === "string" || value instanceof Date) &&
+    !Number.isNaN(new Date(value).getTime())
+  );
+}
+
 export function isValidEmail(
   email: string | null | undefined,
 ): email is string {
@@ -94,7 +160,9 @@ const registryAgentPricingSchema = z.object({
   pricingType: z.string(),
   FixedPricing: z
     .object({
-      Amounts: z.array(z.object({ amount: z.string(), unit: z.string() })),
+      Amounts: z
+        .array(z.object({ amount: z.string(), unit: z.string() }))
+        .max(MAX_LEGACY_PRICING_AMOUNTS),
     })
     .optional(),
 });
@@ -129,33 +197,30 @@ export function parseEntryAgentPricing(
       const amounts = parsed.data.FixedPricing?.Amounts ?? [];
 
       // Intentionally treat empty/invalid fixed pricing as unknown to avoid
-      // exposing malformed registry pricing as a valid fixed-price agent.
-      // BigInt() throws on non-numeric strings, so it must stay guarded.
-      try {
-        const isValidFixedPricing = amounts.every(
-          (amount) => BigInt(amount.amount) > 0,
-        );
-        if (!isValidFixedPricing || amounts.length === 0) {
-          return {
-            pricingType: PricingType.UNKNOWN,
-          };
-        }
-
-        return {
-          pricingType: PricingType.FIXED,
-          fixedPricingAmounts: amounts.map((amount) => ({
-            amount: BigInt(amount.amount),
-            unit: normalizeMasumiPaymentUnit(amount.unit),
-          })),
-        };
-      } catch {
+      // exposing malformed registry pricing as a valid fixed-price agent. The
+      // upper bound matches PostgreSQL BIGINT so a schema-valid registry value
+      // cannot fail later during Prisma persistence and park the sync cursor.
+      const parsedAmounts = amounts.map((amount) => ({
+        amount: parsePositiveDatabaseBigInt(amount.amount),
+        unit: normalizeMasumiPaymentUnit(amount.unit),
+      }));
+      const validAmounts = parsedAmounts.filter(isParsedDatabaseAmount);
+      if (
+        parsedAmounts.length === 0 ||
+        validAmounts.length !== parsedAmounts.length
+      ) {
         console.warn(
-          `[sync/agents] Non-numeric fixed pricing amount for entry ${agentIdentifier}; storing as UNKNOWN (agent stays unavailable)`,
+          `[sync/agents] Invalid fixed pricing amount for entry ${agentIdentifier}; storing as UNKNOWN (agent stays unavailable)`,
         );
         return {
           pricingType: PricingType.UNKNOWN,
         };
       }
+
+      return {
+        pricingType: PricingType.FIXED,
+        fixedPricingAmounts: validAmounts,
+      };
     }
     case "Free": {
       return {
@@ -174,6 +239,97 @@ export type RegistryDiffEntry =
   PostRegistryDiffResponse["data"]["entries"][number];
 export type RegistryPaymentSource =
   RegistryDiffEntry["SupportedPaymentSources"][number];
+
+/**
+ * Returns why a registry entry cannot be persisted safely. The generated
+ * registry client applies TypeScript types but no runtime validation, while
+ * Prisma maps Int/BigInt to bounded PostgreSQL types. Invalid external data is
+ * quarantined and the cursor advances instead of retrying it forever.
+ */
+export function getRegistryEntryStorageIssue(
+  entry: RegistryDiffEntry,
+): string | null {
+  const integerFields = [
+    ["metadataVersion", entry.metadataVersion],
+    ["uptimeCount", entry.uptimeCount],
+    ["uptimeCheckCount", entry.uptimeCheckCount],
+  ] as const;
+  for (const [field, value] of integerFields) {
+    if (!isDatabaseInt(value)) {
+      return `${field} is outside the PostgreSQL INT range`;
+    }
+  }
+
+  if (!isValidRegistryDate(entry.lastUptimeCheck)) {
+    return "lastUptimeCheck is not a valid date";
+  }
+  if (!isValidRegistryDate(entry.statusUpdatedAt)) {
+    return "statusUpdatedAt is not a valid date";
+  }
+  if (entry.tags !== null && !Array.isArray(entry.tags)) {
+    return "tags is not an array";
+  }
+  if ((entry.tags?.length ?? 0) > MAX_REGISTRY_TAGS) {
+    return `tags exceeds ${MAX_REGISTRY_TAGS} entries`;
+  }
+  if (!Array.isArray(entry.ExampleOutput)) {
+    return "ExampleOutput is not an array";
+  }
+  if (entry.ExampleOutput.length > MAX_REGISTRY_EXAMPLE_OUTPUTS) {
+    return `ExampleOutput exceeds ${MAX_REGISTRY_EXAMPLE_OUTPUTS} entries`;
+  }
+
+  const legacyPricing = registryAgentPricingSchema.safeParse(
+    entry.AgentPricing,
+  );
+  if (legacyPricing.success && legacyPricing.data.pricingType === "Fixed") {
+    const amounts = legacyPricing.data.FixedPricing?.Amounts ?? [];
+    if (amounts.some((amount) => exceedsDatabaseBigInt(amount.amount))) {
+      return "AgentPricing contains an amount outside the PostgreSQL BIGINT range";
+    }
+  } else if (
+    entry.AgentPricing &&
+    typeof entry.AgentPricing === "object" &&
+    "pricingType" in entry.AgentPricing &&
+    entry.AgentPricing.pricingType === "Fixed"
+  ) {
+    return `AgentPricing exceeds ${MAX_LEGACY_PRICING_AMOUNTS} amounts or is malformed`;
+  }
+
+  if (!Array.isArray(entry.SupportedPaymentSources)) {
+    return "SupportedPaymentSources is not an array";
+  }
+  if (entry.SupportedPaymentSources.length > MAX_PAYMENT_SOURCES) {
+    return `SupportedPaymentSources exceeds ${MAX_PAYMENT_SOURCES} entries`;
+  }
+  for (const source of entry.SupportedPaymentSources) {
+    if (
+      !isDatabaseInt(source.sourceIndex) ||
+      source.sourceIndex > MAX_PAYMENT_SOURCE_INDEX
+    ) {
+      return `payment source index is outside 0..${MAX_PAYMENT_SOURCE_INDEX}`;
+    }
+    if (source.pricing.pricingType !== "Fixed") {
+      continue;
+    }
+    if (source.pricing.fixed.length > MAX_PAYMENT_SOURCE_AMOUNTS) {
+      return `payment source ${source.sourceIndex} exceeds ${MAX_PAYMENT_SOURCE_AMOUNTS} amounts`;
+    }
+    for (const amount of source.pricing.fixed) {
+      if (exceedsDatabaseBigInt(amount.amount)) {
+        return `payment source ${source.sourceIndex} contains an amount outside the PostgreSQL BIGINT range`;
+      }
+      if (
+        amount.decimals !== undefined &&
+        (!isDatabaseInt(amount.decimals) || amount.decimals > 255)
+      ) {
+        return `payment source ${source.sourceIndex} has invalid decimals`;
+      }
+    }
+  }
+
+  return null;
+}
 
 function normalizeRegistryIdentifier(identifier: string): string {
   return isV2RegistryIdentifier(identifier)
@@ -243,24 +399,27 @@ function projectSourcePricing(
 ): ParsedAgentPricing {
   switch (pricing.pricingType) {
     case "Fixed": {
-      try {
-        const amounts = pricing.fixed.map((fixedAmount) => ({
-          unit: normalizeMasumiPaymentUnit(fixedAmount.asset),
-          amount: BigInt(fixedAmount.amount),
-        }));
-        if (amounts.length === 0 || amounts.some((row) => row.amount <= 0n)) {
-          return { pricingType: PricingType.UNKNOWN };
-        }
-        return {
-          pricingType: PricingType.FIXED,
-          fixedPricingAmounts: amounts,
-        };
-      } catch {
+      if (pricing.fixed.length > MAX_PAYMENT_SOURCE_AMOUNTS) {
         console.warn(
-          `[sync/agents] Non-numeric source pricing amount for entry ${agentIdentifier}; storing as UNKNOWN`,
+          `[sync/agents] Too many source pricing amounts for entry ${agentIdentifier}; storing as UNKNOWN`,
         );
         return { pricingType: PricingType.UNKNOWN };
       }
+      const amounts = pricing.fixed.map((fixedAmount) => ({
+        unit: normalizeMasumiPaymentUnit(fixedAmount.asset),
+        amount: parsePositiveDatabaseBigInt(fixedAmount.amount),
+      }));
+      const validAmounts = amounts.filter(isParsedDatabaseAmount);
+      if (amounts.length === 0 || validAmounts.length !== amounts.length) {
+        console.warn(
+          `[sync/agents] Invalid source pricing amount for entry ${agentIdentifier}; storing as UNKNOWN`,
+        );
+        return { pricingType: PricingType.UNKNOWN };
+      }
+      return {
+        pricingType: PricingType.FIXED,
+        fixedPricingAmounts: validAmounts,
+      };
     }
     case "Free":
       return { pricingType: PricingType.FREE };
@@ -400,10 +559,17 @@ export function buildPaymentSourceRows(
 ): AgentPaymentSourceRow[] {
   const rows: AgentPaymentSourceRow[] = [];
   const seenSourceIndexes = new Set<number>();
-  for (const source of entry.SupportedPaymentSources ?? []) {
+  for (const source of (entry.SupportedPaymentSources ?? []).slice(
+    0,
+    MAX_PAYMENT_SOURCES,
+  )) {
     // Defensive: sourceIndex is unique per agent in our schema; a duplicate
     // from the registry must not turn into a batch-stopping constraint error.
-    if (seenSourceIndexes.has(source.sourceIndex)) {
+    if (
+      !isDatabaseInt(source.sourceIndex) ||
+      source.sourceIndex > MAX_PAYMENT_SOURCE_INDEX ||
+      seenSourceIndexes.has(source.sourceIndex)
+    ) {
       continue;
     }
     seenSourceIndexes.add(source.sourceIndex);
@@ -423,18 +589,14 @@ export function buildPaymentSourceRows(
       resource: source.resource,
       pricingType: projected.pricingType,
     };
-    if (
-      projected.fixedPricingAmounts &&
-      source.pricing.pricingType === "Fixed"
-    ) {
+    const fixedPricing =
+      source.pricing.pricingType === "Fixed" ? source.pricing : null;
+    if (projected.fixedPricingAmounts && fixedPricing) {
       // Zip decimals positionally — assets are not guaranteed unique within
       // one source's fixed amounts.
-      row.amounts = source.pricing.fixed.map((fixedAmount, index) => ({
-        unit: normalizeMasumiPaymentUnit(fixedAmount.asset),
-        amount:
-          projected.fixedPricingAmounts?.[index]?.amount ??
-          BigInt(fixedAmount.amount),
-        decimals: fixedAmount.decimals ?? null,
+      row.amounts = projected.fixedPricingAmounts.map((amount, index) => ({
+        ...amount,
+        decimals: fixedPricing.fixed[index]?.decimals ?? null,
       }));
     }
     rows.push(row);

@@ -26,6 +26,7 @@ const {
   agentPaymentSourceDeleteManyMock,
   agentPricingFindUniqueMock,
   agentPricingUpdateMock,
+  agentUpdateManyMock,
   agentUpdateMock,
   getAgentsDiffMock,
   getCardanoV2RailReadinessMock,
@@ -58,6 +59,7 @@ const {
   agentPaymentSourceDeleteManyMock: vi.fn(),
   agentPricingFindUniqueMock: vi.fn(),
   agentPricingUpdateMock: vi.fn(),
+  agentUpdateManyMock: vi.fn(),
   agentUpdateMock: vi.fn(),
   getAgentsDiffMock: vi.fn(),
   getCardanoV2RailReadinessMock: vi.fn(),
@@ -117,6 +119,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: agentFindManyMock,
       findUnique: agentFindUniqueMock,
       update: agentUpdateMock,
+      updateMany: agentUpdateManyMock,
     },
     agentPricing: {
       findUnique: agentPricingFindUniqueMock,
@@ -309,6 +312,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     agentFindUniqueMock.mockResolvedValue(null);
     agentCreateMock.mockResolvedValue(undefined);
     agentUpdateMock.mockResolvedValue(undefined);
+    agentUpdateManyMock.mockResolvedValue({ count: 0 });
     agentPricingFindUniqueMock.mockResolvedValue({ agentFixedPricingId: null });
     agentPricingUpdateMock.mockResolvedValue(undefined);
     unitValueDeleteManyMock.mockResolvedValue({ count: 0 });
@@ -2006,6 +2010,83 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(createCall.data.paymentSources.create[0].address).toBe(
       "addr_test1_contract",
     );
+  });
+
+  it("quarantines storage-unsafe entries and advances past them", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const entries = [
+      createRegistryEntry("entry-v2-overflow-amount", {
+        agentIdentifier: createV2AgentIdentifier(1),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [
+          createCardanoV2PaymentSource({
+            pricing: {
+              pricingType: "Fixed",
+              fixed: [
+                {
+                  asset: "lovelace",
+                  amount: "9223372036854775808",
+                  decimals: 6,
+                },
+              ],
+            },
+          }),
+        ],
+      }),
+      createRegistryEntry("entry-v2-overflow-index", {
+        agentIdentifier: createV2AgentIdentifier(2),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [
+          createCardanoV2PaymentSource({ sourceIndex: 25 }),
+        ],
+      }),
+      createRegistryEntry("entry-v1-overflow-metadata", {
+        metadataVersion: 2_147_483_648,
+      }),
+      createRegistryEntry("entry-valid", {
+        statusUpdatedAt: "2026-02-24T16:00:00.000Z",
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpdateManyMock).toHaveBeenCalledTimes(3);
+    expect(agentUpdateManyMock).toHaveBeenNthCalledWith(1, {
+      where: {
+        OR: [
+          { registryIdentity: V2_AGENT_ROOT },
+          { blockchainIdentifier: createV2AgentIdentifier(1) },
+        ],
+      },
+      data: {
+        status: AgentStatus.INVALID,
+        isShown: false,
+      },
+    });
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    expect(agentCreateMock.mock.calls[0]?.[0].data.blockchainIdentifier).toBe(
+      "identifier-entry-valid",
+    );
+    expect(captureMessageMock).toHaveBeenCalledTimes(3);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: "entry-valid",
+          lastSyncedAt: new Date("2026-02-24T16:00:00.000Z"),
+        },
+      }),
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 
   it("stops the batch without advancing the cursor when the first create fails", async () => {

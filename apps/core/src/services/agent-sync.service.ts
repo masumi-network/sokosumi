@@ -23,6 +23,7 @@ import {
   buildPaymentSourcesCreate,
   buildRegistryAgentFields,
   convertEntryType,
+  getRegistryEntryStorageIssue,
   isSameAgentPricing,
   normalizeRegistryEntry,
   type ParsedAgentPricing,
@@ -47,6 +48,42 @@ const CARDANO_V2_SYNC_METADATA_SUFFIX = "-cardano-v2";
 interface SyncExecutionOptions {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
+}
+
+async function quarantineInvalidRegistryEntry(
+  entry: RegistryDiffEntry,
+  issue: string,
+): Promise<void> {
+  const normalizedEntry = normalizeRegistryEntry(entry);
+  const version = resolveRegistryAgentVersion(normalizedEntry);
+  console.error(
+    `[sync/agents] Quarantining registry entry ${normalizedEntry.agentIdentifier}: ${issue}`,
+  );
+  Sentry.captureMessage("Registry entry rejected before database persistence", {
+    level: "error",
+    tags: { error_type: "invalid_registry_entry" },
+    extra: {
+      agentIdentifier: normalizedEntry.agentIdentifier,
+      issue,
+    },
+  });
+
+  // Hide a previously synced revision of the same agent. A new invalid entry
+  // needs no placeholder row; advancing the cursor is the quarantine record.
+  await prisma.agent.updateMany({
+    where: {
+      OR: [
+        ...(version.isValid
+          ? [{ registryIdentity: version.registryIdentity }]
+          : []),
+        { blockchainIdentifier: normalizedEntry.agentIdentifier },
+      ],
+    },
+    data: {
+      status: AgentStatus.INVALID,
+      isShown: false,
+    },
+  });
 }
 
 /**
@@ -456,6 +493,7 @@ async function syncRegistryAgents(
   );
   let totalProcessedCount = 0;
   let totalDeferredCount = 0;
+  let totalQuarantinedCount = 0;
   let batchCount = 0;
 
   // Loop batches within the run's time budget (shouldStopSync consults the
@@ -489,8 +527,19 @@ async function syncRegistryAgents(
     }
     batchCount++;
 
+    // Validate every registry-controlled value that fans out into bounded
+    // Prisma columns before any batch writes. Schema-invalid entries are
+    // quarantined and counted as processed; only infrastructure failures park
+    // the cursor for retry.
+    const storageIssues = entries.map(getRegistryEntryStorageIssue);
+
     const tags = Array.from(
-      new Set(entries.map((entry) => entry.tags ?? []).flat()),
+      new Set(
+        entries
+          .filter((_entry, index) => storageIssues[index] === null)
+          .map((entry) => entry.tags ?? [])
+          .flat(),
+      ),
     );
 
     for (const tag of tags) {
@@ -515,7 +564,7 @@ async function syncRegistryAgents(
     // everything after it on the next run.
     let processedEntryCount = 0;
     let batchHadError = false;
-    for (const entry of entries) {
+    for (const [entryIndex, entry] of entries.entries()) {
       if (
         shouldStopSync(options, "registry sync canceled during agent upsert")
       ) {
@@ -531,6 +580,13 @@ async function syncRegistryAgents(
       }
 
       try {
+        const storageIssue = storageIssues[entryIndex];
+        if (storageIssue) {
+          await quarantineInvalidRegistryEntry(entry, storageIssue);
+          totalQuarantinedCount++;
+          processedEntryCount++;
+          continue;
+        }
         const normalizedEntry = normalizeRegistryEntry(entry);
         const pricing = resolveEntryPricing(
           normalizedEntry,
@@ -601,7 +657,7 @@ async function syncRegistryAgents(
   }
 
   console.info(
-    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, deferred=${totalDeferredCount}, durationMs=${Date.now() - startedAt})`,
+    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, deferred=${totalDeferredCount}, quarantined=${totalQuarantinedCount}, durationMs=${Date.now() - startedAt})`,
   );
 }
 
