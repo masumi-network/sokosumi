@@ -173,7 +173,9 @@ export function buildHistoryStatusFilter(
         status: { in: taskStatuses },
         archivedAt: null,
       });
-    } else if (includesActive && includesArchived) {
+    } else if (includesActive) {
+      // `active` alone used to match CONVERSATION rows; after that kind was
+      // dropped, map it to non-archived tasks (kinds that support archivedAt).
       taskBranches.push({
         kind: HistoryKind.TASK,
         archivedAt: null,
@@ -190,26 +192,6 @@ export function buildHistoryStatusFilter(
     appendKindBranches(branches, taskBranches);
   }
 
-  if (types.includes(HistoryKind.CONVERSATION)) {
-    const conversationBranches: Prisma.HistoryWhereInput[] = [];
-
-    if (includesActive) {
-      conversationBranches.push({
-        kind: HistoryKind.CONVERSATION,
-        archivedAt: null,
-      });
-    }
-
-    if (includesArchived) {
-      conversationBranches.push({
-        kind: HistoryKind.CONVERSATION,
-        archivedAt: { not: null },
-      });
-    }
-
-    appendKindBranches(branches, conversationBranches);
-  }
-
   if (types.includes(HistoryKind.JOB)) {
     const jobBranches: Prisma.HistoryWhereInput[] = [];
 
@@ -217,6 +199,11 @@ export function buildHistoryStatusFilter(
       jobBranches.push({
         kind: HistoryKind.JOB,
         entityId: { in: jobEntityIds },
+      });
+    } else if (includesActive) {
+      jobBranches.push({
+        kind: HistoryKind.JOB,
+        archivedAt: null,
       });
     }
 
@@ -267,9 +254,6 @@ export async function buildHistoryWhere(
   const workspaceKinds = params.types.filter(
     (kind) => kind === HistoryKind.TASK || kind === HistoryKind.JOB,
   );
-  const shouldIncludeConversations = params.types.includes(
-    HistoryKind.CONVERSATION,
-  );
 
   const visibilityBranches: Prisma.HistoryWhereInput[] = [
     ...(workspaceKinds.length > 0
@@ -283,14 +267,6 @@ export async function buildHistoryWhere(
             ...(params.projectId !== undefined
               ? { projectId: params.projectId }
               : {}),
-          },
-        ]
-      : []),
-    ...(shouldIncludeConversations
-      ? [
-          {
-            kind: HistoryKind.CONVERSATION,
-            userId: params.userContext.userId,
           },
         ]
       : []),
@@ -491,16 +467,13 @@ export function mapHistoryRow(
   const status = jobStatus ?? row.status;
 
   const userPreview = options?.userPreviewById?.get(row.userId);
-  const owner =
-    row.kind === HistoryKind.CONVERSATION
-      ? null
-      : userPreview
-        ? {
-            userId: userPreview.userId,
-            name: userPreview.name,
-            image: userPreview.image,
-          }
-        : null;
+  const owner = userPreview
+    ? {
+        userId: userPreview.userId,
+        name: userPreview.name,
+        image: userPreview.image,
+      }
+    : null;
 
   const baseItem = {
     id: row.entityId,
@@ -538,14 +511,6 @@ export function mapHistoryRow(
         agentIcon: agentPreview?.icon ?? null,
       };
     }
-    case HistoryKind.CONVERSATION:
-      return {
-        ...baseItem,
-        kind: "conversation",
-        status: row.status === "archived" ? "archived" : "active",
-        credits: null,
-        bucketSlug: row.bucketSlug,
-      };
   }
 }
 

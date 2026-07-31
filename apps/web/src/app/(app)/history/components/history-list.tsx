@@ -10,10 +10,6 @@ import {
   type HistoryListItemLabels,
 } from "@/app/history/components/history-list-item";
 import type { HistoryFilters } from "@/app/history/utils/history-filters";
-import {
-  type HistoryBucketLookups,
-  mergeHistoryBucketLookups,
-} from "@/app/history/utils/history-row-subtitle";
 import { Button } from "@/components/ui/button";
 import type { HistoryItem } from "@/lib/services/history.service";
 
@@ -31,7 +27,6 @@ export interface HistoryListLabels {
 interface HistoryListProps {
   history: HistoryItem[];
   nextCursor: string | null;
-  bucketLookups: HistoryBucketLookups;
   filterResetKey: string;
   filters: HistoryFilters;
   labels: HistoryListLabels;
@@ -41,7 +36,6 @@ interface HistoryListProps {
 export function HistoryList({
   history,
   nextCursor,
-  bucketLookups,
   filterResetKey,
   filters,
   labels,
@@ -49,7 +43,6 @@ export function HistoryList({
 }: HistoryListProps) {
   const [items, setItems] = useState(history);
   const [cursor, setCursor] = useState(nextCursor);
-  const [activeBucketLookups, setActiveBucketLookups] = useState(bucketLookups);
   const [isPending, startTransition] = useTransition();
   const hasHistory = items.length > 0;
   const showEmptyState = !hasHistory && !isPending;
@@ -61,9 +54,6 @@ export function HistoryList({
       try {
         const result = await loadMoreHistory({ cursor, filters });
         setItems((prev) => appendUniqueHistoryItems(prev, result.history));
-        setActiveBucketLookups((prev) =>
-          mergeHistoryBucketLookups(prev, result.bucketLookups),
-        );
         setCursor(result.nextCursor);
       } catch {
         toast.error(labels.loadMoreError);
@@ -80,7 +70,6 @@ export function HistoryList({
               <li key={`${item.kind}:${item.id}`}>
                 <HistoryListItem
                   item={item}
-                  bucketLookups={activeBucketLookups}
                   labels={labels.row}
                   activeOrganizationId={activeOrganizationId}
                 />

@@ -23,13 +23,13 @@ describe("getNotificationHref", () => {
     ).toBe("/tasks");
   });
 
-  it("does not deep-link legacy conversations", () => {
+  it("links tasks to the task detail route", () => {
     expect(
       getNotificationHref({
-        kind: "CONVERSATION",
-        referenceId: "conv_1",
-        metadata: { bucketSlug: "hannah" },
+        kind: "TASK",
+        referenceId: "task-1",
+        metadata: null,
       }),
-    ).toBeNull();
+    ).toBe("/tasks/task-1");
   });
 });

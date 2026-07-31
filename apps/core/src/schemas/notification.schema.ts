@@ -7,7 +7,6 @@ export const notificationKindSchema = z
   .enum([
     NotificationKind.JOB,
     NotificationKind.TASK,
-    NotificationKind.CONVERSATION,
     NotificationKind.BILLING,
     NotificationKind.SYSTEM,
   ])
