@@ -80,3 +80,28 @@ export async function clearPendingResponseMirror(
     );
   }
 }
+
+/**
+ * Refresh TTL on an existing pending mirror key. No-op when Redis is absent
+ * or the key was already cleared/expired — does not recreate the key.
+ */
+export async function renewPendingResponseMirror(
+  scope: CoworkerPendingResponseScope,
+): Promise<void> {
+  const redis = getRedisClient();
+  if (!redis) {
+    return;
+  }
+
+  try {
+    await redis.expire(
+      coworkerPendingResponseRedisKey(scope),
+      COWORKER_STREAM_LOCK_TTL_SECONDS,
+    );
+  } catch (error) {
+    console.error(
+      "[coworker-pending-response-mirror] Failed to renew pending mirror:",
+      error,
+    );
+  }
+}
