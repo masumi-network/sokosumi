@@ -55,3 +55,6 @@ lint-report.json
 
 # Local Claude Code dev-server config (personal, per-machine)
 .claude/launch.json
+
+# verify-sokosumi proof artifacts (keep skill; discard run evidence)
+.cursor/verify-sokosumi-artifacts/
