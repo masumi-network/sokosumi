@@ -177,17 +177,13 @@ describe("coworker user route allowlist", () => {
     expect(buildCreditsPayloadMock).toHaveBeenCalled();
   });
 
-  it("allows coworker with context headers on organization member", async () => {
+  it("rejects coworker with context headers on organization member", async () => {
     const app = createCoworkerUserApp({ withContext: true });
     const response = await app.request(
       "http://localhost/me/organizations/org_1/member",
     );
-    expect(response.status).toBe(200);
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_1",
-      expect.anything(),
-    );
+    expect(response.status).toBe(403);
+    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker with context headers on preferences", async () => {

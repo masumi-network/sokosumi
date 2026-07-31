@@ -15063,7 +15063,7 @@ export type GetUsersByIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -15214,7 +15214,7 @@ export type GetUsersByIdDesignMdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -15303,7 +15303,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -15420,7 +15420,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -15523,7 +15523,7 @@ export type GetUsersByIdOrganizationsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -15626,7 +15626,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
         /**
@@ -15779,23 +15779,9 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponse = GetUsersB
 
 export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
         /**
@@ -15888,7 +15874,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -15995,7 +15981,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -16093,7 +16079,7 @@ export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -16196,7 +16182,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
         /**
@@ -16310,7 +16296,7 @@ export type GetUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -16404,7 +16390,7 @@ export type PostUsersByIdOnboardingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -16498,7 +16484,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -16589,7 +16575,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
         /**
@@ -16700,7 +16686,7 @@ export type GetUsersByIdFilesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -16808,7 +16794,7 @@ export type PostUsersByIdFilesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -16939,7 +16925,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -17028,7 +17014,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -17122,7 +17108,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -17211,7 +17197,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
         /**
@@ -17304,7 +17290,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
         grantId: string;
@@ -17394,7 +17380,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
         grantId: string;
@@ -17498,7 +17484,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -17601,7 +17587,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -17704,7 +17690,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -17807,7 +17793,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };
@@ -17896,7 +17882,7 @@ export type GetUsersByIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization membership reads documented on those operations.
+         * Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.
          */
         id: string;
     };

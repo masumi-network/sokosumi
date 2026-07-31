@@ -20,7 +20,6 @@ const COWORKER_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/credits$/,
   /^\/organizations$/,
   /^\/organizations\/[^/]+\/credits$/,
-  /^\/organizations\/[^/]+\/member$/,
 ];
 
 function escapeRegExp(value: string): string {
@@ -78,7 +77,7 @@ export function isCoworkerAllowedUserSubpath(subpath: string): boolean {
 /**
  * Default-deny gate for coworker actors on `/users/{id}/*`. Path resolution
  * may accept coworker + context; this middleware keeps access limited to
- * credits and organization membership reads.
+ * credits and organization list/credits reads.
  */
 export const coworkerUserRouteAllowlistMiddleware =
   createMiddleware<UserRouteEnv>(async (c, next) => {

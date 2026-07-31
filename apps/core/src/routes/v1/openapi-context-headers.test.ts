@@ -88,14 +88,15 @@ describe("OpenAPI X-Context-* header documentation", () => {
     expect(hasCoworkerContextHeaders(refs)).toBe(true);
   });
 
-  it("documents coworker context headers on user organization member", () => {
+  it("omits coworker context headers on user organization member", () => {
     const doc = usersRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(
       doc,
       "/{id}/organizations/{organizationId}/member",
       "get",
     );
-    expect(hasCoworkerContextHeaders(refs)).toBe(true);
+    expect(hasCoworkerContextHeaders(refs)).toBe(false);
+    expect(hasOrchestratorContextHeaders(refs)).toBe(false);
   });
 
   it("documents orchestrator-only context headers on user billing details", () => {

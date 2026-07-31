@@ -32,13 +32,10 @@ describe("userRouteSubpathAfterId", () => {
 });
 
 describe("isCoworkerAllowedUserSubpath", () => {
-  it("allows credits and organization membership reads", () => {
+  it("allows credits and organization list/credits reads", () => {
     expect(isCoworkerAllowedUserSubpath("/credits")).toBe(true);
     expect(isCoworkerAllowedUserSubpath("/organizations")).toBe(true);
     expect(isCoworkerAllowedUserSubpath("/organizations/org_1/credits")).toBe(
-      true,
-    );
-    expect(isCoworkerAllowedUserSubpath("/organizations/org_1/member")).toBe(
       true,
     );
   });
@@ -48,6 +45,9 @@ describe("isCoworkerAllowedUserSubpath", () => {
     expect(isCoworkerAllowedUserSubpath("/preferences")).toBe(false);
     expect(isCoworkerAllowedUserSubpath("/billing-details")).toBe(false);
     expect(isCoworkerAllowedUserSubpath("/organizations/org_1")).toBe(false);
+    expect(isCoworkerAllowedUserSubpath("/organizations/org_1/member")).toBe(
+      false,
+    );
     expect(isCoworkerAllowedUserSubpath("/files")).toBe(false);
   });
 });

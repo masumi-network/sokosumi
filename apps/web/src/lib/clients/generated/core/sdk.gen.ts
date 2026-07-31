@@ -1175,7 +1175,7 @@ export const getUsersByIdOrganizationsByOrganizationIdCredits = <ThrowOnError ex
 });
 
 /**
- * Get the user's own membership record in an organization: first path segment is `me` or a user id; second is the organization id. Session user, or orchestrator/coworker with matching `X-Context-User-Id`. Responds 404 when the user is not a member.
+ * Get the user's own membership record in an organization: first path segment is `me` or a user id; second is the organization id. Responds 404 when the user is not a member.
  */
 export const getUsersByIdOrganizationsByOrganizationIdMember = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsByOrganizationIdMemberData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsByOrganizationIdMemberResponses, GetUsersByIdOrganizationsByOrganizationIdMemberErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsByOrganizationIdMemberResponses, GetUsersByIdOrganizationsByOrganizationIdMemberErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsByOrganizationIdMemberResponseTransformer,
