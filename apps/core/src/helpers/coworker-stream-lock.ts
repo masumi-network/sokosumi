@@ -148,10 +148,12 @@ export function startStreamLockHeartbeat(
   options?: StartStreamLockHeartbeatOptions,
 ): () => void {
   const timer = setInterval(() => {
-    void renewStreamLock(internalConversationId, ownerToken);
-    if (options?.onRenew) {
-      void options.onRenew();
-    }
+    void (async () => {
+      const renewed = await renewStreamLock(internalConversationId, ownerToken);
+      if (renewed && options?.onRenew) {
+        await options.onRenew();
+      }
+    })();
   }, COWORKER_STREAM_LOCK_HEARTBEAT_MS);
 
   return () => {

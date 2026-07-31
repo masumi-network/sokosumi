@@ -135,4 +135,18 @@ describe("coworker-stream-lock", () => {
     expect(onRenew).toHaveBeenCalledTimes(1);
     stop();
   });
+
+  it("heartbeat skips onRenew when lock renew fails", async () => {
+    vi.useFakeTimers();
+    redisEvalMock.mockResolvedValueOnce(0);
+    const onRenew = vi.fn().mockResolvedValue(undefined);
+    const stop = startStreamLockHeartbeat("conv-1", "instance-test:token-1", {
+      onRenew,
+    });
+    await vi.advanceTimersByTimeAsync(COWORKER_STREAM_LOCK_HEARTBEAT_MS);
+
+    expect(redisEvalMock).toHaveBeenCalled();
+    expect(onRenew).not.toHaveBeenCalled();
+    stop();
+  });
 });
