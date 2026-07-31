@@ -7,7 +7,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { putJobShareRequestSchema } from "@/schemas/public-share.schema.js";
 import { jobShareSchema } from "@/schemas/share.schema.js";
@@ -19,7 +19,7 @@ const paramsSchema = z.object({
   }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "put",
     path: "/{id}/share",

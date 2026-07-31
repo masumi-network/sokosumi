@@ -7,12 +7,12 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { conversationSchema } from "@/schemas/conversation.schema";
 
-const route = withGlobalHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}",

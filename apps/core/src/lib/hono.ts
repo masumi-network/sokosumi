@@ -69,19 +69,70 @@ export class OpenAPIHonoWithAuth<
   }
 }
 
-/**
- * Helper to attach the global header parameter to routes
- * @param route - The route definition
- * @returns The route definition with the global header parameter
- */
-export function withGlobalHeaderParameters<T extends RouteConfig>(route: T): T {
+const ORGANIZATION_SLUG_PARAMETER = {
+  $ref: "#/components/parameters/OrganizationSlug",
+} as const;
+
+const COWORKER_CONTEXT_HEADER_PARAMETERS = [
+  ORGANIZATION_SLUG_PARAMETER,
+  { $ref: "#/components/parameters/ContextUserId" },
+  { $ref: "#/components/parameters/ContextOrganizationId" },
+] as const;
+
+const ORCHESTRATOR_CONTEXT_HEADER_PARAMETERS = [
+  ORGANIZATION_SLUG_PARAMETER,
+  { $ref: "#/components/parameters/OrchestratorContextUserId" },
+  { $ref: "#/components/parameters/OrchestratorContextOrganizationId" },
+] as const;
+
+function withHeaderParameters<T extends RouteConfig>(
+  route: T,
+  parameters: ReadonlyArray<{ readonly $ref: string }>,
+): T {
   return {
     ...route,
-    parameters: [
-      ...(route.parameters ?? []),
-      { $ref: "#/components/parameters/OrganizationSlug" },
-      { $ref: "#/components/parameters/ContextUserId" },
-      { $ref: "#/components/parameters/ContextOrganizationId" },
-    ],
+    parameters: [...(route.parameters ?? []), ...parameters],
   } as T;
+}
+
+/**
+ * Optional `X-Organization-Slug` only. Use when the route does not accept
+ * coworker/orchestrator `X-Context-*` authentication.
+ */
+export function withOrganizationSlugHeaderParameter<T extends RouteConfig>(
+  route: T,
+): T {
+  return withHeaderParameters(route, [ORGANIZATION_SLUG_PARAMETER]);
+}
+
+/**
+ * Organization slug plus coworker/orchestrator workspace context headers.
+ * Use only when the handler accepts coworker (or orchestrator) auth with
+ * `X-Context-User-Id` / optional `X-Context-Organization-Id`.
+ */
+export function withCoworkerContextHeaderParameters<T extends RouteConfig>(
+  route: T,
+): T {
+  return withHeaderParameters(route, COWORKER_CONTEXT_HEADER_PARAMETERS);
+}
+
+/**
+ * Organization slug plus orchestrator-only workspace context headers.
+ * Use when orchestrator service tokens may bind a user via `X-Context-*`, but
+ * coworker keys are rejected even with those headers.
+ */
+export function withOrchestratorContextHeaderParameters<T extends RouteConfig>(
+  route: T,
+): T {
+  return withHeaderParameters(route, ORCHESTRATOR_CONTEXT_HEADER_PARAMETERS);
+}
+
+/**
+ * Default OpenAPI header params for authenticated routes: organization slug
+ * only. Prefer {@link withCoworkerContextHeaderParameters} or
+ * {@link withOrchestratorContextHeaderParameters} when the route actually
+ * accepts contextual auth via `X-Context-*`.
+ */
+export function withGlobalHeaderParameters<T extends RouteConfig>(route: T): T {
+  return withOrganizationSlugHeaderParameter(route);
 }

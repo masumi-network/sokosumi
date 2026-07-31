@@ -11,7 +11,7 @@ import { created, successResponseSchema } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
@@ -26,7 +26,7 @@ const params = z.object({
   }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/ratings",

@@ -94,8 +94,10 @@ and the task is **not DRAFT**.
   - **`X-Context-User-Id`** (required for delegated flows)
   - **`X-Context-Organization-Id`** (optional; when set, user must be a member)
 - Workspace-scoped routes resolve the active workspace from that user/org context
-  (see Core OpenAPI global parameters in `apps/core/src/routes/v1/index.ts` and
-  `apps/core/src/middleware/coworker-context.ts`)
+  (see `withCoworkerContextHeaderParameters` in `apps/core/src/lib/hono.ts`,
+  parameter components in `apps/core/src/routes/v1/index.ts`, and
+  `apps/core/src/middleware/coworker-context.ts`). OpenAPI only documents
+  `X-Context-*` on operations that accept coworker or orchestrator context auth.
 
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
 `/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth (bare or

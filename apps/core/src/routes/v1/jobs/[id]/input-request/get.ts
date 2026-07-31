@@ -8,7 +8,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 
 const params = z.object({
@@ -27,7 +27,7 @@ const inputRequestSchema = z.object({
   inputSchema: z.string().openapi({ example: "input_schema" }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/input-request",

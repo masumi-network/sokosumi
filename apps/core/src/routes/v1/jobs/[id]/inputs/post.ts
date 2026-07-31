@@ -14,7 +14,7 @@ import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { jobInputSchema } from "@/schemas/job.schema";
 
@@ -51,7 +51,7 @@ const requestBodySchema = z.object({
     }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/inputs",

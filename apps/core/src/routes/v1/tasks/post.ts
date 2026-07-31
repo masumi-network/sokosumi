@@ -37,7 +37,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
   type AuthenticationContext,
@@ -108,7 +108,7 @@ export const createTaskRequestSchema = z
     };
   });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/",
