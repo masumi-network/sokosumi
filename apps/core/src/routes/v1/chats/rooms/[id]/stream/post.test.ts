@@ -40,6 +40,7 @@ const {
   getPendingResponseMirrorMock,
   setPendingResponseMirrorMock,
   clearPendingResponseMirrorMock,
+  renewPendingResponseMirrorMock,
   pollCoworkerResponseStatusMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -74,6 +75,7 @@ const {
   getPendingResponseMirrorMock: vi.fn(),
   setPendingResponseMirrorMock: vi.fn(),
   clearPendingResponseMirrorMock: vi.fn(),
+  renewPendingResponseMirrorMock: vi.fn(),
   pollCoworkerResponseStatusMock: vi.fn(),
 }));
 
@@ -114,6 +116,8 @@ vi.mock("@/helpers/coworker-pending-response-mirror", () => ({
     setPendingResponseMirrorMock(...args),
   clearPendingResponseMirror: (...args: unknown[]) =>
     clearPendingResponseMirrorMock(...args),
+  renewPendingResponseMirror: (...args: unknown[]) =>
+    renewPendingResponseMirrorMock(...args),
 }));
 
 vi.mock("@/helpers/coworker-response-poll", () => ({
@@ -313,6 +317,7 @@ beforeEach(() => {
   getPendingResponseMirrorMock.mockResolvedValue(null);
   setPendingResponseMirrorMock.mockResolvedValue(undefined);
   clearPendingResponseMirrorMock.mockResolvedValue(undefined);
+  renewPendingResponseMirrorMock.mockResolvedValue(undefined);
   waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
     void promise;
   });
@@ -917,7 +922,20 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(startStreamLockHeartbeatMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",
+        expect.objectContaining({
+          onRenew: expect.any(Function),
+        }),
       );
+
+      const heartbeatOptions = startStreamLockHeartbeatMock.mock
+        .calls[0]![2] as {
+        onRenew: () => Promise<void>;
+      };
+      await heartbeatOptions.onRenew();
+      expect(renewPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
     });
 
     it("releases the stream lock on UI onFinish", async () => {

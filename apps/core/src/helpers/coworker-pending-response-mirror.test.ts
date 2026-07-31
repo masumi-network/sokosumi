@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getRedisClientMock, redisDelMock, redisGetMock, redisSetMock } =
-  vi.hoisted(() => ({
-    getRedisClientMock: vi.fn(),
-    redisDelMock: vi.fn(),
-    redisGetMock: vi.fn(),
-    redisSetMock: vi.fn(),
-  }));
+const {
+  getRedisClientMock,
+  redisDelMock,
+  redisExpireMock,
+  redisGetMock,
+  redisSetMock,
+} = vi.hoisted(() => ({
+  getRedisClientMock: vi.fn(),
+  redisDelMock: vi.fn(),
+  redisExpireMock: vi.fn(),
+  redisGetMock: vi.fn(),
+  redisSetMock: vi.fn(),
+}));
 
 vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
@@ -16,6 +22,7 @@ import {
   clearPendingResponseMirror,
   coworkerPendingResponseRedisKey,
   getPendingResponseMirror,
+  renewPendingResponseMirror,
   setPendingResponseMirror,
 } from "./coworker-pending-response-mirror";
 import { COWORKER_STREAM_LOCK_TTL_SECONDS } from "./coworker-stream-lock";
@@ -33,10 +40,12 @@ describe("coworker-pending-response-mirror", () => {
       get: redisGetMock,
       set: redisSetMock,
       del: redisDelMock,
+      expire: redisExpireMock,
     });
     redisGetMock.mockResolvedValue(null);
     redisSetMock.mockResolvedValue("OK");
     redisDelMock.mockResolvedValue(1);
+    redisExpireMock.mockResolvedValue(1);
   });
 
   it("builds room-scoped and thread-scoped redis keys", () => {
@@ -59,11 +68,13 @@ describe("coworker-pending-response-mirror", () => {
 
     await setPendingResponseMirror(ROOM_SCOPE, "resp_1");
     await clearPendingResponseMirror(ROOM_SCOPE);
+    await renewPendingResponseMirror(ROOM_SCOPE);
     await expect(getPendingResponseMirror(ROOM_SCOPE)).resolves.toBeNull();
 
     expect(redisSetMock).not.toHaveBeenCalled();
     expect(redisDelMock).not.toHaveBeenCalled();
     expect(redisGetMock).not.toHaveBeenCalled();
+    expect(redisExpireMock).not.toHaveBeenCalled();
   });
 
   it("sets, reads, and clears the pending response mirror for a room", async () => {
@@ -83,5 +94,27 @@ describe("coworker-pending-response-mirror", () => {
     expect(redisDelMock).toHaveBeenCalledWith(
       coworkerPendingResponseRedisKey(ROOM_SCOPE),
     );
+  });
+
+  it("renews mirror TTL via expire for room and thread scopes", async () => {
+    await renewPendingResponseMirror(ROOM_SCOPE);
+    expect(redisExpireMock).toHaveBeenCalledWith(
+      coworkerPendingResponseRedisKey(ROOM_SCOPE),
+      COWORKER_STREAM_LOCK_TTL_SECONDS,
+    );
+
+    await renewPendingResponseMirror(THREAD_SCOPE);
+    expect(redisExpireMock).toHaveBeenCalledWith(
+      coworkerPendingResponseRedisKey(THREAD_SCOPE),
+      COWORKER_STREAM_LOCK_TTL_SECONDS,
+    );
+    expect(redisSetMock).not.toHaveBeenCalled();
+  });
+
+  it("swallows expire errors without throwing", async () => {
+    redisExpireMock.mockRejectedValueOnce(new Error("redis down"));
+    await expect(
+      renewPendingResponseMirror(ROOM_SCOPE),
+    ).resolves.toBeUndefined();
   });
 });
