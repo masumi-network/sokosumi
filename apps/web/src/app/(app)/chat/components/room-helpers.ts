@@ -107,6 +107,9 @@ export function toggleId(
   return ids.filter((item) => item !== id);
 }
 
+/** Slack-like gap before a same-sender burst starts a new full header. */
+export const MESSAGE_GROUP_GAP_MS = 5 * 60 * 1000;
+
 export function messageSender(message: ChatRoomMessage) {
   if (message.sender.type === "user") {
     return {
@@ -127,6 +130,54 @@ export function messageSender(message: ChatRoomMessage) {
     image: null,
     kind: "unknown" as const,
   };
+}
+
+/** Stable sender identity for grouping; null when identity is unknown. */
+export function messageSenderKey(message: ChatRoomMessage): string | null {
+  if (message.sender.type === "user") {
+    return `user:${message.sender.user.id}`;
+  }
+  if (message.sender.type === "coworker") {
+    return `coworker:${message.sender.coworker.id}`;
+  }
+  return null;
+}
+
+/**
+ * True when `current` should render as a Slack-style continuation of `previous`
+ * (omit avatar / name / primary timestamp).
+ */
+export function isMessageContinuation(
+  previous: ChatRoomMessage | undefined,
+  current: ChatRoomMessage,
+  options?: { gapMs?: number },
+): boolean {
+  if (!previous) {
+    return false;
+  }
+
+  const previousKey = messageSenderKey(previous);
+  const currentKey = messageSenderKey(current);
+  if (!previousKey || !currentKey || previousKey !== currentKey) {
+    return false;
+  }
+
+  if (messageDayKey(previous.createdAt) !== messageDayKey(current.createdAt)) {
+    return false;
+  }
+
+  const gapMs = options?.gapMs ?? MESSAGE_GROUP_GAP_MS;
+  const previousTime = new Date(previous.createdAt).getTime();
+  const currentTime = new Date(current.createdAt).getTime();
+  if (
+    !Number.isFinite(previousTime) ||
+    !Number.isFinite(currentTime) ||
+    currentTime - previousTime >= gapMs
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export function formatMessageTime(value: Date | string): string {
