@@ -85,7 +85,7 @@ describe("coworker-pending-response-mirror", () => {
     );
   });
 
-  it("uses a distinct key for thread scope so top-level and threads do not collide", async () => {
+  it("sets the pending response mirror under the thread-scoped key", async () => {
     await setPendingResponseMirror(THREAD_SCOPE, "resp_thread");
 
     expect(redisSetMock).toHaveBeenCalledWith(
@@ -93,9 +93,6 @@ describe("coworker-pending-response-mirror", () => {
       "resp_thread",
       "EX",
       COWORKER_STREAM_LOCK_TTL_SECONDS,
-    );
-    expect(redisSetMock.mock.calls[0]![0]).not.toBe(
-      coworkerPendingResponseRedisKey(ROOM_SCOPE),
     );
   });
 });

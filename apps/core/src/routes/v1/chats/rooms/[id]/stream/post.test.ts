@@ -1002,7 +1002,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
         onFinish?: () => Promise<void>;
       };
       await init.onFinish!();
-      expect(waitUntilPromises.length).toBeGreaterThanOrEqual(1);
+      expect(waitUntilPromises).toHaveLength(2);
       await Promise.all(waitUntilPromises);
 
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
@@ -1047,7 +1047,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(init.onError?.(new Error("stream boom"))).toBe(
         "An error occurred.",
       );
-      expect(waitUntilPromises.length).toBeGreaterThanOrEqual(1);
+      expect(waitUntilPromises).toHaveLength(2);
       await Promise.all(waitUntilPromises);
 
       expect(releaseStreamLockMock).toHaveBeenCalledWith(

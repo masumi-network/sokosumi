@@ -244,19 +244,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       };
 
-    const clearPendingMirrorBestEffort = () => {
-      waitUntil(
-        clearPendingResponseMirror(pendingResponseScope).catch((error) => {
-          console.error(
-            "Failed to clear pending response mirror (POST /rooms/{id}/stream):",
-            error,
-          );
-        }),
-      );
-    };
-
     const finalizeCoworkerStreamLock = () => {
-      clearPendingMirrorBestEffort();
+      waitUntil(clearPendingResponseMirror(pendingResponseScope));
       const release = releaseOwnedCoworkerStreamLock;
       if (!release) {
         return;
@@ -455,24 +444,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         webSearchEnabled: false,
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
-          try {
-            await setPendingResponseMirror(pendingResponseScope, responseId);
-          } catch (error) {
-            console.error(
-              "Failed to set pending response mirror (POST /rooms/{id}/stream):",
-              error,
-            );
-          }
+          await setPendingResponseMirror(pendingResponseScope, responseId);
         },
-        onResponseCompleted: async (_responseId: string) => {
-          try {
-            await clearPendingResponseMirror(pendingResponseScope);
-          } catch (error) {
-            console.error(
-              "Failed to clear pending response mirror on response completed (POST /rooms/{id}/stream):",
-              error,
-            );
-          }
+        onResponseCompleted: async () => {
+          await clearPendingResponseMirror(pendingResponseScope);
         },
         onInvalidProviderConversationId,
       };
