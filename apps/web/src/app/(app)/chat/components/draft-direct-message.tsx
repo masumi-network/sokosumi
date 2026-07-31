@@ -20,11 +20,8 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type {
-  ChatRoomCoworkerParticipant,
-  Coworker,
-  Member,
-} from "@/lib/clients/generated/core";
+import type { Coworker, Member } from "@/lib/clients/generated/core";
+import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
@@ -39,6 +36,7 @@ import {
 import {
   buildRoomComposerMessageContent,
   isRoomComposerEmpty,
+  type RoomMentionParticipant,
 } from "./room-helpers";
 
 export function DraftDirectMessage({
@@ -65,9 +63,7 @@ export function DraftDirectMessage({
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
-  const [mentionedCoworkerIds, setMentionedCoworkerIds] = useState<string[]>(
-    [],
-  );
+  const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [isSending, startSendingTransition] = useTransition();
   const targets = useMemo(
     () => buildDirectDraftTargets(members, coworkers, currentUserId),
@@ -84,27 +80,31 @@ export function DraftDirectMessage({
     () => filterDraftTargets(targets, selectedKeySet, recipientQuery),
     [recipientQuery, selectedKeySet, targets],
   );
-  const selectedCoworkerParticipants = useMemo<
-    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
+  const selectedMentionParticipants = useMemo<
+    Record<string, MentionRecordEntry<RoomMentionParticipant>>
   >(() => {
     return Object.fromEntries(
-      selectedTargets
-        .filter((target) => target.kind === "coworker" && target.slug)
-        .map((target) => [
+      selectedTargets.map((target) => {
+        const slug =
+          target.kind === "coworker"
+            ? (target.slug ?? target.id)
+            : slugifyMentionValue(target.name);
+        const participant: RoomMentionParticipant = {
+          kind: target.kind,
+          id: target.id,
+          name: target.name,
+          slug,
+          image: target.image,
+        };
+        return [
           target.id,
           {
             value: target.name,
-            slug: target.slug ?? target.id,
-            data: {
-              id: target.id,
-              name: target.name,
-              slug: target.slug ?? target.id,
-              caption: target.caption ?? null,
-              image: target.image,
-              presence: target.presence ?? "online",
-            },
+            slug,
+            data: participant,
           },
-        ]),
+        ];
+      }),
     );
   }, [selectedTargets]);
   const selectedMemberUserIds = selectedTargets
@@ -113,6 +113,14 @@ export function DraftDirectMessage({
   const selectedCoworkerIds = selectedTargets
     .filter((target) => target.kind === "coworker")
     .map((target) => target.id);
+  const selectedCoworkerIdSet = useMemo(
+    () => new Set(selectedCoworkerIds),
+    [selectedCoworkerIds],
+  );
+  const selectedMemberUserIdSet = useMemo(
+    () => new Set(selectedMemberUserIds),
+    [selectedMemberUserIds],
+  );
 
   function addTarget(target: DirectDraftTarget) {
     // Direct messages are 1:1 until group DM ships — selecting replaces.
@@ -165,7 +173,7 @@ export function DraftDirectMessage({
         stashPendingRoomMessage(roomResult.data.id, content);
         setComposerValue("");
         setComposerAttachments([]);
-        setMentionedCoworkerIds([]);
+        setMentionedIds([]);
         notifyOrganizationChatRoomsChanged(roomResult.data);
         router.replace(`/chat/rooms/${roomResult.data.id}`);
       });
@@ -183,11 +191,18 @@ export function DraftDirectMessage({
     }
 
     startSendingTransition(async () => {
+      const mentionedCoworkerIds = mentionedIds.filter((id) =>
+        selectedCoworkerIdSet.has(id),
+      );
+      const mentionedUserIds = mentionedIds.filter((id) =>
+        selectedMemberUserIdSet.has(id),
+      );
       const result = await sendNewDirectMessageAction({
         memberUserIds: selectedMemberUserIds,
         coworkerIds: selectedCoworkerIds,
         content,
         mentionedCoworkerIds,
+        mentionedUserIds,
       });
       if (!result.ok) {
         toast.error(result.message);
@@ -195,7 +210,7 @@ export function DraftDirectMessage({
       }
       setComposerValue("");
       setComposerAttachments([]);
-      setMentionedCoworkerIds([]);
+      setMentionedIds([]);
       notifyOrganizationChatRoomsChanged(result.data.room);
       router.replace(`/chat/rooms/${result.data.room.id}`);
     });
@@ -311,8 +326,8 @@ export function DraftDirectMessage({
       <RoomComposer
         value={composerValue}
         onValueChange={setComposerValue}
-        mentions={selectedCoworkerParticipants}
-        onSelectedKeysChange={setMentionedCoworkerIds}
+        mentions={selectedMentionParticipants}
+        onSelectedKeysChange={setMentionedIds}
         placeholder={
           selectedTargets.length > 0
             ? t("Draft.composerPlaceholder")

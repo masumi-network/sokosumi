@@ -215,6 +215,14 @@ export const createChatRoomMessageRequestSchema = z
       .openapi({
         example: ["cow_123"],
       }),
+    mentionedUserIds: z
+      .array(z.string().min(1))
+      .optional()
+      .openapi({
+        description:
+          "Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.",
+        example: ["user_123"],
+      }),
     parentMessageId: z.string().uuid().optional().openapi({
       description: "Root message ID when posting a threaded reply.",
       example: "550e8400-e29b-41d4-a716-446655440000",

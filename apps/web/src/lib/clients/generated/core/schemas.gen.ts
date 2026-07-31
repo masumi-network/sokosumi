@@ -4980,6 +4980,17 @@ export const CreateChatRoomMessageRequestSchema = {
                 'cow_123'
             ]
         },
+        mentionedUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            description: 'Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.',
+            example: [
+                'user_123'
+            ]
+        },
         parentMessageId: {
             type: 'string',
             format: 'uuid',

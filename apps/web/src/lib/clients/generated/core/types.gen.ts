@@ -1360,6 +1360,10 @@ export type CreateChatRoomMessageRequest = {
     content: string;
     mentionedCoworkerIds?: Array<string>;
     /**
+     * Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.
+     */
+    mentionedUserIds?: Array<string>;
+    /**
      * Root message ID when posting a threaded reply.
      */
     parentMessageId?: string;

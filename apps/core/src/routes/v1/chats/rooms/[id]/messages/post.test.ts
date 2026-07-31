@@ -376,5 +376,45 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
       expect(dispatchMock).not.toHaveBeenCalled();
     });
+
+    it("accepts mentionedUserIds without creating ChatRoomMention rows", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          mentionsAsSource: [
+            {
+              id: MENTION_ID,
+              coworkerId: COWORKER_ID,
+              status: "pending",
+              responseMessageId: null,
+            },
+          ],
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: `@${COWORKER_ID}:hannah hey @user_alice:alice`,
+          mentionedCoworkerIds: [COWORKER_ID],
+          mentionedUserIds: ["user_alice", "user_outside"],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            mentionsAsSource: {
+              create: [{ coworkerId: COWORKER_ID }],
+            },
+          }),
+        }),
+      );
+      expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
+    });
   });
 });

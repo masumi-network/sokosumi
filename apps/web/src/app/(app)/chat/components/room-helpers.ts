@@ -3,6 +3,7 @@ import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
   ChatRoomPresence,
+  ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { parseMentions } from "@/lib/utils/mention-parser";
 
@@ -21,6 +22,15 @@ export interface RoomParticipantPreview {
   image: string | null;
   presence: ChatRoomPresence;
   kind: "human" | "coworker";
+}
+
+/** Shared mention-picker payload for humans and coworkers in room composers. */
+export interface RoomMentionParticipant {
+  kind: "human" | "coworker";
+  id: string;
+  name: string;
+  slug: string;
+  image: string | null;
 }
 
 export function appendComposerBlock(value: string, block: string): string {
@@ -298,10 +308,14 @@ export function formatRoomMarkdownMentions({
   content,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
 }): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
@@ -316,7 +330,10 @@ export function formatRoomMarkdownMentions({
     }
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
-    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${coworker?.name ?? match.id}`)}</span>`;
+    const user =
+      usersById?.get(match.id) ?? usersBySlug?.get(match.slug) ?? undefined;
+    const displayName = coworker?.name ?? user?.name ?? match.id;
+    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
     lastIndex = match.end;
   });
   if (lastIndex < content.length) {
