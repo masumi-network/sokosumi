@@ -38,8 +38,7 @@ const historyScopeQuerySchema = z
   .default("owned")
   .openapi({
     param: { name: "scope", in: "query" },
-    description:
-      "Workspace visibility scope for task and job rows. Conversations are always scoped to the effective user (session or context headers).",
+    description: "Workspace visibility scope for task and job rows.",
     example: "workspace",
   });
 
@@ -59,15 +58,14 @@ const historyTypesQuerySchema = z
   .preprocess(
     preprocessMultiValueQueryInput,
     z
-      .array(z.enum(["task", "job", "conversation"]))
+      .array(z.enum(["task", "job"]))
       .min(1)
       .optional()
       .transform(deduplicateQueryValues),
   )
   .openapi({
     param: { name: "types", in: "query" },
-    description:
-      "Comma-separated history kinds to include: task, job, conversation",
+    description: "Comma-separated history kinds to include: task, job",
     example: "task,job",
   });
 
@@ -83,7 +81,7 @@ const historyStatusQuerySchema = z
   .openapi({
     param: { name: "status", in: "query" },
     description:
-      "Comma-separated status filters. Use `active` or `archived` for conversations. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, only non-archived conversations match (not tasks or jobs).",
+      "Comma-separated status filters. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, only non-archived rows match for kinds that support archived state.",
     example: "READY,completed",
   });
 
@@ -110,14 +108,9 @@ const query = z
 const historyKindByQueryType = {
   task: HistoryKind.TASK,
   job: HistoryKind.JOB,
-  conversation: HistoryKind.CONVERSATION,
 } as const;
 
-const allHistoryKinds = [
-  HistoryKind.TASK,
-  HistoryKind.JOB,
-  HistoryKind.CONVERSATION,
-];
+const allHistoryKinds = [HistoryKind.TASK, HistoryKind.JOB];
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({

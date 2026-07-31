@@ -123,24 +123,6 @@ describe("mapHistoryRow", () => {
       archivedAt: archivedAt.toISOString(),
     });
   });
-
-  it("maps archivedAt for archived conversation rows", () => {
-    const archivedAt = new Date("2026-04-03T11:00:00.000Z");
-    const row = createHistoryRow({
-      archivedAt,
-      bucketSlug: "hannah",
-      entityId: "11111111-1111-4111-8111-111111111111",
-      kind: HistoryKind.CONVERSATION,
-      status: "archived",
-    });
-
-    const item = mapHistoryRow(row);
-
-    expect(item).toMatchObject({
-      kind: "conversation",
-      archivedAt: archivedAt.toISOString(),
-    });
-  });
 });
 
 describe("buildHistoryArchivedFilter", () => {
@@ -163,29 +145,11 @@ describe("buildHistoryArchivedFilter", () => {
 });
 
 describe("buildHistoryStatusFilter", () => {
-  it("does not include conversations when status filter uses kind-specific values only", () => {
-    expect(
-      buildHistoryStatusFilter(
-        [TaskStatus.READY],
-        [HistoryKind.TASK, HistoryKind.CONVERSATION],
-        [],
-      ),
-    ).toEqual({
-      OR: [
-        {
-          kind: HistoryKind.TASK,
-          status: { in: [TaskStatus.READY] },
-          archivedAt: null,
-        },
-      ],
-    });
-  });
-
-  it("matches non-archived task and conversation rows on stored status", () => {
+  it("matches non-archived task rows on stored status", () => {
     expect(
       buildHistoryStatusFilter(
         [TaskStatus.READY, "active"],
-        [HistoryKind.TASK, HistoryKind.CONVERSATION],
+        [HistoryKind.TASK],
         [],
       ),
     ).toEqual({
@@ -195,42 +159,26 @@ describe("buildHistoryStatusFilter", () => {
           status: { in: [TaskStatus.READY] },
           archivedAt: null,
         },
-        {
-          kind: HistoryKind.CONVERSATION,
-          archivedAt: null,
-        },
       ],
     });
   });
 
-  it("matches archived tasks and conversations using archivedAt", () => {
+  it("matches archived tasks using archivedAt", () => {
     expect(
-      buildHistoryStatusFilter(
-        ["archived"],
-        [HistoryKind.TASK, HistoryKind.CONVERSATION],
-        [],
-      ),
+      buildHistoryStatusFilter(["archived"], [HistoryKind.TASK], []),
     ).toEqual({
       OR: [
         {
           kind: HistoryKind.TASK,
           archivedAt: { not: null },
         },
-        {
-          kind: HistoryKind.CONVERSATION,
-          archivedAt: { not: null },
-        },
       ],
     });
   });
 
-  it("includes both archived and non-archived rows when active and archived are requested", () => {
+  it("includes both archived and non-archived task rows when active and archived are requested", () => {
     expect(
-      buildHistoryStatusFilter(
-        ["active", "archived"],
-        [HistoryKind.TASK, HistoryKind.CONVERSATION],
-        [],
-      ),
+      buildHistoryStatusFilter(["active", "archived"], [HistoryKind.TASK], []),
     ).toEqual({
       OR: [
         {
@@ -241,18 +189,6 @@ describe("buildHistoryStatusFilter", () => {
             },
             {
               kind: HistoryKind.TASK,
-              archivedAt: { not: null },
-            },
-          ],
-        },
-        {
-          OR: [
-            {
-              kind: HistoryKind.CONVERSATION,
-              archivedAt: null,
-            },
-            {
-              kind: HistoryKind.CONVERSATION,
               archivedAt: { not: null },
             },
           ],

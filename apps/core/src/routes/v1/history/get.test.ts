@@ -143,10 +143,6 @@ describe("GET /history", () => {
                 userId: "user_123",
                 workspaceId: WORKSPACE_CONTEXT.workspaceId,
               },
-              {
-                kind: HistoryKind.CONVERSATION,
-                userId: "user_123",
-              },
             ],
           },
         ],
@@ -220,7 +216,7 @@ describe("GET /history", () => {
     expect(historyFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("keeps conversations user-scoped when scope=workspace", async () => {
+  it("uses workspace scope without user filter when scope=workspace", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?scope=workspace");
 
@@ -236,10 +232,6 @@ describe("GET /history", () => {
                   kind: { in: [HistoryKind.TASK, HistoryKind.JOB] },
                   workspaceId: WORKSPACE_CONTEXT.workspaceId,
                 },
-                {
-                  kind: HistoryKind.CONVERSATION,
-                  userId: "user_123",
-                },
               ],
             },
           ],
@@ -248,11 +240,11 @@ describe("GET /history", () => {
     );
   });
 
-  it("filters types and projectId on task and job rows only", async () => {
+  it("filters types and projectId on task and job rows", async () => {
     const projectId = "33333333-3333-4333-8333-333333333333";
     const app = createApp();
     const response = await app.request(
-      `http://localhost/?types=task,conversation&projectId=${projectId}`,
+      `http://localhost/?types=task&projectId=${projectId}`,
     );
 
     expect(response.status).toBe(200);
@@ -269,10 +261,6 @@ describe("GET /history", () => {
                   userId: "user_123",
                   workspaceId: WORKSPACE_CONTEXT.workspaceId,
                 },
-                {
-                  kind: HistoryKind.CONVERSATION,
-                  userId: "user_123",
-                },
               ],
             },
           ],
@@ -281,10 +269,10 @@ describe("GET /history", () => {
     );
   });
 
-  it("includes conversations when projectId=null filters unassigned tasks and jobs", async () => {
+  it("filters unassigned task rows when projectId=null", async () => {
     const app = createApp();
     const response = await app.request(
-      "http://localhost/?types=task,conversation&projectId=null",
+      "http://localhost/?types=task&projectId=null",
     );
 
     expect(response.status).toBe(200);
@@ -300,43 +288,6 @@ describe("GET /history", () => {
                   projectId: null,
                   userId: "user_123",
                   workspaceId: WORKSPACE_CONTEXT.workspaceId,
-                },
-                {
-                  kind: HistoryKind.CONVERSATION,
-                  userId: "user_123",
-                },
-              ],
-            },
-          ],
-        },
-      }),
-    );
-  });
-
-  it("includes archived conversations when status filter requests archived", async () => {
-    const app = createApp();
-    const response = await app.request(
-      "http://localhost/?types=conversation&status=archived",
-    );
-
-    expect(response.status).toBe(200);
-    expect(historyFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [
-            {
-              OR: [
-                {
-                  kind: HistoryKind.CONVERSATION,
-                  userId: "user_123",
-                },
-              ],
-            },
-            {
-              OR: [
-                {
-                  kind: HistoryKind.CONVERSATION,
-                  archivedAt: { not: null },
                 },
               ],
             },
@@ -415,7 +366,7 @@ describe("GET /history", () => {
     );
   });
 
-  it("does not include active conversations for task or job status filters", async () => {
+  it("excludes task rows when only job status filters are provided", async () => {
     prismaQueryRawMock.mockResolvedValue([{ entityId: "job_payment_pending" }]);
 
     const app = createApp();
@@ -433,32 +384,6 @@ describe("GET /history", () => {
                 {
                   kind: HistoryKind.JOB,
                   entityId: { in: ["job_payment_pending"] },
-                },
-              ],
-            },
-          ]),
-        }),
-      }),
-    );
-  });
-
-  it("only includes conversations when status filter is active", async () => {
-    const app = createApp();
-    const response = await app.request(
-      "http://localhost/?status=active&types=conversation",
-    );
-
-    expect(response.status).toBe(200);
-    expect(prismaQueryRawMock).not.toHaveBeenCalled();
-    expect(historyFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          AND: expect.arrayContaining([
-            {
-              OR: [
-                {
-                  kind: HistoryKind.CONVERSATION,
-                  archivedAt: null,
                 },
               ],
             },
@@ -574,14 +499,13 @@ describe("GET /history", () => {
     );
   });
 
-  it("returns the next item entity id as cursor and null conversation credits", async () => {
+  it("returns the next item entity id as cursor", async () => {
     const visibleRow = createHistoryRow({
       amount: null,
-      bucketSlug: "hannah",
-      entityId: "conversation_1",
-      kind: HistoryKind.CONVERSATION,
+      entityId: "task_1",
+      kind: HistoryKind.TASK,
       projectId: null,
-      status: "active",
+      status: TaskStatus.READY,
     });
     historyFindManyMock.mockResolvedValue([
       visibleRow,
@@ -600,7 +524,7 @@ describe("GET /history", () => {
     expect(body.data).toEqual([
       expect.objectContaining({
         credits: null,
-        kind: "conversation",
+        kind: "task",
       }),
     ]);
     expect(body.meta.pagination.nextCursor).toBe(visibleRow.entityId);
