@@ -2038,6 +2038,61 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
+  it("persists and warns for an explicitly allowed HTTP authentication URL", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_http_auth",
+            status: TaskStatus.AUTHENTICATION_REQUIRED,
+            authenticationUrl: "http://service.secured-network/oauth/authorize",
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    mockTransaction(tx);
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.AUTHENTICATION_REQUIRED,
+        authenticationUrl: "http://service.secured-network/oauth/authorize",
+        allowInsecureAuthenticationUrl: true,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          authenticationUrl: "http://service.secured-network/oauth/authorize",
+        }),
+      }),
+    );
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[tasks] insecure HTTP authentication URL explicitly allowed",
+      expect.objectContaining({
+        taskId: TASK_ID,
+        taskEventId: "evt_http_auth",
+        authenticationHost: "service.secured-network",
+      }),
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
   it("rejects replaying the same Masumi blockchain identifier", async () => {
     const tx: TransactionMock = {
       taskEvent: {

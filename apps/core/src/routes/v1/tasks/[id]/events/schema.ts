@@ -22,6 +22,18 @@ import {
 const HEX_PATTERN = /^[0-9a-f]+$/i;
 const MAX_SIGNED_INT64 = 9_223_372_036_854_775_807n;
 
+function isInsecureHttpAuthenticationUrl(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    return new URL(value).protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 const masumiTimestampSchema = z
   .string()
   .regex(/^\d{1,19}$/, "must be a positive millisecond timestamp")
@@ -155,9 +167,14 @@ export function createTaskEventRequestSchema(
         .optional()
         .openapi({ example: "Task Event is running" }),
       authenticationUrl: z
-        .httpUrl()
+        .url({ protocol: /^https?$/ })
         .optional()
         .openapi({ example: "https://example.com/oauth/authorize" }),
+      allowInsecureAuthenticationUrl: z.boolean().optional().openapi({
+        example: false,
+        description:
+          "Explicitly allow an http:// authentication URL. Set only when Sokosumi and the coworker service communicate through a trusted secured network. Clients must warn users before opening it.",
+      }),
       credits: z.number().positive().nullish().openapi({
         example: 5,
         description:
@@ -287,11 +304,15 @@ export function createTaskEventRequestSchema(
               "authenticationUrl is required for authentication requests",
             path: ["authenticationUrl"],
           });
-        } else if (!data.authenticationUrl.startsWith("https://")) {
+        } else if (
+          isInsecureHttpAuthenticationUrl(data.authenticationUrl) &&
+          data.allowInsecureAuthenticationUrl !== true
+        ) {
           ctx.addIssue({
             code: "custom",
-            message: "authenticationUrl must be an https URL",
-            path: ["authenticationUrl"],
+            message:
+              "http authenticationUrl requires allowInsecureAuthenticationUrl: true",
+            path: ["allowInsecureAuthenticationUrl"],
           });
         }
       } else if (data.authenticationUrl !== undefined) {
@@ -300,6 +321,20 @@ export function createTaskEventRequestSchema(
           message:
             "authenticationUrl is only allowed for authentication requests",
           path: ["authenticationUrl"],
+        });
+      }
+
+      if (
+        data.allowInsecureAuthenticationUrl === true &&
+        (data.status !== TaskStatus.AUTHENTICATION_REQUIRED ||
+          data.authenticationUrl === undefined ||
+          !isInsecureHttpAuthenticationUrl(data.authenticationUrl))
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "allowInsecureAuthenticationUrl is only valid for an http authenticationUrl",
+          path: ["allowInsecureAuthenticationUrl"],
         });
       }
     })

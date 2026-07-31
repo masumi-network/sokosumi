@@ -334,10 +334,48 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects authentication required with non-https auth url", () => {
+  it("rejects an HTTP auth URL without explicit opt-in", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.AUTHENTICATION_REQUIRED,
       authenticationUrl: "http://example.com/oauth/authorize",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts an HTTP auth URL with explicit opt-in", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.AUTHENTICATION_REQUIRED,
+      authenticationUrl: "http://service.secured-network/oauth/authorize",
+      allowInsecureAuthenticationUrl: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects insecure opt-in when URL is already HTTPS", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.AUTHENTICATION_REQUIRED,
+      authenticationUrl: "https://example.com/oauth/authorize",
+      allowInsecureAuthenticationUrl: true,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a malformed auth URL without throwing during refinement", () => {
+    expect(() =>
+      taskEventRequestSchema.safeParse({
+        status: TaskStatus.AUTHENTICATION_REQUIRED,
+        authenticationUrl: "not-a-url",
+        allowInsecureAuthenticationUrl: true,
+      }),
+    ).not.toThrow();
+
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.AUTHENTICATION_REQUIRED,
+      authenticationUrl: "not-a-url",
+      allowInsecureAuthenticationUrl: true,
     });
 
     expect(result.success).toBe(false);

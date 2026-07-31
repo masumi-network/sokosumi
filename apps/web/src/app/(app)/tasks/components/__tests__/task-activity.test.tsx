@@ -28,6 +28,8 @@ vi.mock("next-intl", () => ({
   useTranslations: () => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
+      insecureAuthenticationWarning:
+        "This authentication link uses unencrypted HTTP. Continue only when Sokosumi and the coworker service communicate through a trusted secured network.",
       "billingCta.upgradePlan": "Get more credits",
       "billingCta.addCredits": "Add credits",
       "billingCta.placeholder":
@@ -338,6 +340,29 @@ describe("TaskActivitySection", () => {
     expect(screen.getAllByRole("link", { name: "Authenticate" })).toHaveLength(
       1,
     );
+  });
+
+  it("warns before opening an explicitly allowed HTTP auth link", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-http-auth", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.AUTHENTICATION_REQUIRED,
+        authenticationUrl: "http://service.secured-network/oauth/authorize",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    const warning = screen.getByRole("alert");
+    expect(warning).toHaveTextContent(
+      "This authentication link uses unencrypted HTTP",
+    );
+    const authLink = screen.getByRole("link", { name: "Authenticate" });
+    expect(authLink).toHaveAttribute(
+      "href",
+      "http://service.secured-network/oauth/authorize",
+    );
+    expect(authLink).toHaveAttribute("aria-describedby", warning.id);
   });
 
   it("does not show auth button when latest event is a comment", () => {

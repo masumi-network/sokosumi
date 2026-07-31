@@ -1638,6 +1638,7 @@
         "sendWith": "发送方式",
         "ctrl": "Ctrl",
         "authenticate": "验证身份",
+        "insecureAuthenticationWarning": "This authentication link uses unencrypted HTTP. Continue only when Sokosumi and the coworker service communicate through a trusted secured network.",
         "expand": "展开",
         "collapse": "收起",
         "actorCoworker": "协作伙伴",

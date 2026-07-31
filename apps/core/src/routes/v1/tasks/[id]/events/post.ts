@@ -698,6 +698,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cascadedChildTaskIds,
     } = transactionResult;
 
+    if (
+      body.allowInsecureAuthenticationUrl === true &&
+      body.authenticationUrl &&
+      new URL(body.authenticationUrl).protocol === "http:"
+    ) {
+      const authenticationHost = new URL(body.authenticationUrl).host;
+      console.warn(
+        "[tasks] insecure HTTP authentication URL explicitly allowed",
+        { taskId, taskEventId: event.id, authenticationHost },
+      );
+      Sentry.addBreadcrumb({
+        category: "task_authentication",
+        message: "Insecure HTTP authentication URL explicitly allowed",
+        level: "warning",
+        data: { taskId, taskEventId: event.id, authenticationHost },
+      });
+    }
+
     if (event.status) {
       const taskEventId = event.id;
       const taskEventStatus = event.status;
