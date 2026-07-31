@@ -10,12 +10,14 @@ import { mockCoworkerOption } from "@/test-fixtures/coworker";
 const {
   markdownEditorPropsSpy,
   uploadTaskAttachmentMock,
+  uploadUserFileDirectMock,
   toastCustomMock,
   toastDismissMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
   markdownEditorPropsSpy: vi.fn(),
   uploadTaskAttachmentMock: vi.fn(),
+  uploadUserFileDirectMock: vi.fn(),
   toastCustomMock: vi.fn(),
   toastDismissMock: vi.fn(),
   toastErrorMock: vi.fn(),
@@ -49,6 +51,13 @@ vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
 vi.mock("@/lib/utils/task-attachments.client", () => ({
   uploadTaskAttachment: (...args: unknown[]) =>
     uploadTaskAttachmentMock(...args),
+}));
+
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadUserFileDirect: (...args: unknown[]) =>
+    uploadUserFileDirectMock(...args),
+  getUserFileUploadErrorMessage: (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback,
 }));
 
 vi.mock("sonner", () => ({
@@ -1240,6 +1249,45 @@ describe("TaskForm", () => {
       expect(toastDismissMock).toHaveBeenCalledTimes(1);
       expect(toastErrorMock).toHaveBeenCalledWith("Upload canceled.");
     });
+  });
+
+  it("uploads create-mode attachments via user files when no taskId", async () => {
+    const user = userEvent.setup();
+    const file = new File(["notes"], "DESIGN.md", {
+      type: "text/markdown",
+    });
+
+    uploadUserFileDirectMock.mockResolvedValue({
+      publicUrl: "https://blob.example/users/u1/DESIGN.md",
+    });
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(uploadUserFileDirectMock).toHaveBeenCalledTimes(1);
+      expect(uploadTaskAttachmentMock).not.toHaveBeenCalled();
+      expect(toastDismissMock).toHaveBeenCalled();
+    });
+
+    expect(uploadUserFileDirectMock).toHaveBeenCalledWith(
+      file,
+      expect.objectContaining({
+        abortSignal: expect.any(AbortSignal),
+      }),
+    );
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
   it("uses a custom create handler when provided", async () => {

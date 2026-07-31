@@ -60,7 +60,10 @@ import {
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
-import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
+import {
+  getUserFileUploadErrorMessage,
+  uploadUserFileDirect,
+} from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 import { TaskCreatedCelebration } from "./task-created-celebration";
@@ -548,15 +551,6 @@ export function TaskForm({
     async (files: File[]) => {
       if (files.length === 0) return;
 
-      if (!taskId) {
-        toast.error(
-          labels.uploadFileError ??
-            "Save the task as a draft before attaching files.",
-        );
-        setPendingUploadFiles([]);
-        return;
-      }
-
       const uploadToast = createTaskAttachmentUploadToast({
         files,
         labels: {
@@ -570,12 +564,24 @@ export function TaskForm({
       setUploadingAttachmentsCount((count) => count + 1);
       try {
         for (const [index, file] of files.entries()) {
-          const uploadedUrl = await uploadTaskAttachment(taskId, file, {
-            abortSignal: controller.signal,
-            onUploadProgress: (progress) => {
-              uploadToast.updateFileProgress(index, progress);
-            },
-          });
+          // Existing tasks use task-scoped Blob uploads. New-task create has no
+          // taskId yet, so fall back to user-file uploads (pre-#3469 behavior)
+          // so description links still work before save.
+          const uploadedUrl = taskId
+            ? await uploadTaskAttachment(taskId, file, {
+                abortSignal: controller.signal,
+                onUploadProgress: (progress) => {
+                  uploadToast.updateFileProgress(index, progress);
+                },
+              })
+            : (
+                await uploadUserFileDirect(file, {
+                  abortSignal: controller.signal,
+                  onUploadProgress: (progress) => {
+                    uploadToast.updateFileProgress(index, progress);
+                  },
+                })
+              ).publicUrl;
           uploadToast.markFileComplete(index);
           const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
           if (markdownEditorRef.current) {
@@ -919,15 +925,8 @@ export function TaskForm({
                           mode === "create" ? TaskStatus.READY : undefined;
                         void handleSave(shortcutStatus);
                       }}
-                      onAttachClick={
-                        taskId
-                          ? () => attachmentTriggerRef.current?.click()
-                          : () => {
-                              toast.error(
-                                labels.uploadFileError ??
-                                  "Save the task as a draft before attaching files.",
-                              );
-                            }
+                      onAttachClick={() =>
+                        attachmentTriggerRef.current?.click()
                       }
                       attachLabel={labels.uploadFile}
                       isAttachmentUploading={isUploadingAttachments}
