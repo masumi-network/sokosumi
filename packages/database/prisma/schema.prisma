@@ -82,8 +82,6 @@ model User {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
-  // Conversations
-  conversations         Conversation[]
   createdChatRooms      ChatRoom[]             @relation("ChatRoomCreator")
   chatRoomMemberships   ChatRoomUserMember[]
   chatRoomMessages      ChatRoomMessage[]      @relation("ChatRoomUserSender")
@@ -336,7 +334,6 @@ model VendorGrant {
 enum HistoryKind {
   TASK
   JOB
-  CONVERSATION
 }
 
 model History {
@@ -350,7 +347,7 @@ model History {
   description    String?
   status         String
   sortAt         DateTime
-  amount         BigInt? // positive spend total in Transaction.amount units; null for conversations
+  amount         BigInt? // positive spend total in Transaction.amount units
   projectId      String?     @db.Uuid
   agentId        String?
   coworkerId     String?
@@ -366,7 +363,6 @@ model History {
 enum NotificationKind {
   JOB
   TASK
-  CONVERSATION
   BILLING
   SYSTEM
 }
@@ -1807,44 +1803,6 @@ model ChatRoomMention {
   @@unique([messageId, coworkerId])
   @@index([coworkerId, status])
   @@map("chat_room_mention")
-}
-
-model Conversation {
-  id         String    @id @default(uuid(7)) @db.Uuid
-  openaiId   String    @unique
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title      String?
-  metadata   Json?
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  providerConversationId String? @unique
-
-  messages ConversationMessage[]
-
-  @@index([userId])
-  @@index([openaiId])
-  @@index([archivedAt])
-  @@map("conversation")
-}
-
-model ConversationMessage {
-  id                     String       @id @default(uuid(7)) @db.Uuid
-  conversationId         String       @db.Uuid
-  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role                   String // "user" | "assistant" | "system"
-  contentType            String? // "input_text", "output_text", etc. (optional)
-  contentText            String
-  responsesApiResponseId String?
-  metadata               Json?
-  createdAt              DateTime     @default(now())
-
-  @@unique([conversationId, responsesApiResponseId])
-  @@index([conversationId])
-  @@index([conversationId, createdAt])
-  @@map("conversationMessage")
 }
 
 /// Per-user persistent history for the user's private Hermes agent. There is
