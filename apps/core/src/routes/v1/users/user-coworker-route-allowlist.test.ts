@@ -32,7 +32,8 @@ describe("userRouteSubpathAfterId", () => {
 });
 
 describe("isCoworkerAllowedUserSubpath", () => {
-  it("allows credits and organization list/credits reads", () => {
+  it("allows profile, credits, and organization list/credits reads", () => {
+    expect(isCoworkerAllowedUserSubpath("/")).toBe(true);
     expect(isCoworkerAllowedUserSubpath("/credits")).toBe(true);
     expect(isCoworkerAllowedUserSubpath("/organizations")).toBe(true);
     expect(isCoworkerAllowedUserSubpath("/organizations/org_1/credits")).toBe(
@@ -41,7 +42,6 @@ describe("isCoworkerAllowedUserSubpath", () => {
   });
 
   it("rejects other user subpaths", () => {
-    expect(isCoworkerAllowedUserSubpath("/")).toBe(false);
     expect(isCoworkerAllowedUserSubpath("/preferences")).toBe(false);
     expect(isCoworkerAllowedUserSubpath("/billing-details")).toBe(false);
     expect(isCoworkerAllowedUserSubpath("/organizations/org_1")).toBe(false);

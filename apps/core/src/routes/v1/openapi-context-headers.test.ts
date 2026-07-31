@@ -72,6 +72,12 @@ describe("OpenAPI X-Context-* header documentation", () => {
     expect(hasOrchestratorContextHeaders(refs)).toBe(false);
   });
 
+  it("documents coworker context headers on user profile", () => {
+    const doc = usersRouter.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(doc, "/{id}", "get");
+    expect(hasCoworkerContextHeaders(refs)).toBe(true);
+  });
+
   it("documents coworker context headers on user organizations list", () => {
     const doc = usersRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(doc, "/{id}/organizations", "get");

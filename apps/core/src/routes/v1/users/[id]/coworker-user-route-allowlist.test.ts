@@ -11,6 +11,7 @@ import {
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetUserCredits from "./credits/get.js";
+import mountGetUserById from "./get.js";
 import mountGetUserOrganizationCredits from "./organizations/[organizationId]/credits/get.js";
 import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
@@ -22,12 +23,16 @@ const {
   memberFindManyMock,
   resolveMemberOrganizationByIdMock,
   getMemberByUserIdAndOrganizationIdMock,
+  prismaTransactionMock,
+  txUserFindUniqueMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  txUserFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -35,14 +40,7 @@ vi.mock("@/lib/db/prisma", () => ({
     user: {
       findUnique: userFindUniqueMock,
     },
-    $transaction: async (
-      callback: (tx: {
-        member: { findMany: typeof memberFindManyMock };
-      }) => Promise<unknown>,
-    ) =>
-      callback({
-        member: { findMany: memberFindManyMock },
-      }),
+    $transaction: prismaTransactionMock,
   },
 }));
 
@@ -85,6 +83,17 @@ const MEMBER_RECORD = {
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
 };
 
+const USER_RECORD = {
+  id: "user_123",
+  createdAt: new Date("2025-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+  name: "Ada Lovelace",
+  email: "ada@example.com",
+  emailVerified: true,
+  image: null,
+  role: "user",
+};
+
 function createCoworkerUserApp(options: {
   withContext: boolean;
 }): OpenAPIHono<{ Variables: AuthVariables }> {
@@ -117,6 +126,9 @@ function createCoworkerUserApp(options: {
   }>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
   userByIdApp.use("*", coworkerUserRouteAllowlistMiddleware);
+  mountGetUserById(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
   mountGetUserCredits(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
@@ -141,17 +153,42 @@ describe("coworker user route allowlist", () => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     buildCreditsPayloadMock.mockResolvedValue(CREDITS_PAYLOAD);
-    memberFindManyMock.mockResolvedValue([]);
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: { id: "org_1" },
     });
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(MEMBER_RECORD);
+    txUserFindUniqueMock.mockResolvedValue(USER_RECORD);
+    prismaTransactionMock.mockImplementation(
+      async (
+        callback: (tx: {
+          user: { findUnique: typeof txUserFindUniqueMock };
+          member: { findMany: typeof memberFindManyMock };
+        }) => Promise<unknown>,
+      ) =>
+        callback({
+          user: { findUnique: txUserFindUniqueMock },
+          member: { findMany: memberFindManyMock },
+        }),
+    );
+    memberFindManyMock.mockResolvedValue([]);
   });
 
   it("returns 403 for bare coworker on credits", async () => {
     const app = createCoworkerUserApp({ withContext: false });
     const response = await app.request("http://localhost/me/credits");
     expect(response.status).toBe(403);
+  });
+
+  it("allows coworker with context headers on user profile", async () => {
+    const app = createCoworkerUserApp({ withContext: true });
+    const response = await app.request("http://localhost/me");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      id: "user_123",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
   });
 
   it("allows coworker with context headers on credits", async () => {

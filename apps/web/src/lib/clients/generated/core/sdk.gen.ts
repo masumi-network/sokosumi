@@ -1395,7 +1395,7 @@ export const getUsersByIdSubscription = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Get a user: use path `me` for the authenticated session user, or a user id when the session user matches that id or a session admin requests any user.
+ * Get a user: path `me` for the session user, or a user id when the session user matches that id, a session admin requests any user, or orchestrator/coworker with matching `X-Context-User-Id`.
  */
 export const getUsersById = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdData, ThrowOnError>): RequestResult<GetUsersByIdResponses, GetUsersByIdErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdResponses, GetUsersByIdErrors, ThrowOnError>({
     responseTransformer: getUsersByIdResponseTransformer,

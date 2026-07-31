@@ -27,7 +27,7 @@ export type SessionUserContext = {
 export const usersRoutePathUserIdSchema = z.string().openapi({
   param: { name: "id", in: "path" },
   description:
-    "Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to credits and organization list/credits reads documented on those operations.",
+    "Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to profile, credits, and organization list/credits reads documented on those operations.",
   example: "me",
 });
 

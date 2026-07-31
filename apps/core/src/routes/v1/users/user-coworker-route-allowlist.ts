@@ -17,6 +17,7 @@ type UserRouteEnv = {
  * do not mount mutating routes on the same paths without updating this gate.
  */
 const COWORKER_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
+  /^\/$/,
   /^\/credits$/,
   /^\/organizations$/,
   /^\/organizations\/[^/]+\/credits$/,
@@ -77,7 +78,7 @@ export function isCoworkerAllowedUserSubpath(subpath: string): boolean {
 /**
  * Default-deny gate for coworker actors on `/users/{id}/*`. Path resolution
  * may accept coworker + context; this middleware keeps access limited to
- * credits and organization list/credits reads.
+ * user profile, credits, and organization list/credits reads.
  */
 export const coworkerUserRouteAllowlistMiddleware =
   createMiddleware<UserRouteEnv>(async (c, next) => {
