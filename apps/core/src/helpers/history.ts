@@ -511,6 +511,12 @@ export function mapHistoryRow(
         agentIcon: agentPreview?.icon ?? null,
       };
     }
+    default: {
+      // Exhaustiveness for HistoryKind (TASK | JOB after rooms cutover). Also
+      // keeps typecheck green if a local Prisma client still lists removed
+      // values (e.g. CONVERSATION) until `pnpm prisma:generate` is re-run.
+      throw new Error(`Unsupported history kind: ${String(row.kind)}`);
+    }
   }
 }
 
