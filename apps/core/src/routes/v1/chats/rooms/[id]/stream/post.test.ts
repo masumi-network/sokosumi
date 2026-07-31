@@ -24,8 +24,6 @@ const {
   convertToModelMessagesMock,
   validateUIMessagesMock,
   getSokosumiProviderMock,
-  conversationCreateMock,
-  conversationMessageCreateMock,
   persistUserMessageToChatRoomMock,
   persistAssistantToChatRoomMock,
   isUiStreamResumptionConfiguredMock,
@@ -56,8 +54,6 @@ const {
   convertToModelMessagesMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
-  conversationCreateMock: vi.fn(),
-  conversationMessageCreateMock: vi.fn(),
   persistUserMessageToChatRoomMock: vi.fn(),
   persistAssistantToChatRoomMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(),
@@ -156,12 +152,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: memberFindUniqueMock,
-    },
-    conversation: {
-      create: conversationCreateMock,
-    },
-    conversationMessage: {
-      create: conversationMessageCreateMock,
     },
   },
 }));
@@ -342,8 +332,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(response.status).toBe(404);
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when room has zero coworker members", async () => {
@@ -458,8 +446,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(ensureThreadProviderConversationMock).not.toHaveBeenCalled();
     expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
     expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
 
   it("persists thread replies under parentMessageId with thread-scoped conversation", async () => {
@@ -581,9 +567,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(streamArgs.providerOptions.sokosumi.providerConversationId).toBe(
       "conv_new_1",
     );
-
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
 
   it("persists assistant turn on stream onFinish via persistAssistantToChatRoom", async () => {
@@ -621,8 +604,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
         }),
       }),
     );
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
 
   it("uses room.organizationId (not active session org) for personal rooms", async () => {

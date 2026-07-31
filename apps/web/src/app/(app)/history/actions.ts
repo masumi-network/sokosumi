@@ -6,8 +6,6 @@ import {
   parseHistoryFilters,
   resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
-import type { HistoryBucketLookups } from "@/app/history/utils/history-row-subtitle";
-import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import {
   type HistoryItem,
@@ -30,7 +28,6 @@ export const loadMoreHistory = withSession<
   {
     history: HistoryItem[];
     nextCursor: string | null;
-    bucketLookups: HistoryBucketLookups;
   }
 >(async ({ cursor, filters, session }) => {
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
@@ -56,11 +53,9 @@ export const loadMoreHistory = withSession<
     status: resolvedFilters.status ? [resolvedFilters.status] : undefined,
     types: resolveHistoryApiTypes(resolvedFilters.type),
   });
-  const bucketLookups = await buildHistoryBucketLookups(page.history);
 
   return {
     history: page.history,
     nextCursor: page.pagination?.nextCursor ?? null,
-    bucketLookups,
   };
 });

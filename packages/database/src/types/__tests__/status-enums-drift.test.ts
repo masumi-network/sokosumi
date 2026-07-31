@@ -7,8 +7,10 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+  HistoryKind as PrismaHistoryKind,
   NextJobAction as PrismaNextJobAction,
   NextJobActionErrorType as PrismaNextJobActionErrorType,
+  NotificationKind as PrismaNotificationKind,
   OnChainTransactionStatus as PrismaOnChainTransactionStatus,
   VendorMemberRole as PrismaVendorMemberRole,
 } from "../../generated/prisma/enums.js";
@@ -29,6 +31,22 @@ import { MemberRole } from "../organization.js";
  * - Database `MemberRole` / `InvitationStatus` value locks
  */
 describe("status enum drift guard", () => {
+  it("Prisma HistoryKind excludes legacy CONVERSATION after rooms cutover", () => {
+    expect({ ...PrismaHistoryKind }).toEqual({
+      TASK: "TASK",
+      JOB: "JOB",
+    });
+  });
+
+  it("Prisma NotificationKind excludes legacy CONVERSATION after rooms cutover", () => {
+    expect({ ...PrismaNotificationKind }).toEqual({
+      JOB: "JOB",
+      TASK: "TASK",
+      BILLING: "BILLING",
+      SYSTEM: "SYSTEM",
+    });
+  });
+
   it("utils NextJobAction matches the Prisma-generated NextJobAction enum", () => {
     expect({ ...NextJobAction }).toEqual({ ...PrismaNextJobAction });
   });

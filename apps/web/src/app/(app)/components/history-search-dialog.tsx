@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { getHistoryItemHref } from "@/app/history/components/history-list-item";
 import {
   HistoryMetaTime,
@@ -13,11 +12,6 @@ import {
   getDefaultHistoryScope,
   resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
-import {
-  buildHistoryBucketLookupsFromItems,
-  type CoworkerBucketSource,
-  createEmptyHistoryBucketLookups,
-} from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import {
@@ -44,15 +38,6 @@ interface HistorySearchDialogLabels {
   loading: string;
   error: string;
   updated: string;
-  kind: {
-    task: string;
-    job: string;
-    conversation: string;
-  };
-  conversationStatus: {
-    active: string;
-    archived: string;
-  };
 }
 
 interface HistorySearchDialogProps {
@@ -71,22 +56,12 @@ export function HistorySearchDialog({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [coworkers, setCoworkers] = useState<CoworkerBucketSource[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const requestIdRef = useRef(0);
   const router = useRouter();
   const { formatTimeAgo } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
-
-  const loadCoworkers = useEffectEvent(async () => {
-    try {
-      const response = await coreClient.getCoworkers();
-      setCoworkers(response.data ?? []);
-    } catch {
-      setCoworkers([]);
-    }
-  });
 
   const loadHistory = useEffectEvent(async (searchQuery: string) => {
     const requestId = ++requestIdRef.current;
@@ -129,29 +104,14 @@ export function HistorySearchDialog({
   useEffect(() => {
     if (!open) return;
 
-    void loadCoworkers();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-
     void loadHistory(debouncedQuery);
   }, [activeOrganizationId, debouncedQuery, open]);
-
-  const bucketLookups = useMemo(
-    () =>
-      history.length > 0
-        ? buildHistoryBucketLookupsFromItems(history, coworkers)
-        : createEmptyHistoryBucketLookups(),
-    [coworkers, history],
-  );
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
       setQuery("");
       setDebouncedQuery("");
       setHistory([]);
-      setCoworkers([]);
       setError(null);
       setIsLoading(false);
       requestIdRef.current += 1;
@@ -209,12 +169,7 @@ export function HistorySearchDialog({
                 onSelect={() => handleSelect(item)}
                 className="flex items-start gap-2"
               >
-                <HistoryTypeIcon
-                  item={item}
-                  labels={labels}
-                  bucketLookups={bucketLookups}
-                  className="mt-0.5 size-4"
-                />
+                <HistoryTypeIcon item={item} className="mt-0.5 size-4" />
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">{item.title}</span>
                   <HistoryMetaTime
@@ -231,7 +186,7 @@ export function HistorySearchDialog({
                       className="hidden sm:inline-flex"
                     />
                   )}
-                  <HistoryItemStatus item={item} labels={labels} />
+                  <HistoryItemStatus item={item} />
                 </div>
               </CommandItem>
             ))}
@@ -242,13 +197,7 @@ export function HistorySearchDialog({
   );
 }
 
-function HistoryItemStatus({
-  item,
-  labels,
-}: {
-  item: HistoryItem;
-  labels: HistorySearchDialogLabels;
-}) {
+function HistoryItemStatus({ item }: { item: HistoryItem }) {
   if (item.kind === "task") {
     const status = item.status as TaskStatus;
     return (
@@ -259,19 +208,9 @@ function HistoryItemStatus({
     );
   }
 
-  if (item.kind === "job") {
-    return (
-      <JobStatusBadge
-        status={item.status as SokosumiJobStatus}
-        className={SEARCH_STATUS_BADGE_CLASSNAME}
-      />
-    );
-  }
-
   return (
-    <ConversationStatusBadge
-      status={item.status}
-      label={labels.conversationStatus[item.status]}
+    <JobStatusBadge
+      status={item.status as SokosumiJobStatus}
       className={SEARCH_STATUS_BADGE_CLASSNAME}
     />
   );

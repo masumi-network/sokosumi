@@ -6,7 +6,7 @@ import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -24,12 +24,12 @@ const params = z.object({
   }),
 });
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/organizations/{organizationId}/credits",
     description:
-      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id.",
+      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user, or orchestrator/coworker with matching `X-Context-User-Id`.",
     tags: ["Users"],
     request: {
       params,

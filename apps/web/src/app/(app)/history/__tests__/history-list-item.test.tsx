@@ -5,17 +5,12 @@ import {
   HistoryListItem,
   type HistoryListItemLabels,
 } from "@/app/history/components/history-list-item";
-import {
-  createEmptyHistoryBucketLookups,
-  getHistoryRowSubtitle,
-  type HistoryBucketLookups,
-} from "@/app/history/utils/history-row-subtitle";
+import { getHistoryRowSubtitle } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/services/history.service";
 
 const iconMocks = vi.hoisted(() => ({
   agentIcon: vi.fn(),
-  chatModelIcon: vi.fn(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -33,18 +28,6 @@ vi.mock("@/components/agents/agent-icon", () => ({
   },
 }));
 
-vi.mock("@/components/chat/chat-model-icon", () => ({
-  ChatModelIcon: (props: {
-    modelId: string;
-    modelName?: string;
-    className?: string;
-    size?: number;
-  }) => {
-    iconMocks.chatModelIcon(props);
-    return <span data-testid="chat-model-icon" />;
-  },
-}));
-
 const labels: HistoryListItemLabels = {
   credit: "credit",
   credits: "credits",
@@ -54,11 +37,6 @@ const labels: HistoryListItemLabels = {
   kind: {
     task: "Task",
     job: "Job",
-    conversation: "Chat",
-  },
-  conversationStatus: {
-    active: "Active",
-    archived: "Archived",
   },
   taskStatus: {
     [TaskStatus.DRAFT]: "Entwurf",
@@ -75,25 +53,6 @@ const labels: HistoryListItemLabels = {
     [TaskStatus.COMPLETED]: "Abgeschlossen",
     [TaskStatus.FAILED]: "Fehlgeschlagen",
     [TaskStatus.CANCELED]: "Abgebrochen",
-  },
-};
-
-const bucketLookups: HistoryBucketLookups = {
-  bucketDisplayNameBySlug: {
-    hannah: "Hannah",
-    "gpt-5-4": "GPT-5.4",
-  },
-  bucketIconBySlug: {
-    hannah: {
-      kind: "coworker",
-      name: "Hannah",
-      imageUrl: "/images/coworkers/hannah.webp",
-    },
-    "gpt-5-4": {
-      kind: "model",
-      modelId: "gpt-5-4",
-      modelName: "GPT-5.4",
-    },
   },
 };
 
@@ -120,7 +79,6 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
         activeOrganizationId={null}
       />,
@@ -148,7 +106,6 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
         activeOrganizationId={null}
       />,
@@ -158,33 +115,6 @@ describe("HistoryListItem", () => {
       "dateTime",
       "2026-02-19T10:00:00.000Z",
     );
-  });
-
-  it("renders an em dash for conversation credits without a link", () => {
-    const item: HistoryItem = {
-      kind: "conversation",
-      id: "conversation-1",
-      title: "Chat with Hannah",
-      description: null,
-      status: "active",
-      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
-      archivedAt: null,
-      credits: null,
-      bucketSlug: "hannah",
-      owner: null,
-    };
-
-    render(
-      <HistoryListItem
-        item={item}
-        bucketLookups={createEmptyHistoryBucketLookups()}
-        labels={labels}
-        activeOrganizationId={null}
-      />,
-    );
-
-    expect(screen.queryAllByText("—").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("links non-archived task rows", () => {
@@ -205,7 +135,6 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
         activeOrganizationId={null}
       />,
@@ -232,40 +161,12 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
         activeOrganizationId={null}
       />,
     );
 
     expect(screen.getByText("Archived task")).toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
-  });
-
-  it("renders archived conversation rows without a link", () => {
-    const item: HistoryItem = {
-      kind: "conversation",
-      id: "conversation-1",
-      title: "Archived chat",
-      description: null,
-      status: "archived",
-      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
-      archivedAt: new Date("2026-02-20T10:00:00.000Z"),
-      credits: null,
-      bucketSlug: "hannah",
-      owner: null,
-    };
-
-    render(
-      <HistoryListItem
-        item={item}
-        bucketLookups={createEmptyHistoryBucketLookups()}
-        labels={labels}
-        activeOrganizationId={null}
-      />,
-    );
-
-    expect(screen.getByText("Archived chat")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
@@ -303,40 +204,6 @@ describe("HistoryListItem", () => {
     expect(getHistoryItemHref(job)).toBe("/agents/agent-1/jobs/job-1");
   });
 
-  it("returns null for conversation deep links", () => {
-    const conversation: HistoryItem = {
-      kind: "conversation",
-      id: "conversation-1",
-      title: "Planning chat",
-      description: null,
-      status: "active",
-      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
-      archivedAt: null,
-      credits: null,
-      bucketSlug: "hannah",
-      owner: null,
-    };
-
-    expect(getHistoryItemHref(conversation)).toBeNull();
-  });
-
-  it("returns null for conversation links when bucketSlug is null", () => {
-    const conversation: HistoryItem = {
-      kind: "conversation",
-      id: "conversation-1",
-      title: "Untitled chat",
-      description: null,
-      status: "active",
-      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
-      archivedAt: null,
-      credits: null,
-      bucketSlug: null,
-      owner: null,
-    };
-
-    expect(getHistoryItemHref(conversation)).toBeNull();
-  });
-
   it("uses the agent name as the job fallback subtitle", () => {
     const item: HistoryItem = {
       kind: "job",
@@ -357,7 +224,6 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        bucketLookups={bucketLookups}
         labels={labels}
         activeOrganizationId={null}
       />,
@@ -370,64 +236,6 @@ describe("HistoryListItem", () => {
           name: "Research Agent",
           icon: "https://example.com/research.svg",
         },
-      }),
-    );
-  });
-
-  it("uses the bucket display name as the conversation fallback subtitle", () => {
-    const item: HistoryItem = {
-      kind: "conversation",
-      id: "conversation-1",
-      title: "Planning chat",
-      description: null,
-      status: "active",
-      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
-      archivedAt: null,
-      credits: null,
-      bucketSlug: "hannah",
-      owner: null,
-    };
-
-    render(
-      <HistoryListItem
-        item={item}
-        bucketLookups={bucketLookups}
-        labels={labels}
-        activeOrganizationId={null}
-      />,
-    );
-
-    expect(screen.getByText("Hannah")).toBeInTheDocument();
-    expect(screen.getByText("H")).toBeInTheDocument();
-  });
-
-  it("passes resolved model data to the chat model icon", () => {
-    const item: HistoryItem = {
-      kind: "conversation",
-      id: "conversation-1",
-      title: "Planning chat",
-      description: null,
-      status: "active",
-      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
-      archivedAt: null,
-      credits: null,
-      bucketSlug: "gpt-5-4",
-      owner: null,
-    };
-
-    render(
-      <HistoryListItem
-        item={item}
-        bucketLookups={bucketLookups}
-        labels={labels}
-        activeOrganizationId={null}
-      />,
-    );
-
-    expect(iconMocks.chatModelIcon).toHaveBeenCalledWith(
-      expect.objectContaining({
-        modelId: "gpt-5-4",
-        modelName: "GPT-5.4",
       }),
     );
   });
@@ -449,9 +257,7 @@ describe("HistoryListItem", () => {
       owner: null,
     };
 
-    expect(getHistoryRowSubtitle(item, bucketLookups, labels)).toBe(
-      "No description",
-    );
+    expect(getHistoryRowSubtitle(item, labels)).toBe("No description");
   });
 
   it("keeps task descriptions and the task no-description fallback unchanged", () => {
@@ -473,11 +279,11 @@ describe("HistoryListItem", () => {
       description: null,
     };
 
-    expect(
-      getHistoryRowSubtitle(taskWithDescription, bucketLookups, labels),
-    ).toBe("Audit copy");
-    expect(
-      getHistoryRowSubtitle(taskWithoutDescription, bucketLookups, labels),
-    ).toBe("No description");
+    expect(getHistoryRowSubtitle(taskWithDescription, labels)).toBe(
+      "Audit copy",
+    );
+    expect(getHistoryRowSubtitle(taskWithoutDescription, labels)).toBe(
+      "No description",
+    );
   });
 });
