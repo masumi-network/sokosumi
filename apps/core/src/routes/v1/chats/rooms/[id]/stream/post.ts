@@ -16,6 +16,12 @@ import {
   setActiveUiStreamIdForRoom,
 } from "@/helpers/active-ui-stream-room-metadata";
 import {
+  clearPendingResponseMirror,
+  getPendingResponseMirror,
+  setPendingResponseMirror,
+} from "@/helpers/coworker-pending-response-mirror";
+import { pollCoworkerResponseStatus } from "@/helpers/coworker-response-poll";
+import {
   acquireStreamLock,
   releaseStreamLock,
   startStreamLockHeartbeat,
@@ -67,7 +73,7 @@ import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-c
  * Deferred to follow-up (parity with legacy conversation stream):
  * - Image generation / OpenRouter paths
  * - Web search
- * - Pending-response mirror / conversation metadata chain
+ * - Stream path attachments / multimodal uploads
  */
 
 const paramsSchema = z.object({
@@ -225,6 +231,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ? startStreamLockHeartbeat(room.id, streamLockOwnerToken)
       : null;
 
+    const pendingResponseScope = {
+      roomId: room.id,
+      parentMessageId,
+    };
+
     let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null =
       async () => {
         stopHeartbeat?.();
@@ -233,7 +244,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       };
 
+    const clearPendingMirrorBestEffort = () => {
+      waitUntil(
+        clearPendingResponseMirror(pendingResponseScope).catch((error) => {
+          console.error(
+            "Failed to clear pending response mirror (POST /rooms/{id}/stream):",
+            error,
+          );
+        }),
+      );
+    };
+
     const finalizeCoworkerStreamLock = () => {
+      clearPendingMirrorBestEffort();
       const release = releaseOwnedCoworkerStreamLock;
       if (!release) {
         return;
@@ -243,6 +266,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     };
 
     try {
+      const mirroredPending =
+        await getPendingResponseMirror(pendingResponseScope);
+      if (mirroredPending) {
+        const pollResult = await pollCoworkerResponseStatus({
+          responsesApiBaseUrl: coworker.baseURL.trim(),
+          responseId: mirroredPending,
+          userId: userContext.userId,
+          organizationId: room.organizationId,
+          coworkerSlug: coworker.slug,
+        });
+
+        if (pollResult.status === "in_progress") {
+          throw conflict(
+            parentMessageId
+              ? "A coworker response is already in progress for this thread."
+              : "A coworker response is already in progress for this room.",
+          );
+        }
+
+        await clearPendingResponseMirror(pendingResponseScope);
+
+        if (pollResult.status === "error") {
+          throw serviceUnavailable(
+            "Coworker chat could not verify an in-flight response. Try again shortly.",
+            { reportToSentry: false },
+          );
+        }
+      }
+
       if (lastMessage.role === "user" || lastMessage.role === "system") {
         const clientMessageId =
           typeof lastMessage.id === "string" ? lastMessage.id : null;
@@ -403,6 +455,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         webSearchEnabled: false,
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
+          try {
+            await setPendingResponseMirror(pendingResponseScope, responseId);
+          } catch (error) {
+            console.error(
+              "Failed to set pending response mirror (POST /rooms/{id}/stream):",
+              error,
+            );
+          }
+        },
+        onResponseCompleted: async (_responseId: string) => {
+          try {
+            await clearPendingResponseMirror(pendingResponseScope);
+          } catch (error) {
+            console.error(
+              "Failed to clear pending response mirror on response completed (POST /rooms/{id}/stream):",
+              error,
+            );
+          }
         },
         onInvalidProviderConversationId,
       };
