@@ -91,6 +91,7 @@ async function findUserByClientMessageId(
  * When `responsesApiResponseId` is set, DB unique `(roomId, responsesApiResponseId)`
  * guarantees at most one assistant row under concurrent writers (Redis lock is
  * happy-path only). Soft lookup + P2002 recovery return the existing id.
+ * Uniqueness is room-scoped (not per coworker), matching SOK-658.
  */
 export async function persistAssistantToChatRoom(params: {
   roomId: string;
@@ -116,11 +117,11 @@ export async function persistAssistantToChatRoom(params: {
     throw new Error("Cannot persist empty assistant chat room message");
   }
 
-  const responseId =
-    typeof responsesApiResponseId === "string" &&
-    responsesApiResponseId.length > 0
-      ? responsesApiResponseId
-      : null;
+  const trimmedResponseId =
+    typeof responsesApiResponseId === "string"
+      ? responsesApiResponseId.trim()
+      : "";
+  const responseId = trimmedResponseId.length > 0 ? trimmedResponseId : null;
 
   if (responseId) {
     const existing = await findAssistantByResponsesApiResponseId(
@@ -182,6 +183,10 @@ export async function persistAssistantToChatRoom(params: {
  * When `clientMessageId` is set, DB unique `(roomId, clientMessageId)` guarantees
  * at most one user row under concurrent writers (Redis lock is happy-path only).
  * Soft lookup + P2002 recovery return the existing id.
+ *
+ * Uniqueness is intentionally room-scoped (not per sender): SOK-658 requires one
+ * row per client turn id in the room transcript. Client message ids are opaque
+ * AI SDK ids; cross-member collisions are not expected.
  */
 export async function persistUserMessageToChatRoom(params: {
   roomId: string;

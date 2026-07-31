@@ -109,6 +109,48 @@ describe("persistAssistantToChatRoom", () => {
     expect(prisma.chatRoomMessage.findUnique).toHaveBeenCalledTimes(2);
   });
 
+  it("rethrows P2002 when race re-read finds nothing", async () => {
+    vi.mocked(prisma.chatRoomMessage.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+
+    await expect(
+      persistAssistantToChatRoom({
+        roomId: "room_1",
+        senderCoworkerId: "coworker_1",
+        contentText: "Hello",
+        responsesApiResponseId: "resp_missing",
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("trims responsesApiResponseId before persist", async () => {
+    await persistAssistantToChatRoom({
+      roomId: "room_1",
+      senderCoworkerId: "coworker_1",
+      contentText: "Hello",
+      responsesApiResponseId: "  resp_trim  ",
+    });
+
+    expect(prisma.chatRoomMessage.findUnique).toHaveBeenCalledWith({
+      where: {
+        roomId_responsesApiResponseId: {
+          roomId: "room_1",
+          responsesApiResponseId: "resp_trim",
+        },
+      },
+      select: { id: true },
+    });
+    expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          responsesApiResponseId: "resp_trim",
+        }),
+      }),
+    );
+  });
+
   it("rethrows non-unique errors after create fails", async () => {
     vi.mocked(prisma.$transaction).mockRejectedValue(new Error("db down"));
 
@@ -292,6 +334,22 @@ describe("persistUserMessageToChatRoom", () => {
 
     expect(result.id).toBe("msg_winner_user");
     expect(prisma.chatRoomMessage.findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it("rethrows P2002 when race re-read finds nothing", async () => {
+    vi.mocked(prisma.chatRoomMessage.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+
+    await expect(
+      persistUserMessageToChatRoom({
+        roomId: "room_1",
+        senderUserId: "user_1",
+        contentText: "Hello",
+        clientMessageId: "ui_msg_missing",
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
   });
 
   it("stores client_message_id in metadata and clientMessageId column on create", async () => {
