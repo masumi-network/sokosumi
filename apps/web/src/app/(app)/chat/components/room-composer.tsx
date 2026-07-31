@@ -82,6 +82,7 @@ export function RoomComposer({
   isSending,
   sendDisabled,
   showMentionShortcut = true,
+  allowAttachments = true,
 }: {
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
@@ -95,6 +96,8 @@ export function RoomComposer({
   sendDisabled: boolean;
   /** Channels always; direct rooms only when roster has more than two people. */
   showMentionShortcut?: boolean;
+  /** False when the send path cannot persist uploads (e.g. coworker stream). */
+  allowAttachments?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -203,32 +206,36 @@ export function RoomComposer({
               <AtSign className="size-4" aria-hidden />
             </Button>
           ) : null}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            tabIndex={-1}
-            onChange={(event) => {
-              void handleFilesSelected(event.currentTarget.files);
-            }}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-            title={t("Toolbar.attach")}
-            aria-label={t("Toolbar.attach")}
-            disabled={isUploadingFiles}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {isUploadingFiles ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Paperclip className="size-4" aria-hidden />
-            )}
-          </Button>
+          {allowAttachments ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                tabIndex={-1}
+                onChange={(event) => {
+                  void handleFilesSelected(event.currentTarget.files);
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                title={t("Toolbar.attach")}
+                aria-label={t("Toolbar.attach")}
+                disabled={isUploadingFiles}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isUploadingFiles ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Paperclip className="size-4" aria-hidden />
+                )}
+              </Button>
+            </>
+          ) : null}
           <RoomComposerEmojiPicker
             title={t("Toolbar.emoji")}
             ariaLabel={t("Toolbar.emoji")}

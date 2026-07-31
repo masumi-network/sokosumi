@@ -33,6 +33,7 @@ export function ThreadPanel({
   onClose,
   onToggleReaction,
   showMentionShortcut = true,
+  allowAttachments = true,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -56,6 +57,7 @@ export function ThreadPanel({
   onClose: () => void;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   showMentionShortcut?: boolean;
+  allowAttachments?: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
@@ -159,6 +161,7 @@ export function ThreadPanel({
         isSending={isSendingReply}
         sendDisabled={replyValue.trim().length === 0}
         showMentionShortcut={showMentionShortcut}
+        allowAttachments={allowAttachments}
       />
     </aside>
   );

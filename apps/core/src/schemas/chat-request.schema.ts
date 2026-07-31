@@ -68,3 +68,14 @@ export const aiSdkChatRequestSchema = z
       }
     }
   });
+
+/**
+ * POST /v1/chats/rooms/{id}/stream — AI SDK chat body plus optional thread parent.
+ * `roomId` is accepted when the web proxy forwards it; Core uses the path id.
+ */
+export const roomStreamRequestSchema = aiSdkChatRequestSchema.and(
+  z.object({
+    parentMessageId: z.string().uuid().optional(),
+    roomId: z.string().uuid().optional(),
+  }),
+);
