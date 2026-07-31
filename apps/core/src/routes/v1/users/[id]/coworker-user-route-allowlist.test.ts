@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import { coworkerUserRouteAllowlistMiddleware } from "@/routes/v1/users/user-coworker-route-allowlist";
 import {
   type UserRouteVariables,
@@ -92,32 +92,46 @@ const USER_RECORD = {
   emailVerified: true,
   image: null,
   role: "user",
+  marketingOptIn: true,
+  notificationsOptIn: false,
 };
 
-function createCoworkerUserApp(options: {
-  withContext: boolean;
-}): OpenAPIHono<{ Variables: AuthVariables }> {
+const BARE_COWORKER: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
+};
+
+const CONTEXT_COWORKER: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
+  context: { userId: "user_123", organizationId: null },
+};
+
+const SESSION_USER: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: null,
+  role: "user",
+};
+
+const CONTEXT_ORCHESTRATOR: AuthenticationContext = {
+  actor: "orchestrator",
+  orchestratorId: "orch_123",
+  context: { userId: "user_123", organizationId: null },
+};
+
+function createUserRouteApp(
+  authContext: AuthenticationContext,
+): OpenAPIHono<{ Variables: AuthVariables }> {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set(
-      "authContext",
-      options.withContext
-        ? {
-            actor: "coworker",
-            coworkerId: "cow_123",
-            vendorId: TEST_VENDOR_ID,
-            context: { userId: "user_123", organizationId: null },
-          }
-        : {
-            actor: "coworker",
-            coworkerId: "cow_123",
-            vendorId: TEST_VENDOR_ID,
-          },
-    );
+    c.set("authContext", authContext);
     return await next();
   });
 
@@ -174,13 +188,13 @@ describe("coworker user route allowlist", () => {
   });
 
   it("returns 403 for bare coworker on credits", async () => {
-    const app = createCoworkerUserApp({ withContext: false });
+    const app = createUserRouteApp(BARE_COWORKER);
     const response = await app.request("http://localhost/me/credits");
     expect(response.status).toBe(403);
   });
 
   it("allows coworker with context headers on user profile", async () => {
-    const app = createCoworkerUserApp({ withContext: true });
+    const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me");
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -192,20 +206,20 @@ describe("coworker user route allowlist", () => {
   });
 
   it("allows coworker with context headers on credits", async () => {
-    const app = createCoworkerUserApp({ withContext: true });
+    const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me/credits");
     expect(response.status).toBe(200);
     expect(buildCreditsPayloadMock).toHaveBeenCalled();
   });
 
   it("allows coworker with context headers on organizations list", async () => {
-    const app = createCoworkerUserApp({ withContext: true });
+    const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me/organizations");
     expect(response.status).toBe(200);
   });
 
   it("allows coworker with context headers on organization credits", async () => {
-    const app = createCoworkerUserApp({ withContext: true });
+    const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request(
       "http://localhost/me/organizations/org_1/credits",
     );
@@ -215,7 +229,7 @@ describe("coworker user route allowlist", () => {
   });
 
   it("rejects coworker with context headers on organization member", async () => {
-    const app = createCoworkerUserApp({ withContext: true });
+    const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request(
       "http://localhost/me/organizations/org_1/member",
     );
@@ -224,8 +238,30 @@ describe("coworker user route allowlist", () => {
   });
 
   it("rejects coworker with context headers on preferences", async () => {
-    const app = createCoworkerUserApp({ withContext: true });
+    const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me/preferences");
     expect(response.status).toBe(403);
+  });
+
+  it("lets session users reach non-allowlisted preferences", async () => {
+    const app = createUserRouteApp(SESSION_USER);
+    const response = await app.request("http://localhost/me/preferences");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({
+      marketingOptIn: true,
+      notificationsOptIn: false,
+    });
+  });
+
+  it("lets orchestrator with context reach non-allowlisted preferences", async () => {
+    const app = createUserRouteApp(CONTEXT_ORCHESTRATOR);
+    const response = await app.request("http://localhost/me/preferences");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({
+      marketingOptIn: true,
+      notificationsOptIn: false,
+    });
   });
 });

@@ -27,7 +27,7 @@ export type SessionUserContext = {
 export const usersRoutePathUserIdSchema = z.string().openapi({
   param: { name: "id", in: "path" },
   description:
-    "Pass the literal `me` for the authenticated effective user (session user, or orchestrator/coworker with X-Context-User-Id), or a concrete user id the caller is allowed to resolve. Path resolution alone does not grant coworker access to every user subroute — coworkers are limited to profile, credits, and organization list/credits reads documented on those operations.",
+    "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
   example: "me",
 });
 
@@ -84,7 +84,8 @@ function requireEffectiveUserPathContext(
  * - session user matches `resolvedUserId`, or session user has admin role
  * - orchestrator or coworker with context whose `userId` matches `resolvedUserId`
  *
- * Coworker callers still need an allowlisted subpath (credits / organizations).
+ * Coworker callers still need an allowlisted subpath (profile, credits,
+ * organizations list/credits).
  */
 export function requireAccessToTargetUserData(
   authContext: AuthenticationContext,
