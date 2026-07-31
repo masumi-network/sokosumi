@@ -168,6 +168,42 @@ describe("MentionTextarea", () => {
     expect(onSubmitShortcut).not.toHaveBeenCalled();
   });
 
+  it("keeps Cmd+Enter for multiline input", () => {
+    const onSubmitShortcut = vi.fn();
+
+    render(
+      <StatefulMentionTextarea
+        submitOnEnter
+        onSubmitShortcut={onSubmitShortcut}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("textbox"), {
+      key: "Enter",
+      metaKey: true,
+    });
+
+    expect(onSubmitShortcut).not.toHaveBeenCalled();
+  });
+
+  it("keeps Ctrl+Enter for multiline input", () => {
+    const onSubmitShortcut = vi.fn();
+
+    render(
+      <StatefulMentionTextarea
+        submitOnEnter
+        onSubmitShortcut={onSubmitShortcut}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("textbox"), {
+      key: "Enter",
+      ctrlKey: true,
+    });
+
+    expect(onSubmitShortcut).not.toHaveBeenCalled();
+  });
+
   it("opens mention suggestions from the imperative handle", () => {
     const onChange = vi.fn();
 
