@@ -4,6 +4,7 @@ import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
   generateId,
+  type ModelMessage,
   streamText,
   type UIMessage,
   validateUIMessages,
@@ -314,7 +315,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let uiStreamResumptionRegistered = false;
       let uiStreamResumptionRegistration: Promise<void> | undefined;
 
-      let modelMessages;
+      let modelMessages: ModelMessage[];
       let originalUiMessages = uiMessages;
       if (parentMessageId) {
         const sender = await prisma.user.findUnique({

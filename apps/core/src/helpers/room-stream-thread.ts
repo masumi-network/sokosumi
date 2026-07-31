@@ -113,12 +113,26 @@ export async function ensureThreadProviderConversation(options: {
 }
 
 /**
+ * True when the thread already has an assistant reply under the root.
+ * The root itself may be a coworker message — that does NOT count as a prior
+ * thread AI turn (fresh remote conversation still needs embedded context).
+ */
+export function threadHasPriorAssistantReply(
+  rows: readonly { id: string; senderCoworkerId: string | null }[],
+  parentMessageId: string,
+): boolean {
+  return rows.some(
+    (row) => row.senderCoworkerId != null && row.id !== parentMessageId,
+  );
+}
+
+/**
  * Build model messages for a room-stream thread reply.
  *
- * Loads thread root + siblings (oldest first). Conversation mode only sends
- * the last turn to the remote API, so the first AI turn in a fresh thread
- * conversation embeds prior thread context via `buildRoomMentionPrompt`
- * (same discipline as channel mention dispatch).
+ * Loads the newest thread window (root + siblings), oldest first. Conversation
+ * mode only sends the last turn to the remote API, so the first AI turn in a
+ * fresh thread conversation embeds prior thread context via
+ * `buildRoomMentionPrompt` (same discipline as channel mention dispatch).
  */
 export async function buildRoomStreamThreadModelMessages(options: {
   roomId: string;
@@ -127,7 +141,7 @@ export async function buildRoomStreamThreadModelMessages(options: {
   senderName: string;
   lastUserMessageText: string;
 }): Promise<{ modelMessages: ModelMessage[]; uiMessages: UIMessage[] }> {
-  const rows = await prisma.chatRoomMessage.findMany({
+  const newestFirst = await prisma.chatRoomMessage.findMany({
     where: {
       roomId: options.roomId,
       OR: [
@@ -135,7 +149,8 @@ export async function buildRoomStreamThreadModelMessages(options: {
         { parentMessageId: options.parentMessageId },
       ],
     },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    // Newest window (match channel dispatch); reverse for chronological model input.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: THREAD_CONTEXT_MESSAGE_LIMIT + 1,
     select: {
       id: true,
@@ -148,13 +163,15 @@ export async function buildRoomStreamThreadModelMessages(options: {
       senderCoworker: { select: { name: true } },
     },
   });
+  const rows = [...newestFirst].reverse();
 
   const uiMessages = chatRoomMessagesToUiMessages(rows);
-  const hasPriorAssistant = rows.some(
-    (row, index) => row.senderCoworkerId != null && index < rows.length - 1,
+  const hasPriorAssistantReply = threadHasPriorAssistantReply(
+    rows,
+    options.parentMessageId,
   );
 
-  if (!hasPriorAssistant) {
+  if (!hasPriorAssistantReply) {
     const contextMessages: RoomContextMessage[] = rows
       .slice(0, -1)
       .map((row) => ({

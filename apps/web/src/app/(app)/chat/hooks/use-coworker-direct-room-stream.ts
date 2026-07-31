@@ -22,6 +22,41 @@ const autoStreamStartedRoomIds = new Set<string>();
 /** Empty coworker shell shown while resume SSE is active but messages empty. */
 export const RESUME_PENDING_STREAM_MESSAGE_ID = "stream:resume-pending";
 
+function streamParentStorageKey(roomId: string): string {
+  return `sokosumi:room-stream-parent:${roomId}`;
+}
+
+export function readStoredStreamParentMessageId(roomId: string): string | null {
+  if (typeof sessionStorage === "undefined") {
+    return null;
+  }
+  try {
+    const value = sessionStorage.getItem(streamParentStorageKey(roomId));
+    return value?.trim() ? value.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredStreamParentMessageId(
+  roomId: string,
+  parentMessageId: string | null,
+): void {
+  if (typeof sessionStorage === "undefined") {
+    return;
+  }
+  try {
+    const key = streamParentStorageKey(roomId);
+    if (parentMessageId) {
+      sessionStorage.setItem(key, parentMessageId);
+    } else {
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Private mode / quota — overlay parent may be wrong on resume only.
+  }
+}
+
 /**
  * Show resume-pending shell only for `streaming` (active SSE), not `submitted`.
  * Idle room enter gets 204 while status is briefly `submitted` — shell would flash.
@@ -128,6 +163,11 @@ export interface UseCoworkerDirectRoomStreamResult {
   streamOverlayMessages: ChatRoomMessage[];
   isStreaming: boolean;
   /**
+   * Parent id for an in-flight / resumed thread stream (null = top-level).
+   * Rooms client opens the thread panel when this is set so overlays stay visible.
+   */
+  activeStreamParentMessageId: string | null;
+  /**
    * Stream a top-level turn, or a thread reply when `parentMessageId` is set.
    */
   sendStreamMessage: (
@@ -155,6 +195,15 @@ export function useCoworkerDirectRoomStream({
   const [streamParentMessageId, setStreamParentMessageId] = useState<
     string | null
   >(null);
+
+  // Restore thread parent for mid-stream resume (sessionStorage survives remount).
+  useEffect(() => {
+    if (!roomId) {
+      setStreamParentMessageId(null);
+      return;
+    }
+    setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
+  }, [roomId]);
 
   const transport = useMemo(
     () =>
@@ -211,6 +260,7 @@ export function useCoworkerDirectRoomStream({
       const failedRoomId = roomIdRef.current;
       if (failedRoomId) {
         autoStreamStartedRoomIds.delete(failedRoomId);
+        writeStoredStreamParentMessageId(failedRoomId, null);
       }
       setStreamParentMessageId(null);
       toast.error(error.message || "Failed to stream coworker reply.");
@@ -226,6 +276,7 @@ export function useCoworkerDirectRoomStream({
       const settled = await onStreamSettledRef.current(settledRoomId);
       if (settled && roomIdRef.current === settledRoomId) {
         clearPendingRoomMessage(settledRoomId);
+        writeStoredStreamParentMessageId(settledRoomId, null);
         setMessages([]);
         setStreamParentMessageId(null);
       }
@@ -238,7 +289,6 @@ export function useCoworkerDirectRoomStream({
   useEffect(() => {
     if (!roomId) {
       setMessages([]);
-      setStreamParentMessageId(null);
       return;
     }
     void resumeStream();
@@ -318,13 +368,17 @@ export function useCoworkerDirectRoomStream({
         return;
       }
       const parentMessageId = options?.parentMessageId?.trim() || null;
+      // Shared useChat instance — clear leftover turns so a failed settle cannot
+      // retag prior top-level UI messages with a new thread parentMessageId.
+      setMessages([]);
       setStreamParentMessageId(parentMessageId);
+      writeStoredStreamParentMessageId(roomId, parentMessageId);
       void sendMessage(
         { text: trimmed },
         parentMessageId ? { body: { parentMessageId } } : undefined,
       );
     },
-    [enabled, roomId, sendMessage],
+    [enabled, roomId, sendMessage, setMessages],
   );
 
   const consumePendingStreamMessage = useCallback(
@@ -348,6 +402,7 @@ export function useCoworkerDirectRoomStream({
   return {
     streamOverlayMessages,
     isStreaming,
+    activeStreamParentMessageId: streamParentMessageId,
     sendStreamMessage,
     consumePendingStreamMessage,
   };

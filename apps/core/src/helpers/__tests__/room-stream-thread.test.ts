@@ -36,7 +36,35 @@ import {
   buildRoomStreamThreadModelMessages,
   ensureThreadProviderConversation,
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
+  threadHasPriorAssistantReply,
 } from "../room-stream-thread";
+
+describe("threadHasPriorAssistantReply", () => {
+  it("ignores coworker root — first thread AI turn still needs embedded context", () => {
+    expect(
+      threadHasPriorAssistantReply(
+        [
+          { id: "parent_1", senderCoworkerId: "cow_1" },
+          { id: "reply_1", senderCoworkerId: null },
+        ],
+        "parent_1",
+      ),
+    ).toBe(false);
+  });
+
+  it("detects an assistant reply under the root", () => {
+    expect(
+      threadHasPriorAssistantReply(
+        [
+          { id: "parent_1", senderCoworkerId: "cow_1" },
+          { id: "asst_1", senderCoworkerId: "cow_1" },
+          { id: "reply_2", senderCoworkerId: null },
+        ],
+        "parent_1",
+      ),
+    ).toBe(true);
+  });
+});
 
 describe("ensureThreadProviderConversation", () => {
   beforeEach(() => {
@@ -113,18 +141,8 @@ describe("buildRoomStreamThreadModelMessages", () => {
     vi.clearAllMocks();
   });
 
-  it("embeds thread context on first AI turn", async () => {
+  it("embeds thread context on first AI turn under a user root", async () => {
     vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
-      {
-        id: "parent_1",
-        content: "Root question",
-        senderUserId: "user_1",
-        senderCoworkerId: null,
-        metadata: null,
-        createdAt: new Date("2026-07-01T12:00:00.000Z"),
-        senderUser: { name: "Ada" },
-        senderCoworker: null,
-      },
       {
         id: "reply_1",
         content: "Follow-up",
@@ -132,6 +150,16 @@ describe("buildRoomStreamThreadModelMessages", () => {
         senderCoworkerId: null,
         metadata: null,
         createdAt: new Date("2026-07-01T12:01:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+      },
+      {
+        id: "parent_1",
+        content: "Root question",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
         senderUser: { name: "Ada" },
         senderCoworker: null,
       },
@@ -145,6 +173,11 @@ describe("buildRoomStreamThreadModelMessages", () => {
       lastUserMessageText: "Follow-up",
     });
 
+    expect(prisma.chatRoomMessage.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    );
     expect(convertToModelMessages).not.toHaveBeenCalled();
     expect(result.modelMessages).toHaveLength(1);
     expect(result.modelMessages[0]).toMatchObject({ role: "user" });
@@ -152,15 +185,95 @@ describe("buildRoomStreamThreadModelMessages", () => {
     expect(String(result.modelMessages[0]?.content)).toContain("Follow-up");
   });
 
-  it("converts full thread history after an assistant turn exists", async () => {
+  it("embeds coworker root on first AI thread turn (does not treat root as prior reply)", async () => {
     vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
       {
-        id: "parent_1",
-        content: "Root",
+        id: "reply_1",
+        content: "Was kannst du mir anbieten?",
         senderUserId: "user_1",
         senderCoworkerId: null,
         metadata: null,
+        createdAt: new Date("2026-07-01T12:01:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+      },
+      {
+        id: "parent_1",
+        content: "Hallo Andreas! Wie kann ich dir heute helfen?",
+        senderUserId: null,
+        senderCoworkerId: "cow_1",
+        metadata: null,
         createdAt: new Date("2026-07-01T12:00:00.000Z"),
+        senderUser: null,
+        senderCoworker: { name: "Hannah" },
+      },
+    ] as never);
+
+    const result = await buildRoomStreamThreadModelMessages({
+      roomId: "room_1",
+      parentMessageId: "parent_1",
+      roomName: "Hannah DM",
+      senderName: "Ada",
+      lastUserMessageText: "Was kannst du mir anbieten?",
+    });
+
+    expect(convertToModelMessages).not.toHaveBeenCalled();
+    expect(String(result.modelMessages[0]?.content)).toContain(
+      "Hallo Andreas! Wie kann ich dir heute helfen?",
+    );
+    expect(String(result.modelMessages[0]?.content)).toContain(
+      "Was kannst du mir anbieten?",
+    );
+  });
+
+  it("keeps the newest messages when the thread exceeds the context window", async () => {
+    const rows = Array.from({ length: 12 }, (_, index) => {
+      const n = 12 - index;
+      return {
+        id: `msg_${n}`,
+        content: `Message ${n}`,
+        senderUserId: n === 1 ? null : "user_1",
+        senderCoworkerId: n === 1 ? "cow_1" : null,
+        metadata: null,
+        createdAt: new Date(
+          `2026-07-01T12:${String(n).padStart(2, "0")}:00.000Z`,
+        ),
+        senderUser: n === 1 ? null : { name: "Ada" },
+        senderCoworker: n === 1 ? { name: "Hannah" } : null,
+      };
+    });
+    // Newest-first page from Prisma: drop oldest (msg_1 root) from window.
+    vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue(
+      rows.slice(0, 11) as never,
+    );
+
+    const result = await buildRoomStreamThreadModelMessages({
+      roomId: "room_1",
+      parentMessageId: "msg_1",
+      roomName: "Hannah DM",
+      senderName: "Ada",
+      lastUserMessageText: "Message 12",
+    });
+
+    // Window is msgs 2..12 (newest 11). Prior assistant under root: none in this
+    // synthetic set after dropping root — still embeds prompt with newest context.
+    expect(convertToModelMessages).not.toHaveBeenCalled();
+    expect(String(result.modelMessages[0]?.content)).toContain("Message 12");
+    expect(String(result.modelMessages[0]?.content)).toContain("Message 2");
+    expect(String(result.modelMessages[0]?.content)).not.toMatch(
+      /Message 1(?!\d)/,
+    );
+  });
+
+  it("converts full thread history after an assistant reply exists under the root", async () => {
+    vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
+      {
+        id: "reply_2",
+        content: "More",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:02:00.000Z"),
         senderUser: { name: "Ada" },
         senderCoworker: null,
       },
@@ -175,12 +288,12 @@ describe("buildRoomStreamThreadModelMessages", () => {
         senderCoworker: { name: "Hannah" },
       },
       {
-        id: "reply_2",
-        content: "More",
+        id: "parent_1",
+        content: "Root",
         senderUserId: "user_1",
         senderCoworkerId: null,
         metadata: null,
-        createdAt: new Date("2026-07-01T12:02:00.000Z"),
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
         senderUser: { name: "Ada" },
         senderCoworker: null,
       },

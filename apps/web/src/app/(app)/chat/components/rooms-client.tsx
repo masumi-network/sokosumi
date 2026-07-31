@@ -20,7 +20,10 @@ import {
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
-import { useCoworkerDirectRoomStream } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import {
+  readStoredStreamParentMessageId,
+  useCoworkerDirectRoomStream,
+} from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   mergeMessagesWithStreamOverlay,
@@ -232,7 +235,11 @@ export function RoomsClient({
 
   const refreshRoomMessagesAfterStream = useCallback(
     async (roomId: string): Promise<boolean> => {
-      const threadParentId = threadParentMessageRef.current?.id ?? null;
+      // Prefer open panel; fall back to sessionStorage so settle still refreshes
+      // the thread when the panel was closed mid-stream / after remount.
+      const threadParentId =
+        threadParentMessageRef.current?.id ??
+        readStoredStreamParentMessageId(roomId);
       const [roomResult, threadResult] = await Promise.all([
         listRoomMessagesAction(roomId),
         threadParentId
@@ -249,17 +256,24 @@ export function RoomsClient({
       setMessagesState((current) =>
         mergeRoomMessages(current, roomResult.data.messages),
       );
-      if (threadResult?.ok) {
+      if (threadResult?.ok && threadParentId) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.data.messages),
         );
-        setThreadParentMessage((current) =>
-          current
-            ? (roomResult.data.messages.find(
+        setThreadParentMessage((current) => {
+          const fromRoom =
+            roomResult.data.messages.find(
+              (message) => message.id === threadParentId,
+            ) ?? null;
+          if (current) {
+            return (
+              roomResult.data.messages.find(
                 (message) => message.id === current.id,
-              ) ?? current)
-            : current,
-        );
+              ) ?? current
+            );
+          }
+          return fromRoom;
+        });
       }
       return true;
     },
@@ -269,6 +283,7 @@ export function RoomsClient({
   const {
     streamOverlayMessages,
     isStreaming: isCoworkerStreaming,
+    activeStreamParentMessageId,
     sendStreamMessage,
     consumePendingStreamMessage,
   } = useCoworkerDirectRoomStream({
@@ -323,6 +338,35 @@ export function RoomsClient({
     }
     consumePendingStreamMessage(pending);
   }, [isCoworkerStreamRoom, selectedRoomId, consumePendingStreamMessage]);
+
+  // Re-open thread panel when a thread stream is active/resumed so overlays
+  // stay visible after remount or if the panel was closed mid-stream.
+  useEffect(() => {
+    if (
+      !isCoworkerStreamRoom ||
+      !selectedRoom ||
+      !activeStreamParentMessageId
+    ) {
+      return;
+    }
+    if (threadParentMessage?.id === activeStreamParentMessageId) {
+      return;
+    }
+    const parent =
+      messagesState.find(
+        (message) => message.id === activeStreamParentMessageId,
+      ) ?? null;
+    if (!parent) {
+      return;
+    }
+    loadThreadMessages(parent);
+  }, [
+    isCoworkerStreamRoom,
+    selectedRoom,
+    activeStreamParentMessageId,
+    threadParentMessage?.id,
+    messagesState,
+  ]);
 
   // Pending draft stays in sessionStorage until stream settles successfully
   // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
@@ -1001,7 +1045,7 @@ export function RoomsClient({
                               ? loadThreadMessages
                               : undefined
                           }
-                          // Coworker 1:1: stream owns replies; threads deferred (SOK-656).
+                          // Stream overlays never show thread chrome.
                           showThreadButton={shouldShowChatRoomThreadButton({
                             room: selectedRoom,
                             isStreamOverlay,
@@ -1036,6 +1080,7 @@ export function RoomsClient({
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}
+                allowAttachments={!isCoworkerStreamRoom}
               />
             </>
           ) : (
@@ -1089,6 +1134,7 @@ export function RoomsClient({
             }}
             onToggleReaction={handleToggleReaction}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
+            allowAttachments={!isCoworkerStreamRoom}
           />
         ) : null}
       </main>
