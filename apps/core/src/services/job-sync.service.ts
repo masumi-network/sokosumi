@@ -627,7 +627,6 @@ async function syncPurchaseState(
         purchase.PaymentSource?.paymentSourceType ?? null;
       const doesPaymentSourceTypeMatch =
         job.paymentSourceType === null ||
-        purchasePaymentSourceType === null ||
         purchasePaymentSourceType === job.paymentSourceType;
       const doesPurchaseMatchJob =
         typeof job.inputHash === "string" &&

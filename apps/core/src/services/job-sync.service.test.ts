@@ -702,6 +702,34 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
+  it("refuses to backfill an untyped purchase for an explicitly-railed job", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+      paymentSourceType: "Web3CardanoV2",
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_missing_rail",
+          PaymentSource: null,
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
+  });
+
   it("refuses to backfill a legacy job with a missing deadline instead of throwing", async () => {
     // The purchase selector deliberately admits legacy paid jobs with a null
     // payByTime. Terms that cannot be verified must be refused, not crash.

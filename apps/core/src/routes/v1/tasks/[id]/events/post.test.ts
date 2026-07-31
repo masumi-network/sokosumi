@@ -2276,7 +2276,7 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
-  it("does not V2-gate a V1 masumiPayment that includes its PaymentSource tuple", async () => {
+  it("does not V2-gate a V1 masumiPayment with a bare index and PaymentSource tuple", async () => {
     // PaymentSource predates the V2 gate on this public API; a V1 caller
     // echoing its V1 source tuple must charge as V1 without any readiness
     // consultation (regression guard for the compat break found in review).
@@ -2313,6 +2313,7 @@ describe("POST /{id}/events", () => {
         status: TaskStatus.COMPLETED,
         masumiPayment: {
           ...validMasumiPaymentBody,
+          supportedPaymentSourceIndex: 0,
           PaymentSource: {
             network: "Preprod",
             policyId: validMasumiPaymentBody.agentIdentifier.slice(0, 56),

@@ -25,13 +25,13 @@ describe("isV2MasumiTaskPayment", () => {
     );
   });
 
-  it("classifies a bare index as V2 when no rail is declared", () => {
+  it("keeps a bare index on V1 when no rail is declared", () => {
     expect(
       isV2MasumiTaskPayment({
         agentIdentifier: V1_IDENTIFIER,
         supportedPaymentSourceIndex: 0,
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("keeps a V1 payment on V1 when the seller echoes a stray index", () => {

@@ -552,9 +552,17 @@ export async function createAgentJobForUser(
         normalizeV2RegistryIdentifier(response.agentIdentifier) !==
         agent.blockchainIdentifier
       ) {
+        reportOrphanedSellerJob(
+          "seller returned a different agent identifier",
+          {
+            agentId: agent.id,
+            agentJobId: response.id,
+            expectedAgentIdentifier: agent.blockchainIdentifier,
+            receivedAgentIdentifier: response.agentIdentifier,
+          },
+        );
         throw unprocessableEntity(
           "Paid agent job returned a different agent identifier",
-          { reportToSentry: true },
         );
       }
 

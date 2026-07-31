@@ -569,6 +569,40 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(txJobCreateMock).toHaveBeenCalled();
   });
 
+  it("reports an orphaned seller job when the seller echoes another agent", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding({
+        ...paidV2JobResponse,
+        agentIdentifier: "different-agent-chain",
+      }),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid agent job returned a different agent identifier",
+    );
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Seller-side job orphaned after start_job: seller returned a different agent identifier",
+      ),
+      expect.objectContaining({
+        agentId: "agent_1",
+        expectedAgentIdentifier: "agent-chain",
+        receivedAgentIdentifier: "different-agent-chain",
+      }),
+    );
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining("Seller-side job orphaned"),
+    });
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
   it("rejects a seller echoing a different purchaser identifier", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({

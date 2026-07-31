@@ -524,7 +524,7 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts a source index when the payment source type is inferred", () => {
+  it("accepts a bare source index on a V1-policy payload", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,
       masumiPayment: {

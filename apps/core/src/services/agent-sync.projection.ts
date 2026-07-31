@@ -430,7 +430,7 @@ export function buildPaymentSourceRows(
       // Zip decimals positionally — assets are not guaranteed unique within
       // one source's fixed amounts.
       row.amounts = source.pricing.fixed.map((fixedAmount, index) => ({
-        unit: fixedAmount.asset,
+        unit: normalizeMasumiPaymentUnit(fixedAmount.asset),
         amount:
           projected.fixedPricingAmounts?.[index]?.amount ??
           BigInt(fixedAmount.amount),

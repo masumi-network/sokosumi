@@ -14,20 +14,16 @@ export interface MasumiTaskPaymentRailFields {
 /**
  * Whether a task payment settles on the Cardano V2 rail.
  *
- * An EXPLICIT `Web3CardanoV1` wins over a stray `supportedPaymentSourceIndex`:
- * sellers on a newer SDK echo the index on V1 responses, and classifying those
- * as V2 would reject them outright while the rollout flag is off. Absent an
- * explicit type, the index or the registry policy of the identifier decides.
+ * The registry policy or an explicit `Web3CardanoV2` declaration decides the
+ * rail. A `supportedPaymentSourceIndex` is only source metadata: sellers on a
+ * newer SDK can echo it on V1 responses, so it cannot classify the rail by
+ * itself.
  */
 export function isV2MasumiTaskPayment(
   payment: MasumiTaskPaymentRailFields,
 ): boolean {
-  if (payment.paymentSourceType === "Web3CardanoV1") {
-    return isV2RegistryIdentifier(payment.agentIdentifier);
-  }
   return (
     payment.paymentSourceType === "Web3CardanoV2" ||
-    payment.supportedPaymentSourceIndex !== undefined ||
     isV2RegistryIdentifier(payment.agentIdentifier)
   );
 }

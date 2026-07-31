@@ -1926,6 +1926,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createCall.data.pricing.create.fixedPricing.create.amounts.createMany
         .data,
     ).toEqual([{ unit: "lovelace", amount: BigInt(2000000) }]);
+    expect(
+      createCall.data.paymentSources.create[0].amounts.createMany.data,
+    ).toEqual([{ unit: "lovelace", amount: BigInt(2000000), decimals: null }]);
   });
 
   it("defers rollback-unsafe entries while the rollout flag is off but advances the cursor", async () => {
