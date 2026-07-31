@@ -58,9 +58,11 @@ import {
   syncDesignMdDismissedState,
   type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
-import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
-import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
+import {
+  getUserFileUploadErrorMessage,
+  uploadUserFileDirect,
+} from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 import { TaskCreatedCelebration } from "./task-created-celebration";
@@ -548,15 +550,6 @@ export function TaskForm({
     async (files: File[]) => {
       if (files.length === 0) return;
 
-      if (!taskId) {
-        toast.error(
-          labels.uploadFileError ??
-            "Save the task as a draft before attaching files.",
-        );
-        setPendingUploadFiles([]);
-        return;
-      }
-
       const uploadToast = createTaskAttachmentUploadToast({
         files,
         labels: {
@@ -570,7 +563,7 @@ export function TaskForm({
       setUploadingAttachmentsCount((count) => count + 1);
       try {
         for (const [index, file] of files.entries()) {
-          const uploadedUrl = await uploadTaskAttachment(taskId, file, {
+          const uploaded = await uploadUserFileDirect(file, {
             abortSignal: controller.signal,
             onUploadProgress: (progress) => {
               uploadToast.updateFileProgress(index, progress);
@@ -579,13 +572,13 @@ export function TaskForm({
           uploadToast.markFileComplete(index);
           const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
           if (markdownEditorRef.current) {
-            markdownEditorRef.current.insertLink(safeName, uploadedUrl);
+            markdownEditorRef.current.insertLink(safeName, uploaded.publicUrl);
             markdownEditorRef.current.insertText("\n");
             continue;
           }
           const markdownLink = formatTaskAttachmentMarkdown(
             safeName,
-            uploadedUrl,
+            uploaded.publicUrl,
           );
           setDescription(
             (prev) =>
@@ -607,12 +600,7 @@ export function TaskForm({
         setUploadingAttachmentsCount((count) => count - 1);
       }
     },
-    [
-      labels.uploadFileError,
-      labels.uploadingFile,
-      labels.uploadingFiles,
-      taskId,
-    ],
+    [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
   );
 
   const handleRemoveAttachment = useCallback(
@@ -919,15 +907,8 @@ export function TaskForm({
                           mode === "create" ? TaskStatus.READY : undefined;
                         void handleSave(shortcutStatus);
                       }}
-                      onAttachClick={
-                        taskId
-                          ? () => attachmentTriggerRef.current?.click()
-                          : () => {
-                              toast.error(
-                                labels.uploadFileError ??
-                                  "Save the task as a draft before attaching files.",
-                              );
-                            }
+                      onAttachClick={() =>
+                        attachmentTriggerRef.current?.click()
                       }
                       attachLabel={labels.uploadFile}
                       isAttachmentUploading={isUploadingAttachments}
