@@ -29,13 +29,8 @@ import {
 } from "@/components/ui/mention-textarea";
 import type { ChatRoomCoworkerParticipant } from "@/lib/clients/generated/core";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
-import {
-  formatTaskAttachmentMarkdown,
-  removeTaskAttachmentLinks,
-} from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import { appendComposerBlock } from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
@@ -145,15 +140,8 @@ export function RoomComposer({
           }),
         );
 
-        const attachmentMarkdown = uploadedAttachments
-          .map((attachment) =>
-            formatTaskAttachmentMarkdown(attachment.fileName, attachment.url),
-          )
-          .join("");
+        // Chip-only — markdown links are stitched into content on send.
         onAttachmentsChange((current) => [...current, ...uploadedAttachments]);
-        onValueChange((current) =>
-          appendComposerBlock(current, attachmentMarkdown),
-        );
         toast.success(
           tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
@@ -166,15 +154,12 @@ export function RoomComposer({
         }
       }
     },
-    [onAttachmentsChange, onValueChange, roomId, tToolbar],
+    [onAttachmentsChange, roomId, tToolbar],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {
     onAttachmentsChange((current) =>
       current.filter((item) => item.url !== attachment.url),
-    );
-    onValueChange((current) =>
-      removeTaskAttachmentLinks(current, [attachment.url]),
     );
     textareaRef.current?.focus();
   }

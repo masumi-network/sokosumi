@@ -11,6 +11,7 @@ import type {
   ChatRoomMessage,
 } from "@/lib/clients/generated/core";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
+import { isRoomComposerEmpty } from "./room-helpers";
 import { ChatMessageRow } from "./room-message-row";
 
 export function ThreadPanel({
@@ -162,7 +163,7 @@ export function ThreadPanel({
         onAttachmentsChange={onReplyAttachmentsChange}
         onSubmit={onSubmitReply}
         isSending={isSendingReply}
-        sendDisabled={replyValue.trim().length === 0}
+        sendDisabled={isRoomComposerEmpty(replyValue, replyAttachments)}
         showMentionShortcut={showMentionShortcut}
         allowAttachments={allowAttachments}
       />
