@@ -9,13 +9,13 @@ import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {
   markdownEditorPropsSpy,
-  uploadTaskAttachmentMock,
+  uploadUserFileDirectMock,
   toastCustomMock,
   toastDismissMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
   markdownEditorPropsSpy: vi.fn(),
-  uploadTaskAttachmentMock: vi.fn(),
+  uploadUserFileDirectMock: vi.fn(),
   toastCustomMock: vi.fn(),
   toastDismissMock: vi.fn(),
   toastErrorMock: vi.fn(),
@@ -47,8 +47,18 @@ vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
 }));
 
 vi.mock("@/lib/utils/task-attachments.client", () => ({
-  uploadTaskAttachment: (...args: unknown[]) =>
-    uploadTaskAttachmentMock(...args),
+  uploadTaskAttachment: vi.fn(() => {
+    throw new Error(
+      "TaskForm must not call uploadTaskAttachment for description attaches",
+    );
+  }),
+}));
+
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadUserFileDirect: (...args: unknown[]) =>
+    uploadUserFileDirectMock(...args),
+  getUserFileUploadErrorMessage: (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback,
 }));
 
 vi.mock("sonner", () => ({
@@ -930,9 +940,8 @@ describe("TaskForm", () => {
     });
     let resolveUpload: (() => void) | null = null;
 
-    uploadTaskAttachmentMock.mockImplementation(
+    uploadUserFileDirectMock.mockImplementation(
       (
-        _taskId: string,
         _file: File,
         options?: {
           onUploadProgress?: (progress: {
@@ -942,7 +951,7 @@ describe("TaskForm", () => {
           }) => void;
         },
       ) =>
-        new Promise<string>((resolve) => {
+        new Promise<{ publicUrl: string }>((resolve) => {
           options?.onUploadProgress?.({
             loaded: 3,
             total: 6,
@@ -954,7 +963,7 @@ describe("TaskForm", () => {
               total: 6,
               percentage: 100,
             });
-            resolve("https://blob.example/report.pdf");
+            resolve({ publicUrl: "https://blob.example/report.pdf" });
           };
         }),
     );
@@ -1022,10 +1031,9 @@ describe("TaskForm", () => {
     });
     let resolveSecondUpload: (() => void) | null = null;
 
-    uploadTaskAttachmentMock
+    uploadUserFileDirectMock
       .mockImplementationOnce(
         async (
-          _taskId: string,
           _file: File,
           options?: {
             onUploadProgress?: (progress: {
@@ -1041,12 +1049,11 @@ describe("TaskForm", () => {
             percentage: 100,
           });
 
-          return "https://blob.example/first.pdf";
+          return { publicUrl: "https://blob.example/first.pdf" };
         },
       )
       .mockImplementationOnce(
         (
-          _taskId: string,
           _file: File,
           options?: {
             onUploadProgress?: (progress: {
@@ -1056,7 +1063,7 @@ describe("TaskForm", () => {
             }) => void;
           },
         ) =>
-          new Promise<string>((resolve) => {
+          new Promise<{ publicUrl: string }>((resolve) => {
             options?.onUploadProgress?.({
               loaded: 2,
               total: 4,
@@ -1068,7 +1075,7 @@ describe("TaskForm", () => {
                 total: 4,
                 percentage: 100,
               });
-              resolve("https://blob.example/second.pdf");
+              resolve({ publicUrl: "https://blob.example/second.pdf" });
             };
           }),
       );
@@ -1093,7 +1100,7 @@ describe("TaskForm", () => {
     await user.upload(getHiddenFileInput(container), [firstFile, secondFile]);
 
     await waitFor(() => {
-      expect(uploadTaskAttachmentMock).toHaveBeenCalledTimes(2);
+      expect(uploadUserFileDirectMock).toHaveBeenCalledTimes(2);
     });
 
     renderLatestUploadToast();
@@ -1119,9 +1126,8 @@ describe("TaskForm", () => {
       type: "application/pdf",
     });
 
-    uploadTaskAttachmentMock.mockImplementation(
+    uploadUserFileDirectMock.mockImplementation(
       async (
-        _taskId: string,
         _file: File,
         options?: {
           onUploadProgress?: (progress: {
@@ -1176,9 +1182,8 @@ describe("TaskForm", () => {
     });
     let abortSignal: AbortSignal | undefined;
 
-    uploadTaskAttachmentMock.mockImplementation(
+    uploadUserFileDirectMock.mockImplementation(
       (
-        _taskId: string,
         _file: File,
         options?: {
           abortSignal?: AbortSignal;
@@ -1189,7 +1194,7 @@ describe("TaskForm", () => {
           }) => void;
         },
       ) =>
-        new Promise<string>((_resolve, reject) => {
+        new Promise<{ publicUrl: string }>((_resolve, reject) => {
           abortSignal = options?.abortSignal;
           options?.onUploadProgress?.({
             loaded: 3,
@@ -1227,7 +1232,7 @@ describe("TaskForm", () => {
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
-      expect(uploadTaskAttachmentMock).toHaveBeenCalledTimes(1);
+      expect(uploadUserFileDirectMock).toHaveBeenCalledTimes(1);
       expect(abortSignal).toBeDefined();
     });
 
@@ -1240,6 +1245,80 @@ describe("TaskForm", () => {
       expect(toastDismissMock).toHaveBeenCalledTimes(1);
       expect(toastErrorMock).toHaveBeenCalledWith("Upload canceled.");
     });
+  });
+
+  it("uploads create-mode description attachments via user files without creating a task", async () => {
+    const user = userEvent.setup();
+    const file = new File(["notes"], "DESIGN.md", {
+      type: "text/markdown",
+    });
+    const createTaskMock = vi.mocked(createTask);
+    uploadUserFileDirectMock.mockResolvedValue({
+      publicUrl: "https://blob.example/users/u1/DESIGN.md",
+    });
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(uploadUserFileDirectMock).toHaveBeenCalledTimes(1);
+      expect(toastDismissMock).toHaveBeenCalled();
+    });
+
+    expect(uploadUserFileDirectMock).toHaveBeenCalledWith(
+      file,
+      expect.objectContaining({
+        abortSignal: expect.any(AbortSignal),
+      }),
+    );
+    expect(createTaskMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("uploads edit-mode description attachments via user files, not task files", async () => {
+    const user = userEvent.setup();
+    const file = new File(["notes"], "notes.pdf", {
+      type: "application/pdf",
+    });
+    uploadUserFileDirectMock.mockResolvedValue({
+      publicUrl: "https://blob.example/users/u1/notes.pdf",
+    });
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Task",
+          description: "Body",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(uploadUserFileDirectMock).toHaveBeenCalledTimes(1);
+      expect(toastDismissMock).toHaveBeenCalled();
+    });
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
   it("uses a custom create handler when provided", async () => {
