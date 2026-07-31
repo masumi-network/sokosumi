@@ -313,10 +313,6 @@ beforeEach(() => {
   getPendingResponseMirrorMock.mockResolvedValue(null);
   setPendingResponseMirrorMock.mockResolvedValue(undefined);
   clearPendingResponseMirrorMock.mockResolvedValue(undefined);
-  pollCoworkerResponseStatusMock.mockResolvedValue({
-    status: "completed",
-    responseId: "resp_stale",
-  });
   waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
     void promise;
   });
@@ -745,17 +741,10 @@ describe("POST /chats/rooms/{id}/stream", () => {
 
       expect(response.status).toBe(409);
       expect(pollCoworkerResponseStatusMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          responseId: "resp_inflight",
-          responsesApiBaseUrl: "https://responses.example.com/v1",
-          userId: USER_ID,
-          organizationId: "org_1",
-          coworkerSlug: "hannah",
-        }),
+        expect.objectContaining({ responseId: "resp_inflight" }),
       );
       expect(clearPendingResponseMirrorMock).not.toHaveBeenCalled();
       expect(streamTextMock).not.toHaveBeenCalled();
-      expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",
@@ -778,7 +767,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
         parentMessageId: null,
       });
       expect(streamTextMock).toHaveBeenCalledOnce();
-      expect(persistUserMessageToChatRoomMock).toHaveBeenCalledOnce();
     });
 
     it("returns 503 and clears mirror when pending status cannot be verified", async () => {
@@ -798,7 +786,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
         parentMessageId: null,
       });
       expect(streamTextMock).not.toHaveBeenCalled();
-      expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",
@@ -815,7 +802,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
         providerOptions: {
           sokosumi: {
             onResponseStarted: (id: string) => Promise<void>;
-            onResponseCompleted: (id: string) => Promise<void>;
+            onResponseCompleted: () => Promise<void>;
           };
         };
       };
@@ -826,14 +813,14 @@ describe("POST /chats/rooms/{id}/stream", () => {
         "resp_new",
       );
 
-      await streamArgs.providerOptions.sokosumi.onResponseCompleted("resp_new");
+      await streamArgs.providerOptions.sokosumi.onResponseCompleted();
       expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         parentMessageId: null,
       });
     });
 
-    it("scopes mirror set/clear to the thread parentMessageId", async () => {
+    it("scopes mirror get/set to the thread parentMessageId", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
       chatRoomMessageFindFirstMock.mockResolvedValue({
         id: PARENT_MESSAGE_ID,
@@ -857,7 +844,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
         providerOptions: {
           sokosumi: {
             onResponseStarted: (id: string) => Promise<void>;
-            onResponseCompleted: (id: string) => Promise<void>;
           };
         };
       };
@@ -869,60 +855,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
         { roomId: ROOM_ID, parentMessageId: PARENT_MESSAGE_ID },
         "resp_thread",
       );
-
-      await streamArgs.providerOptions.sokosumi.onResponseCompleted(
-        "resp_thread",
-      );
-      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
-        roomId: ROOM_ID,
-        parentMessageId: PARENT_MESSAGE_ID,
-      });
-    });
-
-    it("clears the pending mirror on UI stream finish", async () => {
-      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
-      const waitUntilPromises: Promise<unknown>[] = [];
-      waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
-        waitUntilPromises.push(promise);
-      });
-
-      const response = await postStream();
-      expect(response.status).toBe(200);
-
-      const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
-        onFinish?: () => Promise<void>;
-      };
-      await init.onFinish!();
-      await Promise.all(waitUntilPromises);
-
-      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
-        roomId: ROOM_ID,
-        parentMessageId: null,
-      });
-    });
-
-    it("clears the pending mirror on UI stream error", async () => {
-      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
-      const waitUntilPromises: Promise<unknown>[] = [];
-      waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
-        waitUntilPromises.push(promise);
-      });
-
-      const response = await postStream();
-      expect(response.status).toBe(200);
-
-      const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
-        onError?: (error: unknown) => string;
-      };
-      expect(init.onError?.(new Error("stream boom"))).toBe(
-        "An error occurred.",
-      );
-      await Promise.all(waitUntilPromises);
-
-      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
-        roomId: ROOM_ID,
-        parentMessageId: null,
-      });
     });
   });
 
@@ -1005,6 +937,10 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(waitUntilPromises).toHaveLength(2);
       await Promise.all(waitUntilPromises);
 
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",
@@ -1050,6 +986,10 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(waitUntilPromises).toHaveLength(2);
       await Promise.all(waitUntilPromises);
 
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",

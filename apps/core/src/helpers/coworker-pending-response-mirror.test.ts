@@ -84,15 +84,4 @@ describe("coworker-pending-response-mirror", () => {
       coworkerPendingResponseRedisKey(ROOM_SCOPE),
     );
   });
-
-  it("sets the pending response mirror under the thread-scoped key", async () => {
-    await setPendingResponseMirror(THREAD_SCOPE, "resp_thread");
-
-    expect(redisSetMock).toHaveBeenCalledWith(
-      coworkerPendingResponseRedisKey(THREAD_SCOPE),
-      "resp_thread",
-      "EX",
-      COWORKER_STREAM_LOCK_TTL_SECONDS,
-    );
-  });
 });

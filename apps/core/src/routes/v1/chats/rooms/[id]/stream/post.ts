@@ -268,9 +268,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (pollResult.status === "in_progress") {
           throw conflict(
-            parentMessageId
-              ? "A coworker response is already in progress for this thread."
-              : "A coworker response is already in progress for this room.",
+            "A coworker response is already in progress for this room.",
           );
         }
 
