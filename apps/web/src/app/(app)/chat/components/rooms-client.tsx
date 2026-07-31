@@ -58,6 +58,7 @@ import {
   getRoomDisplayName,
   getRoomParticipantPreviews,
   hasPendingCoworkerMention,
+  isMessageContinuation,
   isRoomComposerEmpty,
   messageDayKey,
   presenceLabel,
@@ -1136,6 +1137,10 @@ export function RoomsClient({
                             room: selectedRoom,
                             isStreamOverlay,
                           })}
+                          isContinuation={
+                            !showDaySeparator &&
+                            isMessageContinuation(previousMessage, message)
+                          }
                         />
                       </div>
                     );

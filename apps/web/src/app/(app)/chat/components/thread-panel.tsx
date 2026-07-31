@@ -13,6 +13,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
 import {
+  isMessageContinuation,
   isRoomComposerEmpty,
   type RoomMentionParticipant,
 } from "./room-helpers";
@@ -139,7 +140,7 @@ export function ThreadPanel({
               ) : null}
               {replies.length > 0 ? (
                 <div className="space-y-1">
-                  {replies.map((reply) => (
+                  {replies.map((reply, index) => (
                     <ChatMessageRow
                       key={reply.id}
                       message={reply}
@@ -149,6 +150,10 @@ export function ThreadPanel({
                       usersBySlug={usersBySlug}
                       onToggleReaction={onToggleReaction}
                       showThreadButton={false}
+                      isContinuation={isMessageContinuation(
+                        replies[index - 1],
+                        reply,
+                      )}
                     />
                   ))}
                 </div>
