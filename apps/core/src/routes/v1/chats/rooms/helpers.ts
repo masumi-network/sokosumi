@@ -617,7 +617,7 @@ export async function requireChatRoomUserMembership(
 
 /**
  * Coworker membership for active (non-archived) rooms. Mirrors the inline gate
- * on coworker message POST — 404 when missing or archived.
+ * on coworker message POST. Returns 404 when missing or archived.
  */
 export async function requireChatRoomCoworkerAccess(
   roomId: string,

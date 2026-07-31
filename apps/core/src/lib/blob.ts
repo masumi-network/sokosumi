@@ -127,7 +127,7 @@ export async function createTaskFileUploadSession(
 
 /**
  * Room chat-file direct upload grant (presigned PUT). Same shape as user-file
- * mint. No onUploadCompleted webhook — callers put the public URL into message
+ * mint. No onUploadCompleted webhook. Callers put the public URL into message
  * markdown. No ChatFile row.
  */
 export async function createChatRoomFileUploadSession(

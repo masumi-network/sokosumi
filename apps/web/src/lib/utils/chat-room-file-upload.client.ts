@@ -68,7 +68,7 @@ function toChatRoomFileUploadError(error: unknown): UserFileUploadError {
 
 /**
  * Mint a room-scoped chat file grant and PUT bytes to Blob.
- * No ChatFile row — callers put the public URL into message markdown.
+ * No ChatFile row. Callers put the public URL into message markdown.
  */
 export async function uploadChatRoomFileDirect(
   roomId: string,

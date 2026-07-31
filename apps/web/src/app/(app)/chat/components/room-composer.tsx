@@ -140,7 +140,7 @@ export function RoomComposer({
           }),
         );
 
-        // Chip-only — markdown links are stitched into content on send.
+        // Chip-only. Markdown links are stitched into content on send.
         onAttachmentsChange((current) => [...current, ...uploadedAttachments]);
         toast.success(
           tToolbar("uploaded", { count: uploadedAttachments.length }),
