@@ -39,13 +39,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import type {
   ChatRoom,
-  ChatRoomCoworkerParticipant,
   ChatRoomMessage,
   Coworker,
   Member,
   Organization,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
 import { DraftChannel } from "./draft-channel";
 import { DraftDirectMessage } from "./draft-direct-message";
@@ -58,6 +58,7 @@ import {
   hasPendingCoworkerMention,
   messageDayKey,
   presenceLabel,
+  type RoomMentionParticipant,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
   shouldUseCoworkerRoomStream,
@@ -165,9 +166,7 @@ export function RoomsClient({
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
-  const [mentionedCoworkerIds, setMentionedCoworkerIds] = useState<string[]>(
-    [],
-  );
+  const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [messagesState, setMessagesState] =
     useState<ChatRoomMessage[]>(messages);
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
@@ -185,9 +184,7 @@ export function RoomsClient({
   const [threadComposerAttachments, setThreadComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
-  const [threadMentionedCoworkerIds, setThreadMentionedCoworkerIds] = useState<
-    string[]
-  >([]);
+  const [threadMentionedIds, setThreadMentionedIds] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
@@ -433,20 +430,78 @@ export function RoomsClient({
       ]),
     );
   }, [selectedRoom]);
-  const mentionRecords = useMemo<
-    Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>
-  >(() => {
-    return Object.fromEntries(
-      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
-        coworker.id,
-        {
-          value: coworker.name,
-          slug: coworker.slug,
-          data: coworker,
-        },
+  const usersById = useMemo(() => {
+    return new Map(
+      (selectedRoom?.userMembers ?? []).map((user) => [user.id, user]),
+    );
+  }, [selectedRoom]);
+  const usersBySlug = useMemo(() => {
+    return new Map(
+      (selectedRoom?.userMembers ?? []).map((user) => [
+        slugifyMentionValue(user.name),
+        user,
       ]),
     );
   }, [selectedRoom]);
+  const mentionRecords = useMemo<
+    Record<string, MentionRecordEntry<RoomMentionParticipant>>
+  >(() => {
+    const humanEntries = (selectedRoom?.userMembers ?? [])
+      .filter((user) => user.id !== currentUserId)
+      .map((user) => {
+        const participant: RoomMentionParticipant = {
+          kind: "human",
+          id: user.id,
+          name: user.name,
+          slug: slugifyMentionValue(user.name),
+          image: user.image,
+        };
+        return [
+          user.id,
+          {
+            value: user.name,
+            slug: participant.slug,
+            data: participant,
+          },
+        ] as const;
+      });
+    const coworkerEntries = (selectedRoom?.coworkerMembers ?? []).map(
+      (coworker) => {
+        const participant: RoomMentionParticipant = {
+          kind: "coworker",
+          id: coworker.id,
+          name: coworker.name,
+          slug: coworker.slug,
+          image: coworker.image,
+        };
+        return [
+          coworker.id,
+          {
+            value: coworker.name,
+            slug: coworker.slug,
+            data: participant,
+          },
+        ] as const;
+      },
+    );
+    return Object.fromEntries([...humanEntries, ...coworkerEntries]);
+  }, [currentUserId, selectedRoom]);
+
+  function partitionMentionIds(selectedKeys: string[]): {
+    mentionedCoworkerIds: string[];
+    mentionedUserIds: string[];
+  } {
+    const mentionedCoworkerIds: string[] = [];
+    const mentionedUserIds: string[] = [];
+    for (const id of selectedKeys) {
+      if (coworkersById.has(id)) {
+        mentionedCoworkerIds.push(id);
+      } else if (usersById.has(id) && id !== currentUserId) {
+        mentionedUserIds.push(id);
+      }
+    }
+    return { mentionedCoworkerIds, mentionedUserIds };
+  }
 
   useEffect(() => {
     const isChannelSwitch = syncedRoomIdRef.current !== selectedRoomId;
@@ -470,12 +525,12 @@ export function RoomsClient({
   useEffect(() => {
     setComposerValue("");
     setComposerAttachments([]);
-    setMentionedCoworkerIds([]);
+    setMentionedIds([]);
     setThreadParentMessage(null);
     setThreadMessages([]);
     setThreadComposerValue("");
     setThreadComposerAttachments([]);
-    setThreadMentionedCoworkerIds([]);
+    setThreadMentionedIds([]);
   }, [selectedRoomId, isNewDirectMessage, isCreateChannelRequested]);
 
   // Scroll on room switch or when the newest message changes — not when
@@ -872,14 +927,22 @@ export function RoomsClient({
     if (shouldUseCoworkerRoomStream(selectedRoom)) {
       setComposerValue("");
       setComposerAttachments([]);
-      setMentionedCoworkerIds([]);
+      setMentionedIds([]);
       sendStreamMessage(content);
       return;
     }
 
-    const mentionIds = mentionedCoworkerIds;
+    const { mentionedCoworkerIds, mentionedUserIds } =
+      partitionMentionIds(mentionedIds);
     startSendingTransition(async () => {
-      const result = await sendRoomMessageAction(roomId, content, mentionIds);
+      const result = await sendRoomMessageAction(
+        roomId,
+        content,
+        mentionedCoworkerIds,
+        {
+          mentionedUserIds,
+        },
+      );
       if (!result.ok) {
         toast.error(result.message);
         return;
@@ -890,7 +953,7 @@ export function RoomsClient({
       setMessagesState((current) => appendMessage(current, result.data));
       setComposerValue("");
       setComposerAttachments([]);
-      setMentionedCoworkerIds([]);
+      setMentionedIds([]);
     });
   }
 
@@ -905,18 +968,22 @@ export function RoomsClient({
     if (shouldUseCoworkerRoomStream(selectedRoom)) {
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
-      setThreadMentionedCoworkerIds([]);
+      setThreadMentionedIds([]);
       sendStreamMessage(content, { parentMessageId });
       return;
     }
 
-    const mentionIds = threadMentionedCoworkerIds;
+    const { mentionedCoworkerIds, mentionedUserIds } =
+      partitionMentionIds(threadMentionedIds);
     startSendingThreadReplyTransition(async () => {
       const result = await sendRoomMessageAction(
         roomId,
         content,
-        mentionIds,
-        parentMessageId,
+        mentionedCoworkerIds,
+        {
+          mentionedUserIds,
+          parentMessageId,
+        },
       );
       if (!result.ok) {
         toast.error(result.message);
@@ -930,7 +997,7 @@ export function RoomsClient({
       updateParentThreadPreview(parentMessageId, result.data);
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
-      setThreadMentionedCoworkerIds([]);
+      setThreadMentionedIds([]);
     });
   }
 
@@ -1042,6 +1109,8 @@ export function RoomsClient({
                           message={message}
                           coworkersById={coworkersById}
                           coworkersBySlug={coworkersBySlug}
+                          usersById={usersById}
+                          usersBySlug={usersBySlug}
                           onToggleReaction={handleToggleReaction}
                           onOpenThread={
                             shouldShowChatRoomThreadButton({
@@ -1068,7 +1137,7 @@ export function RoomsClient({
                 value={composerValue}
                 onValueChange={setComposerValue}
                 mentions={mentionRecords}
-                onSelectedKeysChange={setMentionedCoworkerIds}
+                onSelectedKeysChange={setMentionedIds}
                 placeholder={
                   isDirectRoom
                     ? t("directComposerPlaceholder", {
@@ -1122,10 +1191,12 @@ export function RoomsClient({
             onLoadOlder={handleLoadOlderThreadMessages}
             coworkersById={coworkersById}
             coworkersBySlug={coworkersBySlug}
+            usersById={usersById}
+            usersBySlug={usersBySlug}
             mentionRecords={mentionRecords}
             replyValue={threadComposerValue}
             onReplyValueChange={setThreadComposerValue}
-            replyMentionedCoworkerIdsChange={setThreadMentionedCoworkerIds}
+            replyMentionedIdsChange={setThreadMentionedIds}
             replyAttachments={threadComposerAttachments}
             onReplyAttachmentsChange={setThreadComposerAttachments}
             onSubmitReply={handleSendThreadReply}

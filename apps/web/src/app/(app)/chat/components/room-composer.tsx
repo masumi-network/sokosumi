@@ -27,7 +27,6 @@ import {
   type MentionTextareaHandle,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
-import type { ChatRoomCoworkerParticipant } from "@/lib/clients/generated/core";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
   formatTaskAttachmentMarkdown,
@@ -35,17 +34,21 @@ import {
 } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import { appendComposerBlock } from "./room-helpers";
+import {
+  appendComposerBlock,
+  type RoomMentionParticipant,
+} from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
-function CoworkerSuggestion({
+function RoomMentionSuggestion({
   mention,
 }: {
-  mention: NormalizedMention<ChatRoomCoworkerParticipant>;
+  mention: NormalizedMention<RoomMentionParticipant>;
 }) {
+  const isCoworker = mention.data?.kind === "coworker";
   return (
     <>
       <Avatar className="size-6">
@@ -57,7 +60,7 @@ function CoworkerSuggestion({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{mention.value}</span>
-          <AiCoworkerIcon />
+          {isCoworker ? <AiCoworkerIcon /> : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
           @{mention.slug}
@@ -83,7 +86,7 @@ export function RoomComposer({
 }: {
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
-  mentions: Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>;
+  mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: RoomComposerAttachment[];
@@ -260,7 +263,7 @@ export function RoomComposer({
         // Capped so a long draft scrolls inside the composer instead of
         // growing it until the toolbar and send button leave the screen.
         className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
-        renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
+        renderItem={(mention) => <RoomMentionSuggestion mention={mention} />}
       />
     </RoomMessageComposer>
   );

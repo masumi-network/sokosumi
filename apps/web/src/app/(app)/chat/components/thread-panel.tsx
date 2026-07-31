@@ -9,8 +9,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
+import type { RoomMentionParticipant } from "./room-helpers";
 import { ChatMessageRow } from "./room-message-row";
 
 export function ThreadPanel({
@@ -22,10 +24,12 @@ export function ThreadPanel({
   onLoadOlder,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
   mentionRecords,
   replyValue,
   onReplyValueChange,
-  replyMentionedCoworkerIdsChange,
+  replyMentionedIdsChange,
   replyAttachments,
   onReplyAttachmentsChange,
   onSubmitReply,
@@ -43,13 +47,12 @@ export function ThreadPanel({
   onLoadOlder: () => void;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  mentionRecords: Record<
-    string,
-    MentionRecordEntry<ChatRoomCoworkerParticipant>
-  >;
+  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  mentionRecords: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   replyValue: string;
   onReplyValueChange: Dispatch<SetStateAction<string>>;
-  replyMentionedCoworkerIdsChange: (selectedKeys: string[]) => void;
+  replyMentionedIdsChange: (selectedKeys: string[]) => void;
   replyAttachments: RoomComposerAttachment[];
   onReplyAttachmentsChange: Dispatch<SetStateAction<RoomComposerAttachment[]>>;
   onSubmitReply: (event: FormEvent<HTMLFormElement>) => void;
@@ -96,6 +99,8 @@ export function ThreadPanel({
             message={parentMessage}
             coworkersById={coworkersById}
             coworkersBySlug={coworkersBySlug}
+            usersById={usersById}
+            usersBySlug={usersBySlug}
             onToggleReaction={onToggleReaction}
             showThreadButton={false}
           />
@@ -135,6 +140,8 @@ export function ThreadPanel({
                       message={reply}
                       coworkersById={coworkersById}
                       coworkersBySlug={coworkersBySlug}
+                      usersById={usersById}
+                      usersBySlug={usersBySlug}
                       onToggleReaction={onToggleReaction}
                       showThreadButton={false}
                     />
@@ -153,7 +160,7 @@ export function ThreadPanel({
         value={replyValue}
         onValueChange={onReplyValueChange}
         mentions={mentionRecords}
-        onSelectedKeysChange={replyMentionedCoworkerIdsChange}
+        onSelectedKeysChange={replyMentionedIdsChange}
         placeholder={t("Thread.replyPlaceholder")}
         attachments={replyAttachments}
         onAttachmentsChange={onReplyAttachmentsChange}
