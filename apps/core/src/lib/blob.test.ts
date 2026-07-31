@@ -8,21 +8,22 @@ import {
   uploadCoworkerImage,
   uploadGeneratedChatImage,
   uploadProfileImage,
-  uploadTaskFile,
 } from "./blob";
 
 const {
   listMock,
   putMock,
   delMock,
-  generateClientTokenFromReadWriteTokenMock,
+  issueSignedTokenMock,
+  presignUrlMock,
   getEnvMock,
   captureExceptionMock,
 } = vi.hoisted(() => ({
   listMock: vi.fn(),
   putMock: vi.fn(),
   delMock: vi.fn(),
-  generateClientTokenFromReadWriteTokenMock: vi.fn(),
+  issueSignedTokenMock: vi.fn(),
+  presignUrlMock: vi.fn(),
   getEnvMock: vi.fn(() => ({})),
   captureExceptionMock: vi.fn(),
 }));
@@ -35,11 +36,8 @@ vi.mock("@vercel/blob", () => ({
   put: putMock,
   list: listMock,
   del: delMock,
-}));
-
-vi.mock("@vercel/blob/client", () => ({
-  generateClientTokenFromReadWriteToken:
-    generateClientTokenFromReadWriteTokenMock,
+  issueSignedToken: issueSignedTokenMock,
+  presignUrl: presignUrlMock,
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -51,10 +49,15 @@ describe("createUserFileUploadSession", () => {
     vi.resetAllMocks();
   });
 
-  it("creates a scoped direct upload session for the user upload path", async () => {
-    generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
-      "client-token-123",
-    );
+  it("creates a scoped direct upload session for the user file path", async () => {
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=1",
+    });
 
     const result = await createUserFileUploadSession(
       "user_123",
@@ -67,27 +70,36 @@ describe("createUserFileUploadSession", () => {
       "token_123",
     );
 
-    expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith({
-      token: "token_123",
-      pathname: "users/user_123/my_file1.pdf",
-      allowedContentTypes: ["application/pdf"],
-      maximumSizeInBytes: 2_048_000,
-      validUntil: expect.any(Number),
-      addRandomSuffix: true,
-    });
+    expect(issueSignedTokenMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: "token_123",
+        pathname: "users/user_123/my_file1.pdf",
+        operations: ["put"],
+        allowedContentTypes: ["application/pdf"],
+        maximumSizeInBytes: 2_048_000,
+      }),
+    );
     expect(result).toEqual({
-      clientToken: "client-token-123",
+      uploadUrl: "https://blob.example/upload?sig=1",
       access: "public",
+      method: "PUT",
+      headers: { "Content-Type": "application/pdf" },
       pathname: "users/user_123/my_file1.pdf",
       addRandomSuffix: true,
       maxSizeBytes: 262_144_000,
+      expiresAt: expect.any(String),
     });
   });
 
   it("uses explicit allowedContentTypes when provided", async () => {
-    generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
-      "client-token-456",
-    );
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=2",
+    });
 
     await createUserFileUploadSession(
       "user_123",
@@ -101,7 +113,7 @@ describe("createUserFileUploadSession", () => {
       "token_123",
     );
 
-    expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith(
+    expect(issueSignedTokenMock).toHaveBeenCalledWith(
       expect.objectContaining({
         allowedContentTypes: ["image/png", "image/jpeg"],
         maximumSizeInBytes: 500,
@@ -417,52 +429,6 @@ describe("deleteCoworkerImageIfOwned", () => {
       deleteCoworkerImageIfOwned(url, "cow-1"),
     ).resolves.toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalled();
-  });
-});
-
-describe("uploadTaskFile", () => {
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("uploads under the task prefix with a random suffix", async () => {
-    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
-    putMock.mockResolvedValue({
-      url: "https://blob.example/tasks/tsk_123/report-xyz.pdf",
-    });
-
-    const url = await uploadTaskFile({
-      taskId: "tsk_123",
-      bytes: Buffer.from("%PDF"),
-      contentType: "application/pdf",
-      filename: " my report.pdf ",
-    });
-
-    expect(url).toBe("https://blob.example/tasks/tsk_123/report-xyz.pdf");
-    expect(putMock).toHaveBeenCalledWith(
-      "tasks/tsk_123/my_report.pdf",
-      Buffer.from("%PDF"),
-      expect.objectContaining({
-        access: "public",
-        contentType: "application/pdf",
-        token: "rw_token",
-        addRandomSuffix: true,
-      }),
-    );
-  });
-
-  it("returns null when blob storage is not configured", async () => {
-    getEnvMock.mockReturnValue({});
-
-    await expect(
-      uploadTaskFile({
-        taskId: "tsk_123",
-        bytes: Buffer.from("%PDF"),
-        contentType: "application/pdf",
-        filename: "report.pdf",
-      }),
-    ).resolves.toBeNull();
-    expect(putMock).not.toHaveBeenCalled();
   });
 });
 

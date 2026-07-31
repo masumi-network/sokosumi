@@ -1,4 +1,4 @@
--- 20260727120000 added the WITHDRAW_AUTHORIZED and REFUND_AUTHORIZED on-chain
+-- 20260730150000 added the WITHDRAW_AUTHORIZED and REFUND_AUTHORIZED on-chain
 -- states, but the history feed's status mapping lives in this SQL function and
 -- was never updated: both fell through its ELSE to 'payment_pending', so the
 -- history list showed "payment pending" for a job the job page reported as

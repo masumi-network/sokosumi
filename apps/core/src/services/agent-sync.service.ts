@@ -297,7 +297,7 @@ async function upsertRegistryAgent(
       });
 
       // Consolidate the duplicate's user-owned relations onto the canonical
-      // row before parking it, mirroring migration 20260728090000 — parking
+      // row before parking it, mirroring migration 20260730155000 — parking
       // alone would strand them on a hidden INVALID row. Registry-owned tags
       // are deliberately excluded: the canonical update below SETs them from
       // this entry, which is the authoritative list.
@@ -336,7 +336,7 @@ async function upsertRegistryAgent(
         ...registryFields,
         // Tags are registry-owned and every diff entry carries the full list,
         // so they are SET (not connected) on every update. This also heals
-        // the historical tag unions the 20260728090000 repair left on
+        // the historical tag unions the 20260730155000 repair left on
         // consolidated rows, which same-version replays could never remove.
         tags: { set: tagReferences },
         ...(shouldReplaceCollections

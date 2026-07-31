@@ -8,7 +8,7 @@ import type { RegistryDiffEntry } from "./agent-sync.projection.js";
 
 /**
  * Prefix stamped onto a duplicate Agent row's identifiers when it is parked,
- * matching migration 20260728090000. Parked rows are bookkeeping artifacts:
+ * matching migration 20260730155000. Parked rows are bookkeeping artifacts:
  * they must never be read as admin curation.
  */
 export const PARKED_IDENTIFIER_PREFIX = "legacy-v2:";
@@ -16,7 +16,7 @@ export const PARKED_IDENTIFIER_PREFIX = "legacy-v2:";
 /**
  * Moves user-owned relations from a duplicate Agent row onto the canonical
  * one before the duplicate is parked. Mirrors the consolidation in migration
- * 20260728090000: ratings keep the newest per user (the (userId, agentId)
+ * 20260730155000: ratings keep the newest per user (the (userId, agentId)
  * unique constraint forbids duplicates), categories and any admin metadata
  * override follow the stable row, and job notifications are retargeted so
  * their deep links keep resolving.
@@ -108,7 +108,7 @@ export async function consolidateDuplicateAgentRelations(
  * guarantee evaluation order WITHIN one relation's filter list, and every
  * qual here is single-relation.
  *
- * Migration 20260728090000 does the same rewrite with plain conjuncts, and
+ * Migration 20260730155000 does the same rewrite with plain conjuncts, and
  * that is correct there for the opposite reason: its cast sits in a
  * two-relation qual joining to the repair table, which the planner can never
  * push below the notification scan. Converting it to this subquery form would

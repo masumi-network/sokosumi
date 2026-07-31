@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 const getAgentsByIdInputSchemaMock = vi.fn();
-const postUsersByIdUploadsMock = vi.fn();
+const postUsersByIdFilesMock = vi.fn();
 const createClientMock = vi.fn();
 const mockClient = {
   id: "browser-core-client",
@@ -19,8 +19,7 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 
 vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
-  postUsersByIdUploads: (...args: unknown[]) =>
-    postUsersByIdUploadsMock(...args),
+  postUsersByIdFiles: (...args: unknown[]) => postUsersByIdFilesMock(...args),
 }));
 
 describe("core.browser.client", () => {
@@ -77,14 +76,17 @@ describe("core.browser.client", () => {
   });
 
   it("creates direct upload sessions through the browser transport", async () => {
-    postUsersByIdUploadsMock.mockResolvedValue({
+    postUsersByIdFilesMock.mockResolvedValue({
       data: {
         data: {
-          clientToken: "upload-token",
+          uploadUrl: "https://blob.example/upload?sig=1",
           access: "public",
+          method: "PUT",
+          headers: { "Content-Type": "application/pdf" },
           pathname: "users/user_123/report.pdf",
           addRandomSuffix: true,
           maxSizeBytes: 1073741824,
+          expiresAt: "2026-07-30T12:15:00.000Z",
         },
         meta: {
           timestamp: new Date("2026-04-02T12:00:00.000Z"),
@@ -101,7 +103,7 @@ describe("core.browser.client", () => {
       size: 1234,
     });
 
-    expect(postUsersByIdUploadsMock).toHaveBeenCalledWith({
+    expect(postUsersByIdFilesMock).toHaveBeenCalledWith({
       client: mockClient,
       path: { id: "me" },
       body: {
@@ -115,14 +117,17 @@ describe("core.browser.client", () => {
   });
 
   it("forwards optional upload constraints to the browser transport", async () => {
-    postUsersByIdUploadsMock.mockResolvedValue({
+    postUsersByIdFilesMock.mockResolvedValue({
       data: {
         data: {
-          clientToken: "upload-token",
+          uploadUrl: "https://blob.example/upload?sig=logo",
           access: "public",
+          method: "PUT",
+          headers: { "Content-Type": "image/png" },
           pathname: "users/user_123/logo.png",
           addRandomSuffix: true,
           maxSizeBytes: 2097152,
+          expiresAt: "2026-07-30T12:15:00.000Z",
         },
         meta: {
           timestamp: new Date("2026-04-02T12:00:00.000Z"),
@@ -141,7 +146,7 @@ describe("core.browser.client", () => {
       allowedContentTypes: ["image/png", "image/jpeg"],
     });
 
-    expect(postUsersByIdUploadsMock).toHaveBeenCalledWith({
+    expect(postUsersByIdFilesMock).toHaveBeenCalledWith({
       client: mockClient,
       path: { id: "me" },
       body: {

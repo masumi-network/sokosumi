@@ -164,6 +164,30 @@ const envSchema = z.object({
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
+   * for presigned client uploads. Required for task-file auto-registration.
+   * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls
+   */
+  BLOB_WEBHOOK_PUBLIC_KEY: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const trimmed = value?.trim();
+      return trimmed ? trimmed : undefined;
+    }),
+  /**
+   * Optional public base URL for Blob completion callbacks (e.g. ngrok in
+   * local dev). When unset, Core uses {@link getBetterAuthPublicBaseUrl}.
+   */
+  VERCEL_BLOB_CALLBACK_URL: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const trimmed = value?.trim();
+      return trimmed ? trimmed : undefined;
+    })
+    .pipe(z.url().optional()),
 
   // Ably
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),

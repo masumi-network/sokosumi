@@ -109,17 +109,20 @@ const requestSchema = createUserFileUploadRequestSchema
 
 const route = createRoute({
   method: "post",
-  path: "/uploads",
+  path: "/files",
   description: [
-    "Create a direct upload session: path `me` for the session user, or a user id when the caller may access that user's data.",
+    "Mint a direct upload session for a user file: path `me` for the session user,",
+    "or a user id when the caller may access that user's data.",
+    "Bytes go client → Vercel Blob (not through this API).",
     "",
-    "Next steps:",
-    "1. Call this endpoint with the original `filename`, `contentType`, and `size`.",
-    "2. Use the returned `pathname`, `access`, `clientToken`, and `addRandomSuffix` when uploading the file to Vercel Blob.",
-    "3. If your client talks to Vercel Blob directly, send the original file bytes and metadata to the Vercel Blob multipart upload `/mpu` flow using the returned `pathname` as the destination path and `clientToken` as the scoped upload token.",
-    "4. If you use the Vercel Blob SDK, this is the equivalent call: `put(pathname, file, { access, token: clientToken, contentType, multipart: true })`. The SDK handles the `/mpu` requests for you.",
+    "Agent / REST:",
+    "1. POST this endpoint with `filename`, `contentType`, and `size`.",
+    "2. PUT the raw file bytes to `data.uploadUrl` with header `Content-Type` from `data.headers`",
+    "   (or the resolved content type).",
+    "3. Use the final public Blob URL from the PUT response (or product field that stores it).",
+    "   No `@vercel/blob` SDK required.",
     "",
-    "Reference: https://vercel.com/docs/storage/vercel-blob/using-blob-sdk",
+    "Reference: https://vercel.com/docs/vercel-blob/vercel-signed-urls",
   ].join("\n"),
   tags: ["Users"],
   request: {
@@ -139,11 +142,15 @@ const route = createRoute({
       "User file upload session created successfully",
       {
         data: {
-          clientToken: "vercel_blob_client_token",
+          uploadUrl:
+            "https://store.public.blob.vercel-storage.com/users/user_123/document.pdf?vercel-blob-delegation=…",
           access: "public",
+          method: "PUT",
+          headers: { "Content-Type": "application/pdf" },
           pathname: "users/user_123/document_abc.pdf",
           addRandomSuffix: true,
           maxSizeBytes: LIMITS.USER_UPLOAD_MAX_SIZE_BYTES,
+          expiresAt: "2026-02-16T12:15:00.000Z",
         },
         meta: {
           timestamp: "2026-02-16T12:00:00.000Z",

@@ -1,4 +1,4 @@
-/** Canonical allowlist for user file uploads (kept in sync with Core POST /uploads). */
+/** Canonical allowlist for user file uploads (kept in sync with Core POST /files). */
 export const USER_UPLOAD_ALLOWED_CONTENT_TYPES = [
   "application/gzip",
   "application/json",
