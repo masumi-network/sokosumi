@@ -39,7 +39,6 @@ const labels = {
     job: "Job",
   },
   statusOptions: {
-    active: "Active",
     archived: "Archived",
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.QUEUED]: "Queued",

@@ -173,7 +173,9 @@ export function buildHistoryStatusFilter(
         status: { in: taskStatuses },
         archivedAt: null,
       });
-    } else if (includesActive && includesArchived) {
+    } else if (includesActive) {
+      // `active` alone used to match CONVERSATION rows; after that kind was
+      // dropped, map it to non-archived tasks (kinds that support archivedAt).
       taskBranches.push({
         kind: HistoryKind.TASK,
         archivedAt: null,
@@ -197,6 +199,11 @@ export function buildHistoryStatusFilter(
       jobBranches.push({
         kind: HistoryKind.JOB,
         entityId: { in: jobEntityIds },
+      });
+    } else if (includesActive) {
+      jobBranches.push({
+        kind: HistoryKind.JOB,
+        archivedAt: null,
       });
     }
 

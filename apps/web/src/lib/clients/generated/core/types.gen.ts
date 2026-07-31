@@ -9028,6 +9028,9 @@ export type PostChatsRoomsByIdStreamData = {
         previousResponseId?: string;
         model?: string | null;
         imageGeneration?: boolean;
+    } & {
+        parentMessageId?: string;
+        roomId?: string;
     };
     headers?: {
         /**
@@ -13843,7 +13846,7 @@ export type GetHistoryData = {
          */
         scope?: 'workspace' | 'owned';
         /**
-         * Comma-separated status filters. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, only non-archived rows match for kinds that support archived state.
+         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task and job rows match.
          */
         status?: Array<string>;
         /**

@@ -81,7 +81,7 @@ const historyStatusQuerySchema = z
   .openapi({
     param: { name: "status", in: "query" },
     description:
-      "Comma-separated status filters. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, only non-archived rows match for kinds that support archived state.",
+      "Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task and job rows match.",
     example: "READY,completed",
   });
 

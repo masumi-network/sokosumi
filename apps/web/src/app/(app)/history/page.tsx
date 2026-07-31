@@ -119,7 +119,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                 job: t("Filters.typeOptions.job"),
               },
               statusOptions: {
-                active: t("Filters.statusOptions.active"),
                 archived: t("Filters.statusOptions.archived"),
                 ...taskStatusOptions,
                 ...jobStatusOptions,

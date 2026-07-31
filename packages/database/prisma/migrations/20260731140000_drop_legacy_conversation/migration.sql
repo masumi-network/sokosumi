@@ -1,12 +1,15 @@
 -- Drop legacy Sokosumi conversation storage and CONVERSATION history/notification kinds (SOK-671).
+-- Lock + drop sync trigger first so overlapping writers cannot recreate CONVERSATION history rows mid-migration.
 BEGIN;
 
-DELETE FROM "history" WHERE "kind" = 'CONVERSATION';
-DELETE FROM "notification" WHERE "kind" = 'CONVERSATION';
+LOCK TABLE "conversation" IN ACCESS EXCLUSIVE MODE;
 
 DROP TRIGGER IF EXISTS history_conversation_sync ON "conversation";
 DROP FUNCTION IF EXISTS sync_history_from_conversation();
 DROP FUNCTION IF EXISTS upsert_history_conversation(UUID);
+
+DELETE FROM "history" WHERE "kind" = 'CONVERSATION';
+DELETE FROM "notification" WHERE "kind" = 'CONVERSATION';
 
 DROP TABLE IF EXISTS "conversationMessage";
 DROP TABLE IF EXISTS "conversation";

@@ -1305,7 +1305,6 @@
           "job": "Job"
         },
         "statusOptions": {
-          "active": "Ativo",
           "archived": "Arquivado",
           "DRAFT": "Rascunho",
           "QUEUED": "Na fila",

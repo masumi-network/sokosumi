@@ -1305,7 +1305,6 @@
           "job": "ジョブ"
         },
         "statusOptions": {
-          "active": "アクティブ",
           "archived": "アーカイブ済み",
           "DRAFT": "下書き",
           "QUEUED": "キュー中",

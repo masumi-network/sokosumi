@@ -231,7 +231,7 @@ describe("buildHistoryStatusFilter", () => {
     });
   });
 
-  it("excludes task and job rows when active is the only status filter", () => {
+  it("matches non-archived task and job rows when active is the only status filter", () => {
     expect(
       buildHistoryStatusFilter(
         ["active"],
@@ -239,7 +239,16 @@ describe("buildHistoryStatusFilter", () => {
         undefined,
       ),
     ).toEqual({
-      id: { in: [] },
+      OR: [
+        {
+          kind: HistoryKind.TASK,
+          archivedAt: null,
+        },
+        {
+          kind: HistoryKind.JOB,
+          archivedAt: null,
+        },
+      ],
     });
   });
 
