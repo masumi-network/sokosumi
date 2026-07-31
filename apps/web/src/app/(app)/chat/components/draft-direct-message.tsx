@@ -33,6 +33,7 @@ import {
   type DirectDraftTarget,
   DirectDraftTargetList,
   filterDraftTargets,
+  MembersRosterLoadFailed,
 } from "./room-draft-shared";
 
 export function DraftDirectMessage({
@@ -40,12 +41,14 @@ export function DraftDirectMessage({
   coworkers,
   currentUserId,
   canCreateRoomDirect,
+  membersLoadFailed = false,
 }: {
   members: Member[];
   coworkers: Coworker[];
   currentUserId: string;
   /** False in personal workspace — human 1:1 room DMs need an org. */
   canCreateRoomDirect: boolean;
+  membersLoadFailed?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const router = useRouter();
@@ -266,12 +269,15 @@ export function DraftDirectMessage({
           </div>
           {isRecipientPickerOpen ? (
             <div className="bg-popover text-popover-foreground border-border absolute top-full right-0 left-8 z-20 mt-1 max-h-72 overflow-y-auto rounded-md border p-1 shadow-lg">
+              {membersLoadFailed ? (
+                <MembersRosterLoadFailed className="m-1 px-3 py-6" />
+              ) : null}
               {candidateTargets.length > 0 ? (
                 <DirectDraftTargetList
                   targets={candidateTargets}
                   onSelect={addTarget}
                 />
-              ) : (
+              ) : membersLoadFailed ? null : (
                 <p className="text-muted-foreground px-3 py-4 text-sm">
                   {t("Draft.noResults")}
                 </p>

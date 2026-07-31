@@ -4554,6 +4554,9 @@
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "membersLoadFailedTitle": "Não foi possível carregar os membros",
+        "membersLoadFailedDescription": "Os membros da organização estão temporariamente indisponíveis. Tente novamente em instantes.",
+        "membersLoadFailedRetry": "Tentar novamente",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
