@@ -693,7 +693,13 @@ function MentionTextareaInner<TData = unknown>(
           typeof window !== "undefined" && window.innerWidth < 768;
         const submitsOnEnter =
           submitOnEnter && (allowEnterToSubmitOnMobile || !isNarrowViewport);
-        if (submitsOnEnter && !event.shiftKey) {
+        // Shift / Cmd / Ctrl + Enter insert a line break instead of submitting.
+        if (
+          submitsOnEnter &&
+          !event.shiftKey &&
+          !event.metaKey &&
+          !event.ctrlKey
+        ) {
           onSubmitShortcut?.();
           return;
         }
