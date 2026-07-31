@@ -9,6 +9,7 @@ import {
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
   requireUserRouteContext,
@@ -50,11 +51,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
+    const userContext = requireOwnerUserContext(c.var.authContext);
     c.req.valid("param");
     const body = c.req.valid("json");
-    const { resolvedUserId, userContext } = requireUserRouteContext(
-      c.var.userRouteContext,
-    );
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const workspace = await prisma.workspace.findUnique({
       where: { userId: resolvedUserId },
