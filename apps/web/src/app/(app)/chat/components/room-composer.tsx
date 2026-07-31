@@ -5,8 +5,10 @@ import { useTranslations } from "next-intl";
 import {
   type Dispatch,
   type FormEvent,
+  type Ref,
   type SetStateAction,
   useCallback,
+  useImperativeHandle,
   useRef,
   useState,
 } from "react";
@@ -22,11 +24,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  FileUpload,
-  FileUploadDropzone,
-  FileUploadTrigger,
-} from "@/components/ui/file-upload";
-import {
   type MentionRecordEntry,
   MentionTextarea,
   type MentionTextareaHandle,
@@ -39,6 +36,11 @@ import type { RoomMentionParticipant } from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
+}
+
+/** Shell drop zones call this to reuse the paperclip upload path. */
+export interface RoomComposerHandle {
+  attachFiles: (files: FileList | File[] | null) => void;
 }
 
 function RoomMentionSuggestion({
@@ -69,6 +71,7 @@ function RoomMentionSuggestion({
 }
 
 export function RoomComposer({
+  ref,
   roomId,
   value,
   onValueChange,
@@ -83,6 +86,7 @@ export function RoomComposer({
   showMentionShortcut = true,
   allowAttachments = true,
 }: {
+  ref?: Ref<RoomComposerHandle>;
   /** When set, attaches mint via room chat file endpoint. */
   roomId?: string;
   value: string;
@@ -104,10 +108,9 @@ export function RoomComposer({
   const tToolbar = useTranslations("App.Channels.Toolbar");
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
-  const attachmentTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
@@ -115,6 +118,8 @@ export function RoomComposer({
 
   const handleFilesSelected = useCallback(
     async (files: FileList | File[] | null) => {
+      if (!allowAttachments) return;
+
       const selectedFiles = Array.from(files ?? []).filter(
         (file) => file.size > 0,
       );
@@ -159,10 +164,22 @@ export function RoomComposer({
       } finally {
         isUploadingFilesRef.current = false;
         setIsUploadingFiles(false);
-        setPendingUploadFiles([]);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
     },
-    [onAttachmentsChange, roomId, tToolbar],
+    [allowAttachments, onAttachmentsChange, roomId, tToolbar],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      attachFiles: (files) => {
+        void handleFilesSelected(files);
+      },
+    }),
+    [handleFilesSelected],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {
@@ -172,7 +189,7 @@ export function RoomComposer({
     textareaRef.current?.focus();
   }
 
-  const composer = (
+  return (
     <RoomMessageComposer
       formRef={formRef}
       onSubmit={onSubmit}
@@ -204,22 +221,34 @@ export function RoomComposer({
             </Button>
           ) : null}
           {allowAttachments ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-              title={t("Toolbar.attach")}
-              aria-label={t("Toolbar.attach")}
-              disabled={isUploadingFiles}
-              onClick={() => attachmentTriggerRef.current?.click()}
-            >
-              {isUploadingFiles ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Paperclip className="size-4" aria-hidden />
-              )}
-            </Button>
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                tabIndex={-1}
+                onChange={(event) => {
+                  void handleFilesSelected(event.currentTarget.files);
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                title={t("Toolbar.attach")}
+                aria-label={t("Toolbar.attach")}
+                disabled={isUploadingFiles}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isUploadingFiles ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Paperclip className="size-4" aria-hidden />
+                )}
+              </Button>
+            </>
           ) : null}
           <RoomComposerEmojiPicker
             title={t("Toolbar.emoji")}
@@ -248,41 +277,5 @@ export function RoomComposer({
         renderItem={(mention) => <RoomMentionSuggestion mention={mention} />}
       />
     </RoomMessageComposer>
-  );
-
-  if (!allowAttachments) {
-    return composer;
-  }
-
-  return (
-    <FileUpload
-      value={pendingUploadFiles}
-      onValueChange={setPendingUploadFiles}
-      onAccept={(files) => {
-        void handleFilesSelected(files);
-      }}
-      multiple
-      className="w-full"
-    >
-      <FileUploadDropzone
-        // Drop only — paperclip uses FileUploadTrigger. Prevents click on
-        // textarea/toolbar from opening the file picker.
-        onClick={(event) => event.preventDefault()}
-        className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
-      >
-        {composer}
-        <FileUploadTrigger asChild>
-          <button
-            ref={attachmentTriggerRef}
-            type="button"
-            className="sr-only"
-            aria-label={t("Toolbar.attach")}
-            tabIndex={-1}
-          >
-            {t("Toolbar.attach")}
-          </button>
-        </FileUploadTrigger>
-      </FileUploadDropzone>
-    </FileUpload>
   );
 }
