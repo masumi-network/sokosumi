@@ -900,6 +900,30 @@ describe("POST /chats/rooms/{id}/stream", () => {
         parentMessageId: null,
       });
     });
+
+    it("clears the pending mirror on UI stream error", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      const waitUntilPromises: Promise<unknown>[] = [];
+      waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+        waitUntilPromises.push(promise);
+      });
+
+      const response = await postStream();
+      expect(response.status).toBe(200);
+
+      const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+        onError?: (error: unknown) => string;
+      };
+      expect(init.onError?.(new Error("stream boom"))).toBe(
+        "An error occurred.",
+      );
+      await Promise.all(waitUntilPromises);
+
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
+    });
   });
 
   describe("room stream lock", () => {
