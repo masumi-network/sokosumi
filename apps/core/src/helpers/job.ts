@@ -103,6 +103,7 @@ async function createPaidJob(
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
+  purchaseAmounts: { amount: string; unit: string }[],
   tx: Prisma.TransactionClient,
 ): Promise<JobWithSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
@@ -171,6 +172,8 @@ async function createPaidJob(
       agentApiBaseUrl: input.agentApiBaseUrl,
       paymentSourceType: agentJobResponse.paymentSourceType,
       supportedPaymentSourceIndex: agentJobResponse.supportedPaymentSourceIndex,
+      purchaseAmounts,
+      purchaseAmountMatchRequired: true,
       sellerVkey: agentJobResponse.sellerVKey,
       identifierFromPurchaser,
     },
@@ -302,23 +305,23 @@ function reportOrphanedSellerJob(
 }
 
 /**
- * A `start_job` call that never produced a usable response. Only the
- * `invalid-response` half strands anything: the seller answered 2xx, so it has
- * accepted the job and begun work, but the body did not match the MIP-003
- * contract and the hire cannot proceed. An `unreachable` seller never started,
- * so it is an ordinary failed hire and stays out of Sentry.
+ * A `start_job` call that never produced a usable response. Invalid 2xx bodies
+ * definitely strand seller work; transport failures after dispatch may strand
+ * it. Both page because MIP-003 has no reconciliation or cancel endpoint.
+ * Pre-dispatch validation and explicit non-timeout 4xx failures stay ordinary.
  */
 function reportStrandedStartJobFailure(
   failure: AgentJobStartFailure,
   context: Record<string, unknown>,
 ): void {
-  if (failure.kind !== "invalid-response") {
+  if (failure.kind === "unreachable") {
     return;
   }
-  reportOrphanedSellerJob(
-    "seller accepted start_job but returned a response that does not match the MIP-003 contract",
-    { ...context, failure: failure.message },
-  );
+  const reason =
+    failure.kind === "ambiguous"
+      ? "start_job transport failed after dispatch; seller acceptance is unknown"
+      : "seller accepted start_job but returned a response that does not match the MIP-003 contract";
+  reportOrphanedSellerJob(reason, { ...context, failure: failure.message });
 }
 
 interface PreparedV2Source {
@@ -518,7 +521,8 @@ export async function createAgentJobForUser(
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;
   let freeJobResult: StartFreeJobResponseSchemaType | null = null;
   let identifierFromPurchaser: string | null = null;
-  let purchaseAmounts: { unit: string; amount: string }[] | null = null;
+  let expectedPurchaseAmounts: { unit: string; amount: string }[] | null = null;
+  let purchaseRequestAmounts: { unit: string; amount: string }[] | null = null;
 
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
@@ -648,7 +652,8 @@ export async function createAgentJobForUser(
         // V2 purchases must always carry the exact source amounts: omitting
         // them lets the node use current on-chain pricing while Sokosumi bills
         // from its registry snapshot.
-        purchaseAmounts = preparedSource.amounts;
+        expectedPurchaseAmounts = preparedSource.amounts;
+        purchaseRequestAmounts = preparedSource.amounts;
         cost = { cents: preparedSource.cents };
         paidJobResult = {
           ...response,
@@ -689,7 +694,8 @@ export async function createAgentJobForUser(
         // Legacy V1 metadata permits more entries than POST /purchase accepts.
         // Preserve those agents' old behavior by omitting the optional drift
         // guard until the node's request limit is widened.
-        purchaseAmounts =
+        expectedPurchaseAmounts = fixedPricingAmounts;
+        purchaseRequestAmounts =
           fixedPricingAmounts.length <= MAX_PAYMENT_NODE_PURCHASE_AMOUNTS
             ? fixedPricingAmounts
             : null;
@@ -732,7 +738,11 @@ export async function createAgentJobForUser(
       );
     }
 
-    if (!paidJobResult || !identifierFromPurchaser) {
+    if (
+      !paidJobResult ||
+      !identifierFromPurchaser ||
+      !expectedPurchaseAmounts
+    ) {
       throw unprocessableEntity("Paid agent job start failed");
     }
 
@@ -741,6 +751,7 @@ export async function createAgentJobForUser(
       cost,
       paidJobResult,
       identifierFromPurchaser,
+      expectedPurchaseAmounts,
       tx,
     );
   }, "Job creation conflicted with a concurrent request. Please retry.");
@@ -755,7 +766,7 @@ export async function createAgentJobForUser(
       paidJobResult,
       agentInput.inputData,
       identifierFromPurchaser,
-      purchaseAmounts ?? undefined,
+      purchaseRequestAmounts ?? undefined,
     );
 
     if (createPurchaseResult.isOk()) {

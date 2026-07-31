@@ -4,6 +4,7 @@ import type {
 } from "@sokosumi/masumi/schemas";
 import { err, ok, type Result } from "neverthrow";
 
+import { doMasumiPaymentAmountsMatch } from "../utils/payment-amounts.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   getRailReadiness,
@@ -79,6 +80,16 @@ export interface TaskPurchaseResolutionFailure {
   status?: number;
 }
 
+function doPurchaseAmountsMatchRequest(
+  purchase: ResolvedPurchase,
+  request: PurchaseRequest,
+): boolean {
+  if (request.Amounts === undefined) {
+    return true;
+  }
+  return doMasumiPaymentAmountsMatch(request.Amounts, purchase.PaidFunds);
+}
+
 function doesPurchaseMatchRequest(
   purchase: ResolvedPurchase,
   request: PurchaseRequest,
@@ -96,7 +107,8 @@ function doesPurchaseMatchRequest(
       purchase.PaymentSource.paymentSourceType === request.paymentSourceType) &&
     (request.smartContractAddress === undefined ||
       purchase.PaymentSource.smartContractAddress.toLowerCase() ===
-        request.smartContractAddress.toLowerCase())
+        request.smartContractAddress.toLowerCase()) &&
+    doPurchaseAmountsMatchRequest(purchase, request)
   );
 }
 

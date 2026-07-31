@@ -236,6 +236,8 @@ function createJob(
     externalDisputeUnlockTime: new Date(now.getTime() + 60 * 60 * 1000),
     inputHash: "job-input-hash",
     paymentSourceType: null,
+    purchaseAmounts: [{ unit: "lovelace", amount: "1000000" }],
+    purchaseAmountMatchRequired: true,
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
@@ -260,6 +262,7 @@ function matchingResolvedPurchase(
     externalDisputeUnlockTime: String(
       (job.externalDisputeUnlockTime as Date).getTime(),
     ),
+    PaidFunds: job.purchaseAmounts,
     ...overrides,
   };
 }
@@ -418,6 +421,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         externalDisputeUnlockTime: String(
           (pendingBackfillJob.externalDisputeUnlockTime as Date).getTime(),
         ),
+        PaidFunds: pendingBackfillJob.purchaseAmounts,
       }),
     );
     getJobByIdMock.mockResolvedValueOnce(backfilledJob);
@@ -671,6 +675,72 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         ),
       }),
     );
+  });
+
+  it("refuses to backfill a purchase charged at a different price", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_wrong_price",
+          PaidFunds: [{ unit: "lovelace", amount: "2000000" }],
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
+  });
+
+  it("backfills a legacy job without a purchase amount snapshot", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      purchaseAmounts: null,
+      purchaseAmountMatchRequired: false,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(matchingResolvedPurchase(pendingJob, { id: "purchase_unverifiable" })),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: "job_1",
+        externalId: "purchase_unverifiable",
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("refuses to backfill a new job missing its required amount snapshot", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      purchaseAmounts: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(matchingResolvedPurchase(pendingJob, { id: "purchase_unverifiable" })),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
   });
 
   it("refuses to backfill a purchase settled through the other rail", async () => {

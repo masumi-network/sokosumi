@@ -42,6 +42,7 @@ function createResolvedPurchase(overrides: Record<string, unknown> = {}) {
     externalDisputeUnlockTime:
       startJobResponse.externalDisputeUnlockTime.toString(),
     metadata: JSON.stringify({ inputData: {}, jobId: startJobResponse.id }),
+    PaidFunds: [{ amount: "1000000", unit: "" }],
     PaymentSource: {
       paymentSourceType: "Web3CardanoV1",
       smartContractAddress: "addr_test1_contract",
@@ -254,6 +255,67 @@ describe("createPurchase duplicate handling", () => {
     expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledTimes(
       1,
     );
+  });
+
+  it("rejects a guarded duplicate charged at another amount", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({
+          PaidFunds: [{ amount: "2000000", unit: "" }],
+        }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+      [{ amount: "1000000", unit: "lovelace" }],
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "Duplicate purchase does not match request",
+    );
+  });
+
+  it("matches normalized and summed duplicate funds", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+      [
+        { amount: "400000", unit: "lovelace" },
+        { amount: "600000", unit: "" },
+      ],
+    );
+
+    expect(result.isOk()).toBe(true);
   });
 
   it("rejects a same-key duplicate that does not match the request", async () => {

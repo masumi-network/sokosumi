@@ -1,3 +1,4 @@
+import { TaskPaymentClaimStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
@@ -8,6 +9,8 @@ const {
   taskFileFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
+  taskPaymentClaimFindFirstMock,
+  taskPaymentClaimDeleteManyMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
 } = vi.hoisted(() => ({
@@ -16,6 +19,8 @@ const {
   taskFileFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
+  taskPaymentClaimFindFirstMock: vi.fn(),
+  taskPaymentClaimDeleteManyMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
 }));
@@ -28,6 +33,8 @@ describe("prepareTasksForUserDeletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskFileFindManyMock.mockResolvedValue([]);
+    taskPaymentClaimFindFirstMock.mockResolvedValue(null);
+    taskPaymentClaimDeleteManyMock.mockResolvedValue({ count: 0 });
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
       callback({
@@ -41,6 +48,10 @@ describe("prepareTasksForUserDeletion", () => {
         },
         taskFile: {
           findMany: taskFileFindManyMock,
+        },
+        taskPaymentClaim: {
+          findFirst: taskPaymentClaimFindFirstMock,
+          deleteMany: taskPaymentClaimDeleteManyMock,
         },
       }),
     );
@@ -81,6 +92,47 @@ describe("prepareTasksForUserDeletion", () => {
     expect(taskDeleteManyMock).toHaveBeenCalledWith({
       where: { ownerId: "user_delete" },
     });
+  });
+
+  it("blocks deletion while a task payment claim is pending", async () => {
+    taskPaymentClaimFindFirstMock.mockResolvedValue({ id: "claim_pending" });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({ code: "TASK_PAYMENT_CLAIM_PENDING" }),
+    });
+    expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("removes terminal claims before transaction cascade", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(taskPaymentClaimDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        status: {
+          in: [
+            TaskPaymentClaimStatus.PURCHASED,
+            TaskPaymentClaimStatus.REFUNDED,
+          ],
+        },
+        OR: [
+          { transaction: { userId: "user_delete" } },
+          { refundTransaction: { userId: "user_delete" } },
+        ],
+      },
+    });
+    expect(taskDeleteManyMock).toHaveBeenCalled();
   });
 
   it("clears coworker-creator RESTRICT refs for foreign-owned tasks", async () => {

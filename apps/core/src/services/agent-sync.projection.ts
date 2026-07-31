@@ -3,6 +3,7 @@ import {
   AgentEntryType,
   AgentStatus,
   PaymentType,
+  POSTGRES_BIGINT_MAX,
   PricingType,
 } from "@sokosumi/database";
 import {
@@ -18,7 +19,6 @@ import {
   normalizeMasumiPaymentUnit,
 } from "@/helpers/agent";
 
-const POSTGRES_BIGINT_MAX = 9_223_372_036_854_775_807n;
 const POSTGRES_INT_MAX = 2_147_483_647;
 const MAX_PAYMENT_SOURCE_INDEX = 24;
 const MAX_PAYMENT_SOURCES = MAX_PAYMENT_SOURCE_INDEX + 1;
@@ -312,6 +312,34 @@ export type RegistryDiffEntry =
   PostRegistryDiffResponse["data"]["entries"][number];
 export type RegistryPaymentSource =
   RegistryDiffEntry["SupportedPaymentSources"][number];
+
+const registryEntryCursorSchema = z.object({
+  id: z.string().min(1),
+  statusUpdatedAt: z.union([z.string(), z.date()]),
+});
+
+export interface RegistryEntryCursor {
+  id: string;
+  statusUpdatedAt: Date;
+}
+
+/**
+ * Extracts cursor fields independently from the storage projection. Cursor
+ * data cannot be quarantined: advancing with an invalid timestamp can skip
+ * later registry changes, so callers must park until the registry is fixed.
+ */
+export function getRegistryEntryCursor(
+  entry: unknown,
+): RegistryEntryCursor | null {
+  const parsed = registryEntryCursorSchema.safeParse(entry);
+  if (!parsed.success || !isValidRegistryDate(parsed.data.statusUpdatedAt)) {
+    return null;
+  }
+  return {
+    id: parsed.data.id,
+    statusUpdatedAt: new Date(parsed.data.statusUpdatedAt),
+  };
+}
 
 /**
  * Returns why a registry entry cannot be persisted safely. The generated

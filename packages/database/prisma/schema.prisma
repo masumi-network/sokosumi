@@ -970,6 +970,10 @@ model Job {
   agentApiBaseUrl             String?
   paymentSourceType           String?
   supportedPaymentSourceIndex Int?
+  // Exact normalized token amounts expected by purchase reconciliation.
+  purchaseAmounts             Json?
+  // False for jobs created before amount snapshots were enforced.
+  purchaseAmountMatchRequired Boolean @default(false)
   identifierFromPurchaser     String?
   payByTime                   DateTime?
   submitResultTime            DateTime?

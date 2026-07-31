@@ -13,6 +13,7 @@ import { finalizedOnChainJobStatuses } from "../types/job.js";
  * in-memory gating stay aligned.
  */
 export const JOB_SYNC_PAYMENT_GRACE_MS = 1000 * 60 * 10;
+export const FREE_JOB_OFFLINE_SYNC_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 
 export function buildJobsNeedingPurchaseSyncWhere(
   cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
@@ -66,20 +67,29 @@ export function buildJobsNeedingPurchaseSyncWhere(
 }
 
 /**
- * A paid job whose on-chain window is still open must keep polling even when
- * its agent is no longer ONLINE: one stable Agent row now advances to the
- * newest V2 revision, so a newer revision reporting Offline would otherwise
- * strand every in-flight job pinned to an older one (they carry their own
- * agentBlockchainIdentifier / agentApiBaseUrl snapshots).
+ * Snapshot-backed jobs must keep polling when their stable Agent row advances
+ * to an offline revision. Paid jobs use their signed dispute deadline; free
+ * jobs have no protocol deadline, so their offline bypass is capped by age.
  *
- * Scoped deliberately: the bypass ends with the dispute window, so jobs
- * against permanently dead agents leave the poll set instead of accumulating
- * forever and starving later sync phases.
+ * Scoped deliberately: each bypass ends at its deadline, so jobs against
+ * permanently dead agents leave the poll set instead of accumulating forever
+ * and starving later sync phases.
  */
 function buildInFlightAgentSnapshotWhere(now: Date): Prisma.JobWhereInput {
   return {
-    jobType: JobType.PAID,
-    externalDisputeUnlockTime: { gt: now },
+    OR: [
+      {
+        jobType: JobType.PAID,
+        externalDisputeUnlockTime: { gt: now },
+      },
+      {
+        jobType: JobType.FREE,
+        agentApiBaseUrl: { not: null },
+        createdAt: {
+          gt: new Date(now.getTime() - FREE_JOB_OFFLINE_SYNC_WINDOW_MS),
+        },
+      },
+    ],
   };
 }
 
@@ -89,7 +99,7 @@ export function buildJobsNeedingAgentStatusSyncWhere(
   return {
     // Hiring is gated on ONLINE by the availability filter. Here the gate only
     // controls MIP-003 status polling, so it stays in place for dead agents
-    // and is bypassed only for paid jobs still inside their on-chain window.
+    // and is bypassed for bounded, snapshot-backed in-flight jobs.
     OR: [
       { agent: { status: AgentStatus.ONLINE } },
       buildInFlightAgentSnapshotWhere(now),

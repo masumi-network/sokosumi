@@ -377,6 +377,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           agentApiBaseUrl: "https://agent.example.com",
           paymentSourceType: "Web3CardanoV2",
           supportedPaymentSourceIndex: 2,
+          purchaseAmounts: [{ unit: "lovelace", amount: "2000000" }],
         }),
       }),
     );
@@ -423,6 +424,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       expect.any(String),
       [{ unit: "lovelace", amount: "1000000" }],
     );
+    expect(txJobCreateMock.mock.calls[0]?.[0].data.purchaseAmounts).toEqual([
+      { unit: "lovelace", amount: "1000000" },
+    ]);
+    expect(
+      txJobCreateMock.mock.calls[0]?.[0].data.purchaseAmountMatchRequired,
+    ).toBe(true);
   });
 
   it("hires a legacy agent that returns V2-shaped payment fields", async () => {
@@ -648,11 +655,33 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(txJobCreateMock).not.toHaveBeenCalled();
   });
 
+  it("reports possibly stranded work when start_job transport fails after dispatch", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(
+        err({
+          kind: "ambiguous",
+          message: "connection reset after request dispatch",
+        }),
+      ),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid agent job start failed: connection reset after request dispatch",
+    );
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining("seller acceptance is unknown"),
+    });
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+  });
+
   it("stays silent when the seller never accepted the job", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
-      // Non-2xx or transport error: nothing was started, so nothing is
-      // stranded and an ordinary failed hire must not page.
+      // Explicit non-2xx: nothing was accepted, so an ordinary failed hire
+      // must not page.
       startPaidAgentJob: vi
         .fn()
         .mockResolvedValue(
@@ -923,6 +952,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       { prompt: "hello" },
       expect.any(String),
       undefined,
+    );
+    expect(txJobCreateMock.mock.calls[0]?.[0].data.purchaseAmounts).toEqual(
+      Array.from({ length: 8 }, (_, index) => ({
+        unit: `unit-${index}`,
+        amount: String(index + 1),
+      })),
     );
   });
 });

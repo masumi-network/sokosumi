@@ -38,6 +38,7 @@ interface CreatePaidJobData extends CreateJobBase {
   unlockTime: Date;
   blockchainIdentifier: string;
   sellerVkey: string;
+  purchaseAmounts: { amount: string; unit: string }[];
   purchaseId?: string;
 }
 
@@ -174,6 +175,8 @@ export const jobRepository = {
             unlockTime: data.unlockTime,
             blockchainIdentifier: data.blockchainIdentifier,
             sellerVkey: data.sellerVkey,
+            purchaseAmounts: data.purchaseAmounts,
+            purchaseAmountMatchRequired: true,
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
           include: jobInclude,

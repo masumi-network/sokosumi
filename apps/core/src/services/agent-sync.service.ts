@@ -23,11 +23,13 @@ import {
   buildPaymentSourcesCreate,
   buildRegistryAgentFields,
   convertEntryType,
+  getRegistryEntryCursor,
   getRegistryEntryStorageIssue,
   isSameAgentPricing,
   normalizeRegistryEntry,
   type ParsedAgentPricing,
   type RegistryDiffEntry,
+  type RegistryEntryCursor,
   resolveEntryPricing,
   resolveRegistryAgentVersion,
   warnOnUnbillableReadyV2Sources,
@@ -58,6 +60,14 @@ async function quarantineInvalidRegistryEntry(
   // nested registry value may be null or malformed. Only the identifier is
   // needed to quarantine the matching local revision.
   const agentIdentifier: unknown = entry.agentIdentifier;
+  Sentry.captureMessage("Registry entry rejected before database persistence", {
+    level: "error",
+    tags: { error_type: "invalid_registry_entry" },
+    extra: {
+      agentIdentifier,
+      issue,
+    },
+  });
   if (typeof agentIdentifier !== "string" || agentIdentifier.length === 0) {
     console.error(
       `[sync/agents] Cannot quarantine registry entry without a valid agentIdentifier: ${issue}`,
@@ -74,14 +84,6 @@ async function quarantineInvalidRegistryEntry(
   console.error(
     `[sync/agents] Quarantining registry entry ${normalizedEntry.agentIdentifier}: ${issue}`,
   );
-  Sentry.captureMessage("Registry entry rejected before database persistence", {
-    level: "error",
-    tags: { error_type: "invalid_registry_entry" },
-    extra: {
-      agentIdentifier: normalizedEntry.agentIdentifier,
-      issue,
-    },
-  });
 
   // Invalidate only this revision or an older canonical row. Preserve
   // administrator visibility choice: a later corrected registry entry can
@@ -443,6 +445,18 @@ function isRollbackUnsafeEntry(entry: RegistryDiffEntry): boolean {
   );
 }
 
+function getRegistryEntryLogIdentifier(entry: unknown): string {
+  if (
+    typeof entry === "object" &&
+    entry !== null &&
+    "agentIdentifier" in entry &&
+    typeof entry.agentIdentifier === "string"
+  ) {
+    return entry.agentIdentifier;
+  }
+  return "<unknown>";
+}
+
 function shouldStopSync(
   options: SyncExecutionOptions,
   reason: string,
@@ -582,6 +596,7 @@ async function syncRegistryAgents(
     // everything after it on the next run.
     let processedEntryCount = 0;
     let batchHadError = false;
+    let lastProcessedCursor: RegistryEntryCursor | null = null;
     for (const [entryIndex, entry] of entries.entries()) {
       if (
         shouldStopSync(options, "registry sync canceled during agent upsert")
@@ -589,12 +604,17 @@ async function syncRegistryAgents(
         return;
       }
 
-      // See isRollbackUnsafeEntry: V2/pointer/unknown entries are deferred
-      // until the rollout flag turns ingestion on.
-      if (deferV2Ingestion && isRollbackUnsafeEntry(entry)) {
-        totalDeferredCount++;
-        processedEntryCount++;
-        continue;
+      const entryCursor = getRegistryEntryCursor(entry);
+      if (!entryCursor) {
+        console.error(
+          "[sync/agents] Registry entry has invalid cursor fields; stopping batch for retry",
+        );
+        Sentry.captureMessage("Registry entry has invalid cursor fields", {
+          level: "error",
+          tags: { error_type: "invalid_registry_cursor" },
+        });
+        batchHadError = true;
+        break;
       }
 
       try {
@@ -603,6 +623,15 @@ async function syncRegistryAgents(
           await quarantineInvalidRegistryEntry(entry, storageIssue);
           totalQuarantinedCount++;
           processedEntryCount++;
+          lastProcessedCursor = entryCursor;
+          continue;
+        }
+        // See isRollbackUnsafeEntry: V2/pointer/unknown entries are deferred
+        // until the rollout flag turns ingestion on.
+        if (deferV2Ingestion && isRollbackUnsafeEntry(entry)) {
+          totalDeferredCount++;
+          processedEntryCount++;
+          lastProcessedCursor = entryCursor;
           continue;
         }
         const normalizedEntry = normalizeRegistryEntry(entry);
@@ -617,6 +646,7 @@ async function syncRegistryAgents(
         );
         await upsertRegistryAgent(normalizedEntry, pricing);
         processedEntryCount++;
+        lastProcessedCursor = entryCursor;
       } catch (error) {
         // Failure (infra error, or a data shape the defensive parsing above
         // did not anticipate): stop the batch WITHOUT advancing the cursor
@@ -624,7 +654,7 @@ async function syncRegistryAgents(
         // self-heal; a persistently failing entry keeps the cursor parked and
         // pages via Sentry rather than being silently dropped.
         console.error(
-          `[sync/agents] Upsert failed for entry ${entry.agentIdentifier}; stopping batch for retry:`,
+          `[sync/agents] Upsert failed for entry ${getRegistryEntryLogIdentifier(entry)}; stopping batch for retry:`,
           error,
         );
         Sentry.captureException(error);
@@ -639,26 +669,25 @@ async function syncRegistryAgents(
       return;
     }
 
-    if (processedEntryCount === 0) {
+    if (processedEntryCount === 0 || lastProcessedCursor === null) {
       console.warn(
         "[sync/agents] No entries processed; cursor not advanced (batch will be retried)",
       );
       return;
     }
 
-    const lastEntry = entries[processedEntryCount - 1];
     await prisma.syncMetadata.upsert({
       where: {
         key: activeMetadataKey,
       },
       create: {
         key: activeMetadataKey,
-        cursorId: lastEntry.id,
-        lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
+        cursorId: lastProcessedCursor.id,
+        lastSyncedAt: lastProcessedCursor.statusUpdatedAt,
       },
       update: {
-        cursorId: lastEntry.id,
-        lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
+        cursorId: lastProcessedCursor.id,
+        lastSyncedAt: lastProcessedCursor.statusUpdatedAt,
       },
     });
     totalProcessedCount += processedEntryCount;
@@ -670,8 +699,8 @@ async function syncRegistryAgents(
     if (entries.length < AGENT_SYNC_BATCH_SIZE) {
       break;
     }
-    lastSyncedAt = new Date(lastEntry.statusUpdatedAt);
-    cursorId = lastEntry.id;
+    lastSyncedAt = lastProcessedCursor.statusUpdatedAt;
+    cursorId = lastProcessedCursor.id;
   }
 
   console.info(

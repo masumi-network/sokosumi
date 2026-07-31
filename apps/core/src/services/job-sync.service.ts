@@ -28,6 +28,7 @@ import {
 } from "@sokosumi/email";
 import {
   createAgentClient,
+  doMasumiPaymentAmountsMatch,
   normalizeV2RegistryIdentifier,
 } from "@sokosumi/masumi";
 import {
@@ -628,6 +629,12 @@ async function syncPurchaseState(
       const doesPaymentSourceTypeMatch =
         job.paymentSourceType === null ||
         purchasePaymentSourceType === job.paymentSourceType;
+      // New jobs snapshot their price, but jobs created before the snapshot
+      // migration must retain their legacy reconciliation behavior. The
+      // explicit marker distinguishes those rows from malformed new jobs.
+      const doPaidFundsMatch =
+        !job.purchaseAmountMatchRequired ||
+        doMasumiPaymentAmountsMatch(job.purchaseAmounts, purchase.PaidFunds);
       const doesPurchaseMatchJob =
         typeof job.inputHash === "string" &&
         job.inputHash.length > 0 &&
@@ -636,6 +643,7 @@ async function syncPurchaseState(
         normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
           normalizeV2RegistryIdentifier(expectedAgentIdentifier) &&
         doesPaymentSourceTypeMatch &&
+        doPaidFundsMatch &&
         // Deadlines are typed non-null for paid jobs but the column is
         // nullable and the purchase selector deliberately admits legacy rows
         // with a null payByTime. A missing deadline means the terms cannot be
@@ -932,8 +940,8 @@ async function runSyncPhase(
   // terminal agent status (free jobs have no other exit at all), so a fixed
   // prefix of permanently stuck jobs would hide every newer job from the
   // phase forever. The selectors themselves keep this set small — the agent
-  // phase is gated on ONLINE plus in-window paid jobs — and the per-run
-  // deadline bounds the work actually performed.
+  // phase is gated on ONLINE plus bounded snapshot-backed jobs — and the
+  // per-run deadline bounds the work actually performed.
   const jobs = (
     await prisma.job.findMany({
       where,

@@ -14,6 +14,7 @@ import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseSyncWhere,
   buildJobsPendingLocalRefundWhere,
+  FREE_JOB_OFFLINE_SYNC_WINDOW_MS,
 } from "./job-sync.js";
 
 function expectPaymentDeadlineBeforeCutoffOr(
@@ -196,13 +197,26 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
     const now = new Date("2026-07-28T12:00:00.000Z");
     const where = buildJobsNeedingAgentStatusSyncWhere(now);
 
-    // The ONLINE gate stays for MIP-003 polling, but a paid job still inside
-    // its on-chain window keeps polling even when the stable Agent row has
-    // advanced to a newer, offline revision. The bypass is time-bounded so
-    // jobs against dead agents leave the set instead of accumulating.
+    const freeJobCutoff = new Date(
+      now.getTime() - FREE_JOB_OFFLINE_SYNC_WINDOW_MS,
+    );
+    // Snapshot-backed jobs keep polling when the stable Agent row advances to
+    // an offline revision. Both bypasses are time-bounded.
     assert.deepEqual(where.OR, [
       { agent: { status: AgentStatus.ONLINE } },
-      { jobType: JobType.PAID, externalDisputeUnlockTime: { gt: now } },
+      {
+        OR: [
+          {
+            jobType: JobType.PAID,
+            externalDisputeUnlockTime: { gt: now },
+          },
+          {
+            jobType: JobType.FREE,
+            agentApiBaseUrl: { not: null },
+            createdAt: { gt: freeJobCutoff },
+          },
+        ],
+      },
     ]);
     assert.deepEqual(where.jobType, {
       in: [JobType.FREE, JobType.PAID],

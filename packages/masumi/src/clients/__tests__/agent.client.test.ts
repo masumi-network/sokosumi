@@ -38,7 +38,7 @@ describe("startPaidAgentJob failure classification", () => {
     };
   }
 
-  it("classifies a non-2xx as unreachable — the seller never started", async () => {
+  it("classifies a 5xx as ambiguous because seller acceptance is unknown", async () => {
     ssrfSafeFetchMock.mockResolvedValue(jsonResponse(503, {}));
 
     const result = await createAgentClient().startPaidAgentJob(
@@ -49,7 +49,24 @@ describe("startPaidAgentJob failure classification", () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
+      expect(result.error.kind).toBe("ambiguous");
+      expect(result.error.message).toContain("status 503");
+    }
+  });
+
+  it("classifies an explicit 4xx rejection as unreachable", async () => {
+    ssrfSafeFetchMock.mockResolvedValue(jsonResponse(400, {}));
+
+    const result = await createAgentClient().startPaidAgentJob(
+      createAgent(),
+      "nonce",
+      inputData,
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
       expect(result.error.kind).toBe("unreachable");
+      expect(result.error.message).toContain("status 400");
     }
   });
 
@@ -105,7 +122,7 @@ describe("startPaidAgentJob failure classification", () => {
     }
   });
 
-  it("classifies a transport error as unreachable", async () => {
+  it("classifies a transport error after dispatch as ambiguous", async () => {
     ssrfSafeFetchMock.mockRejectedValue(new Error("connection refused"));
 
     const result = await createAgentClient().startPaidAgentJob(
@@ -116,7 +133,7 @@ describe("startPaidAgentJob failure classification", () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error.kind).toBe("unreachable");
+      expect(result.error.kind).toBe("ambiguous");
     }
   });
 });
@@ -192,6 +209,9 @@ describe("createAgentClient URL validation", () => {
       "http://10.0.0.1/start_job",
     );
     expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("ambiguous");
+    }
   });
 });
 

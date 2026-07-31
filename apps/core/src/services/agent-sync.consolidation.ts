@@ -26,16 +26,14 @@ export async function consolidateDuplicateAgentRelations(
   duplicateAgentId: string,
   canonicalAgentId: string,
 ): Promise<void> {
-  const [duplicateRatings, canonicalRatings] = await Promise.all([
-    tx.userAgentRating.findMany({
-      where: { agentId: duplicateAgentId },
-      select: { id: true, userId: true, updatedAt: true },
-    }),
-    tx.userAgentRating.findMany({
-      where: { agentId: canonicalAgentId },
-      select: { id: true, userId: true, updatedAt: true },
-    }),
-  ]);
+  const duplicateRatings = await tx.userAgentRating.findMany({
+    where: { agentId: duplicateAgentId },
+    select: { id: true, userId: true, updatedAt: true },
+  });
+  const canonicalRatings = await tx.userAgentRating.findMany({
+    where: { agentId: canonicalAgentId },
+    select: { id: true, userId: true, updatedAt: true },
+  });
   const canonicalByUser = new Map(
     canonicalRatings.map((rating) => [rating.userId, rating]),
   );

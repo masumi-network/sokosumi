@@ -2116,6 +2116,78 @@ describe("agentSyncService.syncRegistryAgents", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("validates malformed entries before the rollback fence", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getEnvEnableCardanoV2Mock.mockReturnValue(false);
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-missing-identifier", {
+          agentIdentifier: undefined,
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).not.toHaveBeenCalled();
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Registry entry rejected before database persistence",
+      expect.anything(),
+    );
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: "entry-missing-identifier",
+          lastSyncedAt: new Date("2026-02-24T12:00:00.000Z"),
+        },
+      }),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("parks at invalid cursor data after advancing a valid prefix", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-valid-prefix", {
+          statusUpdatedAt: "2026-02-24T16:00:00.000Z",
+        }),
+        createRegistryEntry("entry-invalid-cursor", {
+          statusUpdatedAt: "not-a-date",
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Registry entry has invalid cursor fields",
+      expect.anything(),
+    );
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: "entry-valid-prefix",
+          lastSyncedAt: new Date("2026-02-24T16:00:00.000Z"),
+        },
+      }),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
   it("quarantines null nested payment-source shapes without parking the cursor", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
