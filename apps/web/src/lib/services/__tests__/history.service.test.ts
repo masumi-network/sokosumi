@@ -122,7 +122,7 @@ describe("history.service", () => {
     const result = await historyService.listHistory({
       cursor: null,
       limit: 10,
-      types: ["conversation"],
+      types: ["task", "job"],
     });
 
     expect(coreClientMock.getHistory).toHaveBeenCalledWith({
@@ -132,7 +132,7 @@ describe("history.service", () => {
       q: undefined,
       scope: undefined,
       status: undefined,
-      types: ["conversation"],
+      types: ["task", "job"],
     });
     expect(result).toEqual({
       history: [item],

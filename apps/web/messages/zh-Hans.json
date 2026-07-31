@@ -1302,11 +1302,9 @@
         "projectLabel": "项目",
         "typeOptions": {
           "task": "任务",
-          "job": "作业",
-          "conversation": "对话"
+          "job": "作业"
         },
         "statusOptions": {
-          "active": "活跃",
           "archived": "已归档",
           "DRAFT": "草稿",
           "QUEUED": "已排队",
@@ -1341,12 +1339,7 @@
         "updated": "更新于",
         "kind": {
           "task": "任务",
-          "job": "作业",
-          "conversation": "对话"
-        },
-        "conversationStatus": {
-          "active": "活跃",
-          "archived": "已归档"
+          "job": "作业"
         }
       }
     },

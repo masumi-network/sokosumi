@@ -91,8 +91,8 @@ describe("history-filters", () => {
   });
 
   describe("sanitizeHistoryStatusInput", () => {
-    it("accepts active, archived, task statuses, and job-only statuses", () => {
-      expect(sanitizeHistoryStatusInput("active")).toBe("active");
+    it("accepts archived, task statuses, and job-only statuses", () => {
+      expect(sanitizeHistoryStatusInput("active")).toBeNull();
       expect(sanitizeHistoryStatusInput(" archived ")).toBe("archived");
       expect(sanitizeHistoryStatusInput(TaskStatus.READY)).toBe(
         TaskStatus.READY,
@@ -141,7 +141,7 @@ describe("history-filters", () => {
     });
   });
 
-  it("drops conversation-only statuses when type is task or job", () => {
+  it("drops statuses not allowed for the selected history kind", () => {
     expect(
       parseHistoryFilters({ type: "task", status: "active" }, "org-1"),
     ).toEqual({
@@ -171,7 +171,8 @@ describe("history-filters", () => {
         SokosumiJobStatus.PAYMENT_PENDING,
       );
       expect(getHistoryStatusOptionsForType("job")).not.toContain("archived");
-      expect(getHistoryStatusOptionsForType(null)).toContain("active");
+      expect(getHistoryStatusOptionsForType(null)).toContain("archived");
+      expect(getHistoryStatusOptionsForType(null)).not.toContain("active");
     });
   });
 
@@ -187,7 +188,7 @@ describe("history-filters", () => {
 
   describe("sanitizeHistoryStatusForType", () => {
     it("keeps compatible statuses and drops incompatible ones", () => {
-      expect(sanitizeHistoryStatusForType("active", "task")).toBeNull();
+      expect(sanitizeHistoryStatusForType("archived", "job")).toBeNull();
       expect(sanitizeHistoryStatusForType(TaskStatus.READY, "task")).toBe(
         TaskStatus.READY,
       );

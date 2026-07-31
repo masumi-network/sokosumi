@@ -4,7 +4,8 @@ export const HISTORY_SEARCH_MAX_LENGTH = 200;
 export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;
 export const HISTORY_TYPE_VALUES = ["task", "job"] as const;
 export const HISTORY_DEFAULT_API_TYPES = HISTORY_TYPE_VALUES;
-export const HISTORY_NON_TASK_STATUS_VALUES = ["active", "archived"] as const;
+/** Non-task statuses shared across history kinds. `active` was conversation-only and was removed with SOK-671. */
+export const HISTORY_NON_TASK_STATUS_VALUES = ["archived"] as const;
 export const HISTORY_JOB_ONLY_STATUS_VALUES = [
   SokosumiJobStatus.STARTED,
   SokosumiJobStatus.RESULT_PENDING,

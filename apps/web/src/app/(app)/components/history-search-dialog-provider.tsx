@@ -93,15 +93,6 @@ export function HistorySearchDialogProvider({
           loading: tSearch("loading"),
           error: tSearch("error"),
           updated: tHistory("Row.updated"),
-          kind: {
-            task: tHistory("Row.kind.task"),
-            job: tHistory("Row.kind.job"),
-            conversation: tHistory("Row.kind.conversation"),
-          },
-          conversationStatus: {
-            active: tHistory("Row.conversationStatus.active"),
-            archived: tHistory("Row.conversationStatus.archived"),
-          },
         }}
       />
     </HistorySearchContext.Provider>
