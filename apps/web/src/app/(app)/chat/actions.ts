@@ -35,6 +35,7 @@ interface SendNewDirectMessageInput {
   coworkerIds?: string[];
   content: string;
   mentionedCoworkerIds?: string[];
+  mentionedUserIds?: string[];
 }
 
 interface SendNewChannelMessageInput {
@@ -44,6 +45,7 @@ interface SendNewChannelMessageInput {
   coworkerIds?: string[];
   content: string;
   mentionedCoworkerIds?: string[];
+  mentionedUserIds?: string[];
 }
 
 interface SendNewDirectMessageResult {
@@ -221,6 +223,7 @@ export async function sendNewDirectMessageAction(
     const message = await chatRoomService.sendMessage(room.id, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
+      mentionedUserIds: cleanIds(input.mentionedUserIds),
     });
     revalidatePath("/chat");
     return { ok: true, data: { room, message } };
@@ -261,6 +264,7 @@ export async function sendNewChannelMessageAction(
     const message = await chatRoomService.sendMessage(room.id, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
+      mentionedUserIds: cleanIds(input.mentionedUserIds),
     });
     revalidatePath("/chat");
     return { ok: true, data: { room, message } };
@@ -350,7 +354,10 @@ export async function sendRoomMessageAction(
   roomId: string,
   content: string,
   mentionedCoworkerIds: string[],
-  parentMessageId?: string,
+  options?: {
+    mentionedUserIds?: string[];
+    parentMessageId?: string;
+  },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
   if (!cleanContent) {
@@ -361,7 +368,10 @@ export async function sendRoomMessageAction(
     const message = await chatRoomService.sendMessage(roomId, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(mentionedCoworkerIds),
-      ...(parentMessageId && { parentMessageId }),
+      mentionedUserIds: cleanIds(options?.mentionedUserIds),
+      ...(options?.parentMessageId && {
+        parentMessageId: options.parentMessageId,
+      }),
     });
     // No revalidatePath: client appends/merges the returned message. Revalidating
     // would re-fetch only the latest page and wipe client-loaded older history.

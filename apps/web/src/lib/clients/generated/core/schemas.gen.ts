@@ -5041,6 +5041,17 @@ export const CreateChatRoomMessageRequestSchema = {
                 'cow_123'
             ]
         },
+        mentionedUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            description: 'Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.',
+            example: [
+                'user_123'
+            ]
+        },
         parentMessageId: {
             type: 'string',
             format: 'uuid',
@@ -5068,497 +5079,107 @@ export const ReactToChatRoomMessageRequestSchema = {
     ]
 } as const;
 
-export const ConversationListSchema = {
-    type: 'array',
-    items: {
-        $ref: '#/components/schemas/Conversation'
-    }
-} as const;
-
-export const ConversationSchema = {
+export const ChatRoomFileUploadSessionSchema = {
     type: 'object',
     properties: {
-        id: {
+        uploadUrl: {
             type: 'string',
-            format: 'uuid',
-            description: 'Internal database ID',
-            example: '550e8400-e29b-41d4-a716-446655440000'
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/users/user_123/report.pdf?vercel-blob-delegation=…',
+            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
         },
-        userId: {
+        pathname: {
             type: 'string',
-            description: 'User ID who owns this conversation',
-            example: '0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj'
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname (before random suffix)'
         },
-        title: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Conversation title',
-            example: 'Chat with Hannah'
-        },
-        metadata: {
-            type: [
-                'object',
-                'null'
-            ],
-            additionalProperties: {},
-            description: 'Additional metadata (coworker info, etc.)',
-            example: {
-                coworker: 'Hannah',
-                useCase: 'Customer support'
-            }
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'When the conversation was created'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'When the conversation was last updated'
-        }
-    },
-    required: [
-        'id',
-        'userId',
-        'title',
-        'metadata',
-        'createdAt',
-        'updatedAt'
-    ]
-} as const;
-
-export const CreateConversationRequestSchema = {
-    type: 'object',
-    properties: {
-        openaiId: {
-            type: 'string',
-            minLength: 1,
-            description: 'Conversation ID (optional - if not provided, a new conversation will be created)',
-            example: 'conv_abc123xyz'
-        },
-        title: {
-            type: 'string',
-            description: 'Conversation title',
-            example: 'Chat with Hannah'
-        },
-        metadata: {
-            type: 'object',
-            additionalProperties: {},
-            description: 'Additional metadata',
-            example: {
-                coworker: 'Hannah',
-                useCase: 'Customer support'
-            }
-        }
-    }
-} as const;
-
-export const ConversationWarmupStateSchema = {
-    type: 'object',
-    properties: {
-        conversationId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Internal conversation ID',
-            example: '550e8400-e29b-41d4-a716-446655440000'
-        },
-        state: {
+        access: {
             type: 'string',
             enum: [
-                'pending',
-                'ready',
-                'failed'
+                'public'
             ],
-            description: 'Coworker container warmup state',
-            example: 'ready'
+            example: 'public',
+            description: 'Blob access level for the upload'
         },
-        completedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            description: 'ISO timestamp when warmup reached a terminal state (ready or failed)',
-            example: '2025-01-21T12:00:00.000Z'
-        },
-        attempts: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            description: 'Number of warmup attempts made so far',
-            example: 2
-        },
-        source: {
+        method: {
             type: 'string',
             enum: [
-                'redis',
-                'metadata',
-                'none'
+                'PUT'
             ],
-            description: 'Where the warmup state was resolved from',
-            example: 'redis'
-        }
-    },
-    required: [
-        'conversationId',
-        'state',
-        'completedAt',
-        'source'
-    ]
-} as const;
-
-export const UpdateConversationRequestSchema = {
-    type: 'object',
-    properties: {
-        title: {
-            type: 'string',
-            description: 'Conversation title',
-            example: 'Updated chat title'
+            example: 'PUT',
+            description: 'HTTP method for the client upload request'
         },
-        metadata: {
-            type: 'object',
-            additionalProperties: {},
-            description: 'Additional metadata',
-            example: {
-                coworker: 'John',
-                useCase: 'Technical support'
-            }
-        }
-    }
-} as const;
-
-export const ArchiveConversationRequestSchema = {
-    type: 'object',
-    properties: {
-        archived: {
-            type: 'boolean',
-            description: 'Whether to archive the conversation',
-            example: true
-        }
-    },
-    required: [
-        'archived'
-    ]
-} as const;
-
-export const ConversationMessageSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Conversation message ID',
-            example: '550e8400-e29b-41d4-a716-446655440000'
-        },
-        role: {
-            type: 'string',
-            enum: [
-                'user',
-                'assistant',
-                'system'
-            ],
-            description: 'Message role',
-            example: 'user'
-        },
-        content: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'array',
-                    items: {
-                        anyOf: [
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'file'
-                                        ]
-                                    },
-                                    url: {
-                                        type: 'string',
-                                        format: 'uri'
-                                    },
-                                    mediaType: {
-                                        type: 'string'
-                                    },
-                                    filename: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'url',
-                                    'mediaType'
-                                ]
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'text'
-                                        ]
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ]
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'input_text'
-                                        ]
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ],
-                                description: 'Responses API easy-input text item (maps to user/assistant text in model input).'
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'output_text'
-                                        ]
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ]
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string'
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ]
-                            }
-                        ]
-                    }
-                }
-            ],
-            description: 'Message content — string for plain text, or array of typed parts',
-            example: 'Hello!'
-        },
-        createdAt: {
-            type: 'number',
-            description: 'Unix timestamp in seconds',
-            example: 1706284800
-        },
-        thoughtTiming: {
+        headers: {
             type: 'object',
             properties: {
-                startedAtMs: {
-                    type: [
-                        'number',
-                        'null'
-                    ]
-                },
-                endedAtMs: {
-                    type: [
-                        'number',
-                        'null'
-                    ]
+                'Content-Type': {
+                    type: 'string',
+                    example: 'application/pdf'
                 }
             },
             required: [
-                'startedAtMs',
-                'endedAtMs'
+                'Content-Type'
             ],
-            description: 'Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning'
+            description: 'Headers the client must send on the PUT'
         },
-        metadata: {
-            type: 'object',
-            properties: {
-                thoughtStartedAtMs: {
-                    type: 'number'
-                },
-                thoughtEndedAtMs: {
-                    type: 'number'
-                },
-                imageGeneration: {
-                    type: 'boolean'
-                }
-            },
-            description: 'UI message metadata, including whether a user turn requested image generation.'
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-30T12:15:00.000Z',
+            description: 'When the presigned upload URL expires (ISO-8601)'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 104857600,
+            description: 'Maximum supported file size for this upload policy'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob appends a random suffix to the final pathname'
         }
     },
     required: [
-        'id',
-        'role',
-        'content',
-        'createdAt'
+        'uploadUrl',
+        'pathname',
+        'access',
+        'method',
+        'headers',
+        'expiresAt',
+        'maxSizeBytes',
+        'addRandomSuffix'
     ]
 } as const;
 
-export const CreateConversationMessageRequestSchema = {
+export const CreateChatRoomFileUploadSessionRequestSchema = {
     type: 'object',
     properties: {
-        role: {
+        filename: {
             type: 'string',
-            enum: [
-                'user',
-                'assistant',
-                'system'
-            ],
-            description: 'Message role',
-            example: 'user'
+            minLength: 1,
+            maxLength: 512,
+            example: 'report.pdf',
+            description: 'Original file name supplied by the client'
         },
-        content: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'array',
-                    items: {
-                        anyOf: [
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'file'
-                                        ]
-                                    },
-                                    url: {
-                                        type: 'string',
-                                        format: 'uri'
-                                    },
-                                    mediaType: {
-                                        type: 'string'
-                                    },
-                                    filename: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'url',
-                                    'mediaType'
-                                ]
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'text'
-                                        ]
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ]
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'input_text'
-                                        ]
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ],
-                                description: 'Responses API easy-input text item (maps to user/assistant text in model input).'
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string',
-                                        enum: [
-                                            'output_text'
-                                        ]
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ]
-                            },
-                            {
-                                type: 'object',
-                                properties: {
-                                    type: {
-                                        type: 'string'
-                                    },
-                                    text: {
-                                        type: 'string'
-                                    }
-                                },
-                                required: [
-                                    'type',
-                                    'text'
-                                ]
-                            }
-                        ]
-                    }
-                }
-            ],
-            description: 'Message content — string for plain text, or array of typed parts',
-            example: 'Hello!'
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'application/pdf',
+            description: 'Declared MIME type. May be inferred from the filename when generic.'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2048000,
+            description: 'File size in bytes'
         }
     },
     required: [
-        'role',
-        'content'
+        'filename',
+        'contentType',
+        'size'
     ]
 } as const;
 
@@ -7797,17 +7418,13 @@ export const HistoryItemSchema = {
         },
         {
             $ref: '#/components/schemas/HistoryJobItem'
-        },
-        {
-            $ref: '#/components/schemas/HistoryConversationItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             task: '#/components/schemas/HistoryTaskItem',
-            job: '#/components/schemas/HistoryJobItem',
-            conversation: '#/components/schemas/HistoryConversationItem'
+            job: '#/components/schemas/HistoryJobItem'
         }
     }
 } as const;
@@ -7865,7 +7482,7 @@ export const HistoryTaskItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
             example: null
         },
         kind: {
@@ -7992,7 +7609,7 @@ export const HistoryJobItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
             example: null
         },
         kind: {
@@ -8056,96 +7673,6 @@ export const HistoryJobItemSchema = {
         'agentId',
         'agentName',
         'agentIcon'
-    ]
-} as const;
-
-export const HistoryConversationItemSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            description: 'Source entity ID for this history row',
-            example: 'cmi4gmksz000104l8wps8p7fp'
-        },
-        title: {
-            type: 'string',
-            description: 'Display title for the history row',
-            example: 'Review onboarding flow'
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Short subtitle or description for the history row',
-            example: 'Audit copy and empty states'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity updatedAt timestamp used for feed ordering'
-        },
-        archivedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
-        },
-        credits: {
-            type: 'null',
-            description: 'Conversations do not currently have credits',
-            example: null
-        },
-        owner: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/HistoryOwner'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
-            example: null
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'conversation'
-            ]
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'active',
-                'archived'
-            ],
-            example: 'active'
-        },
-        bucketSlug: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Chat bucket slug for deep-linking to the conversation',
-            example: 'hannah'
-        }
-    },
-    required: [
-        'id',
-        'title',
-        'description',
-        'updatedAt',
-        'archivedAt',
-        'credits',
-        'owner',
-        'kind',
-        'status',
-        'bucketSlug'
     ]
 } as const;
 
@@ -10833,7 +10360,6 @@ export const NotificationKindSchema = {
     enum: [
         'JOB',
         'TASK',
-        'CONVERSATION',
         'BILLING',
         'SYSTEM'
     ],

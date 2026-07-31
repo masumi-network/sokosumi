@@ -5,7 +5,6 @@ import {
   chatModelSupportsImageGeneration,
   chatModelSupportsImageInput,
 } from "@sokosumi/chat";
-import { resolveUserUploadContentType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 import { ImagePlus, Loader2, Paperclip, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -19,7 +18,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 import {
   filterCoworkersForComposeKind,
   findDefaultCoworker,
@@ -32,7 +30,6 @@ import type {
   Coworker,
 } from "@/app/chat/utils/types";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
-import { createTaskAttachmentUploadToast } from "@/app/tasks/components/task-attachment-upload-toast";
 import { CoworkerGalleryCard } from "@/components/agents/coworker-gallery-card";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
@@ -54,13 +51,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
-import { sanitizeTaskAttachmentLabel } from "@/lib/utils/task-attachments";
-import {
-  getUserFileUploadErrorMessage,
-  type UserFileUploadProgress,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 import { CoworkerAvatarWithSkeleton } from "./coworker-avatar";
 import CoworkerSelector from "./coworker-selector";
 import { ArrowUpIcon, StopIcon } from "./icons";
@@ -370,47 +362,30 @@ function PureMultimodalInput({
     async (files: File[]) => {
       if (files.length === 0 || !supportsChatImageInput) return;
 
-      const uploadToast = createTaskAttachmentUploadToast({
-        files,
-        labels: {
-          uploadingFile: taskUploadingFileLabel,
-          uploadingFiles: taskUploadingFilesLabel,
-        },
-      });
-
       const controller = new AbortController();
       activeUploadControllersRef.current.add(controller);
       setUploadingAttachmentsCount((count) => count + 1);
 
       try {
-        for (const [index, file] of files.entries()) {
-          const uploadOptions = {
-            abortSignal: controller.signal,
-            onUploadProgress: (progress: UserFileUploadProgress) => {
-              uploadToast.updateFileProgress(index, progress);
-            },
-          };
-
-          const mediaType = resolveUserUploadContentType(file.name, file.type);
-          const uploaded = await uploadUserFileDirect(file, uploadOptions);
-          uploadToast.markFileComplete(index);
-          setChatFileParts((parts) => [
-            ...parts,
-            {
-              type: "file",
-              url: uploaded.publicUrl,
-              mediaType: mediaType ?? file.type,
-              filename: sanitizeTaskAttachmentLabel(file.name, "file"),
-            },
-          ]);
-        }
-
-        uploadToast.dismiss();
-      } catch (error) {
-        uploadToast.dismiss();
-        toast.error(
-          getUserFileUploadErrorMessage(error, taskUploadFileErrorLabel),
-        );
+        const uploaded = await uploadComposeAttachments(files, {
+          abortSignal: controller.signal,
+          labels: {
+            uploadingFile: taskUploadingFileLabel,
+            uploadingFiles: taskUploadingFilesLabel,
+            uploadError: taskUploadFileErrorLabel,
+          },
+        });
+        setChatFileParts((parts) => [
+          ...parts,
+          ...uploaded.map((result) => ({
+            type: "file" as const,
+            url: result.publicUrl,
+            mediaType: result.mediaType ?? result.file.type,
+            filename: result.fileName,
+          })),
+        ]);
+      } catch {
+        // Error toast is handled by uploadComposeAttachments.
       } finally {
         activeUploadControllersRef.current.delete(controller);
         setPendingUploadFiles([]);

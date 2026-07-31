@@ -1302,11 +1302,9 @@
         "projectLabel": "Projekt",
         "typeOptions": {
           "task": "Aufgabe",
-          "job": "Job",
-          "conversation": "Chat"
+          "job": "Job"
         },
         "statusOptions": {
-          "active": "Aktiv",
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
@@ -1341,12 +1339,7 @@
         "updated": "Aktualisiert",
         "kind": {
           "task": "Aufgabe",
-          "job": "Job",
-          "conversation": "Chat"
-        },
-        "conversationStatus": {
-          "active": "Aktiv",
-          "archived": "Archiviert"
+          "job": "Job"
         }
       }
     },
@@ -4562,6 +4555,9 @@
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
+        "membersLoadFailedDescription": "Organisationsmitglieder sind vorübergehend nicht verfügbar. Bitte versuche es gleich noch einmal.",
+        "membersLoadFailedRetry": "Erneut versuchen",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4616,6 +4612,8 @@
         "format": "Formatting",
         "bold": "Bold",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploadingFile": "Hochladen von {fileName}",
+        "uploadingFiles": "Hochladen von {count} Dateien",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",

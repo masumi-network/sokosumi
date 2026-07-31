@@ -24,18 +24,21 @@ describe("requireAccessToTargetUserData", () => {
     expect(ctx.userId).toBe(target);
   });
 
-  it("rejects delegated coworker even when user id matches", () => {
-    expect(() =>
-      requireAccessToTargetUserData(
-        {
-          actor: "coworker",
-          coworkerId: "cow_1",
-          vendorId: TEST_VENDOR_ID,
-          context: { userId: target, organizationId: null },
-        },
-        target,
-      ),
-    ).toThrow();
+  it("allows delegated coworker when user id matches", () => {
+    const ctx = requireAccessToTargetUserData(
+      {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: target, organizationId: null },
+      },
+      target,
+    );
+    expect(ctx).toEqual({
+      source: "context",
+      userId: target,
+      organizationId: null,
+    });
   });
 
   it("allows orchestrator context when user id matches", () => {
@@ -60,6 +63,19 @@ describe("requireAccessToTargetUserData", () => {
         {
           actor: "orchestrator",
           orchestratorId: "orch_1",
+        },
+        target,
+      ),
+    ).toThrow();
+  });
+
+  it("rejects bare coworker without context headers", () => {
+    expect(() =>
+      requireAccessToTargetUserData(
+        {
+          actor: "coworker",
+          coworkerId: "cow_1",
+          vendorId: TEST_VENDOR_ID,
         },
         target,
       ),
@@ -107,7 +123,7 @@ describe("requireAccessToTargetUserData", () => {
     ).toThrow();
   });
 
-  it("rejects coworker for concrete user ids", () => {
+  it("rejects coworker context for a different user id", () => {
     expect(() =>
       requireAccessToTargetUserData(
         {
@@ -155,6 +171,24 @@ describe("resolveUsersPathUserId", () => {
     });
   });
 
+  it("resolves me to the coworker context user id", () => {
+    const { resolvedUserId, userContext } = resolveUsersPathUserId(
+      {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: "usr_ctx", organizationId: "org_1" },
+      },
+      USERS_PATH_ME,
+    );
+    expect(resolvedUserId).toBe("usr_ctx");
+    expect(userContext).toEqual({
+      source: "context",
+      userId: "usr_ctx",
+      organizationId: "org_1",
+    });
+  });
+
   it("rejects bare orchestrator for me", () => {
     expect(() =>
       resolveUsersPathUserId(
@@ -167,14 +201,13 @@ describe("resolveUsersPathUserId", () => {
     ).toThrow();
   });
 
-  it("rejects coworker for me", () => {
+  it("rejects bare coworker for me", () => {
     expect(() =>
       resolveUsersPathUserId(
         {
           actor: "coworker",
           coworkerId: "cow_1",
           vendorId: TEST_VENDOR_ID,
-          context: { userId: "usr_x", organizationId: null },
         },
         USERS_PATH_ME,
       ),
@@ -200,6 +233,21 @@ describe("resolveUsersPathUserId", () => {
       {
         actor: "orchestrator",
         orchestratorId: "orch_1",
+        context: { userId: "usr_self", organizationId: null },
+      },
+      "usr_self",
+    );
+    expect(resolvedUserId).toBe("usr_self");
+    expect(userContext.source).toBe("context");
+    expect(userContext.userId).toBe("usr_self");
+  });
+
+  it("allows coworker with matching concrete user id", () => {
+    const { resolvedUserId, userContext } = resolveUsersPathUserId(
+      {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
         context: { userId: "usr_self", organizationId: null },
       },
       "usr_self",

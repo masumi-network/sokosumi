@@ -2,14 +2,23 @@ import { getRedisClient } from "@/lib/redis";
 
 import { COWORKER_STREAM_LOCK_TTL_SECONDS } from "./coworker-stream-lock";
 
+export interface CoworkerPendingResponseScope {
+  roomId: string;
+  parentMessageId?: string | null;
+}
+
 export function coworkerPendingResponseRedisKey(
-  internalConversationId: string,
+  scope: CoworkerPendingResponseScope,
 ): string {
-  return `coworker:pending_resp:${internalConversationId}`;
+  const parentMessageId = scope.parentMessageId?.trim();
+  if (parentMessageId) {
+    return `coworker:pending_resp:room:${scope.roomId}:thread:${parentMessageId}`;
+  }
+  return `coworker:pending_resp:room:${scope.roomId}`;
 }
 
 export async function setPendingResponseMirror(
-  internalConversationId: string,
+  scope: CoworkerPendingResponseScope,
   responseId: string,
 ): Promise<void> {
   const redis = getRedisClient();
@@ -19,7 +28,7 @@ export async function setPendingResponseMirror(
 
   try {
     await redis.set(
-      coworkerPendingResponseRedisKey(internalConversationId),
+      coworkerPendingResponseRedisKey(scope),
       responseId,
       "EX",
       COWORKER_STREAM_LOCK_TTL_SECONDS,
@@ -33,7 +42,7 @@ export async function setPendingResponseMirror(
 }
 
 export async function getPendingResponseMirror(
-  internalConversationId: string,
+  scope: CoworkerPendingResponseScope,
 ): Promise<string | null> {
   const redis = getRedisClient();
   if (!redis) {
@@ -41,9 +50,7 @@ export async function getPendingResponseMirror(
   }
 
   try {
-    const value = await redis.get(
-      coworkerPendingResponseRedisKey(internalConversationId),
-    );
+    const value = await redis.get(coworkerPendingResponseRedisKey(scope));
     return typeof value === "string" && value.trim().length > 0
       ? value.trim()
       : null;
@@ -57,7 +64,7 @@ export async function getPendingResponseMirror(
 }
 
 export async function clearPendingResponseMirror(
-  internalConversationId: string,
+  scope: CoworkerPendingResponseScope,
 ): Promise<void> {
   const redis = getRedisClient();
   if (!redis) {
@@ -65,10 +72,35 @@ export async function clearPendingResponseMirror(
   }
 
   try {
-    await redis.del(coworkerPendingResponseRedisKey(internalConversationId));
+    await redis.del(coworkerPendingResponseRedisKey(scope));
   } catch (error) {
     console.error(
       "[coworker-pending-response-mirror] Failed to clear pending mirror:",
+      error,
+    );
+  }
+}
+
+/**
+ * Refresh TTL on an existing pending mirror key. No-op when Redis is absent
+ * or the key was already cleared/expired — does not recreate the key.
+ */
+export async function renewPendingResponseMirror(
+  scope: CoworkerPendingResponseScope,
+): Promise<void> {
+  const redis = getRedisClient();
+  if (!redis) {
+    return;
+  }
+
+  try {
+    await redis.expire(
+      coworkerPendingResponseRedisKey(scope),
+      COWORKER_STREAM_LOCK_TTL_SECONDS,
+    );
+  } catch (error) {
+    console.error(
+      "[coworker-pending-response-mirror] Failed to renew pending mirror:",
       error,
     );
   }

@@ -96,6 +96,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             isCreateChannelRequested={false}
             isNewDirectMessage
             messageLoadFailed={false}
+            membersLoadFailed={false}
             messages={[]}
             messagesNextCursor={null}
           />
@@ -124,6 +125,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           isCreateChannelRequested={isCreateChannelRequested}
           isNewDirectMessage={isNewDirectMessage}
           messageLoadFailed={false}
+          membersLoadFailed={membersPage.failed}
           messages={[]}
           messagesNextCursor={null}
         />

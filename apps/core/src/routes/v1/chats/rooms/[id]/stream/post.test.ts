@@ -12,6 +12,8 @@ const {
   chatRoomUpdateMock,
   chatRoomUpdateManyMock,
   chatRoomMessageCreateMock,
+  chatRoomMessageFindFirstMock,
+  userFindUniqueMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
@@ -22,8 +24,6 @@ const {
   convertToModelMessagesMock,
   validateUIMessagesMock,
   getSokosumiProviderMock,
-  conversationCreateMock,
-  conversationMessageCreateMock,
   persistUserMessageToChatRoomMock,
   persistAssistantToChatRoomMock,
   isUiStreamResumptionConfiguredMock,
@@ -35,11 +35,20 @@ const {
   releaseStreamLockMock,
   startStreamLockHeartbeatMock,
   waitUntilMock,
+  ensureThreadProviderConversationMock,
+  buildRoomStreamThreadModelMessagesMock,
+  getPendingResponseMirrorMock,
+  setPendingResponseMirrorMock,
+  clearPendingResponseMirrorMock,
+  renewPendingResponseMirrorMock,
+  pollCoworkerResponseStatusMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
   chatRoomUpdateManyMock: vi.fn(),
   chatRoomMessageCreateMock: vi.fn(),
+  chatRoomMessageFindFirstMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -50,8 +59,6 @@ const {
   convertToModelMessagesMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
-  conversationCreateMock: vi.fn(),
-  conversationMessageCreateMock: vi.fn(),
   persistUserMessageToChatRoomMock: vi.fn(),
   persistAssistantToChatRoomMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(),
@@ -63,6 +70,13 @@ const {
   releaseStreamLockMock: vi.fn(),
   startStreamLockHeartbeatMock: vi.fn(),
   waitUntilMock: vi.fn(),
+  ensureThreadProviderConversationMock: vi.fn(),
+  buildRoomStreamThreadModelMessagesMock: vi.fn(),
+  getPendingResponseMirrorMock: vi.fn(),
+  setPendingResponseMirrorMock: vi.fn(),
+  clearPendingResponseMirrorMock: vi.fn(),
+  renewPendingResponseMirrorMock: vi.fn(),
+  pollCoworkerResponseStatusMock: vi.fn(),
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -95,6 +109,22 @@ vi.mock("@/helpers/coworker-stream-lock", () => ({
   startStreamLockHeartbeat: startStreamLockHeartbeatMock,
 }));
 
+vi.mock("@/helpers/coworker-pending-response-mirror", () => ({
+  getPendingResponseMirror: (...args: unknown[]) =>
+    getPendingResponseMirrorMock(...args),
+  setPendingResponseMirror: (...args: unknown[]) =>
+    setPendingResponseMirrorMock(...args),
+  clearPendingResponseMirror: (...args: unknown[]) =>
+    clearPendingResponseMirrorMock(...args),
+  renewPendingResponseMirror: (...args: unknown[]) =>
+    renewPendingResponseMirrorMock(...args),
+}));
+
+vi.mock("@/helpers/coworker-response-poll", () => ({
+  pollCoworkerResponseStatus: (...args: unknown[]) =>
+    pollCoworkerResponseStatusMock(...args),
+}));
+
 vi.mock("@/lib/resumable-ui-stream-context", () => ({
   isUiStreamResumptionConfigured: isUiStreamResumptionConfiguredMock,
   getResumableUiStreamContext: getResumableUiStreamContextMock,
@@ -103,6 +133,14 @@ vi.mock("@/lib/resumable-ui-stream-context", () => ({
 vi.mock("@/helpers/persist-assistant-to-chat-room", () => ({
   persistAssistantToChatRoom: persistAssistantToChatRoomMock,
   persistUserMessageToChatRoom: persistUserMessageToChatRoomMock,
+}));
+
+vi.mock("@/helpers/room-stream-thread", () => ({
+  THREAD_PROVIDER_CONVERSATION_ID_KEY: "thread_provider_conversation_id",
+  ensureThreadProviderConversation: (...args: unknown[]) =>
+    ensureThreadProviderConversationMock(...args),
+  buildRoomStreamThreadModelMessages: (...args: unknown[]) =>
+    buildRoomStreamThreadModelMessagesMock(...args),
 }));
 
 vi.mock(
@@ -130,6 +168,10 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomMessage: {
       create: chatRoomMessageCreateMock,
+      findFirst: chatRoomMessageFindFirstMock,
+    },
+    user: {
+      findUnique: userFindUniqueMock,
     },
     organization: {
       findUnique: organizationFindUniqueMock,
@@ -137,18 +179,13 @@ vi.mock("@/lib/db/prisma", () => ({
     member: {
       findUnique: memberFindUniqueMock,
     },
-    conversation: {
-      create: conversationCreateMock,
-    },
-    conversationMessage: {
-      create: conversationMessageCreateMock,
-    },
   },
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const COWORKER_ID = "coworker_1";
+const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440099";
 
 const userAuthContext: AuthVariables["authContext"] = {
   actor: "user",
@@ -188,6 +225,7 @@ function roomWithOneCoworker(
   return {
     id: ROOM_ID,
     kind: overrides.kind ?? "direct",
+    name: "Hannah DM",
     organizationId:
       "organizationId" in overrides ? overrides.organizationId : "org_1",
     providerConversationId:
@@ -229,6 +267,9 @@ beforeEach(() => {
     callback({
       chatRoom: {
         findFirst: roomFindFirstMock,
+      },
+      chatRoomMessage: {
+        findFirst: chatRoomMessageFindFirstMock,
       },
       organization: {
         findUnique: organizationFindUniqueMock,
@@ -273,6 +314,10 @@ beforeEach(() => {
   });
   releaseStreamLockMock.mockResolvedValue(true);
   startStreamLockHeartbeatMock.mockReturnValue(() => {});
+  getPendingResponseMirrorMock.mockResolvedValue(null);
+  setPendingResponseMirrorMock.mockResolvedValue(undefined);
+  clearPendingResponseMirrorMock.mockResolvedValue(undefined);
+  renewPendingResponseMirrorMock.mockResolvedValue(undefined);
   waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
     void promise;
   });
@@ -289,6 +334,21 @@ beforeEach(() => {
   streamTextMock.mockReturnValue({
     toUIMessageStreamResponse: toUIMessageStreamResponseMock,
   });
+  userFindUniqueMock.mockResolvedValue({ name: "Ada" });
+  ensureThreadProviderConversationMock.mockResolvedValue({
+    providerConversationId: "conv_thread_1",
+    justCreated: true,
+  });
+  buildRoomStreamThreadModelMessagesMock.mockResolvedValue({
+    modelMessages: [{ role: "user", content: "thread prompt" }],
+    uiMessages: [
+      {
+        id: PARENT_MESSAGE_ID,
+        role: "user",
+        parts: [{ type: "text", text: "root" }],
+      },
+    ],
+  });
 });
 
 describe("POST /chats/rooms/{id}/stream", () => {
@@ -302,8 +362,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(response.status).toBe(404);
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when room has zero coworker members", async () => {
@@ -394,6 +452,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
         roomId: ROOM_ID,
         senderUserId: USER_ID,
         contentText: "Hello",
+        parentMessageId: null,
       }),
     );
 
@@ -414,9 +473,91 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(streamArgs.providerOptions.sokosumi.coworkerSlug).toBe("hannah");
 
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+    expect(ensureThreadProviderConversationMock).not.toHaveBeenCalled();
+    expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
     expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("persists thread replies under parentMessageId with thread-scoped conversation", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: PARENT_MESSAGE_ID,
+      parentMessageId: null,
+    });
+
+    const response = await postStream({
+      messages: [
+        { role: "user", parts: [{ type: "text", text: "Thread reply" }] },
+      ],
+      parentMessageId: PARENT_MESSAGE_ID,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-sokosumi-parent-message-id")).toBe(
+      PARENT_MESSAGE_ID,
+    );
+
+    expect(persistUserMessageToChatRoomMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        contentText: "Thread reply",
+        parentMessageId: PARENT_MESSAGE_ID,
+      }),
+    );
+    expect(ensureThreadProviderConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        parentMessageId: PARENT_MESSAGE_ID,
+        coworkerSlug: "hannah",
+      }),
+    );
+    expect(buildRoomStreamThreadModelMessagesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        parentMessageId: PARENT_MESSAGE_ID,
+        lastUserMessageText: "Thread reply",
+      }),
+    );
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+
+    const streamArgs = streamTextMock.mock.calls[0]![0] as {
+      messages: unknown[];
+      providerOptions: {
+        sokosumi: { providerConversationId: string | null };
+      };
+      onFinish: (finishEvent: { text: string }) => Promise<void>;
+    };
+    expect(streamArgs.providerOptions.sokosumi.providerConversationId).toBe(
+      "conv_thread_1",
+    );
+    expect(streamArgs.messages).toEqual([
+      { role: "user", content: "thread prompt" },
+    ]);
+
+    await streamArgs.onFinish({ text: "Thread assistant reply" });
+    expect(persistAssistantToChatRoomMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        contentText: "Thread assistant reply",
+        parentMessageId: PARENT_MESSAGE_ID,
+      }),
+    );
+  });
+
+  it("returns 400 when parentMessageId is not in the room", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    chatRoomMessageFindFirstMock.mockResolvedValue(null);
+
+    const response = await postStream({
+      messages: [
+        { role: "user", parts: [{ type: "text", text: "Thread reply" }] },
+      ],
+      parentMessageId: PARENT_MESSAGE_ID,
+    });
+
+    expect(response.status).toBe(400);
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
   });
 
   it("ensures providerConversationId on chatRoom when missing (no conversation* writes)", async () => {
@@ -456,9 +597,6 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(streamArgs.providerOptions.sokosumi.providerConversationId).toBe(
       "conv_new_1",
     );
-
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
 
   it("persists assistant turn on stream onFinish via persistAssistantToChatRoom", async () => {
@@ -489,14 +627,13 @@ describe("POST /chats/rooms/{id}/stream", () => {
         roomId: ROOM_ID,
         senderCoworkerId: COWORKER_ID,
         contentText: "Assistant reply",
+        parentMessageId: null,
         thoughtTiming: expect.objectContaining({
           startedAtMs: expect.any(Number),
           endedAtMs: expect.any(Number),
         }),
       }),
     );
-    expect(conversationCreateMock).not.toHaveBeenCalled();
-    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
   });
 
   it("uses room.organizationId (not active session org) for personal rooms", async () => {
@@ -596,6 +733,136 @@ describe("POST /chats/rooms/{id}/stream", () => {
     });
   });
 
+  describe("pending response mirror", () => {
+    it("returns 409 when a mirrored pending response is still in progress", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      getPendingResponseMirrorMock.mockResolvedValueOnce("resp_inflight");
+      pollCoworkerResponseStatusMock.mockResolvedValueOnce({
+        status: "in_progress",
+        responseId: "resp_inflight",
+      });
+
+      const response = await postStream();
+
+      expect(response.status).toBe(409);
+      expect(pollCoworkerResponseStatusMock).toHaveBeenCalledWith(
+        expect.objectContaining({ responseId: "resp_inflight" }),
+      );
+      expect(clearPendingResponseMirrorMock).not.toHaveBeenCalled();
+      expect(streamTextMock).not.toHaveBeenCalled();
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        ROOM_ID,
+        "instance-test:token-1",
+      );
+    });
+
+    it("clears a completed mirrored pending response and proceeds", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      getPendingResponseMirrorMock.mockResolvedValueOnce("resp_done");
+      pollCoworkerResponseStatusMock.mockResolvedValueOnce({
+        status: "completed",
+        responseId: "resp_done",
+      });
+
+      const response = await postStream();
+
+      expect(response.status).toBe(200);
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
+      expect(streamTextMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns 503 and clears mirror when pending status cannot be verified", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      getPendingResponseMirrorMock.mockResolvedValueOnce("resp_unknown");
+      pollCoworkerResponseStatusMock.mockResolvedValueOnce({
+        status: "error",
+        responseId: "resp_unknown",
+        cause: new Error("retrieve failed"),
+      });
+
+      const response = await postStream();
+
+      expect(response.status).toBe(503);
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
+      expect(streamTextMock).not.toHaveBeenCalled();
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        ROOM_ID,
+        "instance-test:token-1",
+      );
+    });
+
+    it("sets the room-scoped mirror on response start and clears on completed", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+      const response = await postStream();
+      expect(response.status).toBe(200);
+
+      const streamArgs = streamTextMock.mock.calls[0]![0] as {
+        providerOptions: {
+          sokosumi: {
+            onResponseStarted: (id: string) => Promise<void>;
+            onResponseCompleted: () => Promise<void>;
+          };
+        };
+      };
+
+      await streamArgs.providerOptions.sokosumi.onResponseStarted("resp_new");
+      expect(setPendingResponseMirrorMock).toHaveBeenCalledWith(
+        { roomId: ROOM_ID, parentMessageId: null },
+        "resp_new",
+      );
+
+      await streamArgs.providerOptions.sokosumi.onResponseCompleted();
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
+    });
+
+    it("scopes mirror get/set to the thread parentMessageId", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      chatRoomMessageFindFirstMock.mockResolvedValue({
+        id: PARENT_MESSAGE_ID,
+        parentMessageId: null,
+      });
+
+      const response = await postStream({
+        messages: [
+          { role: "user", parts: [{ type: "text", text: "Thread reply" }] },
+        ],
+        parentMessageId: PARENT_MESSAGE_ID,
+      });
+      expect(response.status).toBe(200);
+
+      expect(getPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: PARENT_MESSAGE_ID,
+      });
+
+      const streamArgs = streamTextMock.mock.calls[0]![0] as {
+        providerOptions: {
+          sokosumi: {
+            onResponseStarted: (id: string) => Promise<void>;
+          };
+        };
+      };
+
+      await streamArgs.providerOptions.sokosumi.onResponseStarted(
+        "resp_thread",
+      );
+      expect(setPendingResponseMirrorMock).toHaveBeenCalledWith(
+        { roomId: ROOM_ID, parentMessageId: PARENT_MESSAGE_ID },
+        "resp_thread",
+      );
+    });
+  });
+
   describe("room stream lock", () => {
     it("returns 409 when the coworker stream lock is already held", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
@@ -655,7 +922,20 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(startStreamLockHeartbeatMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",
+        expect.objectContaining({
+          onRenew: expect.any(Function),
+        }),
       );
+
+      const heartbeatOptions = startStreamLockHeartbeatMock.mock
+        .calls[0]![2] as {
+        onRenew: () => Promise<void>;
+      };
+      await heartbeatOptions.onRenew();
+      expect(renewPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
     });
 
     it("releases the stream lock on UI onFinish", async () => {
@@ -672,9 +952,13 @@ describe("POST /chats/rooms/{id}/stream", () => {
         onFinish?: () => Promise<void>;
       };
       await init.onFinish!();
-      expect(waitUntilPromises).toHaveLength(1);
-      await waitUntilPromises[0]!;
+      expect(waitUntilPromises).toHaveLength(2);
+      await Promise.all(waitUntilPromises);
 
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",
@@ -717,9 +1001,13 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(init.onError?.(new Error("stream boom"))).toBe(
         "An error occurred.",
       );
-      expect(waitUntilPromises).toHaveLength(1);
-      await waitUntilPromises[0]!;
+      expect(waitUntilPromises).toHaveLength(2);
+      await Promise.all(waitUntilPromises);
 
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        parentMessageId: null,
+      });
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
         ROOM_ID,
         "instance-test:token-1",

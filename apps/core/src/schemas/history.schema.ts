@@ -57,7 +57,7 @@ const historyBaseItemSchema = z.object({
   // `jobSchema.share` / `taskSchema.share`.
   owner: z.union([historyOwnerObjectSchema, z.null()]).openapi({
     description:
-      "Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).",
+      "Owner of the history item. Null when the user is deleted or could not be resolved.",
     example: null,
   }),
 });
@@ -104,27 +104,8 @@ export const historyJobItemSchema = historyBaseItemSchema
   })
   .openapi("HistoryJobItem");
 
-export const historyConversationItemSchema = historyBaseItemSchema
-  .extend({
-    kind: z.literal("conversation"),
-    status: z.enum(["active", "archived"]).openapi({ example: "active" }),
-    credits: z.null().openapi({
-      description: "Conversations do not currently have credits",
-      example: null,
-    }),
-    bucketSlug: z.string().nullable().openapi({
-      description: "Chat bucket slug for deep-linking to the conversation",
-      example: "hannah",
-    }),
-  })
-  .openapi("HistoryConversationItem");
-
 export const historyItemSchema = z
-  .discriminatedUnion("kind", [
-    historyTaskItemSchema,
-    historyJobItemSchema,
-    historyConversationItemSchema,
-  ])
+  .discriminatedUnion("kind", [historyTaskItemSchema, historyJobItemSchema])
   .openapi("HistoryItem");
 
 export const historyListSchema = z
@@ -168,18 +149,6 @@ export const historyListResponseExample = {
         name: "Bob Smith",
         image: null,
       },
-    },
-    {
-      kind: "conversation",
-      id: "550e8400-e29b-41d4-a716-446655440000",
-      title: "Chat with Hannah",
-      description: null,
-      status: "active",
-      updatedAt: "2025-01-21T11:00:00.000Z",
-      archivedAt: null,
-      credits: null,
-      bucketSlug: "hannah",
-      owner: null,
     },
   ],
   meta: {

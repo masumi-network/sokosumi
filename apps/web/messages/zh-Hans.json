@@ -1302,11 +1302,9 @@
         "projectLabel": "项目",
         "typeOptions": {
           "task": "任务",
-          "job": "作业",
-          "conversation": "对话"
+          "job": "作业"
         },
         "statusOptions": {
-          "active": "活跃",
           "archived": "已归档",
           "DRAFT": "草稿",
           "QUEUED": "已排队",
@@ -1341,12 +1339,7 @@
         "updated": "更新于",
         "kind": {
           "task": "任务",
-          "job": "作业",
-          "conversation": "对话"
-        },
-        "conversationStatus": {
-          "active": "活跃",
-          "archived": "已归档"
+          "job": "作业"
         }
       }
     },
@@ -4562,6 +4555,9 @@
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "membersLoadFailedTitle": "无法加载成员",
+        "membersLoadFailedDescription": "组织成员暂时不可用。请稍后再试。",
+        "membersLoadFailedRetry": "重试",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4616,6 +4612,8 @@
         "format": "Formatting",
         "bold": "Bold",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploadingFile": "正在上传 {fileName}",
+        "uploadingFiles": "正在上传 {count} 个文件",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",

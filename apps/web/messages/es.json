@@ -1302,11 +1302,9 @@
         "projectLabel": "Proyecto",
         "typeOptions": {
           "task": "Tarea",
-          "job": "Job",
-          "conversation": "Chat"
+          "job": "Job"
         },
         "statusOptions": {
-          "active": "Activo",
           "archived": "Archivado",
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
@@ -1341,12 +1339,7 @@
         "updated": "Actualizado",
         "kind": {
           "task": "Tarea",
-          "job": "Job",
-          "conversation": "Chat"
-        },
-        "conversationStatus": {
-          "active": "Activo",
-          "archived": "Archivado"
+          "job": "Job"
         }
       }
     },
@@ -4562,6 +4555,9 @@
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
+        "membersLoadFailedTitle": "No se pudieron cargar los miembros",
+        "membersLoadFailedDescription": "Los miembros de la organización no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
+        "membersLoadFailedRetry": "Reintentar",
         "noChannelTitle": "Create a channel",
         "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
       },
@@ -4616,6 +4612,8 @@
         "format": "Formatting",
         "bold": "Bold",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
+        "uploadingFile": "Subiendo {fileName}",
+        "uploadingFiles": "Subiendo {count} archivos",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",

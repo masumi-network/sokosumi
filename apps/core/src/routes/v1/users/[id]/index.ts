@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { coworkerUserRouteAllowlistMiddleware } from "../user-coworker-route-allowlist.js";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
@@ -35,6 +36,7 @@ import mountPostUserVendorGrants from "./vendor-grants/post.js";
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
 app.use("*", usersPathUserContextMiddleware);
+app.use("*", coworkerUserRouteAllowlistMiddleware);
 
 mountGetUserCredits(app);
 mountGetUserDesignMd(app);

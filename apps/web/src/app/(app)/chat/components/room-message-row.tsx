@@ -22,6 +22,7 @@ import {
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -32,14 +33,20 @@ import {
   messageSender,
 } from "./room-helpers";
 
+type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+
 function ChannelMarkdownSegment({
   content,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   if (!content.trim()) {
     return null;
@@ -51,6 +58,8 @@ function ChannelMarkdownSegment({
         content,
         coworkersById,
         coworkersBySlug,
+        usersById,
+        usersBySlug,
       })}
     </Markdown>
   );
@@ -60,10 +69,14 @@ function ChannelMessageText({
   content,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const fileLinks = findMarkdownLinks(content)
     .map((link) => ({
@@ -78,6 +91,8 @@ function ChannelMessageText({
         content={content}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
+        usersById={usersById}
+        usersBySlug={usersBySlug}
       />
     );
   }
@@ -92,6 +107,8 @@ function ChannelMessageText({
           content={content.slice(lastIndex, link.index)}
           coworkersById={coworkersById}
           coworkersBySlug={coworkersBySlug}
+          usersById={usersById}
+          usersBySlug={usersBySlug}
         />,
       );
     }
@@ -113,6 +130,8 @@ function ChannelMessageText({
         content={content.slice(lastIndex)}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
+        usersById={usersById}
+        usersBySlug={usersBySlug}
       />,
     );
   }
@@ -278,6 +297,8 @@ export function ChatMessageRow({
   message,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
   onToggleReaction,
   onOpenThread,
   showThreadButton = true,
@@ -285,6 +306,8 @@ export function ChatMessageRow({
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
@@ -330,6 +353,8 @@ export function ChatMessageRow({
               content={message.content}
               coworkersById={coworkersById}
               coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
             />
           )}
         </div>

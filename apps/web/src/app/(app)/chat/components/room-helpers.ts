@@ -3,6 +3,7 @@ import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
   ChatRoomPresence,
+  ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { parseMentions } from "@/lib/utils/mention-parser";
 
@@ -23,6 +24,15 @@ export interface RoomParticipantPreview {
   kind: "human" | "coworker";
 }
 
+/** Shared mention-picker payload for humans and coworkers in room composers. */
+export interface RoomMentionParticipant {
+  kind: "human" | "coworker";
+  id: string;
+  name: string;
+  slug: string;
+  image: string | null;
+}
+
 export function appendComposerBlock(value: string, block: string): string {
   if (!value.trim()) {
     return block;
@@ -30,6 +40,40 @@ export function appendComposerBlock(value: string, block: string): string {
 
   const trimmedRight = value.trimEnd();
   return `${trimmedRight}\n${block}`;
+}
+
+/**
+ * Build POST message content from composer text + attachment chips.
+ * Chips stay out of the textarea; markdown links are appended on send.
+ */
+export function buildRoomComposerMessageContent(
+  value: string,
+  attachments: readonly { fileName: string; url: string }[],
+  formatAttachmentMarkdown: (fileName: string, url: string) => string,
+): string {
+  const text = value.trimEnd();
+  if (attachments.length === 0) {
+    return text.trim();
+  }
+
+  const attachmentMarkdown = attachments
+    .map((attachment) =>
+      formatAttachmentMarkdown(attachment.fileName, attachment.url),
+    )
+    .join("");
+
+  if (!text.trim()) {
+    return attachmentMarkdown.trimEnd();
+  }
+
+  return appendComposerBlock(text, attachmentMarkdown).trimEnd();
+}
+
+export function isRoomComposerEmpty(
+  value: string,
+  attachments: readonly unknown[],
+): boolean {
+  return value.trim().length === 0 && attachments.length === 0;
 }
 
 export function hasPendingCoworkerMention(
@@ -167,7 +211,7 @@ export function shouldUseCoworkerRoomStream(room: {
 
 /**
  * Thread chrome on room messages.
- * Stream overlays never show threads. Coworker 1:1 hides until SOK-656.
+ * Stream overlays never show threads (ephemeral stream ids).
  */
 export function shouldShowChatRoomThreadButton(options: {
   room: {
@@ -178,7 +222,6 @@ export function shouldShowChatRoomThreadButton(options: {
   isStreamOverlay: boolean;
 }): boolean {
   if (options.isStreamOverlay) return false;
-  if (isCoworkerOnlyDirectRoom(options.room)) return false;
   return true;
 }
 
@@ -265,10 +308,14 @@ export function formatRoomMarkdownMentions({
   content,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
 }): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
@@ -283,7 +330,10 @@ export function formatRoomMarkdownMentions({
     }
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
-    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${coworker?.name ?? match.id}`)}</span>`;
+    const user =
+      usersById?.get(match.id) ?? usersBySlug?.get(match.slug) ?? undefined;
+    const displayName = coworker?.name ?? user?.name ?? match.id;
+    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
     lastIndex = match.end;
   });
   if (lastIndex < content.length) {

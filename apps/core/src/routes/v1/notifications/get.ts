@@ -39,7 +39,7 @@ const notificationKindsQuerySchema = z
   .openapi({
     param: { name: "kind", in: "query" },
     description:
-      "Comma-separated notification kinds to filter (e.g. JOB,TASK,CONVERSATION)",
+      "Comma-separated notification kinds to filter (e.g. JOB,TASK,BILLING)",
     example: "JOB,TASK",
   });
 

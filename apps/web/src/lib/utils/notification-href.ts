@@ -25,9 +25,6 @@ export function getNotificationHref(
       return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
     }
 
-    case "CONVERSATION":
-      return null;
-
     default:
       return `/`;
   }

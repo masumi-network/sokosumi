@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
@@ -26,29 +27,21 @@ import {
   type MentionTextareaHandle,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
-import type { ChatRoomCoworkerParticipant } from "@/lib/clients/generated/core";
-import {
-  formatTaskAttachmentMarkdown,
-  removeTaskAttachmentLinks,
-  sanitizeTaskAttachmentLabel,
-} from "@/lib/utils/task-attachments";
+import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import { getInitials } from "@/lib/utils/text";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import { appendComposerBlock } from "./room-helpers";
+import type { RoomMentionParticipant } from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
-function CoworkerSuggestion({
+function RoomMentionSuggestion({
   mention,
 }: {
-  mention: NormalizedMention<ChatRoomCoworkerParticipant>;
+  mention: NormalizedMention<RoomMentionParticipant>;
 }) {
+  const isCoworker = mention.data?.kind === "coworker";
   return (
     <>
       <Avatar className="size-6">
@@ -60,7 +53,7 @@ function CoworkerSuggestion({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{mention.value}</span>
-          <AiCoworkerIcon />
+          {isCoworker ? <AiCoworkerIcon /> : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
           @{mention.slug}
@@ -71,6 +64,7 @@ function CoworkerSuggestion({
 }
 
 export function RoomComposer({
+  roomId,
   value,
   onValueChange,
   mentions,
@@ -82,10 +76,13 @@ export function RoomComposer({
   isSending,
   sendDisabled,
   showMentionShortcut = true,
+  allowAttachments = true,
 }: {
+  /** When set, attaches mint via room chat file endpoint. */
+  roomId?: string;
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
-  mentions: Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>;
+  mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: RoomComposerAttachment[];
@@ -95,8 +92,11 @@ export function RoomComposer({
   sendDisabled: boolean;
   /** Channels always; direct rooms only when roster has more than two people. */
   showMentionShortcut?: boolean;
+  /** False when the send path cannot persist uploads (e.g. coworker stream). */
+  allowAttachments?: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const tToolbar = useTranslations("App.Channels.Toolbar");
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -116,42 +116,38 @@ export function RoomComposer({
       }
 
       setIsUploadingFiles(true);
-      const toastId = toast.loading(
-        t("Toolbar.uploading", { count: selectedFiles.length }),
-      );
 
       try {
-        const uploadedAttachments: RoomComposerAttachment[] = [];
-        for (const file of selectedFiles) {
-          const uploaded = await uploadUserFileDirect(file);
-          uploadedAttachments.push({
-            url: uploaded.publicUrl,
-            fileName: sanitizeTaskAttachmentLabel(
-              file.name,
-              t("Toolbar.attachmentFallback"),
+        const uploaded = await uploadComposeAttachments(selectedFiles, {
+          labels: {
+            uploadingFile: getTaskAttachmentUploadLabelTemplate(
+              tToolbar,
+              "uploadingFile",
             ),
-            mediaType: file.type || null,
-          });
-        }
+            uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+              tToolbar,
+              "uploadingFiles",
+            ),
+            uploadError: tToolbar("uploadFailed"),
+          },
+          fallbackFileName: tToolbar("attachmentFallback"),
+          roomId,
+        });
+        const uploadedAttachments: RoomComposerAttachment[] = uploaded.map(
+          (result) => ({
+            url: result.publicUrl,
+            fileName: result.fileName,
+            mediaType: result.mediaType,
+          }),
+        );
 
-        const attachmentMarkdown = uploadedAttachments
-          .map((attachment) =>
-            formatTaskAttachmentMarkdown(attachment.fileName, attachment.url),
-          )
-          .join("");
+        // Chip-only. Markdown links are stitched into content on send.
         onAttachmentsChange((current) => [...current, ...uploadedAttachments]);
-        onValueChange((current) =>
-          appendComposerBlock(current, attachmentMarkdown),
-        );
         toast.success(
-          t("Toolbar.uploaded", { count: uploadedAttachments.length }),
-          { id: toastId },
+          tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
-      } catch (error) {
-        toast.error(
-          getUserFileUploadErrorMessage(error, t("Toolbar.uploadFailed")),
-          { id: toastId },
-        );
+      } catch {
+        // Error toast is handled by uploadComposeAttachments.
       } finally {
         setIsUploadingFiles(false);
         if (fileInputRef.current) {
@@ -159,15 +155,12 @@ export function RoomComposer({
         }
       }
     },
-    [onAttachmentsChange, onValueChange, t],
+    [onAttachmentsChange, roomId, tToolbar],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {
     onAttachmentsChange((current) =>
       current.filter((item) => item.url !== attachment.url),
-    );
-    onValueChange((current) =>
-      removeTaskAttachmentLinks(current, [attachment.url]),
     );
     textareaRef.current?.focus();
   }
@@ -203,32 +196,36 @@ export function RoomComposer({
               <AtSign className="size-4" aria-hidden />
             </Button>
           ) : null}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            tabIndex={-1}
-            onChange={(event) => {
-              void handleFilesSelected(event.currentTarget.files);
-            }}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-            title={t("Toolbar.attach")}
-            aria-label={t("Toolbar.attach")}
-            disabled={isUploadingFiles}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {isUploadingFiles ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Paperclip className="size-4" aria-hidden />
-            )}
-          </Button>
+          {allowAttachments ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                tabIndex={-1}
+                onChange={(event) => {
+                  void handleFilesSelected(event.currentTarget.files);
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                title={t("Toolbar.attach")}
+                aria-label={t("Toolbar.attach")}
+                disabled={isUploadingFiles}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isUploadingFiles ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Paperclip className="size-4" aria-hidden />
+                )}
+              </Button>
+            </>
+          ) : null}
           <RoomComposerEmojiPicker
             title={t("Toolbar.emoji")}
             ariaLabel={t("Toolbar.emoji")}
@@ -253,7 +250,7 @@ export function RoomComposer({
         // Capped so a long draft scrolls inside the composer instead of
         // growing it until the toolbar and send button leave the screen.
         className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
-        renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
+        renderItem={(mention) => <RoomMentionSuggestion mention={mention} />}
       />
     </RoomMessageComposer>
   );
