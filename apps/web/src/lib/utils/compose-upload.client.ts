@@ -2,6 +2,7 @@
 
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { toast } from "sonner";
+import { uploadChatRoomFileDirect } from "@/lib/utils/chat-room-file-upload.client";
 import {
   createFileUploadProgressToast,
   type FileUploadProgressToastLabels,
@@ -30,12 +31,15 @@ export interface UploadComposeAttachmentsOptions {
   allowedContentTypes?: UploadUserFileDirectOptions["allowedContentTypes"];
   maxSizeBytes?: UploadUserFileDirectOptions["maxSizeBytes"];
   fallbackFileName?: string;
+  /** When set, mint via `POST /v1/chats/rooms/{roomId}/files`. */
+  roomId?: string;
 }
 
 /**
  * Shared compose attach helper: progress toast + error toast → public URLs.
- * Backing mint is `uploadUserFileDirect` (user-owned blobs). Callers insert
- * URLs into markdown/message content. No parent file row is created.
+ * With `roomId`, mints room-scoped chat blobs; otherwise user-owned blobs via
+ * `uploadUserFileDirect`. Callers insert URLs into markdown/message content.
+ * No parent file row is created.
  */
 export async function uploadComposeAttachments(
   files: File[],
@@ -57,14 +61,22 @@ export async function uploadComposeAttachments(
     const results: ComposeUploadResult[] = [];
 
     for (const [index, file] of files.entries()) {
-      const uploaded = await uploadUserFileDirect(file, {
+      const uploadOptions = {
         abortSignal: options.abortSignal,
         allowedContentTypes: options.allowedContentTypes,
         maxSizeBytes: options.maxSizeBytes,
-        onUploadProgress: (progress) => {
+        onUploadProgress: (progress: {
+          loaded: number;
+          total: number;
+          percentage: number;
+        }) => {
           uploadToast.updateFileProgress(index, progress);
         },
-      });
+      };
+
+      const uploaded = options.roomId
+        ? await uploadChatRoomFileDirect(options.roomId, file, uploadOptions)
+        : await uploadUserFileDirect(file, uploadOptions);
       uploadToast.markFileComplete(index);
 
       const resolvedMediaType =

@@ -5007,6 +5007,110 @@ export const ReactToChatRoomMessageRequestSchema = {
     ]
 } as const;
 
+export const ChatRoomFileUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        uploadUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/users/user_123/report.pdf?vercel-blob-delegation=…',
+            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
+        },
+        pathname: {
+            type: 'string',
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname (before random suffix)'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        method: {
+            type: 'string',
+            enum: [
+                'PUT'
+            ],
+            example: 'PUT',
+            description: 'HTTP method for the client upload request'
+        },
+        headers: {
+            type: 'object',
+            properties: {
+                'Content-Type': {
+                    type: 'string',
+                    example: 'application/pdf'
+                }
+            },
+            required: [
+                'Content-Type'
+            ],
+            description: 'Headers the client must send on the PUT'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-30T12:15:00.000Z',
+            description: 'When the presigned upload URL expires (ISO-8601)'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 104857600,
+            description: 'Maximum supported file size for this upload policy'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob appends a random suffix to the final pathname'
+        }
+    },
+    required: [
+        'uploadUrl',
+        'pathname',
+        'access',
+        'method',
+        'headers',
+        'expiresAt',
+        'maxSizeBytes',
+        'addRandomSuffix'
+    ]
+} as const;
+
+export const CreateChatRoomFileUploadSessionRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            example: 'report.pdf',
+            description: 'Original file name supplied by the client'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'application/pdf',
+            description: 'Declared MIME type. May be inferred from the filename when generic.'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2048000,
+            description: 'File size in bytes'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size'
+    ]
+} as const;
+
 export const CreditCheckoutSessionSchema = {
     type: 'object',
     properties: {

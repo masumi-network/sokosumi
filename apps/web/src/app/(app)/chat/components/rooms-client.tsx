@@ -1065,6 +1065,7 @@ export function RoomsClient({
               </ScrollArea>
 
               <RoomComposer
+                roomId={selectedRoom.id}
                 value={composerValue}
                 onValueChange={setComposerValue}
                 mentions={mentionRecords}
@@ -1141,6 +1142,7 @@ export function RoomsClient({
             onToggleReaction={handleToggleReaction}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
             allowAttachments={!isCoworkerStreamRoom}
+            roomId={selectedRoom.id}
           />
         ) : null}
       </main>

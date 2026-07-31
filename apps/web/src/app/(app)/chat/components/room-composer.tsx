@@ -68,6 +68,7 @@ function CoworkerSuggestion({
 }
 
 export function RoomComposer({
+  roomId,
   value,
   onValueChange,
   mentions,
@@ -81,6 +82,8 @@ export function RoomComposer({
   showMentionShortcut = true,
   allowAttachments = true,
 }: {
+  /** When set, attaches mint via room chat file endpoint. */
+  roomId?: string;
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
   mentions: Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>;
@@ -132,6 +135,7 @@ export function RoomComposer({
             uploadError: tToolbar("uploadFailed"),
           },
           fallbackFileName: tToolbar("attachmentFallback"),
+          roomId,
         });
         const uploadedAttachments: RoomComposerAttachment[] = uploaded.map(
           (result) => ({
@@ -162,7 +166,7 @@ export function RoomComposer({
         }
       }
     },
-    [onAttachmentsChange, onValueChange, tToolbar],
+    [onAttachmentsChange, onValueChange, roomId, tToolbar],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {

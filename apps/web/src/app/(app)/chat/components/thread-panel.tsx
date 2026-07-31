@@ -34,6 +34,7 @@ export function ThreadPanel({
   onToggleReaction,
   showMentionShortcut = true,
   allowAttachments = true,
+  roomId,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -58,6 +59,7 @@ export function ThreadPanel({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
+  roomId?: string;
 }) {
   const t = useTranslations("App.Channels");
 
@@ -150,6 +152,7 @@ export function ThreadPanel({
         </div>
       </ScrollArea>
       <RoomComposer
+        roomId={roomId}
         value={replyValue}
         onValueChange={onReplyValueChange}
         mentions={mentionRecords}

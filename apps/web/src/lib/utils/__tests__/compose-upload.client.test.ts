@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   uploadUserFileDirectMock,
+  uploadChatRoomFileDirectMock,
   createFileUploadProgressToastMock,
   toastErrorMock,
   toastDismissMock,
@@ -10,6 +11,7 @@ const {
   dismissMock,
 } = vi.hoisted(() => ({
   uploadUserFileDirectMock: vi.fn(),
+  uploadChatRoomFileDirectMock: vi.fn(),
   createFileUploadProgressToastMock: vi.fn(),
   toastErrorMock: vi.fn(),
   toastDismissMock: vi.fn(),
@@ -37,6 +39,11 @@ vi.mock("@/lib/utils/user-file-upload.client", () => ({
     uploadUserFileDirectMock(...args),
 }));
 
+vi.mock("@/lib/utils/chat-room-file-upload.client", () => ({
+  uploadChatRoomFileDirect: (...args: unknown[]) =>
+    uploadChatRoomFileDirectMock(...args),
+}));
+
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 
 describe("uploadComposeAttachments", () => {
@@ -62,6 +69,7 @@ describe("uploadComposeAttachments", () => {
 
     expect(createFileUploadProgressToastMock).not.toHaveBeenCalled();
     expect(uploadUserFileDirectMock).not.toHaveBeenCalled();
+    expect(uploadChatRoomFileDirectMock).not.toHaveBeenCalled();
   });
 
   it("uploads files with progress toast and returns compose results", async () => {
@@ -103,6 +111,7 @@ describe("uploadComposeAttachments", () => {
       },
     });
     expect(uploadUserFileDirectMock).toHaveBeenCalledTimes(1);
+    expect(uploadChatRoomFileDirectMock).not.toHaveBeenCalled();
     expect(updateFileProgressMock).toHaveBeenCalledWith(0, {
       loaded: 5,
       total: 5,
@@ -118,6 +127,35 @@ describe("uploadComposeAttachments", () => {
         file,
       },
     ]);
+  });
+
+  it("mints via room endpoint when roomId is provided", async () => {
+    const file = new File(["hello"], "note.txt", { type: "text/plain" });
+    const roomId = "550e8400-e29b-41d4-a716-446655440000";
+    uploadChatRoomFileDirectMock.mockResolvedValue({
+      publicUrl: "https://blob.example/users/u1/chats/room/note.txt",
+    });
+
+    const results = await uploadComposeAttachments([file], {
+      labels: {
+        uploadingFile: "Uploading {fileName}",
+        uploadingFiles: "Uploading {count} files",
+        uploadError: "Failed",
+      },
+      roomId,
+    });
+
+    expect(uploadChatRoomFileDirectMock).toHaveBeenCalledWith(
+      roomId,
+      file,
+      expect.objectContaining({
+        onUploadProgress: expect.any(Function),
+      }),
+    );
+    expect(uploadUserFileDirectMock).not.toHaveBeenCalled();
+    expect(results[0]?.publicUrl).toBe(
+      "https://blob.example/users/u1/chats/room/note.txt",
+    );
   });
 
   it("shows error toast, dismisses progress, and rethrows on failure", async () => {
