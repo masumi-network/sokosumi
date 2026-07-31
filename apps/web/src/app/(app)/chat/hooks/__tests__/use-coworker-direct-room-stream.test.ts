@@ -6,7 +6,9 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import {
   createResumePendingCoworkerShell,
   RESUME_PENDING_STREAM_MESSAGE_ID,
+  readStoredStreamParentMessageId,
   shouldShowResumePendingCoworkerShell,
+  writeStoredStreamParentMessageId,
 } from "../use-coworker-direct-room-stream";
 
 const coworker = {
@@ -99,8 +101,18 @@ describe("createResumePendingCoworkerShell", () => {
 
     expect(shell.id).toBe(RESUME_PENDING_STREAM_MESSAGE_ID);
     expect(shell.content).toBe("");
+    expect(shell.parentMessageId).toBeNull();
     expect(shell.sender).toEqual({ type: "coworker", coworker });
     expect(shell.metadata).toEqual({ streaming: true });
+  });
+
+  it("can tag resume shell with thread parent for panel routing", () => {
+    const shell = createResumePendingCoworkerShell({
+      roomId: "room-1",
+      coworker,
+      parentMessageId: "parent-1",
+    });
+    expect(shell.parentMessageId).toBe("parent-1");
   });
 
   it("survives overlay merge so reopen mid-stream can show Thinking", () => {
@@ -118,5 +130,41 @@ describe("createResumePendingCoworkerShell", () => {
       RESUME_PENDING_STREAM_MESSAGE_ID,
     ]);
     expect(merged.at(-1)?.content.trim()).toBe("");
+  });
+});
+
+describe("stream parent sessionStorage helpers", () => {
+  it("round-trips parent id and clears on null", () => {
+    writeStoredStreamParentMessageId("room-1", "parent-1");
+    expect(readStoredStreamParentMessageId("room-1")).toBe("parent-1");
+    writeStoredStreamParentMessageId("room-1", null);
+    expect(readStoredStreamParentMessageId("room-1")).toBeNull();
+  });
+
+  it("ignores blank stored values", () => {
+    sessionStorage.setItem("sokosumi:room-stream-parent:room-2", "   ");
+    expect(readStoredStreamParentMessageId("room-2")).toBeNull();
+  });
+});
+
+describe("thread vs top-level overlay split", () => {
+  it("routes overlays by parentMessageId for panel vs main", () => {
+    const topLevel = createResumePendingCoworkerShell({
+      roomId: "room-1",
+      coworker,
+      parentMessageId: null,
+    });
+    const thread = createResumePendingCoworkerShell({
+      roomId: "room-1",
+      coworker,
+      parentMessageId: "parent-1",
+    });
+    const overlays = [topLevel, thread];
+    expect(
+      overlays.filter((message) => message.parentMessageId == null),
+    ).toEqual([topLevel]);
+    expect(
+      overlays.filter((message) => message.parentMessageId === "parent-1"),
+    ).toEqual([thread]);
   });
 });

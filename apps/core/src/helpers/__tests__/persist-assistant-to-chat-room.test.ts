@@ -56,6 +56,7 @@ describe("persistAssistantToChatRoom", () => {
           content: "Hello from coworker",
           senderUserId: null,
           responsesApiResponseId: null,
+          parentMessageId: null,
         }),
       }),
     );
@@ -63,6 +64,23 @@ describe("persistAssistantToChatRoom", () => {
       where: { id: "room_1" },
       data: { updatedAt: expect.any(Date) },
     });
+  });
+
+  it("persists parentMessageId for thread assistant turns", async () => {
+    await persistAssistantToChatRoom({
+      roomId: "room_1",
+      senderCoworkerId: "coworker_1",
+      contentText: "Thread reply",
+      parentMessageId: "parent_1",
+    });
+
+    expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          parentMessageId: "parent_1",
+        }),
+      }),
+    );
   });
 
   it("returns existing message id when responsesApiResponseId already persisted", async () => {
@@ -198,12 +216,13 @@ describe("persistAssistantToChatRoom", () => {
 
     expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: {
+        data: expect.objectContaining({
           roomId: "room_1",
           senderCoworkerId: "coworker_1",
           senderUserId: null,
           content: "Here's the image.",
           responsesApiResponseId: "resp_img",
+          parentMessageId: null,
           metadata: {
             reasoning: [{ type: "reasoning", text: "Thinking..." }],
             thought_timing_ms: { start: 100, end: 500 },
@@ -220,7 +239,7 @@ describe("persistAssistantToChatRoom", () => {
             },
             responses_api_response_id: "resp_img",
           },
-        },
+        }),
       }),
     );
   });
@@ -260,6 +279,7 @@ describe("persistUserMessageToChatRoom", () => {
           content: "Hello from user",
           metadata: undefined,
           clientMessageId: null,
+          parentMessageId: null,
         },
       }),
     );
@@ -267,6 +287,23 @@ describe("persistUserMessageToChatRoom", () => {
       where: { id: "room_1" },
       data: { updatedAt: expect.any(Date) },
     });
+  });
+
+  it("persists parentMessageId for thread user turns", async () => {
+    await persistUserMessageToChatRoom({
+      roomId: "room_1",
+      senderUserId: "user_1",
+      contentText: "Thread reply",
+      parentMessageId: "parent_1",
+    });
+
+    expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          parentMessageId: "parent_1",
+        }),
+      }),
+    );
   });
 
   it("persists optional metadata", async () => {
@@ -286,6 +323,7 @@ describe("persistUserMessageToChatRoom", () => {
           content: "Make an image",
           metadata: { image_generation: true },
           clientMessageId: null,
+          parentMessageId: null,
         },
       }),
     );
