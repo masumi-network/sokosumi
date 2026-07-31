@@ -1844,8 +1844,7 @@
         "taskCreatedHint": "Alles ist eingerichtet und bereit.",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
-        "close": "Schließen",
-        "attachNeedsDescription": "Füge eine Aufgabenbeschreibung hinzu, bevor du Dateien anhängst."
+        "close": "Schließen"
       },
       "EditTask": {
         "title": "Task bearbeiten",

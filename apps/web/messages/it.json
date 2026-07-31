@@ -1844,8 +1844,7 @@
         "taskCreatedHint": "Tutto è configurato e pronto.",
         "goToTask": "Vai al task",
         "createAnother": "Crea un altro task",
-        "close": "Chiudi",
-        "attachNeedsDescription": "Aggiungi una descrizione dell'attività prima di allegare file."
+        "close": "Chiudi"
       },
       "EditTask": {
         "title": "Modifica task",

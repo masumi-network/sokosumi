@@ -1844,8 +1844,7 @@
         "taskCreatedHint": "すべて設定済みで、すぐに開始できます。",
         "goToTask": "タスクへ移動",
         "createAnother": "別のタスクを作成",
-        "close": "閉じる",
-        "attachNeedsDescription": "ファイルを添付する前にタスクの説明を追加してください。"
+        "close": "閉じる"
       },
       "EditTask": {
         "title": "タスクを編集",

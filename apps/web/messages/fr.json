@@ -1844,8 +1844,7 @@
         "taskCreatedHint": "Tout est configuré et prêt.",
         "goToTask": "Aller à la tâche",
         "createAnother": "Créer une autre tâche",
-        "close": "Fermer",
-        "attachNeedsDescription": "Ajoutez une description de tâche avant de joindre des fichiers."
+        "close": "Fermer"
       },
       "EditTask": {
         "title": "Modifier la tâche",
