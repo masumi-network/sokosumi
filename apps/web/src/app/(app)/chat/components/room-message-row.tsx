@@ -327,6 +327,7 @@ export function ChatMessageRow({
 
   return (
     <article
+      aria-label={isContinuation ? sender.name : undefined}
       className={cn(
         "group relative -mx-2 flex gap-3.5 rounded-md pr-20 pl-2 transition-colors hover:bg-muted/45",
         isContinuation ? "min-h-8 py-0.5" : "min-h-11 py-2.5",
@@ -336,7 +337,7 @@ export function ChatMessageRow({
         <div className="flex w-8 shrink-0 justify-center pt-1">
           <time
             dateTime={createdAtIso}
-            className="text-muted-foreground text-[10px] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+            className="text-muted-foreground whitespace-nowrap text-[10px] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
             title={formattedTime}
             suppressHydrationWarning
           >

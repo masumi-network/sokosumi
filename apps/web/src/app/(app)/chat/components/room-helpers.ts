@@ -172,6 +172,7 @@ export function isMessageContinuation(
   if (
     !Number.isFinite(previousTime) ||
     !Number.isFinite(currentTime) ||
+    currentTime < previousTime ||
     currentTime - previousTime >= gapMs
   ) {
     return false;

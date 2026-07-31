@@ -141,6 +141,13 @@ describe("isMessageContinuation", () => {
     expect(isMessageContinuation(previous, beyondGap)).toBe(false);
   });
 
+  it("is false when the current timestamp precedes the previous message", () => {
+    const previous = userMessage("m1", "2026-07-01T12:04:00.000Z");
+    const current = userMessage("m2", "2026-07-01T12:00:00.000Z");
+
+    expect(isMessageContinuation(previous, current)).toBe(false);
+  });
+
   it("is false across day boundaries even within the gap", () => {
     const previous = userMessage(
       "m1",
