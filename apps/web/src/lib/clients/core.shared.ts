@@ -51,6 +51,7 @@ import type {
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
+  PostChatsRoomsByIdFilesData,
   PostChatsRoomsByIdMessagesByMessageIdReactionsData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
@@ -207,6 +208,7 @@ import {
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postChatsRooms as corePostChatsRooms,
   postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
+  postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -3183,6 +3185,23 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function createChatRoomFileUploadSession(
+    roomId: string,
+    body: NonNullable<PostChatsRoomsByIdFilesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdFiles({
+          client,
+          path: { id: roomId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create chat room file upload session",
+    );
+  }
+
   async function moveTaskToWorkspace(
     id: string,
     body: { organizationId: string | null },
@@ -3488,6 +3507,7 @@ export function createCoreClient(getClient: GetClient) {
     assignOrganizationSeat,
     createChatRoom,
     createAgentJob,
+    createChatRoomFileUploadSession,
     createMyFileUploadSession,
     createTask,
     createTaskFileUploadSession,

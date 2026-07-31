@@ -18,6 +18,7 @@ import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
+import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
 import {
@@ -28,7 +29,11 @@ import {
   filterDraftTargets,
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
-import type { RoomMentionParticipant } from "./room-helpers";
+import {
+  buildRoomComposerMessageContent,
+  isRoomComposerEmpty,
+  type RoomMentionParticipant,
+} from "./room-helpers";
 
 export function DraftChannel({
   members,
@@ -131,7 +136,11 @@ export function DraftChannel({
 
   function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const content = composerValue.trim();
+    const content = buildRoomComposerMessageContent(
+      composerValue,
+      composerAttachments,
+      formatTaskAttachmentMarkdown,
+    );
     if (!trimmedName) {
       toast.error(t("Dialog.nameRequired"));
       nameInputRef.current?.focus();
@@ -326,7 +335,10 @@ export function DraftChannel({
         onAttachmentsChange={setComposerAttachments}
         onSubmit={handleCreate}
         isSending={isCreating}
-        sendDisabled={trimmedName.length === 0 || composerValue.trim() === ""}
+        sendDisabled={
+          trimmedName.length === 0 ||
+          isRoomComposerEmpty(composerValue, composerAttachments)
+        }
       />
     </>
   );

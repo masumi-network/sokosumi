@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -22,6 +21,7 @@ import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
   resolveThreadParentMessageId,
@@ -77,19 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (isCoworkerAuthContext(authContext)) {
       const coworkerId = authContext.coworkerId;
       const message = await prisma.$transaction(async (tx) => {
-        const room = await tx.chatRoom.findFirst({
-          where: {
-            id,
-            archivedAt: null,
-            coworkerMembers: {
-              some: { coworkerId },
-            },
-          },
-          select: { id: true },
-        });
-        if (!room) {
-          throw notFound("Room not found");
-        }
+        const room = await requireChatRoomCoworkerAccess(id, coworkerId, tx);
 
         const parentMessageId = await resolveThreadParentMessageId(
           tx,

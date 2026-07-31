@@ -28,16 +28,9 @@ import {
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
-import {
-  formatTaskAttachmentMarkdown,
-  removeTaskAttachmentLinks,
-} from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import {
-  appendComposerBlock,
-  type RoomMentionParticipant,
-} from "./room-helpers";
+import type { RoomMentionParticipant } from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
@@ -71,6 +64,7 @@ function RoomMentionSuggestion({
 }
 
 export function RoomComposer({
+  roomId,
   value,
   onValueChange,
   mentions,
@@ -84,6 +78,8 @@ export function RoomComposer({
   showMentionShortcut = true,
   allowAttachments = true,
 }: {
+  /** When set, attaches mint via room chat file endpoint. */
+  roomId?: string;
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
@@ -135,6 +131,7 @@ export function RoomComposer({
             uploadError: tToolbar("uploadFailed"),
           },
           fallbackFileName: tToolbar("attachmentFallback"),
+          roomId,
         });
         const uploadedAttachments: RoomComposerAttachment[] = uploaded.map(
           (result) => ({
@@ -144,15 +141,8 @@ export function RoomComposer({
           }),
         );
 
-        const attachmentMarkdown = uploadedAttachments
-          .map((attachment) =>
-            formatTaskAttachmentMarkdown(attachment.fileName, attachment.url),
-          )
-          .join("");
+        // Chip-only. Markdown links are stitched into content on send.
         onAttachmentsChange((current) => [...current, ...uploadedAttachments]);
-        onValueChange((current) =>
-          appendComposerBlock(current, attachmentMarkdown),
-        );
         toast.success(
           tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
@@ -165,15 +155,12 @@ export function RoomComposer({
         }
       }
     },
-    [onAttachmentsChange, onValueChange, tToolbar],
+    [onAttachmentsChange, roomId, tToolbar],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {
     onAttachmentsChange((current) =>
       current.filter((item) => item.url !== attachment.url),
-    );
-    onValueChange((current) =>
-      removeTaskAttachmentLinks(current, [attachment.url]),
     );
     textareaRef.current?.focus();
   }

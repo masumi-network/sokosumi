@@ -12,7 +12,10 @@ import type {
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
-import type { RoomMentionParticipant } from "./room-helpers";
+import {
+  isRoomComposerEmpty,
+  type RoomMentionParticipant,
+} from "./room-helpers";
 import { ChatMessageRow } from "./room-message-row";
 
 export function ThreadPanel({
@@ -38,6 +41,7 @@ export function ThreadPanel({
   onToggleReaction,
   showMentionShortcut = true,
   allowAttachments = true,
+  roomId,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -61,6 +65,7 @@ export function ThreadPanel({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
+  roomId?: string;
 }) {
   const t = useTranslations("App.Channels");
 
@@ -157,6 +162,7 @@ export function ThreadPanel({
         </div>
       </ScrollArea>
       <RoomComposer
+        roomId={roomId}
         value={replyValue}
         onValueChange={onReplyValueChange}
         mentions={mentionRecords}
@@ -166,7 +172,7 @@ export function ThreadPanel({
         onAttachmentsChange={onReplyAttachmentsChange}
         onSubmit={onSubmitReply}
         isSending={isSendingReply}
-        sendDisabled={replyValue.trim().length === 0}
+        sendDisabled={isRoomComposerEmpty(replyValue, replyAttachments)}
         showMentionShortcut={showMentionShortcut}
         allowAttachments={allowAttachments}
       />
