@@ -10,7 +10,6 @@ import {
   parseHistoryFilters,
   resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
-import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getSession } from "@/lib/auth/auth.server";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -58,7 +57,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     status: filters.status ? [filters.status] : undefined,
     types: resolveHistoryApiTypes(filters.type),
   });
-  const bucketLookups = await buildHistoryBucketLookups(historyPage.history);
   const filterResetKey = getHistoryFiltersResetKey(
     filters,
     activeOrganizationId,
@@ -134,7 +132,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           key={filterResetKey}
           history={historyPage.history}
           nextCursor={historyPage.pagination?.nextCursor ?? null}
-          bucketLookups={bucketLookups}
           filterResetKey={filterResetKey}
           filters={filters}
           activeOrganizationId={activeOrganizationId}
@@ -155,11 +152,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               kind: {
                 task: t("Row.kind.task"),
                 job: t("Row.kind.job"),
-                conversation: t("Row.kind.conversation"),
-              },
-              conversationStatus: {
-                active: t("Row.conversationStatus.active"),
-                archived: t("Row.conversationStatus.archived"),
               },
               taskStatus: taskStatusOptions,
             },

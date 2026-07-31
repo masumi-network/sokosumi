@@ -1302,8 +1302,7 @@
         "projectLabel": "プロジェクト",
         "typeOptions": {
           "task": "タスク",
-          "job": "ジョブ",
-          "conversation": "チャット"
+          "job": "ジョブ"
         },
         "statusOptions": {
           "active": "アクティブ",
@@ -1341,12 +1340,7 @@
         "updated": "更新",
         "kind": {
           "task": "タスク",
-          "job": "ジョブ",
-          "conversation": "チャット"
-        },
-        "conversationStatus": {
-          "active": "アクティブ",
-          "archived": "アーカイブ済み"
+          "job": "ジョブ"
         }
       }
     },

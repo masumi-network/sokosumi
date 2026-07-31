@@ -1302,8 +1302,7 @@
         "projectLabel": "Progetto",
         "typeOptions": {
           "task": "Attività",
-          "job": "Job",
-          "conversation": "Chat"
+          "job": "Job"
         },
         "statusOptions": {
           "active": "Attivo",
@@ -1341,12 +1340,7 @@
         "updated": "Aggiornato",
         "kind": {
           "task": "Attività",
-          "job": "Job",
-          "conversation": "Chat"
-        },
-        "conversationStatus": {
-          "active": "Attivo",
-          "archived": "Archiviato"
+          "job": "Job"
         }
       }
     },
