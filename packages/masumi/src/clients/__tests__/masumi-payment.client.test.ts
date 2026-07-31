@@ -571,6 +571,46 @@ describe("getCardanoV2RailReadiness", () => {
     ]);
   });
 
+  it("canonicalizes readiness policy ids and Cardano addresses", async () => {
+    getRailReadinessMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          Rails: [
+            {
+              rail: "CardanoV2",
+              isReady: true,
+              PurchaseSources: [
+                {
+                  policyId: "AB".repeat(28),
+                  smartContractAddress: "ADDR_TEST1_MIXED_CASE_CONTRACT",
+                  isPurchaseReady: true,
+                  Checks: [],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isOk() && result.value).toEqual([
+      {
+        policyId: "ab".repeat(28),
+        smartContractAddress: "addr_test1_mixed_case_contract",
+      },
+    ]);
+  });
+
   it("excludes sources that are not purchase-ready", async () => {
     getRailReadinessMock.mockResolvedValue({
       data: {

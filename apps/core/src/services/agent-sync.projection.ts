@@ -167,6 +167,79 @@ const registryAgentPricingSchema = z.object({
     .optional(),
 });
 
+const registryPaymentSourcePricingSchema = z.discriminatedUnion("pricingType", [
+  z.object({
+    pricingType: z.literal("Fixed"),
+    fixed: z.array(
+      z.object({
+        asset: z.string(),
+        amount: z.string(),
+        decimals: z.number().optional(),
+      }),
+    ),
+  }),
+  z.object({
+    pricingType: z.literal("Dynamic"),
+    dynamic: z
+      .array(z.object({ asset: z.string(), decimals: z.number() }))
+      .optional(),
+  }),
+  z.object({ pricingType: z.literal("Free") }),
+]);
+
+/** Every registry-controlled field dereferenced by the storage projection. */
+const registryStorageEntrySchema = z.object({
+  id: z.string(),
+  statusUpdatedAt: z.union([z.string(), z.date()]),
+  agentIdentifier: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  apiBaseUrl: z.string().nullable(),
+  type: z.string(),
+  openApiSpecUrl: z.string().nullable(),
+  x402ResourcesUrl: z.string().nullable(),
+  supersededByAgentIdentifier: z.string().nullable(),
+  metadataVersion: z.number(),
+  lastUptimeCheck: z.union([z.string(), z.date()]),
+  uptimeCount: z.number(),
+  uptimeCheckCount: z.number(),
+  Capability: z
+    .object({ name: z.string().nullable(), version: z.string().nullable() })
+    .nullable(),
+  authorName: z.string().nullable(),
+  authorContactEmail: z.string().nullable(),
+  authorContactOther: z.string().nullable(),
+  image: z.string().nullable(),
+  tags: z.array(z.string()).nullable(),
+  authorOrganization: z.string().nullable(),
+  status: z.string(),
+  otherLegal: z.string().nullable(),
+  termsAndCondition: z.string().nullable(),
+  privacyPolicy: z.string().nullable(),
+  paymentType: z.string(),
+  AgentPricing: z.unknown(),
+  SupportedPaymentSources: z.array(
+    z.object({
+      sourceIndex: z.number(),
+      chain: z.string(),
+      network: z.string(),
+      paymentSourceType: z.string().nullable(),
+      address: z.string(),
+      payTo: z.string().nullable(),
+      scheme: z.string().nullable(),
+      resource: z.string().nullable(),
+      pricing: registryPaymentSourcePricingSchema,
+    }),
+  ),
+  ExampleOutput: z.array(
+    z.object({
+      mimeType: z.string(),
+      name: z.string(),
+      url: z.string(),
+    }),
+  ),
+});
+
 export interface ParsedAgentPricing {
   pricingType: PricingType;
   fixedPricingAmounts?: { amount: bigint; unit: string }[];
@@ -249,10 +322,17 @@ export type RegistryPaymentSource =
 export function getRegistryEntryStorageIssue(
   entry: RegistryDiffEntry,
 ): string | null {
+  const parsedEntry = registryStorageEntrySchema.safeParse(entry);
+  if (!parsedEntry.success) {
+    const firstIssue = parsedEntry.error.issues[0];
+    const path = firstIssue?.path.join(".") || "entry";
+    return `${path} has invalid runtime shape`;
+  }
+  const safeEntry = parsedEntry.data;
   const integerFields = [
-    ["metadataVersion", entry.metadataVersion],
-    ["uptimeCount", entry.uptimeCount],
-    ["uptimeCheckCount", entry.uptimeCheckCount],
+    ["metadataVersion", safeEntry.metadataVersion],
+    ["uptimeCount", safeEntry.uptimeCount],
+    ["uptimeCheckCount", safeEntry.uptimeCheckCount],
   ] as const;
   for (const [field, value] of integerFields) {
     if (!isDatabaseInt(value)) {
@@ -260,27 +340,21 @@ export function getRegistryEntryStorageIssue(
     }
   }
 
-  if (!isValidRegistryDate(entry.lastUptimeCheck)) {
+  if (!isValidRegistryDate(safeEntry.lastUptimeCheck)) {
     return "lastUptimeCheck is not a valid date";
   }
-  if (!isValidRegistryDate(entry.statusUpdatedAt)) {
+  if (!isValidRegistryDate(safeEntry.statusUpdatedAt)) {
     return "statusUpdatedAt is not a valid date";
   }
-  if (entry.tags !== null && !Array.isArray(entry.tags)) {
-    return "tags is not an array";
-  }
-  if ((entry.tags?.length ?? 0) > MAX_REGISTRY_TAGS) {
+  if ((safeEntry.tags?.length ?? 0) > MAX_REGISTRY_TAGS) {
     return `tags exceeds ${MAX_REGISTRY_TAGS} entries`;
   }
-  if (!Array.isArray(entry.ExampleOutput)) {
-    return "ExampleOutput is not an array";
-  }
-  if (entry.ExampleOutput.length > MAX_REGISTRY_EXAMPLE_OUTPUTS) {
+  if (safeEntry.ExampleOutput.length > MAX_REGISTRY_EXAMPLE_OUTPUTS) {
     return `ExampleOutput exceeds ${MAX_REGISTRY_EXAMPLE_OUTPUTS} entries`;
   }
 
   const legacyPricing = registryAgentPricingSchema.safeParse(
-    entry.AgentPricing,
+    safeEntry.AgentPricing,
   );
   if (legacyPricing.success && legacyPricing.data.pricingType === "Fixed") {
     const amounts = legacyPricing.data.FixedPricing?.Amounts ?? [];
@@ -288,21 +362,18 @@ export function getRegistryEntryStorageIssue(
       return "AgentPricing contains an amount outside the PostgreSQL BIGINT range";
     }
   } else if (
-    entry.AgentPricing &&
-    typeof entry.AgentPricing === "object" &&
-    "pricingType" in entry.AgentPricing &&
-    entry.AgentPricing.pricingType === "Fixed"
+    safeEntry.AgentPricing &&
+    typeof safeEntry.AgentPricing === "object" &&
+    "pricingType" in safeEntry.AgentPricing &&
+    safeEntry.AgentPricing.pricingType === "Fixed"
   ) {
     return `AgentPricing exceeds ${MAX_LEGACY_PRICING_AMOUNTS} amounts or is malformed`;
   }
 
-  if (!Array.isArray(entry.SupportedPaymentSources)) {
-    return "SupportedPaymentSources is not an array";
-  }
-  if (entry.SupportedPaymentSources.length > MAX_PAYMENT_SOURCES) {
+  if (safeEntry.SupportedPaymentSources.length > MAX_PAYMENT_SOURCES) {
     return `SupportedPaymentSources exceeds ${MAX_PAYMENT_SOURCES} entries`;
   }
-  for (const source of entry.SupportedPaymentSources) {
+  for (const source of safeEntry.SupportedPaymentSources) {
     if (
       !isDatabaseInt(source.sourceIndex) ||
       source.sourceIndex > MAX_PAYMENT_SOURCE_INDEX
@@ -346,6 +417,11 @@ export function normalizeRegistryEntry(
     supersededByAgentIdentifier: entry.supersededByAgentIdentifier
       ? normalizeRegistryIdentifier(entry.supersededByAgentIdentifier)
       : entry.supersededByAgentIdentifier,
+    SupportedPaymentSources: entry.SupportedPaymentSources.map((source) =>
+      source.chain === "Cardano" && source.paymentSourceType === "Web3CardanoV2"
+        ? { ...source, address: source.address.toLowerCase() }
+        : source,
+    ),
   };
 }
 

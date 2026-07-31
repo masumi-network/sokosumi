@@ -172,9 +172,8 @@ export function createTaskEventRequestSchema(
         }
 
         // A declared V1 rail on a V2-policy identifier is a contradiction the
-        // payment node rejects with a 400 — and the task charge commits before
-        // the purchase is created, with no compensation path, so it must fail
-        // here rather than after the credits move.
+        // payment node rejects with a 400. Fail before charging instead of
+        // relying on asynchronous compensation for known-invalid input.
         if (hasContradictoryMasumiTaskPaymentRail(data.masumiPayment)) {
           ctx.addIssue({
             code: "custom",

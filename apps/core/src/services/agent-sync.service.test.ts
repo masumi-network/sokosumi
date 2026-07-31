@@ -1246,6 +1246,33 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
   });
 
+  it("canonicalizes Cardano V2 contract addresses before persistence", async () => {
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-uppercase-address", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [
+            createCardanoV2PaymentSource({
+              address: "ADDR_TEST1_MIXED_CASE_CONTRACT",
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(
+      agentCreateMock.mock.calls[0]?.[0].data.paymentSources.create[0].address,
+    ).toBe("addr_test1_mixed_case_contract");
+  });
+
   it("promotes a newer V2 revision on the existing stable Agent row", async () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-stable-1",
@@ -2063,7 +2090,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentUpdateManyMock).toHaveBeenNthCalledWith(1, {
       where: {
         OR: [
-          { registryIdentity: V2_AGENT_ROOT },
+          {
+            registryIdentity: V2_AGENT_ROOT,
+            registryVersion: { lte: 1 },
+          },
           { blockchainIdentifier: createV2AgentIdentifier(1) },
         ],
       },
@@ -2086,6 +2116,76 @@ describe("agentSyncService.syncRegistryAgents", () => {
       }),
     );
 
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("quarantines null nested payment-source shapes without parking the cursor", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-null-source", {
+          SupportedPaymentSources: [null],
+        }),
+        createRegistryEntry("entry-after-null-source", {
+          statusUpdatedAt: "2026-02-24T17:00:00.000Z",
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: "entry-after-null-source",
+          lastSyncedAt: new Date("2026-02-24T17:00:00.000Z"),
+        },
+      }),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("does not hide a newer canonical revision for malformed older data", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-old-malformed", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [null],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          {
+            registryIdentity: V2_AGENT_ROOT,
+            registryVersion: { lte: 1 },
+          },
+          { blockchainIdentifier: createV2AgentIdentifier(1) },
+        ],
+      },
+      data: { status: AgentStatus.INVALID, isShown: false },
+    });
     consoleErrorSpy.mockRestore();
   });
 

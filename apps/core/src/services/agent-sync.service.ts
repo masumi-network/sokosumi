@@ -54,7 +54,22 @@ async function quarantineInvalidRegistryEntry(
   entry: RegistryDiffEntry,
   issue: string,
 ): Promise<void> {
-  const normalizedEntry = normalizeRegistryEntry(entry);
+  // Do not run the full normalizer here: this path exists precisely because a
+  // nested registry value may be null or malformed. Only the identifier is
+  // needed to quarantine the matching local revision.
+  const agentIdentifier: unknown = entry.agentIdentifier;
+  if (typeof agentIdentifier !== "string" || agentIdentifier.length === 0) {
+    console.error(
+      `[sync/agents] Cannot quarantine registry entry without a valid agentIdentifier: ${issue}`,
+    );
+    return;
+  }
+  const normalizedEntry = {
+    ...entry,
+    agentIdentifier: isV2RegistryIdentifier(agentIdentifier)
+      ? agentIdentifier.toLowerCase()
+      : agentIdentifier,
+  };
   const version = resolveRegistryAgentVersion(normalizedEntry);
   console.error(
     `[sync/agents] Quarantining registry entry ${normalizedEntry.agentIdentifier}: ${issue}`,
@@ -74,7 +89,12 @@ async function quarantineInvalidRegistryEntry(
     where: {
       OR: [
         ...(version.isValid
-          ? [{ registryIdentity: version.registryIdentity }]
+          ? [
+              {
+                registryIdentity: version.registryIdentity,
+                registryVersion: { lte: version.registryVersion },
+              },
+            ]
           : []),
         { blockchainIdentifier: normalizedEntry.agentIdentifier },
       ],

@@ -675,13 +675,13 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  blockchainIdentifier String @unique
+  blockchainIdentifier String  @unique
   // Stable registry identity. V2 identifiers end in a 3-byte version; this
   // stores the identifier without that suffix so every revision maps to the
   // same product-owned Agent row. Nullable for rollback compatibility with
   // the previous Core release, which does not populate this field on inserts.
   registryIdentity     String? @unique
-  registryVersion      Int    @default(0)
+  registryVersion      Int     @default(0)
 
   name        String
   description String?
@@ -865,11 +865,13 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job               Job?               @relation("TransactionJob")
-  refundedJob       Job?               @relation("RefundedTransactionJob")
-  taskEvents        TaskEvent[]        @relation("TransactionTaskEvent")
-  coworkerUsage     CoworkerUsage?     @relation("TransactionCoworkerUsage")
-  orchestratorUsage OrchestratorUsage? @relation("TransactionOrchestratorUsage")
+  job                      Job?               @relation("TransactionJob")
+  refundedJob              Job?               @relation("RefundedTransactionJob")
+  taskEvents               TaskEvent[]        @relation("TransactionTaskEvent")
+  taskPaymentClaim         TaskPaymentClaim?  @relation("TransactionTaskPaymentClaim")
+  refundedTaskPaymentClaim TaskPaymentClaim?  @relation("RefundedTransactionTaskPaymentClaim")
+  coworkerUsage            CoworkerUsage?     @relation("TransactionCoworkerUsage")
+  orchestratorUsage        OrchestratorUsage? @relation("TransactionOrchestratorUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -1643,6 +1645,12 @@ enum Channel {
   UNKNOWN
 }
 
+enum TaskPaymentClaimStatus {
+  PENDING
+  PURCHASED
+  REFUNDED
+}
+
 model TaskEvent {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1670,9 +1678,34 @@ model TaskEvent {
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
+  paymentClaim TaskPaymentClaim?
+
   @@index([transactionId])
   @@index([orchestratorId])
   @@map("taskEvent")
+}
+
+model TaskPaymentClaim {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  blockchainIdentifier String                 @unique
+  status               TaskPaymentClaimStatus @default(PENDING)
+  externalPurchaseId   String?
+  failureReason        String?
+
+  taskEventId String    @unique
+  taskEvent   TaskEvent @relation(fields: [taskEventId], references: [id], onDelete: Cascade)
+
+  transactionId String      @unique
+  transaction   Transaction @relation("TransactionTaskPaymentClaim", fields: [transactionId], references: [id], onDelete: Restrict)
+
+  refundTransactionId String?      @unique
+  refundTransaction   Transaction? @relation("RefundedTransactionTaskPaymentClaim", fields: [refundTransactionId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@map("task_payment_claim")
 }
 
 model CoworkerUsage {
@@ -1735,16 +1768,16 @@ model ChatRoom {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  name       String
-  slug       String
-  kind       String    @default("channel")
-  directKey  String?
+  name                   String
+  slug                   String
+  kind                   String    @default("channel")
+  directKey              String?
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
-  topic      String?
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  topic                  String?
+  archivedAt             DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   createdByUserId String
   createdByUser   User   @relation("ChatRoomCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)

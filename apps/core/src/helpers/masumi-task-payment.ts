@@ -31,9 +31,8 @@ export function isV2MasumiTaskPayment(
 /**
  * A payload whose declared rail contradicts its identifier: the identifier is
  * minted under the V2 registry policy, so the payment node infers V2 and
- * rejects the mismatched `Web3CardanoV1` with a 400. Task-event charges commit
- * before the purchase is created and have no compensation path, so this has to
- * be caught before the credits move.
+ * rejects the mismatched `Web3CardanoV1` with a 400. Catch this before credits
+ * move instead of relying on asynchronous compensation for known-invalid input.
  */
 export function hasContradictoryMasumiTaskPaymentRail(
   payment: MasumiTaskPaymentRailFields,

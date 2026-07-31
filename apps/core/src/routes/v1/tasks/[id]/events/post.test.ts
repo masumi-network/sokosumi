@@ -15,6 +15,7 @@ const {
   calculateCentsFromMasumiAmountStringsMock,
   createNotificationMock,
   createPurchaseFromMasumiTaskPaymentMock,
+  createTaskPaymentClaimMock,
   createTaskEventTransactionMock,
   getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
@@ -22,6 +23,8 @@ const {
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
+  markTaskPaymentClaimPurchasedMock,
+  refundFailedTaskPaymentClaimMock,
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
   requireTaskCancelAccessMock,
@@ -30,6 +33,7 @@ const {
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createNotificationMock: vi.fn(),
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
+  createTaskPaymentClaimMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
   getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
@@ -46,6 +50,8 @@ const {
   }),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
+  markTaskPaymentClaimPurchasedMock: vi.fn(),
+  refundFailedTaskPaymentClaimMock: vi.fn(),
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   requireTaskCancelAccessMock: vi.fn(),
@@ -109,6 +115,12 @@ vi.mock("@/clients/masumi-payment.client", () => ({
     createPurchaseFromMasumiTaskPayment:
       createPurchaseFromMasumiTaskPaymentMock,
   }),
+}));
+
+vi.mock("@/services/task-payment-claim.service", () => ({
+  createTaskPaymentClaim: createTaskPaymentClaimMock,
+  markTaskPaymentClaimPurchased: markTaskPaymentClaimPurchasedMock,
+  refundFailedTaskPaymentClaim: refundFailedTaskPaymentClaimMock,
 }));
 
 const TASK_ID = "tsk_123";
@@ -322,6 +334,9 @@ describe("POST /{id}/events", () => {
     createPurchaseFromMasumiTaskPaymentMock.mockResolvedValue(
       ok({ id: "pur_task_1" } as { id: string }),
     );
+    createTaskPaymentClaimMock.mockResolvedValue("claim-task-1");
+    markTaskPaymentClaimPurchasedMock.mockResolvedValue(undefined);
+    refundFailedTaskPaymentClaimMock.mockResolvedValue(true);
     prismaTaskFindUniqueMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
@@ -1971,6 +1986,17 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(201);
     expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
     expect(createTaskEventTransactionMock).toHaveBeenCalled();
+    expect(createTaskPaymentClaimMock).toHaveBeenCalledWith({
+      blockchainIdentifier: validMasumiPaymentBody.blockchainIdentifier,
+      taskEventId: "evt_running_masumi",
+      transactionId: "txn_masumi_running",
+      tx,
+    });
+    await Promise.all(waitUntilCapturedPromises);
+    expect(markTaskPaymentClaimPurchasedMock).toHaveBeenCalledWith(
+      "claim-task-1",
+      "pur_task_1",
+    );
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
@@ -2021,7 +2047,7 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("allows multiple sequential Masumi charges on the same task", async () => {
+  it("rejects replaying the same Masumi blockchain identifier", async () => {
     const tx: TransactionMock = {
       taskEvent: {
         create: vi
@@ -2050,6 +2076,14 @@ describe("POST /{id}/events", () => {
     createTaskEventTransactionMock
       .mockResolvedValueOnce("txn_masumi_first")
       .mockResolvedValueOnce("txn_masumi_second");
+    createTaskPaymentClaimMock
+      .mockResolvedValueOnce("claim-task-first")
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+          meta: { target: ["blockchainIdentifier"] },
+        }),
+      );
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({ status: TaskStatus.RUNNING }),
     );
@@ -2072,9 +2106,9 @@ describe("POST /{id}/events", () => {
     });
 
     expect(first.status).toBe(201);
-    expect(second.status).toBe(201);
+    expect(second.status).toBe(409);
     expect(createTaskEventTransactionMock).toHaveBeenCalledTimes(2);
-    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(2);
+    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
     expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
@@ -2460,7 +2494,7 @@ describe("POST /{id}/events", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
-  it("returns 201 and publishes when async Masumi purchase fails (fire-and-forget)", async () => {
+  it("returns 201, publishes, and refunds when async Masumi purchase fails", async () => {
     createPurchaseFromMasumiTaskPaymentMock.mockResolvedValue(
       err("payment API error"),
     );
@@ -2502,6 +2536,11 @@ describe("POST /{id}/events", () => {
     expect(createTaskEventTransactionMock).toHaveBeenCalled();
     expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
     expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
+    await Promise.all(waitUntilCapturedPromises);
+    expect(refundFailedTaskPaymentClaimMock).toHaveBeenCalledWith(
+      "claim-task-1",
+      "payment API error",
+    );
   });
 
   it("rejects masumiPayment together with credits", async () => {

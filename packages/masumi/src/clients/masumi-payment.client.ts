@@ -192,14 +192,17 @@ export function createPaymentClient(
           // against lowercase hex, so an uppercase policy id must not be
           // silently dropped as invalid — it is the same source.
           const policyId = source.policyId?.toLowerCase();
+          const smartContractAddress =
+            source.smartContractAddress?.toLowerCase();
           if (
             source.isPurchaseReady &&
             policyId &&
-            CARDANO_POLICY_ID_PATTERN.test(policyId)
+            CARDANO_POLICY_ID_PATTERN.test(policyId) &&
+            smartContractAddress
           ) {
             const readySource = {
               policyId,
-              smartContractAddress: source.smartContractAddress,
+              smartContractAddress,
             };
             readySources.set(
               `${readySource.policyId}:${readySource.smartContractAddress}`,
@@ -340,8 +343,8 @@ export function createPaymentClient(
             blockchainIdentifier: input.blockchainIdentifier,
             error: response.error,
           });
-          // The event is already charged when this error surfaces — carry the
-          // node's status and reason so the alert is actionable.
+          // The event is already charged when this error surfaces. Carry the
+          // node's status and reason into compensation and alerting.
           return err(
             `Failed to create purchase request (status ${response.response?.status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
           );
