@@ -6,7 +6,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -28,7 +28,7 @@ const deleteResponseSchema = z
   })
   .openapi("ProjectDeleted");
 
-const route = withGlobalHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "delete",
     path: "/{id}",

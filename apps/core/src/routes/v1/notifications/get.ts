@@ -18,7 +18,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
@@ -60,7 +60,7 @@ const query = z
   })
   .extend(cursorPaginationQuerySchema.shape);
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
