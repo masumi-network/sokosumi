@@ -311,6 +311,10 @@ docs(readme): update setup instructions
 
 ## Agent skills
 
+### Linear issue implementation
+
+Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, and Review `/goal`. Legacy names Team Sapphire / `team-sapphire` / `sapphire-*` agents redirect here (removed). Bugs/refactors without a Linear Requirement use other poteto playbooks.
+
 ### Issue tracker
 
 Issues live in Linear (team "Sokosumi", key `SOK`), accessed via the Linear MCP tools. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
