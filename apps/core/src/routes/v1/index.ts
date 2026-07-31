@@ -29,6 +29,7 @@ import tasksRouter from "./tasks/index.js";
 import toolsRouter from "./tools/index.js";
 import usersRouter from "./users/index.js";
 import vendorsRouter from "./vendors/index.js";
+import webhooksRouter from "./webhooks/index.js";
 import workspacesRouter from "./workspaces/index.js";
 
 const app = new OpenAPIHono();
@@ -56,7 +57,7 @@ app.openAPIRegistry.registerComponent("parameters", "ContextUserId", {
   name: "X-Context-User-Id",
   in: "header",
   description:
-    "Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.",
+    "Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.",
   required: false,
   schema: {
     type: "string",
@@ -68,13 +69,45 @@ app.openAPIRegistry.registerComponent("parameters", "ContextOrganizationId", {
   name: "X-Context-Organization-Id",
   in: "header",
   description:
-    "Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization.",
+    "Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.",
   required: false,
   schema: {
     type: "string",
     example: "org_xyz789",
   },
 });
+
+app.openAPIRegistry.registerComponent(
+  "parameters",
+  "OrchestratorContextUserId",
+  {
+    name: "X-Context-User-Id",
+    in: "header",
+    description:
+      "Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.",
+    required: false,
+    schema: {
+      type: "string",
+      example: "user_abc123",
+    },
+  },
+);
+
+app.openAPIRegistry.registerComponent(
+  "parameters",
+  "OrchestratorContextOrganizationId",
+  {
+    name: "X-Context-Organization-Id",
+    in: "header",
+    description:
+      "Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.",
+    required: false,
+    schema: {
+      type: "string",
+      example: "org_xyz789",
+    },
+  },
+);
 
 app.use(
   "*",
@@ -137,6 +170,7 @@ app.route("/tasks", tasksRouter);
 app.route("/tools", toolsRouter);
 app.route("/products", productsRouter);
 app.route("/vendors", vendorsRouter);
+app.route("/webhooks", webhooksRouter);
 app.route("/workspaces", workspacesRouter);
 
 export default app;

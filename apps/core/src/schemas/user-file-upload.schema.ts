@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { blobUploadGrantSchema } from "@/schemas/blob-upload-grant.schema";
+
 export const createUserFileUploadRequestSchema = z
   .object({
     filename: z.string().trim().min(1).max(512).openapi({
@@ -35,32 +37,9 @@ export const createUserFileUploadRequestSchema = z
   })
   .openapi("CreateUserFileUploadRequest");
 
-export const userFileUploadSessionSchema = z
-  .object({
-    clientToken: z.string().openapi({
-      example: "vercel_blob_client_token",
-      description: "Scoped Blob client token for direct uploads",
-    }),
-    access: z.literal("public").openapi({
-      example: "public",
-      description: "Blob access level for the upload",
-    }),
-    pathname: z.string().openapi({
-      example: "users/user_123/report.pdf",
-      description: "Server-generated upload pathname",
-    }),
-    addRandomSuffix: z.boolean().openapi({
-      example: true,
-      description: "Whether Blob should append a random suffix",
-    }),
-    maxSizeBytes: z.number().int().positive().openapi({
-      example: 262_144_000,
-      description: "Maximum supported file size for direct uploads",
-    }),
-  })
-  .openapi("UserFileUploadSession");
+/** Same grant shape as task-file mint (`TaskFileUploadSession`). */
+export const userFileUploadSessionSchema = blobUploadGrantSchema.openapi(
+  "UserFileUploadSession",
+);
 
-export type CreateUserFileUploadRequest = z.infer<
-  typeof createUserFileUploadRequestSchema
->;
 export type UserFileUploadSession = z.infer<typeof userFileUploadSessionSchema>;

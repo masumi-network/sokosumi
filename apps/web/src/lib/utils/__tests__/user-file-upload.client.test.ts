@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createMyFileUploadSessionMock = vi.fn();
-const putMock = vi.fn();
 
 vi.mock("@/lib/clients/core.browser.client", async () => {
   const actual = await vi.importActual<
@@ -17,10 +16,6 @@ vi.mock("@/lib/clients/core.browser.client", async () => {
   };
 });
 
-vi.mock("@vercel/blob/client", () => ({
-  put: (...args: unknown[]) => putMock(...args),
-}));
-
 import { CoreApiRequestError } from "@/lib/clients/core.browser.client";
 import {
   getUserFileUploadErrorMessage,
@@ -29,37 +24,97 @@ import {
   uploadUserFileDirect,
 } from "@/lib/utils/user-file-upload.client";
 
+interface MockXhrHandlers {
+  onload: (() => void) | null;
+  onerror: (() => void) | null;
+  onabort: (() => void) | null;
+  upload: {
+    onprogress: ((event: ProgressEvent) => void) | null;
+  };
+  status: number;
+  responseText: string;
+  open: ReturnType<typeof vi.fn>;
+  setRequestHeader: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+  abort: ReturnType<typeof vi.fn>;
+  getResponseHeader: ReturnType<typeof vi.fn>;
+}
+
+function stubSuccessfulXhr(body: Record<string, string>) {
+  const instances: MockXhrHandlers[] = [];
+
+  class MockXHR {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    onabort: (() => void) | null = null;
+    upload = { onprogress: null as ((event: ProgressEvent) => void) | null };
+    status = 200;
+    responseText = JSON.stringify(body);
+    responseType = "";
+    open = vi.fn();
+    setRequestHeader = vi.fn();
+    abort = vi.fn();
+    getResponseHeader = vi.fn().mockReturnValue(null);
+    send = vi.fn(() => {
+      queueMicrotask(() => {
+        this.upload.onprogress?.({
+          lengthComputable: true,
+          loaded: 2,
+          total: 5,
+        } as ProgressEvent);
+        this.onload?.();
+      });
+    });
+
+    constructor() {
+      instances.push(this);
+    }
+  }
+
+  vi.stubGlobal("XMLHttpRequest", MockXHR);
+  return instances;
+}
+
+function grantSession(overrides: Record<string, unknown> = {}) {
+  return {
+    data: {
+      uploadUrl: "https://blob.example/upload?sig=1",
+      access: "public",
+      method: "PUT",
+      headers: { "Content-Type": "application/pdf" },
+      pathname: "users/user_123/report.pdf",
+      addRandomSuffix: true,
+      maxSizeBytes: 1073741824,
+      expiresAt: "2026-07-30T12:15:00.000Z",
+      ...overrides,
+    },
+  };
+}
+
 describe("user-file-upload.client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it("creates an upload session and uploads the file to Blob", async () => {
+  it("creates an upload session and PUTs via presigned uploadUrl", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
 
-    createMyFileUploadSessionMock.mockResolvedValue({
-      data: {
-        clientToken: "upload-token",
-        access: "public",
-        pathname: "users/user_123/report.pdf",
-        addRandomSuffix: true,
-        maxSizeBytes: 1073741824,
-      },
-    });
-    putMock.mockResolvedValue({
-      url: "https://blob.example/users/user_123/report.pdf",
-      pathname: "users/user_123/report.pdf",
-      downloadUrl: "https://blob.example/download/report.pdf",
+    createMyFileUploadSessionMock.mockResolvedValue(grantSession());
+    const instances = stubSuccessfulXhr({
+      url: "https://blob.example/users/user_123/report-abc.pdf",
+      pathname: "users/user_123/report-abc.pdf",
+      downloadUrl: "https://blob.example/download/report-abc.pdf",
       etag: '"etag-123"',
     });
 
     await expect(uploadUserFileDirect(file)).resolves.toEqual({
-      publicUrl: "https://blob.example/users/user_123/report.pdf",
+      publicUrl: "https://blob.example/users/user_123/report-abc.pdf",
       metadata: {
-        pathname: "users/user_123/report.pdf",
-        downloadUrl: "https://blob.example/download/report.pdf",
+        pathname: "users/user_123/report-abc.pdf",
+        downloadUrl: "https://blob.example/download/report-abc.pdf",
         size: 5,
         uploadedAt: expect.any(Date),
         etag: '"etag-123"',
@@ -71,31 +126,50 @@ describe("user-file-upload.client", () => {
       contentType: "application/pdf",
       size: 5,
     });
-    expect(putMock).toHaveBeenCalledWith(
-      "users/user_123/report.pdf",
-      file,
-      expect.objectContaining({
-        access: "public",
-        token: "upload-token",
-        contentType: "application/pdf",
-        multipart: false,
-      }),
+    expect(instances[0]?.open).toHaveBeenCalledWith(
+      "PUT",
+      "https://blob.example/upload?sig=1",
     );
+    expect(instances[0]?.setRequestHeader).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/pdf",
+    );
+    expect(instances[0]?.send).toHaveBeenCalledWith(file);
+  });
+
+  it("reports upload progress from XHR while using the same PUT path", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const onUploadProgress = vi.fn();
+
+    createMyFileUploadSessionMock.mockResolvedValue(grantSession());
+    stubSuccessfulXhr({
+      url: "https://blob.example/users/user_123/report.pdf",
+      pathname: "users/user_123/report.pdf",
+      downloadUrl: "https://blob.example/download/report.pdf",
+      etag: '"etag-123"',
+    });
+
+    await uploadUserFileDirect(file, { onUploadProgress });
+
+    expect(onUploadProgress).toHaveBeenCalledWith({
+      loaded: 2,
+      total: 5,
+      percentage: 40,
+    });
+    expect(onUploadProgress).toHaveBeenCalledWith({
+      loaded: 5,
+      total: 5,
+      percentage: 100,
+    });
   });
 
   it("infers content type from the file name when the browser leaves file.type empty", async () => {
     const file = new File(["hello"], "report.pdf", { type: "" });
 
-    createMyFileUploadSessionMock.mockResolvedValue({
-      data: {
-        clientToken: "upload-token",
-        access: "public",
-        pathname: "users/user_123/report.pdf",
-        addRandomSuffix: true,
-        maxSizeBytes: 1073741824,
-      },
-    });
-    putMock.mockResolvedValue({
+    createMyFileUploadSessionMock.mockResolvedValue(grantSession());
+    stubSuccessfulXhr({
       url: "https://blob.example/users/user_123/report.pdf",
       pathname: "users/user_123/report.pdf",
       downloadUrl: "https://blob.example/download/report.pdf",
@@ -109,28 +183,20 @@ describe("user-file-upload.client", () => {
       contentType: "application/pdf",
       size: 5,
     });
-    expect(putMock).toHaveBeenCalledWith(
-      "users/user_123/report.pdf",
-      file,
-      expect.objectContaining({
-        contentType: "application/pdf",
-      }),
-    );
   });
 
   it("includes custom upload constraints in the session request", async () => {
     const file = new File(["x"], "logo.png", { type: "image/png" });
 
-    createMyFileUploadSessionMock.mockResolvedValue({
-      data: {
-        clientToken: "upload-token",
-        access: "public",
+    createMyFileUploadSessionMock.mockResolvedValue(
+      grantSession({
+        uploadUrl: "https://blob.example/upload?sig=logo",
+        headers: { "Content-Type": "image/png" },
         pathname: "users/user_123/logo.png",
-        addRandomSuffix: true,
         maxSizeBytes: 2_097_152,
-      },
-    });
-    putMock.mockResolvedValue({
+      }),
+    );
+    stubSuccessfulXhr({
       url: "https://blob.example/users/user_123/logo.png",
       pathname: "users/user_123/logo.png",
       downloadUrl: "https://blob.example/download/logo.png",
@@ -151,160 +217,46 @@ describe("user-file-upload.client", () => {
     });
   });
 
-  it("forwards upload progress updates to the caller", async () => {
-    const file = new File(["hello"], "report.pdf", {
-      type: "application/pdf",
-    });
-    const onUploadProgress = vi.fn();
-
-    createMyFileUploadSessionMock.mockResolvedValue({
-      data: {
-        clientToken: "upload-token",
-        access: "public",
-        pathname: "users/user_123/report.pdf",
-        addRandomSuffix: true,
-        maxSizeBytes: 1073741824,
-      },
-    });
-    putMock.mockImplementation(
-      async (
-        _pathname: string,
-        _file: File,
-        options: {
-          onUploadProgress?: (progress: {
-            loaded: number;
-            total: number;
-            percentage: number;
-          }) => void;
-        },
-      ) => {
-        options.onUploadProgress?.({
-          loaded: 2,
-          total: 5,
-          percentage: 40,
-        });
-
-        return {
-          url: "https://blob.example/users/user_123/report.pdf",
-          pathname: "users/user_123/report.pdf",
-          downloadUrl: "https://blob.example/download/report.pdf",
-          etag: '"etag-progress"',
-        };
-      },
-    );
-
-    await uploadUserFileDirect(file, { onUploadProgress });
-
-    expect(onUploadProgress).toHaveBeenCalledWith({
-      loaded: 2,
-      total: 5,
-      percentage: 40,
-    });
-    expect(putMock).toHaveBeenCalledWith(
-      "users/user_123/report.pdf",
-      file,
-      expect.objectContaining({
-        onUploadProgress: expect.any(Function),
-      }),
-    );
-  });
-
-  it("forwards abort signals to Blob uploads", async () => {
+  it("aborts the XHR when the abort signal fires", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
     const abortController = new AbortController();
+    const instances: MockXhrHandlers[] = [];
 
-    createMyFileUploadSessionMock.mockResolvedValue({
-      data: {
-        clientToken: "upload-token",
-        access: "public",
-        pathname: "users/user_123/report.pdf",
-        addRandomSuffix: true,
-        maxSizeBytes: 1073741824,
-      },
+    class MockXHR {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onabort: (() => void) | null = null;
+      upload = { onprogress: null as ((event: ProgressEvent) => void) | null };
+      status = 200;
+      responseText = "";
+      responseType = "";
+      open = vi.fn();
+      setRequestHeader = vi.fn();
+      getResponseHeader = vi.fn();
+      abort = vi.fn(() => {
+        this.onabort?.();
+      });
+      send = vi.fn(() => {
+        abortController.abort();
+      });
+
+      constructor() {
+        instances.push(this);
+      }
+    }
+
+    createMyFileUploadSessionMock.mockResolvedValue(grantSession());
+    vi.stubGlobal("XMLHttpRequest", MockXHR);
+
+    await expect(
+      uploadUserFileDirect(file, { abortSignal: abortController.signal }),
+    ).rejects.toMatchObject({
+      name: "UserFileUploadError",
+      code: "aborted",
     });
-    putMock.mockResolvedValue({
-      url: "https://blob.example/users/user_123/report.pdf",
-      pathname: "users/user_123/report.pdf",
-      downloadUrl: "https://blob.example/download/report.pdf",
-      etag: '"etag-abort"',
-    });
-
-    await uploadUserFileDirect(file, {
-      abortSignal: abortController.signal,
-    });
-
-    expect(putMock).toHaveBeenCalledWith(
-      "users/user_123/report.pdf",
-      file,
-      expect.objectContaining({
-        abortSignal: abortController.signal,
-      }),
-    );
-  });
-
-  it("enables multipart uploads for files larger than 5 MB", async () => {
-    const file = new File(["video"], "video.mp4", {
-      type: "video/mp4",
-    });
-    Object.defineProperty(file, "size", {
-      value: 6 * 1024 * 1024,
-      configurable: true,
-    });
-
-    createMyFileUploadSessionMock.mockResolvedValue({
-      data: {
-        clientToken: "upload-token",
-        access: "public",
-        pathname: "users/user_123/video.mp4",
-        addRandomSuffix: true,
-        maxSizeBytes: 1073741824,
-      },
-    });
-    const onUploadProgress = vi.fn();
-    putMock.mockImplementation(
-      async (
-        _pathname: string,
-        _file: File,
-        options: {
-          onUploadProgress?: (progress: {
-            loaded: number;
-            total: number;
-            percentage: number;
-          }) => void;
-        },
-      ) => {
-        options.onUploadProgress?.({
-          loaded: file.size,
-          total: file.size,
-          percentage: 100,
-        });
-
-        return {
-          url: "https://blob.example/users/user_123/video.mp4",
-          pathname: "users/user_123/video.mp4",
-          downloadUrl: "https://blob.example/download/video.mp4",
-          etag: '"etag-456"',
-        };
-      },
-    );
-
-    await uploadUserFileDirect(file, { onUploadProgress });
-
-    expect(putMock).toHaveBeenCalledWith(
-      "users/user_123/video.mp4",
-      file,
-      expect.objectContaining({
-        multipart: true,
-        onUploadProgress: expect.any(Function),
-      }),
-    );
-    expect(onUploadProgress).toHaveBeenCalledWith({
-      loaded: file.size,
-      total: file.size,
-      percentage: 100,
-    });
+    expect(instances[0]?.abort).toHaveBeenCalled();
   });
 
   it("maps oversize Core errors to user-friendly messages", async () => {
@@ -346,53 +298,59 @@ describe("user-file-upload.client", () => {
       prompt: "hello",
     };
 
-    createMyFileUploadSessionMock
-      .mockResolvedValueOnce({
-        data: {
-          clientToken: "token-1",
-          access: "public",
-          pathname: "users/user_123/first.pdf",
-          addRandomSuffix: true,
-          maxSizeBytes: 1073741824,
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          clientToken: "token-2",
-          access: "public",
-          pathname: "users/user_123/first-array.pdf",
-          addRandomSuffix: true,
-          maxSizeBytes: 1073741824,
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          clientToken: "token-3",
-          access: "public",
-          pathname: "users/user_123/second.pdf",
-          addRandomSuffix: true,
-          maxSizeBytes: 1073741824,
-        },
-      });
-    putMock
-      .mockResolvedValueOnce({
+    const responses = [
+      {
         url: "https://blob.example/users/user_123/first.pdf",
         pathname: "users/user_123/first.pdf",
         downloadUrl: "https://blob.example/download/first.pdf",
         etag: '"etag-1"',
-      })
-      .mockResolvedValueOnce({
+      },
+      {
         url: "https://blob.example/users/user_123/first-array.pdf",
         pathname: "users/user_123/first-array.pdf",
         downloadUrl: "https://blob.example/download/first-array.pdf",
         etag: '"etag-2"',
-      })
-      .mockResolvedValueOnce({
+      },
+      {
         url: "https://blob.example/users/user_123/second.pdf",
         pathname: "users/user_123/second.pdf",
         downloadUrl: "https://blob.example/download/second.pdf",
         etag: '"etag-3"',
+      },
+    ];
+    let responseIndex = 0;
+
+    createMyFileUploadSessionMock
+      .mockResolvedValueOnce(
+        grantSession({ pathname: "users/user_123/first.pdf" }),
+      )
+      .mockResolvedValueOnce(
+        grantSession({ pathname: "users/user_123/first-array.pdf" }),
+      )
+      .mockResolvedValueOnce(
+        grantSession({ pathname: "users/user_123/second.pdf" }),
+      );
+
+    class MockXHR {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onabort: (() => void) | null = null;
+      upload = { onprogress: null as ((event: ProgressEvent) => void) | null };
+      status = 200;
+      responseText = "";
+      responseType = "";
+      open = vi.fn();
+      setRequestHeader = vi.fn();
+      abort = vi.fn();
+      getResponseHeader = vi.fn().mockReturnValue(null);
+      send = vi.fn(() => {
+        const body = responses[responseIndex++];
+        this.responseText = JSON.stringify(body);
+        queueMicrotask(() => this.onload?.());
       });
+    }
+
+    vi.stubGlobal("XMLHttpRequest", MockXHR);
 
     await uploadInputDataFiles(inputData);
 
@@ -415,11 +373,9 @@ describe("user-file-upload.client", () => {
     ).toBe("Blob upload broke");
   });
 
-  it("maps Vercel abort messages to the custom canceled message", () => {
-    expect(
-      getUserFileUploadErrorMessage(
-        new Error("Vercel Blob: The request was aborted."),
-      ),
-    ).toBe("Upload canceled.");
+  it("maps AbortError to the canceled message", () => {
+    const error = new Error("Aborted");
+    error.name = "AbortError";
+    expect(getUserFileUploadErrorMessage(error)).toBe("Upload canceled.");
   });
 });

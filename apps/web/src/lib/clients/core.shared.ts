@@ -60,9 +60,10 @@ import type {
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
+  PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
-  PostUsersByIdUploadsData,
+  PostUsersByIdFilesData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutTaskScheduleRequest,
@@ -247,10 +248,11 @@ import {
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
+  postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
-  postUsersByIdUploads as corePostUsersByIdUploads,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
   postUsersByIdVendorGrantsByGrantIdDeny as corePostUsersByIdVendorGrantsByGrantIdDeny,
@@ -3277,18 +3279,35 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createMyFileUploadSession(
-    body: NonNullable<PostUsersByIdUploadsData["body"]>,
+    body: NonNullable<PostUsersByIdFilesData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostUsersByIdUploads({
+        corePostUsersByIdFiles({
           client,
           path: { id: CURRENT_USER_PATH_ID },
           body,
           cache: "no-store",
         }),
       "Failed to create upload session",
+    );
+  }
+
+  async function createTaskFileUploadSession(
+    taskId: string,
+    body: NonNullable<PostTasksByIdFilesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdFiles({
+          client,
+          path: { id: taskId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create task file upload session",
     );
   }
 
@@ -3602,6 +3621,7 @@ export function createCoreClient(getClient: GetClient) {
     createAgentJob,
     createMyFileUploadSession,
     createTask,
+    createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
     deleteJobShare,

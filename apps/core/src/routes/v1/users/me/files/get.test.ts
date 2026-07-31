@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import usersRouter from "../../index";
 
-describe("users/me uploads routes OpenAPI contract", () => {
-  it("documents GET /uploads without query pagination and removes legacy /files paths", () => {
+describe("users/me files routes OpenAPI contract", () => {
+  it("documents GET /{id}/files without query pagination", () => {
     const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -12,8 +12,8 @@ describe("users/me uploads routes OpenAPI contract", () => {
       },
     });
 
-    const uploadsPath = doc.paths?.["/{id}/uploads"];
-    const operation = uploadsPath?.get;
+    const filesPath = doc.paths?.["/{id}/files"];
+    const operation = filesPath?.get;
     const parameters = operation?.parameters ?? [];
     const queryParameters = parameters.filter((parameter) => {
       if (!parameter || typeof parameter !== "object") {
@@ -23,8 +23,8 @@ describe("users/me uploads routes OpenAPI contract", () => {
       return "in" in parameter && parameter.in === "query";
     });
 
-    expect(uploadsPath?.get).toBeDefined();
-    expect(uploadsPath?.post).toBeDefined();
+    expect(filesPath?.get).toBeDefined();
+    expect(filesPath?.post).toBeDefined();
     expect(doc.paths?.["/files"]).toBeUndefined();
     expect(queryParameters).toHaveLength(0);
   });

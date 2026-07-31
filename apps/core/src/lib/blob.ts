@@ -10,17 +10,19 @@ import {
   isOwnedTaskFileUrl,
 } from "@sokosumi/utils";
 import { del, list, put } from "@vercel/blob";
-import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import {
+  type BlobUploadGrant,
+  createBlobUploadGrant,
+} from "@/lib/blob-upload-grant";
 import type { BlobFile } from "@/schemas/blob-file.schema";
 import type { UserFileUploadSession } from "@/schemas/user-file-upload.schema";
 
 type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
 const USER_UPLOAD_ACCESS = "public" as const;
 const USER_UPLOAD_ADD_RANDOM_SUFFIX = true as const;
-const USER_UPLOAD_SESSION_TTL_MS = 15 * 60 * 1000;
 const IMAGE_DATA_URI_REGEX =
   /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/i;
 
@@ -49,6 +51,7 @@ function toBlobFile(data: {
   };
 }
 
+/** User-file direct upload grant (presigned PUT). Same shape as task-file mint. */
 export async function createUserFileUploadSession(
   userId: string,
   file: {
@@ -61,26 +64,63 @@ export async function createUserFileUploadSession(
   token: string,
 ): Promise<UserFileUploadSession> {
   const pathname = buildUserUploadPathname(userId, file.filename);
-  const allowedContentTypes =
-    file.allowedContentTypes && file.allowedContentTypes.length > 0
-      ? [...file.allowedContentTypes]
-      : [file.contentType];
-  const clientToken = await generateClientTokenFromReadWriteToken({
-    token,
+  const grantInput: Parameters<typeof createBlobUploadGrant>[0] = {
     pathname,
-    allowedContentTypes,
+    contentType: file.contentType,
     maximumSizeInBytes: file.size,
-    validUntil: Date.now() + USER_UPLOAD_SESSION_TTL_MS,
+    maxSizeBytes: file.maxSizeBytes,
+    access: USER_UPLOAD_ACCESS,
     addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,
+    token,
+  };
+  if (file.allowedContentTypes && file.allowedContentTypes.length > 0) {
+    grantInput.allowedContentTypes = file.allowedContentTypes;
+  }
+
+  return createBlobUploadGrant(grantInput);
+}
+
+/** Task-file direct upload grant (presigned PUT). Same shape as user-file mint. */
+export async function createTaskFileUploadSession(
+  taskId: string,
+  file: {
+    filename: string;
+    contentType: string;
+    size: number;
+    maxSizeBytes: number;
+  },
+  token: string,
+  options: {
+    uploadedByUserId: string | null;
+    uploadedByCoworkerId: string | null;
+    callbackUrl: string;
+  },
+): Promise<BlobUploadGrant> {
+  const pathname = buildTaskFilePathname(taskId, file.filename);
+  // `size` in tokenPayload is the grant cap echo only; TaskFile.size comes from
+  // Blob head on onUploadCompleted.
+  const tokenPayload = JSON.stringify({
+    taskId,
+    name: file.filename,
+    mimeType: file.contentType,
+    size: file.size,
+    uploadedByUserId: options.uploadedByUserId,
+    uploadedByCoworkerId: options.uploadedByCoworkerId,
   });
 
-  return {
-    clientToken,
-    access: USER_UPLOAD_ACCESS,
+  return createBlobUploadGrant({
     pathname,
-    addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,
+    contentType: file.contentType,
+    maximumSizeInBytes: file.size,
     maxSizeBytes: file.maxSizeBytes,
-  };
+    access: "public",
+    addRandomSuffix: true,
+    token,
+    onUploadCompleted: {
+      callbackUrl: options.callbackUrl,
+      tokenPayload,
+    },
+  });
 }
 
 export async function listUserUploads(
@@ -277,10 +317,6 @@ export async function uploadGeneratedChatImage(params: {
 }
 
 /**
- * Upload a coworker image to Vercel Blob (public, random suffix).
- * Returns the public URL, or null when blob storage is not configured / put fails.
- */
-/**
  * Persist raw image bytes (a favicon/logo scraped from a site) as a public
  * organization-logo blob, so we own the asset instead of hot-linking an
  * external favicon URL that can rot or track viewers. Returns the public
@@ -325,6 +361,10 @@ export async function uploadOrganizationLogoBytes(params: {
   }
 }
 
+/**
+ * Upload a coworker image to Vercel Blob (public, random suffix).
+ * Returns the public URL, or null when blob storage is not configured / put fails.
+ */
 export async function uploadCoworkerImage(params: {
   coworkerId: string;
   bytes: ArrayBuffer | Buffer | Blob;
@@ -396,43 +436,9 @@ export async function deleteCoworkerImageIfOwned(
   }
 }
 
-export async function uploadTaskFile(params: {
-  taskId: string;
-  bytes: ArrayBuffer | Buffer | Blob;
-  contentType: string;
-  filename: string;
-}): Promise<string | null> {
-  const env = getEnv();
-  if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping task file upload",
-    );
-    return null;
-  }
-
-  const pathname = buildTaskFilePathname(params.taskId, params.filename);
-
-  try {
-    const blob = await put(pathname, params.bytes, {
-      access: "public",
-      contentType: params.contentType,
-      token: env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: true,
-    });
-    return blob.url;
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        function: "uploadTaskFile",
-      },
-    });
-    return null;
-  }
-}
-
 /**
  * Best-effort delete of a task file blob when the URL is under
- * `tasks/{taskId}/`. Used to roll back orphaned uploads after DB failures.
+ * `tasks/{taskId}/`. Used by user-deletion cleanup.
  */
 export async function deleteTaskFileIfOwned(
   url: string | null | undefined,

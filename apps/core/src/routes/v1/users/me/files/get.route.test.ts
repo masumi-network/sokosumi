@@ -90,7 +90,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   role: "user",
 };
 
-let mountGetUserUploads: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void;
+let mountGetUserFiles: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void;
 
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
@@ -130,7 +130,7 @@ function createApp(
     },
   });
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountGetUserUploads(
+  mountGetUserFiles(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
   app.route("/:id", userByIdApp);
@@ -139,8 +139,8 @@ function createApp(
 }
 
 beforeAll(async () => {
-  const module = await import("../../[id]/uploads/get");
-  mountGetUserUploads = module.default;
+  const module = await import("../../[id]/files/get");
+  mountGetUserFiles = module.default;
 });
 
 beforeEach(() => {
@@ -163,11 +163,11 @@ beforeEach(() => {
   ]);
 });
 
-describe("GET /uploads route", () => {
+describe("GET /files route", () => {
   it("lists uploads for the authenticated user", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/me/uploads");
+    const response = await app.request("http://localhost/me/files");
     const payload = await response.json();
 
     expect(response.status).toBe(200);

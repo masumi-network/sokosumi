@@ -5,7 +5,7 @@ import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -14,7 +14,7 @@ import {
   projectSchema,
 } from "@/schemas/project.schema";
 
-const route = withGlobalHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/",

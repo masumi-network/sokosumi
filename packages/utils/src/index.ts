@@ -201,6 +201,7 @@ export {
   buildTaskFilePathname,
   buildTaskFilePrefix,
   clampTaskFileName,
+  FILE_UPLOAD_MAX_SIZE_BYTES,
   isOwnedTaskFileUrl,
   resolveTaskFileContentType,
   sanitizeTaskFileFilename,

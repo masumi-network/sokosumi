@@ -25,8 +25,8 @@ describe("users routes OpenAPI contract", () => {
       },
     });
 
-    expect(doc.paths?.["/{id}/uploads"]?.post?.responses).toHaveProperty("404");
-    expect(doc.paths?.["/{id}/uploads"]?.get?.responses).toHaveProperty("404");
+    expect(doc.paths?.["/{id}/files"]?.post?.responses).toHaveProperty("404");
+    expect(doc.paths?.["/{id}/files"]?.get?.responses).toHaveProperty("404");
     expect(doc.paths?.["/{id}/preferences"]?.get?.responses).toHaveProperty(
       "404",
     );

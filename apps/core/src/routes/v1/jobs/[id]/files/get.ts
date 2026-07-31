@@ -7,7 +7,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { filesSchema } from "@/schemas/file.schema";
 
@@ -18,7 +18,7 @@ const params = z.object({
   }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/files",

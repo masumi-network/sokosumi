@@ -1,8 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
+import { isAPIError } from "better-auth/api";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 
@@ -26,6 +28,31 @@ function mergeHttpExceptionExtensions(
       ([key]) => !RESERVED_ERROR_BODY_KEYS.has(key),
     ),
   );
+}
+
+function resolveBetterAuthApiErrorMessage(error: {
+  message: string;
+  body?: { message?: unknown } | null;
+}): string {
+  if (error.message) {
+    return error.message;
+  }
+
+  if (typeof error.body?.message === "string" && error.body.message) {
+    return error.body.message;
+  }
+
+  return "Authentication failed";
+}
+
+function resolveBetterAuthApiErrorStatus(
+  statusCode: number,
+): ContentfulStatusCode {
+  if (statusCode >= 400 && statusCode <= 599) {
+    return statusCode as ContentfulStatusCode;
+  }
+
+  return 500;
 }
 
 /**
@@ -110,6 +137,40 @@ export function errorHandler<E extends { Variables: RequestIdVariables }>(
     };
 
     return c.json(errorResponse, status);
+  }
+
+  // Better Auth throws plain APIError (not HTTPException). With
+  // enableSessionForAPIKeys, invalid x-api-key on getSession bubbles here as
+  // "Invalid API key." — map to the auth status instead of a fatal 500.
+  if (isAPIError(error)) {
+    const status = resolveBetterAuthApiErrorStatus(error.statusCode);
+    const message = resolveBetterAuthApiErrorMessage(error);
+
+    if (status >= 500) {
+      console.error("Better Auth APIError (server):", {
+        requestId: c.var.requestId,
+        path: c.req.path,
+        method: c.req.method,
+        status,
+        message,
+      });
+      captureExternalServiceError(error, {
+        label: "better_auth_api_error",
+        sentry: {
+          level: "error",
+          tags: { error_type: "better_auth_api_error" },
+        },
+      });
+    }
+
+    return c.json(
+      {
+        error: getErrorName(status),
+        message,
+        meta,
+      },
+      status,
+    );
   }
 
   console.error("Unexpected error:", {

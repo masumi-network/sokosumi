@@ -13,7 +13,7 @@ import {
 
 describe("task file upload helpers", () => {
   it("exposes a 50 MB max size", () => {
-    expect(TASK_FILE_MAX_SIZE_BYTES).toBe(50 * 1024 * 1024);
+    expect(TASK_FILE_MAX_SIZE_BYTES).toBe(100 * 1024 * 1024);
   });
 
   it("resolves allowed MIME types and rejects SVG", () => {

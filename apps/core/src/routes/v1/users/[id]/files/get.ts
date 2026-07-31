@@ -19,13 +19,13 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/uploads",
+  path: "/files",
   description:
-    "Get uploads: path `me` for the session user, or a user id when the caller may access that user's data.",
+    "List user files in Blob storage: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
   request: { params },
   responses: {
-    200: jsonSuccessResponse(blobFilesSchema, "Retrieve user uploads", {
+    200: jsonSuccessResponse(blobFilesSchema, "Retrieve user files", {
       data: [
         {
           publicUrl:
@@ -63,8 +63,8 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    const uploads = await listUserUploads(resolvedUserId, token);
+    const files = await listUserUploads(resolvedUserId, token);
 
-    return ok(c, blobFilesSchema.parse(uploads));
+    return ok(c, blobFilesSchema.parse(files));
   });
 }

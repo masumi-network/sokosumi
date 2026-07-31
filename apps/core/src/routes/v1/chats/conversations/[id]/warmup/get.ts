@@ -10,13 +10,13 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { readCoworkerReadyState } from "@/routes/v1/chats/stream/warmup-coworker";
 import { conversationWarmupStateSchema } from "@/schemas/conversation.schema";
 
-const route = withGlobalHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/warmup",
