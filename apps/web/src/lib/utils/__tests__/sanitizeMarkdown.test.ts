@@ -25,6 +25,12 @@ describe("sanitizeMarkdown", () => {
     expect(sanitized).not.toContain("<script>");
   });
 
+  it("preserves underline tags outside fenced code blocks", () => {
+    const sanitized = sanitizeMarkdown("hello <u>world</u>");
+
+    expect(sanitized).toContain("<u>world</u>");
+  });
+
   it("preserves literal placeholder-like text outside code blocks", () => {
     const literalPlaceholder = "@@SANITIZE_CODEBLOCKTOKEN_0_0@@";
     const markdown = [
