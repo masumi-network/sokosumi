@@ -130,28 +130,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : "";
     const clientId = trimmedClientId.length > 0 ? trimmedClientId : null;
 
-    let persisted: {
-      message: Awaited<
-        ReturnType<typeof mapChatRoomMessage> extends infer _T ? never : never
-      > extends never
-        ? Awaited<
-            ReturnType<
-              typeof prisma.chatRoomMessage.create<{
-                include: typeof chatRoomMessageInclude;
-              }>
-            >
-          >
-        : never;
-      mentionIds: string[];
-      mentionedUserIds: string[];
-      room: {
-        id: string;
-        name: string;
-        organizationId: string | null;
-      };
-      created: boolean;
-    };
-
+    let persisted;
     try {
       persisted = await prisma.$transaction(async (tx) => {
         const room = await requireChatRoomUserWriteAccess(
@@ -185,7 +164,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 name: room.name,
                 organizationId: room.organizationId,
               },
-              created: false,
+              didCreate: false,
             };
           }
         }
@@ -311,7 +290,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: room.name,
             organizationId: room.organizationId,
           },
-          created: true,
+          didCreate: true,
         };
       });
     } catch (error) {
@@ -336,26 +315,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "clientMessageId already used by another sender in this room",
         );
       }
-      persisted = {
-        message: raced,
-        mentionIds: [],
-        mentionedUserIds: [],
-        room: {
-          id: id,
-          name: "",
-          organizationId: null,
-        },
-        created: false,
-      };
+      return created(
+        c,
+        chatRoomMessageSchema.parse(
+          mapChatRoomMessage(raced, userContext.userId),
+        ),
+      );
     }
 
-    const {
-      message,
-      mentionIds,
-      mentionedUserIds,
-      room,
-      created: didCreate,
-    } = persisted;
+    const { message, mentionIds, mentionedUserIds, room, didCreate } =
+      persisted;
 
     if (didCreate) {
       for (const mentionId of mentionIds) {
