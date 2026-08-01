@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -45,14 +45,6 @@ vi.mock("@/components/ui/tooltip", () => ({
   ),
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
-
-function touchActions() {
-  const node = document.querySelector('[data-message-actions="touch"]');
-  if (!(node instanceof HTMLElement)) {
-    throw new Error("Touch message actions chrome missing");
-  }
-  return within(node);
-}
 
 function userMessage(
   overrides: Partial<ChatRoomMessage> = {},
@@ -193,58 +185,76 @@ describe("ChatMessageRow", () => {
     expect(article).toHaveAttribute("data-message-id", "message-1");
   });
 
-  it("hides Quote on touch until message actions overflow opens", async () => {
+  it("keeps Quote out of the sheet until message actions open", async () => {
     const user = userEvent.setup();
     const onQuote = vi.fn();
     renderRow({ onQuote });
 
-    expect(
-      touchActions().queryByRole("button", { name: "Quote.action" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    await user.click(
-      touchActions().getByRole("button", { name: "Actions.more" }),
-    );
+    const openActions = screen.getByRole("button", { name: "Actions.more" });
+    expect(openActions).toHaveClass("sr-only");
+    await user.click(openActions);
+
+    const sheet = screen.getByRole("dialog");
     expect(
-      touchActions().getByRole("button", { name: "Quote.action" }),
+      within(sheet).getByRole("button", { name: "Quote.action" }),
     ).toBeInTheDocument();
   });
 
-  it("closes touch message actions on outside pointerdown", async () => {
-    const user = userEvent.setup();
-    renderRow({ onQuote: vi.fn() });
-
-    await user.click(
-      touchActions().getByRole("button", { name: "Actions.more" }),
-    );
-    expect(
-      touchActions().getByRole("button", { name: "Quote.action" }),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("article"));
-
-    expect(
-      touchActions().queryByRole("button", { name: "Quote.action" }),
-    ).not.toBeInTheDocument();
-    expect(
-      touchActions().getByRole("button", { name: "Actions.more" }),
-    ).toBeInTheDocument();
-  });
-
-  it("shows Quote action and calls onQuote", async () => {
+  it("shows Quote action in the sheet and calls onQuote", async () => {
     const user = userEvent.setup();
     const onQuote = vi.fn();
     renderRow({ onQuote });
 
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
     await user.click(
-      touchActions().getByRole("button", { name: "Actions.more" }),
-    );
-    await user.click(
-      touchActions().getByRole("button", { name: "Quote.action" }),
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Quote.action",
+      }),
     );
     expect(onQuote).toHaveBeenCalledWith(
       expect.objectContaining({ id: "message-1" }),
     );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens message actions sheet after long-press when hover is unavailable", async () => {
+    const matchMediaSpy = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+    try {
+      vi.useFakeTimers();
+      renderRow({ onQuote: vi.fn() });
+      const article = screen.getByRole("article");
+
+      await act(async () => {
+        article.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+          }),
+        );
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      matchMediaSpy.mockRestore();
+    }
   });
 
   it("reserves hover-only right gutter on article", () => {
