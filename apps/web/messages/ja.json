@@ -4692,6 +4692,9 @@
         "dismiss": "引用を削除",
         "previewLabel": "{author} を引用中",
         "jump": "{author} のメッセージへ移動"
+      },
+      "MentionAll": {
+        "label": "全員"
       }
     }
   },

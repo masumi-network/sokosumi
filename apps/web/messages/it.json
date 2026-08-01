@@ -4692,6 +4692,9 @@
         "dismiss": "Rimuovi citazione",
         "previewLabel": "Citando {author}",
         "jump": "Vai al messaggio di {author}"
+      },
+      "MentionAll": {
+        "label": "Tutti"
       }
     }
   },

@@ -1,6 +1,13 @@
 "use client";
 
-import { ALargeSmall, AtSign, Loader2, Paperclip, X } from "lucide-react";
+import {
+  ALargeSmall,
+  AtSign,
+  Loader2,
+  Paperclip,
+  Users,
+  X,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -59,18 +66,27 @@ function RoomMentionSuggestion({
 }: {
   mention: NormalizedMention<RoomMentionParticipant>;
 }) {
+  const t = useTranslations("App.Channels");
   const isCoworker = mention.data?.kind === "coworker";
+  const isAll = mention.data?.kind === "all";
+  const displayName = isAll ? t("MentionAll.label") : mention.value;
   return (
     <>
-      <Avatar className="size-6">
-        <AvatarImage src={mention.data?.image ?? undefined} alt="" />
-        <AvatarFallback className="text-[10px]">
-          {getInitials(mention.value)}
-        </AvatarFallback>
-      </Avatar>
+      {isAll ? (
+        <div className="bg-muted flex size-6 items-center justify-center rounded-full">
+          <Users className="text-muted-foreground size-3.5" aria-hidden />
+        </div>
+      ) : (
+        <Avatar className="size-6">
+          <AvatarImage src={mention.data?.image ?? undefined} alt="" />
+          <AvatarFallback className="text-[10px]">
+            {getInitials(mention.value)}
+          </AvatarFallback>
+        </Avatar>
+      )}
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate font-medium">{mention.value}</span>
+          <span className="truncate font-medium">{displayName}</span>
           {isCoworker ? <AiCoworkerIcon /> : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
