@@ -336,6 +336,70 @@ describe("ChatMessageRow", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
+  it("shows quote image attachment as filename chip, not re-embedded image", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-image",
+          authorName: "Bob",
+          snippet: "check this shot",
+          attachment: {
+            fileName: "launch.png",
+            url: "https://blob.example/launch.png",
+            mediaKind: "image",
+          },
+        },
+      }),
+    });
+
+    const chip = screen.getByRole("link", { name: /launch\.png/i });
+    expect(chip).toHaveAttribute("href", "https://blob.example/launch.png");
+    expect(screen.getByText("check this shot")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "launch.png" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows quote file attachment as filename chip", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-file",
+          authorName: "Bob",
+          snippet: "see the brief",
+          attachment: {
+            fileName: "brief.pdf",
+            url: "https://blob.example/brief.pdf",
+            mediaKind: "file",
+          },
+        },
+      }),
+    });
+
+    expect(screen.getByRole("link", { name: /brief\.pdf/i })).toHaveAttribute(
+      "href",
+      "https://blob.example/brief.pdf",
+    );
+  });
+
+  it("keeps legacy quotes without attachment text-only", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "legacy-quote",
+          authorName: "Bob",
+          snippet: "old text-only quote",
+        },
+      }),
+    });
+
+    expect(screen.getByText("old text-only quote")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("styles @all mention tokens in quote snippets", () => {
     renderRow({
       message: userMessage({
