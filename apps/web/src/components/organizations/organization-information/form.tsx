@@ -45,13 +45,14 @@ import {
   organizationInformationFormSchema,
 } from "@/lib/schemas";
 import {
+  cleanupOrganizationLogoBestEffort,
+  getOrganizationLogoUploadErrorMessage,
+  uploadOrganizationLogoDirect,
+} from "@/lib/utils/organization-logo-upload.client";
+import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 
 import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
@@ -62,6 +63,10 @@ interface OrganizationInformationFormProps {
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onLogoUploadBusyChange?: (busy: boolean) => void;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
+}
+
+function isBlobPreviewUrl(url: string | null | undefined): boolean {
+  return Boolean(url?.startsWith("blob:"));
 }
 
 export default function OrganizationInformationForm({
@@ -75,6 +80,8 @@ export default function OrganizationInformationForm({
   const router = useRouter();
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const submitInFlightRef = useRef(false);
+  const logoObjectUrlRef = useRef<string | null>(null);
+  const logoAtOpenRef = useRef(organization?.logo ?? "");
   const [pendingLogoFiles, setPendingLogoFiles] = useState<File[]>([]);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
@@ -97,16 +104,32 @@ export default function OrganizationInformationForm({
     name: "logo",
   });
 
+  const revokeLogoObjectUrl = useCallback(() => {
+    if (logoObjectUrlRef.current) {
+      URL.revokeObjectURL(logoObjectUrlRef.current);
+      logoObjectUrlRef.current = null;
+    }
+  }, []);
+
   const handleLogoUpload = useCallback(
     async (files: File[]) => {
       const logoFile = files[0];
       if (!logoFile) return;
 
+      // Create flow: hold File until org exists — never mint under user prefix.
+      if (!organization) {
+        revokeLogoObjectUrl();
+        const previewUrl = URL.createObjectURL(logoFile);
+        logoObjectUrlRef.current = previewUrl;
+        form.setValue("logo", previewUrl, { shouldDirty: true });
+        return;
+      }
+
       setIsUploadingLogo(true);
       onLogoUploadBusyChange?.(true);
       try {
         const uploadedFile = await raceWithTimeout(
-          uploadUserFileDirect(logoFile, {
+          uploadOrganizationLogoDirect(organization.id, logoFile, {
             allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
             maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
           }),
@@ -117,7 +140,7 @@ export default function OrganizationInformationForm({
         toast.error(
           error instanceof ClientTimeoutError
             ? t("Fields.Logo.uploadError")
-            : getUserFileUploadErrorMessage(
+            : getOrganizationLogoUploadErrorMessage(
                 error,
                 t("Fields.Logo.uploadError"),
               ),
@@ -128,13 +151,14 @@ export default function OrganizationInformationForm({
         onLogoUploadBusyChange?.(false);
       }
     },
-    [form, onLogoUploadBusyChange, t],
+    [form, onLogoUploadBusyChange, organization, revokeLogoObjectUrl, t],
   );
 
   const handleRemoveLogo = useCallback(() => {
+    revokeLogoObjectUrl();
     form.setValue("logo", "", { shouldDirty: true });
     setPendingLogoFiles([]);
-  }, [form]);
+  }, [form, revokeLogoObjectUrl]);
 
   const onSubmit = async (values: OrganizationInformationFormSchemaType) => {
     if (submitInFlightRef.current) {
@@ -145,7 +169,15 @@ export default function OrganizationInformationForm({
     try {
       let result;
       const isCreating = !organization;
-      const logoForApi = normalizeOrganizationLogo(values.logo);
+      const pendingLogoFile = pendingLogoFiles[0];
+      const previousPersistedLogo = logoAtOpenRef.current;
+
+      // Blob previews are local-only; never send them to the API.
+      const logoForApi =
+        pendingLogoFile || isBlobPreviewUrl(values.logo)
+          ? null
+          : normalizeOrganizationLogo(values.logo);
+
       const metadataSource =
         organizationMetadata ?? organization?.metadata ?? values.metadata;
       const websiteUrl =
@@ -206,6 +238,44 @@ export default function OrganizationInformationForm({
           toast.error(errorMessage);
         }
       } else {
+        // After create: mint held File under the new org id, then persist logo.
+        if (isCreating && pendingLogoFile && result.data?.id) {
+          try {
+            const uploaded = await raceWithTimeout(
+              uploadOrganizationLogoDirect(result.data.id, pendingLogoFile, {
+                allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+                maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+              }),
+              ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
+            );
+            await authClient.organization.update({
+              organizationId: result.data.id,
+              data: { logo: uploaded.publicUrl },
+            });
+            revokeLogoObjectUrl();
+          } catch (error) {
+            toast.error(
+              error instanceof ClientTimeoutError
+                ? t("Fields.Logo.uploadError")
+                : getOrganizationLogoUploadErrorMessage(
+                    error,
+                    t("Fields.Logo.uploadError"),
+                  ),
+            );
+            // Org was created; still close and switch workspace below.
+          }
+        } else if (
+          !isCreating &&
+          organization &&
+          previousPersistedLogo &&
+          (logoForApi ?? "") !== previousPersistedLogo
+        ) {
+          void cleanupOrganizationLogoBestEffort(
+            organization.id,
+            previousPersistedLogo,
+          );
+        }
+
         toast.success(isCreating ? t("Success.create") : t("Success.edit"));
 
         if (isCreating) {

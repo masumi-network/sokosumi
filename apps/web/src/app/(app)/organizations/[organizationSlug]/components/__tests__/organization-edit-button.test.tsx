@@ -11,7 +11,7 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authClient } from "@/lib/auth/auth.client";
 import type { OrganizationRecord } from "@/lib/clients/generated/core";
-import { uploadUserFileDirect } from "@/lib/utils/user-file-upload.client";
+import { uploadOrganizationLogoDirect } from "@/lib/utils/organization-logo-upload.client";
 import OrganizationEditButton from "../organization-edit-button";
 import { OrganizationMetadataProvider } from "../organization-metadata-context";
 
@@ -54,11 +54,13 @@ vi.mock("@/lib/actions", () => ({
   generateOrganizationSlug: vi.fn(),
 }));
 
-vi.mock("@/lib/utils/user-file-upload.client", () => ({
-  uploadUserFileDirect: vi.fn(),
+vi.mock("@/lib/utils/organization-logo-upload.client", () => ({
+  uploadOrganizationLogoDirect: vi.fn(),
+  cleanupOrganizationLogoBestEffort: vi.fn(),
+  getOrganizationLogoUploadErrorMessage: () => "upload failed",
 }));
 
-const mockedUploadLogo = vi.mocked(uploadUserFileDirect);
+const mockedUploadLogo = vi.mocked(uploadOrganizationLogoDirect);
 const mockedOrganizationUpdate = vi.mocked(authClient.organization.update);
 
 function createOrganization(
@@ -117,7 +119,7 @@ describe("OrganizationEditButton", () => {
     mockedUploadLogo.mockResolvedValue({
       publicUrl: uploadedUrl,
       metadata: {
-        pathname: "users/user_123/logo.png",
+        pathname: "organizations/org_1/logos/logo.png",
         downloadUrl: "https://blob.example/download/logo.png",
         size: 1,
         uploadedAt: new Date("2026-03-24T12:00:00.000Z"),
@@ -151,6 +153,14 @@ describe("OrganizationEditButton", () => {
     await waitFor(() => {
       expect(mockedUploadLogo).toHaveBeenCalled();
     });
+
+    expect(mockedUploadLogo).toHaveBeenCalledWith(
+      "org_1",
+      expect.any(File),
+      expect.objectContaining({
+        maxSizeBytes: expect.any(Number),
+      }),
+    );
 
     expect(
       await within(dialog).findByRole("button", { name: "Fields.Logo.remove" }),
