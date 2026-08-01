@@ -1374,6 +1374,13 @@ export type ChatRoomMessageQuote = {
     messageId: string;
     authorName: string;
     snippet: string;
+    attachment?: ChatRoomMessageQuoteAttachment;
+} | null;
+
+export type ChatRoomMessageQuoteAttachment = {
+    fileName: string;
+    url: string;
+    mediaKind: 'image' | 'file';
 } | null;
 
 export type CreateChatRoomMessageRequest = {

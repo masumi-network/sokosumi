@@ -75,6 +75,20 @@ const quoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
   authorName: "Alice",
   snippet: "Earlier point about launch risk",
+  attachment: null,
+};
+
+const imageQuoteContent =
+  "see this [launch.png](https://blob.example/launch.png)";
+const imageQuoteSnapshot = {
+  messageId: QUOTE_MESSAGE_ID,
+  authorName: "Alice",
+  snippet: "see this",
+  attachment: {
+    fileName: "launch.png",
+    url: "https://blob.example/launch.png",
+    mediaKind: "image" as const,
+  },
 };
 
 const tx = {
@@ -848,6 +862,40 @@ describe("POST /chats/rooms/{id}/messages", () => {
           data: expect.objectContaining({
             parentMessageId: null,
             metadata: { quote: quoteSnapshot },
+          }),
+        }),
+      );
+    });
+
+    it("persists image attachment cue when quoting a message with an image link", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindFirstMock.mockResolvedValue(
+        quotedSourceMessage({ content: imageQuoteContent }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          metadata: { quote: imageQuoteSnapshot },
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "nice shot",
+          quote: { messageId: QUOTE_MESSAGE_ID },
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.quote).toEqual(imageQuoteSnapshot);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            metadata: { quote: imageQuoteSnapshot },
           }),
         }),
       );

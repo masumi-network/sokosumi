@@ -211,6 +211,14 @@ export const chatRoomMessageReactionSchema = z
   })
   .openapi("ChatRoomMessageReaction");
 
+export const chatRoomMessageQuoteAttachmentSchema = z
+  .object({
+    fileName: z.string().openapi({ example: "launch.png" }),
+    url: z.string().openapi({ example: "https://blob.example/launch.png" }),
+    mediaKind: z.enum(["image", "file"]).openapi({ example: "image" }),
+  })
+  .openapi("ChatRoomMessageQuoteAttachment");
+
 /** Snapshot of a quoted room message, stored under metadata.quote and promoted on the DTO. */
 export const chatRoomMessageQuoteSchema = z
   .object({
@@ -221,6 +229,7 @@ export const chatRoomMessageQuoteSchema = z
     snippet: z.string().openapi({
       example: "Can you summarize this launch risk?",
     }),
+    attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
   })
   .openapi("ChatRoomMessageQuote");
 

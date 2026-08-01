@@ -5023,12 +5023,45 @@ export const ChatRoomMessageQuoteSchema = {
         snippet: {
             type: 'string',
             example: 'Can you summarize this launch risk?'
+        },
+        attachment: {
+            $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
         }
     },
     required: [
         'messageId',
         'authorName',
         'snippet'
+    ]
+} as const;
+
+export const ChatRoomMessageQuoteAttachmentSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        fileName: {
+            type: 'string',
+            example: 'launch.png'
+        },
+        url: {
+            type: 'string',
+            example: 'https://blob.example/launch.png'
+        },
+        mediaKind: {
+            type: 'string',
+            enum: [
+                'image',
+                'file'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'fileName',
+        'url',
+        'mediaKind'
     ]
 } as const;
 
