@@ -4011,6 +4011,24 @@
         "clientSecretPlaceholder": "OAuthクライアントシークレットを入力してください",
         "clientSecretHelp": "機密クライアントにはクライアントシークレットが必要です。公開クライアントの場合は空欄のままにしてください。"
       },
+      "ProfileImage": {
+        "title": "プロフィール画像",
+        "description": "ヘッダー、サイドバー、タスクに表示される個人アバターです。",
+        "imageLabel": "プロフィール画像",
+        "imageDescription": "{maxSize} までの画像をアップロードできます。削除すると Gravatar に戻ります。",
+        "imageUpload": "アップロード",
+        "imageReplace": "差し替え",
+        "imageRemove": "画像を削除",
+        "imagePreviewAlt": "プロフィール画像のプレビュー",
+        "imageUploadSuccess": "プロフィール画像を更新しました",
+        "imageUploadError": "プロフィール画像のアップロードに失敗しました",
+        "imageSaveError": "プロフィール画像の保存に失敗しました",
+        "imageRemoveSuccess": "プロフィール画像を削除しました",
+        "imageRemoveError": "プロフィール画像の削除に失敗しました",
+        "fileTooLarge": "ファイルが大きすぎます",
+        "fileTypeNotAccepted": "このファイル形式は受け付けられません",
+        "maxFilesExceeded": "一度にアップロードできる画像は1枚です"
+      },
       "BrandProfile": {
         "title": "ブランドプロフィール",
         "description": "個人用 DESIGN.md の作成に使うブランド情報を設定します。",

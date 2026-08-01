@@ -4011,6 +4011,24 @@
         "clientSecretPlaceholder": "Inserisci il tuo client secret OAuth",
         "clientSecretHelp": "Il client secret è obbligatorio per i client confidenziali. Per i client pubblici, lascia vuoto."
       },
+      "ProfileImage": {
+        "title": "Immagine del profilo",
+        "description": "Il tuo avatar personale in header, barra laterale e attività.",
+        "imageLabel": "Immagine del profilo",
+        "imageDescription": "Carica un'immagine fino a {maxSize}. Rimuovila per tornare a Gravatar.",
+        "imageUpload": "Carica",
+        "imageReplace": "Sostituisci",
+        "imageRemove": "Rimuovi immagine",
+        "imagePreviewAlt": "Anteprima dell'immagine del profilo",
+        "imageUploadSuccess": "Immagine del profilo aggiornata",
+        "imageUploadError": "Impossibile caricare l'immagine del profilo",
+        "imageSaveError": "Impossibile salvare l'immagine del profilo",
+        "imageRemoveSuccess": "Immagine del profilo rimossa",
+        "imageRemoveError": "Impossibile rimuovere l'immagine del profilo",
+        "fileTooLarge": "Il file è troppo grande",
+        "fileTypeNotAccepted": "Tipo di file non accettato",
+        "maxFilesExceeded": "Carica una sola immagine alla volta"
+      },
       "BrandProfile": {
         "title": "Profilo del brand",
         "description": "Imposta i dettagli del brand usati per creare il tuo DESIGN.md personale.",

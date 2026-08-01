@@ -58,6 +58,7 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
+import { applyCustomAvatarImageGuardToUserUpdate } from "@/helpers/custom-avatar-image-auth";
 import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
@@ -442,8 +443,12 @@ export const auth = betterAuth({
       update: {
         before: async (data, ctx) => {
           await prepareStripeEmailSyncForUserUpdate(data, ctx, prisma);
-          const guarded = await applyDesignMdMetadataGuardToUserUpdate(
+          const designMdGuarded = await applyDesignMdMetadataGuardToUserUpdate(
             data,
+            ctx,
+          );
+          const guarded = await applyCustomAvatarImageGuardToUserUpdate(
+            designMdGuarded,
             ctx,
           );
           return { data: guarded };

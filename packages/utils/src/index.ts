@@ -247,6 +247,7 @@ export {
 export {
   buildUserUploadPathname,
   buildUserUploadPrefix,
+  isOwnedUserUploadUrl,
   sanitizeUserUploadFilename,
 } from "./user-upload-path.js";
 export {

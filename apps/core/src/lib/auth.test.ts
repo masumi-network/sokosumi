@@ -321,6 +321,12 @@ vi.mock("@/services/stripe-user-email.service", () => ({
     syncUserEmailWithStripeMock(...args),
 }));
 
+vi.mock("@/helpers/custom-avatar-image-auth", () => ({
+  applyCustomAvatarImageGuardToUserUpdate: async (
+    updateData: Record<string, unknown>,
+  ) => updateData,
+}));
+
 vi.mock("@/helpers/design-md-metadata-auth", () => ({
   applyDesignMdMetadataGuardToUserCreate: (user: Record<string, unknown>) =>
     user,

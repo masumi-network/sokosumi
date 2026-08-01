@@ -4011,6 +4011,24 @@
         "clientSecretPlaceholder": "输入您的 OAuth 客户端密钥",
         "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。"
       },
+      "ProfileImage": {
+        "title": "头像",
+        "description": "显示在页眉、侧边栏和任务中的个人头像。",
+        "imageLabel": "头像",
+        "imageDescription": "上传不超过 {maxSize} 的图片。移除后将回退到 Gravatar。",
+        "imageUpload": "上传",
+        "imageReplace": "替换",
+        "imageRemove": "移除图片",
+        "imagePreviewAlt": "头像预览",
+        "imageUploadSuccess": "头像已更新",
+        "imageUploadError": "上传头像失败",
+        "imageSaveError": "保存头像失败",
+        "imageRemoveSuccess": "头像已移除",
+        "imageRemoveError": "移除头像失败",
+        "fileTooLarge": "文件过大",
+        "fileTypeNotAccepted": "不支持的文件类型",
+        "maxFilesExceeded": "一次只能上传一张图片"
+      },
       "BrandProfile": {
         "title": "品牌资料",
         "description": "设置用于创建个人 DESIGN.md 的品牌信息。",

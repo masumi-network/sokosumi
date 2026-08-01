@@ -14,6 +14,7 @@ import { NewPasswordForm } from "./new-password-form";
 import { PasskeySettings } from "./passkey-settings";
 import { PasswordForm } from "./password-form";
 import { PreferencesSection } from "./preferences-section";
+import { ProfileImageSection } from "./profile-image-section";
 
 interface AccountSettingsProps {
   accounts: Account[];
@@ -22,6 +23,7 @@ interface AccountSettingsProps {
   designMdValue?: DesignMdProfileValue;
   credentialAccountsLoadError?: ReactNode;
   notificationsOptIn: boolean;
+  userImage?: null | string;
   userLogo?: null | string;
   userMetadata?: null | string;
   marketingOptIn: boolean;
@@ -34,6 +36,7 @@ export function AccountSettings({
   designMdValue,
   credentialAccountsLoadError,
   notificationsOptIn,
+  userImage,
   userLogo,
   userMetadata,
   marketingOptIn,
@@ -47,6 +50,9 @@ export function AccountSettings({
       <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
         <NameForm />
         <EmailForm />
+        <div className="md:col-span-2">
+          <ProfileImageSection userImage={userImage} />
+        </div>
         <div className="md:col-span-2">
           {credentialAccountsLoadError ? (
             credentialAccountsLoadError
