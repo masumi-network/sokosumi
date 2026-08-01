@@ -120,6 +120,7 @@ export function FileChipMiniPreview({
           alt={resolvedFileName}
           title={t("title")}
           downloadLabel={t("download")}
+          closeLabel={t("close")}
           downloadFilename={resolvedFileName}
         />
       ) : null}

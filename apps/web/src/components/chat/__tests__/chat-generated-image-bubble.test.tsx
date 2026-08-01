@@ -16,6 +16,9 @@ vi.mock("next-intl", () => ({
     if (key === "download") {
       return "Download image";
     }
+    if (key === "close") {
+      return "Close";
+    }
     return key;
   },
 }));

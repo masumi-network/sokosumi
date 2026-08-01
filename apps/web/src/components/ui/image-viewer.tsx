@@ -1,10 +1,11 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -18,9 +19,13 @@ interface ImageViewerProps {
   alt: string;
   title: string;
   downloadLabel: string;
+  closeLabel: string;
   downloadFilename?: string;
   className?: string;
 }
+
+const toolbarActionClassName =
+  "size-9 rounded-full border border-border/80 bg-background text-foreground shadow-sm hover:bg-muted";
 
 export function ImageViewer({
   open,
@@ -29,30 +34,29 @@ export function ImageViewer({
   alt,
   title,
   downloadLabel,
+  closeLabel,
   downloadFilename,
   className,
 }: ImageViewerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className={cn(
-          "bg-background/95 flex w-[min(96vw,72rem)] max-w-[min(96vw,72rem)] flex-col gap-3 border-border/60 p-3 sm:p-4",
+          "flex w-[min(96vw,72rem)] max-w-[min(96vw,72rem)] flex-col gap-0 overflow-hidden border-border/60 p-0",
           className,
         )}
         data-testid="image-viewer"
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{alt}</DialogDescription>
-        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-muted/30">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={alt}
-            className="max-h-[min(85dvh,48rem)] max-w-full object-contain"
-          />
+        <div
+          className="bg-background flex items-center justify-between gap-3 border-b border-border/60 px-3 py-2"
+          data-testid="image-viewer-toolbar"
+        >
           <Button
             asChild
-            className="absolute top-2 left-2 z-10 size-8 rounded-full border border-border/70 bg-background/85 text-foreground shadow-sm backdrop-blur hover:bg-background"
+            className={toolbarActionClassName}
             size="icon"
             variant="ghost"
           >
@@ -64,6 +68,28 @@ export function ImageViewer({
               <Download className="size-4" aria-hidden="true" />
             </a>
           </Button>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              aria-label={closeLabel}
+              className={toolbarActionClassName}
+              size="icon"
+              variant="ghost"
+            >
+              <XIcon className="size-4" aria-hidden="true" />
+            </Button>
+          </DialogClose>
+        </div>
+        <div
+          className="flex min-h-0 flex-1 items-center justify-center bg-muted/40 p-4 sm:p-6"
+          data-testid="image-viewer-stage"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt}
+            className="max-h-[min(80dvh,44rem)] max-w-full object-contain"
+          />
         </div>
       </DialogContent>
     </Dialog>

@@ -131,6 +131,7 @@ export function ChatGeneratedImageBubble({
           alt={alt}
           title={t("title")}
           downloadLabel={downloadLabel}
+          closeLabel={t("close")}
           downloadFilename={getGeneratedImageDownloadFilename(src)}
         />
       ) : null}

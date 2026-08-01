@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ImageViewer } from "../image-viewer";
 
 describe("ImageViewer", () => {
-  it("renders the image and download action when open", () => {
+  it("renders toolbar actions outside the image stage", () => {
     render(
       <ImageViewer
         open
@@ -13,15 +13,25 @@ describe("ImageViewer", () => {
         alt="Photo"
         title="View image"
         downloadLabel="Download image"
+        closeLabel="Close"
         downloadFilename="photo.png"
       />,
     );
 
     expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Photo" })).toHaveAttribute(
-      "src",
-      "https://example.com/photo.png",
+
+    const toolbar = screen.getByTestId("image-viewer-toolbar");
+    const stage = screen.getByTestId("image-viewer-stage");
+
+    expect(toolbar).toContainElement(
+      screen.getByRole("link", { name: "Download image" }),
     );
+    expect(toolbar).toContainElement(
+      screen.getByRole("button", { name: "Close" }),
+    );
+    expect(stage).toContainElement(screen.getByRole("img", { name: "Photo" }));
+    expect(stage.querySelector("a")).toBeNull();
+    expect(stage.querySelector("button")).toBeNull();
 
     const download = screen.getByRole("link", { name: "Download image" });
     expect(download).toHaveAttribute("href", "https://example.com/photo.png");
@@ -37,6 +47,7 @@ describe("ImageViewer", () => {
         alt="Photo"
         title="View image"
         downloadLabel="Download image"
+        closeLabel="Close"
       />,
     );
 

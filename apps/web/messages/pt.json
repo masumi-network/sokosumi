@@ -766,7 +766,8 @@
     "ImageViewer": {
       "title": "Imagem",
       "viewImage": "Ver imagem {fileName}",
-      "download": "Descarregar imagem"
+      "download": "Descarregar imagem",
+      "close": "Fechar"
     }
   },
   "Join": {

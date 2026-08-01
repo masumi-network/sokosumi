@@ -766,7 +766,8 @@
     "ImageViewer": {
       "title": "图片",
       "viewImage": "查看图片 {fileName}",
-      "download": "下载图片"
+      "download": "下载图片",
+      "close": "关闭"
     }
   },
   "Join": {
