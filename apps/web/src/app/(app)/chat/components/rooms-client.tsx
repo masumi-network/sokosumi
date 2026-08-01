@@ -20,10 +20,16 @@ import {
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import {
+  type ComposeDraft,
+  clearComposeDraft,
+  composeDraftKey,
+} from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   mergeMessagesWithStreamOverlay,
@@ -204,6 +210,80 @@ export function RoomsClient({
   const [threadMentionedIds, setThreadMentionedIds] = useState<string[]>([]);
   const [pendingThreadQuote, setPendingThreadQuote] =
     useState<PendingRoomQuote | null>(null);
+  const composeSurfaceEpoch = `${selectedRoomId}:${isNewDirectMessage}:${isCreateChannelRequested}`;
+  const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
+    useState(composeSurfaceEpoch);
+  if (composeSurfaceEpoch !== syncedComposeSurfaceEpoch) {
+    setSyncedComposeSurfaceEpoch(composeSurfaceEpoch);
+    setMentionedIds([]);
+    setPendingQuote(null);
+    setThreadParentMessage(null);
+    setThreadMessages([]);
+    setThreadComposerValue("");
+    setThreadComposerAttachments([]);
+    setThreadMentionedIds([]);
+    setPendingThreadQuote(null);
+  }
+
+  const channelComposeDraftKey =
+    selectedRoomId != null && !isNewDirectMessage && !isCreateChannelRequested
+      ? composeDraftKey.room(selectedRoomId)
+      : null;
+  const threadComposeDraftKey =
+    selectedRoomId != null && threadParentMessage != null
+      ? composeDraftKey.thread(selectedRoomId, threadParentMessage.id)
+      : null;
+  const channelComposeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: composerValue,
+      attachments: composerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [composerValue, composerAttachments],
+  );
+  const threadComposeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: threadComposerValue,
+      attachments: threadComposerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [threadComposerValue, threadComposerAttachments],
+  );
+  const { clearDraft: clearChannelComposeDraft } = usePersistComposeDraft({
+    key: channelComposeDraftKey,
+    draft: channelComposeDraft,
+    onHydrate: (draft) => {
+      setComposerValue(draft.text);
+      setComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
+  const { clearDraft: clearThreadComposeDraft } = usePersistComposeDraft({
+    key: threadComposeDraftKey,
+    draft: threadComposeDraft,
+    onHydrate: (draft) => {
+      setThreadComposerValue(draft.text);
+      setThreadComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
   const readMarkerRef = useRef<string | null>(null);
@@ -552,19 +632,6 @@ export function RoomsClient({
         : current,
     );
   }, [messages, messagesNextCursor, selectedRoomId]);
-
-  useEffect(() => {
-    setComposerValue("");
-    setComposerAttachments([]);
-    setMentionedIds([]);
-    setPendingQuote(null);
-    setThreadParentMessage(null);
-    setThreadMessages([]);
-    setThreadComposerValue("");
-    setThreadComposerAttachments([]);
-    setThreadMentionedIds([]);
-    setPendingThreadQuote(null);
-  }, [selectedRoomId, isNewDirectMessage, isCreateChannelRequested]);
 
   // Scroll on room switch or when the newest message changes — not when
   // an older page is prepended (length grows, last id stays the same).
@@ -980,12 +1047,14 @@ export function RoomsClient({
       setComposerAttachments([]);
       setMentionedIds([]);
       setPendingQuote(null);
+      clearChannelComposeDraft();
       sendStreamMessage(content, { quote: quotePayload });
       return;
     }
 
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(mentionedIds);
+    const sentChannelDraftKey = composeDraftKey.room(roomId);
     startSendingTransition(async () => {
       const result = await sendRoomMessageAction(
         roomId,
@@ -1000,9 +1069,11 @@ export function RoomsClient({
         toast.error(result.message);
         return;
       }
+      clearComposeDraft(sentChannelDraftKey);
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
+      clearChannelComposeDraft();
       setMessagesState((current) => appendMessage(current, result.data));
       setComposerValue("");
       setComposerAttachments([]);
@@ -1032,12 +1103,14 @@ export function RoomsClient({
       setThreadComposerAttachments([]);
       setThreadMentionedIds([]);
       setPendingThreadQuote(null);
+      clearThreadComposeDraft();
       sendStreamMessage(content, { parentMessageId, quote: quotePayload });
       return;
     }
 
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(threadMentionedIds);
+    const sentThreadDraftKey = composeDraftKey.thread(roomId, parentMessageId);
     startSendingThreadReplyTransition(async () => {
       const result = await sendRoomMessageAction(
         roomId,
@@ -1053,10 +1126,12 @@ export function RoomsClient({
         toast.error(result.message);
         return;
       }
+      clearComposeDraft(sentThreadDraftKey);
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
 
+      clearThreadComposeDraft();
       setThreadMessages((current) => [...current, result.data]);
       updateParentThreadPreview(parentMessageId, result.data);
       setThreadComposerValue("");
