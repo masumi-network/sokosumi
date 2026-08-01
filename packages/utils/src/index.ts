@@ -37,10 +37,7 @@ export {
   isOwnedCoworkerChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
-export {
-  buildQuoteSnippet,
-  QUOTE_SNIPPET_MAX_CHARS,
-} from "./chat-room-quote-snippet.js";
+export { buildQuoteSnippet } from "./chat-room-quote-snippet.js";
 export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,

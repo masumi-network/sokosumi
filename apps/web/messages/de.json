@@ -4708,7 +4708,9 @@
         "action": "Zitieren",
         "dismiss": "Zitat entfernen",
         "previewLabel": "Zitiere {author}",
-        "jump": "Zur Nachricht von {author} springen"
+        "jump": "Zur Nachricht von {author} springen",
+        "showMore": "Mehr",
+        "showLess": "Weniger"
       },
       "MentionAll": {
         "label": "Alle"
