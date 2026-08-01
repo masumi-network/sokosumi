@@ -38,6 +38,7 @@ import {
   markdownToHtml,
 } from "@/lib/utils/composer-markdown-dom";
 import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
+import { tryExitComposerInlineFormatOnArrow } from "@/lib/utils/composer-wysiwyg-arrow-exit";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
 import {
   resolveComposerEnterAction,
@@ -663,6 +664,24 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
       }
 
+      if (
+        !hasModifier &&
+        !event.shiftKey &&
+        !event.nativeEvent.isComposing &&
+        (key === "arrowleft" || key === "arrowright") &&
+        editorRef.current
+      ) {
+        const exited = tryExitComposerInlineFormatOnArrow(
+          editorRef.current,
+          key === "arrowleft" ? "left" : "right",
+        );
+        if (exited) {
+          event.preventDefault();
+          publishActiveFormats();
+          return;
+        }
+      }
+
       if (key === "enter" && !event.nativeEvent.isComposing) {
         const action = resolveComposerEnterAction({
           isNarrowViewport:
@@ -700,6 +719,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       isOpen,
       onLinkShortcut,
       onSubmitShortcut,
+      publishActiveFormats,
     ],
   );
 
