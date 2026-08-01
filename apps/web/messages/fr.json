@@ -4630,7 +4630,9 @@
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other { et # de plus}}",
+        "andMore": "et {count} de plus"
       },
       "Presence": {
         "online": "Online",

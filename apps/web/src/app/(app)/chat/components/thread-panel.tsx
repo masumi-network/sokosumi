@@ -158,7 +158,7 @@ export function ThreadPanel({
                   </div>
                 ) : null}
                 {replies.length > 0 ? (
-                  <div className="space-y-1">
+                  <div className="flex flex-col">
                     {replies.map((reply, index) => (
                       <ChatMessageRow
                         key={reply.id}

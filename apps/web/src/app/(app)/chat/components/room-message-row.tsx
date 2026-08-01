@@ -19,9 +19,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomMessageReaction,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -34,6 +40,23 @@ import {
 } from "./room-helpers";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+
+function formatWhoReactedLabel(
+  reaction: ChatRoomMessageReaction,
+  t: ReturnType<typeof useTranslations>,
+): string | null {
+  const names = reaction.reactors.map((reactor) => reactor.name).join(", ");
+  const more = Math.max(0, reaction.count - reaction.reactors.length);
+
+  if (!names) {
+    if (more === 0) {
+      return null;
+    }
+    return t("Reactions.andMore", { count: more });
+  }
+
+  return t("Reactions.whoReacted", { names, more });
+}
 
 function ChannelMarkdownSegment({
   content,
@@ -53,7 +76,7 @@ function ChannelMarkdownSegment({
   }
 
   return (
-    <Markdown className="prose-p:my-0 prose-p:leading-7 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+    <Markdown className="prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
       {formatRoomMarkdownMentions({
         content,
         coworkersById,
@@ -238,22 +261,38 @@ function MessageMetaFooter({
     <>
       {message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
-          {message.reactions.map((reaction) => (
-            <button
-              key={reaction.emoji}
-              type="button"
-              onClick={() => onToggleReaction(message, reaction.emoji)}
-              className={cn(
-                "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
-                reaction.reactedByCurrentUser &&
-                  "border-primary/30 bg-primary/10 text-primary",
-              )}
-              aria-label={t("Reactions.toggle", { emoji: reaction.emoji })}
-            >
-              <span className="text-sm leading-none">{reaction.emoji}</span>
-              <span>{reaction.count}</span>
-            </button>
-          ))}
+          {message.reactions.map((reaction) => {
+            const whoReactedLabel = formatWhoReactedLabel(reaction, t);
+
+            return (
+              <Tooltip key={reaction.emoji}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onToggleReaction(message, reaction.emoji)}
+                    className={cn(
+                      "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      reaction.reactedByCurrentUser &&
+                        "border-primary/30 bg-primary/10 text-primary",
+                    )}
+                    aria-label={t("Reactions.toggle", {
+                      emoji: reaction.emoji,
+                    })}
+                  >
+                    <span className="text-sm leading-none">
+                      {reaction.emoji}
+                    </span>
+                    <span>{reaction.count}</span>
+                  </button>
+                </TooltipTrigger>
+                {whoReactedLabel ? (
+                  <TooltipContent side="top" sideOffset={6}>
+                    {whoReactedLabel}
+                  </TooltipContent>
+                ) : null}
+              </Tooltip>
+            );
+          })}
         </div>
       ) : null}
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
@@ -330,11 +369,11 @@ export function ChatMessageRow({
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
         "group relative -mx-2 flex gap-3.5 rounded-md pr-20 pl-2 transition-colors hover:bg-muted/45",
-        isContinuation ? "min-h-8 py-0.5" : "min-h-11 py-2.5",
+        isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
     >
       {isContinuation ? (
-        <div className="flex w-8 shrink-0 justify-center pt-1">
+        <div className="flex w-8 shrink-0 justify-center pt-0.5">
           <time
             dateTime={createdAtIso}
             className="text-muted-foreground whitespace-nowrap text-[10px] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
@@ -352,7 +391,12 @@ export function ChatMessageRow({
           </AvatarFallback>
         </Avatar>
       )}
-      <div className="min-w-0 flex-1 space-y-1.5">
+      <div
+        className={cn(
+          "min-w-0 flex-1",
+          isContinuation ? "space-y-1" : "space-y-1.5",
+        )}
+      >
         {isContinuation ? null : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <span className="truncate text-sm font-semibold">
@@ -368,7 +412,7 @@ export function ChatMessageRow({
             </time>
           </div>
         )}
-        <div className="text-foreground wrap-break-word text-sm leading-7">
+        <div className="text-foreground wrap-break-word text-sm leading-6">
           {isThinking ? (
             <span
               className="reasoning-text-shine text-sm leading-5"

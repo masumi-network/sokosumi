@@ -1354,6 +1354,15 @@ export type ChatRoomMessageReaction = {
     emoji: string;
     count: number;
     reactedByCurrentUser: boolean;
+    /**
+     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
+     */
+    reactors: Array<ChatRoomMessageReactor>;
+};
+
+export type ChatRoomMessageReactor = {
+    id: string;
+    name: string;
 };
 
 export type CreateChatRoomMessageRequest = {

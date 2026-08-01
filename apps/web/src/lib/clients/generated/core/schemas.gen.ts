@@ -4952,12 +4952,45 @@ export const ChatRoomMessageReactionSchema = {
         reactedByCurrentUser: {
             type: 'boolean',
             example: true
+        },
+        reactors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageReactor'
+            },
+            maxItems: 20,
+            description: 'First reactors by createdAt ascending (capped). count may exceed reactors.length.',
+            example: [
+                {
+                    id: 'user_123',
+                    name: 'Jane Doe'
+                }
+            ]
         }
     },
     required: [
         'emoji',
         'count',
-        'reactedByCurrentUser'
+        'reactedByCurrentUser',
+        'reactors'
+    ]
+} as const;
+
+export const ChatRoomMessageReactorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        }
+    },
+    required: [
+        'id',
+        'name'
     ]
 } as const;
 
