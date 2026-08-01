@@ -10,9 +10,11 @@ import {
   buildUserChatRoomFilePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
+  buildVendorLogoPathname,
   isOwnedCoworkerImageUrl,
   isOwnedOrganizationLogoUrl,
   isOwnedTaskFileUrl,
+  isOwnedVendorLogoUrl,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
 } from "@sokosumi/utils";
 import { del, list, put } from "@vercel/blob";
@@ -101,6 +103,34 @@ export async function createOrganizationLogoUploadSession(
   token: string,
 ): Promise<BlobUploadGrant> {
   const pathname = buildOrganizationLogoPathname(organizationId, file.filename);
+
+  return createBlobUploadGrant({
+    pathname,
+    contentType: file.contentType,
+    maximumSizeInBytes: file.size,
+    maxSizeBytes: file.maxSizeBytes,
+    access: "public",
+    addRandomSuffix: true,
+    token,
+    allowedContentTypes: ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  });
+}
+
+/**
+ * Vendor-logo direct upload grant (presigned PUT). Path under
+ * `vendors/{vendorId}/logos/`. No onUploadCompleted webhook.
+ */
+export async function createVendorLogoUploadSession(
+  vendorId: string,
+  file: {
+    filename: string;
+    contentType: string;
+    size: number;
+    maxSizeBytes: number;
+  },
+  token: string,
+): Promise<BlobUploadGrant> {
+  const pathname = buildVendorLogoPathname(vendorId, file.filename);
 
   return createBlobUploadGrant({
     pathname,
@@ -464,6 +494,39 @@ export async function deleteOrganizationLogoIfOwned(
       },
       extra: {
         organizationId,
+        url,
+      },
+    });
+  }
+}
+
+/**
+ * Best-effort delete of a previous vendor logo when the URL is owned by that
+ * vendor (pathname under `vendors/{id}/logos/`). Foreign / invalid / legacy
+ * URLs are ignored.
+ */
+export async function deleteVendorLogoIfOwned(
+  url: string | null | undefined,
+  vendorId: string,
+): Promise<void> {
+  if (!url || !isOwnedVendorLogoUrl(url, vendorId)) {
+    return;
+  }
+
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    return;
+  }
+
+  try {
+    await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "deleteVendorLogoIfOwned",
+      },
+      extra: {
+        vendorId,
         url,
       },
     });
