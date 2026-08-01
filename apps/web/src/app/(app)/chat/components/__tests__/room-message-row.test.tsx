@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -15,6 +16,9 @@ vi.mock("next-intl", () => ({
     }
     if (key === "Reactions.andMore" && values) {
       return `and ${values.count} more`;
+    }
+    if (key === "jump" && values) {
+      return `Jump to message from ${values.author}`;
     }
     return key;
   },
@@ -50,6 +54,7 @@ function userMessage(
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
+    quote: null,
     sender: {
       type: "user",
       user: {
@@ -67,9 +72,11 @@ function userMessage(
 function renderRow({
   message = userMessage(),
   isContinuation = false,
+  onQuote,
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
+  onQuote?: (message: ChatRoomMessage) => void;
 } = {}) {
   render(
     <ChatMessageRow
@@ -77,6 +84,7 @@ function renderRow({
       coworkersById={new Map()}
       coworkersBySlug={new Map()}
       onToggleReaction={vi.fn()}
+      onQuote={onQuote}
       isContinuation={isContinuation}
     />,
   );
@@ -161,5 +169,49 @@ describe("ChatMessageRow", () => {
     expect(article).toHaveClass("mt-3");
     expect(article).toHaveClass("pb-0.5");
     expect(article).not.toHaveClass("py-2.5");
+  });
+
+  it("exposes message id for quote jump targets", () => {
+    renderRow();
+
+    const article = screen.getByRole("article");
+    expect(article).toHaveAttribute("id", "message-message-1");
+    expect(article).toHaveAttribute("data-message-id", "message-1");
+  });
+
+  it("shows Quote action and calls onQuote", async () => {
+    const user = userEvent.setup();
+    const onQuote = vi.fn();
+    renderRow({ onQuote });
+
+    await user.click(screen.getByRole("button", { name: "Quote.action" }));
+    expect(onQuote).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "message-1" }),
+    );
+  });
+
+  it("renders quote snapshot from DTO and soft-fails jump when target missing", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "missing-original",
+          authorName: "Bob",
+          snippet: "Earlier thought",
+        },
+      }),
+    });
+
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.getByText("Earlier thought")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Jump to message from Bob" }),
+    );
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });

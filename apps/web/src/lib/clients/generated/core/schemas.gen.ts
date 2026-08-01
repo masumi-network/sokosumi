@@ -4824,6 +4824,9 @@ export const ChatRoomMessageSchema = {
                 'null'
             ],
             additionalProperties: {}
+        },
+        quote: {
+            $ref: '#/components/schemas/ChatRoomMessageQuote'
         }
     },
     required: [
@@ -4837,7 +4840,8 @@ export const ChatRoomMessageSchema = {
         'reactions',
         'threadReplyCount',
         'threadLastReplyAt',
-        'metadata'
+        'metadata',
+        'quote'
     ]
 } as const;
 
@@ -4994,6 +4998,33 @@ export const ChatRoomMessageReactorSchema = {
     ]
 } as const;
 
+export const ChatRoomMessageQuoteSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        authorName: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        snippet: {
+            type: 'string',
+            example: 'Can you summarize this launch risk?'
+        }
+    },
+    required: [
+        'messageId',
+        'authorName',
+        'snippet'
+    ]
+} as const;
+
 export const CreateChatRoomMessageRequestSchema = {
     type: 'object',
     properties: {
@@ -5029,6 +5060,20 @@ export const CreateChatRoomMessageRequestSchema = {
             format: 'uuid',
             description: 'Root message ID when posting a threaded reply.',
             example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        quote: {
+            type: 'object',
+            properties: {
+                messageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    example: '550e8400-e29b-41d4-a716-446655440000'
+                }
+            },
+            required: [
+                'messageId'
+            ],
+            description: 'Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.'
         }
     },
     required: [

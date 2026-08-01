@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildQuoteSnippet,
   buildRoomComposerMessageContent,
   isRoomComposerEmpty,
 } from "../room-helpers";
@@ -7,6 +8,21 @@ import {
 function formatLink(fileName: string, url: string): string {
   return `[${fileName}](${url})\n`;
 }
+
+describe("buildQuoteSnippet", () => {
+  it("strips light markdown and collapses whitespace", () => {
+    expect(buildQuoteSnippet("**hello**  [link](https://x.test)  world")).toBe(
+      "hello link world",
+    );
+  });
+
+  it("truncates long snippets with an ellipsis", () => {
+    const long = "a".repeat(300);
+    const snippet = buildQuoteSnippet(long);
+    expect(snippet.endsWith("…")).toBe(true);
+    expect(snippet.length).toBe(281);
+  });
+});
 
 describe("buildRoomComposerMessageContent", () => {
   it("returns trimmed text when there are no attachments", () => {

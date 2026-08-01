@@ -29,6 +29,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
+    quote: null,
   };
 }
 

@@ -110,6 +110,60 @@ export function toggleId(
 /** Slack-like gap before a same-sender burst starts a new full header. */
 export const MESSAGE_GROUP_GAP_MS = 5 * 60 * 1000;
 
+/** Soft cap for composer / timeline quote preview text (mirrors Core). */
+export const QUOTE_SNIPPET_MAX_CHARS = 280;
+
+/**
+ * Light plain-text preview for a quoted message. Strips cheap markdown
+ * markers and collapses whitespace for the composer chip and pending state.
+ */
+export function buildQuoteSnippet(content: string): string {
+  const flattened = content
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_~>#]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (flattened.length > QUOTE_SNIPPET_MAX_CHARS) {
+    return `${flattened.slice(0, QUOTE_SNIPPET_MAX_CHARS)}…`;
+  }
+  return flattened;
+}
+
+/** Pending composer quote (author + snippet snapshot for the dismissible chip). */
+export interface PendingRoomQuote {
+  messageId: string;
+  authorName: string;
+  snippet: string;
+}
+
+export function pendingQuoteFromMessage(
+  message: ChatRoomMessage,
+): PendingRoomQuote {
+  return {
+    messageId: message.id,
+    authorName: messageSender(message).name,
+    snippet: buildQuoteSnippet(message.content),
+  };
+}
+
+/** Soft-fail scroll to a room message article when it is still in the DOM. */
+export function scrollToRoomMessageElement(messageId: string): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const target = document.querySelector<HTMLElement>(
+    `[data-message-id="${CSS.escape(messageId)}"]`,
+  );
+  if (!target) {
+    return false;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
+}
+
 export function messageSender(message: ChatRoomMessage) {
   if (message.sender.type === "user") {
     return {

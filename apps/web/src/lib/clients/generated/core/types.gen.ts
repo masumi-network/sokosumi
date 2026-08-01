@@ -1322,6 +1322,7 @@ export type ChatRoomMessage = {
     metadata: {
         [key: string]: unknown;
     } | null;
+    quote: ChatRoomMessageQuote;
 };
 
 export type ChatRoomMessageSender = {
@@ -1365,6 +1366,12 @@ export type ChatRoomMessageReactor = {
     name: string;
 };
 
+export type ChatRoomMessageQuote = {
+    messageId: string;
+    authorName: string;
+    snippet: string;
+} | null;
+
 export type CreateChatRoomMessageRequest = {
     content: string;
     mentionedCoworkerIds?: Array<string>;
@@ -1376,6 +1383,12 @@ export type CreateChatRoomMessageRequest = {
      * Root message ID when posting a threaded reply.
      */
     parentMessageId?: string;
+    /**
+     * Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.
+     */
+    quote?: {
+        messageId: string;
+    };
 };
 
 export type ReactToChatRoomMessageRequest = {
