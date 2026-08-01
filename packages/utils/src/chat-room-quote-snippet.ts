@@ -3,7 +3,8 @@ export const QUOTE_SNIPPET_MAX_CHARS = 280;
 
 /**
  * Light plain-text preview for a quoted room message. Strips cheap markdown
- * markers and collapses whitespace for attribution snippets.
+ * markers and collapses horizontal whitespace while preserving newlines.
+ * Mention tokens stay intact; the render layer formats them for display.
  */
 export function buildQuoteSnippet(content: string): string {
   const flattened = content
@@ -11,7 +12,7 @@ export function buildQuoteSnippet(content: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/[*_~>#]+/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/[^\S\n]+/g, " ")
     .trim();
 
   if (flattened.length > QUOTE_SNIPPET_MAX_CHARS) {

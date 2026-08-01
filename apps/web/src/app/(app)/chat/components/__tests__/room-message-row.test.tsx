@@ -214,4 +214,44 @@ describe("ChatMessageRow", () => {
     );
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
+
+  it("styles @all mention tokens in quote snippets", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-1",
+          authorName: "Bob",
+          snippet: "please add @all:all tagging",
+        },
+      }),
+    });
+
+    const quoteButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    // Markdown mock renders children as text, so the mention HTML string is visible.
+    const formatted = quoteButton.textContent ?? "";
+    expect(formatted).toContain("text-primary");
+    expect(formatted).toContain(">@all</span>");
+    expect(formatted).not.toContain("@all:all");
+  });
+
+  it("preserves newlines in multi-line quote snippets", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-2",
+          authorName: "Bob",
+          snippet: "line one\nline two",
+        },
+      }),
+    });
+
+    const quoteButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(quoteButton.textContent).toContain("line one\nline two");
+  });
 });

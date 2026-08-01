@@ -56,7 +56,19 @@ function formatWhoReactedLabel(
   return t("Reactions.whoReacted", { names, more });
 }
 
-function MessageQuoteBlock({ quote }: { quote: RoomMessageQuoteSnapshot }) {
+function MessageQuoteBlock({
+  quote,
+  coworkersById,
+  coworkersBySlug,
+  usersById,
+  usersBySlug,
+}: {
+  quote: RoomMessageQuoteSnapshot;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+}) {
   const t = useTranslations("App.Channels.Quote");
 
   return (
@@ -71,8 +83,16 @@ function MessageQuoteBlock({ quote }: { quote: RoomMessageQuoteSnapshot }) {
       <div className="text-foreground truncate text-xs font-semibold">
         {quote.authorName}
       </div>
-      <div className="text-muted-foreground line-clamp-2 text-xs leading-5">
-        {quote.snippet}
+      <div className="text-muted-foreground line-clamp-2 text-xs leading-5 whitespace-pre-line">
+        <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+          {formatRoomMarkdownMentions({
+            content: quote.snippet,
+            coworkersById,
+            coworkersBySlug,
+            usersById,
+            usersBySlug,
+          })}
+        </Markdown>
       </div>
     </button>
   );
@@ -417,7 +437,15 @@ export function ChatMessageRow({
           </div>
         )}
         <div className="text-foreground wrap-break-word text-sm leading-6">
-          {quote ? <MessageQuoteBlock quote={quote} /> : null}
+          {quote ? (
+            <MessageQuoteBlock
+              quote={quote}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+            />
+          ) : null}
           {isThinking ? (
             <span
               className="reasoning-text-shine text-sm leading-5"
