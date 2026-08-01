@@ -22,6 +22,7 @@ import {
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -32,14 +33,20 @@ import {
   messageSender,
 } from "./room-helpers";
 
+type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+
 function ChannelMarkdownSegment({
   content,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   if (!content.trim()) {
     return null;
@@ -51,6 +58,8 @@ function ChannelMarkdownSegment({
         content,
         coworkersById,
         coworkersBySlug,
+        usersById,
+        usersBySlug,
       })}
     </Markdown>
   );
@@ -60,10 +69,14 @@ function ChannelMessageText({
   content,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const fileLinks = findMarkdownLinks(content)
     .map((link) => ({
@@ -78,6 +91,8 @@ function ChannelMessageText({
         content={content}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
+        usersById={usersById}
+        usersBySlug={usersBySlug}
       />
     );
   }
@@ -92,6 +107,8 @@ function ChannelMessageText({
           content={content.slice(lastIndex, link.index)}
           coworkersById={coworkersById}
           coworkersBySlug={coworkersBySlug}
+          usersById={usersById}
+          usersBySlug={usersBySlug}
         />,
       );
     }
@@ -113,6 +130,8 @@ function ChannelMessageText({
         content={content.slice(lastIndex)}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
+        usersById={usersById}
+        usersBySlug={usersBySlug}
       />,
     );
   }
@@ -278,16 +297,23 @@ export function ChatMessageRow({
   message,
   coworkersById,
   coworkersBySlug,
+  usersById,
+  usersBySlug,
   onToggleReaction,
   onOpenThread,
   showThreadButton = true,
+  isContinuation = false,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
+  /** Slack-style continuation: omit avatar / name / primary timestamp. */
+  isContinuation?: boolean;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const sender = messageSender(message);
@@ -296,26 +322,52 @@ export function ChatMessageRow({
     isStreamOverlay &&
     message.sender.type === "coworker" &&
     message.content.trim().length === 0;
+  const formattedTime = formatMessageTime(message.createdAt);
+  const createdAtIso = new Date(message.createdAt).toISOString();
 
   return (
-    <article className="group relative -mx-2 flex min-h-11 gap-3.5 rounded-md py-2.5 pr-20 pl-2 transition-colors hover:bg-muted/45">
-      <Avatar className="mt-0.5 size-8 shrink-0">
-        <AvatarImage src={sender.image ?? undefined} alt="" />
-        <AvatarFallback className="text-xs">
-          {getInitials(sender.name)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-          <span className="truncate text-sm font-semibold">{sender.name}</span>
-          {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
+    <article
+      aria-label={isContinuation ? sender.name : undefined}
+      className={cn(
+        "group relative -mx-2 flex gap-3.5 rounded-md pr-20 pl-2 transition-colors hover:bg-muted/45",
+        isContinuation ? "min-h-8 py-0.5" : "min-h-11 py-2.5",
+      )}
+    >
+      {isContinuation ? (
+        <div className="flex w-8 shrink-0 justify-center pt-1">
           <time
-            className="text-muted-foreground text-xs"
+            dateTime={createdAtIso}
+            className="text-muted-foreground whitespace-nowrap text-[10px] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+            title={formattedTime}
             suppressHydrationWarning
           >
-            {formatMessageTime(message.createdAt)}
+            {formattedTime}
           </time>
         </div>
+      ) : (
+        <Avatar className="mt-0.5 size-8 shrink-0">
+          <AvatarImage src={sender.image ?? undefined} alt="" />
+          <AvatarFallback className="text-xs">
+            {getInitials(sender.name)}
+          </AvatarFallback>
+        </Avatar>
+      )}
+      <div className="min-w-0 flex-1 space-y-1.5">
+        {isContinuation ? null : (
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <span className="truncate text-sm font-semibold">
+              {sender.name}
+            </span>
+            {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
+            <time
+              dateTime={createdAtIso}
+              className="text-muted-foreground text-xs"
+              suppressHydrationWarning
+            >
+              {formattedTime}
+            </time>
+          </div>
+        )}
         <div className="text-foreground wrap-break-word text-sm leading-7">
           {isThinking ? (
             <span
@@ -330,6 +382,8 @@ export function ChatMessageRow({
               content={message.content}
               coworkersById={coworkersById}
               coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
             />
           )}
         </div>

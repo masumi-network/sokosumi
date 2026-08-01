@@ -4609,6 +4609,7 @@
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
+        "dropToAttach": "Solte arquivos para anexar",
         "emoji": "Emoji",
         "format": "Formatting",
         "bold": "Bold",

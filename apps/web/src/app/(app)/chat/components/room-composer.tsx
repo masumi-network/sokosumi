@@ -5,8 +5,10 @@ import { useTranslations } from "next-intl";
 import {
   type Dispatch,
   type FormEvent,
+  type Ref,
   type SetStateAction,
   useCallback,
+  useImperativeHandle,
   useRef,
   useState,
 } from "react";
@@ -27,25 +29,26 @@ import {
   type MentionTextareaHandle,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
-import type { ChatRoomCoworkerParticipant } from "@/lib/clients/generated/core";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
-import {
-  formatTaskAttachmentMarkdown,
-  removeTaskAttachmentLinks,
-} from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import { appendComposerBlock } from "./room-helpers";
+import type { RoomMentionParticipant } from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
-function CoworkerSuggestion({
+/** Shell drop zones call this to reuse the paperclip upload path. */
+export interface RoomComposerHandle {
+  attachFiles: (files: FileList | File[] | null) => void;
+}
+
+function RoomMentionSuggestion({
   mention,
 }: {
-  mention: NormalizedMention<ChatRoomCoworkerParticipant>;
+  mention: NormalizedMention<RoomMentionParticipant>;
 }) {
+  const isCoworker = mention.data?.kind === "coworker";
   return (
     <>
       <Avatar className="size-6">
@@ -57,7 +60,7 @@ function CoworkerSuggestion({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{mention.value}</span>
-          <AiCoworkerIcon />
+          {isCoworker ? <AiCoworkerIcon /> : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
           @{mention.slug}
@@ -68,6 +71,8 @@ function CoworkerSuggestion({
 }
 
 export function RoomComposer({
+  ref,
+  roomId,
   value,
   onValueChange,
   mentions,
@@ -81,9 +86,12 @@ export function RoomComposer({
   showMentionShortcut = true,
   allowAttachments = true,
 }: {
+  ref?: Ref<RoomComposerHandle>;
+  /** When set, attaches mint via room chat file endpoint. */
+  roomId?: string;
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
-  mentions: Record<string, MentionRecordEntry<ChatRoomCoworkerParticipant>>;
+  mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: RoomComposerAttachment[];
@@ -101,6 +109,7 @@ export function RoomComposer({
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
@@ -108,14 +117,17 @@ export function RoomComposer({
     : undefined;
 
   const handleFilesSelected = useCallback(
-    async (files: FileList | null) => {
+    async (files: FileList | File[] | null) => {
+      if (!allowAttachments) return;
+
       const selectedFiles = Array.from(files ?? []).filter(
         (file) => file.size > 0,
       );
-      if (selectedFiles.length === 0) {
+      if (selectedFiles.length === 0 || isUploadingFilesRef.current) {
         return;
       }
 
+      isUploadingFilesRef.current = true;
       setIsUploadingFiles(true);
 
       try {
@@ -132,6 +144,7 @@ export function RoomComposer({
             uploadError: tToolbar("uploadFailed"),
           },
           fallbackFileName: tToolbar("attachmentFallback"),
+          roomId,
         });
         const uploadedAttachments: RoomComposerAttachment[] = uploaded.map(
           (result) => ({
@@ -141,36 +154,37 @@ export function RoomComposer({
           }),
         );
 
-        const attachmentMarkdown = uploadedAttachments
-          .map((attachment) =>
-            formatTaskAttachmentMarkdown(attachment.fileName, attachment.url),
-          )
-          .join("");
+        // Chip-only. Markdown links are stitched into content on send.
         onAttachmentsChange((current) => [...current, ...uploadedAttachments]);
-        onValueChange((current) =>
-          appendComposerBlock(current, attachmentMarkdown),
-        );
         toast.success(
           tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
       } catch {
         // Error toast is handled by uploadComposeAttachments.
       } finally {
+        isUploadingFilesRef.current = false;
         setIsUploadingFiles(false);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
       }
     },
-    [onAttachmentsChange, onValueChange, tToolbar],
+    [allowAttachments, onAttachmentsChange, roomId, tToolbar],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      attachFiles: (files) => {
+        void handleFilesSelected(files);
+      },
+    }),
+    [handleFilesSelected],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {
     onAttachmentsChange((current) =>
       current.filter((item) => item.url !== attachment.url),
-    );
-    onValueChange((current) =>
-      removeTaskAttachmentLinks(current, [attachment.url]),
     );
     textareaRef.current?.focus();
   }
@@ -260,7 +274,7 @@ export function RoomComposer({
         // Capped so a long draft scrolls inside the composer instead of
         // growing it until the toolbar and send button leave the screen.
         className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
-        renderItem={(mention) => <CoworkerSuggestion mention={mention} />}
+        renderItem={(mention) => <RoomMentionSuggestion mention={mention} />}
       />
     </RoomMessageComposer>
   );

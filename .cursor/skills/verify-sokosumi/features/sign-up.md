@@ -30,7 +30,7 @@ Preconditions:
 
 ### Bootstrap when UI checkbox will not toggle
 
-If agent-browser cannot toggle the Radix terms checkbox (known gap: `click` / `check` / mouse down-up leave `aria-checked=false`), bootstrap the user via Better Auth then prove [Sign in](./sign-in.md) in the browser:
+Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen). If that still leaves `checked=false` / submit disabled, bootstrap the user via Better Auth then prove [Sign in](./sign-in.md) in the browser:
 
 ```bash
 curl -sS -X POST "http://localhost:8787/auth/sign-up/email" \

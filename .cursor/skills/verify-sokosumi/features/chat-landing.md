@@ -24,7 +24,7 @@ Preconditions:
 - **Open landing.** Run `agent-browser open http://localhost:3000/chat` then `agent-browser wait --load networkidle`.
 - **Confirm URL.** Run `agent-browser get url`. URL contains `/chat` and is not `/signin`.
 - **Confirm shell.** Run `agent-browser snapshot -i`. Authenticated chrome is present (welcome / composer / nav).
-- **Ably note.** If a “Something went wrong” modal appears from Ably auth failure, screenshot it and continue — landing still counts if URL and chrome prove `/chat`. Do not claim message send/receive unless Ably keys are real.
+- **Ably note.** If a “Something went wrong” error card/overlay appears from Ably auth failure, screenshot it and continue — landing still counts if URL and chrome prove `/chat`. Do not claim message send/receive unless Ably keys are real.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/chat-landing`, save snapshot, `agent-browser screenshot`, copy newest shot into that directory.
 
 ## Gotchas

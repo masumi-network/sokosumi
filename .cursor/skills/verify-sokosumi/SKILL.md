@@ -20,10 +20,12 @@ Ready when:
 
 Preconditions before launch:
 
+- Node **24.x** on `PATH` (`node -v`)
 - `pnpm install` already done
-- `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing)
+- Workspace packages built at least once (`pnpm packages:build`) — Core imports compiled `@sokosumi/utils` / `@sokosumi/database` exports
+- `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing; replace placeholders with non-empty dummies that pass Zod — see AGENTS.md cloud notes). `POSTMARK_FROM_EMAIL` must be a valid email; `HERMES_ORCH_BASE_URL` a valid URL; Ably keys any non-empty string
 - `APP_SIGNING_SECRET` (web) equals `BETTER_AUTH_SECRET` (core)
-- Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned.
+- Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned. Run `node scripts/cloud-agent-db/provision.mjs` when `NEON_API_KEY` + `NEON_PROJECT_ID` are set and `.cursor/cloud-agent-db.env` is missing
 
 ### Cursor agent session (required pattern)
 

@@ -4,6 +4,7 @@ import type { ChatStatus } from "ai";
 import { Loader2Icon, SendIcon, SquareIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type {
+  ChangeEvent,
   ComponentProps,
   HTMLAttributes,
   KeyboardEventHandler,
@@ -33,6 +34,31 @@ export type PromptInputTextareaProps = ComponentProps<typeof Textarea> & {
   resizeOnNewLinesOnly?: boolean;
 };
 
+function insertNewlineAtCursor(
+  el: HTMLTextAreaElement,
+  onChange?: (event: ChangeEvent<HTMLTextAreaElement>) => void,
+) {
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  const nextValue = `${el.value.slice(0, start)}\n${el.value.slice(end)}`;
+  const nextCaret = start + 1;
+
+  // Controlled inputs: React may ignore DOM `.value` writes, so pass the
+  // next value on the synthetic event instead of reading it back from `el`.
+  const valueTarget = { value: nextValue } as HTMLTextAreaElement;
+  onChange?.({
+    target: valueTarget,
+    currentTarget: valueTarget,
+  } as ChangeEvent<HTMLTextAreaElement>);
+
+  // Restore caret after React commits the controlled update when possible.
+  requestAnimationFrame(() => {
+    if (el.value === nextValue) {
+      el.setSelectionRange(nextCaret, nextCaret);
+    }
+  });
+}
+
 export const PromptInputTextarea = ({
   allowEnterToSubmitOnMobile = true,
   onChange,
@@ -53,7 +79,15 @@ export const PromptInputTextarea = ({
         return;
       }
 
+      // Shift+Enter: browser default inserts a newline.
       if (e.shiftKey) {
+        return;
+      }
+
+      // Cmd/Ctrl+Enter: browsers do not insert a newline by default.
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        insertNewlineAtCursor(e.currentTarget, onChange);
         return;
       }
 
@@ -95,9 +129,9 @@ export const PromptInputTextarea = ({
       )}
       name="message"
       onChange={onChange}
-      onKeyDown={handleKeyDown}
       placeholder={resolvedPlaceholder}
       {...props}
+      onKeyDown={handleKeyDown}
     />
   );
 };

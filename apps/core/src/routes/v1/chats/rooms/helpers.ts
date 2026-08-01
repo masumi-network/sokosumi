@@ -615,6 +615,33 @@ export async function requireChatRoomUserMembership(
   return room;
 }
 
+/**
+ * Coworker membership for active (non-archived) rooms. Mirrors the inline gate
+ * on coworker message POST. Returns 404 when missing or archived.
+ */
+export async function requireChatRoomCoworkerAccess(
+  roomId: string,
+  coworkerId: string,
+  tx: Prisma.TransactionClient,
+): Promise<{ id: string }> {
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      archivedAt: null,
+      coworkerMembers: {
+        some: { coworkerId },
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
+
+  return room;
+}
+
 export async function validateOrganizationUserIds(
   organizationId: string,
   userIds: readonly string[],
@@ -722,4 +749,53 @@ export function resolveMentionedCoworkerIds(params: {
 
   const allowedIds = new Set(params.roomCoworkers.map(({ id }) => id));
   return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
+}
+
+/**
+ * Resolve human @mentions for a room message. Candidates must already be room
+ * members. The author is always excluded. Unlike coworkers, these IDs do not
+ * create ChatRoomMention rows or trigger AI dispatch — they address humans via
+ * content tokens only (v1 has no notify surface).
+ */
+export function resolveMentionedUserIds(params: {
+  content: string;
+  explicitUserIds?: readonly string[];
+  roomUsers: Array<{ id: string; name: string }>;
+  excludeUserId?: string | null;
+}): string[] {
+  const excluded = params.excludeUserId ?? null;
+  const roomUserIds = new Set(
+    params.roomUsers.map((user) => user.id).filter((id) => id !== excluded),
+  );
+  const mentionedIds = new Set(
+    normalizeUniqueStrings(params.explicitUserIds ?? []).filter((id) =>
+      roomUserIds.has(id),
+    ),
+  );
+
+  const idTokenRegex = /@([^\s:]+):([^\s]+)/g;
+  for (const match of params.content.matchAll(idTokenRegex)) {
+    const id = match[1];
+    if (id && roomUserIds.has(id)) {
+      mentionedIds.add(id);
+    }
+  }
+
+  for (const user of params.roomUsers) {
+    if (user.id === excluded) {
+      continue;
+    }
+    const aliases = new Set([slugifyRoomName(user.name)]);
+    for (const alias of aliases) {
+      const aliasRegex = new RegExp(
+        `(^|\\s)@${escapeRegExp(alias)}(?=$|[\\s.,!?;:])`,
+        "i",
+      );
+      if (aliasRegex.test(params.content)) {
+        mentionedIds.add(user.id);
+      }
+    }
+  }
+
+  return [...mentionedIds].filter((userId) => roomUserIds.has(userId));
 }

@@ -29,6 +29,15 @@ export {
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "./chat-presence-windows.js";
 export {
+  buildCoworkerChatRoomFilePathname,
+  buildCoworkerChatRoomFilePrefix,
+  buildUserChatRoomFilePathname,
+  buildUserChatRoomFilePrefix,
+  CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  isOwnedCoworkerChatRoomFileUrl,
+  isOwnedUserChatRoomFileUrl,
+} from "./chat-room-file-upload.js";
+export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,
   isChatUiProviderReasoningPartType,
