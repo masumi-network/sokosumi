@@ -24,6 +24,11 @@ vi.mock("remark-breaks", () => ({
   default: () => null,
 }));
 
+vi.mock("remark-emoji", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 vi.mock("react-markdown", () => ({
   __esModule: true,
   default: ({
