@@ -4863,6 +4863,9 @@
         "completed": "{coworkerName}が{taskName}を完了しました",
         "failed": "{coworkerName}は{taskName}を完了できませんでした",
         "canceled": "{taskName}はキャンセルされました"
+      },
+      "Chat": {
+        "mentioned": "{authorName}が{roomName}であなたにメンションしました"
       }
     }
   },

@@ -4863,6 +4863,9 @@
         "completed": "{coworkerName} a terminé {taskName}",
         "failed": "{coworkerName} n'a pas pu terminer {taskName}",
         "canceled": "{taskName} a été annulé"
+      },
+      "Chat": {
+        "mentioned": "{authorName} vous a mentionné dans {roomName}"
       }
     }
   },

@@ -32,4 +32,64 @@ describe("getNotificationHref", () => {
       }),
     ).toBe("/tasks/task-1");
   });
+
+  it("deep-links SYSTEM chat mention notifications to the room", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "room-1",
+        metadata: { roomId: "room-1", messageId: "msg-1" },
+      }),
+    ).toBe("/chat/rooms/room-1");
+  });
+
+  it("encodes roomId in SYSTEM chat mention deep links", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "room/with spaces",
+        metadata: { roomId: "room/with spaces" },
+      }),
+    ).toBe("/chat/rooms/room%2Fwith%20spaces");
+  });
+
+  it("deep-links BILLING notifications with roomId to the room", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "room-2",
+        metadata: { roomId: "room-2" },
+      }),
+    ).toBe("/chat/rooms/room-2");
+  });
+
+  it("falls back to home for SYSTEM notifications without roomId", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "grant-1",
+        metadata: { vendorGrantId: "grant-1" },
+      }),
+    ).toBe("/");
+  });
+
+  it("falls back to home for SYSTEM when roomId is empty", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "room-1",
+        metadata: { roomId: "" },
+      }),
+    ).toBe("/");
+  });
+
+  it("falls back to home for BILLING without roomId", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "invoice-1",
+        metadata: null,
+      }),
+    ).toBe("/");
+  });
 });
