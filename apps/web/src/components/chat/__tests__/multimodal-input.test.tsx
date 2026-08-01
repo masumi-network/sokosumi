@@ -2,7 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { type UIMessage } from "ai";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import {
+  composeDraftKey,
+  setComposeDraft,
+} from "@/app/chat/utils/compose-draft-storage";
 import type {
   ChatComposeMessage,
   ChatComposeSubmitOptions,
@@ -235,5 +238,24 @@ describe("MultimodalInput", () => {
         imageGeneration: true,
       }),
     );
+  });
+
+  it("hydrates welcome draft from localStorage and clears it on successful send", async () => {
+    setComposeDraft(composeDraftKey.welcome(), {
+      text: "restored draft",
+      attachments: [],
+    });
+
+    const onSendMessage = vi.fn().mockResolvedValue(true);
+    render(<WelcomeMultimodalInput onSendMessage={onSendMessage} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveValue("restored draft");
+    });
+
+    fireEvent.click(screen.getByTestId("send-button"));
+
+    await waitFor(() => expect(onSendMessage).toHaveBeenCalledTimes(1));
+    expect(window.localStorage.getItem(composeDraftKey.welcome())).toBeNull();
   });
 });

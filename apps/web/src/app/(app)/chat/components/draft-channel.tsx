@@ -12,6 +12,11 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { sendNewChannelMessageAction } from "@/app/chat/actions";
+import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
+import {
+  type ComposeDraft,
+  composeDraftKey,
+} from "@/app/chat/utils/compose-draft-storage";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -67,6 +72,31 @@ export function DraftChannel({
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [isCreating, startCreatingTransition] = useTransition();
+  const composeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: composerValue,
+      attachments: composerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [composerValue, composerAttachments],
+  );
+  const { clearDraft } = usePersistComposeDraft({
+    key: composeDraftKey.draftChannel(),
+    draft: composeDraft,
+    onHydrate: (draft) => {
+      setComposerValue(draft.text);
+      setComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
   const targets = useMemo(
     () => buildDirectDraftTargets(members, coworkers, currentUserId),
     [members, coworkers, currentUserId],
@@ -182,6 +212,7 @@ export function DraftChannel({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
+      clearDraft();
       notifyOrganizationChatRoomsChanged(result.data.room);
       router.replace(`/chat/rooms/${result.data.room.id}`);
     });

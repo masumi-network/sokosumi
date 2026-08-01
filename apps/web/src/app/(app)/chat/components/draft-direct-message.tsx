@@ -15,6 +15,11 @@ import {
   ensureCoworkerDirectRoomAction,
   sendNewDirectMessageAction,
 } from "@/app/chat/actions";
+import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
+import {
+  type ComposeDraft,
+  composeDraftKey,
+} from "@/app/chat/utils/compose-draft-storage";
 import { stashPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -71,6 +76,31 @@ export function DraftDirectMessage({
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [isSending, startSendingTransition] = useTransition();
+  const composeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: composerValue,
+      attachments: composerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [composerValue, composerAttachments],
+  );
+  const { clearDraft } = usePersistComposeDraft({
+    key: composeDraftKey.draftDm(),
+    draft: composeDraft,
+    onHydrate: (draft) => {
+      setComposerValue(draft.text);
+      setComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
   const targets = useMemo(
     () => buildDirectDraftTargets(members, coworkers, currentUserId),
     [members, coworkers, currentUserId],
@@ -180,6 +210,7 @@ export function DraftDirectMessage({
         setComposerValue("");
         setComposerAttachments([]);
         setMentionedIds([]);
+        clearDraft();
         notifyOrganizationChatRoomsChanged(roomResult.data);
         router.replace(`/chat/rooms/${roomResult.data.id}`);
       });
@@ -217,6 +248,7 @@ export function DraftDirectMessage({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
+      clearDraft();
       notifyOrganizationChatRoomsChanged(result.data.room);
       router.replace(`/chat/rooms/${result.data.room.id}`);
     });
