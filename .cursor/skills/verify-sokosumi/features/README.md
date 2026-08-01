@@ -9,6 +9,7 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
 - Export `AGENT_BROWSER_SESSION_NAME=sokosumi`.
 - Prefer fixture `alice@sokosumi.test` / `Password123!` on cloud-agent Neon branches; otherwise create a disposable user (see [Sign up](./sign-up.md)).
 - Use **`localhost`**, not `127.0.0.1`, for browser URLs (Better Auth origin/cookies).
+- Confirm `BETTER_AUTH_COOKIE_DOMAIN` is unset in `apps/core/.env` before login; `doctor` fails when it is set.
 - Never drive an instance that was not started by this verification run.
 - Put proof under `.cursor/verify-sokosumi-artifacts/<feature-id>/` (gitignored). Cleanup must keep those files.
 
@@ -16,9 +17,10 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
 
 - Start every recipe from the baseline state unless its preconditions say otherwise.
 - Prefer `data-testid` and accessible names over CSS position or coordinates.
-- Sign-in: fill email/password, then `agent-browser press Enter` (do not click submit).
+- Sign-in: fill email/password testids only, then `agent-browser press Enter` (do not click submit or OAuth/passkey/magic-link).
 - Re-snapshot after navigation (`agent-browser snapshot -i`).
 - Treat Ably/chat realtime failures as environment gaps unless the feature under test is chat messaging.
+- Prefer `agent-browser`. Cloud Agent computer-use is allowed with the same rules when the CLI harness is unavailable.
 
 ## Proof and skip reporting
 
