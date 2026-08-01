@@ -42,6 +42,8 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
+import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomUserParticipant,
@@ -255,8 +257,11 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  /** Slack Aa toggle: formatting strip above the editor. Starts open by default. */
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
+  /**
+   * Slack Aa toggle: formatting strip above the editor.
+   * SSR + first paint start closed (hydration-safe). Desktop opens once on mount.
+   */
+  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
@@ -266,6 +271,13 @@ export function RoomComposer({
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
     : undefined;
+
+  // Desktop default open (SOK-681); mobile stays closed. No resize re-apply.
+  useMountEffect(() => {
+    if (window.innerWidth >= MOBILE_BREAKPOINT) {
+      setFormatToolbarOpen(true);
+    }
+  });
 
   // After paint so the format strip / quote chip have height before scroll.
   useEffect(() => {
