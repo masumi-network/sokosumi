@@ -5,9 +5,31 @@ import {
 } from "../chat-room-quote-snippet";
 
 describe("buildQuoteSnippet", () => {
-  it("strips light markdown and collapses whitespace", () => {
+  it("strips light markdown and collapses horizontal whitespace", () => {
     expect(buildQuoteSnippet("**hello**  [link](https://x.test)  world")).toBe(
       "hello link world",
+    );
+  });
+
+  it("preserves newlines from the original message", () => {
+    expect(
+      buildQuoteSnippet(
+        "Two more things about the chat here:\nCan you please add @all:all tagging.",
+      ),
+    ).toBe(
+      "Two more things about the chat here:\nCan you please add @all:all tagging.",
+    );
+  });
+
+  it("collapses spaces and tabs on a line without joining paragraphs", () => {
+    expect(buildQuoteSnippet("hello \t  world\n\nnext")).toBe(
+      "hello world\n\nnext",
+    );
+  });
+
+  it("leaves mention tokens intact for the render layer", () => {
+    expect(buildQuoteSnippet("ping @user-1:alice and @all:all")).toBe(
+      "ping @user-1:alice and @all:all",
     );
   });
 
