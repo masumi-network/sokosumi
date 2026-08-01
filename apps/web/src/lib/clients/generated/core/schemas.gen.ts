@@ -5081,6 +5081,13 @@ export const CreateChatRoomMessageRequestSchema = {
                 'messageId'
             ],
             description: 'Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.'
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128,
+            description: 'Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).',
+            example: '019fbee7-676b-771f-ab7a-998f25f1f16b'
         }
     },
     required: [

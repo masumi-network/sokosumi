@@ -344,6 +344,11 @@ export async function sendRoomMessageAction(
     parentMessageId?: string;
     /** Same-room quote target; does not set parentMessageId. */
     quote?: { messageId: string };
+    /**
+     * Opaque client turn id. Retries of the same send reuse this so Core
+     * creates at most one row (unique on roomId + clientMessageId).
+     */
+    clientMessageId?: string;
   },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
@@ -361,6 +366,9 @@ export async function sendRoomMessageAction(
       }),
       ...(options?.quote?.messageId && {
         quote: { messageId: options.quote.messageId },
+      }),
+      ...(options?.clientMessageId && {
+        clientMessageId: options.clientMessageId,
       }),
     });
     // No revalidatePath: client appends/merges the returned message. Revalidating
