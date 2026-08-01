@@ -665,6 +665,46 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(messageCreateMock).toHaveBeenCalledTimes(1);
       expect(dispatchMock).toHaveBeenCalledTimes(1);
     });
+
+    it("returns the raced message when create hits clientMessageId unique (P2002)", async () => {
+      const existing = createdMessage({ senderUserId: USER_ID });
+
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      // Soft-find miss in the aborted tx, then root re-read after P2002.
+      messageFindUniqueMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existing);
+      messageCreateMock.mockRejectedValue({
+        code: "P2002",
+        meta: { target: ["roomId", "clientMessageId"] },
+      });
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "hello once",
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.id).toBe(MESSAGE_ID);
+      expect(messageCreateMock).toHaveBeenCalledTimes(1);
+      expect(dispatchMock).not.toHaveBeenCalled();
+      expect(messageFindUniqueMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            roomId_clientMessageId: {
+              roomId: ROOM_ID,
+              clientMessageId: CLIENT_MESSAGE_ID,
+            },
+          },
+        }),
+      );
+    });
   });
 
   describe("quote", () => {

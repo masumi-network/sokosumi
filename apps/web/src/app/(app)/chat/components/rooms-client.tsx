@@ -1057,8 +1057,15 @@ export function RoomsClient({
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(mentionedIds);
     const sentChannelDraftKey = composeDraftKey.room(roomId);
+    const composerSnapshot = {
+      value: composerValue,
+      attachments: composerAttachments,
+      mentionedIds,
+      pendingQuote,
+    };
 
-    // Clear before await (match stream path). Failed send leaves composer empty.
+    // Clear before await so a second Enter cannot resubmit the same draft.
+    // Restore snapshot if the POST fails while this room is still selected.
     setComposerValue("");
     setComposerAttachments([]);
     setMentionedIds([]);
@@ -1079,6 +1086,12 @@ export function RoomsClient({
         );
         if (!result.ok) {
           toast.error(result.message);
+          if (isStillSelectedRoom(roomId)) {
+            setComposerValue(composerSnapshot.value);
+            setComposerAttachments(composerSnapshot.attachments);
+            setMentionedIds(composerSnapshot.mentionedIds);
+            setPendingQuote(composerSnapshot.pendingQuote);
+          }
           return;
         }
         clearComposeDraft(sentChannelDraftKey);
@@ -1127,8 +1140,15 @@ export function RoomsClient({
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(threadMentionedIds);
     const sentThreadDraftKey = composeDraftKey.thread(roomId, parentMessageId);
+    const threadComposerSnapshot = {
+      value: threadComposerValue,
+      attachments: threadComposerAttachments,
+      mentionedIds: threadMentionedIds,
+      pendingQuote: pendingThreadQuote,
+    };
 
-    // Clear before await (match stream path). Failed send leaves composer empty.
+    // Clear before await so a second Enter cannot resubmit the same draft.
+    // Restore snapshot if the POST fails while this room is still selected.
     setThreadComposerValue("");
     setThreadComposerAttachments([]);
     setThreadMentionedIds([]);
@@ -1150,6 +1170,12 @@ export function RoomsClient({
         );
         if (!result.ok) {
           toast.error(result.message);
+          if (isStillSelectedRoom(roomId)) {
+            setThreadComposerValue(threadComposerSnapshot.value);
+            setThreadComposerAttachments(threadComposerSnapshot.attachments);
+            setThreadMentionedIds(threadComposerSnapshot.mentionedIds);
+            setPendingThreadQuote(threadComposerSnapshot.pendingQuote);
+          }
           return;
         }
         clearComposeDraft(sentThreadDraftKey);
