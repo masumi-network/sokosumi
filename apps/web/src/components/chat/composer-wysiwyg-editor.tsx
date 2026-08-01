@@ -766,6 +766,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
     // Capture-phase listener: contentEditable arrow keys are more reliable
     // here than React's delegated onKeyDown alone.
     function onNativeKeyDown(event: KeyboardEvent) {
+      const currentEditor = editorRef.current;
+      if (!currentEditor) return;
       if (event.defaultPrevented || event.isComposing) return;
       if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) {
         return;
@@ -773,7 +775,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
 
       const exited = tryExitComposerInlineFormatOnArrow(
-        editor,
+        currentEditor,
         event.key === "ArrowLeft" ? "left" : "right",
       );
       if (!exited) return;
