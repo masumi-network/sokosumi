@@ -1,8 +1,8 @@
 import { isVercelBlobPublicHost } from "./entity-image-upload.js";
 
 /**
- * Blob path prefix used by Core when uploading DESIGN.md content
- * (`STORAGE.DESIGN_MD_UPLOAD_DIR` in apps/core).
+ * Blob path prefix for DESIGN.md URLs under Vercel Blob.
+ * Matches the `design-md/` root used by `design-md-path` builders.
  */
 export const DESIGN_MD_BLOB_PATH_PREFIX = "/design-md/";
 
