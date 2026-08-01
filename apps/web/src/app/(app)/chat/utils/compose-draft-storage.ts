@@ -148,7 +148,7 @@ export function setComposeDraft(key: string, draft: ComposeDraft): void {
       }),
     );
   } catch {
-    // Quota / private mode — compose must keep working.
+    // Best-effort: quota / private mode must not break compose.
   }
 }
 
