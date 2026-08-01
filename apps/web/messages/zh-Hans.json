@@ -783,7 +783,15 @@
       "title": "图片",
       "viewImage": "查看图片 {fileName}",
       "download": "下载图片",
-      "close": "关闭"
+      "close": "关闭",
+      "print": "打印",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "zoomReset": "重置缩放",
+      "more": "更多选项",
+      "openInNewTab": "在新标签页中打开",
+      "copyImage": "复制图片",
+      "copyImageSuccess": "图片已复制"
     }
   },
   "Join": {

@@ -783,7 +783,15 @@
       "title": "画像",
       "viewImage": "画像を表示 {fileName}",
       "download": "画像をダウンロード",
-      "close": "閉じる"
+      "close": "閉じる",
+      "print": "印刷",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomReset": "ズームをリセット",
+      "more": "その他のオプション",
+      "openInNewTab": "新しいタブで開く",
+      "copyImage": "画像をコピー",
+      "copyImageSuccess": "画像をコピーしました"
     }
   },
   "Join": {
